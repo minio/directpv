@@ -1,15 +1,32 @@
+// This file is part of MinIO Kubernetes Cloud
+// Copyright (c) 2020 MinIO, Inc.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package identity
 
 import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	//"github.com/golang/glog"
 )
 
-func Run(ident, version string, manifest map[string]string) (csi.IdentityServer, error) {
+
+func NewIdentityServer(ident, version string, manifest map[string]string) (csi.IdentityServer, error) {
 	return &IdentityServer{
 		Identity: ident,
 		Version:  version,
@@ -43,5 +60,24 @@ func (i *IdentityServer) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi
 }
 
 func (i *IdentityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
-	return nil, nil
+	serviceCap := func(cap csi.PluginCapability_Service_Type) *csi.PluginCapability {
+		glog.V(5).Infof("Using plugin capability %v", cap)
+		
+		return &csi.PluginCapability{
+			Type: &csi.PluginCapability_Service_{
+				Service: &csi.PluginCapability_Service{
+					Type: cap,
+				},
+			},
+		}
+	}
+
+	caps := []*csi.PluginCapability{
+		serviceCap(csi.PluginCapability_Service_CONTROLLER_SERVICE),
+		serviceCap(csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS),
+	}
+	
+	return &csi.GetPluginCapabilitiesResponse{
+		Capabilities: caps,
+	}, nil
 }
