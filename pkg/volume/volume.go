@@ -19,14 +19,19 @@ package volume
 import (
 	"context"
 	"os"
-	
-	"k8s.io/apimachinery/pkg/types"
-	"google.golang.org/grpc/status"
+
+	"github.com/golang/glog"
+
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/mount"
 )
 
 func GetVolume(ctx context.Context, vID string) (*Volume, error) {
-	v := &Volume{}
+	v := &Volume{
+		VolumeID: vID,
+	}
 	err := vClient.Get(ctx, types.NamespacedName{
 		Name:      vID,
 		Namespace: "",
@@ -61,25 +66,27 @@ func (v *Volume) IsBlockAccessible() bool {
 
 func (v *Volume) IsMountAccessible() bool {
 	vSource := v.VolumeSource.VolumeSourceType
-	if vSource == VolumeSourceTypeDirectory || vSource == VolumeSourceTypeBlockDevice {
+	if vSource == VolumeSourceTypeDirectory ||
+		vSource == VolumeSourceTypeBlockDevice {
 		return true
 	}
 	return false
 }
 
 // Bind binds the volume to a symlink and presents it as a block device
-// inside the container. All access modes are only enforced while provisioning. 
+// inside the container. All access modes are only enforced while provisioning.
 // It is assumed that the container will honor these privileges in good faith
-func (v *Volume) Bind(targetPath string, readOnly bool, volContext map[string]string) error {
+func (v *Volume) Bind(ctx context.Context, targetPath string, readOnly bool, volContext map[string]string) error {
 	if !v.IsBlockAccessible() {
 		return status.Error(codes.FailedPrecondition, "volume does not have block access capability")
 	}
 	if len(v.MountAccess) != 0 {
-			return status.Error(codes.FailedPrecondition, "volume capability does not allow provisioning as block device")
+		return status.Error(codes.FailedPrecondition, "volume capability does not allow provisioning as block device")
 	}
-	
+
 	if len(v.BlockAccess) != 0 {
-		if v.VolumeAccessMode == VolumeAccessModeSingleNodeWriter || v.VolumeAccessMode == VolumeAccessModeSingleNodeReadOnly {
+		if v.VolumeAccessMode == VolumeAccessModeSingleNodeWriter ||
+			v.VolumeAccessMode == VolumeAccessModeSingleNodeReadOnly {
 			return status.Error(codes.FailedPrecondition, "volume capability does not allow provisioning for different nodes")
 		}
 
@@ -96,7 +103,7 @@ func (v *Volume) Bind(targetPath string, readOnly bool, volContext map[string]st
 					break
 				}
 			}
-			
+
 			if singleWriterFound && !readOnly {
 				return status.Error(codes.FailedPrecondition, "volume capability does not allow provisioning with RW access")
 			}
@@ -107,10 +114,172 @@ func (v *Volume) Bind(targetPath string, readOnly bool, volContext map[string]st
 		return status.Error(codes.Internal, err.Error())
 	}
 
+	access := AccessRW
+	if readOnly {
+		access = AccessRO
+	}
+
+	deviceID, _, err := mount.GetDeviceNameFromMount(mount.New(""), v.VolumeSource.VolumeSourcePath)
+	if err != nil {
+		glog.Errorf("could not get deviceID: %v", err)
+		deviceID = v.VolumeSource.VolumeSourcePath
+	}
+	v.BlockAccess = append(v.BlockAccess, BlockAccessType{
+		Device: deviceID,
+		Link:   targetPath,
+		Access: access,
+	})
+
+	return vClient.Update(ctx, v)
+}
+
+func (v *Volume) Mount(ctx context.Context, targetPath string, fsType string, mountFlags []string, readOnly bool, volContext map[string]string) error {
+	if !v.IsMountAccessible() {
+		return status.Error(codes.FailedPrecondition, "volume does not have mount access capability")
+	}
+
+	if len(v.BlockAccess) != 0 {
+		return status.Error(codes.FailedPrecondition, "volume capability does not allow provisioning as mounted directory")
+	}
+
+	if len(v.MountAccess) != 0 {
+		if v.VolumeAccessMode == VolumeAccessModeSingleNodeWriter ||
+			v.VolumeAccessMode == VolumeAccessModeSingleNodeReadOnly {
+			return status.Error(codes.FailedPrecondition, "volume capability does not allow provisioning for different nodes")
+		}
+
+		if v.VolumeAccessMode == VolumeAccessModeMultiNodeReadOnly {
+			if !readOnly {
+				return status.Error(codes.FailedPrecondition, "volume capability does not allow provisioning with RW access")
+			}
+		}
+
+		if v.VolumeAccessMode == VolumeAccessModeMultiNodeSingleWriter {
+			singleWriterFound := false
+
+			for _, b := range v.MountAccess {
+				if b.Access == AccessRW {
+					singleWriterFound = true
+					break
+				}
+			}
+
+			if singleWriterFound && !readOnly {
+				return status.Error(codes.FailedPrecondition, "volume capability does not allow provisioning with RW access")
+			}
+		}
+	}
+
+	options := []string{"bind"}
+	access := AccessRW
+
+	if readOnly {
+		access = AccessRO
+		options = append(options, "ro")
+	}
+
+	for _, f := range mountFlags {
+		options = append(options, f)
+	}
+
+	mounter := mount.New("")
+	notMount, err := mount.IsNotMountPoint(mounter, targetPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return status.Errorf(codes.Internal, "error checking path %s for mount: %s", targetPath, err)
+		}
+		notMount = true
+	}
+	if !notMount {
+		glog.V(5).Infof("Skipping bind-mounting subpath %s: already mounted", targetPath)
+		return nil
+	}
+
+	if err := mounter.Mount(v.VolumeSource.VolumeSourcePath, targetPath, fsType, options); err != nil {
+		return err
+	}
+
+	v.MountAccess = append(v.MountAccess, MountAccessType{
+		FsType: FsType(fsType),
+		MountFlags: func() []MountFlag {
+			mf := make([]MountFlag, len(mountFlags))
+			for _, m := range mountFlags {
+				mf = append(mf, MountFlag(m))
+			}
+			return mf
+		}(),
+		MountPoint: targetPath,
+		Access:     access,
+	})
+
+	return vClient.Update(ctx, v)
+}
+
+func (v *Volume) UnpublishVolume(ctx context.Context, targetPath string) error {
+	for i, b := range v.BlockAccess {
+		if b.Link == targetPath {
+			if err := os.Remove(b.Link); err != nil {
+				return err
+			}
+			v.BlockAccess = append(v.BlockAccess[:i], v.BlockAccess[i+1:]...)
+			return vClient.Update(ctx, v)
+		}
+	}
+
+	for i, m := range v.MountAccess {
+		if m.MountPoint == targetPath {
+			// Unmount only if the target path is really a mount point.
+			if notMnt, err := mount.IsNotMountPoint(mount.New(""), targetPath); err != nil {
+				if !os.IsNotExist(err) {
+					return status.Error(codes.Internal, err.Error())
+				}
+			} else if !notMnt {
+				// Unmounting the image or filesystem.
+				err = mount.New("").Unmount(targetPath)
+				if err != nil {
+					return status.Error(codes.Internal, err.Error())
+				}
+			}
+			v.MountAccess = append(v.MountAccess[:i], v.MountAccess[i+1:]...)
+			return vClient.Update(ctx, v)
+		}
+	}
 	return nil
 }
 
+func (v *Volume) StageVolume(volumeID, stagePath string) error {
+	if v.StagingPath != "" {
+		if v.StagingPath != stagePath {
+			return status.Error(codes.FailedPrecondition, "volume staging path does not match old staging path")
+		}
+		return nil
+	}
 
-func (v *Volume) Mount(targetPath string, fs string, mountFlags []string, readOnly bool, volContext map[string]string) error {
+	dir, err := Provision(volumeID)
+	if err != nil {
+		return err
+	}
+
+	if err := mount.New("").Mount(dir, stagePath, "", []string{"bind"}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (v *Volume) UnstageVolume(volumeID, stagePath string) error {
+	// Unmount only if the target path is really a mount point.
+	if notMnt, err := mount.IsNotMountPoint(mount.New(""), stagePath); err != nil {
+		if !os.IsNotExist(err) {
+			return status.Error(codes.Internal, err.Error())
+		}
+	} else if !notMnt {
+		// Unmounting the image or filesystem.
+		err = mount.New("").Unmount(stagePath)
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+
 	return nil
 }

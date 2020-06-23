@@ -17,8 +17,14 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+	
 	id "github.com/minio/jbod-csi-driver/pkg/identity"
 	"github.com/minio/jbod-csi-driver/pkg/node"
+	"github.com/minio/jbod-csi-driver/pkg/volume"
+
+	"github.com/minio/minio/pkg/ellipses"
 )
 
 func driver(args []string) error {
@@ -27,13 +33,31 @@ func driver(args []string) error {
 		return err
 	}
 
+	if len(args) == 0 {
+		return fmt.Errorf("no base paths provided for jbods")
+	}
+
+	basePaths := []string{}
+	for _, a := range args {
+		if ellipses.HasEllipses(a) {
+			p, _ := ellipses.FindEllipsesPatterns(a)
+			patterns := p.Expand()
+			for _, outer := range patterns {
+				basePaths = append(basePaths, strings.Join(outer, ""))
+			}
+		} else {
+			basePaths = append(basePaths, a)
+		}
+	}
+	volume.Initialize(basePaths)
+	
 	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region)
 	if err != nil {
 		return err
 	}
-	
+
 	_ = idServer
 	_ = node
-	
+
 	return nil
 }

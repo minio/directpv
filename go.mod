@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	cloud.google.com/go v0.46.3
-	github.com/Azure/go-autorest v11.1.0+incompatible
+	github.com/Azure/go-autorest v11.7.1+incompatible
 	github.com/container-storage-interface/spec v1.3.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -12,7 +12,7 @@ require (
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-	github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef
+	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6
 	github.com/golang/protobuf v1.3.3
 	github.com/google/addlicense v0.0.0-20200422172452-68a83edd47bc // indirect
 	github.com/google/btree v1.0.0
@@ -22,7 +22,8 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/imdario/mergo v0.3.6
-	github.com/json-iterator/go v1.1.8
+	github.com/json-iterator/go v1.1.10
+	github.com/minio/minio v0.0.0-20200622032605-a521907ab497
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 	github.com/modern-go/reflect2 v1.0.1
 	github.com/peterbourgon/diskv v2.0.1+incompatible
@@ -30,12 +31,12 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.0
-	github.com/stretchr/testify v1.4.0
-	golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
-	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
+	github.com/stretchr/testify v1.5.1
+	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
+	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a // indirect
-	golang.org/x/sys v0.0.0-20191022100944-742c48ecaeb7
+	golang.org/x/sys v0.0.0-20200610111108-226ff32320da
 	golang.org/x/text v0.3.2
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/grpc v1.29.1

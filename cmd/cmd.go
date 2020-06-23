@@ -56,7 +56,6 @@ A bunch of drives can be representing using glob notation. For eg.
 The driver carves out a unique volume for a particular container from this path by creating a sub-directory. The volume is identified by the subdirectory name. It employs a simple round-robin approach to provisioning from each of the drives given to it.
 `,
 	SilenceUsage:  true,
-	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
 		return driver(args)
 	},

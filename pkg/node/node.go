@@ -24,8 +24,8 @@ import (
 	"github.com/minio/jbod-csi-driver/pkg/topology"
 	"github.com/minio/jbod-csi-driver/pkg/volume"
 
-	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const MaxVolumes = 10000
@@ -81,7 +81,7 @@ func (n *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
-			nodeCap(csi.NodeServiceCapability_RPC_VOLUME_CONDITION),
+			//			nodeCap(csi.NodeServiceCapability_RPC_VOLUME_CONDITION),
 			nodeCap(csi.NodeServiceCapability_RPC_GET_VOLUME_STATS),
 			nodeCap(csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME),
 		},
@@ -133,7 +133,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 			return nil, status.Error(codes.InvalidArgument, "volume does not support block access")
 		}
 
-		if err := vol.Bind(targetPath, ro, vCtx); err != nil {
+		if err := vol.Bind(ctx, targetPath, ro, vCtx); err != nil {
 			if _, ok := status.FromError(err); ok {
 				return nil, err
 			}
@@ -150,7 +150,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		fs := vMount.GetFsType()
 		flags := vMount.GetMountFlags()
 
-		if err := vol.Mount(targetPath, fs, flags, ro, vCtx); err != nil {
+		if err := vol.Mount(ctx, targetPath, fs, flags, ro, vCtx); err != nil {
 			if _, ok := status.FromError(err); ok {
 				return nil, err
 			}
@@ -159,4 +159,72 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		glog.V(5).Infof("published mount access request for volume %s successfully", vID)
 	}
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	vID := req.GetVolumeId()
+	targetPath := req.GetTargetPath()
+
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+
+	vol, err := volume.GetVolume(ctx, vID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	if err := vol.UnpublishVolume(ctx, targetPath); err != nil {
+		if _, ok := status.FromError(err); ok {
+			return nil, err
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
+
+func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	vID := req.GetVolumeId()
+	stagingTargetPath := req.GetStagingTargetPath()
+
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+
+	vol, err := volume.GetVolume(ctx, vID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	err = vol.StageVolume(vID, stagingTargetPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Stage Volume Failed: %v", err)
+	}
+
+	return &csi.NodeStageVolumeResponse{}, nil
+}
+
+func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	vID := req.GetVolumeId()
+	stagingTargetPath := req.GetStagingTargetPath()
+
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+
+	vol, err := volume.GetVolume(ctx, vID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	if err := vol.UnstageVolume(vID, stagingTargetPath); err != nil {
+		return nil, status.Errorf(codes.Internal, "Unstage Volume failed: %v", err)
+	}
+	
+	return &csi.NodeUnstageVolumeResponse{}, nil
+}
+
+func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, in *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
