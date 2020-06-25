@@ -14,7 +14,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6
 	github.com/golang/protobuf v1.3.3
-	github.com/google/addlicense v0.0.0-20200422172452-68a83edd47bc // indirect
+	github.com/google/addlicense v0.0.0-20200622132530-df58acafd6d5 // indirect
 	github.com/google/btree v1.0.0
 	github.com/google/gofuzz v1.1.0
 	github.com/googleapis/gnostic v0.3.1
