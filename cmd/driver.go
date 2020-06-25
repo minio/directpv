@@ -20,14 +20,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/minio/jbod-csi-driver/pkg/controller"
 	id "github.com/minio/jbod-csi-driver/pkg/identity"
 	"github.com/minio/jbod-csi-driver/pkg/node"
 	"github.com/minio/jbod-csi-driver/pkg/volume"
-	"github.com/minio/jbod-csi-driver/pkg/controller"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 
-	"github.com/minio/minio/pkg/ellipses"
 	"github.com/golang/glog"
+	"github.com/minio/minio/pkg/ellipses"
 )
 
 func driver(args []string) error {
@@ -53,7 +53,8 @@ func driver(args []string) error {
 			basePaths = append(basePaths, a)
 		}
 	}
-	volume.Initialize(basePaths)
+	volume.InitializeFactory(basePaths)
+	volume.InitializeClient()
 
 	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region)
 	if err != nil {

@@ -55,7 +55,7 @@ var (
 	AddToScheme   = SchemeBuilder.AddToScheme
 )
 
-func init() {
+func InitializeClient() {
 	// Register Volume
 	SchemeBuilder.Register(&Volume{}, &VolumeList{})
 	clientgoscheme.AddToScheme(sc)

@@ -29,7 +29,7 @@ type vFactory struct {
 	LastAssigned int
 }
 
-func Initialize(paths []string) {
+func InitializeFactory(paths []string) {
 	vf.Paths = paths
 }
 
