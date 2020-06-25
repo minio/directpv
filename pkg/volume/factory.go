@@ -26,5 +26,6 @@ func Provision(volumeID string) (string, error) {
 		return "", err
 	}
 	vf.LastAssigned = next
+
 	return filepath.Join(nextPath, volumeID), nil
 }

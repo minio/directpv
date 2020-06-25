@@ -19,12 +19,15 @@ package cmd
 import (
 	"fmt"
 	"strings"
-	
+
 	id "github.com/minio/jbod-csi-driver/pkg/identity"
 	"github.com/minio/jbod-csi-driver/pkg/node"
 	"github.com/minio/jbod-csi-driver/pkg/volume"
+	"github.com/minio/jbod-csi-driver/pkg/controller"
+	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 
 	"github.com/minio/minio/pkg/ellipses"
+	"github.com/golang/glog"
 )
 
 func driver(args []string) error {
@@ -32,6 +35,7 @@ func driver(args []string) error {
 	if err != nil {
 		return err
 	}
+	glog.V(5).Infof("identity server setup")
 
 	if len(args) == 0 {
 		return fmt.Errorf("no base paths provided for jbods")
@@ -50,14 +54,22 @@ func driver(args []string) error {
 		}
 	}
 	volume.Initialize(basePaths)
-	
+
 	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region)
 	if err != nil {
 		return err
 	}
+	glog.V(5).Infof("node server setup")
 
-	_ = idServer
-	_ = node
+	ctrlServer, err := controller.NewControllerServer(identity, nodeID, rack, zone, region)
+	if err != nil {
+		return err
+	}
+	glog.V(5).Infof("controller server setup")
+
+	s := csicommon.NewNonBlockingGRPCServer()
+	s.Start(endpoint, idServer, ctrlServer, node)
+	s.Wait()
 
 	return nil
 }

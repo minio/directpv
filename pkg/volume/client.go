@@ -17,13 +17,18 @@
 package volume
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 
-	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 
@@ -39,21 +44,164 @@ var (
 	sc      = runtime.NewScheme()
 	vClient client.Client
 
+	group   = "jbod.csi.min.io"
+	version = "v1alpha1"
+
 	GroupVersion = schema.GroupVersion{
-		Group:   "jbod.csi.min.io",
-		Version: "v1alpha1",
+		Group:   group,
+		Version: version,
 	}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 )
 
 func init() {
+	// Register Volume
+	SchemeBuilder.Register(&Volume{}, &VolumeList{})
 	clientgoscheme.AddToScheme(sc)
-	corev1.AddToScheme(sc)
 	AddToScheme(sc)
 
 	// init volume client
-	c := config.GetConfigOrDie()
+	c, err := config.GetConfig()
+	if err != nil {
+		glog.Errorf("could not get kubeconfig: %v", err)
+		os.Exit(1)
+	}
+
+	extCl, err := apiextensions.NewForConfig(c)
+	if err != nil {
+		glog.Errorf("could not initialize apiExtentions Client: %v", err)
+		os.Exit(1)
+	}
+	vCrd, err := extCl.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), "volumes.jbod.csi.min.io", metav1.GetOptions{})
+	if err != nil {
+		glog.Errorf("volume type not yet registered: %v", err)
+
+		field := func(in *apiextensionsv1.JSONSchemaProps, name, description, typ string) *apiextensionsv1.JSONSchemaProps {
+			out := &apiextensionsv1.JSONSchemaProps{
+				Description: description,
+				Type:        typ,
+				Properties:  map[string]apiextensionsv1.JSONSchemaProps{},
+				Items:       new(apiextensionsv1.JSONSchemaPropsOrArray),
+			}
+
+			if in.Properties == nil {
+				in.Properties = make(map[string]apiextensionsv1.JSONSchemaProps)
+			}
+			if in.Items == nil {
+				in.Items = new(apiextensionsv1.JSONSchemaPropsOrArray)
+			}
+			in.Properties[name] = *out
+			return out
+		}
+
+		volDef := &apiextensionsv1.JSONSchemaProps{
+			XEmbeddedResource: false,
+			Type:              "object",
+		}
+		field(volDef, "apiVersion", "APIVersion", "string")
+		field(volDef, "kind", "", "string")
+
+		metadataDef := field(volDef, "metadata", "", "object")
+		field(metadataDef, "name", "", "string")
+
+		field(volDef, "volumeID", "", "string")
+		field(volDef, "name", "", "string")
+
+		volSrc := field(volDef, "volumeSource", "", "object")
+		field(volSrc, "volumeSourceType", "", "string")
+		field(volSrc, "volumeSourcePath", "", "string")
+
+		field(volDef, "volumeStatus", "", "string")
+		field(volDef, "nodeID", "", "string")
+		field(volDef, "stagingPath", "", "string")
+		field(volDef, "volumeAccessMode", "", "integer")
+
+		blockProps := &apiextensionsv1.JSONSchemaProps{
+			Type: "object",
+		}
+		field(blockProps, "device", "", "string")
+		field(blockProps, "link", "", "string")
+		field(blockProps, "access", "", "string")
+
+		block := field(volDef, "blockAccess", "", "array")
+		block.Items.Schema = blockProps
+
+		glog.Infof("block.Items: %#v", block.Items)
+
+		mountProps := &apiextensionsv1.JSONSchemaProps{
+			Type: "object",
+		}
+		field(mountProps, "fsType", "", "string")
+		field(mountProps, "mountpoint", "", "string")
+		field(mountProps, "access", "", "string")
+
+		mFlagProps := &apiextensionsv1.JSONSchemaProps{
+			Type: "string",
+		}
+		mFlags := field(mountProps, "mountFlags", "", "array")
+		mFlags.Items.Schema = mFlagProps
+
+		mount := field(volDef, "mountAccess", "", "array")
+		mount.Items.Schema = mountProps
+
+		field(volDef, "publishContext", "", "object")
+		field(volDef, "parameters", "", "object")
+		field(volDef, "topologyConstraint", "", "object")
+		field(volDef, "auditTrail", "", "object")
+
+		crdSpec := &apiextensionsv1.CustomResourceDefinitionSpec{
+			Group: group,
+			Scope: apiextensionsv1.ClusterScoped,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
+				Plural:   "volumes",
+				Singular: "volume",
+				ShortNames: []string{
+					"vol",
+				},
+				Kind:     "Volume",
+				ListKind: "VolumeList",
+			},
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
+				{
+					Name:    "v1alpha1",
+					Served:  true,
+					Storage: true,
+					Schema: &apiextensionsv1.CustomResourceValidation{
+						OpenAPIV3Schema: volDef,
+					},
+				},
+			},
+		}
+		apiextensionsv1.SetDefaults_CustomResourceDefinitionSpec(crdSpec)
+
+		vCrd = &apiextensionsv1.CustomResourceDefinition{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "CustomResourceDefinition",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "volumes.jbod.csi.min.io",
+			},
+			Spec:   *crdSpec,
+			Status: apiextensionsv1.CustomResourceDefinitionStatus{},
+		}
+		apiextensionsv1.SetDefaults_CustomResourceDefinition(vCrd)
+
+		if out, err := json.MarshalIndent(vCrd, " ", "  "); err != nil {
+			glog.Errorf("could not marshal volume defintion: %v", err)
+			os.Exit(1)
+		} else {
+			fmt.Printf("%s\n", string(out))
+		}
+
+		_, err = extCl.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), vCrd, metav1.CreateOptions{})
+		if err != nil {
+			glog.Errorf("could not create and register volume.jbod.csi.min.io type: %v", err)
+			os.Exit(1)
+		}
+	}
+
 	mapper := func(c *rest.Config) meta.RESTMapper {
 		m, err := apiutil.NewDynamicRESTMapper(c)
 		if err != nil {

@@ -81,7 +81,6 @@ func (n *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
-			//			nodeCap(csi.NodeServiceCapability_RPC_VOLUME_CONDITION),
 			nodeCap(csi.NodeServiceCapability_RPC_GET_VOLUME_STATS),
 			nodeCap(csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME),
 		},
@@ -197,7 +196,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	err = vol.StageVolume(vID, stagingTargetPath)
+	err = vol.StageVolume(ctx, vID, stagingTargetPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Stage Volume Failed: %v", err)
 	}
@@ -218,7 +217,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if err := vol.UnstageVolume(vID, stagingTargetPath); err != nil {
+	if err := vol.UnstageVolume(ctx, vID, stagingTargetPath); err != nil {
 		return nil, status.Errorf(codes.Internal, "Unstage Volume failed: %v", err)
 	}
 	
@@ -226,5 +225,9 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 }
 
 func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, in *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
+}
+
+func (ns *NodeServer) NodeExpandVolume(ctx context.Context, in *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }

@@ -30,7 +30,8 @@ func init() {
 }
 
 type Volume struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
 
 	VolumeID           string                       `json:"volumeID"`
 	Name               string                       `json:"name,omitempty"`
@@ -85,7 +86,7 @@ const (
 	VolumeAccessModeMultiNodeMultiWriter
 )
 
-func (v VolumeAccessMode) MarshalJSON() ([]byte, error) {
+func (v VolumeAccessMode) IgnoreMarshalJSON() ([]byte, error) {
 	switch v {
 	case VolumeAccessModeUnknown:
 		return []byte("UNKNOWN"), nil
@@ -104,7 +105,7 @@ func (v VolumeAccessMode) MarshalJSON() ([]byte, error) {
 	}
 }
 
-func (v VolumeAccessMode) UnmarshalJSON(value []byte) error {
+func (v VolumeAccessMode) IgnoreUnmarshalJSON(value []byte) error {
 	switch string(value) {
 	case "UNKNOWN":
 		v = VolumeAccessModeUnknown
@@ -159,7 +160,7 @@ func (b BlockAccessType) Matches(req *csi.NodePublishVolumeRequest) bool {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -173,7 +174,7 @@ type MountAccessType struct {
 func (m MountAccessType) Matches(req *csi.NodePublishVolumeRequest) bool {
 	targetPath := req.GetTargetPath()
 	ro := req.GetReadonly()
-	
+
 	if targetPath == "" || targetPath != m.MountPoint {
 		return false
 	}
@@ -188,7 +189,7 @@ func (m MountAccessType) Matches(req *csi.NodePublishVolumeRequest) bool {
 			return false
 		}
 	}
-	
+
 	if len(m.MountFlags) == 0 && len(m.FsType) == 0 {
 		return targetPath == m.MountPoint
 	}

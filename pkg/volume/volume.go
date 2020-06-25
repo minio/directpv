@@ -21,12 +21,34 @@ import (
 	"os"
 
 	"github.com/golang/glog"
+	"github.com/pborman/uuid"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/mount"
 )
+
+func NewVolume(ctx context.Context, name string, volumeAccessMode VolumeAccessMode, nodeID string, parameters map[string]string) (*Volume, error) {
+	vID := uuid.NewUUID().String()
+	vol := &Volume{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: version,
+			Kind:       "volume",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: vID,
+		},
+		Name:             name,
+		VolumeID:         vID,
+		VolumeAccessMode: volumeAccessMode,
+		NodeID:           nodeID,
+		Parameters:       parameters,
+	}
+	return vol, vClient.Create(ctx, vol)
+}
 
 func GetVolume(ctx context.Context, vID string) (*Volume, error) {
 	v := &Volume{
@@ -37,7 +59,7 @@ func GetVolume(ctx context.Context, vID string) (*Volume, error) {
 		Namespace: "",
 	}, v)
 	if err != nil {
-		return v, nil
+		return nil, err
 	}
 
 	return v, nil
@@ -195,6 +217,10 @@ func (v *Volume) Mount(ctx context.Context, targetPath string, fsType string, mo
 		return nil
 	}
 
+	if err := os.MkdirAll(targetPath, 0755); err != nil {
+		return err
+	}
+	
 	if err := mounter.Mount(v.VolumeSource.VolumeSourcePath, targetPath, fsType, options); err != nil {
 		return err
 	}
@@ -247,7 +273,7 @@ func (v *Volume) UnpublishVolume(ctx context.Context, targetPath string) error {
 	return nil
 }
 
-func (v *Volume) StageVolume(volumeID, stagePath string) error {
+func (v *Volume) StageVolume(ctx context.Context, volumeID, stagePath string) error {
 	if v.StagingPath != "" {
 		if v.StagingPath != stagePath {
 			return status.Error(codes.FailedPrecondition, "volume staging path does not match old staging path")
@@ -260,14 +286,24 @@ func (v *Volume) StageVolume(volumeID, stagePath string) error {
 		return err
 	}
 
+	if err := os.MkdirAll(stagePath, 0755); err != nil {
+		return err
+	}
+
 	if err := mount.New("").Mount(dir, stagePath, "", []string{"bind"}); err != nil {
 		return err
 	}
 
-	return nil
+	v.VolumeSource = VolumeSource{
+		VolumeSourceType: VolumeSourceTypeDirectory,
+		VolumeSourcePath: dir,
+	}
+	v.StagingPath = stagePath
+
+	return vClient.Update(ctx, v)
 }
 
-func (v *Volume) UnstageVolume(volumeID, stagePath string) error {
+func (v *Volume) UnstageVolume(ctx context.Context, volumeID, stagePath string) error {
 	// Unmount only if the target path is really a mount point.
 	if notMnt, err := mount.IsNotMountPoint(mount.New(""), stagePath); err != nil {
 		if !os.IsNotExist(err) {
@@ -280,6 +316,7 @@ func (v *Volume) UnstageVolume(volumeID, stagePath string) error {
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
+	v.StagingPath = ""
 
-	return nil
+	return vClient.Update(ctx, v)
 }

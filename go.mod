@@ -23,9 +23,12 @@ require (
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/imdario/mergo v0.3.6
 	github.com/json-iterator/go v1.1.10
+	github.com/kubernetes-csi/csi-lib-utils v0.7.0 // indirect
+	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/minio/minio v0.0.0-20200622032605-a521907ab497
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 	github.com/modern-go/reflect2 v1.0.1
+	github.com/pborman/uuid v1.2.0
 	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.0.0
@@ -43,6 +46,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1
 	gopkg.in/yaml.v2 v2.2.8
 	k8s.io/api v0.18.2
+	k8s.io/apiextensions-apiserver v0.18.2
 	k8s.io/apimachinery v0.18.2
 	k8s.io/client-go v0.18.2
 	k8s.io/klog v1.0.0

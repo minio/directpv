@@ -35,6 +35,7 @@ var (
 	rack     = "default"
 	zone     = "default"
 	region   = "default"
+	endpoint = "unix://csi/csi.sock"
 )
 
 var driverCmd = &cobra.Command{
@@ -74,6 +75,7 @@ func init() {
 	flag.Set("logtostderr", "true")
 
 	driverCmd.PersistentFlags().StringVarP(&identity, "identity", "i", identity, "identity of this jbod-csi-driver")
+	driverCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which jbod-csi-driver is listening")
 	driverCmd.PersistentFlags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which jbod-csi-driver is running")
 	driverCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this jbod-csi-driver is running")
 	driverCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this jbod-csi-driver is running")
