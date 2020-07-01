@@ -55,7 +55,7 @@ var (
 	AddToScheme   = SchemeBuilder.AddToScheme
 )
 
-func InitializeClient(identity string) {
+func InitializeClient(identity string) error {
 	// Register Volume
 	SchemeBuilder.Register(&Volume{}, &VolumeList{})
 	clientgoscheme.AddToScheme(sc)
@@ -64,14 +64,12 @@ func InitializeClient(identity string) {
 	// init volume client
 	c, err := config.GetConfig()
 	if err != nil {
-		glog.Errorf("could not get kubeconfig: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("could not get kubeconfig: %v", err)
 	}
-
+		
 	extCl, err := apiextensions.NewForConfig(c)
 	if err != nil {
-		glog.Errorf("could not initialize apiExtentions Client: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("could not initialize apiExtentions Client: %v", err)
 	}
 	vCrd, err := extCl.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), "volumes.jbod.csi.min.io", metav1.GetOptions{})
 	if err != nil {
@@ -189,16 +187,14 @@ func InitializeClient(identity string) {
 		apiextensionsv1.SetDefaults_CustomResourceDefinition(vCrd)
 
 		if out, err := json.MarshalIndent(vCrd, " ", "  "); err != nil {
-			glog.Errorf("could not marshal volume defintion: %v", err)
-			os.Exit(1)
+			return fmt.Errorf("could not marshal volume defintion: %v", err)
 		} else {
 			fmt.Printf("%s\n", string(out))
 		}
 
 		_, err = extCl.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), vCrd, metav1.CreateOptions{})
 		if err != nil {
-			glog.Errorf("could not create and register volumes.jbod.csi.min.io type: %v", err)
-			os.Exit(1)
+			return fmt.Errorf("could not create and register volumes.jbod.csi.min.io type: %v", err)
 		}
 	}
 
@@ -216,10 +212,10 @@ func InitializeClient(identity string) {
 		Mapper: mapper,
 	})
 	if err != nil {
-		glog.Errorf("unable to initialize volume client: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("unable to initialize volume client: %v", err)
 	}
 	vClient = vc
+	return nil
 }
 
 func (in *VolumeList) DeepCopy() *VolumeList {

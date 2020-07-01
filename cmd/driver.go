@@ -59,7 +59,9 @@ func driver(args []string) error {
 	}
 
 	volume.InitializeFactory(basePaths)
-	volume.InitializeClient(identity)
+	if err := volume.InitializeClient(identity); err != nil {
+		return err
+	}
 
 	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region)
 	if err != nil {

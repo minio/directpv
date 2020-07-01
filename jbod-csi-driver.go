@@ -31,7 +31,7 @@ func main() {
 
 	go func() {
 		s := <-sigs
-		glog.Infof("Exiting on signal %s", s.String())
+		glog.Infof("Exiting on signal %s %#v", s.String(), s)
 		os.Exit(1)
 	}()
 	
