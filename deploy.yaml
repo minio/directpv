@@ -13,7 +13,7 @@ spec:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: jbod.csi.driver.min.io
+  name: jbod-csi-driver-min-io
 data:
   key: none
 
@@ -25,9 +25,9 @@ metadata:
   name: jbod.csi.driver.min.io
 provisioner: jbod.csi.driver.min.io
 parameters:
-  csi.storage.k8s.io/provisioner-secret-name: jbod.csi.driver.min.io
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/fstype: xfs
+  disable.csi.storage.k8s.io/provisioner-secret-name: jbod-csi-driver-min-io
+  disable.csi.storage.k8s.io/provisioner-secret-namespace: default
+  disable.csi.storage.k8s.io/fstype: xfs
 
 ---
 
@@ -91,7 +91,7 @@ spec:
           - mountPath: /var/lib/jbod-csi-driver/data4
             name: jbod-csi-data4
         - name: jbod-csi-driver
-          image: wlan0/jbod-csi-driver:v0.0.1-fafe8cb
+          image: wlan0/jbod-csi-driver:v0.0.1-a4cc713
           args:
             - "--identity=jbod.csi.driver.min.io"
             - "--v=5"
@@ -229,7 +229,7 @@ spec:
             timeoutSeconds: 3
             periodSeconds: 2
         - name: jbod-csi-controller
-          image: wlan0/jbod-csi-driver:v0.0.1-fafe8cb
+          image: wlan0/jbod-csi-driver:v0.0.1-a4cc713
           args:
             - "--v=5"
             - "--identity=jbod.csi.driver.min.io"
