@@ -1,1 +1,4 @@
 jbod-csi-driver
+*~
+*.test
+dist/
