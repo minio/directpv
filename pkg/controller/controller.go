@@ -66,7 +66,15 @@ func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *c
 }
 
 func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	return &csi.ValidateVolumeCapabilitiesResponse{}, nil
+	glog.V(5).Infof("ControllerGetCapabilities: called with args %+v", *req)
+	volCaps := req.GetVolumeCapabilities()
+
+	confirmed := &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+		VolumeCapabilities: volCaps,
+	}
+	return &csi.ValidateVolumeCapabilitiesResponse{
+		Confirmed: confirmed,
+	}, nil
 }
 
 func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
