@@ -37,7 +37,6 @@ var (
 	zone     = "default"
 	region   = "default"
 	endpoint = "unix://csi/csi.sock"
-	mode     = "all"
 )
 
 var driverCmd = &cobra.Command{
@@ -74,7 +73,6 @@ func init() {
 	driverCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this jbod-csi-driver is running")
 	driverCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this jbod-csi-driver is running")
 	driverCmd.PersistentFlags().StringVarP(&region, "region", "", region, "identity of the region in which this jbod-csi-driver is running")
-	driverCmd.PersistentFlags().StringVarP(&mode, "mode", "m", mode, "one of 'controller', 'node' or 'all'")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")

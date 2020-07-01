@@ -35,10 +35,6 @@ func driver(args []string) error {
 		return fmt.Errorf("no base paths provided for jbods")
 	}
 
-	if mode != "controller" && mode != "node" && mode != "all" {
-		return fmt.Errorf("invalid mode: %s", mode)
-	}
-
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err
@@ -67,23 +63,13 @@ func driver(args []string) error {
 	if err != nil {
 		return err
 	}
-
-	if mode == "node" || mode == "all" {
-		glog.V(5).Infof("node server started")
-	} else {
-		node = nil
-	}
+	glog.V(5).Infof("node server started")
 
 	ctrlServer, err := controller.NewControllerServer(identity, nodeID, rack, zone, region)
 	if err != nil {
 		return err
 	}
-
-	if mode == "controller" || mode == "all" {
-		glog.V(5).Infof("controller manager started")
-	} else {
-		ctrlServer = nil
-	}
+	glog.V(5).Infof("controller manager started")
 
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(endpoint, idServer, ctrlServer, node)

@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -202,7 +201,7 @@ func InitializeClient(identity string) error {
 		m, err := apiutil.NewDynamicRESTMapper(c)
 		if err != nil {
 			glog.Errorf("unable to initialize rest mapper: %v", err)
-			os.Exit(1)
+			panic(err)
 		}
 		return m
 	}(c)

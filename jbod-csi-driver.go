@@ -27,12 +27,12 @@ import (
 
 func main() {
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSEGV)
 
 	go func() {
 		s := <-sigs
 		glog.Infof("Exiting on signal %s %#v", s.String(), s)
-		os.Exit(1)
+		panic("Signal received. Exiting")
 	}()
 	
 	if err := cmd.Execute(); err != nil {
