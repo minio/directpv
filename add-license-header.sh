@@ -24,4 +24,4 @@ EOF
 go get -u github.com/google/addlicense
 
 # apply license to all go files
-find . | grep .go$ | xargs addlicense -c "Minio, Inc"  -f /tmp/LICENSE_TEMPLATE
+find . | grep .go$ | grep -v './vendor' | xargs addlicense -c "Minio, Inc"  -f /tmp/LICENSE_TEMPLATE
