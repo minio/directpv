@@ -91,7 +91,7 @@ spec:
           - mountPath: /var/lib/jbod-csi-driver/data4
             name: jbod-csi-data4
         - name: jbod-csi-driver
-          image: wlan0/jbod-csi-driver:v0.0.1-a4cc713
+          image: minio/jbod-csi-driver:v0.1.0-alpha
           args:
             - "--identity=jbod.csi.driver.min.io"
             - "--v=5"
@@ -229,7 +229,7 @@ spec:
             timeoutSeconds: 3
             periodSeconds: 2
         - name: jbod-csi-controller
-          image: wlan0/jbod-csi-driver:v0.0.1-a4cc713
+          image: minio/jbod-csi-driver:v0.1.0-alpha
           args:
             - "--v=5"
             - "--identity=jbod.csi.driver.min.io"
