@@ -1,0 +1,41 @@
+project_name: jbod-csi-driver
+
+release:
+   name_template: "Version {{.Version}}"
+
+   github:
+    owner: minio
+    name: jbod-csi-driver
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  -
+    goos:
+      - linux
+    goarch:
+      - amd64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+      - -tags="osusergo netgo static_build"
+    ldflags:
+      - -s -w -X github.com/minio/jbod-csi-driver/cmd.Version={{ .Version }}
+
+archives:
+  - format: binary
+
+changelog:
+  sort: asc
+
+dockers:
+  -
+    goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile.release
+    image_templates:
+      - minio/jbod-csi-driver:{{ .Tag }}
+      - minio/jbod-csi-driver:latest
