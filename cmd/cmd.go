@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -36,27 +37,20 @@ var (
 	zone     = "default"
 	region   = "default"
 	endpoint = "unix://csi/csi.sock"
+	mode     = "all"
 )
 
 var driverCmd = &cobra.Command{
 	Use:   os.Args[0],
 	Short: "CSI driver for JBODs",
-	Long: `
-This driver presents a bunch of drives as volumes to containers requesting it.
+	Long: fmt.Sprintf(`
+This Container Storage Interface (CSI) driver provides just a bunch of drives (JBOD) as volumes consumable within containers. This driver does not manage the lifecycle of the data or the backing disk itself. It only acts as the middle-man between a drive and a container runtime.
 
-A bunch of drives can be representing using glob notation. For eg.
+This driver is rack, region and zone aware i.e., a workload requesting volumes with constraints on rack, region or zone will only be scheduled to run only within the specifications of the constraints. This is useful for requesting volumes that need to be within a specified failure domain (rack, region or zone)
 
-1. /mnt/drive{1...32}/path
-
-  This presents 32 drives, whose subdirectory (./path) is the root directory for the CSI driver to operate
-
-2. /mnt/drive{1...32}/path{1...4}
-
-  This presents 32 drives, whose subdirectories path1, path2, path3, path4 are provided as root directories for the CSI driver. This driver will behave as if it was operating with 128 drives (32 * 4)
-
-The driver carves out a unique volume for a particular container from this path by creating a sub-directory. The volume is identified by the subdirectory name. It employs a simple round-robin approach to provisioning from each of the drives given to it.
-`,
-	SilenceUsage:  true,
+For more information, use '%s man [sched | examples | ...]' 
+`, os.Args[0]),
+	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
 		return driver(args)
 	},
@@ -80,6 +74,15 @@ func init() {
 	driverCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this jbod-csi-driver is running")
 	driverCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this jbod-csi-driver is running")
 	driverCmd.PersistentFlags().StringVarP(&region, "region", "", region, "identity of the region in which this jbod-csi-driver is running")
+	driverCmd.PersistentFlags().StringVarP(&mode, "mode", "m", mode, "one of 'controller', 'node' or 'all'")
+
+	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
+	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")
+	driverCmd.PersistentFlags().MarkHidden("log_dir")
+	driverCmd.PersistentFlags().MarkHidden("logtostderr")
+	driverCmd.PersistentFlags().MarkHidden("master")
+	driverCmd.PersistentFlags().MarkHidden("stderrthreshold")
+	driverCmd.PersistentFlags().MarkHidden("vmodule")
 
 	//suppress the incorrect prefix in glog output
 	flag.CommandLine.Parse([]string{})
@@ -89,3 +92,18 @@ func init() {
 func Execute() error {
 	return driverCmd.Execute()
 }
+
+/*`driver presents a bunch of drives as volumes to containers requesting it.
+
+A bunch of drives can be representing using glob notation. For eg.
+
+1. /mnt/drive{1...32}/path
+
+  This presents 32 drives, whose subdirectory (./path) is the root directory for the CSI driver to operate
+
+2. /mnt/drive{1...32}/path{1...4}
+
+  This presents 32 drives, whose subdirectories path1, path2, path3, path4 are provided as root directories for the CSI driver. This driver will behave as if it was operating with 128 drives (32 * 4)
+
+The driver carves out a unique volume for a particular container from this path by creating a sub-directory. The volume is identified by the subdirectory name. It employs a simple round-robin approach to provisioning from each of the drives given to it.
+`*/

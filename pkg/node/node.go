@@ -220,7 +220,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	if err := vol.UnstageVolume(ctx, vID, stagingTargetPath); err != nil {
 		return nil, status.Errorf(codes.Internal, "Unstage Volume failed: %v", err)
 	}
-	
+
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 

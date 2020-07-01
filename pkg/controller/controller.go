@@ -18,7 +18,7 @@ package controller
 
 import (
 	"context"
-	
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
 	//"github.com/minio/jbod-csi-driver/pkg/topology"
@@ -85,7 +85,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		accessMode = int(accessModeWrapper.Mode)
 	}
 	nodeID := ""
-	
+
 	if _, err := volume.NewVolume(ctx, name, volume.VolumeAccessMode(accessMode), nodeID, parameters); err != nil {
 		return nil, status.Errorf(codes.Internal, "error creating volume: %v", err)
 	}
@@ -131,4 +131,3 @@ func (c *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 func (c *ControllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
-

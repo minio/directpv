@@ -47,6 +47,7 @@ func NewVolume(ctx context.Context, name string, volumeAccessMode VolumeAccessMo
 		NodeID:           nodeID,
 		Parameters:       parameters,
 	}
+
 	return vol, vClient.Create(ctx, vol)
 }
 
@@ -220,7 +221,7 @@ func (v *Volume) Mount(ctx context.Context, targetPath string, fsType string, mo
 	if err := os.MkdirAll(targetPath, 0755); err != nil {
 		return err
 	}
-	
+
 	if err := mounter.Mount(v.VolumeSource.VolumeSourcePath, targetPath, fsType, options); err != nil {
 		return err
 	}

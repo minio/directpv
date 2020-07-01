@@ -55,7 +55,7 @@ var (
 	AddToScheme   = SchemeBuilder.AddToScheme
 )
 
-func InitializeClient() {
+func InitializeClient(identity string) {
 	// Register Volume
 	SchemeBuilder.Register(&Volume{}, &VolumeList{})
 	clientgoscheme.AddToScheme(sc)
@@ -181,7 +181,7 @@ func InitializeClient() {
 				Kind:       "CustomResourceDefinition",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "volumes.jbod.csi.min.io",
+				Name: fmt.Sprintf("volumes.%s", group),
 			},
 			Spec:   *crdSpec,
 			Status: apiextensionsv1.CustomResourceDefinitionStatus{},
@@ -197,7 +197,7 @@ func InitializeClient() {
 
 		_, err = extCl.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), vCrd, metav1.CreateOptions{})
 		if err != nil {
-			glog.Errorf("could not create and register volume.jbod.csi.min.io type: %v", err)
+			glog.Errorf("could not create and register volumes.jbod.csi.min.io type: %v", err)
 			os.Exit(1)
 		}
 	}

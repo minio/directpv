@@ -31,15 +31,19 @@ import (
 )
 
 func driver(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no base paths provided for jbods")
+	}
+
+	if mode != "controller" && mode != "node" && mode != "all" {
+		return fmt.Errorf("invalid mode: %s", mode)
+	}
+
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err
 	}
-	glog.V(5).Infof("identity server setup")
-
-	if len(args) == 0 {
-		return fmt.Errorf("no base paths provided for jbods")
-	}
+	glog.V(5).Infof("identity server started")
 
 	basePaths := []string{}
 	for _, a := range args {
@@ -53,20 +57,31 @@ func driver(args []string) error {
 			basePaths = append(basePaths, a)
 		}
 	}
+
 	volume.InitializeFactory(basePaths)
-	volume.InitializeClient()
+	volume.InitializeClient(identity)
 
 	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region)
 	if err != nil {
 		return err
 	}
-	glog.V(5).Infof("node server setup")
+
+	if mode == "node" || mode == "all" {
+		glog.V(5).Infof("node server started")
+	} else {
+		node = nil
+	}
 
 	ctrlServer, err := controller.NewControllerServer(identity, nodeID, rack, zone, region)
 	if err != nil {
 		return err
 	}
-	glog.V(5).Infof("controller server setup")
+
+	if mode == "controller" || mode == "all" {
+		glog.V(5).Infof("controller manager started")
+	} else {
+		ctrlServer = nil
+	}
 
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(endpoint, idServer, ctrlServer, node)

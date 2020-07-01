@@ -1,0 +1,174 @@
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: jbod.csi.driver.min.io
+spec:
+  volumeLifecycleModes:
+  - Persistent
+  podInfoOnMount: true
+
+---
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: jbod.csi.driver.min.io
+provisioner: jbod.csi.driver.min.io
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: jbod-csi-driver-min-io
+  labels:
+    app: jbod-csi-driver-min-io
+spec:
+  selector:
+    app: jbod-csi-driver-min-io
+  ports:
+    - name: unused
+      port: 12345
+
+---
+
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: jbod-csi-driver-min-io
+spec:
+  selector:
+    matchLabels:
+      app: jbod-csi-driver-min-io
+  template:
+    metadata:
+      labels:
+        app: jbod-csi-driver-min-io
+    spec:
+      containers:
+        - name: node-driver-registrar
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
+          args:
+            - --v=5
+            - --csi-address=/csi/csi.sock
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/jbod-csi-driver-min-io/csi.sock
+          securityContext:
+            # This is necessary only for systems with SELinux, where
+            # non-privileged sidecar containers cannot access unix domain socket
+            # created by privileged CSI driver container.
+            privileged: true
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+          - mountPath: /csi
+            name: socket-dir
+          - mountPath: /registration
+            name: registration-dir
+          - mountPath: /var/lib/jbod-csi-driver/data1
+            name: jbod-csi-data1
+          - mountPath: /var/lib/jbod-csi-driver/data2
+            name: jbod-csi-data2
+          - mountPath: /var/lib/jbod-csi-driver/data3
+            name: jbod-csi-data3
+          - mountPath: /var/lib/jbod-csi-driver/data4
+            name: jbod-csi-data4
+        - name: jbod-csi-driver
+          image: wlan0/jbod-csi-driver:v0.0.1-dffb7aa-dirty
+          args:
+            - "--identity=jbod.csi.driver.min.io"
+            - "--v=5"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--node-id=$(KUBE_NODE_NAME)"
+            - "--mode=node"
+            - "/tmp/"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          securityContext:
+            privileged: true
+          ports:
+          - containerPort: 9898
+            name: healthz
+            protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 2
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+              name: mountpoint-dir
+            - mountPath: /var/lib/kubelet/plugins
+              mountPropagation: Bidirectional
+              name: plugins-dir
+            - mountPath: /var/lib/jbod-csi-driver/data1
+              name: jbod-csi-data1
+            - mountPath: /var/lib/jbod-csi-driver/data2
+              name: jbod-csi-data2
+            - mountPath: /var/lib/jbod-csi-driver/data3
+              name: jbod-csi-data3
+            - mountPath: /var/lib/jbod-csi-driver/data4
+              name: jbod-csi-data4
+            - mountPath: /dev
+              name: dev-dir
+        - name: liveness-probe
+          volumeMounts:
+          - mountPath: /csi
+            name: socket-dir
+          image: quay.io/k8scsi/livenessprobe:v1.1.0
+          args:
+          - --csi-address=/csi/csi.sock
+          - --health-port=9898
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/jbod-csi-driver-min-io
+            type: DirectoryOrCreate
+          name: socket-dir
+        - hostPath:
+            path: /var/lib/kubelet/pods
+            type: DirectoryOrCreate
+          name: mountpoint-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+          name: registration-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins
+            type: Directory
+          name: plugins-dir
+        - hostPath:
+            path: /var/lib/jbod-csi-driver/data1/
+            type: DirectoryOrCreate
+          name: jbod-csi-data1
+        - hostPath:
+            path: /var/lib/jbod-csi-driver/data2/
+            type: DirectoryOrCreate
+          name: jbod-csi-data2
+        - hostPath:
+            path: /var/lib/jbod-csi-driver/data3/
+            type: DirectoryOrCreate
+          name: jbod-csi-data3
+        - hostPath:
+            path: /var/lib/jbod-csi-driver/data4/
+            type: DirectoryOrCreate
+          name: jbod-csi-data4
+        - hostPath:
+            path: /dev
+            type: Directory
+          name: dev-dir
+

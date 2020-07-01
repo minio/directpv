@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-
 func NewIdentityServer(ident, version string, manifest map[string]string) (csi.IdentityServer, error) {
 	return &IdentityServer{
 		Identity: ident,
@@ -62,7 +61,7 @@ func (i *IdentityServer) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi
 func (i *IdentityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	serviceCap := func(cap csi.PluginCapability_Service_Type) *csi.PluginCapability {
 		glog.V(5).Infof("Using plugin capability %v", cap)
-		
+
 		return &csi.PluginCapability{
 			Type: &csi.PluginCapability_Service_{
 				Service: &csi.PluginCapability_Service{
@@ -76,7 +75,7 @@ func (i *IdentityServer) GetPluginCapabilities(ctx context.Context, req *csi.Get
 		serviceCap(csi.PluginCapability_Service_CONTROLLER_SERVICE),
 		serviceCap(csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS),
 	}
-	
+
 	return &csi.GetPluginCapabilitiesResponse{
 		Capabilities: caps,
 	}, nil
