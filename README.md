@@ -1,4 +1,4 @@
-# Container Storage Interface (CSI) driver for JBODs
+# Container Storage Interface (CSI) driver for JBODs ![Go](https://github.com/minio/jbod-csi-driver/workflows/Go/badge.svg)
 This repository provides tools and scripts for building and testing the JBOD CSI provider.
 
 ## Steps to run
