@@ -77,7 +77,7 @@ spec:
           - mountPath: /var/lib/jbod-csi-driver/data4
             name: jbod-csi-data4
         - name: jbod-csi-driver
-          image: wlan0/jbod-csi-driver:v0.0.1-f0112e8
+          image: wlan0/jbod-csi-driver:v0.0.1-9e9289a
           args:
             - "--identity=jbod.csi.driver.min.io"
             - "--v=5"
@@ -189,18 +189,6 @@ spec:
         app: jbod-csi-controller-min-io
     spec:
       containers:
-        - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v1.1.1
-          args:
-            - "--v=5"
-            - "--timeout=300s"
-            - "--csi-address=$(CSI_ENDPOINT)"
-          env:
-            - name: CSI_ENDPOINT
-              value: unix:///csi/csi.sock
-          volumeMounts:
-            - mountPath: /csi
-              name: socket-dir        
         - name: csi-provisioner
           image: quay.io/k8scsi/csi-provisioner:v1.2.1
           args:
@@ -214,7 +202,7 @@ spec:
             - mountPath: /csi
               name: socket-dir
         - name: jbod-csi-controller
-          image: wlan0/jbod-csi-driver:v0.0.1-f0112e8
+          image: wlan0/jbod-csi-driver:v0.0.1-9e9289a
           args:
             - "--v=5"
             - "--identity=jbod.csi.driver.min.io"
