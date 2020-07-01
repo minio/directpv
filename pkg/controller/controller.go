@@ -94,10 +94,23 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	nodeID := ""
 
-	if _, err := volume.NewVolume(ctx, name, volume.VolumeAccessMode(accessMode), nodeID, parameters); err != nil {
+	v, err := volume.NewVolume(ctx, name, volume.VolumeAccessMode(accessMode), nodeID, parameters)
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "error creating volume: %v", err)
 	}
-	return &csi.CreateVolumeResponse{}, nil
+	topologies := []*csi.Topology{&csi.Topology{
+		Segments: map[string]string{},
+	}}
+
+	return &csi.CreateVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId:           v.VolumeID,
+			CapacityBytes:      req.GetCapacityRange().GetRequiredBytes(),
+			VolumeContext:      req.GetParameters(),
+			ContentSource:      req.GetVolumeContentSource(),
+			AccessibleTopology: topologies,
+		},
+	}, nil
 }
 
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {

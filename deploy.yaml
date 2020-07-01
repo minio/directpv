@@ -5,7 +5,17 @@ metadata:
 spec:
   volumeLifecycleModes:
   - Persistent
-  podInfoOnMount: true
+  - Ephemeral
+  podInfoOnMount: false
+  attachRequired: false
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jbod.csi.driver.min.io
+data:
+  key: none
 
 ---
 
@@ -14,6 +24,10 @@ kind: StorageClass
 metadata:
   name: jbod.csi.driver.min.io
 provisioner: jbod.csi.driver.min.io
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: jbod.csi.driver.min.io
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/fstype: xfs
 
 ---
 
@@ -77,13 +91,12 @@ spec:
           - mountPath: /var/lib/jbod-csi-driver/data4
             name: jbod-csi-data4
         - name: jbod-csi-driver
-          image: wlan0/jbod-csi-driver:v0.0.1-9e9289a
+          image: wlan0/jbod-csi-driver:v0.0.1-fafe8cb
           args:
             - "--identity=jbod.csi.driver.min.io"
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--node-id=$(KUBE_NODE_NAME)"
-            - "--mode=node"
             - "/var/lib/jbod-csi-driver/data{1...4}"
           env:
             - name: CSI_ENDPOINT
@@ -179,7 +192,7 @@ apiVersion: apps/v1
 metadata:
   name: jbod-csi-controller-min-io
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: jbod-csi-controller-min-io
@@ -195,23 +208,42 @@ spec:
             - "--v=5"
             - "--timeout=300s"
             - "--csi-address=$(CSI_ENDPOINT)"
+            - "--enable-leader-election"
+            - "--leader-election-type=leases"
+            - "--feature-gates=Topology=true"
+            - "--strict-topology"
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
+            - mountPath: /dev
+              name: dev-dir
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 2
         - name: jbod-csi-controller
-          image: wlan0/jbod-csi-driver:v0.0.1-9e9289a
+          image: wlan0/jbod-csi-driver:v0.0.1-fafe8cb
           args:
             - "--v=5"
             - "--identity=jbod.csi.driver.min.io"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--mode=controller"
+            - "--node-id=$(KUBE_NODE_NAME)"
             - "/tmp/"
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
           securityContext:
             # This is necessary only for systems with SELinux, where
             # non-privileged sidecar containers cannot access unix domain socket
@@ -221,15 +253,14 @@ spec:
           - containerPort: 9898
             name: healthz
             protocol: TCP
-          livenessProbe:
-            failureThreshold: 5
-            httpGet:
-              path: /healthz
-              port: healthz
-            initialDelaySeconds: 10
-            timeoutSeconds: 3
-            periodSeconds: 2
+          lifecycle:
+            preStop:
+              exec:
+                # SIGTERM triggers a quick exit; gracefully terminate instead
+                command: ["echo", "process ended"]
           volumeMounts:
+            - mountPath: /dev
+              name: dev-dir
             - mountPath: /csi
               name: socket-dir
       volumes:
@@ -237,3 +268,7 @@ spec:
             path: /var/lib/kubelet/plugins/jbod-csi-controller-min-io
             type: DirectoryOrCreate
           name: socket-dir
+        - hostPath:
+            path: /dev
+            type: Directory
+          name: dev-dir
