@@ -196,6 +196,8 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
+	vol.NodeID = n.NodeID
+	
 	err = vol.StageVolume(ctx, vID, stagingTargetPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Stage Volume Failed: %v", err)

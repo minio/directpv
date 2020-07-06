@@ -3,7 +3,7 @@
 set -e
 
 export GIT_COMMIT=$(git describe --always --dirty)
-export VERSION=v0.0.1-$GIT_COMMIT
+export VERSION=v0.1.1-$GIT_COMMIT
 
 echo "building jbod-csi-driver" $VERSION
 
