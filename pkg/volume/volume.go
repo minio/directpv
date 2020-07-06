@@ -66,6 +66,12 @@ func GetVolume(ctx context.Context, vID string) (*Volume, error) {
 	return v, nil
 }
 
+func DeleteVolume(ctx context.Context, vID string) error {
+	return vClient.Delete(ctx, &Volume{
+		VolumeID: vID,
+	})
+}
+
 func (v *Volume) ContainsTargetPaths(targetPath string) (AccessType, bool) {
 	for _, b := range v.BlockAccess {
 		if b.Link == targetPath {
@@ -284,7 +290,7 @@ func (v *Volume) StageVolume(ctx context.Context, volumeID, stagePath string) er
 
 	dir, err := Provision(volumeID)
 	if err != nil {
-		return err
+		return status.Errorf(codes.Internal, "volume provisioning failed: %v", err)
 	}
 
 	if err := os.MkdirAll(stagePath, 0755); err != nil {

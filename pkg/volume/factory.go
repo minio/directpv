@@ -17,6 +17,7 @@
 package volume
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -33,6 +34,9 @@ func InitializeFactory(paths []string) {
 }
 
 func Provision(volumeID string) (string, error) {
+	if len(vf.Paths) == 0 {
+		return "", fmt.Errorf("no base paths provided for jbods")
+	}
 	next := vf.LastAssigned + 1
 	next = next % len(vf.Paths)
 

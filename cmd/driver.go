@@ -17,7 +17,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
@@ -31,10 +30,6 @@ import (
 )
 
 func driver(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("no base paths provided for jbods")
-	}
-
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err

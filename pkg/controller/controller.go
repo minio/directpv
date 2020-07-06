@@ -114,6 +114,18 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 }
 
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	// Check arguments
+	if len(req.GetVolumeId()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
+	}
+
+	volId := req.GetVolumeId()
+	if err := volume.DeleteVolume(ctx, volId); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete volume %v: %v", volId, err)
+	}
+
+	glog.V(5).Infof("volume %v successfully deleted", volId)
+
 	return &csi.DeleteVolumeResponse{}, nil
 }
 

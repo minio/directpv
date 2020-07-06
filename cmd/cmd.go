@@ -43,9 +43,9 @@ var driverCmd = &cobra.Command{
 	Use:   os.Args[0],
 	Short: "CSI driver for JBODs",
 	Long: fmt.Sprintf(`
-This Container Storage Interface (CSI) driver provides just a bunch of drives (JBOD) as volumes consumable within containers. This driver does not manage the lifecycle of the data or the backing disk itself. It only acts as the middle-man between a drive and a container runtime.
+This Container Storage Interface (CSI) driver provides just a bunch of drives (JBOD) as volumes consumable within containers. This driver does not manage the lifecycle of the data or the backing of the disk itself. It only acts as the middle-man between a drive and a container runtime.
 
-This driver is rack, region and zone aware i.e., a workload requesting volumes with constraints on rack, region or zone will only be scheduled to run only within the specifications of the constraints. This is useful for requesting volumes that need to be within a specified failure domain (rack, region or zone)
+This driver is rack, region and zone aware i.e., a workload requesting volumes with constraints on rack, region or zone will be scheduled to run only within the constraints. This is useful for requesting volumes that need to be within a specified failure domain (rack, region or zone)
 
 For more information, use '%s man [sched | examples | ...]' 
 `, os.Args[0]),
