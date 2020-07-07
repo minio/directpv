@@ -2,6 +2,7 @@ apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
   name: jbod.csi.driver.min.io
+  namespace: jbod-csi-driver
 spec:
   volumeLifecycleModes:
   - Persistent
@@ -14,6 +15,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: jbod-csi-driver-min-io
+  namespace: jbod-csi-driver
 data:
   key: none
 
@@ -35,6 +37,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: jbod-csi-driver-min-io
+  namespace: jbod-csi-driver
   labels:
     app: jbod-csi-driver-min-io
 spec:
@@ -50,6 +53,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: jbod-csi-driver-min-io
+  namespace: jbod-csi-driver
 spec:
   selector:
     matchLabels:
@@ -59,6 +63,7 @@ spec:
       labels:
         app: jbod-csi-driver-min-io
     spec:
+      serviceAccountName: jbod-csi-driver-min-io
       containers:
         - name: node-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
@@ -91,7 +96,7 @@ spec:
           - mountPath: /var/lib/jbod-csi-driver/data4
             name: jbod-csi-data4
         - name: jbod-csi-driver
-          image: minio/jbod-csi-driver:v0.1.0-alpha
+          image: minio/jbod-csi-driver:v0.1.1
           args:
             - "--identity=jbod.csi.driver.min.io"
             - "--v=5"
@@ -191,6 +196,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: jbod-csi-controller-min-io
+  namespace: jbod-csi-driver
 spec:
   replicas: 3
   selector:
@@ -201,6 +207,7 @@ spec:
       labels:
         app: jbod-csi-controller-min-io
     spec:
+      serviceAccountName: jbod-csi-driver-min-io
       containers:
         - name: csi-provisioner
           image: quay.io/k8scsi/csi-provisioner:v1.2.1
@@ -229,7 +236,7 @@ spec:
             timeoutSeconds: 3
             periodSeconds: 2
         - name: jbod-csi-controller
-          image: minio/jbod-csi-driver:v0.1.0-alpha
+          image: minio/jbod-csi-driver:v0.1.1
           args:
             - "--v=5"
             - "--identity=jbod.csi.driver.min.io"

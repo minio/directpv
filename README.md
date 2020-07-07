@@ -4,6 +4,9 @@ This repository provides tools and scripts for building and testing the JBOD CSI
 ## Steps to run
 
 ```sh
+# create the namespace for the driver
+$> kubectl create -f ns.yaml
+
 # create a rbac role for the driver
 $> kubectl create -f rbac.yaml
 

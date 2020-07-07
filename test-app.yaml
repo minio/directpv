@@ -21,7 +21,7 @@ metadata:
     app: job-csi-driver-test-app
 spec:
   serviceName: "jbod-csi-driver-test-app-svc"
-  replicas: 3
+  replicas: 36
   selector:
     matchLabels:
       app: job-csi-driver-test-app
