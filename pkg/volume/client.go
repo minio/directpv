@@ -65,7 +65,7 @@ func InitializeClient(identity string) error {
 	if err != nil {
 		return fmt.Errorf("could not get kubeconfig: %v", err)
 	}
-		
+
 	extCl, err := apiextensions.NewForConfig(c)
 	if err != nil {
 		return fmt.Errorf("could not initialize apiExtentions Client: %v", err)

@@ -1,11 +1,13 @@
-FROM alpine:latest as alpine
+FROM alpine:latest as certs
 
 RUN apk add -U --no-cache ca-certificates
 
 FROM scratch
 
-COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY jbod-csi-driver /jbod-csi-driver
+
 WORKDIR /
+
 ENTRYPOINT ["/jbod-csi-driver"]
 
