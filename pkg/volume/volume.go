@@ -326,9 +326,9 @@ func (v *Volume) UnstageVolume(ctx context.Context, volumeID, stagePath string) 
 	if err := Unprovision(v.VolumeSource.VolumeSourcePath); err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
-	
+
 	v.StagingPath = ""
 	v.VolumeSource = VolumeSource{}
-	
+
 	return vClient.Update(ctx, v)
 }

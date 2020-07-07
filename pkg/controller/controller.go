@@ -98,7 +98,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "error creating volume: %v", err)
 	}
-	topologies := []*csi.Topology{&csi.Topology{
+	topologies := []*csi.Topology{{
 		Segments: map[string]string{},
 	}}
 
