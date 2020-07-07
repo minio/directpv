@@ -50,3 +50,7 @@ func Provision(volumeID string) (string, error) {
 
 	return filepath.Join(nextPath, volumeID), nil
 }
+
+func Unprovision(path string) error {
+	return os.RemoveAll(path)
+}
