@@ -54,7 +54,7 @@ func driver(args []string) error {
 		return err
 	}
 
-	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region)
+	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region, basePaths)
 	if err != nil {
 		return err
 	}

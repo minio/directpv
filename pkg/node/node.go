@@ -30,22 +30,24 @@ import (
 
 const MaxVolumes = 10000
 
-func NewNodeServer(identity, nodeID, rack, zone, region string) (*NodeServer, error) {
+func NewNodeServer(identity, nodeID, rack, zone, region string, basePaths []string) (*NodeServer, error) {
 	return &NodeServer{
-		NodeID:   nodeID,
-		Identity: identity,
-		Rack:     rack,
-		Zone:     zone,
-		Region:   region,
+		NodeID:    nodeID,
+		Identity:  identity,
+		Rack:      rack,
+		Zone:      zone,
+		Region:    region,
+		BasePaths: basePaths,
 	}, nil
 }
 
 type NodeServer struct {
-	NodeID   string
-	Identity string
-	Rack     string
-	Zone     string
-	Region   string
+	NodeID    string
+	Identity  string
+	Rack      string
+	Zone      string
+	Region    string
+	BasePaths []string
 }
 
 func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
@@ -61,7 +63,7 @@ func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 
 	return &csi.NodeGetInfoResponse{
 		NodeId:             n.NodeID,
-		MaxVolumesPerNode:  MaxVolumes,
+		MaxVolumesPerNode:  int64(100 * len(n.BasePaths)),
 		AccessibleTopology: topology,
 	}, nil
 }
@@ -197,7 +199,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	vol.NodeID = n.NodeID
-	
+
 	err = vol.StageVolume(ctx, vID, stagingTargetPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Stage Volume Failed: %v", err)

@@ -31,6 +31,7 @@ type vFactory struct {
 
 func InitializeFactory(paths []string) {
 	vf.Paths = paths
+	vf.LastAssigned = -1
 }
 
 func Provision(volumeID string) (string, error) {
