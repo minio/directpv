@@ -5,25 +5,25 @@ This repository provides tools and scripts for building and testing the JBOD CSI
 
 ```sh
 # create the namespace for the driver
-$> kubectl create -f ns.yaml
+$> kubectl apply -f ns.yaml
 
 # create a rbac role for the driver
-$> kubectl create -f rbac.yaml
+$> kubectl apply -f rbac.yaml
 
 # create the controller and node driver
-$> kubectl create -f deploy.yaml
+$> kubectl apply -f deploy.yaml
 
 # utilize the volume in your application
 #
 #   ------------------------------------------------------------------------------------------------
 #   volumeClaimTemplates: # This is the specification in which you reference the StorageClass
-#     - metadata: 
-#       name: jbod-csi-driver-min-io-volume 
-#     spec: 
-#       accessModes: [ "ReadWriteOnce" ] 
-#       resources: 
-#         requests: 
-#           storage: 10Gi 
+#     - metadata:
+#       name: jbod-csi-driver-min-io-volume
+#     spec:
+#       accessModes: [ "ReadWriteOnce" ]
+#       resources:
+#         requests:
+#           storage: 10Gi
 #       storageClassName: jbod.csi.driver.min.io # This field references the existing StorageClass
 #    -----------------------------------------------------------------------------------------------
 #
