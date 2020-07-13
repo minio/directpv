@@ -5,11 +5,13 @@ This repository provides tools and scripts for building and testing the JBOD CSI
 
 ```sh
 # set the environment variables
-$> cat << EOF > defautl.env
+$> cat << EOF > default.env
 JBOD_CSI_DRIVER_PATHS=/var/lib/jbod-csi-driver/data{1...4}
 JBOD_CSI_DRIVER_COMMON_CONTAINER_ROOT=/var/lib/jbod-csi-driver
 JBOD_CSI_DRIVER_COMMON_HOST_ROOT=/var/lib/jbod-csi-driver
 EOF
+
+$> export $(cat default.env)
 
 # create the namespace for the driver
 $> kubectl apply -k github.com/minio/jbod-csi-driver
