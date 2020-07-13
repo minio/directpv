@@ -4,14 +4,15 @@ This repository provides tools and scripts for building and testing the JBOD CSI
 ## Steps to run
 
 ```sh
+# set the environment variables
+$> cat << EOF > defautl.env
+JBOD_CSI_DRIVER_PATHS=/var/lib/jbod-csi-driver/data{1...4}
+JBOD_CSI_DRIVER_COMMON_CONTAINER_ROOT=/var/lib/jbod-csi-driver
+JBOD_CSI_DRIVER_COMMON_HOST_ROOT=/var/lib/jbod-csi-driver
+EOF
+
 # create the namespace for the driver
-$> kubectl apply -f ns.yaml
-
-# create a rbac role for the driver
-$> kubectl apply -f rbac.yaml
-
-# create the controller and node driver
-$> kubectl apply -f deploy.yaml
+$> kubectl apply -k github.com/minio/jbod-csi-driver
 
 # utilize the volume in your application
 #
