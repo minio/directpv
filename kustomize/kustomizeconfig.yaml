@@ -1,0 +1,25 @@
+varReference:
+- path: data/VERSION
+  kind: ConfigMap
+- path: data/JBOD_CSI_DRIVER_PATHS
+  kind: ConfigMap
+- path: data/JBOD_CSI_DRIVER_COMMON_CONTAINER_ROOT
+  kind: ConfigMap
+- path: data/JBOD_CSI_DRIVER_COMMON_HOST_ROOT
+  kind: ConfigMap
+- path: spec/template/spec/volumes/hostPath/path
+  kind: DaemonSet
+- path: spec/selector/matchLabels
+  kind: DaemonSet
+- path: spec/template/metadata/labels
+  kind: DaemonSet
+- path: spec/template/spec/containers/image
+  kind: DaemonSet
+- path: spec/template/spec/containers/image
+  kind: Deployment
+- path: spec/selector/matchLabels
+  kind: Deployment
+- path: spec/template/metadata/labels
+  kind: Deployment
+- path: spec/selector
+  kind: Service
