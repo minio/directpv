@@ -10,19 +10,19 @@ commonLabels:
 
 configMapGenerator:
 - name: jbod-csi-driver-config
-  env: jbod-csi-driver.properties
+  env: kustomize/jbod-csi-driver.properties
 generatorOptions:
   disableNameSuffixHash: true
   labels:
     generated-by: "kustomize"
 
 resources:
-  - deploy.yaml
-  - ns.yaml
-  - rbac.yaml
+  - kustomize/deploy.yaml
+  - kustomize/ns.yaml
+  - kustomize/rbac.yaml
 
 configurations:
- - kustomizeconfig.yaml  
+ - kustomize/kustomizeconfig.yaml  
   
 vars:
   - name: VERSION
