@@ -47,7 +47,7 @@ This Container Storage Interface (CSI) driver provides just a bunch of drives (J
 
 This driver is rack, region and zone aware i.e., a workload requesting volumes with constraints on rack, region or zone will be scheduled to run only within the constraints. This is useful for requesting volumes that need to be within a specified failure domain (rack, region or zone)
 
-For more information, use '%s man [sched | examples | ...]' 
+For more information, use '%s man [sched | examples | ...]'
 `, os.Args[0]),
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
@@ -82,7 +82,7 @@ func init() {
 	driverCmd.PersistentFlags().MarkHidden("stderrthreshold")
 	driverCmd.PersistentFlags().MarkHidden("vmodule")
 
-	//suppress the incorrect prefix in glog output
+	// suppress the incorrect prefix in glog output
 	flag.CommandLine.Parse([]string{})
 	viper.BindPFlags(driverCmd.PersistentFlags())
 }
@@ -91,17 +91,24 @@ func Execute() error {
 	return driverCmd.Execute()
 }
 
-/*`driver presents a bunch of drives as volumes to containers requesting it.
-
+/*
+Driver presents a bunch of drives as volumes to containers requesting it.
 A bunch of drives can be representing using glob notation. For eg.
 
 1. /mnt/drive{1...32}/path
 
-  This presents 32 drives, whose subdirectory (./path) is the root directory for the CSI driver to operate
+This presents 32 drives, whose subdirectory (./path) is the root directory
+for the CSI driver to operate
 
 2. /mnt/drive{1...32}/path{1...4}
 
-  This presents 32 drives, whose subdirectories path1, path2, path3, path4 are provided as root directories for the CSI driver. This driver will behave as if it was operating with 128 drives (32 * 4)
+This presents 32 drives, whose subdirectories path1, path2, path3, path4 are
+provided as root directories for the CSI driver. This driver will behave as
+if it was operating with 128 drives (32 * 4)
 
-The driver carves out a unique volume for a particular container from this path by creating a sub-directory. The volume is identified by the subdirectory name. It employs a simple round-robin approach to provisioning from each of the drives given to it.
-`*/
+The driver carves out a unique volume for a particular container from this path
+by creating a sub-directory. The volume is identified by the subdirectory name.
+It employs a simple round-robin approach to provisioning from each of the drives
+given to it.
+
+*/

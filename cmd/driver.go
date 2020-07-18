@@ -19,7 +19,7 @@ package cmd
 import (
 	"strings"
 
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/minio/jbod-csi-driver/pkg/controller"
 	id "github.com/minio/jbod-csi-driver/pkg/identity"
 	"github.com/minio/jbod-csi-driver/pkg/node"
@@ -39,7 +39,10 @@ func driver(args []string) error {
 	basePaths := []string{}
 	for _, a := range args {
 		if ellipses.HasEllipses(a) {
-			p, _ := ellipses.FindEllipsesPatterns(a)
+			p, err := ellipses.FindEllipsesPatterns(a)
+			if err != nil {
+				return err
+			}
 			patterns := p.Expand()
 			for _, outer := range patterns {
 				basePaths = append(basePaths, strings.Join(outer, ""))
