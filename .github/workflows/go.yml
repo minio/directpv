@@ -31,5 +31,5 @@ jobs:
         diff -au <(gofmt -s -d cmd) <(printf "")
         diff -au <(gofmt -s -d pkg) <(printf "")
         go test -v ./...
-        docker build . -t "jbod-csi-driver:latest"
+        docker build . -t "direct-csi-driver:latest"
 

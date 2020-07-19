@@ -36,7 +36,7 @@ func InitializeFactory(paths []string) {
 
 func Provision(volumeID string) (string, error) {
 	if len(vf.Paths) == 0 {
-		return "", fmt.Errorf("no base paths provided for jbods")
+		return "", fmt.Errorf("no base paths provided for directs")
 	}
 	next := vf.LastAssigned + 1
 	next = next % len(vf.Paths)

@@ -1,11 +1,11 @@
-project_name: jbod-csi-driver
+project_name: direct-csi-driver
 
 release:
    name_template: "Version {{.Version}}"
 
    github:
     owner: minio
-    name: jbod-csi-driver
+    name: direct-csi-driver
 
 before:
   hooks:
@@ -23,7 +23,7 @@ builds:
       - -trimpath
       - -tags="osusergo netgo static_build"
     ldflags:
-      - -s -w -X github.com/minio/jbod-csi-driver/cmd.Version={{ .Version }}
+      - -s -w -X github.com/minio/direct-csi-driver/cmd.Version={{ .Version }}
 
 archives:
   - format: binary
@@ -37,5 +37,5 @@ dockers:
     goarch: amd64
     dockerfile: Dockerfile.release
     image_templates:
-      - minio/jbod-csi-driver:{{ .Tag }}
-      - minio/jbod-csi-driver:latest
+      - minio/direct-csi-driver:{{ .Tag }}
+      - minio/direct-csi-driver:latest

@@ -1,8 +1,8 @@
 apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
-  name: jbod.csi.driver.min.io
-  namespace: jbod-csi-driver
+  name: direct.csi.driver.min.io
+  namespace: direct-csi-driver
 spec:
   volumeLifecycleModes:
   - Persistent
@@ -14,8 +14,8 @@ spec:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: jbod-csi-driver-min-io
-  namespace: jbod-csi-driver
+  name: direct-csi-driver-min-io
+  namespace: direct-csi-driver
 data:
   key: none
 
@@ -24,10 +24,10 @@ data:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: jbod.csi.driver.min.io
-provisioner: jbod.csi.driver.min.io
+  name: direct.csi.driver.min.io
+provisioner: direct.csi.driver.min.io
 parameters:
-  disable.csi.storage.k8s.io/provisioner-secret-name: jbod-csi-driver-min-io
+  disable.csi.storage.k8s.io/provisioner-secret-name: direct-csi-driver-min-io
   disable.csi.storage.k8s.io/provisioner-secret-namespace: default
   disable.csi.storage.k8s.io/fstype: xfs
 
@@ -36,13 +36,13 @@ parameters:
 kind: Service
 apiVersion: v1
 metadata:
-  name: jbod-csi-driver-min-io
-  namespace: jbod-csi-driver
+  name: direct-csi-driver-min-io
+  namespace: direct-csi-driver
   labels:
-    app: jbod-csi-driver-min-io
+    app: direct-csi-driver-min-io
 spec:
   selector:
-    app: jbod-csi-driver-min-io
+    app: direct-csi-driver-min-io
   ports:
     - name: unused
       port: 12345
@@ -52,25 +52,25 @@ spec:
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: jbod-csi-driver-min-io
-  namespace: jbod-csi-driver
+  name: direct-csi-driver-min-io
+  namespace: direct-csi-driver
 spec:
   selector:
     matchLabels:
-      app: jbod-csi-driver-min-io
+      app: direct-csi-driver-min-io
   template:
     metadata:
       labels:
-        app: jbod-csi-driver-min-io
+        app: direct-csi-driver-min-io
     spec:
-      serviceAccountName: jbod-csi-driver-min-io
+      serviceAccountName: direct-csi-driver-min-io
       containers:
         - name: node-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
           args:
             - --v=5
             - --csi-address=/csi/csi.sock
-            - --kubelet-registration-path=/var/lib/kubelet/plugins/jbod-csi-driver-min-io/csi.sock
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/direct-csi-driver-min-io/csi.sock
           securityContext:
             # This is necessary only for systems with SELinux, where
             # non-privileged sidecar containers cannot access unix domain socket
@@ -87,22 +87,22 @@ spec:
             name: socket-dir
           - mountPath: /registration
             name: registration-dir
-          - mountPath: /var/lib/jbod-csi-driver/data1
-            name: jbod-csi-data1
-          - mountPath: /var/lib/jbod-csi-driver/data2
-            name: jbod-csi-data2
-          - mountPath: /var/lib/jbod-csi-driver/data3
-            name: jbod-csi-data3
-          - mountPath: /var/lib/jbod-csi-driver/data4
-            name: jbod-csi-data4
-        - name: jbod-csi-driver
-          image: minio/jbod-csi-driver:v0.1.2
+          - mountPath: /var/lib/direct-csi-driver/data1
+            name: direct-csi-data1
+          - mountPath: /var/lib/direct-csi-driver/data2
+            name: direct-csi-data2
+          - mountPath: /var/lib/direct-csi-driver/data3
+            name: direct-csi-data3
+          - mountPath: /var/lib/direct-csi-driver/data4
+            name: direct-csi-data4
+        - name: direct-csi-driver
+          image: minio/direct-csi-driver:v0.1.2
           args:
-            - "--identity=jbod.csi.driver.min.io"
+            - "--identity=direct.csi.driver.min.io"
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--node-id=$(KUBE_NODE_NAME)"
-            - "/var/lib/jbod-csi-driver/data{1...4}"
+            - "/var/lib/direct-csi-driver/data{1...4}"
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
@@ -134,14 +134,14 @@ spec:
             - mountPath: /var/lib/kubelet/plugins
               mountPropagation: Bidirectional
               name: plugins-dir
-            - mountPath: /var/lib/jbod-csi-driver/data1
-              name: jbod-csi-data1
-            - mountPath: /var/lib/jbod-csi-driver/data2
-              name: jbod-csi-data2
-            - mountPath: /var/lib/jbod-csi-driver/data3
-              name: jbod-csi-data3
-            - mountPath: /var/lib/jbod-csi-driver/data4
-              name: jbod-csi-data4
+            - mountPath: /var/lib/direct-csi-driver/data1
+              name: direct-csi-data1
+            - mountPath: /var/lib/direct-csi-driver/data2
+              name: direct-csi-data2
+            - mountPath: /var/lib/direct-csi-driver/data3
+              name: direct-csi-data3
+            - mountPath: /var/lib/direct-csi-driver/data4
+              name: direct-csi-data4
             - mountPath: /dev
               name: dev-dir
         - name: liveness-probe
@@ -154,7 +154,7 @@ spec:
           - --health-port=9898
       volumes:
         - hostPath:
-            path: /var/lib/kubelet/plugins/jbod-csi-driver-min-io
+            path: /var/lib/kubelet/plugins/direct-csi-driver-min-io
             type: DirectoryOrCreate
           name: socket-dir
         - hostPath:
@@ -170,21 +170,21 @@ spec:
             type: Directory
           name: plugins-dir
         - hostPath:
-            path: /var/lib/jbod-csi-driver/data1/
+            path: /var/lib/direct-csi-driver/data1/
             type: DirectoryOrCreate
-          name: jbod-csi-data1
+          name: direct-csi-data1
         - hostPath:
-            path: /var/lib/jbod-csi-driver/data2/
+            path: /var/lib/direct-csi-driver/data2/
             type: DirectoryOrCreate
-          name: jbod-csi-data2
+          name: direct-csi-data2
         - hostPath:
-            path: /var/lib/jbod-csi-driver/data3/
+            path: /var/lib/direct-csi-driver/data3/
             type: DirectoryOrCreate
-          name: jbod-csi-data3
+          name: direct-csi-data3
         - hostPath:
-            path: /var/lib/jbod-csi-driver/data4/
+            path: /var/lib/direct-csi-driver/data4/
             type: DirectoryOrCreate
-          name: jbod-csi-data4
+          name: direct-csi-data4
         - hostPath:
             path: /dev
             type: Directory
@@ -195,19 +195,19 @@ spec:
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: jbod-csi-controller-min-io
-  namespace: jbod-csi-driver
+  name: direct-csi-controller-min-io
+  namespace: direct-csi-driver
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: jbod-csi-controller-min-io
+      app: direct-csi-controller-min-io
   template:
     metadata:
       labels:
-        app: jbod-csi-controller-min-io
+        app: direct-csi-controller-min-io
     spec:
-      serviceAccountName: jbod-csi-driver-min-io
+      serviceAccountName: direct-csi-driver-min-io
       containers:
         - name: csi-provisioner
           image: quay.io/k8scsi/csi-provisioner:v1.2.1
@@ -235,11 +235,11 @@ spec:
             initialDelaySeconds: 10
             timeoutSeconds: 3
             periodSeconds: 2
-        - name: jbod-csi-controller
-          image: minio/jbod-csi-driver:v0.1.2
+        - name: direct-csi-controller
+          image: minio/direct-csi-driver:v0.1.2
           args:
             - "--v=5"
-            - "--identity=jbod.csi.driver.min.io"
+            - "--identity=direct.csi.driver.min.io"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--node-id=$(KUBE_NODE_NAME)"
             - "/tmp/"
@@ -272,7 +272,7 @@ spec:
               name: socket-dir
       volumes:
         - hostPath:
-            path: /var/lib/kubelet/plugins/jbod-csi-controller-min-io
+            path: /var/lib/kubelet/plugins/direct-csi-controller-min-io
             type: DirectoryOrCreate
           name: socket-dir
         - hostPath:

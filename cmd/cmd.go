@@ -31,7 +31,7 @@ var Version string
 
 // flags
 var (
-	identity = "jbod.csi.driver.min.io"
+	identity = "direct.csi.driver.min.io"
 	nodeID   = ""
 	rack     = "default"
 	zone     = "default"
@@ -41,9 +41,9 @@ var (
 
 var driverCmd = &cobra.Command{
 	Use:   os.Args[0],
-	Short: "CSI driver for JBODs",
+	Short: "CSI driver for provisioning from JBOD(s) directly",
 	Long: fmt.Sprintf(`
-This Container Storage Interface (CSI) driver provides just a bunch of drives (JBOD) as volumes consumable within containers. This driver does not manage the lifecycle of the data or the backing of the disk itself. It only acts as the middle-man between a drive and a container runtime.
+This Container Storage Interface (CSI) driver provides just a bunch of drives (JBODs) as volumes consumable within containers. This driver does not manage the lifecycle of the data or the backing of the disk itself. It only acts as the middle-man between a drive and a container runtime.
 
 This driver is rack, region and zone aware i.e., a workload requesting volumes with constraints on rack, region or zone will be scheduled to run only within the constraints. This is useful for requesting volumes that need to be within a specified failure domain (rack, region or zone)
 
@@ -67,12 +67,12 @@ func init() {
 	// defaulting this to true so that logs are printed to console
 	flag.Set("logtostderr", "true")
 
-	driverCmd.PersistentFlags().StringVarP(&identity, "identity", "i", identity, "identity of this jbod-csi-driver")
-	driverCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which jbod-csi-driver is listening")
-	driverCmd.PersistentFlags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which jbod-csi-driver is running")
-	driverCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this jbod-csi-driver is running")
-	driverCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this jbod-csi-driver is running")
-	driverCmd.PersistentFlags().StringVarP(&region, "region", "", region, "identity of the region in which this jbod-csi-driver is running")
+	driverCmd.PersistentFlags().StringVarP(&identity, "identity", "i", identity, "identity of this direct-csi-driver")
+	driverCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi-driver is listening")
+	driverCmd.PersistentFlags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi-driver is running")
+	driverCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this direct-csi-driver is running")
+	driverCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this direct-csi-driver is running")
+	driverCmd.PersistentFlags().StringVarP(&region, "region", "", region, "identity of the region in which this direct-csi-driver is running")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")

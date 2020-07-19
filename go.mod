@@ -1,4 +1,4 @@
-module github.com/minio/jbod-csi-driver
+module github.com/minio/direct-csi-driver
 
 go 1.14
 
