@@ -20,7 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	
+
 	"github.com/golang/glog"
 	"github.com/minio/direct-csi-driver/cmd"
 )
@@ -34,7 +34,7 @@ func main() {
 		glog.Infof("Exiting on signal %s %#v", s.String(), s)
 		panic("Signal received. Exiting")
 	}()
-	
+
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}

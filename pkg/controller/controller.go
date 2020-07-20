@@ -100,7 +100,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	topologies := map[string]string{}
-	
+
 	if id, ok := parameters[topology.TopologyDriverIdentity]; ok {
 		topologies[topology.TopologyDriverIdentity] = id
 	}
@@ -120,7 +120,6 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	topologyReqs := []*csi.Topology{{
 		Segments: topologies,
 	}}
-
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
