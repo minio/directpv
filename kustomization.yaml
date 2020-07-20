@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: direct-csi-driver
 commonAnnotations:
-  direct.csi.driver.min.io/authors: "Minio, Inc."
+  direct.csi.driver.min.io/authors: "MinIO, Inc."
   direct.csi.driver.min.io/license: "AGPLv3"
   direct.csi.driver.min.io/support: "https://subnet.min.io"
 commonLabels:
