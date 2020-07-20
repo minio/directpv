@@ -1,4 +1,4 @@
-# Container Storage Interface (CSI) driver for DIRECTs ![Go](https://github.com/minio/direct-csi-driver/workflows/Go/badge.svg)
+# Container Storage Interface (CSI) driver for Direct Volume Access ![Go](https://github.com/minio/direct-csi-driver/workflows/Go/badge.svg)
 This repository provides tools and scripts for building and testing the DIRECT CSI provider.
 
 ## Steps to run

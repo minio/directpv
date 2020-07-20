@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: direct-csi-driver
 commonAnnotations:
   direct.csi.driver.min.io/authors: "Minio, Inc."
-  direct.csi.driver.min.io/license: "AGPL"
+  direct.csi.driver.min.io/license: "AGPLv3"
   direct.csi.driver.min.io/support: "https://subnet.min.io"
 commonLabels:
   direct.csi.driver.min.io/version: $(VERSION)

@@ -89,6 +89,8 @@ spec:
             name: registration-dir
           - mountPath: $(COMMON_CONTAINER_ROOT)
             name: direct-csi-driver-common-root
+          terminationMessagePolicy: FallbackToLogsOnError
+          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/driver-registrar-termination-log
         - name: direct-csi-driver
           image: $(REPOSITORY_ORG)/$(REPOSITORY_IMAGE):$(VERSION)
           args:
@@ -107,6 +109,8 @@ spec:
                   fieldPath: spec.nodeName
           securityContext:
             privileged: true
+          terminationMessagePolicy: FallbackToLogsOnError
+          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/driver-termination-log
           ports:
           - containerPort: 9898
             name: healthz
@@ -130,18 +134,20 @@ spec:
               name: plugins-dir
             - mountPath: $(COMMON_CONTAINER_ROOT)
               name: direct-csi-driver-common-root
-              mountPropagation: Bidirectional
             - mountPath: /dev
-              mountPropagation: Bidirectional
               name: dev-dir
         - name: liveness-probe
           volumeMounts:
           - mountPath: /csi
             name: socket-dir
+          - mountPath: $(COMMON_CONTAINER_ROOT)
+            name: direct-csi-driver-common-root
           image: quay.io/k8scsi/livenessprobe:v1.1.0
           args:
           - --csi-address=/csi/csi.sock
           - --health-port=9898
+          terminationMessagePolicy: FallbackToLogsOnError
+          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/driver-liveness-termination-log
       volumes:
         - hostPath:
             path: /var/lib/kubelet/plugins/direct-csi-driver-min-io
@@ -205,6 +211,10 @@ spec:
               name: socket-dir
             - mountPath: /dev
               name: dev-dir
+            - mountPath: $(COMMON_CONTAINER_ROOT)
+              name: direct-csi-driver-common-root
+          terminationMessagePolicy: FallbackToLogsOnError
+          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/controller-provisioner-termination-log
           livenessProbe:
             failureThreshold: 5
             httpGet:
@@ -238,16 +248,15 @@ spec:
           - containerPort: 9898
             name: healthz
             protocol: TCP
-          lifecycle:
-            preStop:
-              exec:
-                # SIGTERM triggers a quick exit; gracefully terminate instead
-                command: ["echo", "process ended"]
+          terminationMessagePolicy: FallbackToLogsOnError
+          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/controller-termination-log
           volumeMounts:
             - mountPath: /dev
               name: dev-dir
             - mountPath: /csi
               name: socket-dir
+            - mountPath: $(COMMON_CONTAINER_ROOT)
+              name: direct-csi-driver-common-root
       volumes:
         - hostPath:
             path: /var/lib/kubelet/plugins/direct-csi-controller-min-io
@@ -257,3 +266,7 @@ spec:
             path: /dev
             type: Directory
           name: dev-dir
+        - hostPath:
+            path: $(COMMON_HOST_ROOT)
+            type: DirectoryOrCreate
+          name: direct-csi-driver-common-root

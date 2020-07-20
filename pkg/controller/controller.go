@@ -21,7 +21,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
-	//"github.com/minio/direct-csi-driver/pkg/topology"
+	"github.com/minio/direct-csi-driver/pkg/topology"
 	"github.com/minio/direct-csi-driver/pkg/volume"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -98,9 +98,29 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "error creating volume: %v", err)
 	}
-	topologies := []*csi.Topology{{
-		Segments: map[string]string{},
+
+	topologies := map[string]string{}
+	
+	if id, ok := parameters[topology.TopologyDriverIdentity]; ok {
+		topologies[topology.TopologyDriverIdentity] = id
+	}
+	if node, ok := parameters[topology.TopologyDriverNode]; ok {
+		topologies[topology.TopologyDriverNode] = node
+	}
+	if id, ok := parameters[topology.TopologyDriverRack]; ok {
+		topologies[topology.TopologyDriverRack] = id
+	}
+	if id, ok := parameters[topology.TopologyDriverZone]; ok {
+		topologies[topology.TopologyDriverZone] = id
+	}
+	if id, ok := parameters[topology.TopologyDriverRegion]; ok {
+		topologies[topology.TopologyDriverRegion] = id
+	}
+
+	topologyReqs := []*csi.Topology{{
+		Segments: topologies,
 	}}
+
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
@@ -108,7 +128,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			CapacityBytes:      req.GetCapacityRange().GetRequiredBytes(),
 			VolumeContext:      req.GetParameters(),
 			ContentSource:      req.GetVolumeContentSource(),
-			AccessibleTopology: topologies,
+			AccessibleTopology: topologyReqs,
 		},
 	}, nil
 }

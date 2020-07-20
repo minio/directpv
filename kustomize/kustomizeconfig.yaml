@@ -15,11 +15,17 @@ varReference:
   kind: DaemonSet
 - path: spec/template/spec/containers/image
   kind: DaemonSet
-- path: spec/template/spec/containers/image
+- path: spec/template/spec/containers/terminationMessagePath
+  kind: DaemonSet
+- path: spec/template/spec/volumes/hostPath/path
   kind: Deployment
 - path: spec/selector/matchLabels
   kind: Deployment
 - path: spec/template/metadata/labels
+  kind: Deployment
+- path: spec/template/spec/containers/image
+  kind: Deployment
+- path: spec/template/spec/containers/terminationMessagePath
   kind: Deployment
 - path: spec/selector
   kind: Service
