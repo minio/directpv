@@ -43,7 +43,7 @@ var (
 	sc      = runtime.NewScheme()
 	vClient client.Client
 
-	group   = "jbod.csi.min.io"
+	group   = "direct.csi.min.io"
 	version = "v1alpha1"
 
 	GroupVersion = schema.GroupVersion{
@@ -70,7 +70,7 @@ func InitializeClient(identity string) error {
 	if err != nil {
 		return fmt.Errorf("could not initialize apiExtentions Client: %v", err)
 	}
-	vCrd, err := extCl.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), "volumes.jbod.csi.min.io", metav1.GetOptions{})
+	vCrd, err := extCl.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), "volumes.direct.csi.min.io", metav1.GetOptions{})
 	if err != nil {
 		glog.Errorf("volume type not yet registered: %v", err)
 
@@ -193,7 +193,7 @@ func InitializeClient(identity string) error {
 
 		_, err = extCl.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), vCrd, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("could not create and register volumes.jbod.csi.min.io type: %v", err)
+			return fmt.Errorf("could not create and register volumes.direct.csi.min.io type: %v", err)
 		}
 	}
 

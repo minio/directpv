@@ -20,10 +20,10 @@ import (
 	"strings"
 
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/minio/jbod-csi-driver/pkg/controller"
-	id "github.com/minio/jbod-csi-driver/pkg/identity"
-	"github.com/minio/jbod-csi-driver/pkg/node"
-	"github.com/minio/jbod-csi-driver/pkg/volume"
+	"github.com/minio/direct-csi-driver/pkg/controller"
+	id "github.com/minio/direct-csi-driver/pkg/identity"
+	"github.com/minio/direct-csi-driver/pkg/node"
+	"github.com/minio/direct-csi-driver/pkg/volume"
 
 	"github.com/golang/glog"
 	"github.com/minio/minio/pkg/ellipses"

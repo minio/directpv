@@ -2,8 +2,8 @@ FROM alpine:latest
 
 RUN apk add -U --no-cache ca-certificates
 
-COPY jbod-csi-driver /jbod-csi-driver
+COPY direct-csi-driver /direct-csi-driver
 
 WORKDIR /
 
-ENTRYPOINT ["/jbod-csi-driver"]
+ENTRYPOINT ["/direct-csi-driver"]

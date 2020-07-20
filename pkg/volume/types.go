@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/jbod-csi-driver/pkg/topology"
+	"github.com/minio/direct-csi-driver/pkg/topology"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

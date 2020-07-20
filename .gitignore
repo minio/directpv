@@ -1,4 +1,4 @@
-jbod-csi-driver
+direct-csi-driver
 *~
 *.test
 dist/
