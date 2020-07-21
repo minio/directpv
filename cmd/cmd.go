@@ -31,7 +31,7 @@ var Version string
 
 // flags
 var (
-	identity = "direct.csi.driver.min.io"
+	identity = "direct.csi.min.io"
 	nodeID   = ""
 	rack     = "default"
 	zone     = "default"
@@ -67,12 +67,12 @@ func init() {
 	// defaulting this to true so that logs are printed to console
 	flag.Set("logtostderr", "true")
 
-	driverCmd.PersistentFlags().StringVarP(&identity, "identity", "i", identity, "identity of this direct-csi-driver")
-	driverCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi-driver is listening")
-	driverCmd.PersistentFlags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi-driver is running")
-	driverCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this direct-csi-driver is running")
-	driverCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this direct-csi-driver is running")
-	driverCmd.PersistentFlags().StringVarP(&region, "region", "", region, "identity of the region in which this direct-csi-driver is running")
+	driverCmd.PersistentFlags().StringVarP(&identity, "identity", "i", identity, "identity of this direct-csi")
+	driverCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi is listening")
+	driverCmd.PersistentFlags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi is running")
+	driverCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this direct-csi is running")
+	driverCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this direct-csi is running")
+	driverCmd.PersistentFlags().StringVarP(&region, "region", "", region, "identity of the region in which this direct-csi is running")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")

@@ -22,7 +22,7 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
-	"github.com/minio/direct-csi-driver/cmd"
+	"github.com/minio/direct-csi/cmd"
 )
 
 func main() {

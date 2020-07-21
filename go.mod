@@ -1,4 +1,4 @@
-module github.com/minio/direct-csi-driver
+module github.com/minio/direct-csi
 
 go 1.14
 

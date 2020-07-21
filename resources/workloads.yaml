@@ -1,8 +1,8 @@
 apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
-  name: direct.csi.driver.min.io
-  namespace: direct-csi-driver
+  name: direct.csi.min.io
+  namespace: direct-csi
 spec:
   volumeLifecycleModes:
   - Persistent
@@ -14,8 +14,8 @@ spec:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: direct-csi-driver-min-io
-  namespace: direct-csi-driver
+  name: direct-csi-min-io
+  namespace: direct-csi
 data:
   key: none
 
@@ -24,10 +24,10 @@ data:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: direct.csi.driver.min.io
-provisioner: direct.csi.driver.min.io
+  name: direct.csi.min.io
+provisioner: direct.csi.min.io
 parameters:
-  disable.csi.storage.k8s.io/provisioner-secret-name: direct-csi-driver-min-io
+  disable.csi.storage.k8s.io/provisioner-secret-name: direct-csi-min-io
   disable.csi.storage.k8s.io/provisioner-secret-namespace: default
   disable.csi.storage.k8s.io/fstype: xfs
 
@@ -36,13 +36,13 @@ parameters:
 kind: Service
 apiVersion: v1
 metadata:
-  name: direct-csi-driver-min-io
-  namespace: direct-csi-driver
+  name: direct-csi-min-io
+  namespace: direct-csi
   labels:
-    app: direct-csi-driver-min-io
+    app: direct-csi-min-io
 spec:
   selector:
-    app: direct-csi-driver-min-io
+    app: direct-csi-min-io
   ports:
     - name: unused
       port: 12345
@@ -52,25 +52,25 @@ spec:
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: direct-csi-driver-min-io
-  namespace: direct-csi-driver
+  name: direct-csi-min-io
+  namespace: direct-csi
 spec:
   selector:
     matchLabels:
-      app: direct-csi-driver-min-io
+      app: direct-csi-min-io
   template:
     metadata:
       labels:
-        app: direct-csi-driver-min-io
+        app: direct-csi-min-io
     spec:
-      serviceAccountName: direct-csi-driver-min-io
+      serviceAccountName: direct-csi-min-io
       containers:
         - name: node-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
           args:
             - --v=5
             - --csi-address=/csi/csi.sock
-            - --kubelet-registration-path=/var/lib/kubelet/plugins/direct-csi-driver-min-io/csi.sock
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/direct-csi-min-io/csi.sock
           securityContext:
             # This is necessary only for systems with SELinux, where
             # non-privileged sidecar containers cannot access unix domain socket
@@ -87,18 +87,18 @@ spec:
             name: socket-dir
           - mountPath: /registration
             name: registration-dir
-          - mountPath: $(COMMON_CONTAINER_ROOT)
-            name: direct-csi-driver-common-root
+          - mountPath: $(DRIVES_DIR)
+            name: direct-csi-common-root
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/driver-registrar-termination-log
-        - name: direct-csi-driver
+          terminationMessagePath: $(DRIVES_DIR)/driver-registrar-termination-log
+        - name: direct-csi
           image: $(REPOSITORY_ORG)/$(REPOSITORY_IMAGE):$(VERSION)
           args:
-            - "--identity=direct.csi.driver.min.io"
+            - "--identity=direct.csi.min.io"
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--node-id=$(KUBE_NODE_NAME)"
-            - $(DRIVE_PATHS)
+            - $(DRIVES_DIR)/$(DRIVES)
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
@@ -110,7 +110,7 @@ spec:
           securityContext:
             privileged: true
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/driver-termination-log
+          terminationMessagePath: $(DRIVES_DIR)/driver-termination-log
           ports:
           - containerPort: 9898
             name: healthz
@@ -132,25 +132,25 @@ spec:
             - mountPath: /var/lib/kubelet/plugins
               mountPropagation: Bidirectional
               name: plugins-dir
-            - mountPath: $(COMMON_CONTAINER_ROOT)
-              name: direct-csi-driver-common-root
+            - mountPath: $(DRIVES_DIR)
+              name: direct-csi-common-root
             - mountPath: /dev
               name: dev-dir
         - name: liveness-probe
           volumeMounts:
           - mountPath: /csi
             name: socket-dir
-          - mountPath: $(COMMON_CONTAINER_ROOT)
-            name: direct-csi-driver-common-root
+          - mountPath: $(DRIVES_DIR)
+            name: direct-csi-common-root
           image: quay.io/k8scsi/livenessprobe:v1.1.0
           args:
           - --csi-address=/csi/csi.sock
           - --health-port=9898
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/driver-liveness-termination-log
+          terminationMessagePath: $(DRIVES_DIR)/driver-liveness-termination-log
       volumes:
         - hostPath:
-            path: /var/lib/kubelet/plugins/direct-csi-driver-min-io
+            path: /var/lib/kubelet/plugins/direct-csi-min-io
             type: DirectoryOrCreate
           name: socket-dir
         - hostPath:
@@ -166,9 +166,9 @@ spec:
             type: Directory
           name: plugins-dir
         - hostPath:
-            path: $(COMMON_HOST_ROOT)
+            path: $(DRIVES_DIR)
             type: DirectoryOrCreate
-          name: direct-csi-driver-common-root
+          name: direct-csi-common-root
         - hostPath:
             path: /dev
             type: Directory
@@ -180,7 +180,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: direct-csi-controller-min-io
-  namespace: direct-csi-driver
+  namespace: direct-csi
 spec:
   replicas: 3
   selector:
@@ -191,7 +191,7 @@ spec:
       labels:
         app: direct-csi-controller-min-io
     spec:
-      serviceAccountName: direct-csi-driver-min-io
+      serviceAccountName: direct-csi-min-io
       containers:
         - name: csi-provisioner
           image: quay.io/k8scsi/csi-provisioner:v1.2.1
@@ -211,10 +211,10 @@ spec:
               name: socket-dir
             - mountPath: /dev
               name: dev-dir
-            - mountPath: $(COMMON_CONTAINER_ROOT)
-              name: direct-csi-driver-common-root
+            - mountPath: $(DRIVES_DIR)
+              name: direct-csi-common-root
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/controller-provisioner-termination-log
+          terminationMessagePath: $(DRIVES_DIR)/controller-provisioner-termination-log
           livenessProbe:
             failureThreshold: 5
             httpGet:
@@ -227,7 +227,7 @@ spec:
           image: $(REPOSITORY_ORG)/$(REPOSITORY_IMAGE):$(VERSION)
           args:
             - "--v=5"
-            - "--identity=direct.csi.driver.min.io"
+            - "--identity=direct.csi.min.io"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--node-id=$(KUBE_NODE_NAME)"
             - "/tmp/"
@@ -249,14 +249,14 @@ spec:
             name: healthz
             protocol: TCP
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(COMMON_CONTAINER_ROOT)/controller-termination-log
+          terminationMessagePath: $(DRIVES_DIR)/controller-termination-log
           volumeMounts:
             - mountPath: /dev
               name: dev-dir
             - mountPath: /csi
               name: socket-dir
-            - mountPath: $(COMMON_CONTAINER_ROOT)
-              name: direct-csi-driver-common-root
+            - mountPath: $(DRIVES_DIR)
+              name: direct-csi-common-root
       volumes:
         - hostPath:
             path: /var/lib/kubelet/plugins/direct-csi-controller-min-io
@@ -267,6 +267,6 @@ spec:
             type: Directory
           name: dev-dir
         - hostPath:
-            path: $(COMMON_HOST_ROOT)
+            path: $(DRIVES_DIR)
             type: DirectoryOrCreate
-          name: direct-csi-driver-common-root
+          name: direct-csi-common-root

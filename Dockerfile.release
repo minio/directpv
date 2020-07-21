@@ -2,8 +2,8 @@ FROM alpine:latest
 
 RUN apk add -U --no-cache ca-certificates
 
-COPY direct-csi-driver /direct-csi-driver
+COPY direct-csi /direct-csi
 
 WORKDIR /
 
-ENTRYPOINT ["/direct-csi-driver"]
+ENTRYPOINT ["/direct-csi"]

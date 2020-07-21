@@ -17,11 +17,11 @@
 package topology
 
 const (
-	TopologyDriverIdentity = "direct.csi.driver.min.io/identity"
-	TopologyDriverNode     = "direct.csi.driver.min.io/node"
-	TopologyDriverRack     = "direct.csi.driver.min.io/rack"
-	TopologyDriverZone     = "direct.csi.driver.min.io/zone"
-	TopologyDriverRegion   = "direct.csi.driver.min.io/region"
+	TopologyDriverIdentity = "direct.csi.min.io/identity"
+	TopologyDriverNode     = "direct.csi.min.io/node"
+	TopologyDriverRack     = "direct.csi.min.io/rack"
+	TopologyDriverZone     = "direct.csi.min.io/zone"
+	TopologyDriverRegion   = "direct.csi.min.io/region"
 )
 
 type TopologyConstraint struct {

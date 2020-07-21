@@ -21,8 +21,8 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
-	"github.com/minio/direct-csi-driver/pkg/topology"
-	"github.com/minio/direct-csi-driver/pkg/volume"
+	"github.com/minio/direct-csi/pkg/topology"
+	"github.com/minio/direct-csi/pkg/volume"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
