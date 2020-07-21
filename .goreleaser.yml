@@ -1,11 +1,11 @@
-project_name: direct-csi-driver
+project_name: direct-csi
 
 release:
    name_template: "Version {{.Version}}"
 
    github:
     owner: minio
-    name: direct-csi-driver
+    name: direct-csi
 
 before:
   hooks:
@@ -23,7 +23,7 @@ builds:
       - -trimpath
       - -tags="osusergo netgo static_build"
     ldflags:
-      - -s -w -X github.com/minio/direct-csi-driver/cmd.Version={{ .Version }}
+      - -s -w -X github.com/minio/direct-csi/cmd.Version={{ .Version }}
 
 archives:
   - format: binary
@@ -37,5 +37,5 @@ dockers:
     goarch: amd64
     dockerfile: Dockerfile.release
     image_templates:
-      - minio/direct-csi-driver:{{ .Tag }}
-      - minio/direct-csi-driver:latest
+      - minio/direct-csi:{{ .Tag }}
+      - minio/direct-csi:latest
