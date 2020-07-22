@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	
+
 	"github.com/golang/glog"
 )
 
@@ -41,13 +41,13 @@ func InitializeFactory(paths []string) {
 func Provision(volumeID string) (string, error) {
 	provisionerLock.Lock()
 	defer provisionerLock.Unlock()
-	
+
 	if len(vf.Paths) == 0 {
 		return "", fmt.Errorf("no base paths provided for directs")
 	}
 	next := vf.LastAssigned + 1
 	next = next % len(vf.Paths)
-	
+
 	nextPath := vf.Paths[next]
 	glog.V(15).Infof("[%s] using direct storage: BasePaths[%d] = %s", volumeID, next, nextPath)
 
