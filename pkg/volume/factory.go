@@ -25,8 +25,10 @@ import (
 	"github.com/golang/glog"
 )
 
-var vf = &vFactory{}
-var provisionerLock = &sync.Mutex{}
+var (
+	vf              = &vFactory{}
+	provisionerLock sync.Mutex
+)
 
 type vFactory struct {
 	Paths        []string
@@ -43,7 +45,7 @@ func Provision(volumeID string) (string, error) {
 	defer provisionerLock.Unlock()
 
 	if len(vf.Paths) == 0 {
-		return "", fmt.Errorf("no base paths provided for directs")
+		return "", fmt.Errorf("no base paths provided for direct CSI")
 	}
 	next := vf.LastAssigned + 1
 	next = next % len(vf.Paths)
