@@ -52,6 +52,7 @@ func driver(args []string) error {
 		}
 	}
 
+	glog.V(10).Infof("base paths: %s", strings.Join(basePaths, ","))
 	volume.InitializeFactory(basePaths)
 	if err := volume.InitializeClient(identity); err != nil {
 		return err
