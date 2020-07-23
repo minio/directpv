@@ -1,0 +1,111 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: (devel)
+  name: storagetopologies.csi.min.io
+spec:
+  group: csi.min.io
+  names:
+    kind: StorageTopology
+    listKind: StorageTopologyList
+    plural: storagetopologies
+    singular: storagetopology
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      description: StorageTopology defines the layout of storage infrastructure.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          description: 'Standard object metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata'
+          type: object
+        spec:
+          description: 'Specification of the storage topology More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.'
+          properties:
+            fstype:
+              description: Layout of the drives across hosts
+              type: string
+            layout:
+              description: Layout of the drives across hosts
+              type: string
+            mount_options:
+              description: Mount Options
+              items:
+                type: string
+              type: array
+            reclaim_policy:
+              description: Reclaim Policy
+              type: string
+            resource_limits:
+              description: Resource Limits
+              properties:
+                storage:
+                  anyOf:
+                    - type: integer
+                    - type: string
+                  description: Storage
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                volumes:
+                  description: Volumes
+                  format: int32
+                  type: integer
+              type: object
+          required:
+            - layout
+          type: object
+        status:
+          description: StorageTopologyStatus defines the observed state of StorageTopology
+          properties:
+            accessibleNodes:
+              description: Nodes the storage topology covers
+              items:
+                type: string
+              type: array
+            capacity:
+              description: Total Capacity of the storage topology across all nodes
+              properties:
+                freeSpace:
+                  anyOf:
+                    - type: integer
+                    - type: string
+                  description: Free Space of the storage topology
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                total:
+                  anyOf:
+                    - type: integer
+                    - type: string
+                  description: Total capacity of the storage topology
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+              type: object
+            error:
+              description: Present only when there is an error.
+              properties:
+                message:
+                  description: Message details of the encountered error
+                  type: string
+                state:
+                  description: State indicates a single word description of the error
+                    state that has occurred on the StorageTopology, "InMaintenance",
+                    "NotAccessible", etc.
+                  type: string
+              type: object
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
