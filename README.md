@@ -11,17 +11,17 @@ $> kubectl apply -k github.com/minio/direct-csi
 $> cat << EOF > storage_topology.yaml
 storage_topology:
    -  name: direct.csi.min.io # This field will later end up being the name of the storage class
-      layout: host{1...4}/dev/nvme0n{1...4} 
+      layout: host{1...4}/dev/nvme0n{1...4}
       fstype: xfs
-      mount_options: 
-      - ro
-      - atime
-      resource_limit: 
+      mount_options:
+      - rw
+      - noatime
+      resource_limit:
          storage: 10TiB
          volumes: 1000
       reclaim_policy: Retain|Delete
       selectors:
-        nodes: 
+        nodes:
         - host{1...4}
 EOF
 
