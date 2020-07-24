@@ -18,11 +18,8 @@ storage_topology:
       - noatime
       resource_limit:
          storage: 10TiB
-         volumes: 1000
+         volumes: 100
       reclaim_policy: Retain|Delete
-      selectors:
-        nodes:
-        - host{1...4}
 EOF
 
 # utilize the volume in your application
