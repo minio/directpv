@@ -5,7 +5,25 @@ This repository provides tools and scripts for building and testing the DIRECT C
 
 ```sh
 # Install the driver
-$> DIRECT_CSI_DRIVES=data{1...4} DIRECT_CSI_DRIVES_DIR=/mnt kubectl apply -k github.com/minio/direct-csi
+$> kubectl apply -k github.com/minio/direct-csi
+
+# Create a storage topology
+$> cat << EOF > storage_topology.yaml
+storage_topology:
+   -  name: direct.csi.min.io # This field will later end up being the name of the storage class
+      layout: host{1...4}/dev/nvme0n{1...4} 
+      fstype: xfs
+      mount_options: 
+      - ro
+      - atime
+      resource_limit: 
+         storage: 10TiB
+         volumes: 1000
+      reclaim_policy: Retain|Delete
+      selectors:
+        nodes: 
+        - host{1...4}
+EOF
 
 # utilize the volume in your application
 #
