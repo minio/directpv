@@ -20,7 +20,7 @@ resources:
   - resources/workloads.yaml
   - resources/ns.yaml
   - resources/rbac.yaml
-  - resources/crd.yaml
+  - resources/csi.min.io_storagetopologies.yaml
 
 configurations:
  - resources/kustomizeconfig.yaml  

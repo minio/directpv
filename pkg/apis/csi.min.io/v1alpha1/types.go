@@ -55,10 +55,18 @@ type StorageTopology struct {
 	Status StorageTopologyStatus `json:"status,omitempty"`
 }
 
+// StorageTopologyLayout describes the nodes and drives that will be used across the cluster.
+type StorageTopologyLayout struct {
+	// Labels of the nodes that will participate
+	NodeLabels map[string]string `json:"nodeLabels,omitempty"`
+	// Mount Path for the volumes that will be used
+	Path string `json:"string"`
+}
+
 // StorageTopologySpec is the spec of the StorageTopology.
 type StorageTopologySpec struct {
 	// Layout of the drives across hosts
-	Layout string `json:"layout"`
+	Layout StorageTopologyLayout `json:"layout"`
 	// Layout of the drives across hosts
 	// +optional
 	FsType string `json:"fstype,omitempty"`

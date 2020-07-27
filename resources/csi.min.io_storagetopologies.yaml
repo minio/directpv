@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (devel)
+    controller-gen.kubebuilder.io/version: "v0.3.0"
   name: storagetopologies.csi.min.io
 spec:
   group: csi.min.io
@@ -37,7 +37,18 @@ spec:
               type: string
             layout:
               description: Layout of the drives across hosts
-              type: string
+              properties:
+                nodeLabels:
+                  additionalProperties:
+                    type: string
+                  description: Labels of the nodes that will participate
+                  type: object
+                string:
+                  description: Mount Path for the volumes that will be used
+                  type: string
+              required:
+              - string
+              type: object
             mount_options:
               description: Mount Options
               items:
@@ -51,8 +62,8 @@ spec:
               properties:
                 storage:
                   anyOf:
-                    - type: integer
-                    - type: string
+                  - type: integer
+                  - type: string
                   description: Storage
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
@@ -62,7 +73,7 @@ spec:
                   type: integer
               type: object
           required:
-            - layout
+          - layout
           type: object
         status:
           description: StorageTopologyStatus defines the observed state of StorageTopology
@@ -77,15 +88,15 @@ spec:
               properties:
                 freeSpace:
                   anyOf:
-                    - type: integer
-                    - type: string
+                  - type: integer
+                  - type: string
                   description: Free Space of the storage topology
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
                 total:
                   anyOf:
-                    - type: integer
-                    - type: string
+                  - type: integer
+                  - type: string
                   description: Total capacity of the storage topology
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
@@ -106,6 +117,6 @@ spec:
       type: object
   version: v1alpha1
   versions:
-    - name: v1alpha1
-      served: true
-      storage: true
+  - name: v1alpha1
+    served: true
+    storage: true
