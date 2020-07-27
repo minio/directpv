@@ -22,10 +22,10 @@ import (
 	"context"
 	time "time"
 
-	csiminiov1alpha1 "github.com/minio/direct-csi/pkg/apis/csi.min.io/v1alpha1"
+	directcsiminiov1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	versioned "github.com/minio/direct-csi/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/minio/direct-csi/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/minio/direct-csi/pkg/client/listers/csi.min.io/v1alpha1"
+	v1alpha1 "github.com/minio/direct-csi/pkg/client/listers/direct.csi.min.io/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -61,16 +61,16 @@ func NewFilteredStorageTopologyInformer(client versioned.Interface, resyncPeriod
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CsiV1alpha1().StorageTopologies().List(context.TODO(), options)
+				return client.DirectV1alpha1().StorageTopologies().List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CsiV1alpha1().StorageTopologies().Watch(context.TODO(), options)
+				return client.DirectV1alpha1().StorageTopologies().Watch(context.TODO(), options)
 			},
 		},
-		&csiminiov1alpha1.StorageTopology{},
+		&directcsiminiov1alpha1.StorageTopology{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,7 +81,7 @@ func (f *storageTopologyInformer) defaultInformer(client versioned.Interface, re
 }
 
 func (f *storageTopologyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&csiminiov1alpha1.StorageTopology{}, f.defaultInformer)
+	return f.factory.InformerFor(&directcsiminiov1alpha1.StorageTopology{}, f.defaultInformer)
 }
 
 func (f *storageTopologyInformer) Lister() v1alpha1.StorageTopologyLister {

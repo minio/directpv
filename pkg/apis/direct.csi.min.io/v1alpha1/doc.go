@@ -17,5 +17,5 @@
 // +k8s:deepcopy-gen=package,register
 
 // Package v1alpha1 is v1alpha1 version of the API.
-// +groupName=csi.min.io
+// +groupName=direct.csi.min.io
 package v1alpha1

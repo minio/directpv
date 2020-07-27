@@ -3,9 +3,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: "v0.3.0"
-  name: storagetopologies.csi.min.io
+  name: storagetopologies.direct.csi.min.io
 spec:
-  group: csi.min.io
+  group: direct.csi.min.io
   names:
     kind: StorageTopology
     listKind: StorageTopologyList
@@ -43,11 +43,11 @@ spec:
                     type: string
                   description: Labels of the nodes that will participate
                   type: object
-                string:
+                path:
                   description: Mount Path for the volumes that will be used
                   type: string
               required:
-              - string
+              - path
               type: object
             mount_options:
               description: Mount Options
@@ -113,6 +113,10 @@ spec:
                     "NotAccessible", etc.
                   type: string
               type: object
+            volume_allocations:
+              description: Number of allocated drives
+              format: int32
+              type: integer
           type: object
       type: object
   version: v1alpha1

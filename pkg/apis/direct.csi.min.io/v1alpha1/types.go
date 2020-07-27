@@ -60,7 +60,7 @@ type StorageTopologyLayout struct {
 	// Labels of the nodes that will participate
 	NodeLabels map[string]string `json:"nodeLabels,omitempty"`
 	// Mount Path for the volumes that will be used
-	Path string `json:"string"`
+	Path string `json:"path"`
 }
 
 // StorageTopologySpec is the spec of the StorageTopology.
@@ -98,6 +98,9 @@ type StorageTopologyStatus struct {
 	// Total Capacity of the storage topology across all nodes
 	// +optional
 	Capacity StorageTopologyStatusCapacity `json:"capacity,omitempty"`
+	// Number of allocated drives
+	// +optional
+	VolumeAllocations int32 `json:"volume_allocations,omitempty"`
 	// Present only when there is an error.
 	// +optional
 	Error StorageTopologyStatusError `json:"error,omitempty"`

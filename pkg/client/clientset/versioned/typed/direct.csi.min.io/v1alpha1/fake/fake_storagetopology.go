@@ -21,7 +21,7 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "github.com/minio/direct-csi/pkg/apis/csi.min.io/v1alpha1"
+	v1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,12 +32,12 @@ import (
 
 // FakeStorageTopologies implements StorageTopologyInterface
 type FakeStorageTopologies struct {
-	Fake *FakeCsiV1alpha1
+	Fake *FakeDirectV1alpha1
 }
 
-var storagetopologiesResource = schema.GroupVersionResource{Group: "csi.min.io", Version: "v1alpha1", Resource: "storagetopologies"}
+var storagetopologiesResource = schema.GroupVersionResource{Group: "direct.csi.min.io", Version: "v1alpha1", Resource: "storagetopologies"}
 
-var storagetopologiesKind = schema.GroupVersionKind{Group: "csi.min.io", Version: "v1alpha1", Kind: "StorageTopology"}
+var storagetopologiesKind = schema.GroupVersionKind{Group: "direct.csi.min.io", Version: "v1alpha1", Kind: "StorageTopology"}
 
 // Get takes name of the storageTopology, and returns the corresponding storageTopology object, and an error if there is any.
 func (c *FakeStorageTopologies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.StorageTopology, err error) {

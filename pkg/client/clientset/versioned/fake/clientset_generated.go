@@ -20,8 +20,8 @@ package fake
 
 import (
 	clientset "github.com/minio/direct-csi/pkg/client/clientset/versioned"
-	csiv1alpha1 "github.com/minio/direct-csi/pkg/client/clientset/versioned/typed/csi.min.io/v1alpha1"
-	fakecsiv1alpha1 "github.com/minio/direct-csi/pkg/client/clientset/versioned/typed/csi.min.io/v1alpha1/fake"
+	directv1alpha1 "github.com/minio/direct-csi/pkg/client/clientset/versioned/typed/direct.csi.min.io/v1alpha1"
+	fakedirectv1alpha1 "github.com/minio/direct-csi/pkg/client/clientset/versioned/typed/direct.csi.min.io/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -76,7 +76,7 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// CsiV1alpha1 retrieves the CsiV1alpha1Client
-func (c *Clientset) CsiV1alpha1() csiv1alpha1.CsiV1alpha1Interface {
-	return &fakecsiv1alpha1.FakeCsiV1alpha1{Fake: &c.Fake}
+// DirectV1alpha1 retrieves the DirectV1alpha1Client
+func (c *Clientset) DirectV1alpha1() directv1alpha1.DirectV1alpha1Interface {
+	return &fakedirectv1alpha1.FakeDirectV1alpha1{Fake: &c.Fake}
 }

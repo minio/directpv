@@ -21,7 +21,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/minio/direct-csi/pkg/apis/csi.min.io/v1alpha1"
+	v1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -52,9 +52,9 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=csi.min.io, Version=v1alpha1
+	// Group=direct.csi.min.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("storagetopologies"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Csi().V1alpha1().StorageTopologies().Informer()}, nil
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Direct().V1alpha1().StorageTopologies().Informer()}, nil
 
 	}
 

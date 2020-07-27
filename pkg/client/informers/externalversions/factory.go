@@ -24,7 +24,7 @@ import (
 	time "time"
 
 	versioned "github.com/minio/direct-csi/pkg/client/clientset/versioned"
-	csiminio "github.com/minio/direct-csi/pkg/client/informers/externalversions/csi.min.io"
+	directcsiminio "github.com/minio/direct-csi/pkg/client/informers/externalversions/direct.csi.min.io"
 	internalinterfaces "github.com/minio/direct-csi/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -172,9 +172,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Csi() csiminio.Interface
+	Direct() directcsiminio.Interface
 }
 
-func (f *sharedInformerFactory) Csi() csiminio.Interface {
-	return csiminio.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Direct() directcsiminio.Interface {
+	return directcsiminio.New(f, f.namespace, f.tweakListOptions)
 }

@@ -22,7 +22,7 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/minio/direct-csi/pkg/apis/csi.min.io/v1alpha1"
+	v1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	scheme "github.com/minio/direct-csi/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -56,7 +56,7 @@ type storageTopologies struct {
 }
 
 // newStorageTopologies returns a StorageTopologies
-func newStorageTopologies(c *CsiV1alpha1Client) *storageTopologies {
+func newStorageTopologies(c *DirectV1alpha1Client) *storageTopologies {
 	return &storageTopologies{
 		client: c.RESTClient(),
 	}
