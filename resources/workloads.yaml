@@ -70,7 +70,7 @@ spec:
           args:
             - --v=5
             - --csi-address=/csi/csi.sock
-            - --kubelet-registration-path=/var/lib/kubelet/plugins/direct-csi-min-io/csi.sock
+            - --kubelet-registration-path=$(KUBELET_DIR_PATH)/plugins/direct-csi-min-io/csi.sock
           securityContext:
             # This is necessary only for systems with SELinux, where
             # non-privileged sidecar containers cannot access unix domain socket
@@ -126,10 +126,10 @@ spec:
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
-            - mountPath: /var/lib/kubelet/pods
+            - mountPath: $(KUBELET_DIR_PATH)/pods
               mountPropagation: Bidirectional
               name: mountpoint-dir
-            - mountPath: /var/lib/kubelet/plugins
+            - mountPath: $(KUBELET_DIR_PATH)/plugins
               mountPropagation: Bidirectional
               name: plugins-dir
             - mountPath: $(DRIVES_DIR)
@@ -150,19 +150,19 @@ spec:
           terminationMessagePath: $(DRIVES_DIR)/driver-liveness-termination-log
       volumes:
         - hostPath:
-            path: /var/lib/kubelet/plugins/direct-csi-min-io
+            path: $(KUBELET_DIR_PATH)/plugins/direct-csi-min-io
             type: DirectoryOrCreate
           name: socket-dir
         - hostPath:
-            path: /var/lib/kubelet/pods
+            path: $(KUBELET_DIR_PATH)/pods
             type: DirectoryOrCreate
           name: mountpoint-dir
         - hostPath:
-            path: /var/lib/kubelet/plugins_registry
+            path: $(KUBELET_DIR_PATH)/plugins_registry
             type: Directory
           name: registration-dir
         - hostPath:
-            path: /var/lib/kubelet/plugins
+            path: $(KUBELET_DIR_PATH)/plugins
             type: Directory
           name: plugins-dir
         - hostPath:
@@ -259,7 +259,7 @@ spec:
               name: direct-csi-common-root
       volumes:
         - hostPath:
-            path: /var/lib/kubelet/plugins/direct-csi-controller-min-io
+            path: $(KUBELET_DIR_PATH)/plugins/direct-csi-controller-min-io
             type: DirectoryOrCreate
           name: socket-dir
         - hostPath:
