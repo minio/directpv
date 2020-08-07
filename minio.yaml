@@ -21,7 +21,7 @@ metadata:
     app: minio
 spec:
   serviceName: "minio-svc"
-  replicas: 16 
+  replicas: 4
   selector:
     matchLabels:
       app: minio
@@ -42,6 +42,11 @@ spec:
           mountPath: /data3
         - name: minio-data-4
           mountPath: /data4
+        env:
+          - name: MINIO_ACCESS_KEY
+            value: minio
+          - name: MINIO_SECRET_KEY
+            value: minio123    
         args:
         - "server"
         - "http://minio-{1...4}:9000/data{1...4}"

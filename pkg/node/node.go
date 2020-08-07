@@ -83,7 +83,7 @@ func (n *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
-			nodeCap(csi.NodeServiceCapability_RPC_GET_VOLUME_STATS),
+			//			nodeCap(csi.NodeServiceCapability_RPC_GET_VOLUME_STATS),
 			nodeCap(csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME),
 		},
 	}, nil
@@ -104,6 +104,10 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	vol, err := volume.GetVolume(ctx, vID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	if vol.NodeID != n.NodeID {
+		return nil, status.Error(codes.FailedPrecondition, "volume designated for another node")
 	}
 
 	if vol.StagingPath != stagingPath {
@@ -172,7 +176,9 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	vol, err := volume.GetVolume(ctx, vID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, err.Error())
+		// volume not found, same as it doesnt exist
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+		//return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	if err := vol.UnpublishVolume(ctx, targetPath); err != nil {
@@ -198,7 +204,9 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	vol.NodeID = n.NodeID
+	if vol.NodeID != n.NodeID {
+		return nil, status.Error(codes.FailedPrecondition, "volume designated for another node")
+	}
 
 	err = vol.StageVolume(ctx, vID, stagingTargetPath)
 	if err != nil {

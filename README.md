@@ -29,7 +29,10 @@ $> cat << EOF > storage_topology.yaml
 apiVersion: v1
 kind: StorageTopology
 name: direct.csi.min.io # This field will later end up being the name of the storage class
-layout: host{1...4}/dev/nvme0n{1...4}
+layout: 
+  nodeLabels:
+    key: value
+  path: /dev/nvme0n{1...8}
 fstype: xfs
 mount_options:
   - rw

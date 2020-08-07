@@ -92,13 +92,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if accessModeWrapper != nil {
 		accessMode = int(accessModeWrapper.Mode)
 	}
+	
 	nodeID := ""
-
-	v, err := volume.NewVolume(ctx, name, volume.VolumeAccessMode(accessMode), nodeID, parameters)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error creating volume: %v", err)
-	}
-
 	topologies := map[string]string{}
 
 	if id, ok := parameters[topology.TopologyDriverIdentity]; ok {
@@ -106,6 +101,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	if node, ok := parameters[topology.TopologyDriverNode]; ok {
 		topologies[topology.TopologyDriverNode] = node
+		nodeID = node
 	}
 	if id, ok := parameters[topology.TopologyDriverRack]; ok {
 		topologies[topology.TopologyDriverRack] = id
@@ -120,6 +116,12 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	topologyReqs := []*csi.Topology{{
 		Segments: topologies,
 	}}
+
+	v, err := volume.NewVolume(ctx, name, volume.VolumeAccessMode(accessMode), nodeID, parameters)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error creating volume: %v", err)
+	}
+
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{

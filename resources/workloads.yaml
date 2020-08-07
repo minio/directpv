@@ -30,7 +30,12 @@ parameters:
   disable.csi.storage.k8s.io/provisioner-secret-name: direct-csi-min-io
   disable.csi.storage.k8s.io/provisioner-secret-namespace: default
   disable.csi.storage.k8s.io/fstype: xfs
-
+  direct.csi.min.io/identity: direct.csi.min.io
+  direct.csi.min.io/node: minio-dev7.minio.io
+  direct.csi.min.io/rack: default
+  direct.csi.min.io/zone: default
+  direct.csi.min.io/region: default
+  
 ---
 
 kind: Service
@@ -67,6 +72,10 @@ spec:
       containers:
         - name: node-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/direct.csi.min.io-reg.sock /csi/csi.sock"]
           args:
             - --v=5
             - --csi-address=/csi/csi.sock
@@ -112,7 +121,7 @@ spec:
           terminationMessagePolicy: FallbackToLogsOnError
           terminationMessagePath: $(DRIVES_DIR)/driver-termination-log
           ports:
-          - containerPort: 9898
+          - containerPort: 9808
             name: healthz
             protocol: TCP
           livenessProbe:
@@ -145,7 +154,7 @@ spec:
           image: quay.io/k8scsi/livenessprobe:v1.1.0
           args:
           - --csi-address=/csi/csi.sock
-          - --health-port=9898
+          - --health-port=9808
           terminationMessagePolicy: FallbackToLogsOnError
           terminationMessagePath: $(DRIVES_DIR)/driver-liveness-termination-log
       volumes:
@@ -215,6 +224,10 @@ spec:
               name: direct-csi-common-root
           terminationMessagePolicy: FallbackToLogsOnError
           terminationMessagePath: $(DRIVES_DIR)/controller-provisioner-termination-log
+          ports:
+            - name: healthz
+              containerPort: 9808
+              protocol: TCP
           livenessProbe:
             failureThreshold: 5
             httpGet:
@@ -245,7 +258,7 @@ spec:
             # created by privileged CSI driver container.
             privileged: true
           ports:
-          - containerPort: 9898
+          - containerPort: 9808
             name: healthz
             protocol: TCP
           terminationMessagePolicy: FallbackToLogsOnError
