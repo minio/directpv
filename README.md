@@ -5,7 +5,7 @@ This repository provides tools and scripts for building and testing the DIRECT C
 
 ```sh
 # Install the driver
-$> DIRECT_CSI_DRIVES=data{1...4} DIRECT_CSI_DRIVES_DIR=/mnt kubectl apply -k github.com/minio/direct-csi
+$> DIRECT_CSI_DRIVES=data{1...4} DIRECT_CSI_DRIVES_DIR=/mnt KUBELET_DIR_PATH=/var/lib/kubelet kubectl apply -k github.com/minio/direct-csi
 
 # utilize the volume in your application
 #
@@ -24,6 +24,8 @@ $> DIRECT_CSI_DRIVES=data{1...4} DIRECT_CSI_DRIVES_DIR=/mnt kubectl apply -k git
 # Deploy MinIO backed by direct.csi.min.io
 $> kubectl create -f minio.yaml
 ```
+
+If you are using microk8s `KUBELET_DIR_PATH` should be changed to `/var/snap/microk8s/common/var/lib/kubelet`
 
 ## License
 Use of DIRECT CSI driver is governed by the AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
