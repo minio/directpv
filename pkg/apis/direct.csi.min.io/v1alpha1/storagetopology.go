@@ -105,15 +105,21 @@ type StorageLimit struct {
 type StorageTopologyStatus struct {
 	// Nodes the storage topology covers
 	// +optional
-	Nodes []StorageTopologyNodeStatus `json:"accessibleNodes,omitempty"`
+	Nodes []StorageTopologyNodeStatus `json:"nodes,omitempty"`
 	// Paths is the list of paths after ellipses expansion
 	Paths []string `json:"paths"`
-	// Total Capacity of the storage topology across all nodes
+	// TotalAvailableSize is the used capacity across all nodes
 	// +optional
-	TotalVolumesAllocatedSize resource.Quantity `json:"totalVolumesAllocatedSize,omitempty"`
-	// Number of allocated drives
+	TotalAvailableSize resource.Quantity `json:"totalAvailableSize,omitempty"`
+	// TotalAvailableCount is the number of allocated drives
 	// +optional
-	TotalVolumesAllocatedCount int32 `json:"totalVolumesAllocatedCount,omitempty"`
+	TotalAvailableCount int32 `json:"totalAvailableCount,omitempty"`
+	// TotalAllocatedSize is the used capacity across all nodes
+	// +optional
+	TotalAllocatedSize resource.Quantity `json:"totalAllocatedSize,omitempty"`
+	// TotalAllocatedCount is the number of allocated drives
+	// +optional
+	TotalAllocatedCount int32 `json:"totalAllocatedCount,omitempty"`
 	// Describes the readiness of this topology
 	// +optional
 	Conditions []StorageTopologyConditions `json:"conditions,omitempty"`
@@ -123,12 +129,18 @@ type StorageTopologyStatus struct {
 type StorageTopologyNodeStatus struct {
 	// NodeName is the name of the node
 	NodeName string `json:"nodeName"`
-	// Capacity of the storage topology on this node
+	// allocatedSize is the used capacity on this node
 	// +optional
-	VolumesAllocatedSize resource.Quantity `json:"volumesAllocatedSize,omitempty"`
+	AllocatedSize resource.Quantity `json:"volumesAllocatedSize,omitempty"`
 	// Number of allocated drives
 	// +optional
-	VolumesAllocatedCount int32 `json:"volumesAllocatedCount,omitempty"`
+	AllocatedCount int32 `json:"volumesAllocatedCount,omitempty"`
+	// Capacity of the storage topology available on this node
+	// +optional
+	AvailableSize resource.Quantity `json:"volumesAvailableSize,omitempty"`
+	// Number of available drives
+	// +optional
+	AvailableCount int32 `json:"volumesAvailableCount,omitempty"`
 	// Condition describes the readiness of this node for this storage topology
 	// +optional
 	Conditions []StorageTopologyConditions `json:"conditions,omitempty"`
@@ -150,5 +162,6 @@ type StorageTopologyConditions struct {
 type StorageTopologyCondition string
 
 const (
-	StorageTopologyConditionReady StorageTopology = "Ready"
+	StorageTopologyConditionNodeReady StorageTopology = "NodeReady"
+	StorageTopologyConditionAllNodesReady StorageTopology = "AllNodesReady"
 )
