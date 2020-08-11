@@ -75,13 +75,13 @@ type StorageTopologySpec struct {
 	FsType string `json:"fstype,omitempty"`
 	// Mount Options describes the options to be passed in for mounting the direct attached storage into pods
 	// +optional
-	MountOptions []string `json:"mount_options,omitempty"`
+	MountOptions []string `json:"mountOptions,omitempty"`
 	// Limits describes the limits on the maximum values of the volumes in this topology
 	// +optional
 	Limits StorageLimit `json:"limits,omitempty"`
 	// Reclaim Policy defines the default reclaim policy of volumes in this topology
 	// +optional
-	ReclaimPolicy ReclaimPolicy `json:"reclaim_policy,omitempty"`
+	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 type ReclaimPolicy string
@@ -105,14 +105,31 @@ type StorageLimit struct {
 type StorageTopologyStatus struct {
 	// Nodes the storage topology covers
 	// +optional
-	Nodes []string `json:"accessibleNodes,omitempty"`
+	Nodes []StorageTopologyNodeStatus `json:"accessibleNodes,omitempty"`
+	// Paths is the list of paths after ellipses expansion
+	Paths []string `json:"paths"`
 	// Total Capacity of the storage topology across all nodes
 	// +optional
-	Capacity StorageTopologyStatusCapacity `json:"capacity,omitempty"`
+	TotalVolumesAllocatedSize resource.Quantity `json:"totalVolumesAllocatedSize,omitempty"`
 	// Number of allocated drives
 	// +optional
-	VolumeAllocations int32 `json:"volume_allocations,omitempty"`
+	TotalVolumesAllocatedCount int32 `json:"totalVolumesAllocatedCount,omitempty"`
 	// Describes the readiness of this topology
+	// +optional
+	Conditions []StorageTopologyConditions `json:"conditions,omitempty"`
+}
+
+// StorageTopologyNodeStatus describes the status of the nodes that fall under this particular topology
+type StorageTopologyNodeStatus struct {
+	// NodeName is the name of the node
+	NodeName string `json:"nodeName"`
+	// Capacity of the storage topology on this node
+	// +optional
+	VolumesAllocatedSize resource.Quantity `json:"volumesAllocatedSize,omitempty"`
+	// Number of allocated drives
+	// +optional
+	VolumesAllocatedCount int32 `json:"volumesAllocatedCount,omitempty"`
+	// Condition describes the readiness of this node for this storage topology
 	// +optional
 	Conditions []StorageTopologyConditions `json:"conditions,omitempty"`
 }
@@ -135,12 +152,3 @@ type StorageTopologyCondition string
 const (
 	StorageTopologyConditionReady StorageTopology = "Ready"
 )
-
-type StorageTopologyStatusCapacity struct {
-	// Free Space of the storage topology
-	// +optional
-	FreeSpace resource.Quantity `json:"freeSpace,omitempty"`
-	// Total capacity of the storage topology
-	// +optional
-	Total resource.Quantity `json:"total,omitempty"`
-}
