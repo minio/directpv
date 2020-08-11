@@ -20,7 +20,7 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	"github.com/minio/direct-csi/pkg/client/clientset/versioned/scheme"
+	"github.com/minio/direct-csi/pkg/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

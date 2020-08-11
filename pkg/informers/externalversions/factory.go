@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/minio/direct-csi/pkg/client/clientset/versioned"
-	directcsiminio "github.com/minio/direct-csi/pkg/client/informers/externalversions/direct.csi.min.io"
-	internalinterfaces "github.com/minio/direct-csi/pkg/client/informers/externalversions/internalinterfaces"
+	versioned "github.com/minio/direct-csi/pkg/clientset/versioned"
+	directcsiminio "github.com/minio/direct-csi/pkg/informers/externalversions/direct.csi.min.io"
+	internalinterfaces "github.com/minio/direct-csi/pkg/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

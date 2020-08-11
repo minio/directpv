@@ -26,10 +26,13 @@ import (
 )
 
 // StorageTopologyLister helps list StorageTopologies.
+// All objects returned here must be treated as read-only.
 type StorageTopologyLister interface {
 	// List lists all StorageTopologies in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.StorageTopology, err error)
 	// Get retrieves the StorageTopology from the index for a given name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.StorageTopology, error)
 	StorageTopologyListerExpansion
 }

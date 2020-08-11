@@ -25,5 +25,5 @@ go get -d k8s.io/code-generator/...
 
 REPOSITORY=github.com/minio/direct-csi
 $GOPATH/src/k8s.io/code-generator/generate-groups.sh all \
-  $REPOSITORY/pkg/client $REPOSITORY/pkg/apis direct.csi.min.io:v1alpha1 \
+  $REPOSITORY/pkg $REPOSITORY/pkg/apis direct.csi.min.io:v1alpha1 \
   --go-header-file $SCRIPT_ROOT/hack/boilerplate.go.txt

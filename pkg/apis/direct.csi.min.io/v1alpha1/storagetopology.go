@@ -1,4 +1,4 @@
-// This file is part of MinIO vCenter Plugin
+// This file is part of MinIO Kubernetes Cloud
 // Copyright (c) 2020 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -38,6 +38,9 @@ type StorageTopologyList struct {
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:storageversion
+// +kubebuilder:subresource:status
 
 // StorageTopology defines the layout of storage infrastructure.
 type StorageTopology struct {
@@ -60,7 +63,7 @@ type StorageTopologyLayout struct {
 	// Labels of the nodes that will participate
 	NodeLabels map[string]string `json:"nodeLabels,omitempty"`
 	// Mount Path for the volumes that will be used
-	Path string `json:"path"`
+	Paths []string `json:"paths"`
 }
 
 // StorageTopologySpec is the spec of the StorageTopology.
@@ -70,24 +73,32 @@ type StorageTopologySpec struct {
 	// Layout of the drives across hosts
 	// +optional
 	FsType string `json:"fstype,omitempty"`
-	// Mount Options
+	// Mount Options describes the options to be passed in for mounting the direct attached storage into pods
 	// +optional
 	MountOptions []string `json:"mount_options,omitempty"`
-	// Resource Limits
+	// Limits describes the limits on the maximum values of the volumes in this topology
 	// +optional
-	ResourceLimits StorageTopologyResourceLimit `json:"resource_limits,omitempty"`
-	// Reclaim Policy
+	Limits StorageLimit `json:"limits,omitempty"`
+	// Reclaim Policy defines the default reclaim policy of volumes in this topology
 	// +optional
-	ReclaimPolicy string `json:"reclaim_policy,omitempty"`
+	ReclaimPolicy ReclaimPolicy `json:"reclaim_policy,omitempty"`
 }
 
-type StorageTopologyResourceLimit struct {
-	// Storage
+type ReclaimPolicy string
+
+const (
+	ReclaimPolicyRetain ReclaimPolicy = "Retain"
+	ReclaimPolicyDelete ReclaimPolicy = "Delete"
+)
+
+// StorageLimit describes maximum limits on the storage provisioned in this topology
+type StorageLimit struct {
+	// Storage represents the maximum size of a volume that can be provisioned in this topology
 	// +optional
-	Storage resource.Quantity `json:"storage,omitempty"`
-	// Volumes
+	MaxVolumeSize resource.Quantity `json:"maxVolumeSize,omitempty"`
+	// MaxVolumeCount describes the maximum number of volumes allowed to be provisioned in this topology
 	// +optional
-	Volumes int32 `json:"volumes,omitempty"`
+	MaxVolumeCount int32 `json:"maxVolumeCount,omitempty"`
 }
 
 // StorageTopologyStatus is the state of the StorageTopology
@@ -101,10 +112,29 @@ type StorageTopologyStatus struct {
 	// Number of allocated drives
 	// +optional
 	VolumeAllocations int32 `json:"volume_allocations,omitempty"`
-	// Present only when there is an error.
+	// Describes the readiness of this topology
 	// +optional
-	Error StorageTopologyStatusError `json:"error,omitempty"`
+	Conditions []StorageTopologyConditions `json:"conditions,omitempty"`
 }
+
+// StorageTopologyConditions describes the trueness of a condition for the StorageTopology
+type StorageTopologyConditions struct {
+	// Condition is a one word description of the represented value
+	Condition StorageTopologyCondition `json:"condition"`
+
+	// Status indicates if the condition is true or false
+	Status bool `json:"status"`
+
+	// Message about the conditions value
+	// +optional
+	Message string `json:"message,omitempty"`
+}
+
+type StorageTopologyCondition string
+
+const (
+	StorageTopologyConditionReady StorageTopology = "Ready"
+)
 
 type StorageTopologyStatusCapacity struct {
 	// Free Space of the storage topology
@@ -113,14 +143,4 @@ type StorageTopologyStatusCapacity struct {
 	// Total capacity of the storage topology
 	// +optional
 	Total resource.Quantity `json:"total,omitempty"`
-}
-
-type StorageTopologyStatusError struct {
-	// Message details of the encountered error
-	// +optional
-	Message string `json:"message,omitempty"`
-	// State indicates a single word description of the error state that has occurred on the StorageTopology, "InMaintenance",
-	// "NotAccessible", etc.
-	// +optional
-	State string `json:"state,omitempty"`
 }

@@ -11,7 +11,7 @@ spec:
     listKind: StorageTopologyList
     plural: storagetopologies
     singular: storagetopology
-  scope: Namespaced
+  scope: Clustered
   validation:
     openAPIV3Schema:
       description: StorageTopology defines the layout of storage infrastructure.
@@ -26,9 +26,6 @@ spec:
             object represents. Servers may infer this from the endpoint the client
             submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
-        metadata:
-          description: 'Standard object metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata'
-          type: object
         spec:
           description: 'Specification of the storage topology More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.'
           properties:

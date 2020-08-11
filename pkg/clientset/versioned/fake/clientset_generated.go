@@ -19,9 +19,9 @@
 package fake
 
 import (
-	clientset "github.com/minio/direct-csi/pkg/client/clientset/versioned"
-	directv1alpha1 "github.com/minio/direct-csi/pkg/client/clientset/versioned/typed/direct.csi.min.io/v1alpha1"
-	fakedirectv1alpha1 "github.com/minio/direct-csi/pkg/client/clientset/versioned/typed/direct.csi.min.io/v1alpha1/fake"
+	clientset "github.com/minio/direct-csi/pkg/clientset/versioned"
+	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/versioned/typed/direct.csi.min.io/v1alpha1"
+	fakedirectv1alpha1 "github.com/minio/direct-csi/pkg/clientset/versioned/typed/direct.csi.min.io/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

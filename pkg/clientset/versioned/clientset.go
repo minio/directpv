@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/client/clientset/versioned/typed/direct.csi.min.io/v1alpha1"
+	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/versioned/typed/direct.csi.min.io/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
