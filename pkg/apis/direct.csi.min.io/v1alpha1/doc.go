@@ -1,4 +1,4 @@
-// This file is part of MinIO vCenter Plugin
+// This file is part of MinIO Kubernetes Cloud
 // Copyright (c) 2020 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
