@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,9 +30,15 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/minio/direct-csi/pkg/centralcontroller"
-	//	"github.com/minio/direct-csi/pkg/driver"
+	"github.com/minio/direct-csi/pkg/controller"
+	"github.com/minio/direct-csi/pkg/node"
+	"github.com/minio/direct-csi/pkg/volume"
 
-	_ "github.com/golang/glog"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	id "github.com/minio/direct-csi/pkg/identity"
+
+	"github.com/golang/glog"
+	"github.com/minio/minio/pkg/ellipses"
 )
 
 const VERSION = "DEVELOPMENT"
@@ -138,17 +145,44 @@ var directCSIDriverCmd = &cobra.Command{
 }
 
 func driverManager(args []string) error {
-	return nil
-	// d := driver.Driver{
-	// 	Identity: identity,
-	// 	Rack:     rack,
-	// 	Zone:     zone,
-	// 	Region:   region,
-	// 	Endpoint: endpoint,
-	// 	NodeId:   nodeID,
-	// }
+	idServer, err := id.NewIdentityServer(identity, VERSION, map[string]string{})
+	if err != nil {
+		return err
+	}
 
-	// return d.Run(ctx)
+	basePaths := []string{}
+	for _, a := range args {
+		if ellipses.HasEllipses(a) {
+			p, err := ellipses.FindEllipsesPatterns(a)
+			if err != nil {
+				return err
+			}
+			patterns := p.Expand()
+			for _, outer := range patterns {
+				basePaths = append(basePaths, strings.Join(outer, ""))
+			}
+		} else {
+			basePaths = append(basePaths, a)
+		}
+	}
+
+	glog.V(10).Infof("base paths: %s", strings.Join(basePaths, ","))
+	volume.InitializeFactory(basePaths)
+	if err := volume.InitializeClient(identity); err != nil {
+		return err
+	}
+
+	nodeServer, err := node.NewNodeServer(identity, nodeID, rack, zone, region, basePaths)
+	if err != nil {
+		return err
+	}
+	glog.V(5).Infof("node server started")
+
+	s := csicommon.NewNonBlockingGRPCServer()
+	s.Start(endpoint, idServer, nil, nodeServer)
+	s.Wait()
+
+	return nil
 }
 
 func centralControllerManager(args []string) error {
@@ -165,19 +199,22 @@ func centralControllerManager(args []string) error {
 }
 
 func controllerManager(args []string) error {
-	// c := controller.Controller{
-	// 	Identity:      identity,
-	// 	LeaderLock:    leaderLock,
-	// 	LeaseDuration: 15 * time.Second,
-	// 	RenewDeadline: 10 * time.Second,
-	// 	RetryPeriod:   2 * time.Second,
-	// 	ResyncPeriod:  30 * time.Second,
-	// }
+	idServer, err := id.NewIdentityServer(identity, VERSION, map[string]string{})
+	if err != nil {
+		return err
+	}
 
-	// return c.Run(ctx)
+	ctrlServer, err := controller.NewControllerServer(identity, nodeID, rack, zone, region)
+	if err != nil {
+		return err
+	}
+
+	s := csicommon.NewNonBlockingGRPCServer()
+	s.Start(endpoint, idServer, ctrlServer, nil)
+	s.Wait()
+
 	return nil
 }
-
 
 func Run() error {
 	return directCSICmd.Execute()
