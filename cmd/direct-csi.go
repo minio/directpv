@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/minio/direct-csi/pkg/controller"
+	"github.com/minio/direct-csi/pkg/centralcontroller"
 	//	"github.com/minio/direct-csi/pkg/driver"
 
 	_ "github.com/golang/glog"
@@ -96,7 +96,7 @@ func init() {
 		panic(fmt.Sprintf("%s %s", s.String(), "Signal received. Exiting"))
 	}()
 
-	directCSICmd.AddCommand(directCSIControllerCmd, directCSIDriverCmd)
+	directCSICmd.AddCommand(directCSICentralControllerCmd, directCSIControllerCmd, directCSIDriverCmd)
 }
 
 var directCSICmd = &cobra.Command{
@@ -105,6 +105,16 @@ var directCSICmd = &cobra.Command{
 	Long:          "",
 	SilenceErrors: true,
 	Version:       VERSION,
+}
+
+var directCSICentralControllerCmd = &cobra.Command{
+	Use:           "central-controller",
+	Short:         "run the central-controller for managing resources related to directCSI driver",
+	Long:          "",
+	SilenceErrors: true,
+	RunE: func(c *cobra.Command, args []string) error {
+		return centralControllerManager(args)
+	},
 }
 
 var directCSIControllerCmd = &cobra.Command{
@@ -141,8 +151,8 @@ func driverManager(args []string) error {
 	// return d.Run(ctx)
 }
 
-func controllerManager(args []string) error {
-	c := controller.Controller{
+func centralControllerManager(args []string) error {
+	c := centralcontroller.Controller{
 		Identity:      identity,
 		LeaderLock:    leaderLock,
 		LeaseDuration: 15 * time.Second,
@@ -153,6 +163,21 @@ func controllerManager(args []string) error {
 
 	return c.Run(ctx)
 }
+
+func controllerManager(args []string) error {
+	// c := controller.Controller{
+	// 	Identity:      identity,
+	// 	LeaderLock:    leaderLock,
+	// 	LeaseDuration: 15 * time.Second,
+	// 	RenewDeadline: 10 * time.Second,
+	// 	RetryPeriod:   2 * time.Second,
+	// 	ResyncPeriod:  30 * time.Second,
+	// }
+
+	// return c.Run(ctx)
+	return nil
+}
+
 
 func Run() error {
 	return directCSICmd.Execute()
