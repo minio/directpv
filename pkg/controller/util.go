@@ -168,7 +168,7 @@ func newDirectCSIPluginsSocketDir(name string) string {
 	return filepath.Join(KubeletDir, "plugins", util.Sanitize(name))
 }
 
-func createDaemonSet(ctx context.Context, kClient clientset.Interface, name string, nodeSelector map[string]string, paths []string) error {
+func createDaemonSet(ctx context.Context, kClient clientset.Interface, name string, identity string, nodeSelector map[string]string, paths []string) error {
 	generatedSelectorValue := util.GenerateSanitizedUniqueNameFrom(name)
 
 	drives := []corev1.Volume{}
@@ -254,6 +254,7 @@ func createDaemonSet(ctx context.Context, kClient clientset.Interface, name stri
 					"--csi-address=/csi/csi.sock",
 					fmt.Sprintf("--endpoint=$(%s)", CSIEndpointEnvVar),
 					fmt.Sprintf("--node-id=$(%s)", KubeNodeNameEnvVar),
+					fmt.Sprintf("--identity=%s", identity),
 				}, basePaths...),
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
@@ -627,7 +628,7 @@ func createClusterRole(ctx context.Context, kClient clientset.Interface, name st
 	})
 }
 
-func createDeployment(ctx context.Context, kClient clientset.Interface, name string) error {
+func createDeployment(ctx context.Context, kClient clientset.Interface, name string, identity string) error {
 	generatedSelectorValue := util.GenerateSanitizedUniqueNameFrom(name)
 
 	privileged := false
@@ -694,6 +695,7 @@ func createDeployment(ctx context.Context, kClient clientset.Interface, name str
 				Name:  DirectCSIContainerName,
 				Image: DirectCSIContainerImage,
 				Args: []string{
+					fmt.Sprintf("--identity=%s", identity),
 					"--v=5",
 					"--csi-address=/csi/csi.sock",
 					fmt.Sprintf("--endpoint=$(%s)", CSIEndpointEnvVar),

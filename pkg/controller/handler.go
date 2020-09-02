@@ -38,10 +38,10 @@ func (c *Controller) OnAdd(ctx context.Context, st v1alpha1.StorageTopology) err
 	if err := createStorageClass(ctx, kClient, st.Name); err != nil {
 		return err
 	}
-	if err := createDaemonSet(ctx, kClient, st.Name, st.Spec.Layout.NodeSelector, st.Spec.Layout.DrivePaths); err != nil {
+	if err := createDaemonSet(ctx, kClient, st.Name, c.Identity, st.Spec.Layout.NodeSelector, st.Spec.Layout.DrivePaths); err != nil {
 		return err
 	}
-	if err := createDeployment(ctx, kClient, st.Name); err != nil {
+	if err := createDeployment(ctx, kClient, st.Name, c.Identity); err != nil {
 		return err
 	}
 	
