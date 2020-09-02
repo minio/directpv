@@ -162,6 +162,6 @@ type StorageTopologyConditions struct {
 type StorageTopologyCondition string
 
 const (
-	StorageTopologyConditionNodeReady StorageTopology = "NodeReady"
-	StorageTopologyConditionAllNodesReady StorageTopology = "AllNodesReady"
+	StorageTopologyConditionNodeReady StorageTopologyCondition = "NodeReady"
+	StorageTopologyConditionAllNodesReady StorageTopologyCondition = "AllNodesReady"
 )

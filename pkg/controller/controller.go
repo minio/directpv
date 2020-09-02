@@ -22,11 +22,13 @@ import (
 	"os"
 	"time"
 
+	informers "github.com/minio/direct-csi/pkg/informers/externalversions"
 	"github.com/minio/direct-csi/pkg/util"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/cache"
 
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -52,7 +54,7 @@ func (c *Controller) Run(ctx context.Context) error {
 		return err
 	}
 	kClient := util.GetKubeClientOrDie()
-	
+
 	recorder := record.NewBroadcaster()
 	recorder.StartRecordingToSink(&corev1.EventSinkImpl{Interface: kClient.CoreV1().Events(ns)})
 	eRecorder := recorder.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("%s/%s", id, lock)})
@@ -91,5 +93,15 @@ func (c *Controller) Run(ctx context.Context) error {
 }
 
 func (c *Controller) RunController(ctx context.Context) {
+	dClient := util.GetDirectCSIClientOrDie()
 
+	factory := informers.NewSharedInformerFactory(dClient, 0)
+	storageTopologyInformer := factory.Direct().V1alpha1().StorageTopologies().Informer()
+
+	stopper := make(chan struct{})
+	defer close(stopper)
+
+	storageTopologyInformer.AddEventHandler(cache.EventHandlerFuncs{})
+	factory.Start(stopper)
+	<-stopper
 }

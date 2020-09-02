@@ -23,11 +23,33 @@ import (
 	"strings"
 
 	clientset "k8s.io/client-go/kubernetes"
+	directcsiclientset "github.com/minio/direct-csi/pkg/clientset/versioned"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/viper"
 )
+
+func GetDirectCSIClientOrDie() directcsiclientset.Interface {
+	var cfg *rest.Config
+	var err error
+
+	kubeConfig := viper.GetString("kube-config")
+	
+	if kubeConfig != "" {
+		cfg, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		cfg, err = rest.InClusterConfig()
+		if err != nil {
+			panic(err)
+		}
+	}
+	return directcsiclientset.NewForConfigOrDie(cfg)
+}
 
 func GetKubeClientOrDie() clientset.Interface {
 	var cfg *rest.Config
