@@ -56,6 +56,9 @@ const (
 	NodeDriverRegistrarContainerName  = "node-driver-registrar"
 	NodeDriverRegistrarContainerImage = "quay.io/k8scsi/csi-node-driver-registrar:v1.3.0"
 
+	CSIProvisionerContainerName  = "csi-provisioner"
+	CSIProvisionerContainerImage = "quay.io/k8scsi/csi-provisioner:v1.2.1"
+
 	DirectCSIContainerName  = "direct-csi"
 	DirectCSIContainerImage = "minio/direct-csi:v0.2.1"
 

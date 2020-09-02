@@ -626,3 +626,132 @@ func createClusterRole(ctx context.Context, kClient clientset.Interface, name st
 		return err
 	})
 }
+
+func createDeployment(ctx context.Context, kClient clientset.Interface, name string) error {
+	generatedSelectorValue := util.GenerateSanitizedUniqueNameFrom(name)
+
+	privileged := false
+	podSpec := corev1.PodSpec{
+		ServiceAccountName: name,
+		Volumes: []corev1.Volume{
+			newHostPathVolume(VolumeNameSocketDir, newDirectCSIPluginsSocketDir(name)),
+		},
+		Containers: []corev1.Container{
+			{
+				Name:  CSIProvisionerContainerName,
+				Image: CSIProvisionerContainerImage,
+				Args: []string{
+					"--v=5",
+					"--csi-address=/csi/csi.sock",
+					"--timeout=300s",
+					"--enable-leader-election",
+					"--leader-election-type=leases",
+					"--feature-gates=Topology=true",
+					"--strict-topology",
+				},
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name: KubeNodeNameEnvVar,
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "spec.nodeName",
+							},
+						},
+					},
+					{
+						Name:  CSIEndpointEnvVar,
+						Value: "unix:///csi/csi.sock",
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(VolumeNameSocketDir, "/csi"),
+				},
+				LivenessProbe: &corev1.Probe{
+					FailureThreshold:    5,
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      3,
+					PeriodSeconds:       2,
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: HealthZContainerPortPath,
+							Port: intstr.FromString(HealthZContainerPortName),
+						},
+					},
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						Name:          HealthZContainerPortName,
+						ContainerPort: HealthZContainerPort,
+						Protocol:      HealthZContainerPortProtocol,
+					},
+				},
+			},
+			{
+				Name:  DirectCSIContainerName,
+				Image: DirectCSIContainerImage,
+				Args: []string{
+					"--v=5",
+					"--csi-address=/csi/csi.sock",
+					fmt.Sprintf("--endpoint=$(%s)", CSIEndpointEnvVar),
+					fmt.Sprintf("--node-id=$(%s)", KubeNodeNameEnvVar),
+				},
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name: KubeNodeNameEnvVar,
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "spec.nodeName",
+							},
+						},
+					},
+					{
+						Name:  CSIEndpointEnvVar,
+						Value: "unix:///csi/csi.sock",
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(VolumeNameSocketDir, "/csi"),
+				},
+			},
+		},
+	}
+
+	deployment := &appsv1.Deployment{
+		metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		metav1.ObjectMeta{
+			Name:      name,
+			Namespace: name,
+			Labels: map[string]string{
+				CreateByLabel: DirectCSIController,
+			},
+		},
+		appsv1.DeploymentSpec{
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, DirectCSISelector, generatedSelectorValue),
+			Template: corev1.PodTemplateSpec{
+				metav1.ObjectMeta{
+					Name: name,
+					Labels: map[string]string{
+						DirectCSISelector: generatedSelectorValue,
+					},
+				},
+				podSpec,
+			},
+		},
+		appsv1.DeploymentStatus{},
+	}
+	return retry(func() error {
+		_, err := kClient.AppsV1().Deployments(name).Create(ctx, deployment, metav1.CreateOptions{})
+		return err
+	})
+}

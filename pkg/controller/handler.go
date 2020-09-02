@@ -41,6 +41,10 @@ func (c *Controller) OnAdd(ctx context.Context, st v1alpha1.StorageTopology) err
 	if err := createDaemonSet(ctx, kClient, st.Name, st.Spec.Layout.NodeSelector, st.Spec.Layout.DrivePaths); err != nil {
 		return err
 	}
+	if err := createDeployment(ctx, kClient, st.Name); err != nil {
+		return err
+	}
+	
 	return nil
 }
 
