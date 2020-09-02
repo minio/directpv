@@ -61,6 +61,11 @@ func (c *Controller) Run(ctx context.Context) error {
 	}
 	kClient := util.GetKubeClientOrDie()
 
+	// Create the DirectCSI Namespace
+	if err := createDirectCSINamespace(ctx, kClient); err != nil {
+		return err
+	}
+
 	recorder := record.NewBroadcaster()
 	recorder.StartRecordingToSink(&corev1.EventSinkImpl{Interface: kClient.CoreV1().Events(ns)})
 	eRecorder := recorder.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("%s/%s", id, lock)})

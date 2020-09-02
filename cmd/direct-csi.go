@@ -148,11 +148,11 @@ func controllerManager(args []string) error {
 		LeaseDuration: 15 * time.Second,
 		RenewDeadline: 10 * time.Second,
 		RetryPeriod:   2 * time.Second,
+		ResyncPeriod:  30 * time.Second,
 	}
 
 	return c.Run(ctx)
 }
-
 
 func Run() error {
 	return directCSICmd.Execute()

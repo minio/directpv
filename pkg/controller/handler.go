@@ -19,17 +19,23 @@ package controller
 import (
 	"context"
 
-	"github.com/minio/direct-csi/pkg/util"
 	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/pkg/util"
 )
 
 func (c *Controller) OnAdd(ctx context.Context, st v1alpha1.StorageTopology) error {
 	kClient := util.GetKubeClientOrDie()
 
+	if err := createRBACRoles(ctx, kClient, st.Name); err != nil {
+		return err
+	}
 	if err := createCSIDriver(ctx, kClient, st.Name); err != nil {
 		return err
 	}
 	if err := createStorageClass(ctx, kClient, st.Name); err != nil {
+		return err
+	}
+	if err := createDaemonSet(ctx, kClient, st.Name, st.Spec.Layout.NodeSelector, st.Spec.Layout.DrivePaths); err != nil {
 		return err
 	}
 	return nil

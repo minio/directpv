@@ -17,13 +17,15 @@
 package util
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
 
-	clientset "k8s.io/client-go/kubernetes"
 	directcsiclientset "github.com/minio/direct-csi/pkg/clientset/versioned"
+	"github.com/minio/direct-csi/pkg/util/randomstring"
+	clientset "k8s.io/client-go/kubernetes"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -36,7 +38,7 @@ func GetDirectCSIClientOrDie() directcsiclientset.Interface {
 	var err error
 
 	kubeConfig := viper.GetString("kube-config")
-	
+
 	if kubeConfig != "" {
 		cfg, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
 		if err != nil {
@@ -56,7 +58,7 @@ func GetKubeClientOrDie() clientset.Interface {
 	var err error
 
 	kubeConfig := viper.GetString("kube-config")
-	
+
 	if kubeConfig != "" {
 		cfg, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
 		if err != nil {
@@ -92,4 +94,20 @@ func GetNamespace() string {
 	}
 
 	return "default"
+}
+
+func GenerateSanitizedUniqueNameFrom(name string) string {
+	sanitizedName := Sanitize(name)
+	// Max length of name is 255. If needed, cut out last 6 bytes
+	// to make room for randomstring
+	if len(sanitizedName) >= 255 {
+		sanitizedName = sanitizedName[0:249]
+	}
+
+	// Get a 5 byte randomstring
+	shortUUID := randomstring.New(5)
+
+	// Concatenate sanitizedName (249) and shortUUID (5) with a '-' in between
+	// Max length of the returned name cannot be more than 255 bytes
+	return fmt.Sprintf("%s-%s", sanitizedName, shortUUID)
 }

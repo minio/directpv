@@ -60,10 +60,10 @@ type StorageTopology struct {
 
 // StorageTopologyLayout describes the nodes and drives that will be used across the cluster.
 type StorageTopologyLayout struct {
-	// Labels of the nodes that will participate
-	NodeLabels map[string]string `json:"nodeLabels,omitempty"`
-	// Mount Path for the volumes that will be used
-	Paths []string `json:"paths"`
+	// Selector for the nodes that will participate
+	NodeSelector map[string]string `json:"nodeLabels,omitempty"`
+	// Drive Paths from which volumes will be carved out
+	DrivePaths []string `json:"paths"`
 }
 
 // StorageTopologySpec is the spec of the StorageTopology.
