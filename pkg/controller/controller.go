@@ -22,7 +22,7 @@ import (
 	"os"
 	"time"
 
-	informers "github.com/minio/direct-csi/pkg/informers/externalversions"
+	directcsiv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/util"
 
 	"k8s.io/api/core/v1"
@@ -30,6 +30,7 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
@@ -38,12 +39,17 @@ import (
 )
 
 type Controller struct {
-	Identity   string
+	Identity string
+
+	// Leader election
 	LeaderLock string
 
 	LeaseDuration time.Duration
 	RenewDeadline time.Duration
 	RetryPeriod   time.Duration
+
+	// Controller
+	ResyncPeriod time.Duration
 }
 
 func (c *Controller) Run(ctx context.Context) error {
@@ -95,13 +101,54 @@ func (c *Controller) Run(ctx context.Context) error {
 func (c *Controller) RunController(ctx context.Context) {
 	dClient := util.GetDirectCSIClientOrDie()
 
-	factory := informers.NewSharedInformerFactory(dClient, 0)
-	storageTopologyInformer := factory.Direct().V1alpha1().StorageTopologies().Informer()
+	indexer := cache.NewIndexer(cache.DeletionHandlingMetaNamespaceKeyFunc, cache.Indexers{})
+	lw := cache.NewListWatchFromClient(dClient.DirectV1alpha1().RESTClient(), "StorageTopology", "", fields.Everything())
+	objType := &directcsiv1alpha1.StorageTopology{}
+	resyncPeriod := c.ResyncPeriod
+
+	fifo := cache.NewDeltaFIFOWithOptions(cache.DeltaFIFOOptions{
+		KnownObjects:          indexer,
+		EmitDeltaTypeReplaced: true,
+	})
+
+	cfg := &cache.Config{
+		Queue:            fifo,
+		ListerWatcher:    lw,
+		ObjectType:       objType,
+		FullResyncPeriod: resyncPeriod,
+		RetryOnError:     true,
+		Process: func(obj interface{}) error {
+			for _, d := range obj.(cache.Deltas) {
+				switch d.Type {
+				case cache.Sync, cache.Replaced, cache.Added, cache.Updated:
+					if old, exists, err := indexer.Get(d.Object); err == nil && exists {
+						if err := indexer.Update(d.Object); err != nil {
+							return err
+						}
+						return c.OnUpdate(ctx,
+							old.(directcsiv1alpha1.StorageTopology),
+							d.Object.(directcsiv1alpha1.StorageTopology))
+					} else {
+						if err := indexer.Add(d.Object); err != nil {
+							return err
+						}
+						return c.OnAdd(ctx, d.Object.(directcsiv1alpha1.StorageTopology))
+					}
+				case cache.Deleted:
+					if err := indexer.Delete(d.Object); err != nil {
+						return err
+					}
+					return c.OnDelete(ctx, d.Object.(directcsiv1alpha1.StorageTopology))
+				}
+			}
+			return nil
+		},
+	}
+	ctrlr := cache.New(cfg)
 
 	stopper := make(chan struct{})
 	defer close(stopper)
 
-	storageTopologyInformer.AddEventHandler(cache.EventHandlerFuncs{})
-	factory.Start(stopper)
+	ctrlr.Run(stopper)
 	<-stopper
 }
