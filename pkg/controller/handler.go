@@ -26,6 +26,9 @@ import (
 func (c *Controller) OnAdd(ctx context.Context, st v1alpha1.StorageTopology) error {
 	kClient := util.GetKubeClientOrDie()
 
+	if err := createDirectCSINamespace(ctx, kClient, st.Name); err != nil {
+		return err
+	}
 	if err := createRBACRoles(ctx, kClient, st.Name); err != nil {
 		return err
 	}

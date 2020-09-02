@@ -59,11 +59,19 @@ const (
 	DirectCSIContainerName  = "direct-csi"
 	DirectCSIContainerImage = "minio/direct-csi:v0.2.1"
 
-	LivenessProbeContainerName = "liveness-probe"
+	LivenessProbeContainerName  = "liveness-probe"
 	LivenessProbeContainerImage = "quay.io/k8scsi/livenessprobe:v1.1.0"
-	
+
 	HealthZContainerPort         = 9898
 	HealthZContainerPortName     = "healthz"
 	HealthZContainerPortProtocol = "TCP"
 	HealthZContainerPortPath     = "/healthz"
+
+	ClusterRoleVerbGet    = "get"
+	ClusterRoleVerbList   = "list"
+	ClusterRoleVerbWatch  = "watch"
+	ClusterRoleVerbCreate = "create"
+	ClusterRoleVerbDelete = "delete"
+	ClusterRoleVerbUpdate = "update"
+	ClusterRoleVerbPatch  = "patch"
 )

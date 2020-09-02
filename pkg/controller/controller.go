@@ -62,7 +62,7 @@ func (c *Controller) Run(ctx context.Context) error {
 	kClient := util.GetKubeClientOrDie()
 
 	// Create the DirectCSI Namespace
-	if err := createDirectCSINamespace(ctx, kClient); err != nil {
+	if err := createDirectCSINamespace(ctx, kClient, DirectCSINS); err != nil {
 		return err
 	}
 

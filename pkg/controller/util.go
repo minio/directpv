@@ -24,6 +24,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,14 +52,14 @@ func retry(f func() error) error {
 	return nil
 }
 
-func createDirectCSINamespace(ctx context.Context, kClient clientset.Interface) error {
+func createDirectCSINamespace(ctx context.Context, kClient clientset.Interface, name string) error {
 	ns := &corev1.Namespace{
 		metav1.TypeMeta{
 			Kind:       "Namespace",
 			APIVersion: "v1",
 		},
 		metav1.ObjectMeta{
-			Name: DirectCSINS,
+			Name: name,
 			Labels: map[string]string{
 				CreateByLabel: DirectCSIController,
 			},
@@ -319,7 +320,7 @@ func createDaemonSet(ctx context.Context, kClient clientset.Interface, name stri
 		},
 		metav1.ObjectMeta{
 			Name:      name,
-			Namespace: DirectCSINS,
+			Namespace: name,
 			Labels: map[string]string{
 				CreateByLabel: DirectCSIController,
 			},
@@ -339,11 +340,289 @@ func createDaemonSet(ctx context.Context, kClient clientset.Interface, name stri
 		appsv1.DaemonSetStatus{},
 	}
 	return retry(func() error {
-		_, err := kClient.AppsV1().DaemonSets(DirectCSINS).Create(ctx, daemonSet, metav1.CreateOptions{})
+		_, err := kClient.AppsV1().DaemonSets(name).Create(ctx, daemonSet, metav1.CreateOptions{})
 		return err
 	})
 }
 
 func createRBACRoles(ctx context.Context, kClient clientset.Interface, name string) error {
+	if err := createServiceAccount(ctx, kClient, name); err != nil {
+		return err
+	}
+	if err := createClusterRole(ctx, kClient, name); err != nil {
+		return err
+	}
+	if err := createClusterRoleBinding(ctx, kClient, name); err != nil {
+		return err
+	}
 	return nil
+}
+
+func createServiceAccount(ctx context.Context, kClient clientset.Interface, name string) error {
+	serviceAccount := &corev1.ServiceAccount{
+		metav1.TypeMeta{
+			Kind:       "ServiceAccount",
+			APIVersion: "v1",
+		},
+		metav1.ObjectMeta{
+			Name:      name,
+			Namespace: name,
+			Labels: map[string]string{
+				CreateByLabel: DirectCSIController,
+			},
+		},
+		[]corev1.ObjectReference{},
+		[]corev1.LocalObjectReference{},
+		nil,
+	}
+
+	return retry(func() error {
+		_, err := kClient.CoreV1().ServiceAccounts(name).Create(ctx, serviceAccount, metav1.CreateOptions{})
+		return err
+	})
+}
+
+func createClusterRoleBinding(ctx context.Context, kClient clientset.Interface, name string) error {
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
+		metav1.TypeMeta{
+			Kind:       "ClusterRoleBinding",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				CreateByLabel: DirectCSIController,
+			},
+			Annotations: map[string]string{
+				"rbac.authorization.kubernetes.io/autoupdate": "true",
+			},
+		},
+		[]rbacv1.Subject{
+			rbacv1.Subject{
+				Kind:      "ServiceAccount",
+				Name:      name,
+				Namespace: name,
+			},
+		},
+		rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     name,
+		},
+	}
+
+	return retry(func() error {
+		_, err := kClient.RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{})
+		return err
+	})
+}
+
+func createClusterRole(ctx context.Context, kClient clientset.Interface, name string) error {
+	clusterRole := &rbacv1.ClusterRole{
+		metav1.TypeMeta{
+			Kind:       "ClusterRole",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				CreateByLabel: DirectCSIController,
+			},
+			Annotations: map[string]string{
+				"rbac.authorization.kubernetes.io/autoupdate": "true",
+			},
+		},
+		[]rbacv1.PolicyRule{
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+					ClusterRoleVerbCreate,
+					ClusterRoleVerbDelete,
+				},
+				Resources: []string{
+					"persistentvolumes",
+				},
+				APIGroups: []string{
+					"",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+					ClusterRoleVerbUpdate,
+				},
+				Resources: []string{
+					"persistentvolumeclaims",
+				},
+				APIGroups: []string{
+					"",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+				},
+				Resources: []string{
+					"storageclasses",
+				},
+				APIGroups: []string{
+					"storage.k8s.io",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbCreate,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+					ClusterRoleVerbUpdate,
+					ClusterRoleVerbPatch,
+				},
+				Resources: []string{
+					"events",
+				},
+				APIGroups: []string{
+					"",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+				},
+				Resources: []string{
+					"volumesnapshots",
+				},
+				APIGroups: []string{
+					"snapshot.storage.k8s.io",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+				},
+				Resources: []string{
+					"volumesnapshotcontents",
+				},
+				APIGroups: []string{
+					"snapshot.storage.k8s.io",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+				},
+				Resources: []string{
+					"csinodes",
+				},
+				APIGroups: []string{
+					"storage.k8s.io",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+				},
+				Resources: []string{
+					"nodes",
+				},
+				APIGroups: []string{
+					"",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+				},
+				Resources: []string{
+					"volumeattachments",
+				},
+				APIGroups: []string{
+					"storage.k8s.io",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+					ClusterRoleVerbCreate,
+					ClusterRoleVerbUpdate,
+					ClusterRoleVerbDelete,
+				},
+				Resources: []string{
+					"endpoints",
+				},
+				APIGroups: []string{
+					"",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+					ClusterRoleVerbCreate,
+					ClusterRoleVerbUpdate,
+					ClusterRoleVerbDelete,
+				},
+				Resources: []string{
+					"leases",
+				},
+				APIGroups: []string{
+					"coordination.k8s.io",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+					ClusterRoleVerbCreate,
+					ClusterRoleVerbUpdate,
+					ClusterRoleVerbDelete,
+				},
+				Resources: []string{
+					"volumes",
+				},
+				APIGroups: []string{
+					"direct.csi.min.io",
+				},
+			},
+			rbacv1.PolicyRule{
+				Verbs: []string{
+					ClusterRoleVerbGet,
+					ClusterRoleVerbList,
+					ClusterRoleVerbWatch,
+					ClusterRoleVerbCreate,
+					ClusterRoleVerbUpdate,
+					ClusterRoleVerbDelete,
+				},
+				Resources: []string{
+					"customresourcedefinitions",
+				},
+				APIGroups: []string{
+					"apiextensions.k8s.io",
+				},
+			},
+		},
+		nil,
+	}
+
+	return retry(func() error {
+		_, err := kClient.RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{})
+		return err
+	})
 }
