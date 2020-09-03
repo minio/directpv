@@ -23,7 +23,7 @@ import (
 	"github.com/minio/direct-csi/pkg/util"
 )
 
-func (c *Controller) OnAdd(ctx context.Context, st v1alpha1.StorageTopology) error {
+func (c *Controller) OnAdd(ctx context.Context, st *v1alpha1.StorageTopology) error {
 	kClient := util.GetKubeClientOrDie()
 
 	if err := createDirectCSINamespace(ctx, kClient, st.Name); err != nil {
@@ -48,10 +48,10 @@ func (c *Controller) OnAdd(ctx context.Context, st v1alpha1.StorageTopology) err
 	return nil
 }
 
-func (c *Controller) OnUpdate(ctx context.Context, old, new v1alpha1.StorageTopology) error {
+func (c *Controller) OnUpdate(ctx context.Context, old, new *v1alpha1.StorageTopology) error {
 	return nil
 }
 
-func (c *Controller) OnDelete(ctx context.Context, obj v1alpha1.StorageTopology) error {
+func (c *Controller) OnDelete(ctx context.Context, obj *v1alpha1.StorageTopology) error {
 	return nil
 }

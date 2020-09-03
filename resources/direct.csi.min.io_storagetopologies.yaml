@@ -1,0 +1,211 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: (devel)
+  creationTimestamp: null
+  name: storagetopologies.direct.csi.min.io
+spec:
+  group: direct.csi.min.io
+  names:
+    kind: StorageTopology
+    listKind: StorageTopologyList
+    plural: storagetopologies
+    singular: storagetopology
+  scope: Cluster
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: StorageTopology defines the layout of storage infrastructure.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        spec:
+          description: 'Specification of the storage topology More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.'
+          properties:
+            fstype:
+              description: Layout of the drives across hosts
+              type: string
+            layout:
+              description: Layout of the drives across hosts
+              properties:
+                nodeLabels:
+                  additionalProperties:
+                    type: string
+                  description: Selector for the nodes that will participate
+                  type: object
+                paths:
+                  description: Drive Paths from which volumes will be carved out
+                  items:
+                    type: string
+                  type: array
+              required:
+              - paths
+              type: object
+            limits:
+              description: Limits describes the limits on the maximum values of the
+                volumes in this topology
+              properties:
+                maxVolumeCount:
+                  description: MaxVolumeCount describes the maximum number of volumes
+                    allowed to be provisioned in this topology
+                  format: int32
+                  type: integer
+                maxVolumeSize:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  description: Storage represents the maximum size of a volume that
+                    can be provisioned in this topology
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+              type: object
+            mountOptions:
+              description: Mount Options describes the options to be passed in for
+                mounting the direct attached storage into pods
+              items:
+                type: string
+              type: array
+            reclaimPolicy:
+              description: Reclaim Policy defines the default reclaim policy of volumes
+                in this topology
+              type: string
+          required:
+          - layout
+          type: object
+        status:
+          description: StorageTopologyStatus defines the observed state of StorageTopology
+          properties:
+            conditions:
+              description: Describes the readiness of this topology
+              items:
+                description: StorageTopologyConditions describes the trueness of a
+                  condition for the StorageTopology
+                properties:
+                  condition:
+                    description: Condition is a one word description of the represented
+                      value
+                    type: string
+                  message:
+                    description: Message about the conditions value
+                    type: string
+                  status:
+                    description: Status indicates if the condition is true or false
+                    type: boolean
+                required:
+                - condition
+                - status
+                type: object
+              type: array
+            nodes:
+              description: Nodes the storage topology covers
+              items:
+                description: StorageTopologyNodeStatus describes the status of the
+                  nodes that fall under this particular topology
+                properties:
+                  conditions:
+                    description: Condition describes the readiness of this node for
+                      this storage topology
+                    items:
+                      description: StorageTopologyConditions describes the trueness
+                        of a condition for the StorageTopology
+                      properties:
+                        condition:
+                          description: Condition is a one word description of the
+                            represented value
+                          type: string
+                        message:
+                          description: Message about the conditions value
+                          type: string
+                        status:
+                          description: Status indicates if the condition is true or
+                            false
+                          type: boolean
+                      required:
+                      - condition
+                      - status
+                      type: object
+                    type: array
+                  nodeName:
+                    description: NodeName is the name of the node
+                    type: string
+                  volumesAllocatedCount:
+                    description: Number of allocated drives
+                    format: int32
+                    type: integer
+                  volumesAllocatedSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: allocatedSize is the used capacity on this node
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  volumesAvailableCount:
+                    description: Number of available drives
+                    format: int32
+                    type: integer
+                  volumesAvailableSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: Capacity of the storage topology available on this
+                      node
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                required:
+                - nodeName
+                type: object
+              type: array
+            paths:
+              description: Paths is the list of paths after ellipses expansion
+              items:
+                type: string
+              type: array
+            totalAllocatedCount:
+              description: TotalAllocatedCount is the number of allocated drives
+              format: int32
+              type: integer
+            totalAllocatedSize:
+              anyOf:
+              - type: integer
+              - type: string
+              description: TotalAllocatedSize is the used capacity across all nodes
+              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+              x-kubernetes-int-or-string: true
+            totalAvailableCount:
+              description: TotalAvailableCount is the number of allocated drives
+              format: int32
+              type: integer
+            totalAvailableSize:
+              anyOf:
+              - type: integer
+              - type: string
+              description: TotalAvailableSize is the used capacity across all nodes
+              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+              x-kubernetes-int-or-string: true
+          required:
+          - paths
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null

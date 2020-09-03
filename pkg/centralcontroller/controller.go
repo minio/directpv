@@ -107,7 +107,7 @@ func (c *Controller) RunController(ctx context.Context) {
 	dClient := util.GetDirectCSIClientOrDie()
 
 	indexer := cache.NewIndexer(cache.DeletionHandlingMetaNamespaceKeyFunc, cache.Indexers{})
-	lw := cache.NewListWatchFromClient(dClient.DirectV1alpha1().RESTClient(), "StorageTopology", "", fields.Everything())
+	lw := cache.NewListWatchFromClient(dClient.DirectV1alpha1().RESTClient(), "StorageTopologies", "", fields.Everything())
 	objType := &directcsiv1alpha1.StorageTopology{}
 	resyncPeriod := c.ResyncPeriod
 
@@ -131,19 +131,19 @@ func (c *Controller) RunController(ctx context.Context) {
 							return err
 						}
 						return c.OnUpdate(ctx,
-							old.(directcsiv1alpha1.StorageTopology),
-							d.Object.(directcsiv1alpha1.StorageTopology))
+							old.(*directcsiv1alpha1.StorageTopology),
+							d.Object.(*directcsiv1alpha1.StorageTopology))
 					} else {
 						if err := indexer.Add(d.Object); err != nil {
 							return err
 						}
-						return c.OnAdd(ctx, d.Object.(directcsiv1alpha1.StorageTopology))
+						return c.OnAdd(ctx, d.Object.(*directcsiv1alpha1.StorageTopology))
 					}
 				case cache.Deleted:
 					if err := indexer.Delete(d.Object); err != nil {
 						return err
 					}
-					return c.OnDelete(ctx, d.Object.(directcsiv1alpha1.StorageTopology))
+					return c.OnDelete(ctx, d.Object.(*directcsiv1alpha1.StorageTopology))
 				}
 			}
 			return nil

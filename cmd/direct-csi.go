@@ -52,7 +52,8 @@ var (
 	region     = "default"
 	endpoint   = "unix://csi/csi.sock"
 	leaderLock = ""
-
+	kubeConfig = ""
+	
 	ctx context.Context
 )
 
@@ -67,13 +68,14 @@ func init() {
 			StringVarP(ptr, name, short, dfault, desc)
 	}
 	strFlag(directCSICmd, &identity, "identity", "i", identity, "unique name for this CSI driver")
+	strFlag(directCSICmd, &kubeConfig, "kube-config", "", kubeConfig, "path to kubeconfig file")
 
 	strFlag(directCSIDriverCmd, &endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi is listening")
 	strFlag(directCSIDriverCmd, &nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi is running")
 	strFlag(directCSIDriverCmd, &rack, "rack", "", rack, "identity of the rack in which this direct-csi is running")
 	strFlag(directCSIDriverCmd, &zone, "zone", "", zone, "identity of the zone in which this direct-csi is running")
 	strFlag(directCSIDriverCmd, &region, "region", "", region, "identity of the region in which this direct-csi is running")
-
+	
 	strFlag(directCSIControllerCmd, &leaderLock, "leader-lock", "l", identity, "name of the lock used for leader election (defaults to identity)")
 
 	hideFlag := func(name string) {
