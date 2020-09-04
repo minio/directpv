@@ -1,0 +1,23 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: direct-csi-controller-min-io
+  namespace: direct-csi
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: direct-csi-controller-min-io
+  template:
+    metadata:
+      labels:
+        app: direct-csi-controller-min-io
+    spec:
+      serviceAccountName: direct-csi-min-io
+      containers:
+      - name: direct-csi-controller
+        image: minio/direct-csi:latest
+        args:
+          - "central-controller"
+        terminationMessagePolicy: FallbackToLogsOnError
+        terminationMessagePath: /var/log/controller-termination-log
