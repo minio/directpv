@@ -33,7 +33,7 @@ import (
 // StorageTopologiesGetter has a method to return a StorageTopologyInterface.
 // A group's client should implement this interface.
 type StorageTopologiesGetter interface {
-	StorageTopologies() StorageTopologyInterface
+	StorageTopologies(namespace string) StorageTopologyInterface
 }
 
 // StorageTopologyInterface has methods to work with StorageTopology resources.
@@ -53,12 +53,14 @@ type StorageTopologyInterface interface {
 // storageTopologies implements StorageTopologyInterface
 type storageTopologies struct {
 	client rest.Interface
+	ns     string
 }
 
 // newStorageTopologies returns a StorageTopologies
-func newStorageTopologies(c *DirectV1alpha1Client) *storageTopologies {
+func newStorageTopologies(c *DirectV1alpha1Client, namespace string) *storageTopologies {
 	return &storageTopologies{
 		client: c.RESTClient(),
+		ns:     namespace,
 	}
 }
 
@@ -66,6 +68,7 @@ func newStorageTopologies(c *DirectV1alpha1Client) *storageTopologies {
 func (c *storageTopologies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.StorageTopology, err error) {
 	result = &v1alpha1.StorageTopology{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("storagetopologies").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -82,6 +85,7 @@ func (c *storageTopologies) List(ctx context.Context, opts v1.ListOptions) (resu
 	}
 	result = &v1alpha1.StorageTopologyList{}
 	err = c.client.Get().
+		Namespace(c.ns).
 		Resource("storagetopologies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -98,6 +102,7 @@ func (c *storageTopologies) Watch(ctx context.Context, opts v1.ListOptions) (wat
 	}
 	opts.Watch = true
 	return c.client.Get().
+		Namespace(c.ns).
 		Resource("storagetopologies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -108,6 +113,7 @@ func (c *storageTopologies) Watch(ctx context.Context, opts v1.ListOptions) (wat
 func (c *storageTopologies) Create(ctx context.Context, storageTopology *v1alpha1.StorageTopology, opts v1.CreateOptions) (result *v1alpha1.StorageTopology, err error) {
 	result = &v1alpha1.StorageTopology{}
 	err = c.client.Post().
+		Namespace(c.ns).
 		Resource("storagetopologies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(storageTopology).
@@ -120,6 +126,7 @@ func (c *storageTopologies) Create(ctx context.Context, storageTopology *v1alpha
 func (c *storageTopologies) Update(ctx context.Context, storageTopology *v1alpha1.StorageTopology, opts v1.UpdateOptions) (result *v1alpha1.StorageTopology, err error) {
 	result = &v1alpha1.StorageTopology{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("storagetopologies").
 		Name(storageTopology.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -134,6 +141,7 @@ func (c *storageTopologies) Update(ctx context.Context, storageTopology *v1alpha
 func (c *storageTopologies) UpdateStatus(ctx context.Context, storageTopology *v1alpha1.StorageTopology, opts v1.UpdateOptions) (result *v1alpha1.StorageTopology, err error) {
 	result = &v1alpha1.StorageTopology{}
 	err = c.client.Put().
+		Namespace(c.ns).
 		Resource("storagetopologies").
 		Name(storageTopology.Name).
 		SubResource("status").
@@ -147,6 +155,7 @@ func (c *storageTopologies) UpdateStatus(ctx context.Context, storageTopology *v
 // Delete takes name of the storageTopology and deletes it. Returns an error if one occurs.
 func (c *storageTopologies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("storagetopologies").
 		Name(name).
 		Body(&opts).
@@ -161,6 +170,7 @@ func (c *storageTopologies) DeleteCollection(ctx context.Context, opts v1.Delete
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
+		Namespace(c.ns).
 		Resource("storagetopologies").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -173,6 +183,7 @@ func (c *storageTopologies) DeleteCollection(ctx context.Context, opts v1.Delete
 func (c *storageTopologies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.StorageTopology, err error) {
 	result = &v1alpha1.StorageTopology{}
 	err = c.client.Patch(pt).
+		Namespace(c.ns).
 		Resource("storagetopologies").
 		Name(name).
 		SubResource(subresources...).

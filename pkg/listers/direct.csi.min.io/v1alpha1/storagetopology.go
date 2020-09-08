@@ -31,9 +31,8 @@ type StorageTopologyLister interface {
 	// List lists all StorageTopologies in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.StorageTopology, err error)
-	// Get retrieves the StorageTopology from the index for a given name.
-	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.StorageTopology, error)
+	// StorageTopologies returns an object that can list and get StorageTopologies.
+	StorageTopologies(namespace string) StorageTopologyNamespaceLister
 	StorageTopologyListerExpansion
 }
 
@@ -55,9 +54,41 @@ func (s *storageTopologyLister) List(selector labels.Selector) (ret []*v1alpha1.
 	return ret, err
 }
 
-// Get retrieves the StorageTopology from the index for a given name.
-func (s *storageTopologyLister) Get(name string) (*v1alpha1.StorageTopology, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
+// StorageTopologies returns an object that can list and get StorageTopologies.
+func (s *storageTopologyLister) StorageTopologies(namespace string) StorageTopologyNamespaceLister {
+	return storageTopologyNamespaceLister{indexer: s.indexer, namespace: namespace}
+}
+
+// StorageTopologyNamespaceLister helps list and get StorageTopologies.
+// All objects returned here must be treated as read-only.
+type StorageTopologyNamespaceLister interface {
+	// List lists all StorageTopologies in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
+	List(selector labels.Selector) (ret []*v1alpha1.StorageTopology, err error)
+	// Get retrieves the StorageTopology from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
+	Get(name string) (*v1alpha1.StorageTopology, error)
+	StorageTopologyNamespaceListerExpansion
+}
+
+// storageTopologyNamespaceLister implements the StorageTopologyNamespaceLister
+// interface.
+type storageTopologyNamespaceLister struct {
+	indexer   cache.Indexer
+	namespace string
+}
+
+// List lists all StorageTopologies in the indexer for a given namespace.
+func (s storageTopologyNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.StorageTopology, err error) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+		ret = append(ret, m.(*v1alpha1.StorageTopology))
+	})
+	return ret, err
+}
+
+// Get retrieves the StorageTopology from the indexer for a given namespace and name.
+func (s storageTopologyNamespaceLister) Get(name string) (*v1alpha1.StorageTopology, error) {
+	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
 	if err != nil {
 		return nil, err
 	}

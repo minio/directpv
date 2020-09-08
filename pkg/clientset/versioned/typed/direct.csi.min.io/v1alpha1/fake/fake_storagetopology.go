@@ -33,6 +33,7 @@ import (
 // FakeStorageTopologies implements StorageTopologyInterface
 type FakeStorageTopologies struct {
 	Fake *FakeDirectV1alpha1
+	ns   string
 }
 
 var storagetopologiesResource = schema.GroupVersionResource{Group: "direct.csi.min.io", Version: "v1alpha1", Resource: "storagetopologies"}
@@ -42,7 +43,8 @@ var storagetopologiesKind = schema.GroupVersionKind{Group: "direct.csi.min.io", 
 // Get takes name of the storageTopology, and returns the corresponding storageTopology object, and an error if there is any.
 func (c *FakeStorageTopologies) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.StorageTopology, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(storagetopologiesResource, name), &v1alpha1.StorageTopology{})
+		Invokes(testing.NewGetAction(storagetopologiesResource, c.ns, name), &v1alpha1.StorageTopology{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -52,7 +54,8 @@ func (c *FakeStorageTopologies) Get(ctx context.Context, name string, options v1
 // List takes label and field selectors, and returns the list of StorageTopologies that match those selectors.
 func (c *FakeStorageTopologies) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.StorageTopologyList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(storagetopologiesResource, storagetopologiesKind, opts), &v1alpha1.StorageTopologyList{})
+		Invokes(testing.NewListAction(storagetopologiesResource, storagetopologiesKind, c.ns, opts), &v1alpha1.StorageTopologyList{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -73,13 +76,15 @@ func (c *FakeStorageTopologies) List(ctx context.Context, opts v1.ListOptions) (
 // Watch returns a watch.Interface that watches the requested storageTopologies.
 func (c *FakeStorageTopologies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(storagetopologiesResource, opts))
+		InvokesWatch(testing.NewWatchAction(storagetopologiesResource, c.ns, opts))
+
 }
 
 // Create takes the representation of a storageTopology and creates it.  Returns the server's representation of the storageTopology, and an error, if there is any.
 func (c *FakeStorageTopologies) Create(ctx context.Context, storageTopology *v1alpha1.StorageTopology, opts v1.CreateOptions) (result *v1alpha1.StorageTopology, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(storagetopologiesResource, storageTopology), &v1alpha1.StorageTopology{})
+		Invokes(testing.NewCreateAction(storagetopologiesResource, c.ns, storageTopology), &v1alpha1.StorageTopology{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -89,7 +94,8 @@ func (c *FakeStorageTopologies) Create(ctx context.Context, storageTopology *v1a
 // Update takes the representation of a storageTopology and updates it. Returns the server's representation of the storageTopology, and an error, if there is any.
 func (c *FakeStorageTopologies) Update(ctx context.Context, storageTopology *v1alpha1.StorageTopology, opts v1.UpdateOptions) (result *v1alpha1.StorageTopology, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(storagetopologiesResource, storageTopology), &v1alpha1.StorageTopology{})
+		Invokes(testing.NewUpdateAction(storagetopologiesResource, c.ns, storageTopology), &v1alpha1.StorageTopology{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -100,7 +106,8 @@ func (c *FakeStorageTopologies) Update(ctx context.Context, storageTopology *v1a
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 func (c *FakeStorageTopologies) UpdateStatus(ctx context.Context, storageTopology *v1alpha1.StorageTopology, opts v1.UpdateOptions) (*v1alpha1.StorageTopology, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(storagetopologiesResource, "status", storageTopology), &v1alpha1.StorageTopology{})
+		Invokes(testing.NewUpdateSubresourceAction(storagetopologiesResource, "status", c.ns, storageTopology), &v1alpha1.StorageTopology{})
+
 	if obj == nil {
 		return nil, err
 	}
@@ -110,13 +117,14 @@ func (c *FakeStorageTopologies) UpdateStatus(ctx context.Context, storageTopolog
 // Delete takes name of the storageTopology and deletes it. Returns an error if one occurs.
 func (c *FakeStorageTopologies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(storagetopologiesResource, name), &v1alpha1.StorageTopology{})
+		Invokes(testing.NewDeleteAction(storagetopologiesResource, c.ns, name), &v1alpha1.StorageTopology{})
+
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeStorageTopologies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(storagetopologiesResource, listOpts)
+	action := testing.NewDeleteCollectionAction(storagetopologiesResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.StorageTopologyList{})
 	return err
@@ -125,7 +133,8 @@ func (c *FakeStorageTopologies) DeleteCollection(ctx context.Context, opts v1.De
 // Patch applies the patch and returns the patched storageTopology.
 func (c *FakeStorageTopologies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.StorageTopology, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(storagetopologiesResource, name, pt, data, subresources...), &v1alpha1.StorageTopology{})
+		Invokes(testing.NewPatchSubresourceAction(storagetopologiesResource, c.ns, name, pt, data, subresources...), &v1alpha1.StorageTopology{})
+
 	if obj == nil {
 		return nil, err
 	}

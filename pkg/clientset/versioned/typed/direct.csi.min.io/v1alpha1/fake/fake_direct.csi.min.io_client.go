@@ -28,8 +28,8 @@ type FakeDirectV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeDirectV1alpha1) StorageTopologies() v1alpha1.StorageTopologyInterface {
-	return &FakeStorageTopologies{c}
+func (c *FakeDirectV1alpha1) StorageTopologies(namespace string) v1alpha1.StorageTopologyInterface {
+	return &FakeStorageTopologies{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
