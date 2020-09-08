@@ -42,32 +42,33 @@ type StorageTopologyInformer interface {
 type storageTopologyInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
+	namespace        string
 }
 
 // NewStorageTopologyInformer constructs a new informer for StorageTopology type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewStorageTopologyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredStorageTopologyInformer(client, resyncPeriod, indexers, nil)
+func NewStorageTopologyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredStorageTopologyInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredStorageTopologyInformer constructs a new informer for StorageTopology type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredStorageTopologyInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredStorageTopologyInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.DirectV1alpha1().StorageTopologies().List(context.TODO(), options)
+				return client.DirectV1alpha1().StorageTopologies(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.DirectV1alpha1().StorageTopologies().Watch(context.TODO(), options)
+				return client.DirectV1alpha1().StorageTopologies(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&directcsiminiov1alpha1.StorageTopology{},
@@ -77,7 +78,7 @@ func NewFilteredStorageTopologyInformer(client versioned.Interface, resyncPeriod
 }
 
 func (f *storageTopologyInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredStorageTopologyInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewFilteredStorageTopologyInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *storageTopologyInformer) Informer() cache.SharedIndexInformer {

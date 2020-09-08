@@ -34,8 +34,8 @@ type DirectV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *DirectV1alpha1Client) StorageTopologies() StorageTopologyInterface {
-	return newStorageTopologies(c)
+func (c *DirectV1alpha1Client) StorageTopologies(namespace string) StorageTopologyInterface {
+	return newStorageTopologies(c, namespace)
 }
 
 // NewForConfig creates a new DirectV1alpha1Client for the given config.

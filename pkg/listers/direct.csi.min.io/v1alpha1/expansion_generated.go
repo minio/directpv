@@ -21,3 +21,7 @@ package v1alpha1
 // StorageTopologyListerExpansion allows custom methods to be added to
 // StorageTopologyLister.
 type StorageTopologyListerExpansion interface{}
+
+// StorageTopologyNamespaceListerExpansion allows custom methods to be added to
+// StorageTopologyNamespaceLister.
+type StorageTopologyNamespaceListerExpansion interface{}

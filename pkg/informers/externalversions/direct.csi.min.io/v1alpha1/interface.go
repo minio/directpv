@@ -41,5 +41,5 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 
 // StorageTopologies returns a StorageTopologyInformer.
 func (v *version) StorageTopologies() StorageTopologyInformer {
-	return &storageTopologyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+	return &storageTopologyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
