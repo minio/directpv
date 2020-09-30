@@ -23,7 +23,7 @@ builds:
       - -trimpath
       - -tags="osusergo netgo static_build"
     ldflags:
-      - -s -w -X github.com/minio/direct-csi/cmd.Version={{ .Version }}
+      - -s -w -X github.com/minio/direct-csi/cmd.VERSION={{ .Version }}
 
 archives:
   - format: binary

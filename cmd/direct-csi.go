@@ -41,6 +41,7 @@ import (
 	"github.com/minio/minio/pkg/ellipses"
 )
 
+// VERSION holds Direct CSI version
 const VERSION = "DEVELOPMENT"
 
 // flags
@@ -53,7 +54,7 @@ var (
 	endpoint   = "unix://csi/csi.sock"
 	leaderLock = ""
 	kubeConfig = ""
-	
+
 	ctx context.Context
 )
 
@@ -75,7 +76,7 @@ func init() {
 	strFlag(directCSIDriverCmd, &rack, "rack", "", rack, "identity of the rack in which this direct-csi is running")
 	strFlag(directCSIDriverCmd, &zone, "zone", "", zone, "identity of the zone in which this direct-csi is running")
 	strFlag(directCSIDriverCmd, &region, "region", "", region, "identity of the region in which this direct-csi is running")
-	
+
 	strFlag(directCSIControllerCmd, &leaderLock, "leader-lock", "l", identity, "name of the lock used for leader election (defaults to identity)")
 
 	hideFlag := func(name string) {
@@ -152,7 +153,7 @@ func driverManager(args []string) error {
 		return err
 	}
 
-	basePaths := []string{}
+	var basePaths []string
 	for _, a := range args {
 		if ellipses.HasEllipses(a) {
 			p, err := ellipses.FindEllipsesPatterns(a)
@@ -168,8 +169,18 @@ func driverManager(args []string) error {
 		}
 	}
 
+	// TODO: support devices
+	var drives = make([]volume.DriveInfo, len(basePaths))
+	for i, path := range basePaths {
+		drives[i], err = volume.GetInfo(path)
+		if err != nil {
+			// fail if one of the drive is not accessible
+			return err
+		}
+	}
+
 	glog.V(10).Infof("base paths: %s", strings.Join(basePaths, ","))
-	volume.InitializeFactory(basePaths)
+	volume.InitializeDrives(drives)
 	if err := volume.InitializeClient(identity); err != nil {
 		return err
 	}
