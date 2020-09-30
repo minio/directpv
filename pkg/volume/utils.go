@@ -1,5 +1,3 @@
-// +build go1.14
-
 // This file is part of MinIO Kubernetes Cloud
 // Copyright (c) 2020 MinIO, Inc.
 //
@@ -16,19 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package volume
 
-import (
-	"os"
-	
-	"github.com/minio/direct-csi/cmd"
+import "github.com/minio/minio/pkg/disk"
 
-	_ "k8s.io/component-base/metrics/prometheus/clientgo" // load all the prometheus client-go plugins
-	_ "k8s.io/component-base/metrics/prometheus/version"  // for version metric registration
-)
-
-func main() {
-	if err := cmd.Run(); err != nil {
-		os.Exit(1)
+// GetInfo returns drive information at path
+func GetInfo(drive string) (DriveInfo, error) {
+	di, err := disk.GetInfo(drive)
+	if err != nil {
+		return DriveInfo{}, err
 	}
+	return DriveInfo{
+		MountPath: drive,
+		Drive:     drive,
+		SysInfo:   di,
+	}, nil
 }
