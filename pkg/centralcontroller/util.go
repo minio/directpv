@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,8 +32,8 @@ import (
 	k8sretry "k8s.io/client-go/util/retry"
 
 	"github.com/golang/glog"
+	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/util"
-	"github.com/minio/minio/pkg/ellipses"
 )
 
 func retry(f func() error) error {
@@ -168,43 +167,12 @@ func newDirectCSIPluginsSocketDir(name string) string {
 	return filepath.Join(KubeletDir, "plugins", util.Sanitize(name))
 }
 
-func createDaemonSet(ctx context.Context, kClient clientset.Interface, name string, identity string, nodeSelector map[string]string, paths []string) error {
+func createDaemonSet(ctx context.Context, kClient clientset.Interface, name string, identity string, spec v1alpha1.StorageTopologySpec) error {
 	generatedSelectorValue := util.GenerateSanitizedUniqueNameFrom(name)
 
-	drives := []corev1.Volume{}
-	basePaths := []string{}
-	for _, path := range paths {
-		if ellipses.HasEllipses(path) {
-			p, err := ellipses.FindEllipsesPatterns(path)
-			if err != nil {
-				return err
-			}
-			patterns := p.Expand()
-			for _, outer := range patterns {
-				basePaths = append(basePaths, strings.Join(outer, ""))
-			}
-		} else {
-			basePaths = append(basePaths, path)
-		}
-	}
-
-	volumeIndex := 0
-	nextVolName := func() string {
-		volumeIndex = volumeIndex + 1
-		return fmt.Sprintf("volume-%d", volumeIndex)
-	}
-
-	volumeMounts := []corev1.VolumeMount{}
-
-	for _, path := range basePaths {
-		volName := nextVolName()
-		vol := newHostPathVolume(volName, path)
-		drives = append(drives, vol)
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      volName,
-			MountPath: path,
-		})
-	}
+	paths := spec.Layout.DrivePaths
+	fsType := spec.FsType
+	nodeSelector := spec.Layout.NodeSelector
 
 	privileged := true
 	podSpec := corev1.PodSpec{
@@ -215,7 +183,7 @@ func createDaemonSet(ctx context.Context, kClient clientset.Interface, name stri
 			newHostPathVolume(VolumeNamePluginsDir, filepath.Join(KubeletDir, VolumePathPluginsDir)),
 			newHostPathVolume(VolumeNamePluginsRegistryDir, filepath.Join(KubeletDir, VolumePathPluginsRegistryDir)),
 			newHostPathVolume(VolumeNameDevDir, VolumePathDevDir),
-		}, drives...),
+		}),
 		ServiceAccountName: name,
 		Containers: []corev1.Container{
 			{
@@ -244,7 +212,7 @@ func createDaemonSet(ctx context.Context, kClient clientset.Interface, name stri
 					newVolumeMount(VolumeNameSocketDir, "/csi"),
 					newVolumeMount(VolumeNamePluginsRegistryDir, "/registration"),
 					newVolumeMount(VolumeNameDevDir, VolumePathDevDir),
-				}, volumeMounts...),
+				}),
 			},
 			{
 				Name:  DirectCSIContainerName,
@@ -255,7 +223,8 @@ func createDaemonSet(ctx context.Context, kClient clientset.Interface, name stri
 					fmt.Sprintf("--endpoint=$(%s)", CSIEndpointEnvVar),
 					fmt.Sprintf("--node-id=$(%s)", KubeNodeNameEnvVar),
 					fmt.Sprintf("--identity=%s", identity),
-				}, basePaths...),
+					fmt.Sprintf("--fs-type=%s", fsType),
+				}, paths...),
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
 				},
@@ -279,7 +248,7 @@ func createDaemonSet(ctx context.Context, kClient clientset.Interface, name stri
 					newVolumeMount(VolumeNameMountpointDir, filepath.Join(KubeletDir, VolumePathMountpointDir)),
 					newVolumeMount(VolumeNamePluginsDir, filepath.Join(KubeletDir, VolumePathPluginsDir)),
 					newVolumeMount(VolumeNameDevDir, VolumePathDevDir),
-				}, volumeMounts...),
+				}),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          HealthZContainerPortName,

@@ -21,9 +21,9 @@ builds:
       - CGO_ENABLED=0
     flags:
       - -trimpath
-      - -tags="osusergo netgo static_build"
+      - -tags="kqueue osusergo netgo static_build"
     ldflags:
-      - -s -w -X github.com/minio/direct-csi/cmd.VERSION={{ .Version }}
+      - -s -w -X github.com/minio/direct-csi/cli.VERSION={{ .Version }}
 
 archives:
   - format: binary

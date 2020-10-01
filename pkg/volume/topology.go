@@ -33,7 +33,7 @@ var (
 // DriveInfo captures information about each drive
 type DriveInfo struct {
 	MountPath string
-	Drive     string
+	DrivePath string
 	SysInfo   disk.Info
 }
 
