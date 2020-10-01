@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package cmd
+package cli
 
 import (
 	"context"
@@ -39,6 +39,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/minio/minio/pkg/ellipses"
+	"github.com/minio/minio/pkg/mountinfo"
 )
 
 // VERSION holds Direct CSI version
@@ -48,6 +49,7 @@ const VERSION = "DEVELOPMENT"
 var (
 	identity   = "direct.csi.min.io"
 	nodeID     = ""
+	fsType     = "xfs"
 	rack       = "default"
 	zone       = "default"
 	region     = "default"
@@ -73,6 +75,7 @@ func init() {
 
 	strFlag(directCSIDriverCmd, &endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi is listening")
 	strFlag(directCSIDriverCmd, &nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi is running")
+	strFlag(directCSIDriverCmd, &fsType, "fs-type", "t", fsType, "default filesystem for device partitions")
 	strFlag(directCSIDriverCmd, &rack, "rack", "", rack, "identity of the rack in which this direct-csi is running")
 	strFlag(directCSIDriverCmd, &zone, "zone", "", zone, "identity of the zone in which this direct-csi is running")
 	strFlag(directCSIDriverCmd, &region, "region", "", region, "identity of the region in which this direct-csi is running")
@@ -161,25 +164,54 @@ func driverManager(args []string) error {
 				return err
 			}
 			patterns := p.Expand()
-			for _, outer := range patterns {
-				basePaths = append(basePaths, strings.Join(outer, ""))
+			for _, paths := range patterns {
+				basePaths = append(basePaths, strings.Join(paths, ""))
 			}
 		} else {
 			basePaths = append(basePaths, a)
 		}
 	}
 
-	// TODO: support devices
-	var drives = make([]volume.DriveInfo, len(basePaths))
+	fmter := newFormatMounter()
+	mountPaths := make([]string, len(basePaths))
 	for i, path := range basePaths {
-		drives[i], err = volume.GetInfo(path)
+		blkDev, err := fmter.PathIsDevice(path)
+		if err != nil {
+			// block device/path not accessible return error
+			return err
+		}
+		mountPath := path
+		if blkDev {
+			mountPath = fmt.Sprintf("/mnt/drive%d", i) // Using this pattern automatically.
+			if err = fmter.MakeDir(mountPath); err != nil {
+				return err
+			}
+			// this is a block device format it and mount.
+			// TODO: honor mount options
+			if err = fmter.FormatAndMount(path, mountPath, fsType, []string{"rw", "noatime"}); err != nil {
+				return err
+			}
+		}
+		mountPaths[i] = mountPath
+
+	}
+
+	// Check for cross device mounts.
+	if err = mountinfo.CheckCrossDevice(mountPaths); err != nil {
+		return err
+	}
+
+	// TODO: support devices
+	drives := make([]volume.DriveInfo, len(mountPaths))
+	for i, mountPath := range mountPaths {
+		drives[i], err = fmter.GetDiskInfo(mountPath)
 		if err != nil {
 			// fail if one of the drive is not accessible
 			return err
 		}
 	}
 
-	glog.V(10).Infof("base paths: %s", strings.Join(basePaths, ","))
+	glog.V(10).Infof("base paths: %s", strings.Join(mountPaths, ","))
 	volume.InitializeDrives(drives)
 	if err := volume.InitializeClient(identity); err != nil {
 		return err

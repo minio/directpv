@@ -20,15 +20,15 @@ package main
 
 import (
 	"os"
-	
-	"github.com/minio/direct-csi/cmd"
+
+	"github.com/minio/direct-csi/cli"
 
 	_ "k8s.io/component-base/metrics/prometheus/clientgo" // load all the prometheus client-go plugins
 	_ "k8s.io/component-base/metrics/prometheus/version"  // for version metric registration
 )
 
 func main() {
-	if err := cmd.Run(); err != nil {
+	if err := cli.Run(); err != nil {
 		os.Exit(1)
 	}
 }
