@@ -24,12 +24,12 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/minio/direct-csi/pkg/centralcontroller"
+	central "github.com/minio/direct-csi/pkg/controller/central_controller"
+	csi "github.com/minio/direct-csi/pkg/controller/csi_controller"
 	"github.com/minio/direct-csi/pkg/controller"
 	"github.com/minio/direct-csi/pkg/node"
 	"github.com/minio/direct-csi/pkg/volume"
@@ -231,14 +231,13 @@ func driverManager(args []string) error {
 }
 
 func centralControllerManager(args []string) error {
-	c := centralcontroller.Controller{
-		Identity:      identity,
-		LeaderLock:    leaderLock,
-		LeaseDuration: 15 * time.Second,
-		RenewDeadline: 10 * time.Second,
-		RetryPeriod:   2 * time.Second,
-		ResyncPeriod:  30 * time.Second,
+	c, err := controller.NewDefaultDirectCSIController(identity, leaderLock, 32)
+	if err != nil {
+		return err
 	}
+	c.AddStorageTopologyListener(&central.StorageTopologyHandler{
+		Identity: identity,
+	})
 
 	return c.Run(ctx)
 }
@@ -249,7 +248,7 @@ func controllerManager(args []string) error {
 		return err
 	}
 
-	ctrlServer, err := controller.NewControllerServer(identity, nodeID, rack, zone, region)
+	ctrlServer, err := csi.NewControllerServer(identity, nodeID, rack, zone, region)
 	if err != nil {
 		return err
 	}

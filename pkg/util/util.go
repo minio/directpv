@@ -23,7 +23,7 @@ import (
 	"regexp"
 	"strings"
 
-	directcsiclientset "github.com/minio/direct-csi/pkg/clientset/versioned"
+	directcsiclientset "github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/util/randomstring"
 	clientset "k8s.io/client-go/kubernetes"
 

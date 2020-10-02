@@ -32,7 +32,8 @@ import (
 	k8sretry "k8s.io/client-go/util/retry"
 
 	"github.com/golang/glog"
-	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	direct "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directclientset "github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/util"
 )
 
@@ -75,6 +76,38 @@ func createDirectCSINamespace(ctx context.Context, kClient clientset.Interface, 
 		return err
 	})
 }
+
+func setFinalizer(ctx context.Context, stClient directclientset.Interface, st *direct.StorageTopology) error {
+	new := st.DeepCopy()
+
+	new.SetFinalizers([]string{st.Name})
+	
+	// Set Finalizer
+	return retry(func() error {
+		_, err := stClient.DirectV1alpha1().StorageTopologies().Update(ctx, new, metav1.UpdateOptions{})
+		return err
+	})
+}
+
+func deleteFinalizer(ctx context.Context, stClient directclientset.Interface, st *direct.StorageTopology) error {
+	finalizers := st.GetFinalizers()
+	newFins := []string{}
+	for _, fin := range finalizers {
+		if fin != st.Name {
+			newFins = append(newFins, fin)
+		}
+	}
+	
+	new := st.DeepCopy()
+	new.SetFinalizers(newFins)
+	
+	// Set Finalizer
+	return retry(func() error {
+		_, err := stClient.DirectV1alpha1().StorageTopologies().Update(ctx, new, metav1.UpdateOptions{})
+		return err
+	})
+}
+
 
 func createCSIDriver(ctx context.Context, kClient clientset.Interface, name string) error {
 	podInfoOnMount := false
@@ -165,154 +198,6 @@ func newHostPathVolume(name, path string) corev1.Volume {
 
 func newDirectCSIPluginsSocketDir(name string) string {
 	return filepath.Join(KubeletDir, "plugins", util.Sanitize(name))
-}
-
-func createDaemonSet(ctx context.Context, kClient clientset.Interface, name string, identity string, spec v1alpha1.StorageTopologySpec) error {
-	generatedSelectorValue := util.GenerateSanitizedUniqueNameFrom(name)
-
-	paths := spec.Layout.DrivePaths
-	fsType := spec.FsType
-	nodeSelector := spec.Layout.NodeSelector
-
-	privileged := true
-	podSpec := corev1.PodSpec{
-		NodeSelector: nodeSelector,
-		Volumes: append([]corev1.Volume{
-			newHostPathVolume(VolumeNameSocketDir, newDirectCSIPluginsSocketDir(name)),
-			newHostPathVolume(VolumeNameMountpointDir, filepath.Join(KubeletDir, VolumePathMountpointDir)),
-			newHostPathVolume(VolumeNamePluginsDir, filepath.Join(KubeletDir, VolumePathPluginsDir)),
-			newHostPathVolume(VolumeNamePluginsRegistryDir, filepath.Join(KubeletDir, VolumePathPluginsRegistryDir)),
-			newHostPathVolume(VolumeNameDevDir, VolumePathDevDir),
-		}),
-		ServiceAccountName: name,
-		Containers: []corev1.Container{
-			{
-				Name:  NodeDriverRegistrarContainerName,
-				Image: NodeDriverRegistrarContainerImage,
-				Args: []string{
-					"--v=5",
-					"--csi-address=/csi/csi.sock",
-					fmt.Sprintf("--kubelet-registration-path=%s", newDirectCSIPluginsSocketDir(name)),
-				},
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &privileged,
-				},
-				Env: []corev1.EnvVar{
-					{
-						Name: KubeNodeNameEnvVar,
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "spec.nodeName",
-							},
-						},
-					},
-				},
-				VolumeMounts: append([]corev1.VolumeMount{
-					newVolumeMount(VolumeNameSocketDir, "/csi"),
-					newVolumeMount(VolumeNamePluginsRegistryDir, "/registration"),
-					newVolumeMount(VolumeNameDevDir, VolumePathDevDir),
-				}),
-			},
-			{
-				Name:  DirectCSIContainerName,
-				Image: DirectCSIContainerImage,
-				Args: append([]string{
-					"--v=5",
-					"--csi-address=/csi/csi.sock",
-					fmt.Sprintf("--endpoint=$(%s)", CSIEndpointEnvVar),
-					fmt.Sprintf("--node-id=$(%s)", KubeNodeNameEnvVar),
-					fmt.Sprintf("--identity=%s", identity),
-					fmt.Sprintf("--fs-type=%s", fsType),
-				}, paths...),
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &privileged,
-				},
-				Env: []corev1.EnvVar{
-					{
-						Name: KubeNodeNameEnvVar,
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "spec.nodeName",
-							},
-						},
-					},
-					{
-						Name:  CSIEndpointEnvVar,
-						Value: "unix:///csi/csi.sock",
-					},
-				},
-				VolumeMounts: append([]corev1.VolumeMount{
-					newVolumeMount(VolumeNameSocketDir, "/csi"),
-					newVolumeMount(VolumeNameMountpointDir, filepath.Join(KubeletDir, VolumePathMountpointDir)),
-					newVolumeMount(VolumeNamePluginsDir, filepath.Join(KubeletDir, VolumePathPluginsDir)),
-					newVolumeMount(VolumeNameDevDir, VolumePathDevDir),
-				}),
-				Ports: []corev1.ContainerPort{
-					{
-						Name:          HealthZContainerPortName,
-						ContainerPort: HealthZContainerPort,
-						Protocol:      HealthZContainerPortProtocol,
-					},
-				},
-				LivenessProbe: &corev1.Probe{
-					FailureThreshold:    5,
-					InitialDelaySeconds: 10,
-					TimeoutSeconds:      3,
-					PeriodSeconds:       2,
-					Handler: corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path: HealthZContainerPortPath,
-							Port: intstr.FromString(HealthZContainerPortName),
-						},
-					},
-				},
-			},
-			{
-				Name:  LivenessProbeContainerName,
-				Image: LivenessProbeContainerImage,
-				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(VolumeNameSocketDir, "/csi"),
-				},
-				Args: []string{
-					fmt.Sprintf("--health-port=%d", HealthZContainerPort),
-					"--csi-address=/csi/csi.sock",
-				},
-			},
-		},
-	}
-
-	daemonSet := &appsv1.DaemonSet{
-		metav1.TypeMeta{
-			Kind:       "DaemonSet",
-			APIVersion: "apps/v1",
-		},
-		metav1.ObjectMeta{
-			Name:      name,
-			Namespace: name,
-			Labels: map[string]string{
-				CreateByLabel: DirectCSIController,
-			},
-		},
-		appsv1.DaemonSetSpec{
-			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, DirectCSISelector, generatedSelectorValue),
-			Template: corev1.PodTemplateSpec{
-				metav1.ObjectMeta{
-					Name: name,
-					Labels: map[string]string{
-						DirectCSISelector: generatedSelectorValue,
-					},
-				},
-				podSpec,
-			},
-		},
-		appsv1.DaemonSetStatus{},
-	}
-	return retry(func() error {
-		_, err := kClient.AppsV1().DaemonSets(name).Create(ctx, daemonSet, metav1.CreateOptions{})
-		return err
-	})
 }
 
 func createRBACRoles(ctx context.Context, kClient clientset.Interface, name string) error {

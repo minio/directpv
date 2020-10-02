@@ -1,0 +1,12 @@
+apiVersion: v1
+items:
+- apiVersion: direct.csi.min.io/v1alpha1
+  kind: StorageTopology
+  metadata:
+    name: test
+  spec:
+    layout:
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+      paths:
+      - /mnt/data{1...4}

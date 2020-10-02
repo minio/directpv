@@ -17,8 +17,14 @@
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+type ReclaimPolicy string
+
+const (
+	ReclaimPolicyRetain ReclaimPolicy = "Retain"
+	ReclaimPolicyDelete ReclaimPolicy = "Delete"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -35,10 +41,11 @@ type StorageTopologyList struct {
 }
 
 // +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:scope=Namespaced
+// +genclient:nonNamespaced
+// +kubebuilder:resource:scope=Cluster
 // +kubebuilder:storageversion
-// +kubebuilder:subresource:status
+// +k8s:openapi-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // StorageTopology defines the layout of storage infrastructure.
 type StorageTopology struct {
@@ -46,28 +53,8 @@ type StorageTopology struct {
 	// Standard object metadata. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	// Specification of the storage topology
-	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.
-	// +optional
-	Spec StorageTopologySpec `json:"spec,omitempty"`
-	// StorageTopologyStatus defines the observed state of StorageTopology
-	// +optional
-	Status StorageTopologyStatus `json:"status,omitempty"`
-}
-
-// StorageTopologyLayout describes the nodes and drives that will be used across the cluster.
-type StorageTopologyLayout struct {
-	// Selector for the nodes that will participate
-	NodeSelector map[string]string `json:"nodeLabels,omitempty"`
-	// Drive Paths from which volumes will be carved out
-	DrivePaths []string `json:"paths"`
-}
-
-// StorageTopologySpec is the spec of the StorageTopology.
-type StorageTopologySpec struct {
 	// Layout of the drives across hosts
-	Layout StorageTopologyLayout `json:"layout"`
+	Layout []StorageTopologyLayout `json:"layout"`
 	// Layout of the drives across hosts
 	// +optional
 	FsType string `json:"fstype,omitempty"`
@@ -82,84 +69,17 @@ type StorageTopologySpec struct {
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
-type ReclaimPolicy string
-
-const (
-	ReclaimPolicyRetain ReclaimPolicy = "Retain"
-	ReclaimPolicyDelete ReclaimPolicy = "Delete"
-)
+// StorageTopologyLayout describes the nodes and drives that will be used across the cluster.
+type StorageTopologyLayout struct {
+	// Selector for the nodes that will participate
+	NodeSelector map[string]string `json:"nodeLabels,omitempty"`
+	// Drive Paths from which volumes will be carved out
+	Blkid []string `json:"blkid"`
+}
 
 // StorageLimit describes maximum limits on the storage provisioned in this topology
 type StorageLimit struct {
-	// Storage represents the maximum size of a volume that can be provisioned in this topology
-	// +optional
-	MaxVolumeSize resource.Quantity `json:"maxVolumeSize,omitempty"`
 	// MaxVolumeCount describes the maximum number of volumes allowed to be provisioned in this topology
 	// +optional
 	MaxVolumeCount int32 `json:"maxVolumeCount,omitempty"`
 }
-
-// StorageTopologyStatus is the state of the StorageTopology
-type StorageTopologyStatus struct {
-	// Nodes the storage topology covers
-	// +optional
-	Nodes []StorageTopologyNodeStatus `json:"nodes,omitempty"`
-	// Paths is the list of paths after ellipses expansion
-	Paths []string `json:"paths"`
-	// TotalAvailableSize is the used capacity across all nodes
-	// +optional
-	TotalAvailableSize resource.Quantity `json:"totalAvailableSize,omitempty"`
-	// TotalAvailableCount is the number of allocated drives
-	// +optional
-	TotalAvailableCount int32 `json:"totalAvailableCount,omitempty"`
-	// TotalAllocatedSize is the used capacity across all nodes
-	// +optional
-	TotalAllocatedSize resource.Quantity `json:"totalAllocatedSize,omitempty"`
-	// TotalAllocatedCount is the number of allocated drives
-	// +optional
-	TotalAllocatedCount int32 `json:"totalAllocatedCount,omitempty"`
-	// Describes the readiness of this topology
-	// +optional
-	Conditions []StorageTopologyConditions `json:"conditions,omitempty"`
-}
-
-// StorageTopologyNodeStatus describes the status of the nodes that fall under this particular topology
-type StorageTopologyNodeStatus struct {
-	// NodeName is the name of the node
-	NodeName string `json:"nodeName"`
-	// allocatedSize is the used capacity on this node
-	// +optional
-	AllocatedSize resource.Quantity `json:"volumesAllocatedSize,omitempty"`
-	// Number of allocated drives
-	// +optional
-	AllocatedCount int32 `json:"volumesAllocatedCount,omitempty"`
-	// Capacity of the storage topology available on this node
-	// +optional
-	AvailableSize resource.Quantity `json:"volumesAvailableSize,omitempty"`
-	// Number of available drives
-	// +optional
-	AvailableCount int32 `json:"volumesAvailableCount,omitempty"`
-	// Condition describes the readiness of this node for this storage topology
-	// +optional
-	Conditions []StorageTopologyConditions `json:"conditions,omitempty"`
-}
-
-// StorageTopologyConditions describes the trueness of a condition for the StorageTopology
-type StorageTopologyConditions struct {
-	// Condition is a one word description of the represented value
-	Condition StorageTopologyCondition `json:"condition"`
-
-	// Status indicates if the condition is true or false
-	Status bool `json:"status"`
-
-	// Message about the conditions value
-	// +optional
-	Message string `json:"message,omitempty"`
-}
-
-type StorageTopologyCondition string
-
-const (
-	StorageTopologyConditionNodeReady StorageTopologyCondition = "NodeReady"
-	StorageTopologyConditionAllNodesReady StorageTopologyCondition = "AllNodesReady"
-)

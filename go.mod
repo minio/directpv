@@ -16,16 +16,13 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.7.1
-	github.com/stretchr/testify v1.5.1 // indirect
-	go.uber.org/zap v1.15.0 // indirect
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
-	google.golang.org/grpc v1.29.1
-	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
-	honnef.co/go/tools v0.0.1-2020.1.3 // indirect
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
+	google.golang.org/grpc v1.27.0
 	k8s.io/api v0.19.0
-	k8s.io/apiextensions-apiserver v0.19.0
+	k8s.io/apiextensions-apiserver v0.18.6
 	k8s.io/apimachinery v0.19.0
 	k8s.io/client-go v0.19.0
+	k8s.io/code-generator v0.19.2 // indirect
 	k8s.io/component-base v0.19.0
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73
 	sigs.k8s.io/controller-runtime v0.6.2
