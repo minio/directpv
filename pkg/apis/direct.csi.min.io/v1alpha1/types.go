@@ -1,4 +1,4 @@
-// This file is part of MinIO Kubernetes Cloud
+// This file is part of MinIO Direct CSI
 // Copyright (c) 2020 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package volume
+package v1alpha1
 
 import (
 	"fmt"
@@ -25,9 +25,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func init() {
-	SchemeBuilder.Register(&Volume{}, &VolumeList{})
-}
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:defaulter-gen=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced,shortName=volume,singular=volume
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.currentState"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 type Volume struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -47,6 +51,8 @@ type Volume struct {
 	TopologyConstraint *topology.TopologyConstraint `json:"topologyConstraint,omitempty"`
 	AuditTrail         map[time.Time]VolumeStatus   `json:"auditTrail,omitempty"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type VolumeList struct {
 	metav1.TypeMeta `json:",inline"`

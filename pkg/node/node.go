@@ -1,4 +1,4 @@
-// This file is part of MinIO Kubernetes Cloud
+// This file is part of MinIO Direct CSI
 // Copyright (c) 2020 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -21,8 +21,8 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
+	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/topology"
-	"github.com/minio/direct-csi/pkg/volume"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -31,6 +31,7 @@ import (
 const MaxVolumes = 10000
 
 func NewNodeServer(identity, nodeID, rack, zone, region string, basePaths []string) (*NodeServer, error) {
+	v1alpha1.VolumeClient(basePaths)
 	return &NodeServer{
 		NodeID:    nodeID,
 		Identity:  identity,
@@ -101,7 +102,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
 
-	vol, err := volume.GetVolume(ctx, vID)
+	vol, err := v1alpha1.GetVolume(ctx, vID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -170,7 +171,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
 
-	vol, err := volume.GetVolume(ctx, vID)
+	vol, err := v1alpha1.GetVolume(ctx, vID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -193,7 +194,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
 
-	vol, err := volume.GetVolume(ctx, vID)
+	vol, err := v1alpha1.GetVolume(ctx, vID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -216,7 +217,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
 
-	vol, err := volume.GetVolume(ctx, vID)
+	vol, err := v1alpha1.GetVolume(ctx, vID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
