@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -43,14 +42,6 @@ import (
 var (
 	sc      = runtime.NewScheme()
 	vClient client.Client
-
-	group   = "direct.csi.min.io"
-	version = "v1alpha1"
-
-	GroupVersion = schema.GroupVersion{
-		Group:   group,
-		Version: version,
-	}
 )
 
 func VolumeClient(basePaths []string) error {
@@ -100,7 +91,7 @@ func NewVolume(ctx context.Context, name string, volumeAccessMode VolumeAccessMo
 	vID := uuid.NewUUID().String()
 	vol := &Volume{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: version,
+			APIVersion: SchemeGroupVersion.Version,
 			Kind:       "volume",
 		},
 		ObjectMeta: metav1.ObjectMeta{
