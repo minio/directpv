@@ -14,28 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+// +k8s:deepcopy-gen=package,register
 
-import (
-	"os"
-	"os/signal"
-	"syscall"
-
-	"github.com/golang/glog"
-	"github.com/minio/direct-csi/cmd"
-)
-
-func main() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSEGV)
-
-	go func() {
-		s := <-sigs
-		glog.Infof("Exiting on signal %s %#v", s.String(), s)
-		panic("Signal received. Exiting")
-	}()
-
-	if err := cmd.Execute(); err != nil {
-		os.Exit(1)
-	}
-}
+// Package v1alpha1 is v1alpha1 version of the API.
+// +groupName=direct.csi.min.io
+package v1alpha1

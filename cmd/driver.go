@@ -1,4 +1,4 @@
-// This file is part of MinIO Kubernetes Cloud
+// This file is part of MinIO Direct CSI
 // Copyright (c) 2020 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -23,7 +23,6 @@ import (
 	"github.com/minio/direct-csi/pkg/controller"
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
-	"github.com/minio/direct-csi/pkg/volume"
 
 	"github.com/golang/glog"
 	"github.com/minio/minio/pkg/ellipses"
@@ -50,12 +49,6 @@ func driver(args []string) error {
 		} else {
 			basePaths = append(basePaths, a)
 		}
-	}
-
-	glog.V(10).Infof("base paths: %s", strings.Join(basePaths, ","))
-	volume.InitializeFactory(basePaths)
-	if err := volume.InitializeClient(identity); err != nil {
-		return err
 	}
 
 	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region, basePaths)

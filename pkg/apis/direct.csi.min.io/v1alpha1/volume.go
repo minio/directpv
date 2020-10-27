@@ -1,4 +1,4 @@
-// This file is part of MinIO Kubernetes Cloud
+// This file is part of MinIO Direct CSI
 // Copyright (c) 2020 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -14,22 +14,87 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package volume
+package v1alpha1
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/golang/glog"
 	"github.com/pborman/uuid"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/utils/mount"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
+
+var (
+	sc      = runtime.NewScheme()
+	vClient client.Client
+
+	group   = "direct.csi.min.io"
+	version = "v1alpha1"
+
+	GroupVersion = schema.GroupVersion{
+		Group:   group,
+		Version: version,
+	}
+)
+
+func VolumeClient(basePaths []string) error {
+	glog.V(10).Infof("base paths: %s", strings.Join(basePaths, ","))
+
+	InitializeFactory(basePaths)
+	clientgoscheme.AddToScheme(sc)
+	AddToScheme(sc)
+
+	// init volume client
+	c, err := config.GetConfig()
+	if err != nil {
+		return fmt.Errorf("could not get kubeconfig: %v", err)
+	}
+
+	extCl, err := apiextensions.NewForConfig(c)
+	if err != nil {
+		return fmt.Errorf("could not initialize apiExtentions Client: %v", err)
+	}
+
+	_, err = extCl.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), "volumes.direct.csi.min.io", metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("volume type not yet registered: %v", err)
+	}
+
+	mapper := func(c *rest.Config) meta.RESTMapper {
+		m, err := apiutil.NewDynamicRESTMapper(c)
+		if err != nil {
+			glog.Errorf("unable to initialize rest mapper: %v", err)
+			panic(err)
+		}
+		return m
+	}(c)
+
+	vc, err := client.New(c, client.Options{
+		Scheme: sc,
+		Mapper: mapper,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to initialize volume client: %v", err)
+	}
+	vClient = vc
+	return nil
+}
 
 func NewVolume(ctx context.Context, name string, volumeAccessMode VolumeAccessMode, nodeID string, parameters map[string]string) (*Volume, error) {
 	vID := uuid.NewUUID().String()
@@ -331,4 +396,103 @@ func (v *Volume) UnstageVolume(ctx context.Context, volumeID, stagePath string) 
 	v.VolumeSource = VolumeSource{}
 
 	return vClient.Update(ctx, v)
+}
+
+func (in *VolumeList) DeepCopy() *VolumeList {
+	if in == nil {
+		return nil
+	}
+	out := new(VolumeList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+func (in *VolumeList) DeepCopyInto(out *VolumeList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]Volume, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+func (in *Volume) DeepCopy() *Volume {
+	if in == nil {
+		return nil
+	}
+	out := new(Volume)
+	in.DeepCopyInto(out)
+	return out
+}
+
+func (in *Volume) DeepCopyInto(out *Volume) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+
+	out.VolumeID = in.VolumeID
+	out.Name = in.Name
+	in.VolumeSource.DeepCopyInto(&out.VolumeSource)
+	out.VolumeStatus = in.VolumeStatus
+	out.NodeID = in.NodeID
+
+	out.StagingPath = in.StagingPath
+	out.VolumeAccessMode = in.VolumeAccessMode
+
+	for _, in := range in.BlockAccess {
+		o := new(BlockAccessType)
+		in.DeepCopyInto(o)
+		out.BlockAccess = append(out.BlockAccess, *o)
+	}
+
+	for _, in := range in.MountAccess {
+		o := new(MountAccessType)
+		in.DeepCopyInto(o)
+		out.MountAccess = append(out.MountAccess, *o)
+	}
+
+	mapDeepCopyInto := func(in map[string]string, out map[string]string) {
+		if out == nil {
+			out = make(map[string]string, len(in))
+		}
+		for k, v := range in {
+			out[k] = v
+		}
+	}
+
+	mapDeepCopyInto(in.PublishContext, out.PublishContext)
+	mapDeepCopyInto(in.Parameters, out.Parameters)
+
+	in.TopologyConstraint.DeepCopyInto(out.TopologyConstraint)
+}
+
+func (in *VolumeSource) DeepCopyInto(out *VolumeSource) {
+	if out == nil {
+		out = new(VolumeSource)
+	}
+
+	out.VolumeSourceType = in.VolumeSourceType
+	out.VolumeSourcePath = in.VolumeSourcePath
+}
+
+func (in *MountAccessType) DeepCopyInto(out *MountAccessType) {
+	out.FsType = in.FsType
+
+	func(o []MountFlag) {
+		if o == nil {
+			o = make([]MountFlag, len(in.MountFlags))
+		}
+		copy(o, in.MountFlags)
+	}(out.MountFlags)
+
+	out.MountPoint = in.MountPoint
+}
+
+func (in *BlockAccessType) DeepCopyInto(out *BlockAccessType) {
+	out.Device = in.Device
+	out.Link = in.Link
 }

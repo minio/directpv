@@ -1,4 +1,4 @@
-// This file is part of MinIO Kubernetes Cloud
+// This file is part of MinIO Direct CSI
 // Copyright (c) 2020 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
@@ -21,8 +21,8 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
+	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/topology"
-	"github.com/minio/direct-csi/pkg/volume"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -94,7 +94,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	nodeID := ""
 
-	v, err := volume.NewVolume(ctx, name, volume.VolumeAccessMode(accessMode), nodeID, parameters)
+	v, err := v1alpha1.NewVolume(ctx, name, v1alpha1.VolumeAccessMode(accessMode), nodeID, parameters)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "error creating volume: %v", err)
 	}
@@ -139,7 +139,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	}
 
 	volId := req.GetVolumeId()
-	if err := volume.DeleteVolume(ctx, volId); err != nil {
+	if err := v1alpha1.DeleteVolume(ctx, volId); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to delete volume %v: %v", volId, err)
 	}
 
