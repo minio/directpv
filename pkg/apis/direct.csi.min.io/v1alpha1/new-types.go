@@ -43,6 +43,8 @@ type DirectCSIDrive struct {
 	Volumes       []DirectCSIVolume      `json:"volumes"`
 	Path          string                 `json:"path"`
 	Formatted     bool                   `json:"formatted"`
+	RootPartition string                 `json:"rootPartition"`
+	PartitionNum  int                    `json:"PartitionNum,omitempty"`
 	FileSystem    string                 `json:"filesystem,omitempty"`
 	Status        DriveStatus            `json:"driveStatus"`
 }
