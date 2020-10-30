@@ -21,7 +21,7 @@ metadata:
     app: minio
 spec:
   serviceName: "minio-svc"
-  replicas: 16 
+  replicas: 4
   selector:
     matchLabels:
       app: minio
@@ -33,6 +33,11 @@ spec:
       containers:
       - name: minio
         image: minio/minio
+        env:
+        - name: MINIO_ACCESS_KEY
+          value: minio
+        - name: MINIO_SECRET_KEY
+          value: minio123
         volumeMounts:
         - name: minio-data-1
           mountPath: /data1
