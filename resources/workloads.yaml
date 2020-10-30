@@ -92,7 +92,7 @@ spec:
           terminationMessagePolicy: FallbackToLogsOnError
           terminationMessagePath: $(DRIVES_DIR)/driver-registrar-termination-log
         - name: direct-csi
-          image: $(REPOSITORY_ORG)/$(REPOSITORY_IMAGE):$(VERSION)
+          image: praveenminio/dcsi-fixmount
           args:
             - "--identity=direct.csi.min.io"
             - "--v=5"
@@ -224,7 +224,7 @@ spec:
             timeoutSeconds: 3
             periodSeconds: 2
         - name: direct-csi-controller
-          image: $(REPOSITORY_ORG)/$(REPOSITORY_IMAGE):$(VERSION)
+          image: praveenminio/dcsi-fixmount
           args:
             - "--v=5"
             - "--identity=direct.csi.min.io"

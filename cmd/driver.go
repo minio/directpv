@@ -17,7 +17,7 @@
 package cmd
 
 import (
-	"strings"
+	"context"
 
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/minio/direct-csi/pkg/controller"
@@ -25,33 +25,27 @@ import (
 	"github.com/minio/direct-csi/pkg/node"
 
 	"github.com/golang/glog"
-	"github.com/minio/minio/pkg/ellipses"
 )
 
-func driver(args []string) error {
+func driver(_ []string) error {
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err
 	}
 	glog.V(5).Infof("identity server started")
 
-	basePaths := []string{}
-	for _, a := range args {
-		if ellipses.HasEllipses(a) {
-			p, err := ellipses.FindEllipsesPatterns(a)
-			if err != nil {
-				return err
-			}
-			patterns := p.Expand()
-			for _, outer := range patterns {
-				basePaths = append(basePaths, strings.Join(outer, ""))
-			}
-		} else {
-			basePaths = append(basePaths, a)
-		}
+	drives, err := node.FindDrives(context.Background())
+	if err != nil {
+		return err
 	}
 
-	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region, basePaths)
+	drivePaths := []string{}
+	for _, drive := range drives {
+		drivePaths = append(drivePaths, drive.Path)
+	}
+	glog.V(5).Info(drivePaths)
+
+	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region, drivePaths)
 	if err != nil {
 		return err
 	}

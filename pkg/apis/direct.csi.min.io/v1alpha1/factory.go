@@ -23,6 +23,8 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	"k8s.io/utils/mount"
+	"k8s.io/utils/exec"
 )
 
 var (
@@ -53,12 +55,15 @@ func Provision(volumeID string) (string, error) {
 	nextPath := vf.Paths[next]
 	glog.V(15).Infof("[%s] using direct storage: BasePaths[%d] = %s", volumeID, next, nextPath)
 
-	if err := os.MkdirAll(filepath.Join(nextPath, volumeID), 0755); err != nil {
+	// FormatAndMount formats the given disk, if needed, and mounts it
+	diskMounter := &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: exec.New()}
+	if err := diskMounter.FormatAndMount(nextPath, filepath.Join("/mnt", volumeID), "", []string{}); err != nil {
 		return "", err
 	}
+	
 	vf.LastAssigned = next
 
-	return filepath.Join(nextPath, volumeID), nil
+	return filepath.Join("/mnt", volumeID), nil
 }
 
 func Unprovision(path string) error {
