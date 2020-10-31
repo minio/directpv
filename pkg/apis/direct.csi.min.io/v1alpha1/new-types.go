@@ -17,8 +17,6 @@
 package v1alpha1
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,17 +32,20 @@ type DirectCSIDrive struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	ModelNumber   string                 `json:"modelNumber,omitempty"`
-	SerialNumber  string                 `json:"serialNumber,omitempty"`
-	Name          string                 `json:"name,omitempty"`
-	OwnerNode     corev1.ObjectReference `json:"ownerNode"`
-	TotalCapacity resource.Quantity      `json:"totalCapacity"`
-	FreeCapacity  resource.Quantity      `json:"freeCapacity"`
-	Volumes       []DirectCSIVolume      `json:"volumes"`
-	Path          string                 `json:"path"`
-	Formatted     bool                   `json:"formatted"`
-	FileSystem    string                 `json:"filesystem,omitempty"`
-	Status        DriveStatus            `json:"driveStatus"`
+	ModelNumber   string      `json:"modelNumber,omitempty"`
+	SerialNumber  string      `json:"serialNumber,omitempty"`
+	Name          string      `json:"name,omitempty"`
+	OwnerNode     string      `json:"ownerNode,omitempty"`
+	TotalCapacity int64       `json:"totalCapacity,omitempty"`
+	FreeCapacity  int64       `json:"freeCapacity,omitempty"`
+	BlockSize     int64       `json:"blockSize,omitempty"`
+	Path          string      `json:"path,omitempty"`
+	RootPartition string      `json:"rootPartition,omitempty"`
+	PartitionNum  int         `json:"partitionNum,omitempty"`
+	Filesystem    string      `json:"filesystem,omitempty"`
+	Mountpoint    string      `json:"mountpoint,omitempty"`
+	MountOptions  []string    `json:"mountOptions,omitempty"`
+	Status        DriveStatus `json:"driveStatus,omitempty"`
 }
 
 type DriveStatus string
@@ -68,11 +69,11 @@ type DirectCSIVolume struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	ID            string                 `json:"ID"`
-	Name          string                 `json:"name,omitempty"`
-	OwnerDrive    DirectCSIDrive         `json:"ownerDrive"`
-	OwnerNode     corev1.ObjectReference `json:"ownerNode"`
-	SourcePath    string                 `json:"sourcePath"`
-	TotalCapacity resource.Quantity      `json:"totalCapacity"`
-	VolumeStatus  VolumeStatus           `json:"volumeStatus"`
+	ID            string          `json:"ID"`
+	Name          string          `json:"name,omitempty"`
+	OwnerDrive    *DirectCSIDrive `json:"ownerDrive,omitempty"`
+	OwnerNode     string          `json:"ownerNode,omitempty"`
+	SourcePath    string          `json:"sourcePath"`
+	TotalCapacity int64           `json:"totalCapacity"`
+	VolumeStatus  VolumeStatus    `json:"volumeStatus"`
 }
