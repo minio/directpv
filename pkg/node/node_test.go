@@ -18,17 +18,18 @@ package node
 
 import (
 	"context"
+	"os"
 	"testing"
 )
 
 func TestFindDrives(t *testing.T) {
 	ctx := context.Background()
-	drives, err := FindDrives(ctx)
+	hostname, err := os.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = FindDrives(ctx, hostname)
 	if err != nil {
 		t.Error(err)
 	}
-	_ = drives
-	// bytes, err := json.MarshalIndent(drives, "", " ")
-	// fmt.Println(string(bytes))
-	// t.Error(err)
 }

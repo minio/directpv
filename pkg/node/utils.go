@@ -17,6 +17,7 @@
 package node
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -24,11 +25,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 )
 
-func FindDrives(ctx context.Context) ([]*direct_csi.DirectCSIDrive, error) {
+func FindDrives(ctx context.Context, nodeID string) ([]*direct_csi.DirectCSIDrive, error) {
 	drives := map[string]*direct_csi.DirectCSIDrive{}
 	visited := map[string]struct{}{}
 	if err := WalkWithFollow("/sys/block/", func(path string, info os.FileInfo, err error) error {
@@ -100,17 +102,52 @@ func FindDrives(ctx context.Context) ([]*direct_csi.DirectCSIDrive, error) {
 			}
 		}
 		if strings.Compare(info.Name(), "partition") == 0 {
-			if drive.PartitionNum == 0 {
-				data, err := ioutil.ReadFile(link)
-				if err != nil {
-					return err
-				}
-				partNum, err := strconv.Atoi(strings.TrimSpace(string(data)))
-				if err != nil {
-					return err
-				}
-				drive.PartitionNum = partNum
+			// not needed if this is a root partition
+			if drive.Name == drive.RootPartition {
+				return nil
 			}
+			data, err := ioutil.ReadFile(link)
+			if err != nil {
+				return err
+			}
+			partNum, err := strconv.Atoi(strings.TrimSpace(string(data)))
+			if err != nil {
+				return err
+			}
+			drive.PartitionNum = partNum
+		}
+		if strings.Compare(info.Name(), "size") == 0 {
+			data, err := ioutil.ReadFile(link)
+			if err != nil {
+				return err
+			}
+			size, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+			if err != nil {
+				return err
+			}
+			blockSize := int64(1)
+			if drive.BlockSize != 0 {
+				blockSize = drive.BlockSize
+			}
+			size = size * blockSize
+			drive.TotalCapacity = size
+		}
+		if strings.Compare(info.Name(), "logical_block_size") == 0 {
+			data, err := ioutil.ReadFile(link)
+			if err != nil {
+				return err
+			}
+			size, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+			if err != nil {
+				return err
+			}
+			blocks := int64(1)
+			if drive.TotalCapacity != 0 {
+				blocks = drive.TotalCapacity
+			}
+			drive.BlockSize = size
+			totalSize := size * blocks
+			drive.TotalCapacity = totalSize
 		}
 
 		return nil
@@ -123,10 +160,53 @@ func FindDrives(ctx context.Context) ([]*direct_csi.DirectCSIDrive, error) {
 			root := drives[v.RootPartition]
 			v.ModelNumber = fmt.Sprintf("%s-part%d", root.ModelNumber, v.PartitionNum)
 			v.SerialNumber = fmt.Sprintf("%s-part%d", root.SerialNumber, v.PartitionNum)
+			if v.BlockSize == 0 {
+				v.BlockSize = root.BlockSize
+				v.TotalCapacity = v.TotalCapacity * root.BlockSize
+			}
 		}
+		v.OwnerNode = nodeID
 		toRet = append(toRet, v)
 	}
+	if err := findMounts(toRet); err != nil {
+		return nil, err
+	}
 	return toRet, nil
+}
+
+func findMounts(drives []*direct_csi.DirectCSIDrive) error {
+	mounts, err := os.Open("/proc/mounts")
+	if err != nil {
+		return err
+	}
+	defer mounts.Close()
+	scanner := bufio.NewScanner(mounts)
+
+	index := map[string]string{}
+	for scanner.Scan() {
+		line := scanner.Text()
+		words := strings.SplitN(line, " ", 2)
+		index[words[0]] = line
+	}
+
+	for _, drive := range drives {
+		if line, ok := index[drive.Path]; ok {
+			words := strings.Split(line, " ")
+			if len(words) < 6 {
+				// unrecognized format
+				continue
+			}
+			drive.Mountpoint = words[1]
+			drive.Filesystem = words[2]
+			drive.MountOptions = strings.Split(words[3], ",")
+			stat := &syscall.Statfs_t{}
+			if err := syscall.Statfs(drive.Mountpoint, stat); err != nil {
+				return err
+			}
+			drive.FreeCapacity = int64(stat.Bsize) * int64(stat.Bavail)
+		}
+	}
+	return nil
 }
 
 func getDriveForPath(drives map[string]*direct_csi.DirectCSIDrive, path string) *direct_csi.DirectCSIDrive {
