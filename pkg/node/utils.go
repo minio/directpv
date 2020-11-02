@@ -27,7 +27,11 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/golang/glog"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/pborman/uuid"
+	"k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 )
 
 func FindDrives(ctx context.Context, nodeID string) ([]*direct_csi.DirectCSIDrive, error) {
@@ -316,4 +320,19 @@ func WalkWithFollow(path string, callback func(path string, info os.FileInfo, er
 		}
 	}
 	return nil
+}
+
+func MountDevices(devicePaths []string) []string {
+	basePaths := []string{}
+	for _, path := range devicePaths {
+		mountID := uuid.NewUUID().String()
+		// FormatAndMount formats the given disk, if needed, and mounts it
+		diskMounter := &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: exec.New()}
+		if err := diskMounter.FormatAndMount(path, filepath.Join("/mnt", mountID), "", []string{}); err != nil {
+			glog.V(5).Info(err)
+			continue
+		}
+		basePaths = append(basePaths, filepath.Join("/mnt", mountID))
+	}
+	return basePaths
 }

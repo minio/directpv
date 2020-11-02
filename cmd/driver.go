@@ -34,7 +34,7 @@ func driver(_ []string) error {
 	}
 	glog.V(5).Infof("identity server started")
 
-	drives, err := node.FindDrives(context.Background())
+	drives, err := node.FindDrives(context.Background(), nodeID)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,8 @@ func driver(_ []string) error {
 	}
 	glog.V(5).Info(drivePaths)
 
-	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region, drivePaths)
+	basePaths := node.MountDevices(drivePaths)
+	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region, basePaths)
 	if err != nil {
 		return err
 	}
