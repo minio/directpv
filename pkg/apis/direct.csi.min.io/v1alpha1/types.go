@@ -17,255 +17,84 @@
 package v1alpha1
 
 import (
-	"fmt"
-	"time"
-
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/direct-csi/pkg/topology"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +genclient
+// +genclient:nonNamespaced
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:storageversion
+// +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +k8s:defaulter-gen=true
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Namespaced,shortName=volume,singular=volume
-// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.currentState"
-// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
-type Volume struct {
+type DirectCSIDrive struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	VolumeID           string                       `json:"volumeID"`
-	Name               string                       `json:"name,omitempty"`
-	VolumeSource       VolumeSource                 `json:"volumeSource,omitempty"`
-	VolumeStatus       VolumeStatus                 `json:"volumeStatus"`
-	NodeID             string                       `json:"nodeID,omitempty"`
-	StagingPath        string                       `json:"stagingPath"`
-	VolumeAccessMode   VolumeAccessMode             `json:"volumeAccessMode"`
-	BlockAccess        []BlockAccessType            `json:"blockAccess,omitempty"`
-	MountAccess        []MountAccessType            `json:"mountAccess,omitempty"`
-	PublishContext     map[string]string            `json:"publishContext,omitempty"`
-	Parameters         map[string]string            `json:"parameters,omitempty"`
-	TopologyConstraint *topology.TopologyConstraint `json:"topologyConstraint,omitempty"`
-	AuditTrail         map[time.Time]VolumeStatus   `json:"auditTrail,omitempty"`
+	ModelNumber   string      `json:"modelNumber,omitempty"`
+	SerialNumber  string      `json:"serialNumber,omitempty"`
+	Name          string      `json:"name,omitempty"`
+	OwnerNode     string      `json:"ownerNode,omitempty"`
+	TotalCapacity int64       `json:"totalCapacity,omitempty"`
+	FreeCapacity  int64       `json:"freeCapacity,omitempty"`
+	BlockSize     int64       `json:"blockSize,omitempty"`
+	Path          string      `json:"path,omitempty"`
+	RootPartition string      `json:"rootPartition,omitempty"`
+	PartitionNum  int         `json:"partitionNum,omitempty"`
+	Filesystem    string      `json:"filesystem,omitempty"`
+	Mountpoint    string      `json:"mountpoint,omitempty"`
+	MountOptions  []string    `json:"mountOptions,omitempty"`
+	Status        DriveStatus `json:"driveStatus,omitempty"`
+}
+
+type DriveStatus string
+
+const (
+	Online      DriveStatus = "online"
+	Offline                 = "offline"
+	Unformatted             = "new"
+	Other                   = "other"
+)
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type DirectCSIDriveList struct {
+	metav1.TypeMeta `json:",inline"`
+	// metdata is the standard list metadata.
+	// +optional
+	metav1.ListMeta `json:"metadata"`
+
+	// items is the list of DirectCSIDrive objects.
+	Items []DirectCSIDrive `json:"items"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type VolumeList struct {
+type DirectCSIVolumeList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Volume `json:"items"`
+	// metdata is the standard list metadata.
+	// +optional
+	metav1.ListMeta `json:"metadata"`
+
+	// items is the list of Storage Topology objects.
+	Items []DirectCSIVolume `json:"items"`
 }
 
-type VolumeSource struct {
-	VolumeSourceType VolumeSourceType `json:"volumeSourceType"`
-	VolumeSourcePath string           `json:"volumeSourcePath"`
+// +genclient
+// +genclient:nonNamespaced
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:storageversion
+// +k8s:openapi-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type DirectCSIVolume struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+
+	ID            string          `json:"ID"`
+	Name          string          `json:"name,omitempty"`
+	OwnerDrive    *DirectCSIDrive `json:"ownerDrive,omitempty"`
+	OwnerNode     string          `json:"ownerNode,omitempty"`
+	SourcePath    string          `json:"sourcePath"`
+	TotalCapacity int64           `json:"totalCapacity"`
 }
-
-type VolumeSourceType string
-
-const (
-	VolumeSourceTypeBlockDevice VolumeSourceType = "BlockDevice"
-	VolumeSourceTypeDirectory   VolumeSourceType = "Directory"
-)
-
-type VolumeStatus string
-
-const (
-	VolumeStatusCreated   VolumeStatus = "created"
-	VolumeStatusNodeReady VolumeStatus = "node-ready"
-	VolumeStatusVolReady  VolumeStatus = "vol-ready"
-	VolumeStatusPublished VolumeStatus = "published"
-)
-
-type VolumeAccessMode int
-
-const (
-	VolumeAccessModeUnknown VolumeAccessMode = iota
-	VolumeAccessModeSingleNodeWriter
-	VolumeAccessModeSingleNodeReadOnly
-	VolumeAccessModeMultiNodeReadOnly
-	VolumeAccessModeMultiNodeSingleWriter
-	VolumeAccessModeMultiNodeMultiWriter
-)
-
-func (v VolumeAccessMode) IgnoreMarshalJSON() ([]byte, error) {
-	switch v {
-	case VolumeAccessModeUnknown:
-		return []byte("UNKNOWN"), nil
-	case VolumeAccessModeSingleNodeWriter:
-		return []byte("SINGLE_NODE_WRITER"), nil
-	case VolumeAccessModeSingleNodeReadOnly:
-		return []byte("SINGLE_NODE_READ_ONLY"), nil
-	case VolumeAccessModeMultiNodeReadOnly:
-		return []byte("MULTI_NODE_READ_ONLY"), nil
-	case VolumeAccessModeMultiNodeSingleWriter:
-		return []byte("MULTI_NODE_SINGLE_WRITER"), nil
-	case VolumeAccessModeMultiNodeMultiWriter:
-		return []byte("MULTI_NODE_MULTI_WRITER"), nil
-	default:
-		return nil, fmt.Errorf("invalid volume access mode")
-	}
-}
-
-func (v VolumeAccessMode) IgnoreUnmarshalJSON(value []byte) error {
-	switch string(value) {
-	case "UNKNOWN":
-		v = VolumeAccessModeUnknown
-	case "SINGLE_NODE_WRITER":
-		v = VolumeAccessModeSingleNodeWriter
-	case "SINGLE_NODE_READ_ONLY":
-		v = VolumeAccessModeSingleNodeReadOnly
-	case "MULTI_NODE_READ_ONLY":
-		v = VolumeAccessModeMultiNodeReadOnly
-	case "MULTI_NODE_SINGLE_WRITER":
-		v = VolumeAccessModeMultiNodeSingleWriter
-	case "MULTI_NODE_MULTI_WRITER":
-		v = VolumeAccessModeMultiNodeMultiWriter
-	default:
-		return fmt.Errorf("invalid volume access mode")
-	}
-	return nil
-}
-
-type Access string
-
-const (
-	AccessRO Access = "ro"
-	AccessRW Access = "rw"
-)
-
-type AccessType interface {
-	Matches(*csi.NodePublishVolumeRequest) bool
-}
-
-type BlockAccessType struct {
-	Device string `json:"device"`
-	Link   string `json:"link,omitempty"`
-	Access Access `json:"access,omitempty"`
-}
-
-func (b BlockAccessType) Matches(req *csi.NodePublishVolumeRequest) bool {
-	targetPath := req.GetTargetPath()
-	ro := req.GetReadonly()
-
-	if targetPath == "" || targetPath != b.Link {
-		return false
-	}
-
-	switch ro {
-	case true:
-		if b.Access != AccessRO {
-			return false
-		}
-	case false:
-		if b.Access != AccessRW {
-			return false
-		}
-	}
-
-	return true
-}
-
-type MountAccessType struct {
-	FsType     FsType      `json:"fsType"`
-	MountFlags []MountFlag `json:"mountFlags"`
-	MountPoint string      `json:"mountpoint"`
-	Access     Access      `json:"access,omitempty"`
-}
-
-func (m MountAccessType) Matches(req *csi.NodePublishVolumeRequest) bool {
-	targetPath := req.GetTargetPath()
-	ro := req.GetReadonly()
-
-	if targetPath == "" || targetPath != m.MountPoint {
-		return false
-	}
-
-	switch ro {
-	case true:
-		if m.Access != AccessRO {
-			return false
-		}
-	case false:
-		if m.Access != AccessRW {
-			return false
-		}
-	}
-
-	if len(m.MountFlags) == 0 && len(m.FsType) == 0 {
-		return targetPath == m.MountPoint
-	}
-
-	vCap := req.GetVolumeCapability()
-	if vCap == nil {
-		return false
-	}
-
-	vMount := vCap.GetMount()
-	if vMount == nil {
-		return false
-	}
-
-	mFlags := vMount.GetMountFlags()
-	fsType := vMount.GetFsType()
-
-	if fsType != string(m.FsType) {
-		return false
-	}
-
-	listCompare := func(l []string, r []MountFlag) bool {
-		lMap := map[string]struct{}{}
-		rMap := map[string]struct{}{}
-
-		for _, a := range l {
-			lMap[a] = struct{}{}
-		}
-
-		for _, b := range r {
-			rMap[string(b)] = struct{}{}
-		}
-
-		for a := range lMap {
-			if _, ok := rMap[a]; !ok {
-				return false
-			}
-		}
-
-		for b := range rMap {
-			if _, ok := lMap[b]; !ok {
-				return false
-			}
-		}
-		return true
-	}
-
-	if !listCompare(mFlags, m.MountFlags) {
-		return false
-	}
-
-	return true
-}
-
-type FsType string
-
-const (
-	FsTypeXFS  FsType = "xfs"
-	FsTypeExt4 FsType = "ext4"
-)
-
-type MountFlag string
-
-const (
-	MountFlagRO      MountFlag = "ro"
-	MountFlagRemount MountFlag = "remount"
-)
-
-type MountOption string
-
-const (
-	MountOptionBind MountOption = "bind"
-)

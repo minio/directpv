@@ -24,7 +24,14 @@ SCRIPT_ROOT=$(dirname ${BASH_SOURCE})/..
 GO111MODULE=off go get -d k8s.io/code-generator/...
 
 REPOSITORY=github.com/minio/direct-csi
-$(go env GOPATH)/src/k8s.io/code-generator/generate-groups.sh all \
-                $REPOSITORY/pkg/client $REPOSITORY/pkg/apis \
-                "direct.csi.min.io:v1alpha1" \
-                --go-header-file $SCRIPT_ROOT/hack/boilerplate.go.txt
+deepcopy-gen \
+           --output-package ${REPOSITORY}/pkg/ \
+	   --input-dirs ${REPOSITORY}/pkg/apis/direct.csi.min.io/v1alpha1 \
+
+client-gen --fake-clientset \
+           --clientset-name clientset \
+	   --output-package ${REPOSITORY}/pkg/ \
+	   --input-dirs ${REPOSITORY}/pkg/apis/direct.csi.min.io/v1alpha1 \
+	   --input direct.csi.min.io/v1alpha1 \
+	   --input-base ${REPOSITORY}/pkg/apis
+

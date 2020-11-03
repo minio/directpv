@@ -17,18 +17,19 @@
 package cmd
 
 import (
+	"context"
 	"strings"
 
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/minio/direct-csi/pkg/controller"
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/golang/glog"
 	"github.com/minio/minio/pkg/ellipses"
 )
 
-func driver(args []string) error {
+func driver(ctx context.Context, args []string) error {
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err
@@ -51,7 +52,7 @@ func driver(args []string) error {
 		}
 	}
 
-	node, err := node.NewNodeServer(identity, nodeID, rack, zone, region, basePaths)
+	node, err := node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths)
 	if err != nil {
 		return err
 	}
@@ -63,9 +64,5 @@ func driver(args []string) error {
 	}
 	glog.V(5).Infof("controller manager started")
 
-	s := csicommon.NewNonBlockingGRPCServer()
-	s.Start(endpoint, idServer, ctrlServer, node)
-	s.Wait()
-
-	return nil
+	return utils.Run(ctx, endpoint, idServer, ctrlServer, node)
 }

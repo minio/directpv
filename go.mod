@@ -6,7 +6,7 @@ require (
 	github.com/container-storage-interface/spec v1.3.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/imdario/mergo v0.3.7 // indirect
-	github.com/kubernetes-csi/csi-lib-utils v0.7.0 // indirect
+	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/minio/minio v0.0.0-20200622032605-a521907ab497
 	github.com/onsi/ginkgo v1.12.0 // indirect

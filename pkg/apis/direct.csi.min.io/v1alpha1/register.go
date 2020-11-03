@@ -48,8 +48,10 @@ func init() {
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&Volume{},
-		&VolumeList{},
+		&DirectCSIDrive{},
+		&DirectCSIDriveList{},
+		&DirectCSIVolume{},
+		&DirectCSIVolumeList{},
 	)
 	v1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

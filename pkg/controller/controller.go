@@ -21,8 +21,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
-	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	"github.com/minio/direct-csi/pkg/topology"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -78,86 +76,23 @@ func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 }
 
 func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	name := req.GetName()
-	if name == "" {
-		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
-	}
-	vc := req.GetVolumeCapabilities()
-	if vc == nil {
-		return nil, status.Error(codes.InvalidArgument, "volume capabilities cannot be empty")
-	}
-	parameters := req.GetParameters()
-	accessModeWrapper := vc[0].GetAccessMode()
-	accessMode := 1
-	if accessModeWrapper != nil {
-		accessMode = int(accessModeWrapper.Mode)
-	}
-	nodeID := ""
-
-	v, err := v1alpha1.NewVolume(ctx, name, v1alpha1.VolumeAccessMode(accessMode), nodeID, parameters)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error creating volume: %v", err)
-	}
-
-	topologies := map[string]string{}
-
-	if id, ok := parameters[topology.TopologyDriverIdentity]; ok {
-		topologies[topology.TopologyDriverIdentity] = id
-	}
-	if node, ok := parameters[topology.TopologyDriverNode]; ok {
-		topologies[topology.TopologyDriverNode] = node
-	}
-	if id, ok := parameters[topology.TopologyDriverRack]; ok {
-		topologies[topology.TopologyDriverRack] = id
-	}
-	if id, ok := parameters[topology.TopologyDriverZone]; ok {
-		topologies[topology.TopologyDriverZone] = id
-	}
-	if id, ok := parameters[topology.TopologyDriverRegion]; ok {
-		topologies[topology.TopologyDriverRegion] = id
-	}
-
-	topologyReqs := []*csi.Topology{{
-		Segments: topologies,
-	}}
-
-	return &csi.CreateVolumeResponse{
-		Volume: &csi.Volume{
-			VolumeId:           v.VolumeID,
-			CapacityBytes:      req.GetCapacityRange().GetRequiredBytes(),
-			VolumeContext:      req.GetParameters(),
-			ContentSource:      req.GetVolumeContentSource(),
-			AccessibleTopology: topologyReqs,
-		},
-	}, nil
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	// Check arguments
-	if len(req.GetVolumeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
-	}
-
-	volId := req.GetVolumeId()
-	if err := v1alpha1.DeleteVolume(ctx, volId); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to delete volume %v: %v", volId, err)
-	}
-
-	glog.V(5).Infof("volume %v successfully deleted", volId)
-
-	return &csi.DeleteVolumeResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 func (c *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	return &csi.ListVolumesResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 func (c *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	return &csi.ControllerPublishVolumeResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 func (c *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	return &csi.ControllerUnpublishVolumeResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 func (c *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {

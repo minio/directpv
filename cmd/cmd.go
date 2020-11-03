@@ -17,6 +17,7 @@
 package cmd
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -31,12 +32,13 @@ var Version string
 
 // flags
 var (
-	identity = "direct.csi.min.io"
-	nodeID   = ""
-	rack     = "default"
-	zone     = "default"
-	region   = "default"
-	endpoint = "unix://csi/csi.sock"
+	identity   = "direct.csi.min.io"
+	nodeID     = ""
+	rack       = "default"
+	zone       = "default"
+	region     = "default"
+	endpoint   = "unix://csi/csi.sock"
+	kubeconfig = ""
 )
 
 var driverCmd = &cobra.Command{
@@ -51,7 +53,7 @@ For more information, use '%s man [sched | examples | ...]'
 `, os.Args[0]),
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		return driver(args)
+		return driver(c.Context(), args)
 	},
 	Version: Version,
 }
@@ -67,6 +69,7 @@ func init() {
 	// defaulting this to true so that logs are printed to console
 	flag.Set("logtostderr", "true")
 
+	driverCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "path to kubeconfig")
 	driverCmd.PersistentFlags().StringVarP(&identity, "identity", "i", identity, "identity of this direct-csi")
 	driverCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi is listening")
 	driverCmd.PersistentFlags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi is running")
@@ -87,28 +90,6 @@ func init() {
 	viper.BindPFlags(driverCmd.PersistentFlags())
 }
 
-func Execute() error {
-	return driverCmd.Execute()
+func Execute(ctx context.Context) error {
+	return driverCmd.ExecuteContext(ctx)
 }
-
-/*
-Driver presents a bunch of drives as volumes to containers requesting it.
-A bunch of drives can be representing using glob notation. For eg.
-
-1. /mnt/drive{1...32}/path
-
-This presents 32 drives, whose subdirectory (./path) is the root directory
-for the CSI driver to operate
-
-2. /mnt/drive{1...32}/path{1...4}
-
-This presents 32 drives, whose subdirectories path1, path2, path3, path4 are
-provided as root directories for the CSI driver. This driver will behave as
-if it was operating with 128 drives (32 * 4)
-
-The driver carves out a unique volume for a particular container from this path
-by creating a sub-directory. The volume is identified by the subdirectory name.
-It employs a simple round-robin approach to provisioning from each of the drives
-given to it.
-
-*/
