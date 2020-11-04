@@ -17,6 +17,7 @@
 package v1alpha1
 
 import (
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -41,6 +42,8 @@ type DirectCSIDrive struct {
 	// +optional
 	TotalCapacity int64 `json:"totalCapacity,omitempty"`
 	// +optional
+	UsedCapacity int64 `json:"usedCapacity,omitempty"`
+	// +optional
 	FreeCapacity int64 `json:"freeCapacity,omitempty"`
 	// +optional
 	BlockSize int64  `json:"blockSize,omitempty"`
@@ -58,6 +61,8 @@ type DirectCSIDrive struct {
 	MountOptions []string `json:"mountOptions,omitempty"`
 	// +optional
 	DriveStatus DriveStatus `json:"driveStatus,omitempty"`
+	// +optional
+	Topology *csi.Topology `json:"topology,omitempty"`
 }
 
 type DriveStatus string
