@@ -39,6 +39,8 @@ var (
 	region     = "default"
 	endpoint   = "unix://csi/csi.sock"
 	kubeconfig = ""
+	controller = false
+	driver     = false
 )
 
 var driverCmd = &cobra.Command{
@@ -53,7 +55,11 @@ For more information, use '%s man [sched | examples | ...]'
 `, os.Args[0]),
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		return driver(c.Context(), args)
+		if !controller && !driver {
+			return fmt.Errorf("either --controller or --driver should be set")
+		}
+
+		return run(c.Context(), args)
 	},
 	Version: Version,
 }
@@ -76,6 +82,8 @@ func init() {
 	driverCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this direct-csi is running")
 	driverCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this direct-csi is running")
 	driverCmd.PersistentFlags().StringVarP(&region, "region", "", region, "identity of the region in which this direct-csi is running")
+	driverCmd.PersistentFlags().BoolVarP(&controller, "controller", "", controller, "running in controller mode")
+	driverCmd.PersistentFlags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")

@@ -1,8 +1,6 @@
 varReference:
 - path: data/VERSION
   kind: ConfigMap
-- path: data/DIRECT_CSI_DRIVER_PATHS
-  kind: ConfigMap
 - path: data/DIRECT_CSI_DRIVER_COMMON_CONTAINER_ROOT
   kind: ConfigMap
 - path: data/DIRECT_CSI_DRIVER_COMMON_HOST_ROOT
