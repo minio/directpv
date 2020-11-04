@@ -20,6 +20,7 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"os"
 
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
@@ -32,6 +33,14 @@ func Run(ctx context.Context, endpoint string, identity csi.IdentityServer, cont
 	parsedURL, err := url.Parse(endpoint)
 	if err != nil {
 		return err
+	}
+
+	if parsedURL.Scheme == "unix" {
+		if err := os.Remove(parsedURL.Host); err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+		}
 	}
 
 	lc := &net.ListenConfig{}
@@ -48,6 +57,7 @@ func Run(ctx context.Context, endpoint string, identity csi.IdentityServer, cont
 	go func() {
 		<-ctx.Done()
 		server.GracefulStop()
+		os.Remove(parsedURL.Host)
 	}()
 
 	if identity != nil {
