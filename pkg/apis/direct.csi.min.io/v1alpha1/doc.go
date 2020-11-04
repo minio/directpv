@@ -15,7 +15,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // +k8s:deepcopy-gen=package,register
-
-// Package v1alpha1 is v1alpha1 version of the API.
+// +k8s:openapi-gen=true
 // +groupName=direct.csi.min.io
 package v1alpha1

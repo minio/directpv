@@ -22,8 +22,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const (
+	Group   = "direct.csi.min.io"
+	Version = "v1alpha1"
+)
+
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = schema.GroupVersion{Group: "direct.csi.min.io", Version: "v1alpha1"}
+var SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
 func Resource(resource string) schema.GroupResource {

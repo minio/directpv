@@ -31,20 +31,33 @@ type DirectCSIDrive struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	ModelNumber   string      `json:"modelNumber,omitempty"`
-	SerialNumber  string      `json:"serialNumber,omitempty"`
-	Name          string      `json:"name,omitempty"`
-	OwnerNode     string      `json:"ownerNode,omitempty"`
-	TotalCapacity int64       `json:"totalCapacity,omitempty"`
-	FreeCapacity  int64       `json:"freeCapacity,omitempty"`
-	BlockSize     int64       `json:"blockSize,omitempty"`
-	Path          string      `json:"path,omitempty"`
-	RootPartition string      `json:"rootPartition,omitempty"`
-	PartitionNum  int         `json:"partitionNum,omitempty"`
-	Filesystem    string      `json:"filesystem,omitempty"`
-	Mountpoint    string      `json:"mountpoint,omitempty"`
-	MountOptions  []string    `json:"mountOptions,omitempty"`
-	Status        DriveStatus `json:"driveStatus,omitempty"`
+	// +optional
+	ModelNumber string `json:"modelNumber,omitempty"`
+	// +optional
+	SerialNumber string `json:"serialNumber,omitempty"`
+	// +optional
+	Name      string `json:"name,omitempty"`
+	OwnerNode string `json:"ownerNode"`
+	// +optional
+	TotalCapacity int64 `json:"totalCapacity,omitempty"`
+	// +optional
+	FreeCapacity int64 `json:"freeCapacity,omitempty"`
+	// +optional
+	BlockSize int64  `json:"blockSize,omitempty"`
+	Path      string `json:"path"`
+	// +optional
+	RootPartition string `json:"rootPartition,omitempty"`
+	// +optional
+	PartitionNum int `json:"partitionNum,omitempty"`
+	// +optional
+	Filesystem string `json:"filesystem,omitempty"`
+	// +optional
+	Mountpoint string `json:"mountpoint,omitempty"`
+	// +listType=atomic
+	// +optional
+	MountOptions []string `json:"mountOptions,omitempty"`
+	// +optional
+	DriveStatus DriveStatus `json:"driveStatus,omitempty"`
 }
 
 type DriveStatus string
@@ -63,9 +76,7 @@ type DirectCSIDriveList struct {
 	// metdata is the standard list metadata.
 	// +optional
 	metav1.ListMeta `json:"metadata"`
-
-	// items is the list of DirectCSIDrive objects.
-	Items []DirectCSIDrive `json:"items"`
+	Items           []DirectCSIDrive `json:"items"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -75,9 +86,7 @@ type DirectCSIVolumeList struct {
 	// metdata is the standard list metadata.
 	// +optional
 	metav1.ListMeta `json:"metadata"`
-
-	// items is the list of Storage Topology objects.
-	Items []DirectCSIVolume `json:"items"`
+	Items           []DirectCSIVolume `json:"items"`
 }
 
 // +genclient
@@ -91,10 +100,15 @@ type DirectCSIVolume struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	ID            string          `json:"ID"`
-	Name          string          `json:"name,omitempty"`
-	OwnerDrive    *DirectCSIDrive `json:"ownerDrive,omitempty"`
-	OwnerNode     string          `json:"ownerNode,omitempty"`
-	SourcePath    string          `json:"sourcePath"`
-	TotalCapacity int64           `json:"totalCapacity"`
+	VolumeID string `json:"volumeID"`
+	// +optional
+	Name string `json:"name,omitempty"`
+	// +optional
+	OwnerDrive *DirectCSIDrive `json:"ownerDrive,omitempty"`
+	// +optional
+	OwnerNode string `json:"ownerNode,omitempty"`
+	// +optional
+	SourcePath string `json:"sourcePath"`
+	// +optional
+	TotalCapacity int64 `json:"totalCapacity"`
 }
