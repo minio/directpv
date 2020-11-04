@@ -1,5 +1,3 @@
-// +build !test
-
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2020 MinIO, Inc.
 //
