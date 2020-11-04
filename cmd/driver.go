@@ -30,6 +30,12 @@ import (
 )
 
 func driver(ctx context.Context, args []string) error {
+	utils.Init()
+
+	if err := registerCRDs(ctx); err != nil {
+		return err
+	}
+
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err

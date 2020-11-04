@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/minio/direct-csi/cmd"
@@ -35,7 +36,8 @@ func main() {
 		s := <-sigs
 		glog.Infof("Exiting on signal %s %#v", s.String(), s)
 		cancel()
-		panic("Signal received. Exiting")
+		<-time.After(1 * time.Second)
+		os.Exit(1)
 	}()
 
 	if err := cmd.Execute(ctx); err != nil {

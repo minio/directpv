@@ -155,7 +155,7 @@ func FindDrives(ctx context.Context, nodeID string) ([]*direct_csi.DirectCSIDriv
 		return nil, err
 	}
 	toRet := []*direct_csi.DirectCSIDrive{}
-	for _, v := range drives {
+	for k, v := range drives {
 		if v.Name != v.RootPartition {
 			root := drives[v.RootPartition]
 			v.ModelNumber = fmt.Sprintf("%s-part%d", root.ModelNumber, v.PartitionNum)
@@ -166,6 +166,7 @@ func FindDrives(ctx context.Context, nodeID string) ([]*direct_csi.DirectCSIDriv
 			}
 		}
 		v.OwnerNode = nodeID
+		v.ObjectMeta.Name = k
 		toRet = append(toRet, v)
 	}
 	if err := findMounts(toRet); err != nil {

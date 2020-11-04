@@ -30,6 +30,6 @@ jobs:
       run: |
         diff -au <(gofmt -s -d cmd) <(printf "")
         diff -au <(gofmt -s -d pkg) <(printf "")
-        go test -tags test -v ./...
+        go test -v ./...
         docker build . -t "direct-csi:latest"
 

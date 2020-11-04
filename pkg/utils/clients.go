@@ -1,5 +1,3 @@
-// +build !test
-
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2020 MinIO, Inc.
 //
@@ -20,6 +18,7 @@ package utils
 
 import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -29,8 +28,9 @@ import (
 
 var directCSIClient directv1alpha1.DirectV1alpha1Interface
 var kubeClient kubernetes.Interface
+var crdClient apiextensions.CustomResourceDefinitionInterface
 
-func init() {
+func Init() {
 	kubeConfig := viper.GetString("kubeconfig")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
@@ -44,6 +44,13 @@ func init() {
 	if err != nil {
 		glog.Fatalf("could not initialize direct-csi client: %v", err)
 	}
+
+	crdClientset, err := apiextensions.NewForConfig(config)
+	if err != nil {
+		glog.Fatalf("could not initialize crd client: %v", err)
+	}
+
+	crdClient = crdClientset.CustomResourceDefinitions()
 }
 
 func GetKubeClient() kubernetes.Interface {
@@ -52,4 +59,8 @@ func GetKubeClient() kubernetes.Interface {
 
 func GetDirectCSIClient() directv1alpha1.DirectV1alpha1Interface {
 	return directCSIClient
+}
+
+func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
+	return crdClient
 }
