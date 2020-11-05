@@ -35,8 +35,9 @@ func Run(ctx context.Context, endpoint string, identity csi.IdentityServer, cont
 		return err
 	}
 
+	glog.V(5).Infof("listening on: %v", endpoint)
 	if parsedURL.Scheme == "unix" {
-		if err := os.Remove(parsedURL.Host); err != nil {
+		if err := os.Remove(parsedURL.RequestURI()); err != nil {
 			if !os.IsNotExist(err) {
 				return err
 			}
@@ -44,7 +45,7 @@ func Run(ctx context.Context, endpoint string, identity csi.IdentityServer, cont
 	}
 
 	lc := &net.ListenConfig{}
-	listener, err := lc.Listen(ctx, parsedURL.Scheme, parsedURL.Host)
+	listener, err := lc.Listen(ctx, parsedURL.Scheme, parsedURL.RequestURI())
 	if err != nil {
 		return err
 	}

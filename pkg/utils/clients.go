@@ -20,6 +20,7 @@ import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/golang/glog"
@@ -34,7 +35,11 @@ func Init() {
 	kubeConfig := viper.GetString("kubeconfig")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
-		glog.Fatalf("could not find client configuration: %v", err)
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			glog.Fatalf("could not find client configuration: %v", err)
+		}
+		glog.Infof("obtained client config successfully")
 	}
 	kubeClient, err = kubernetes.NewForConfig(config)
 	if err != nil {

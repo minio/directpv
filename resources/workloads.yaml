@@ -64,6 +64,9 @@ spec:
         app: direct-csi-min-io
     spec:
       serviceAccountName: direct-csi-min-io
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
       containers:
         - name: node-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
@@ -87,10 +90,8 @@ spec:
             name: socket-dir
           - mountPath: /registration
             name: registration-dir
-          - mountPath: $(DRIVES_DIR)
-            name: direct-csi-common-root
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(DRIVES_DIR)/driver-registrar-termination-log
+          terminationMessagePath: /var/logs/driver-registrar-termination-log
         - name: direct-csi
           image: $(REPOSITORY_ORG)/$(REPOSITORY_IMAGE):$(VERSION)
           args:
@@ -98,7 +99,7 @@ spec:
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--node-id=$(KUBE_NODE_NAME)"
-            - $(DRIVES_DIR)/$(DRIVES)
+            - "--driver"
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
@@ -109,8 +110,9 @@ spec:
                   fieldPath: spec.nodeName
           securityContext:
             privileged: true
+          imagePullPolicy: Always
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(DRIVES_DIR)/driver-termination-log
+          terminationMessagePath: /var/log/driver-termination-log
           ports:
           - containerPort: 9898
             name: healthz
@@ -132,22 +134,24 @@ spec:
             - mountPath: $(KUBELET_DIR_PATH)/plugins
               mountPropagation: Bidirectional
               name: plugins-dir
-            - mountPath: $(DRIVES_DIR)
+            - mountPath: /mnt/direct-csi
               name: direct-csi-common-root
             - mountPath: /dev
               name: dev-dir
+            - mountPath: /sys
+              name: sys-fs
+            - mountPath: /proc
+              name: proc-fs
         - name: liveness-probe
           volumeMounts:
           - mountPath: /csi
             name: socket-dir
-          - mountPath: $(DRIVES_DIR)
-            name: direct-csi-common-root
           image: quay.io/k8scsi/livenessprobe:v1.1.0
           args:
           - --csi-address=/csi/csi.sock
           - --health-port=9898
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(DRIVES_DIR)/driver-liveness-termination-log
+          terminationMessagePath: /var/log/driver-liveness-termination-log
       volumes:
         - hostPath:
             path: $(KUBELET_DIR_PATH)/plugins/direct-csi-min-io
@@ -166,13 +170,21 @@ spec:
             type: Directory
           name: plugins-dir
         - hostPath:
-            path: $(DRIVES_DIR)
+            path: /mnt/direct-csi
             type: DirectoryOrCreate
           name: direct-csi-common-root
         - hostPath:
             path: /dev
             type: Directory
           name: dev-dir
+        - hostPath:
+            path: /sys
+            type: Directory
+          name: sys-fs
+        - hostPath:
+            path: /proc
+            type: Directory
+          name: proc-fs
 
 ---
 
@@ -209,12 +221,8 @@ spec:
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
-            - mountPath: /dev
-              name: dev-dir
-            - mountPath: $(DRIVES_DIR)
-              name: direct-csi-common-root
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(DRIVES_DIR)/controller-provisioner-termination-log
+          terminationMessagePath: /var/log/controller-provisioner-termination-log
           livenessProbe:
             failureThreshold: 5
             httpGet:
@@ -229,8 +237,7 @@ spec:
             - "--v=5"
             - "--identity=direct.csi.min.io"
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--node-id=$(KUBE_NODE_NAME)"
-            - "/tmp/"
+            - "--controller"
           env:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
@@ -249,24 +256,13 @@ spec:
             name: healthz
             protocol: TCP
           terminationMessagePolicy: FallbackToLogsOnError
-          terminationMessagePath: $(DRIVES_DIR)/controller-termination-log
+          imagePullPolicy: Always
+          terminationMessagePath: /var/log/controller-termination-log
           volumeMounts:
-            - mountPath: /dev
-              name: dev-dir
             - mountPath: /csi
               name: socket-dir
-            - mountPath: $(DRIVES_DIR)
-              name: direct-csi-common-root
       volumes:
         - hostPath:
             path: $(KUBELET_DIR_PATH)/plugins/direct-csi-controller-min-io
             type: DirectoryOrCreate
           name: socket-dir
-        - hostPath:
-            path: /dev
-            type: Directory
-          name: dev-dir
-        - hostPath:
-            path: $(DRIVES_DIR)
-            type: DirectoryOrCreate
-          name: direct-csi-common-root

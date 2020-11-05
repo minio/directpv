@@ -20,16 +20,17 @@ import (
 	"context"
 	"strings"
 
-	"github.com/minio/direct-csi/pkg/controller"
+	ctrl "github.com/minio/direct-csi/pkg/controller"
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
 	"github.com/minio/direct-csi/pkg/utils"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
 	"github.com/minio/minio/pkg/ellipses"
 )
 
-func driver(ctx context.Context, args []string) error {
+func run(ctx context.Context, args []string) error {
 	utils.Init()
 
 	if err := registerCRDs(ctx); err != nil {
@@ -58,17 +59,23 @@ func driver(ctx context.Context, args []string) error {
 		}
 	}
 
-	node, err := node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths)
-	if err != nil {
-		return err
+	var nodeSrv csi.NodeServer
+	if driver {
+		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths)
+		if err != nil {
+			return err
+		}
+		glog.V(5).Infof("node server started")
 	}
-	glog.V(5).Infof("node server started")
 
-	ctrlServer, err := controller.NewControllerServer(identity, nodeID, rack, zone, region)
-	if err != nil {
-		return err
+	var ctrlServer csi.ControllerServer
+	if controller {
+		ctrlServer, err = ctrl.NewControllerServer(identity, nodeID, rack, zone, region)
+		if err != nil {
+			return err
+		}
+		glog.V(5).Infof("controller manager started")
 	}
-	glog.V(5).Infof("controller manager started")
 
-	return utils.Run(ctx, endpoint, idServer, ctrlServer, node)
+	return utils.Run(ctx, endpoint, idServer, ctrlServer, nodeSrv)
 }

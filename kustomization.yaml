@@ -32,20 +32,6 @@ vars:
       apiVersion: v1
     fieldref:
       fieldpath: data.VERSION
-  - name: DRIVES
-    objref:
-      name: direct-csi-config
-      kind: ConfigMap
-      apiVersion: v1
-    fieldref:
-      fieldpath: data.DIRECT_CSI_DRIVES
-  - name: DRIVES_DIR
-    objref:
-      name: direct-csi-config
-      kind: ConfigMap
-      apiVersion: v1
-    fieldref:
-      fieldpath: data.DIRECT_CSI_DRIVES_DIR
   - name: KUBELET_DIR_PATH
     objref:
       name: direct-csi-config
