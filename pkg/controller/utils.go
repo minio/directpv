@@ -17,8 +17,8 @@
 package controller
 
 import (
-	"math/rand"
 	"path/filepath"
+	"sort"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
@@ -84,6 +84,13 @@ func SelectDriveByTopologyReq(tReq *csi.TopologyRequirement, csiDrives []direct_
 	preferredXs := tReq.GetPreferred()
 	requisiteXs := tReq.GetRequisite()
 
+	// Sort the drives by free capacity [Descending]
+	sort.SliceStable(csiDrives, func(i, j int) bool {
+		return csiDrives[i].FreeCapacity > csiDrives[j].FreeCapacity
+	})
+
+	// Try to fullfill the preferred topology request, If not, fallback to requisite list.
+	// Ref: https://godoc.org/github.com/container-storage-interface/spec/lib/go/csi#TopologyRequirement
 	for _, preferredTop := range preferredXs {
 		if selectedDrive, err := selectDriveByTopology(preferredTop, csiDrives); err == nil {
 			return selectedDrive, nil
@@ -97,7 +104,7 @@ func SelectDriveByTopologyReq(tReq *csi.TopologyRequirement, csiDrives []direct_
 	}
 
 	if len(preferredXs) == 0 && len(requisiteXs) == 0 {
-		return csiDrives[rand.Intn(len(csiDrives))], nil
+		return csiDrives[0], nil
 	}
 
 	return direct_csi.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
@@ -127,6 +134,7 @@ func matchSegments(topSegments, driveSegments map[string]string) bool {
 	return req == match
 }
 
+// MountDevice - Utility to mount a device in `/mnt/<uid>`
 func MountDevice(devicePath string) (string, error) {
 	mountID := uuid.NewUUID().String()
 	mountPath := filepath.Join("/mnt", mountID)
