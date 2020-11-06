@@ -42,7 +42,7 @@ type DirectCSIDrive struct {
 	// +optional
 	TotalCapacity int64 `json:"totalCapacity,omitempty"`
 	// +optional
-	UsedCapacity int64 `json:"usedCapacity,omitempty"`
+	AllocatedCapacity int64 `json:"allocatedCapacity,omitempty"`
 	// +optional
 	FreeCapacity int64 `json:"freeCapacity,omitempty"`
 	// +optional

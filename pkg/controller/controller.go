@@ -94,10 +94,10 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	accessModeWrapper := vc[0].GetAccessMode()
-	var accessMode int
+	var accessMode csi.VolumeCapability_AccessMode_Mode
 	if accessModeWrapper != nil {
-		accessMode = int(accessModeWrapper.GetMode())
-		if accessMode != 1 {
+		accessMode = accessModeWrapper.GetMode()
+		if accessMode != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
 			return nil, status.Errorf(codes.InvalidArgument, "unsupported access mode: %s", accessModeWrapper.String())
 		}
 	}
@@ -145,7 +145,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 		copiedDrive := selectedCSIDrive.DeepCopy()
 		copiedDrive.FreeCapacity = copiedDrive.FreeCapacity - req.GetCapacityRange().GetRequiredBytes()
-		copiedDrive.UsedCapacity = copiedDrive.UsedCapacity + req.GetCapacityRange().GetRequiredBytes()
+		copiedDrive.AllocatedCapacity = copiedDrive.AllocatedCapacity + req.GetCapacityRange().GetRequiredBytes()
 		if _, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); err != nil {
 			return err
 		}

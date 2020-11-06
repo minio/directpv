@@ -206,13 +206,8 @@ func findMounts(drives []*direct_csi.DirectCSIDrive) error {
 			if err := syscall.Statfs(drive.Mountpoint, stat); err != nil {
 				return err
 			}
-
 			availBlocks := int64(stat.Bavail)
-			reservedBlocks := int64(stat.Bfree) - availBlocks
-			totalBlocks := int64(stat.Blocks) - reservedBlocks
-
 			drive.FreeCapacity = int64(stat.Bsize) * availBlocks
-			drive.UsedCapacity = int64(stat.Bsize) * (totalBlocks - availBlocks)
 		}
 	}
 	return nil
