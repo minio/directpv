@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/pborman/uuid"
 	"io/ioutil"
+	"k8s.io/utils/mount"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -320,4 +321,44 @@ func WalkWithFollow(path string, callback func(path string, info os.FileInfo, er
 		}
 	}
 	return nil
+}
+
+func StageVolume(directCSIDrive *direct_csi.DirectCSIDrive, stagingPath string, volumeID string) (string, error) {
+
+	sourcePath := filepath.Join(directCSIDrive.Mountpoint, directCSIDrive.ObjectMeta.Name)
+	if err := os.MkdirAll(sourcePath, 0755); err != nil {
+		return "", err
+	}
+
+	if err := os.MkdirAll(stagingPath, 0755); err != nil {
+		return "", err
+	}
+
+	if _, err := os.Lstat(stagingPath); err != nil {
+		return "", err
+	}
+
+	mounter := mount.New("")
+
+	shouldBindMount := true
+	mountPoints, mntErr := mounter.List()
+	if mntErr != nil {
+		return "", mntErr
+	}
+	for _, mp := range mountPoints {
+		abPath, _ := filepath.Abs(mp.Path)
+		if stagingPath == abPath {
+			shouldBindMount = false
+			break
+		}
+	}
+
+	if shouldBindMount {
+		if err := mounter.Mount(sourcePath, stagingPath, "", []string{"bind"}); err != nil {
+			return "", err
+		}
+	}
+
+	return sourcePath, nil
+
 }
