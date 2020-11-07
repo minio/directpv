@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/pborman/uuid"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -155,7 +156,7 @@ func FindDrives(ctx context.Context, nodeID string) ([]*direct_csi.DirectCSIDriv
 		return nil, err
 	}
 	toRet := []*direct_csi.DirectCSIDrive{}
-	for k, v := range drives {
+	for _, v := range drives {
 		if v.Name != v.RootPartition {
 			root := drives[v.RootPartition]
 			v.ModelNumber = fmt.Sprintf("%s-part%d", root.ModelNumber, v.PartitionNum)
@@ -166,7 +167,8 @@ func FindDrives(ctx context.Context, nodeID string) ([]*direct_csi.DirectCSIDriv
 			}
 		}
 		v.OwnerNode = nodeID
-		v.ObjectMeta.Name = k
+		driveName := uuid.NewUUID().String()
+		v.ObjectMeta.Name, v.Name = driveName, driveName
 		toRet = append(toRet, v)
 	}
 	if err := findMounts(toRet); err != nil {
@@ -204,7 +206,8 @@ func findMounts(drives []*direct_csi.DirectCSIDrive) error {
 			if err := syscall.Statfs(drive.Mountpoint, stat); err != nil {
 				return err
 			}
-			drive.FreeCapacity = int64(stat.Bsize) * int64(stat.Bavail)
+			availBlocks := int64(stat.Bavail)
+			drive.FreeCapacity = int64(stat.Bsize) * availBlocks
 		}
 	}
 	return nil

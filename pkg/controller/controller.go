@@ -21,8 +21,13 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
+	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/pborman/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 func NewControllerServer(identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
@@ -75,8 +80,93 @@ func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	}, nil
 }
 
+// CreateVolume - Creates a DirectCSI Volume
 func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	name := req.GetName()
+	if name == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
+	}
+	glog.V(5).Infof("CreateVolumeRequest - %s", name)
+
+	vc := req.GetVolumeCapabilities()
+	if vc == nil || len(vc) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "volume capabilities cannot be empty")
+	}
+
+	accessModeWrapper := vc[0].GetAccessMode()
+	var accessMode csi.VolumeCapability_AccessMode_Mode
+	if accessModeWrapper != nil {
+		accessMode = accessModeWrapper.GetMode()
+		if accessMode != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+			return nil, status.Errorf(codes.InvalidArgument, "unsupported access mode: %s", accessModeWrapper.String())
+		}
+	}
+
+	var selectedCSIDrive direct_csi.DirectCSIDrive
+	var dvol *direct_csi.DirectCSIVolume
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		directCSIClient := utils.GetDirectCSIClient()
+		driveList, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
+		if err != nil || len(driveList.Items) == 0 {
+			return status.Error(codes.NotFound, err.Error())
+		}
+		directCSIDrives := driveList.Items
+
+		filteredDrives, fErr := FilterDrivesByVolumeRequest(req, directCSIDrives)
+		if fErr != nil {
+			return fErr
+		}
+
+		var dErr error
+		selectedCSIDrive, dErr = SelectDriveByTopologyReq(req.GetAccessibilityRequirements(), filteredDrives)
+		if dErr != nil {
+			return dErr
+		}
+
+		vID := uuid.NewUUID().String()
+		vol := &direct_csi.DirectCSIVolume{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: vID,
+			},
+			VolumeID:      vID,
+			Name:          name,
+			OwnerDrive:    &selectedCSIDrive,
+			OwnerNode:     selectedCSIDrive.OwnerNode,
+			SourcePath:    selectedCSIDrive.Path,
+			TotalCapacity: selectedCSIDrive.TotalCapacity,
+		}
+
+		var cErr error
+		dvol, cErr = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{})
+		if cErr != nil {
+			return cErr
+		}
+		glog.Infof("Created DirectCSI Volume - %s", dvol.Name)
+
+		copiedDrive := selectedCSIDrive.DeepCopy()
+		copiedDrive.FreeCapacity = copiedDrive.FreeCapacity - req.GetCapacityRange().GetRequiredBytes()
+		copiedDrive.AllocatedCapacity = copiedDrive.AllocatedCapacity + req.GetCapacityRange().GetRequiredBytes()
+		if _, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+		glog.Infof("Updated DirectCSI DirectCSIDrive - %s", copiedDrive.Name)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &csi.CreateVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId:           dvol.VolumeID,
+			CapacityBytes:      req.GetCapacityRange().GetRequiredBytes(),
+			VolumeContext:      req.GetParameters(),
+			ContentSource:      req.GetVolumeContentSource(),
+			AccessibleTopology: []*csi.Topology{selectedCSIDrive.Topology},
+		},
+	}, nil
+
 }
 
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
