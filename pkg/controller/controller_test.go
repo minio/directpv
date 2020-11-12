@@ -21,26 +21,34 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestSelectDriveByTopology(t1 *testing.T) {
 
 	testDriveSet := []direct_csi.DirectCSIDrive{
 		{
-			Name: "drive1",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive1",
+			},
 			Topology: &csi.Topology{
 				Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
 			},
 		},
 		{
-			Name: "drive2",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive2",
+			},
 			Topology: &csi.Topology{
 				Segments: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
 			},
 		},
 		{
-			Name: "drive3",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive3",
+			},
 			Topology: &csi.Topology{
 				Segments: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"},
 			},
@@ -106,15 +114,21 @@ func TestSelectDriveByTopology(t1 *testing.T) {
 func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 	testDriveSet := []direct_csi.DirectCSIDrive{
 		{
-			Name:         "drive1",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive1",
+			},
 			FreeCapacity: 5000,
 		},
 		{
-			Name:         "drive2",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive2",
+			},
 			FreeCapacity: 1000,
 		},
 		{
-			Name:         "drive3",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive3",
+			},
 			FreeCapacity: 7000,
 		},
 	}
@@ -128,7 +142,9 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 			capacityRange: &csi.CapacityRange{RequiredBytes: 2000, LimitBytes: 6000},
 			selectedDriveList: []direct_csi.DirectCSIDrive{
 				{
-					Name:         "drive1",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
 					FreeCapacity: 5000,
 				},
 			},
@@ -138,15 +154,21 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 			capacityRange: &csi.CapacityRange{RequiredBytes: 0, LimitBytes: 0},
 			selectedDriveList: []direct_csi.DirectCSIDrive{
 				{
-					Name:         "drive1",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
 					FreeCapacity: 5000,
 				},
 				{
-					Name:         "drive2",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
 					FreeCapacity: 1000,
 				},
 				{
-					Name:         "drive3",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
 					FreeCapacity: 7000,
 				},
 			},
@@ -156,11 +178,15 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 			capacityRange: &csi.CapacityRange{RequiredBytes: 2000, LimitBytes: 0},
 			selectedDriveList: []direct_csi.DirectCSIDrive{
 				{
-					Name:         "drive1",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
 					FreeCapacity: 5000,
 				},
 				{
-					Name:         "drive3",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
 					FreeCapacity: 7000,
 				},
 			},
@@ -190,16 +216,28 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 func TestFilterDrivesByFsType(t1 *testing.T) {
 	testDriveSet := []direct_csi.DirectCSIDrive{
 		{
-			Name:       "drive1",
-			Filesystem: "ext4",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive1",
+			},
+			RequestedFormat: v1alpha1.RequestedFormat{
+				Filesystem: "ext4",
+			},
 		},
 		{
-			Name:       "drive2",
-			Filesystem: "ext4",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive2",
+			},
+			RequestedFormat: v1alpha1.RequestedFormat{
+				Filesystem: "ext4",
+			},
 		},
 		{
-			Name:       "drive3",
-			Filesystem: "xfs",
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive3",
+			},
+			RequestedFormat: v1alpha1.RequestedFormat{
+				Filesystem: "xfs",
+			},
 		},
 	}
 	testCases := []struct {
@@ -212,12 +250,20 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 			fsType: "ext4",
 			selectedDriveList: []direct_csi.DirectCSIDrive{
 				{
-					Name:       "drive1",
-					Filesystem: "ext4",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					RequestedFormat: v1alpha1.RequestedFormat{
+						Filesystem: "ext4",
+					},
 				},
 				{
-					Name:       "drive2",
-					Filesystem: "ext4",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					RequestedFormat: v1alpha1.RequestedFormat{
+						Filesystem: "ext4",
+					},
 				},
 			},
 		},
@@ -226,8 +272,12 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 			fsType: "xfs",
 			selectedDriveList: []direct_csi.DirectCSIDrive{
 				{
-					Name:       "drive3",
-					Filesystem: "xfs",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					RequestedFormat: v1alpha1.RequestedFormat{
+						Filesystem: "xfs",
+					},
 				},
 			},
 		},
@@ -236,16 +286,28 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 			fsType: "",
 			selectedDriveList: []direct_csi.DirectCSIDrive{
 				{
-					Name:       "drive1",
-					Filesystem: "ext4",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					RequestedFormat: v1alpha1.RequestedFormat{
+						Filesystem: "ext4",
+					},
 				},
 				{
-					Name:       "drive2",
-					Filesystem: "ext4",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					RequestedFormat: v1alpha1.RequestedFormat{
+						Filesystem: "ext4",
+					},
 				},
 				{
-					Name:       "drive3",
-					Filesystem: "xfs",
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					RequestedFormat: v1alpha1.RequestedFormat{
+						Filesystem: "xfs",
+					},
 				},
 			},
 		},

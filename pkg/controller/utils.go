@@ -72,7 +72,7 @@ func FilterDrivesByFsType(fsType string, csiDrives []direct_csi.DirectCSIDrive) 
 	}
 	filteredDriveList := []direct_csi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
-		if csiDrive.Filesystem == fsType {
+		if csiDrive.RequestedFormat.Filesystem == fsType {
 			filteredDriveList = append(filteredDriveList, csiDrive)
 		}
 	}

@@ -126,10 +126,9 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		vID := uuid.NewUUID().String()
 		vol := &direct_csi.DirectCSIVolume{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: vID,
+				Name: name,
 			},
 			VolumeID:      vID,
-			Name:          name,
 			OwnerDrive:    &selectedCSIDrive,
 			OwnerNode:     selectedCSIDrive.OwnerNode,
 			SourcePath:    selectedCSIDrive.Path,
