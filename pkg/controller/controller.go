@@ -23,9 +23,9 @@ import (
 	"github.com/golang/glog"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/utils"
-	"github.com/pborman/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
@@ -103,7 +103,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	var selectedCSIDrive direct_csi.DirectCSIDrive
-	var dvol *direct_csi.DirectCSIVolume
+	var vol *direct_csi.DirectCSIVolume
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		directCSIClient := utils.GetDirectCSIClient()
 		driveList, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
@@ -123,24 +123,21 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return dErr
 		}
 
-		vID := uuid.NewUUID().String()
-		vol := &direct_csi.DirectCSIVolume{
+		vol = &direct_csi.DirectCSIVolume{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 			},
-			VolumeID:      vID,
 			OwnerDrive:    &selectedCSIDrive,
 			OwnerNode:     selectedCSIDrive.OwnerNode,
 			SourcePath:    selectedCSIDrive.Path,
 			TotalCapacity: selectedCSIDrive.TotalCapacity,
 		}
 
-		var cErr error
-		dvol, cErr = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{})
-		if cErr != nil {
-			return cErr
+		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); !errors.IsAlreadyExists(err) {
+			return err
 		}
-		glog.Infof("Created DirectCSI Volume - %s", dvol.Name)
+
+		glog.Infof("Created DirectCSI Volume - %s", vol.ObjectMeta.Name)
 
 		copiedDrive := selectedCSIDrive.DeepCopy()
 		copiedDrive.FreeCapacity = copiedDrive.FreeCapacity - req.GetCapacityRange().GetRequiredBytes()
@@ -158,7 +155,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:           dvol.VolumeID,
+			VolumeId:           vol.ObjectMeta.Name,
 			CapacityBytes:      req.GetCapacityRange().GetRequiredBytes(),
 			VolumeContext:      req.GetParameters(),
 			ContentSource:      req.GetVolumeContentSource(),

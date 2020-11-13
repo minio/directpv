@@ -29,6 +29,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/util/retry"
 )
 
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string) (*NodeServer, error) {
@@ -125,7 +126,45 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 }
 
 func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	vID := req.GetVolumeId()
+	stagingTargetPath := req.GetStagingTargetPath()
+
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+
+	directCSIClient := utils.GetDirectCSIClient()
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
+		if cErr != nil {
+			return status.Error(codes.NotFound, cErr.Error())
+		}
+		csiDrive := dvol.OwnerDrive
+
+		if csiDrive.Filesystem == "" {
+			return status.Error(codes.FailedPrecondition, "Unformatted CSI Drive found")
+		}
+
+		sourcePath, err := StageVolume(csiDrive, stagingTargetPath, vID)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Staging volume failed: %v", err)
+		}
+
+		copiedVolume := dvol.DeepCopy()
+		copiedVolume.SourcePath = sourcePath
+		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &csi.NodeStageVolumeResponse{}, nil
+
 }
 
 func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {

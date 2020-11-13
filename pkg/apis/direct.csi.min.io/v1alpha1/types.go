@@ -111,7 +111,6 @@ type DirectCSIVolume struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	VolumeID string `json:"volumeID"`
 	// +optional
 	OwnerDrive *DirectCSIDrive `json:"ownerDrive,omitempty"`
 	// +optional
