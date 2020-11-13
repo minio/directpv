@@ -51,6 +51,10 @@ type DirectCSIDrive struct {
 	RootPartition string `json:"rootPartition,omitempty"`
 	// +optional
 	PartitionNum int `json:"partitionNum,omitempty"`
+	// +optional
+	Filesystem string `json:"filesystem,omitempty"`
+	// +optional
+	Mountpoint string `json:"mountpoint,omitempty"`
 	// +listType=atomic
 	// +optional
 	MountOptions []string `json:"mountOptions,omitempty"`
