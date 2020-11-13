@@ -20,13 +20,14 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/pborman/uuid"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/pborman/uuid"
 
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 )
@@ -199,11 +200,11 @@ func findMounts(drives []*direct_csi.DirectCSIDrive) error {
 				// unrecognized format
 				continue
 			}
-			drive.Mountpoint = words[1]
-			drive.Filesystem = words[2]
+			drive.RequestedFormat.Mountpoint = words[1]
+			drive.RequestedFormat.Filesystem = words[2]
 			drive.MountOptions = strings.Split(words[3], ",")
 			stat := &syscall.Statfs_t{}
-			if err := syscall.Statfs(drive.Mountpoint, stat); err != nil {
+			if err := syscall.Statfs(drive.RequestedFormat.Mountpoint, stat); err != nil {
 				return err
 			}
 			availBlocks := int64(stat.Bavail)
