@@ -1,36 +1,184 @@
-# Container Storage Interface (CSI) driver for Direct Volume Access ![Go](https://github.com/minio/direct-csi/workflows/Go/badge.svg)
-This repository provides tools and scripts for building and testing the DIRECT CSI provider.
+![Go](https://github.com/minio/direct-csi/workflows/Go/badge.svg)
+# Direct CSI 
+Container Storage Interface (CSI) driver for Direct Volume Access 
 
-## Steps to run
+## Overview
 
-```sh
-$ DIRECT_CSI_DRIVES=data{1...4} DIRECT_CSI_DRIVES_DIR=/mnt kubectl apply -k github.com/minio/direct-csi
+Direct CSI provides a CSI interface used by container orchestrators to provision volumes from local drives. Unlike networked volumes, local volumes cannot be moved between machines. 
+
+Applications that require fast, local access to underlying storage, and manage the durability of data at the application layer, rather than the block layer are the target for this CSI driver. eg. MinIO
+
+## Features
+
+#### CLI 
+
+The CSI driver ships with a CLI that can be used to list volumes, format them, and manage their lifecycle. 
+
+#### Automatic Volume Discovery
+
+The CSI driver probes the machine to discover all the block devices automatically
+
+#### Dynamic Thin provisioning
+
+The CSI driver carves out chunks of volume for each request based on resource requirements
+
+#### Volume Health
+
+Drive temperature, I/O failures, Drive stats etc. are measured and reported by this CSI driver
+
+#### Portable
+
+Seamlessly move your application between cloud providers, and/or baremetal infrastructure without any changes to your application spec
+
+## Architecture
+
+![ArchitectureDiagram](DirectCSI_Arch.png)
+
+## Installation
+
+###### Install Direct-CSI cli
+
+```bash
+kubectl krew install direct-csi
 ```
 
-> NOTE: KUBELET_DIR_PATH defaults to `/var/lib/kubelet`, if you are using microk8s 
-> `KUBELET_DIR_PATH` needs to changed to `/var/snap/microk8s/common/var/lib/kubelet`
+###### Install Direct-CSI driver
 
-## Utilize the volume in your application
+```bash
+kubectl direct-csi install
+```
 
-Edit your `volumeClaimTemplates` section
+###### Add Drives to DirectCSI pool
+
+Choose drives to be managed by DirectCSI. Refer to [Add Drives](#add-drives) command for more info.
+```bash
+kubectl direct-csi add drives /dev/nvme* --nodes myhost{1...4}
+```
+
+## Make a Persistent Volume Claim
+
+Provision a Direct-CSI volume by specifying `volumeClaimTemplates`:
+
+###### Example
 
 ```yaml
-volumeClaimTemplates: # This is the specification in which you reference the StorageClass
+volumeClaimTemplates:
   - metadata:
-    name: direct.csi-min-io-volume
+    name: myvol1
   spec:
     accessModes: [ "ReadWriteOnce" ]
     resources:
       requests:
-        storage: 10Gi
-    storageClassName: direct.csi.min.io # This field references the existing StorageClass
+        storage: 500G
+    storageClassName: direct.csi.min.io 
 ```
 
-## Deploy MinIO backed by `direct.csi.min.io`
+
+## Direct-CSI Command Line Reference
+
+##### Get Info
+
+Show storage summary of the nodes managed by DirectCSI.
+```bash
+Usage:
+  kubectl direct-csi info
+  
+NODENAME       DRIVES
+rack1node1     (4/5)
+``` 
+
+##### List Drives
+
+List drive status across the storage nodes.
+```bash
+Usage:
+  kubectl direct-csi drives [FLAGS] [DRIVE WILDCARD,...]
+
+[FLAGS]
+  --nodes, -n  VALUE      drives from nodes whose name matches WILDCARD. Defaults to '*'
+  --all                   list all drives
+  --status, -s VALUE      filter by status [*new, ignore, online, offline]                 
+```
+
+###### Example
 
 ```
-$ kubectl create -f minio.yaml
+# list nvme drives on nodes in rack1 and rack2
+$> kubectl direct-csi drives --nodes 'rack1*' '/dev/nvme*' --all
+DRIVES                      STATUS      VOLUMES  ALLOCATED      CAPACITY     FREE          FS         MOUNT           MODEL
+rack1node1:/dev/nvme1n1     online      4        376 GiB        1 TiB        36 GiB        xfs        (internal)      WDC PC SN730 SDBQNTY-986G-2001
+rack1node1:/dev/nvme2n1     new         0        0              1 TiB        986 GiB       -          -               WDC PC SN730 SDBQNTY-986G-2001
+rack1node2:/dev/nvme1n1     ignore      0        0              1 TiB        986 GiB       xfs        /mnt/dat...     WDC PC SN730 SDBQNTY-986G-2001
+rack1node2:/dev/nvme2n1     new         0        0              1 TiB        986 GiB       xfs        -               WDC PC SN730 SDBQNTY-986G-2001
+rack1node2:/dev/nvme3n1     offline     14       986            1 TiB        14 GiB        ext4       -               WDC PC SN730 SDBQNTY-986G-2001
+```
+
+##### Add Drives
+
+Choose drives to be managed by DirectCSI. Only new drives are allowed.
+```bash
+Usage:
+  kubectl direct-csi add drives [FLAGS] [DRIVE WILDCARD,...]
+
+[FLAGS]
+  --nodes, -n  VALUE      drives from nodes whose name matches WILDCARD. Defaults to '*'
+  --fs, -f  VALUE         filesystem to be formatted. Defaults to 'xfs'
+  --force                 overwrite existing filesystem
+```
+
+##### Remove Drives
+
+Remove drives from being managed by DirectCSI. Only works on drives that have no bounded volumes.
+```bash
+Usage:
+  kubectl direct-csi remove drives [FLAGS] [DRIVE WILDCARD,...]
+
+[FLAGS]
+  --nodes, -n  VALUE      drives from nodes whose name matches WILDCARD. Defaults to '*'
+```
+
+##### Ignore Drives
+
+Ignore drives from being managed by DirectCSI. Only works on drives that have no bounded volumes.
+```bash
+Usage:
+  kubectl direct-csi ignore drives [FLAGS] [DRIVE WILDCARD,...]
+
+[FLAGS]
+  --nodes, -n  VALUE      drives from nodes whose name matches WILDCARD. Defaults to '*'
+```
+
+##### List Volumes
+
+List all the provisioned volumes
+```bash
+Usage:
+  kubectl direct-csi volumes --drives [DRIVE_WILDCARD,...] --nodes [NODE_NAME,...]
+
+[FLAGS]
+  --drives, -d   VALUE     list volumes provisioned from particular drive. Defaults to all
+  --nodes, -n  VALUE       list volumes provisioned from drives on particular node. Defaults to all
+  --verbose, -v            show detailed volume information 
+```
+
+###### Example
+
+```
+# list volumes on nvme drives in rack
+$> kubectl direct-csi volumes --nodes 'rack1*' --drives '/dev/nvme*'   
+VOLUME        NODENAME            DRIVE                CAPACITY     STATUS   
+pvc-uuid      rack1node1          /dev/nvme1n1         500 GiB      Bound
+pvc-uuid      rack1node2          /dev/nvme1n1         100 GiB      Released
+```
+
+##### Purge Volume
+
+Permanently delete the volume and all of its contents.
+
+```bash
+Usage:
+  kubectl direct-csi purge volume VOLUME
 ```
 
 ## License
-Use of `direct-csi` driver is governed by the AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
+Use of `direct-csi` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
