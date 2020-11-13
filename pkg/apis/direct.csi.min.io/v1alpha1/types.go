@@ -32,13 +32,13 @@ type DirectCSIDrive struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
+	OwnerNode      string `json:"ownerNode"`
+	DirectCSIOwned bool   `json:"directCSIOwned"`
+	Path           string `json:"path"`
 	// +optional
 	ModelNumber string `json:"modelNumber,omitempty"`
 	// +optional
 	SerialNumber string `json:"serialNumber,omitempty"`
-	// +optional
-	Name      string `json:"name,omitempty"`
-	OwnerNode string `json:"ownerNode"`
 	// +optional
 	TotalCapacity int64 `json:"totalCapacity,omitempty"`
 	// +optional
@@ -46,16 +46,11 @@ type DirectCSIDrive struct {
 	// +optional
 	FreeCapacity int64 `json:"freeCapacity,omitempty"`
 	// +optional
-	BlockSize int64  `json:"blockSize,omitempty"`
-	Path      string `json:"path"`
+	BlockSize int64 `json:"blockSize,omitempty"`
 	// +optional
 	RootPartition string `json:"rootPartition,omitempty"`
 	// +optional
 	PartitionNum int `json:"partitionNum,omitempty"`
-	// +optional
-	Filesystem string `json:"filesystem,omitempty"`
-	// +optional
-	Mountpoint string `json:"mountpoint,omitempty"`
 	// +listType=atomic
 	// +optional
 	MountOptions []string `json:"mountOptions,omitempty"`
@@ -63,6 +58,17 @@ type DirectCSIDrive struct {
 	DriveStatus DriveStatus `json:"driveStatus,omitempty"`
 	// +optional
 	Topology *csi.Topology `json:"topology,omitempty"`
+	// +optional
+	RequestedFormat RequestedFormat `json:"requestedFormat,omitempty"`
+}
+
+type RequestedFormat struct {
+	// +optional
+	Force bool `json:"force,omitempty"`
+	// +optional
+	Filesystem string `json:"filesystem,omitempty"`
+	// +optional
+	Mountpoint string `json:"mountpoint,omitempty"`
 }
 
 type DriveStatus string
