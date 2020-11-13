@@ -18,6 +18,7 @@ package node
 
 import (
 	"context"
+	"os"
 
 	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/clientset"
@@ -54,7 +55,11 @@ func (b *DirectCSIDriveListener) Delete(ctx context.Context, obj *v1alpha1.Direc
 }
 
 func startController(ctx context.Context) error {
-	ctrl, err := listener.NewDefaultDirectCSIController("node-controller", "leader-lock", 40)
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+	ctrl, err := listener.NewDefaultDirectCSIController("node-controller", hostname, 40)
 	if err != nil {
 		glog.Error(err)
 		return err

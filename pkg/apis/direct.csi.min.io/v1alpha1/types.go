@@ -17,7 +17,6 @@
 package v1alpha1
 
 import (
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -32,9 +31,11 @@ type DirectCSIDrive struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	OwnerNode      string `json:"ownerNode"`
-	DirectCSIOwned bool   `json:"directCSIOwned"`
-	Path           string `json:"path"`
+	OwnerNode string `json:"ownerNode"`
+
+	DirectCSIOwned bool `json:"directCSIOwned"`
+
+	Path string `json:"path"`
 	// +optional
 	ModelNumber string `json:"modelNumber,omitempty"`
 	// +optional
@@ -61,7 +62,7 @@ type DirectCSIDrive struct {
 	// +optional
 	DriveStatus DriveStatus `json:"driveStatus,omitempty"`
 	// +optional
-	Topology *csi.Topology `json:"topology,omitempty"`
+	Topology map[string]string `json:"topology,omitempty"`
 	// +optional
 	RequestedFormat RequestedFormat `json:"requestedFormat,omitempty"`
 }
@@ -116,11 +117,15 @@ type DirectCSIVolume struct {
 	metav1.ObjectMeta `json:"metadata"`
 
 	// +optional
-	OwnerDrive *DirectCSIDrive `json:"ownerDrive,omitempty"`
+	OwnerDrive string `json:"ownerDrive,omitempty"`
 	// +optional
 	OwnerNode string `json:"ownerNode,omitempty"`
 	// +optional
-	SourcePath string `json:"sourcePath"`
+	HostPath string `json:"hostPath,omitempty"`
+	// +optional
+	StagingPath string `json:"stagingPath,omitempty"`
+	// +optional
+	ContainerPath string `json:"containerPath,omitempty"`
 	// +optional
 	TotalCapacity int64 `json:"totalCapacity"`
 }
