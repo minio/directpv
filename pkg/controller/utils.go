@@ -113,7 +113,7 @@ func SelectDriveByTopologyReq(tReq *csi.TopologyRequirement, csiDrives []direct_
 func selectDriveByTopology(top *csi.Topology, csiDrives []direct_csi.DirectCSIDrive) (direct_csi.DirectCSIDrive, error) {
 	topSegments := top.GetSegments()
 	for _, csiDrive := range csiDrives {
-		driveSegments := csiDrive.Topology.GetSegments()
+		driveSegments := csiDrive.Topology
 		if matchSegments(topSegments, driveSegments) {
 			return csiDrive, nil
 		}
