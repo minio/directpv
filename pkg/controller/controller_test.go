@@ -32,25 +32,19 @@ func TestSelectDriveByTopology(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive1",
 			},
-			Topology: &csi.Topology{
-				Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
-			},
+			Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive2",
 			},
-			Topology: &csi.Topology{
-				Segments: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
-			},
+			Topology: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive3",
 			},
-			Topology: &csi.Topology{
-				Segments: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"},
-			},
+			Topology: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"},
 		},
 	}
 
