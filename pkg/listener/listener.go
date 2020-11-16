@@ -133,7 +133,7 @@ func NewDefaultDirectCSIController(identity string, leaderLockName string, threa
 
 func NewDirectCSIController(identity string, leaderLockName string, threads int, limiter workqueue.RateLimiter) (*DirectCSIController, error) {
 	cfg, err := func() (*rest.Config, error) {
-		kubeConfig := viper.GetString("kube-config")
+		kubeConfig := viper.GetString("kubeconfig")
 
 		if kubeConfig != "" {
 			return clientcmd.BuildConfigFromFlags("", kubeConfig)
@@ -317,14 +317,14 @@ func (c *DirectCSIController) GetOpLock(op interface{}) *sync.Mutex {
 		panic("unknown item in queue")
 	}
 
+	c.lockerLock.Lock()
+	defer c.lockerLock.Unlock()
 	lockKey := fmt.Sprintf("%s/%s", key, ext)
 	if c.locker == nil {
 		c.locker = map[string]*sync.Mutex{}
 	}
 	if _, ok := c.locker[lockKey]; !ok {
-		c.lockerLock.Lock()
 		c.locker[lockKey] = &sync.Mutex{}
-		c.lockerLock.Unlock()
 	}
 	return c.locker[lockKey]
 }

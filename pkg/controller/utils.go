@@ -17,17 +17,13 @@
 package controller
 
 import (
-	"path/filepath"
 	"sort"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/glog"
+
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	"github.com/pborman/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/utils/exec"
-	"k8s.io/utils/mount"
 )
 
 // FilterDrivesByVolumeRequest - Filters the CSI drives by create volume request
@@ -132,17 +128,4 @@ func matchSegments(topSegments, driveSegments map[string]string) bool {
 		}
 	}
 	return req == match
-}
-
-// MountDevice - Utility to mount a device in `/mnt/<uid>`
-func MountDevice(devicePath string) (string, error) {
-	mountID := uuid.NewUUID().String()
-	mountPath := filepath.Join("/mnt", mountID)
-	// FormatAndMount formats the given disk, if needed, and mounts it
-	diskMounter := &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: exec.New()}
-	if err := diskMounter.FormatAndMount(devicePath, mountPath, "", []string{}); err != nil {
-		glog.V(5).Info(err)
-		return "", err
-	}
-	return mountPath, nil
 }

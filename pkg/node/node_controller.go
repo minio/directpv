@@ -19,10 +19,16 @@ package node
 import (
 	"context"
 	"os"
+	"path/filepath"
 
 	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
+	"github.com/minio/direct-csi/pkg/utils"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/golang/glog"
 	kubeclientset "k8s.io/client-go/kubernetes"
@@ -47,6 +53,69 @@ func (b *DirectCSIDriveListener) Add(ctx context.Context, obj *v1alpha1.DirectCS
 }
 
 func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.DirectCSIDrive) error {
+	glog.V(1).Infof("Update called for DirectCSIDrive %s", new.ObjectMeta.Name)
+
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+
+		var gErr error
+		directCSIClient := utils.GetDirectCSIClient()
+
+		// Fetch the latest version in the queue
+		new, gErr = directCSIClient.DirectCSIDrives().Get(ctx, new.ObjectMeta.Name, metav1.GetOptions{})
+		if gErr != nil {
+			return status.Error(codes.NotFound, gErr.Error())
+		}
+
+		// Set the default filesystem as `xfs`
+		fsType := "xfs"
+		if new.RequestedFormat.Filesystem != "" {
+			fsType = new.RequestedFormat.Filesystem
+		}
+
+		isReqSatisfiedAlready := func(old, new *v1alpha1.DirectCSIDrive) bool {
+			return old.Filesystem == fsType && (new.RequestedFormat.Mountpoint == "" || new.RequestedFormat.Mountpoint == old.Mountpoint)
+		}
+
+		// Do not process the request if satisfied already
+		if (new.RequestedFormat == v1alpha1.RequestedFormat{} || isReqSatisfiedAlready(old, new)) {
+			return nil
+		}
+
+		var mountPoint string
+		if new.RequestedFormat.Mountpoint == "" {
+			mountPoint = filepath.Join("/mnt", new.ObjectMeta.Name)
+		}
+
+		isForceOptionSet := new.RequestedFormat.Force
+		if old.Filesystem != "" && !isForceOptionSet {
+			return status.Errorf(codes.InvalidArgument, "Need to set `force` option to override the format of this drive: %s", old.ObjectMeta.Name)
+		}
+
+		var mountOptions []string
+		if isForceOptionSet {
+			mountOptions = []string{"remount"}
+		} else {
+			mountOptions = []string{""}
+		}
+
+		// Mount the device to the mountpoint [Idempotent]
+		if err := MountDevice(new.Path, mountPoint, fsType, mountOptions); err != nil {
+			return status.Errorf(codes.Internal, "Failed to format and mount the device: %v", err)
+		}
+
+		copiedDrive := new.DeepCopy()
+		copiedDrive.DirectCSIOwned = true
+		copiedDrive.Filesystem = fsType
+		copiedDrive.Mountpoint = mountPoint
+		copiedDrive.MountOptions = mountOptions
+		copiedDrive.DriveStatus = v1alpha1.Online
+
+		_, uErr := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{})
+		return uErr
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 

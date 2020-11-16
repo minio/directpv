@@ -20,7 +20,10 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/golang/glog"
 	"io/ioutil"
+	"k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -319,6 +322,16 @@ func WalkWithFollow(path string, callback func(path string, info os.FileInfo, er
 				return nil
 			}
 		}
+	}
+	return nil
+}
+
+// MountDevice - Utility to mount a device in `/mnt/<uid>`
+func MountDevice(devicePath, mountPoint, fsType string, options []string) error {
+	diskMounter := &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: exec.New()}
+	if err := diskMounter.FormatAndMount(devicePath, mountPoint, fsType, options); err != nil {
+		glog.V(5).Info(err)
+		return err
 	}
 	return nil
 }
