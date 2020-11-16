@@ -20,16 +20,17 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"io"
 
-	"github.com/minio/kubectl-direct-csi/util"
+	"github.com/minio/kubectl-directcsi/util"
 	"github.com/spf13/cobra"
 )
 
 const (
 	csiInstallDesc = `
 'install' command creates MinIO Direct CSI along with all the dependencies.`
-	csiInstallExample = `  kubectl direct-csi install`
+	csiInstallExample = `  kubectl directcsi install`
 )
 
 type csiInstallCmd struct {
@@ -59,28 +60,37 @@ func newInstallCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 // run initializes local config and installs MinIO Operator to Kubernetes cluster.
 func (c *csiInstallCmd) run() error {
 	name := "direct-csi-min-io"
-	identity := "direct-csi-min-io"
+	identity := "direct-csi"
 	ctx := context.Background()
 
 	kClient := util.GetKubeClient()
 
-	if err := util.CreateDirectCSINamespace(ctx, kClient, name); err != nil {
+	if err := util.CreateDirectCSINamespace(ctx, kClient, identity); err != nil {
 		return err
 	}
+	fmt.Println("Created Namespace ", identity)
 	if err := util.CreateCSIDriver(ctx, kClient, name); err != nil {
 		return err
 	}
+	fmt.Println("Created CSIDriver ", name)
 	if err := util.CreateStorageClass(ctx, kClient, name); err != nil {
 		return err
 	}
-	if err := util.CreateCSIService(ctx, kClient, name); err != nil {
+	fmt.Println("Created StorageClass ", name)
+	if err := util.CreateCSIService(ctx, kClient, name, identity); err != nil {
+		return err
+	}
+	fmt.Println("Created Service ", name)
+	if err := util.CreateRBACRoles(ctx, kClient, name, identity); err != nil {
 		return err
 	}
 	if err := util.CreateDaemonSet(ctx, kClient, name, identity, c.kubeletDirPath, c.csiRootPath); err != nil {
 		return err
 	}
+	fmt.Println("Created DaemonSet ", name)
 	if err := util.CreateDeployment(ctx, kClient, name, identity, c.kubeletDirPath, c.csiRootPath); err != nil {
 		return err
 	}
+	fmt.Println("Created Deployment ", name)
 	return nil
 }

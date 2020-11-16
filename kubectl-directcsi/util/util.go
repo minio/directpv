@@ -25,10 +25,10 @@ import (
 	"regexp"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
-	"github.com/spf13/viper"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +39,7 @@ import (
 	k8sretry "k8s.io/client-go/util/retry"
 
 	"github.com/golang/glog"
-	"github.com/minio/kubectl-direct-csi/util/randomstring"
+	"github.com/minio/kubectl-directcsi/util/randomstring"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
@@ -53,8 +53,8 @@ func newHostPathVolume(name, path string) corev1.Volume {
 	}
 
 	return corev1.Volume{
-		name,
-		volumeSource,
+		Name:         name,
+		VolumeSource: volumeSource,
 	}
 }
 
@@ -107,7 +107,7 @@ func retry(f func() error) error {
 		return true
 	}, f); err != nil {
 		if !errors.IsAlreadyExists(err) {
-			glog.Errorf("CSIDriver creation failed: %v", err)
+			glog.Errorf("Creation failed: %v", err)
 			return err
 		}
 	}
@@ -115,14 +115,13 @@ func retry(f func() error) error {
 }
 
 func getConf() (*rest.Config, error) {
-	kubeConfig := viper.GetString("kubeconfig")
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	configOverrides := &clientcmd.ConfigOverrides{}
+	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+
+	config, err := kubeConfig.ClientConfig()
 	if err != nil {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			glog.Fatalf("could not find client configuration: %v", err)
-		}
-		glog.Infof("obtained client config successfully")
+		return nil, err
 	}
 	return config, nil
 }
@@ -166,7 +165,7 @@ func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
 	return crdClient.CustomResourceDefinitions()
 }
 
-func CreateCSIService(ctx context.Context, kClient clientset.Interface, name string) error {
+func CreateCSIService(ctx context.Context, kClient clientset.Interface, name, identity string) error {
 	csiPort := corev1.ServicePort{
 		Port: 12345,
 		Name: "unused",
@@ -181,7 +180,7 @@ func CreateCSIService(ctx context.Context, kClient clientset.Interface, name str
 				createByLabel: directCSIController,
 			},
 			Name:      name,
-			Namespace: name,
+			Namespace: identity,
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{csiPort},
@@ -192,7 +191,7 @@ func CreateCSIService(ctx context.Context, kClient clientset.Interface, name str
 	}
 
 	return retry(func() error {
-		_, err := kClient.CoreV1().Services(name).Create(ctx, svc, metav1.CreateOptions{})
+		_, err := kClient.CoreV1().Services(identity).Create(ctx, svc, metav1.CreateOptions{})
 		return err
 	})
 }
@@ -200,50 +199,50 @@ func CreateCSIService(ctx context.Context, kClient clientset.Interface, name str
 func CreateCSIDriver(ctx context.Context, kClient clientset.Interface, name string) error {
 	podInfoOnMount := false
 	attachRequired := false
-	csiDriver := &storagev1.CSIDriver{
-		metav1.TypeMeta{
+	csiDriver := &storagev1beta1.CSIDriver{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       "CSIDriver",
-			APIVersion: "storage.k8s.io/v1",
+			APIVersion: "storage.k8s.io/v1beta1",
 		},
-		metav1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
 				createByLabel: directCSIController,
 			},
 		},
-		storagev1.CSIDriverSpec{
+		Spec: storagev1beta1.CSIDriverSpec{
 			PodInfoOnMount: &podInfoOnMount,
 			AttachRequired: &attachRequired,
-			VolumeLifecycleModes: []storagev1.VolumeLifecycleMode{
-				storagev1.VolumeLifecyclePersistent,
-				storagev1.VolumeLifecycleEphemeral,
+			VolumeLifecycleModes: []storagev1beta1.VolumeLifecycleMode{
+				storagev1beta1.VolumeLifecyclePersistent,
+				storagev1beta1.VolumeLifecycleEphemeral,
 			},
 		},
 	}
 
 	// Create CSIDriver Obj
 	return retry(func() error {
-		_, err := kClient.StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
+		_, err := kClient.StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
 		return err
 	})
 }
 
-func CreateDirectCSINamespace(ctx context.Context, kClient clientset.Interface, name string) error {
+func CreateDirectCSINamespace(ctx context.Context, kClient clientset.Interface, identity string) error {
 	ns := &corev1.Namespace{
-		metav1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       "Namespace",
 			APIVersion: "v1",
 		},
-		metav1.ObjectMeta{
-			Name: name,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: identity,
 			Labels: map[string]string{
 				createByLabel: directCSIController,
 			},
 		},
-		corev1.NamespaceSpec{
+		Spec: corev1.NamespaceSpec{
 			Finalizers: []corev1.FinalizerName{},
 		},
-		corev1.NamespaceStatus{},
+		Status: corev1.NamespaceStatus{},
 	}
 
 	// Create Namespace Obj
@@ -271,6 +270,7 @@ func CreateStorageClass(ctx context.Context, kClient clientset.Interface, name s
 				createByLabel: directCSIController,
 			},
 		},
+		Provisioner:          name,
 		AllowVolumeExpansion: &allowExpansion,
 		VolumeBindingMode:    &bindingMode,
 		AllowedTopologies:    allowedTopologies,
@@ -286,7 +286,7 @@ func CreateStorageClass(ctx context.Context, kClient clientset.Interface, name s
 func CreateDeployment(ctx context.Context, kClient clientset.Interface, name, identity, kubeletDirPath, csiRootPath string) error {
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	var replicas int32 = 3
-	privileged := false
+	privileged := true
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
 		Volumes: []corev1.Volume{
@@ -316,36 +316,35 @@ func CreateDeployment(ctx context.Context, kClient clientset.Interface, name, id
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/controller-provisioner-termination-log",
-				LivenessProbe: &corev1.Probe{
-					FailureThreshold:    5,
-					InitialDelaySeconds: 10,
-					TimeoutSeconds:      3,
-					PeriodSeconds:       2,
-					Handler: corev1.Handler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path: healthZContainerPortPath,
-							Port: intstr.FromString(healthZContainerPortName),
-						},
-					},
-				},
+				// LivenessProbe: &corev1.Probe{
+				// 	FailureThreshold:    5,
+				// 	InitialDelaySeconds: 10,
+				// 	TimeoutSeconds:      3,
+				// 	PeriodSeconds:       2,
+				// 	Handler: corev1.Handler{
+				// 		HTTPGet: &corev1.HTTPGetAction{
+				// 			Path: healthZContainerPortPath,
+				// 			Port: intstr.FromInt(9898),
+				// 		},
+				// 	},
+				// },
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
 				},
-				Ports: []corev1.ContainerPort{
-					{
-						Name:          healthZContainerPortName,
-						ContainerPort: healthZContainerPort,
-						Protocol:      healthZContainerPortProtocol,
-					},
-				},
+				// Ports: []corev1.ContainerPort{
+				// 	{
+				// 		Name:          healthZContainerPortName,
+				// 		ContainerPort: healthZContainerPort,
+				// 		Protocol:      healthZContainerPortProtocol,
+				// 	},
+				// },
 			},
 			{
 				Name:  DirectCSIContainerName,
 				Image: DirectCSIContainerImage,
 				Args: []string{
-					fmt.Sprintf("--identity=%s", identity),
 					"--v=5",
-					"--csi-address=/csi/csi.sock",
+					fmt.Sprintf("--identity=%s", name),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					"--controller",
 				},
@@ -382,34 +381,34 @@ func CreateDeployment(ctx context.Context, kClient clientset.Interface, name, id
 	}
 
 	deployment := &appsv1.Deployment{
-		metav1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
 			APIVersion: "apps/v1",
 		},
-		metav1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: name,
+			Namespace: identity,
 			Labels: map[string]string{
 				createByLabel: directCSIController,
 			},
 		},
-		appsv1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
-				metav1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 					Labels: map[string]string{
 						directCSISelector: generatedSelectorValue,
 					},
 				},
-				podSpec,
+				Spec: podSpec,
 			},
 		},
-		appsv1.DeploymentStatus{},
+		Status: appsv1.DeploymentStatus{},
 	}
 	return retry(func() error {
-		_, err := kClient.AppsV1().Deployments(name).Create(ctx, deployment, metav1.CreateOptions{})
+		_, err := kClient.AppsV1().Deployments(identity).Create(ctx, deployment, metav1.CreateOptions{})
 		return err
 	})
 }
@@ -417,7 +416,7 @@ func CreateDeployment(ctx context.Context, kClient clientset.Interface, name, id
 func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, identity, kubeletDirPath, csiRootPath string) error {
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 
-	privileged := false
+	privileged := true
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
 		HostNetwork:        true,
@@ -440,7 +439,7 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 				Args: []string{
 					"--v=5",
 					"--csi-address=/csi/csi.sock",
-					fmt.Sprintf("--kubelet-registration-path=$(%s)", kubeletDirPath+"/plugins/direct-csi-min-io/csi.sock"),
+					fmt.Sprintf("--kubelet-registration-path=%s", newDirectCSIPluginsSocketDir(kubeletDirPath, name)+"/csi.sock"),
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
@@ -467,11 +466,10 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 				Name:  DirectCSIContainerName,
 				Image: DirectCSIContainerImage,
 				Args: []string{
-					fmt.Sprintf("--identity=%s", identity),
+					fmt.Sprintf("--identity=%s", name),
 					"--v=5",
-					"--csi-address=/csi/csi.sock",
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
-					fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
+					fmt.Sprintf("--node-id=%s", kubeNodeNameEnvVar),
 					"--driver",
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -497,7 +495,7 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(volumeNameSocketDir, "/csi", false),
 					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", false),
-					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true),
+					newVolumeMount(volumeNamePluginDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name), true),
 					newVolumeMount(volumeNameCSIRootDir, csiRootPath, false),
 					newVolumeMount(volumeNameDevDir, "/dev", false),
 					newVolumeMount(volumeNameSysDir, "/sys", false),
@@ -540,33 +538,33 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 	}
 
 	daemonset := &appsv1.DaemonSet{
-		metav1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       "DaemonSet",
 			APIVersion: "apps/v1",
 		},
-		metav1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: name,
+			Namespace: identity,
 			Labels: map[string]string{
 				createByLabel: directCSIController,
 			},
 		},
-		appsv1.DaemonSetSpec{
+		Spec: appsv1.DaemonSetSpec{
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
-				metav1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 					Labels: map[string]string{
 						directCSISelector: generatedSelectorValue,
 					},
 				},
-				podSpec,
+				Spec: podSpec,
 			},
 		},
-		appsv1.DaemonSetStatus{},
+		Status: appsv1.DaemonSetStatus{},
 	}
 	return retry(func() error {
-		_, err := kClient.AppsV1().DaemonSets(name).Create(ctx, daemonset, metav1.CreateOptions{})
+		_, err := kClient.AppsV1().DaemonSets(identity).Create(ctx, daemonset, metav1.CreateOptions{})
 		return err
 	})
 }

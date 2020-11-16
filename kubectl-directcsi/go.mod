@@ -1,8 +1,6 @@
-module github.com/minio/kubectl-direct-csi
+module github.com/minio/kubectl-directcsi
 
 go 1.14
-
-replace github.com/minio/direct-csi => /home/nitish/go/src/github.com/minio/direct-csi/
 
 require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
@@ -10,6 +8,7 @@ require (
 	github.com/minio/direct-csi v0.2.1
 	github.com/minio/minio v0.0.0-20200622032605-a521907ab497
 	github.com/minio/minio-go/v6 v6.0.58-0.20200612001654-a57fec8037ec
+	github.com/olekukonko/tablewriter v0.0.0-20170122224234-a0225b3f23b5
 	github.com/rakyll/statik v0.1.7 // indirect
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/viper v1.7.0
