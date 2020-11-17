@@ -331,6 +331,9 @@ func WalkWithFollow(path string, callback func(path string, info os.FileInfo, er
 
 // MountDevice - Utility to mount a device in the given mountpoint
 func MountDevice(devicePath, mountPoint, fsType string, options []string) error {
+	if err := os.MkdirAll(mountPoint, 0755); err != nil {
+		return err
+	}
 	if err := mount.New("").Mount(devicePath, mountPoint, fsType, options); err != nil {
 		glog.V(5).Info(err)
 		return err

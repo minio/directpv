@@ -53,8 +53,6 @@ func (b *DirectCSIDriveListener) Add(ctx context.Context, obj *v1alpha1.DirectCS
 }
 
 func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.DirectCSIDrive) error {
-	glog.V(1).Infof("Update called for DirectCSIDrive %s", new.ObjectMeta.Name)
-
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 
 		var gErr error
@@ -75,7 +73,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 		}
 
 		// Do not process the request if satisfied already
-		if (new.RequestedFormat == v1alpha1.RequestedFormat{} || !new.DirectCSIOwned || isReqSatisfiedAlready(old, new)) {
+		if !new.DirectCSIOwned || isReqSatisfiedAlready(old, new) {
 			return nil
 		}
 
@@ -94,8 +92,11 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 		copiedDrive.Mountpoint = mountPoint
 		copiedDrive.DriveStatus = v1alpha1.Online
 
-		_, uErr := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{})
-		return uErr
+		if _, uErr := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); uErr != nil {
+			return uErr
+		}
+		glog.V(1).Infof("Successfully added DirectCSIDrive %s", new.ObjectMeta.Name)
+		return nil
 	}); err != nil {
 		return err
 	}
