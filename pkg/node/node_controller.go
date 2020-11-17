@@ -66,18 +66,16 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 			return status.Error(codes.NotFound, gErr.Error())
 		}
 
-		// Set the default filesystem as `xfs`
-		fsType := "xfs"
-		if new.RequestedFormat.Filesystem != "" {
-			fsType = new.RequestedFormat.Filesystem
+		if new.DriveStatus == v1alpha1.Unformatted {
+			return status.Error(codes.Unimplemented, "Formatting drive is not yet implemented")
 		}
 
 		isReqSatisfiedAlready := func(old, new *v1alpha1.DirectCSIDrive) bool {
-			return old.Filesystem == fsType && (new.RequestedFormat.Mountpoint == "" || new.RequestedFormat.Mountpoint == old.Mountpoint)
+			return new.DriveStatus == v1alpha1.Online && (new.RequestedFormat.Mountpoint == "" || new.RequestedFormat.Mountpoint == old.Mountpoint)
 		}
 
 		// Do not process the request if satisfied already
-		if (new.RequestedFormat == v1alpha1.RequestedFormat{} || isReqSatisfiedAlready(old, new)) {
+		if (new.RequestedFormat == v1alpha1.RequestedFormat{} || !new.DirectCSIOwned || isReqSatisfiedAlready(old, new)) {
 			return nil
 		}
 
@@ -86,28 +84,14 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 			mountPoint = filepath.Join("/mnt", new.ObjectMeta.Name)
 		}
 
-		isForceOptionSet := new.RequestedFormat.Force
-		if old.Filesystem != "" && !isForceOptionSet {
-			return status.Errorf(codes.InvalidArgument, "Need to set `force` option to override the format of this drive: %s", old.ObjectMeta.Name)
-		}
-
-		var mountOptions []string
-		if isForceOptionSet {
-			mountOptions = []string{"remount"}
-		} else {
-			mountOptions = []string{""}
-		}
-
 		// Mount the device to the mountpoint [Idempotent]
-		if err := MountDevice(new.Path, mountPoint, fsType, mountOptions); err != nil {
+		mountOptions := []string{""}
+		if err := MountDevice(new.Path, mountPoint, "", mountOptions); err != nil {
 			return status.Errorf(codes.Internal, "Failed to format and mount the device: %v", err)
 		}
 
 		copiedDrive := new.DeepCopy()
-		copiedDrive.DirectCSIOwned = true
-		copiedDrive.Filesystem = fsType
 		copiedDrive.Mountpoint = mountPoint
-		copiedDrive.MountOptions = mountOptions
 		copiedDrive.DriveStatus = v1alpha1.Online
 
 		_, uErr := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{})
