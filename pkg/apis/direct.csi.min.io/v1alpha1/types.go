@@ -81,7 +81,8 @@ type DriveStatus string
 const (
 	Online      DriveStatus = "online"
 	Offline                 = "offline"
-	Unformatted             = "new"
+	Unformatted             = "unformatted"
+	New                     = "new"
 	Other                   = "other"
 )
 

@@ -57,6 +57,8 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		}
 	}
 
+	go startController(ctx)
+
 	return &NodeServer{
 		NodeID:    nodeID,
 		Identity:  identity,
