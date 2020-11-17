@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -213,25 +212,19 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive1",
 			},
-			RequestedFormat: v1alpha1.RequestedFormat{
-				Filesystem: "ext4",
-			},
+			Filesystem: "ext4",
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive2",
 			},
-			RequestedFormat: v1alpha1.RequestedFormat{
-				Filesystem: "ext4",
-			},
+			Filesystem: "ext4",
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive3",
 			},
-			RequestedFormat: v1alpha1.RequestedFormat{
-				Filesystem: "xfs",
-			},
+			Filesystem: "xfs",
 		},
 	}
 	testCases := []struct {
@@ -247,17 +240,13 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "ext4",
-					},
+					Filesystem: "ext4",
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "ext4",
-					},
+					Filesystem: "ext4",
 				},
 			},
 		},
@@ -269,9 +258,7 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "xfs",
-					},
+					Filesystem: "xfs",
 				},
 			},
 		},
@@ -283,25 +270,19 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "ext4",
-					},
+					Filesystem: "ext4",
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "ext4",
-					},
+					Filesystem: "ext4",
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "xfs",
-					},
+					Filesystem: "xfs",
 				},
 			},
 		},
