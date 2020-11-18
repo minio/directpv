@@ -18,8 +18,11 @@ package node
 
 import (
 	"context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
+	"reflect"
 	"testing"
+	"time"
 )
 
 func TestFindDrives(t *testing.T) {
@@ -28,8 +31,137 @@ func TestFindDrives(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = FindDrives(ctx, hostname, "/proc/mounts")
+	_, err = FindDrives(ctx, hostname, "/proc")
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetLatestStatus(t1 *testing.T) {
+	testCases := []struct {
+		name           string
+		reqStatusList  []metav1.Condition
+		selectedStatus metav1.Condition
+	}{
+		{
+			name: "test1",
+			reqStatusList: []metav1.Condition{
+				{
+					Type:               "staged",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "published",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "published",
+					Status:             metav1.ConditionFalse,
+					LastTransitionTime: metav1.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "staged",
+					Status:             metav1.ConditionFalse,
+					LastTransitionTime: metav1.Date(2000, 1, 4, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			selectedStatus: metav1.Condition{
+				Type:               "staged",
+				Status:             metav1.ConditionFalse,
+				LastTransitionTime: metav1.Date(2000, 1, 4, 0, 0, 0, 0, time.UTC),
+			},
+		},
+		{
+			name: "test2",
+			reqStatusList: []metav1.Condition{
+				{
+					Type:               "staged",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "published",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "published",
+					Status:             metav1.ConditionFalse,
+					LastTransitionTime: metav1.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "published",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 4, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			selectedStatus: metav1.Condition{
+				Type:               "published",
+				Status:             metav1.ConditionTrue,
+				LastTransitionTime: metav1.Date(2000, 1, 4, 0, 0, 0, 0, time.UTC),
+			},
+		},
+		{
+			name: "test3",
+			reqStatusList: []metav1.Condition{
+				{
+					Type:               "staged",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "published",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			selectedStatus: metav1.Condition{
+				Type:               "published",
+				Status:             metav1.ConditionTrue,
+				LastTransitionTime: metav1.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC),
+			},
+		},
+		{
+			name: "test2",
+			reqStatusList: []metav1.Condition{
+				{
+					Type:               "staged",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "published",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 4, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "published",
+					Status:             metav1.ConditionFalse,
+					LastTransitionTime: metav1.Date(2000, 1, 3, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Type:               "published",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			selectedStatus: metav1.Condition{
+				Type:               "published",
+				Status:             metav1.ConditionTrue,
+				LastTransitionTime: metav1.Date(2000, 1, 4, 0, 0, 0, 0, time.UTC),
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t1.Run(tt.name, func(t1 *testing.T) {
+			resStatus := GetLatestStatus(tt.reqStatusList)
+			if !reflect.DeepEqual(resStatus, tt.selectedStatus) {
+				t1.Errorf("Test case name %s: Expected status option = %v, got %v", tt.name, tt.selectedStatus, resStatus)
+			}
+		})
+	}
+
 }

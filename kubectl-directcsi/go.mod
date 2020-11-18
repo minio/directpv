@@ -1,7 +1,7 @@
 module github.com/minio/kubectl-directcsi
 
 go 1.14
-
+          
 require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b

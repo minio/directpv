@@ -74,6 +74,8 @@ spec:
                 type: array
               mountpoint:
                 type: string
+              purge:
+                type: boolean
             type: object
           rootPartition:
             type: string

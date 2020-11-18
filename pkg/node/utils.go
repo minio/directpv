@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -31,6 +33,7 @@ import (
 	"github.com/golang/glog"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sExec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 )
 
@@ -129,7 +132,8 @@ func getIDMap() (map[string]string, error) {
 func getMountInfoMap(procfs string) (map[string]MountInfo, error) {
 	mountInfoMap := make(map[string]MountInfo)
 
-	mounts, err := os.Open(procfs)
+	procMounts := filepath.Join(procfs, "mounts")
+	mounts, err := os.Open(procMounts)
 	defer mounts.Close()
 	if err != nil {
 		return nil, err
@@ -335,4 +339,67 @@ func MountDevice(devicePath, mountPoint, fsType string, options []string) error 
 		return err
 	}
 	return nil
+}
+
+// FormatDevice - Formats the given device
+func FormatDevice(ctx context.Context, source, fsType string, force bool) error {
+	args := []string{source}
+	forceFlag := "-F"
+	if fsType == "xfs" {
+		forceFlag = "-f"
+	}
+	if force {
+		args = []string{
+			forceFlag, // Force flag
+			source,
+		}
+	}
+	glog.V(5).Infof("args: %v", args)
+	output, err := exec.CommandContext(ctx, "mkfs."+fsType, args...).CombinedOutput()
+	if err != nil {
+		glog.V(5).Infof("Failed to format the device: err: (%s) output: (%s)", err.Error(), string(output))
+	}
+	return err
+}
+
+// UnmountIfMounted - Idempotent function to unmount a target
+func UnmountIfMounted(mountPoint string) error {
+	shouldUmount := false
+	mountPoints, mntErr := mount.New("").List()
+	if mntErr != nil {
+		return mntErr
+	}
+	for _, mp := range mountPoints {
+		abPath, _ := filepath.Abs(mp.Path)
+		if mountPoint == abPath {
+			shouldUmount = true
+			break
+		}
+	}
+	if shouldUmount {
+		if mErr := mount.New("").Unmount(mountPoint); mErr != nil {
+			return mErr
+		}
+	}
+	return nil
+}
+
+// GetLatestStatus gets the latest condition by time
+func GetLatestStatus(statusXs []metav1.Condition) metav1.Condition {
+	// Sort the drives by LastTransitionTime [Descending]
+	sort.SliceStable(statusXs, func(i, j int) bool {
+		return (&statusXs[j].LastTransitionTime).Before(&statusXs[i].LastTransitionTime)
+	})
+	return statusXs[0]
+}
+
+// GetDiskFS - To get the filesystem of a block device
+func GetDiskFS(devicePath string) (string, error) {
+	diskMounter := &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: k8sExec.New()}
+	// Internally uses 'blkid' to see if the given disk is unformatted
+	fs, err := diskMounter.GetDiskFormat(devicePath)
+	if err != nil {
+		glog.V(5).Infof("Error while reading the disk format: (%s)", err.Error())
+	}
+	return fs, err
 }

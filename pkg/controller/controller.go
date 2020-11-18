@@ -130,9 +130,10 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			OwnerDrive:    selectedCSIDrive.ObjectMeta.Name,
 			OwnerNode:     selectedCSIDrive.OwnerNode,
 			TotalCapacity: selectedCSIDrive.TotalCapacity,
+			Status:        []metav1.Condition{},
 		}
 
-		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); !errors.IsAlreadyExists(err) {
+		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		}
 
@@ -141,6 +142,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		copiedDrive := selectedCSIDrive.DeepCopy()
 		copiedDrive.FreeCapacity = copiedDrive.FreeCapacity - req.GetCapacityRange().GetRequiredBytes()
 		copiedDrive.AllocatedCapacity = copiedDrive.AllocatedCapacity + req.GetCapacityRange().GetRequiredBytes()
+		copiedDrive.DriveStatus = direct_csi.Online
 		if _, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); err != nil {
 			return err
 		}

@@ -17,6 +17,7 @@
 package controller
 
 import (
+	"reflect"
 	"sort"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -35,7 +36,9 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 		fsType = vCaps[0].GetMount().GetFsType()
 	}
 
-	capFilteredDrives := FilterDrivesByCapacityRange(capacityRange, csiDrives)
+	filteredDrivesByFormat := FilterDrivesByRequestFormat(csiDrives)
+
+	capFilteredDrives := FilterDrivesByCapacityRange(capacityRange, filteredDrivesByFormat)
 	if len(capFilteredDrives) == 0 {
 		return []direct_csi.DirectCSIDrive{}, status.Error(codes.OutOfRange, "Invalid capacity range")
 	}
@@ -55,6 +58,17 @@ func FilterDrivesByCapacityRange(capacityRange *csi.CapacityRange, csiDrives []d
 	filteredDriveList := []direct_csi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
 		if csiDrive.FreeCapacity >= reqBytes && (limitBytes == 0 || csiDrive.FreeCapacity <= limitBytes) {
+			filteredDriveList = append(filteredDriveList, csiDrive)
+		}
+	}
+	return filteredDriveList
+}
+
+// FilterDrivesByRequestFormat - Selects the drives only if the requested format is empty/satisfied already.
+func FilterDrivesByRequestFormat(csiDrives []direct_csi.DirectCSIDrive) []direct_csi.DirectCSIDrive {
+	filteredDriveList := []direct_csi.DirectCSIDrive{}
+	for _, csiDrive := range csiDrives {
+		if reflect.DeepEqual(csiDrive.RequestedFormat, direct_csi.RequestedFormat{}) {
 			filteredDriveList = append(filteredDriveList, csiDrive)
 		}
 	}

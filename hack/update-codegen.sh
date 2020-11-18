@@ -53,5 +53,5 @@ client-gen \
 
 # crd
 controller-gen \
-    crd \
+    crd:crdVersions=v1,trivialVersions=false \
     paths=./...

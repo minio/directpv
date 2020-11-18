@@ -297,3 +297,104 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 		})
 	}
 }
+
+func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
+	testCases := []struct {
+		name              string
+		driveList         []direct_csi.DirectCSIDrive
+		selectedDriveList []direct_csi.DirectCSIDrive
+	}{
+		{
+			name: "test1",
+			driveList: []direct_csi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{
+						Filesystem: "ext4",
+						Force:      true,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+			},
+			selectedDriveList: []direct_csi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+			},
+		},
+		{
+			name: "test1",
+			driveList: []direct_csi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+			},
+			selectedDriveList: []direct_csi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					RequestedFormat: direct_csi.RequestedFormat{},
+				},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t1.Run(tt.name, func(t1 *testing.T) {
+			driveList := FilterDrivesByRequestFormat(tt.driveList)
+			if !reflect.DeepEqual(driveList, tt.selectedDriveList) {
+				t1.Errorf("Test case name %s: Expected drive list = %v, got %v", tt.name, tt.selectedDriveList, driveList)
+			}
+		})
+	}
+}
