@@ -1,7 +1,12 @@
-FROM golang:1.14 
+FROM golang:1.14
 
 WORKDIR	/go/src/github.com/minio/direct-csi
-ADD . /go/src/github.com/minio/direct-csi
-RUN go get github.com/google/addlicense && ./build.sh
+ADD .   /go/src/github.com/minio/direct-csi
+RUN ./build.sh
 
-ENTRYPOINT ["./direct-csi"]
+FROM alpine:latest
+
+WORKDIR /
+COPY --from=0 /go/src/github.com/minio/direct-csi/direct-csi /direct-csi
+
+ENTRYPOINT ["/direct-csi"]
