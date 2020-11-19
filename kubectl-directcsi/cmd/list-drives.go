@@ -36,8 +36,8 @@ import (
 
 const (
 	csiListDrivesDesc = `
- 'drives' command lists drives status across the storage nodes managed by DirectCSI.`
-	csiListDrivesExample = `  kubectl directcsi drives /dev/nvme* --nodes 'rack*' --all`
+ list command lists drives status across the storage nodes managed by DirectCSI.`
+	csiListDrivesExample = `  kubectl directcsi drives list /dev/nvme* --nodes 'rack*' --all`
 )
 
 type csiListDrivesCmd struct {
@@ -49,12 +49,12 @@ type csiListDrivesCmd struct {
 	status string
 }
 
-func newListDrivesCmd(out io.Writer, errOut io.Writer) *cobra.Command {
+func newDrivesListCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 	l := &csiListDrivesCmd{out: out, errOut: errOut}
 
 	cmd := &cobra.Command{
-		Use:     "drives",
-		Short:   "List drives status across the storage nodes.",
+		Use:     "list",
+		Short:   "List drives status across DirectCSI nodes",
 		Long:    csiListDrivesDesc,
 		Example: csiListDrivesExample,
 		Args:    cobra.ExactArgs(1),

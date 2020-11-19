@@ -16,19 +16,25 @@
  *
  */
 
-package util
+package cmd
 
 import (
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"io"
+
+	"github.com/spf13/cobra"
 )
 
-// ListVolumesInDrive returns a slice of all the DirectCSIVolumes created on a given DirectCSIDrive
-func ListVolumesInDrive(drive directv1alpha1.DirectCSIDrive, volumes *directv1alpha1.DirectCSIVolumeList) []directv1alpha1.DirectCSIVolume {
-	vols := make([]directv1alpha1.DirectCSIVolume, 0)
-	for _, volume := range volumes.Items {
-		if volume.OwnerDrive == drive.Name {
-			vols = append(vols, volume)
-		}
+const (
+	csiVolumesDesc = `
+ volumes command allows managing Volumes created by MinIO DirectCSI.`
+)
+
+func newVolumesCmd(out io.Writer, errOut io.Writer) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "volumes",
+		Short: "Mangage Volumes on DirectCSI",
+		Long:  csiVolumesDesc,
 	}
-	return vols
+	cmd.AddCommand(newVolumesListCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
+	return cmd
 }

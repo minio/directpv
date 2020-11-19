@@ -20,6 +20,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -33,12 +34,15 @@ func CreateRBACRoles(ctx context.Context, kClient clientset.Interface, name, ide
 	if err := createServiceAccount(ctx, kClient, name, identity); err != nil {
 		return err
 	}
+	fmt.Println("Created ServiceAccount ", name)
 	if err := createClusterRole(ctx, kClient, name, identity); err != nil {
 		return err
 	}
+	fmt.Println("Created ClusterRole ", name)
 	if err := createClusterRoleBinding(ctx, kClient, name, identity); err != nil {
 		return err
 	}
+	fmt.Println("Created ClusterRoleBinding ", name)
 	return nil
 }
 
@@ -325,5 +329,40 @@ func createClusterRole(ctx context.Context, kClient clientset.Interface, name, i
 	return retry(func() error {
 		_, err := kClient.RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{})
 		return err
+	})
+}
+
+// RemoveRBACRoles deletes SA, ClusterRole and CRBs
+func RemoveRBACRoles(ctx context.Context, kClient clientset.Interface, name, identity string) error {
+	if err := removeServiceAccount(ctx, kClient, name, identity); err != nil {
+		return err
+	}
+	fmt.Println("Deleted ServiceAccount ", name)
+	if err := removeCluterRole(ctx, kClient, name); err != nil {
+		return err
+	}
+	fmt.Println("Deleted ClusterRole ", name)
+	if err := removeClusterRoleBinding(ctx, kClient, name); err != nil {
+		return err
+	}
+	fmt.Println("Deleted ClusterRoleBinding ", name)
+	return nil
+}
+
+func removeServiceAccount(ctx context.Context, kClient clientset.Interface, name, identity string) error {
+	return retry(func() error {
+		return kClient.CoreV1().ServiceAccounts(identity).Delete(ctx, name, metav1.DeleteOptions{})
+	})
+}
+
+func removeClusterRoleBinding(ctx context.Context, kClient clientset.Interface, name string) error {
+	return retry(func() error {
+		return kClient.RbacV1().ClusterRoleBindings().Delete(ctx, name, metav1.DeleteOptions{})
+	})
+}
+
+func removeCluterRole(ctx context.Context, kClient clientset.Interface, name string) error {
+	return retry(func() error {
+		return kClient.RbacV1().ClusterRoles().Delete(ctx, name, metav1.DeleteOptions{})
 	})
 }

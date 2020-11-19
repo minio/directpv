@@ -39,20 +39,20 @@ Seamlessly move your application between cloud providers, and/or baremetal infra
 ###### Install Direct-CSI cli
 
 ```bash
-kubectl krew install direct-csi
+kubectl krew install directcsi
 ```
 
 ###### Install Direct-CSI driver
 
 ```bash
-kubectl direct-csi install
+kubectl directcsi install
 ```
 
 ###### Add Drives to DirectCSI pool
 
 Choose drives to be managed by DirectCSI. Refer to [Add Drives](#add-drives) command for more info.
 ```bash
-kubectl direct-csi add drives /dev/nvme* --nodes myhost{1...4}
+kubectl directcsi drives add /dev/nvme* --nodes myhost{1...4}
 ```
 
 ## Make a Persistent Volume Claim
@@ -70,9 +70,8 @@ volumeClaimTemplates:
     resources:
       requests:
         storage: 500G
-    storageClassName: direct.csi.min.io 
+    storageClassName: direct.csi.min.io
 ```
-
 
 ## Direct-CSI Command Line Reference
 
@@ -81,7 +80,7 @@ volumeClaimTemplates:
 Show storage summary of the nodes managed by DirectCSI.
 ```bash
 Usage:
-  kubectl direct-csi info
+  kubectl directcsi info
   
 NODENAME       DRIVES
 rack1node1     (4/5)
@@ -90,21 +89,23 @@ rack1node1     (4/5)
 ##### List Drives
 
 List drive status across the storage nodes.
+
 ```bash
 Usage:
-  kubectl direct-csi drives [FLAGS] [DRIVE WILDCARD,...]
+  kubectl directcsi drives list [FLAGS] [DRIVE WILDCARD,...]
 
 [FLAGS]
   --nodes, -n  VALUE      drives from nodes whose name matches WILDCARD. Defaults to '*'
   --all                   list all drives
-  --status, -s VALUE      filter by status [*new, ignore, online, offline]                 
+  --status, -s VALUE      filter by status [*new, ignore, online, offline]
 ```
 
 ###### Example
 
+
 ```
 # list nvme drives on nodes in rack1 and rack2
-$> kubectl direct-csi drives --nodes 'rack1*' '/dev/nvme*' --all
+$> kubectl directcsi drives list --nodes 'rack1*' '/dev/nvme*' --all
 DRIVES                      STATUS      VOLUMES  ALLOCATED      CAPACITY     FREE          FS         MOUNT           MODEL
 rack1node1:/dev/nvme1n1     online      4        376 GiB        1 TiB        36 GiB        xfs        (internal)      WDC PC SN730 SDBQNTY-986G-2001
 rack1node1:/dev/nvme2n1     new         0        0              1 TiB        986 GiB       -          -               WDC PC SN730 SDBQNTY-986G-2001
@@ -118,7 +119,7 @@ rack1node2:/dev/nvme3n1     offline     14       986            1 TiB        14 
 Choose drives to be managed by DirectCSI. Only new drives are allowed.
 ```bash
 Usage:
-  kubectl direct-csi add drives [FLAGS] [DRIVE WILDCARD,...]
+  kubectl directcsi drives add [FLAGS] [DRIVE WILDCARD,...]
 
 [FLAGS]
   --nodes, -n  VALUE      drives from nodes whose name matches WILDCARD. Defaults to '*'
@@ -131,7 +132,7 @@ Usage:
 Remove drives from being managed by DirectCSI. Only works on drives that have no bounded volumes.
 ```bash
 Usage:
-  kubectl direct-csi remove drives [FLAGS] [DRIVE WILDCARD,...]
+  kubectl directcsi drives remove [FLAGS] [DRIVE WILDCARD,...]
 
 [FLAGS]
   --nodes, -n  VALUE      drives from nodes whose name matches WILDCARD. Defaults to '*'
@@ -142,7 +143,7 @@ Usage:
 Ignore drives from being managed by DirectCSI. Only works on drives that have no bounded volumes.
 ```bash
 Usage:
-  kubectl direct-csi ignore drives [FLAGS] [DRIVE WILDCARD,...]
+  kubectl directcsi drives ignore [FLAGS] [DRIVE WILDCARD,...]
 
 [FLAGS]
   --nodes, -n  VALUE      drives from nodes whose name matches WILDCARD. Defaults to '*'
@@ -153,7 +154,7 @@ Usage:
 List all the provisioned volumes
 ```bash
 Usage:
-  kubectl direct-csi volumes --drives [DRIVE_WILDCARD,...] --nodes [NODE_NAME,...]
+  kubectl directcsi volumes list --drives [DRIVE_WILDCARD,...] --nodes [NODE_NAME,...]
 
 [FLAGS]
   --drives, -d   VALUE     list volumes provisioned from particular drive. Defaults to all
@@ -165,7 +166,7 @@ Usage:
 
 ```
 # list volumes on nvme drives in rack
-$> kubectl direct-csi volumes --nodes 'rack1*' --drives '/dev/nvme*'   
+$> kubectl directcsi volumes list --nodes 'rack1*' --drives '/dev/nvme*'   
 VOLUME        NODENAME            DRIVE                CAPACITY     STATUS   
 pvc-uuid      rack1node1          /dev/nvme1n1         500 GiB      Bound
 pvc-uuid      rack1node2          /dev/nvme1n1         100 GiB      Released
@@ -177,8 +178,9 @@ Permanently delete the volume and all of its contents.
 
 ```bash
 Usage:
-  kubectl direct-csi purge volume VOLUME
+  kubectl directcsi volumes purge VOLUME
 ```
 
 ## License
-Use of `direct-csi` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
+
+Use of `directcsi` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
