@@ -34,7 +34,7 @@ import (
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 )
 
-func FindDrives(ctx context.Context, nodeID string) ([]*direct_csi.DirectCSIDrive, error) {
+func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_csi.DirectCSIDrive, error) {
 	drives := map[string]*direct_csi.DirectCSIDrive{}
 	visited := map[string]struct{}{}
 	if err := WalkWithFollow("/sys/block/", func(path string, info os.FileInfo, err error) error {
@@ -162,8 +162,12 @@ func FindDrives(ctx context.Context, nodeID string) ([]*direct_csi.DirectCSIDriv
 	for _, v := range drives {
 		if v.Name != v.RootPartition {
 			root := drives[v.RootPartition]
-			v.ModelNumber = fmt.Sprintf("%s-part%d", root.ModelNumber, v.PartitionNum)
-			v.SerialNumber = fmt.Sprintf("%s-part%d", root.SerialNumber, v.PartitionNum)
+			if root.ModelNumber != "" {
+				v.ModelNumber = fmt.Sprintf("%s-part%d", root.ModelNumber, v.PartitionNum)
+			}
+			if root.SerialNumber != "" {
+				v.SerialNumber = fmt.Sprintf("%s-part%d", root.SerialNumber, v.PartitionNum)
+			}
 			if v.BlockSize == 0 {
 				v.BlockSize = root.BlockSize
 				v.TotalCapacity = v.TotalCapacity * root.BlockSize
@@ -174,14 +178,14 @@ func FindDrives(ctx context.Context, nodeID string) ([]*direct_csi.DirectCSIDriv
 		v.ObjectMeta.Name, v.Name = driveName, driveName
 		toRet = append(toRet, v)
 	}
-	if err := findMounts(toRet); err != nil {
+	if err := findMounts(toRet, procfs); err != nil {
 		return nil, err
 	}
 	return toRet, nil
 }
 
-func findMounts(drives []*direct_csi.DirectCSIDrive) error {
-	mounts, err := os.Open("/proc/mounts")
+func findMounts(drives []*direct_csi.DirectCSIDrive, procfs string) error {
+	mounts, err := os.Open(procfs)
 	if err != nil {
 		return err
 	}
@@ -192,7 +196,9 @@ func findMounts(drives []*direct_csi.DirectCSIDrive) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		words := strings.SplitN(line, " ", 2)
-		index[words[0]] = line
+		if _, ok := index[words[0]]; !ok {
+			index[words[0]] = line
+		}
 	}
 
 	for _, drive := range drives {

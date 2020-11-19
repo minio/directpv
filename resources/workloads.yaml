@@ -1,4 +1,4 @@
-apiVersion: storage.k8s.io/v1
+apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
   name: direct.csi.min.io
@@ -99,6 +99,7 @@ spec:
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--node-id=$(KUBE_NODE_NAME)"
+            - "--procfs=/hostproc"
             - "--driver"
           env:
             - name: CSI_ENDPOINT
@@ -136,12 +137,16 @@ spec:
               name: plugins-dir
             - mountPath: /mnt/direct-csi
               name: direct-csi-common-root
+              mountPropagation: Bidirectional
             - mountPath: /dev
               name: dev-dir
+              mountPropagation: Bidirectional
             - mountPath: /sys
               name: sys-fs
-            - mountPath: /proc
+              mountPropagation: Bidirectional
+            - mountPath: /hostproc
               name: proc-fs
+              mountPropagation: Bidirectional
         - name: liveness-probe
           volumeMounts:
           - mountPath: /csi

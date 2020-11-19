@@ -32,8 +32,8 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string) (*NodeServer, error) {
-	drives, err := FindDrives(ctx, nodeID)
+func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string) (*NodeServer, error) {
+	drives, err := FindDrives(ctx, nodeID, procfs)
 	if err != nil {
 		return nil, err
 	}
