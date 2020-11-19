@@ -24,7 +24,7 @@ import (
 	"io"
 	"regexp"
 
-	"github.com/minio/kubectl-direct-csi/util"
+	"github.com/minio/kubectl-directcsi/util"
 	"github.com/minio/minio-go/v6/pkg/set"
 	"github.com/minio/minio/pkg/ellipses"
 	"github.com/spf13/cobra"
@@ -34,22 +34,26 @@ import (
 const (
 	csiAddDrivesDesc = `
 'add drives' command lets you choose the drives to be managed by DirectCSI.`
-	csiAddDrivesExample = `  kubectl direct-csi add drives --nodes myhost{1...4} /dev/nvme*`
+	csiAddDrivesExample = `  kubectl directcsi add drives /dev/nvme* --nodes myhost{1...4}`
+	defaultFS           = "xfs"
 )
 
 func newAddCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "add",
+		Use:   "add",
+		Short: "Add Drives to DirectCSI",
 	}
 	cmd.AddCommand(newAddDrivesCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
 	return cmd
 }
 
 type csiAddDrivesCmd struct {
-	out    io.Writer
-	errOut io.Writer
-	output bool
-	nodes  string
+	out        io.Writer
+	errOut     io.Writer
+	output     bool
+	force      bool
+	nodes      string
+	fileSystem string
 }
 
 func newAddDrivesCmd(out io.Writer, errOut io.Writer) *cobra.Command {
@@ -67,6 +71,8 @@ func newAddDrivesCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringVarP(&c.nodes, "nodes", "n", "", "add drives from these nodes only")
+	f.StringVarP(&c.fileSystem, "fs", "f", defaultFS, "filesystem to be formatted. Defaults to 'xfs'")
+	f.BoolVarP(&c.force, "force", "", false, "overwrite existing filesystem")
 
 	return cmd
 }
@@ -97,12 +103,14 @@ func (c *csiAddDrivesCmd) run(args []string) error {
 	}
 
 	nodeSet := set.CreateStringSet(nodes...)
-	if nodeSet != nil {
+	if !nodeSet.IsEmpty() {
 		for _, drive := range drives.Items {
 			if nodeSet.Contains(drive.OwnerNode) {
 				match, _ := regexp.Match(args[0], []byte(drive.Path))
 				if match {
 					drive.DirectCSIOwned = true
+					drive.RequestedFormat.Filesystem = c.fileSystem
+					drive.RequestedFormat.Force = c.force
 					directCSIClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{})
 				}
 			}
@@ -112,6 +120,8 @@ func (c *csiAddDrivesCmd) run(args []string) error {
 			match, _ := regexp.Match(args[0], []byte(drive.Path))
 			if match {
 				drive.DirectCSIOwned = true
+				drive.RequestedFormat.Filesystem = c.fileSystem
+				drive.RequestedFormat.Force = c.force
 				directCSIClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{})
 			}
 		}

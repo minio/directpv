@@ -29,20 +29,20 @@ import (
 )
 
 // CreateRBACRoles creates SA, ClusterRole and CRBs
-func CreateRBACRoles(ctx context.Context, kClient clientset.Interface, name string) error {
-	if err := createServiceAccount(ctx, kClient, name); err != nil {
+func CreateRBACRoles(ctx context.Context, kClient clientset.Interface, name, identity string) error {
+	if err := createServiceAccount(ctx, kClient, name, identity); err != nil {
 		return err
 	}
-	if err := createClusterRole(ctx, kClient, name); err != nil {
+	if err := createClusterRole(ctx, kClient, name, identity); err != nil {
 		return err
 	}
-	if err := createClusterRoleBinding(ctx, kClient, name); err != nil {
+	if err := createClusterRoleBinding(ctx, kClient, name, identity); err != nil {
 		return err
 	}
 	return nil
 }
 
-func createServiceAccount(ctx context.Context, kClient clientset.Interface, name string) error {
+func createServiceAccount(ctx context.Context, kClient clientset.Interface, name, identity string) error {
 	serviceAccount := &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
@@ -50,7 +50,7 @@ func createServiceAccount(ctx context.Context, kClient clientset.Interface, name
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: name,
+			Namespace: identity,
 			Labels: map[string]string{
 				createByLabel: directCSIController,
 			},
@@ -61,12 +61,12 @@ func createServiceAccount(ctx context.Context, kClient clientset.Interface, name
 	}
 
 	return retry(func() error {
-		_, err := kClient.CoreV1().ServiceAccounts(name).Create(ctx, serviceAccount, metav1.CreateOptions{})
+		_, err := kClient.CoreV1().ServiceAccounts(identity).Create(ctx, serviceAccount, metav1.CreateOptions{})
 		return err
 	})
 }
 
-func createClusterRoleBinding(ctx context.Context, kClient clientset.Interface, name string) error {
+func createClusterRoleBinding(ctx context.Context, kClient clientset.Interface, name, identity string) error {
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ClusterRoleBinding",
@@ -85,7 +85,7 @@ func createClusterRoleBinding(ctx context.Context, kClient clientset.Interface, 
 			{
 				Kind:      "ServiceAccount",
 				Name:      name,
-				Namespace: name,
+				Namespace: identity,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -101,14 +101,15 @@ func createClusterRoleBinding(ctx context.Context, kClient clientset.Interface, 
 	})
 }
 
-func createClusterRole(ctx context.Context, kClient clientset.Interface, name string) error {
+func createClusterRole(ctx context.Context, kClient clientset.Interface, name, identity string) error {
 	clusterRole := &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ClusterRole",
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: identity,
 			Labels: map[string]string{
 				createByLabel: directCSIController,
 			},

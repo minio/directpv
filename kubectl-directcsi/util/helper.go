@@ -16,17 +16,19 @@
  *
  */
 
-package main
+package util
 
 import (
-	"os"
-
-	"github.com/minio/kubectl-direct-csi/cmd"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 )
 
-func main() {
-	if err := cmd.NewCmdMinIO(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}).Execute(); err != nil {
-		os.Exit(1)
+// ListVolumesInDrive returns a slice of all the DirectCSIVolumes created on a given DirectCSIDrive
+func ListVolumesInDrive(drive directv1alpha1.DirectCSIDrive, volumes *directv1alpha1.DirectCSIVolumeList) []directv1alpha1.DirectCSIVolume {
+	vols := make([]directv1alpha1.DirectCSIVolume, 0)
+	for _, volume := range volumes.Items {
+		if volume.OwnerDrive.Name == drive.Name {
+			vols = append(vols, volume)
+		}
 	}
+	return vols
 }
