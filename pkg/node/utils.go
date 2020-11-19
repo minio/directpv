@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/golang/glog"
 	"io/ioutil"
 	"k8s.io/utils/mount"
 	"os"
@@ -201,11 +202,15 @@ func findMounts(drives []*direct_csi.DirectCSIDrive) error {
 				// unrecognized format
 				continue
 			}
-			drive.RequestedFormat.Mountpoint = words[1]
-			drive.RequestedFormat.Filesystem = words[2]
+			drive.Mountpoint = words[1]
+			drive.Filesystem = words[2]
 			drive.MountOptions = strings.Split(words[3], ",")
+			drive.DriveStatus = direct_csi.New
+			if drive.Filesystem == "" {
+				drive.DriveStatus = direct_csi.Unformatted
+			}
 			stat := &syscall.Statfs_t{}
-			if err := syscall.Statfs(drive.RequestedFormat.Mountpoint, stat); err != nil {
+			if err := syscall.Statfs(drive.Mountpoint, stat); err != nil {
 				return err
 			}
 			availBlocks := int64(stat.Bavail)
@@ -324,42 +329,14 @@ func WalkWithFollow(path string, callback func(path string, info os.FileInfo, er
 	return nil
 }
 
-func StageVolume(directCSIDrive *direct_csi.DirectCSIDrive, stagingPath string, volumeID string) (string, error) {
-
-	sourcePath := filepath.Join(directCSIDrive.Mountpoint, directCSIDrive.ObjectMeta.Name)
-	if err := os.MkdirAll(sourcePath, 0755); err != nil {
-		return "", err
+// MountDevice - Utility to mount a device in the given mountpoint
+func MountDevice(devicePath, mountPoint, fsType string, options []string) error {
+	if err := os.MkdirAll(mountPoint, 0755); err != nil {
+		return err
 	}
-
-	if err := os.MkdirAll(stagingPath, 0755); err != nil {
-		return "", err
+	if err := mount.New("").Mount(devicePath, mountPoint, fsType, options); err != nil {
+		glog.V(5).Info(err)
+		return err
 	}
-
-	if _, err := os.Lstat(stagingPath); err != nil {
-		return "", err
-	}
-
-	mounter := mount.New("")
-
-	shouldBindMount := true
-	mountPoints, mntErr := mounter.List()
-	if mntErr != nil {
-		return "", mntErr
-	}
-	for _, mp := range mountPoints {
-		abPath, _ := filepath.Abs(mp.Path)
-		if stagingPath == abPath {
-			shouldBindMount = false
-			break
-		}
-	}
-
-	if shouldBindMount {
-		if err := mounter.Mount(sourcePath, stagingPath, "", []string{"bind"}); err != nil {
-			return "", err
-		}
-	}
-
-	return sourcePath, nil
-
+	return nil
 }

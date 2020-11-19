@@ -127,9 +127,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 			},
-			OwnerDrive:    &selectedCSIDrive,
+			OwnerDrive:    selectedCSIDrive.ObjectMeta.Name,
 			OwnerNode:     selectedCSIDrive.OwnerNode,
-			SourcePath:    selectedCSIDrive.Path,
 			TotalCapacity: selectedCSIDrive.TotalCapacity,
 		}
 
@@ -155,11 +154,15 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:           vol.ObjectMeta.Name,
-			CapacityBytes:      req.GetCapacityRange().GetRequiredBytes(),
-			VolumeContext:      req.GetParameters(),
-			ContentSource:      req.GetVolumeContentSource(),
-			AccessibleTopology: []*csi.Topology{selectedCSIDrive.Topology},
+			VolumeId:      vol.ObjectMeta.Name,
+			CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
+			VolumeContext: req.GetParameters(),
+			ContentSource: req.GetVolumeContentSource(),
+			AccessibleTopology: []*csi.Topology{
+				{
+					Segments: selectedCSIDrive.Topology,
+				},
+			},
 		},
 	}, nil
 

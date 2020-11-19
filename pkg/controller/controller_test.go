@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -33,25 +32,19 @@ func TestSelectDriveByTopology(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive1",
 			},
-			Topology: &csi.Topology{
-				Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
-			},
+			Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive2",
 			},
-			Topology: &csi.Topology{
-				Segments: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
-			},
+			Topology: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive3",
 			},
-			Topology: &csi.Topology{
-				Segments: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"},
-			},
+			Topology: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"},
 		},
 	}
 
@@ -219,25 +212,19 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive1",
 			},
-			RequestedFormat: v1alpha1.RequestedFormat{
-				Filesystem: "ext4",
-			},
+			Filesystem: "ext4",
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive2",
 			},
-			RequestedFormat: v1alpha1.RequestedFormat{
-				Filesystem: "ext4",
-			},
+			Filesystem: "ext4",
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive3",
 			},
-			RequestedFormat: v1alpha1.RequestedFormat{
-				Filesystem: "xfs",
-			},
+			Filesystem: "xfs",
 		},
 	}
 	testCases := []struct {
@@ -253,17 +240,13 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "ext4",
-					},
+					Filesystem: "ext4",
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "ext4",
-					},
+					Filesystem: "ext4",
 				},
 			},
 		},
@@ -275,9 +258,7 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "xfs",
-					},
+					Filesystem: "xfs",
 				},
 			},
 		},
@@ -289,25 +270,19 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "ext4",
-					},
+					Filesystem: "ext4",
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "ext4",
-					},
+					Filesystem: "ext4",
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					RequestedFormat: v1alpha1.RequestedFormat{
-						Filesystem: "xfs",
-					},
+					Filesystem: "xfs",
 				},
 			},
 		},
