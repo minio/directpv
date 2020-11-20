@@ -37,23 +37,22 @@ var (
 
 const (
 	minioDesc = `
- kubectl plugin to manage MinIO Direct CSI.`
+ kubectl plugin to manage MinIO DirectCSI.`
 )
 
 // NewCmdMinIO creates a new root command for kubectl-minio
 func NewCmdMinIO(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "directcsi",
-		Short:        "manage MinIO Direct CSI",
+		Short:        "manage MinIO DirectCSI",
 		Long:         minioDesc,
 		SilenceUsage: true,
 	}
 
 	cmd.AddCommand(newInstallCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
-	cmd.AddCommand(newAddCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
 	cmd.AddCommand(newRemoveCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
-	cmd.AddCommand(newListDrivesCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
-	cmd.AddCommand(newListVolumesCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
+	cmd.AddCommand(newDrivesCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
+	cmd.AddCommand(newVolumesCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
 
 	return cmd
 }

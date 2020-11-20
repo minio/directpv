@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	csiInstallDesc = `
- install command creates MinIO DirectCSI along with all the dependencies.`
-	csiInstallExample = `  kubectl directcsi install`
+	csiRemoveDesc = `
+ remove command deletes MinIO DirectCSI along with all the dependencies.`
+	csiRemoveExample = `  kubectl directcsi remove`
 )
 
-type csiInstallCmd struct {
+type csiRemoveCmd struct {
 	out            io.Writer
 	errOut         io.Writer
 	output         bool
@@ -41,14 +41,14 @@ type csiInstallCmd struct {
 	csiRootPath    string
 }
 
-func newInstallCmd(out io.Writer, errOut io.Writer) *cobra.Command {
-	c := &csiInstallCmd{out: out, errOut: errOut, kubeletDirPath: "/var/lib/kubelet", csiRootPath: "/mnt/direct-csi"}
+func newRemoveCmd(out io.Writer, errOut io.Writer) *cobra.Command {
+	c := &csiRemoveCmd{out: out, errOut: errOut, kubeletDirPath: "/var/lib/kubelet", csiRootPath: "/mnt/direct-csi"}
 
 	cmd := &cobra.Command{
-		Use:     "install",
-		Short:   "Install MinIO DirectCSI",
-		Long:    csiInstallDesc,
-		Example: csiInstallExample,
+		Use:     "remove",
+		Short:   "Remove MinIO DirectCSI",
+		Long:    csiRemoveDesc,
+		Example: csiRemoveExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return c.run()
 		},
@@ -58,39 +58,39 @@ func newInstallCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 }
 
 // run initializes local config and installs MinIO Operator to Kubernetes cluster.
-func (c *csiInstallCmd) run() error {
+func (c *csiRemoveCmd) run() error {
 	name := "direct-csi-min-io"
 	identity := "direct-csi"
 	ctx := context.Background()
 
 	kClient := util.GetKubeClient()
 
-	if err := util.CreateDirectCSINamespace(ctx, kClient, identity); err != nil {
+	if err := util.RemoveDirectCSINamespace(ctx, kClient, identity); err != nil {
 		return err
 	}
-	fmt.Println("Created Namespace ", identity)
-	if err := util.CreateCSIDriver(ctx, kClient, name); err != nil {
+	fmt.Println("Deleted Namespace ", identity)
+	if err := util.RemoveCSIDriver(ctx, kClient, name); err != nil {
 		return err
 	}
-	fmt.Println("Created CSIDriver ", name)
-	if err := util.CreateStorageClass(ctx, kClient, name); err != nil {
+	fmt.Println("Deleted CSIDriver ", name)
+	if err := util.RemoveStorageClass(ctx, kClient, name); err != nil {
 		return err
 	}
-	fmt.Println("Created StorageClass ", name)
-	if err := util.CreateCSIService(ctx, kClient, name, identity); err != nil {
+	fmt.Println("Deleted StorageClass ", name)
+	if err := util.RemoveCSIService(ctx, kClient, name, identity); err != nil {
 		return err
 	}
-	fmt.Println("Created Service ", name)
-	if err := util.CreateRBACRoles(ctx, kClient, name, identity); err != nil {
+	fmt.Println("Deleted CSIDriver ", name)
+	if err := util.RemoveRBACRoles(ctx, kClient, name, identity); err != nil {
 		return err
 	}
-	if err := util.CreateDaemonSet(ctx, kClient, name, identity, c.kubeletDirPath, c.csiRootPath); err != nil {
+	if err := util.RemoveDaemonSet(ctx, kClient, name, identity); err != nil {
 		return err
 	}
-	fmt.Println("Created DaemonSet ", name)
-	if err := util.CreateDeployment(ctx, kClient, name, identity, c.kubeletDirPath, c.csiRootPath); err != nil {
+	fmt.Println("Deleted DaemonSet ", name)
+	if err := util.RemoveDeployment(ctx, kClient, name, identity); err != nil {
 		return err
 	}
-	fmt.Println("Created Deployment ", name)
+	fmt.Println("Deleted Deployment ", name)
 	return nil
 }

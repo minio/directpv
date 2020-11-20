@@ -27,7 +27,6 @@ import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -254,15 +253,15 @@ func CreateDirectCSINamespace(ctx context.Context, kClient clientset.Interface, 
 
 func CreateStorageClass(ctx context.Context, kClient clientset.Interface, name string) error {
 	allowExpansion := false
-	bindingMode := storagev1.VolumeBindingImmediate
+	bindingMode := storagev1beta1.VolumeBindingImmediate
 	allowedTopologies := []corev1.TopologySelectorTerm{}
 	retainPolicy := corev1.PersistentVolumeReclaimRetain
 
 	// Create StorageClass for the new driver
-	storageClass := &storagev1.StorageClass{
+	storageClass := &storagev1beta1.StorageClass{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "StorageClass",
-			APIVersion: "storage.k8s.io/v1",
+			APIVersion: "storage.k8s.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
@@ -278,7 +277,7 @@ func CreateStorageClass(ctx context.Context, kClient clientset.Interface, name s
 	}
 
 	return retry(func() error {
-		_, err := kClient.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{})
+		_, err := kClient.StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{})
 		return err
 	})
 }
@@ -294,8 +293,8 @@ func CreateDeployment(ctx context.Context, kClient clientset.Interface, name, id
 		},
 		Containers: []corev1.Container{
 			{
-				Name:  CSIProvisionerContainerName,
-				Image: CSIProvisionerContainerImage,
+				Name:  csiProvisionerContainerName,
+				Image: csiProvisionerContainerImage,
 				Args: []string{
 					"--v=5",
 					"--timeout=300s",
@@ -316,6 +315,7 @@ func CreateDeployment(ctx context.Context, kClient clientset.Interface, name, id
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/controller-provisioner-termination-log",
+				// TODO: Enable this after verification
 				// LivenessProbe: &corev1.Probe{
 				// 	FailureThreshold:    5,
 				// 	InitialDelaySeconds: 10,
@@ -331,17 +331,10 @@ func CreateDeployment(ctx context.Context, kClient clientset.Interface, name, id
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
 				},
-				// Ports: []corev1.ContainerPort{
-				// 	{
-				// 		Name:          healthZContainerPortName,
-				// 		ContainerPort: healthZContainerPort,
-				// 		Protocol:      healthZContainerPortProtocol,
-				// 	},
-				// },
 			},
 			{
-				Name:  DirectCSIContainerName,
-				Image: DirectCSIContainerImage,
+				Name:  directCSIContainerName,
+				Image: directCSIContainerImage,
 				Args: []string{
 					"--v=5",
 					fmt.Sprintf("--identity=%s", name),
@@ -463,13 +456,14 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 				TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
 			},
 			{
-				Name:  DirectCSIContainerName,
-				Image: DirectCSIContainerImage,
+				Name:  directCSIContainerName,
+				Image: directCSIContainerImage,
 				Args: []string{
 					fmt.Sprintf("--identity=%s", name),
 					"--v=5",
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					fmt.Sprintf("--node-id=%s", kubeNodeNameEnvVar),
+					"--procfs=/hostproc",
 					"--driver",
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -495,11 +489,11 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(volumeNameSocketDir, "/csi", false),
 					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", false),
-					newVolumeMount(volumeNamePluginDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name), true),
-					newVolumeMount(volumeNameCSIRootDir, csiRootPath, false),
-					newVolumeMount(volumeNameDevDir, "/dev", false),
-					newVolumeMount(volumeNameSysDir, "/sys", false),
-					newVolumeMount(volumeNameProcDir, "/proc", false),
+					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true),
+					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true),
+					newVolumeMount(volumeNameDevDir, "/dev", true),
+					newVolumeMount(volumeNameSysDir, "/sys", true),
+					newVolumeMount(volumeNameProcDir, "/hostproc", true),
 				},
 				Ports: []corev1.ContainerPort{
 					{
@@ -566,5 +560,46 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 	return retry(func() error {
 		_, err := kClient.AppsV1().DaemonSets(identity).Create(ctx, daemonset, metav1.CreateOptions{})
 		return err
+	})
+}
+
+// Delete Funcs
+
+func RemoveDirectCSINamespace(ctx context.Context, kClient clientset.Interface, identity string) error {
+	// Delete Namespace Obj
+	return retry(func() error {
+		return kClient.CoreV1().Namespaces().Delete(ctx, identity, metav1.DeleteOptions{})
+	})
+}
+
+func RemoveCSIService(ctx context.Context, kClient clientset.Interface, name, identity string) error {
+	return retry(func() error {
+		return kClient.CoreV1().Services(identity).Delete(ctx, name, metav1.DeleteOptions{})
+	})
+}
+
+func RemoveCSIDriver(ctx context.Context, kClient clientset.Interface, name string) error {
+	// Delete CSIDriver Obj
+	return retry(func() error {
+		return kClient.StorageV1beta1().CSIDrivers().Delete(ctx, name, metav1.DeleteOptions{})
+	})
+}
+
+func RemoveStorageClass(ctx context.Context, kClient clientset.Interface, name string) error {
+	// Delete StorageClass Obj
+	return retry(func() error {
+		return kClient.StorageV1beta1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{})
+	})
+}
+
+func RemoveDeployment(ctx context.Context, kClient clientset.Interface, name, identity string) error {
+	return retry(func() error {
+		return kClient.AppsV1().Deployments(identity).Delete(ctx, name, metav1.DeleteOptions{})
+	})
+}
+
+func RemoveDaemonSet(ctx context.Context, kClient clientset.Interface, name, identity string) error {
+	return retry(func() error {
+		return kClient.AppsV1().DaemonSets(identity).Delete(ctx, name, metav1.DeleteOptions{})
 	})
 }

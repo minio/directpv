@@ -33,18 +33,9 @@ import (
 
 const (
 	csiRemoveDrivesDesc = `
-'remove drives' drives from being managed by DirectCSI. Only works on drives that have no bounded volumes.`
-	csiRemoveDrivesExample = `  kubectl directcsi remove drives /dev/nvme* --nodes myhost{1...4} `
+ remove command removes drives from being managed by DirectCSI. Only works on drives that have no bounded volumes.`
+	csiRemoveDrivesExample = `  kubectl directcsi drives remove /dev/nvme* --nodes myhost{1...4} `
 )
-
-func newRemoveCmd(out io.Writer, errOut io.Writer) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "remove",
-		Short: "Remove Drives from DirectCSI",
-	}
-	cmd.AddCommand(newRemoveDrivesCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
-	return cmd
-}
 
 type csiRemoveDrivesCmd struct {
 	out    io.Writer
@@ -53,11 +44,11 @@ type csiRemoveDrivesCmd struct {
 	nodes  string
 }
 
-func newRemoveDrivesCmd(out io.Writer, errOut io.Writer) *cobra.Command {
+func newDrivesRemoveCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 	c := &csiRemoveDrivesCmd{out: out, errOut: errOut}
 
 	cmd := &cobra.Command{
-		Use:     "drives",
+		Use:     "remove",
 		Short:   "Remove Drives from DirectCSI",
 		Long:    csiRemoveDrivesDesc,
 		Example: csiRemoveDrivesExample,

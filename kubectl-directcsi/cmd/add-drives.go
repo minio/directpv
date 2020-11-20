@@ -33,19 +33,10 @@ import (
 
 const (
 	csiAddDrivesDesc = `
-'add drives' command lets you choose the drives to be managed by DirectCSI.`
-	csiAddDrivesExample = `  kubectl directcsi add drives /dev/nvme* --nodes myhost{1...4}`
+ add command lets you add drives to be managed by DirectCSI.`
+	csiAddDrivesExample = `  kubectl directcsi drives add /dev/nvme* --nodes myhost{1...4}`
 	defaultFS           = "xfs"
 )
-
-func newAddCmd(out io.Writer, errOut io.Writer) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Add Drives to DirectCSI",
-	}
-	cmd.AddCommand(newAddDrivesCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
-	return cmd
-}
 
 type csiAddDrivesCmd struct {
 	out        io.Writer
@@ -56,11 +47,11 @@ type csiAddDrivesCmd struct {
 	fileSystem string
 }
 
-func newAddDrivesCmd(out io.Writer, errOut io.Writer) *cobra.Command {
+func newDrivesAddCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 	c := &csiAddDrivesCmd{out: out, errOut: errOut}
 
 	cmd := &cobra.Command{
-		Use:     "drives",
+		Use:     "add",
 		Short:   "Add Drives to DirectCSI",
 		Long:    csiAddDrivesDesc,
 		Example: csiAddDrivesExample,
@@ -71,7 +62,7 @@ func newAddDrivesCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringVarP(&c.nodes, "nodes", "n", "", "add drives from these nodes only")
-	f.StringVarP(&c.fileSystem, "fs", "f", defaultFS, "filesystem to be formatted. Defaults to 'xfs'")
+	f.StringVarP(&c.fileSystem, "fs", "f", defaultFS, "filesystem to be formatted")
 	f.BoolVarP(&c.force, "force", "", false, "overwrite existing filesystem")
 
 	return cmd

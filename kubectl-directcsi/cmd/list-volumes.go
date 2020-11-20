@@ -37,8 +37,8 @@ import (
 
 const (
 	csiListVolumesDesc = `
- 'volumes' command lists volumes provisioned by DirectCSI.`
-	csiListVolumesExample = `  kubectl directcsi volumes --drives /dev/nvme* --nodes 'rack*'`
+ list command lists volumes provisioned by DirectCSI.`
+	csiListVolumesExample = `  kubectl directcsi volumes list --drives /dev/nvme* --nodes 'rack*'`
 )
 
 type csiListVolumesCmd struct {
@@ -50,12 +50,12 @@ type csiListVolumesCmd struct {
 	nodes   string
 }
 
-func newListVolumesCmd(out io.Writer, errOut io.Writer) *cobra.Command {
+func newVolumesListCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 	l := &csiListVolumesCmd{out: out, errOut: errOut}
 
 	cmd := &cobra.Command{
-		Use:     "volumes",
-		Short:   "List volumes provisioned.",
+		Use:     "list",
+		Short:   "List volumes provisioned by DirectCSI",
 		Long:    csiListVolumesDesc,
 		Example: csiListVolumesExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -127,7 +127,7 @@ func (l *csiListVolumesCmd) run(args []string) error {
 		table.Append([]string{
 			v.Name,
 			v.OwnerNode,
-			v.OwnerDrive.Path,
+			v.HostPath,
 			strconv.FormatInt(v.TotalCapacity, 10),
 			"", //TODO: Add Bind Status
 		})
