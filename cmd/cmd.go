@@ -41,6 +41,7 @@ var (
 	kubeconfig = ""
 	controller = false
 	driver     = false
+	procfs     = "/proc"
 )
 
 var driverCmd = &cobra.Command{
@@ -76,14 +77,15 @@ func init() {
 	flag.Set("logtostderr", "true")
 
 	driverCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "path to kubeconfig")
-	driverCmd.PersistentFlags().StringVarP(&identity, "identity", "i", identity, "identity of this direct-csi")
-	driverCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi is listening")
-	driverCmd.PersistentFlags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi is running")
-	driverCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this direct-csi is running")
-	driverCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this direct-csi is running")
-	driverCmd.PersistentFlags().StringVarP(&region, "region", "", region, "identity of the region in which this direct-csi is running")
-	driverCmd.PersistentFlags().BoolVarP(&controller, "controller", "", controller, "running in controller mode")
-	driverCmd.PersistentFlags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
+	driverCmd.Flags().StringVarP(&identity, "identity", "i", identity, "identity of this direct-csi")
+	driverCmd.Flags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi is listening")
+	driverCmd.Flags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi is running")
+	driverCmd.Flags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this direct-csi is running")
+	driverCmd.Flags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this direct-csi is running")
+	driverCmd.Flags().StringVarP(&region, "region", "", region, "identity of the region in which this direct-csi is running")
+	driverCmd.Flags().StringVarP(&procfs, "procfs", "", procfs, "path to host /proc for accessing mount information")
+	driverCmd.Flags().BoolVarP(&controller, "controller", "", controller, "running in controller mode")
+	driverCmd.Flags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")

@@ -28,7 +28,7 @@ func TestFindDrives(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = FindDrives(ctx, hostname)
+	_, err = FindDrives(ctx, hostname, "/proc/mounts")
 	if err != nil {
 		t.Error(err)
 	}

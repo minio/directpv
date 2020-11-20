@@ -50,3 +50,8 @@ client-gen \
     --input-dirs ${V1ALPHA1} \
     --input direct.csi.min.io/v1alpha1 \
     --input-base ${REPOSITORY}/pkg/apis
+
+# crd
+controller-gen \
+    crd \
+    paths=./...
