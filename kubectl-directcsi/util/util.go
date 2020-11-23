@@ -28,9 +28,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
+	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -151,17 +154,29 @@ func GetDirectCSIClient() directv1alpha1.DirectV1alpha1Interface {
 	return directCSIClient
 }
 
-// GetCRDClient provides k8s client for CRDs
-func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
+// GetKubeExtensionClient provides k8s client for CRDs
+func GetKubeExtensionClient() *apiextension.Clientset {
 	conf, err := getConf()
 	if err != nil {
 		glog.Fatalf("could not initialize kubeclient: %v", err)
 	}
-	crdClient, err := apiextensions.NewForConfig(conf)
+	extClient, err := apiextension.NewForConfig(conf)
 	if err != nil {
 		glog.Fatalf("could not initialize kubeclient: %v", err)
 	}
-	return crdClient.CustomResourceDefinitions()
+	return extClient
+}
+
+func CreateCRD(ctx context.Context, client *apiextension.Clientset, crd *apiextensionv1.CustomResourceDefinition) error {
+	_, err := client.ApiextensionsV1beta1().CustomResourceDefinitions().Create(context.Background(), crd, v1.CreateOptions{})
+	if err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			return fmt.Errorf("CustomResourceDefinition %s: already present, skipped", crd.ObjectMeta.Name)
+		}
+		return err
+	}
+	fmt.Printf("CustomResourceDefinition %s: created\n", crd.ObjectMeta.Name)
+	return nil
 }
 
 func CreateCSIService(ctx context.Context, kClient clientset.Interface, name, identity string) error {

@@ -19,26 +19,77 @@
 package cmd
 
 import (
+	"log"
+
+	"github.com/minio/direct-csi/pkg/clientset/scheme"
+	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cobra"
-	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 
 	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+
+	// Statik CRD assets for our plugin
+	_ "github.com/minio/kubectl-directcsi/statik"
 )
 
 var (
 	kubeConfig string
 	namespace  string
 	kubeClient *kubernetes.Clientset
-	crdObj     *apiextensionv1.CustomResourceDefinition
-	crObj      *rbacv1.ClusterRole
+	driveObj   *apiextensionv1.CustomResourceDefinition
+	volObj     *apiextensionv1.CustomResourceDefinition
 )
 
 const (
 	minioDesc = `
  kubectl plugin to manage MinIO DirectCSI.`
 )
+
+func init() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	emfs, err := fs.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+	sch := runtime.NewScheme()
+	scheme.AddToScheme(sch)
+	apiextensionv1.AddToScheme(sch)
+	decode := serializer.NewCodecFactory(sch).UniversalDeserializer().Decode
+
+	contents, err := fs.ReadFile(emfs, "/crd/direct.csi.min.io_directcsidrives.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	obj, _, err := decode(contents, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var ok bool
+	driveObj, ok = obj.(*apiextensionv1.CustomResourceDefinition)
+	if !ok {
+		log.Fatal("Unable to locate Drive CustomResourceDefinition object")
+	}
+
+	contents, err = fs.ReadFile(emfs, "/crd/direct.csi.min.io_directcsivolumes.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	obj, _, err = decode(contents, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	volObj, ok = obj.(*apiextensionv1.CustomResourceDefinition)
+	if !ok {
+		log.Fatal("Unable to locate Volume CustomResourceDefinition object")
+	}
+}
 
 // NewCmdMinIO creates a new root command for kubectl-minio
 func NewCmdMinIO(streams genericclioptions.IOStreams) *cobra.Command {

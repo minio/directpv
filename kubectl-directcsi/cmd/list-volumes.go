@@ -24,8 +24,8 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strconv"
 
+	"github.com/dustin/go-humanize"
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/kubectl-directcsi/util"
 	"github.com/minio/minio-go/v6/pkg/set"
@@ -63,9 +63,8 @@ func newVolumesListCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.StringVarP(&l.nodes, "nodes", "n", "", "list volumes provisioned from drives on particular node. Defaults to all")
-	f.StringVarP(&l.drives, "status", "s", "", "list volumes provisioned from particular drive. Defaults to all")
-	f.BoolVarP(&l.verbose, "verbose", "v", false, "show detailed volume information ")
+	f.StringVarP(&l.nodes, "nodes", "n", "", "list volumes provisioned from drives on particular node")
+	f.StringVarP(&l.drives, "drives", "s", "", "list volumes provisioned from particular drives")
 
 	return cmd
 }
@@ -85,7 +84,7 @@ func (l *csiListVolumesCmd) run(args []string) error {
 		return fmt.Errorf("could not list all drives: %v", err)
 	}
 
-	if !ellipses.HasEllipses(l.nodes) {
+	if l.nodes != "" && !ellipses.HasEllipses(l.nodes) {
 		return fmt.Errorf("please provide --node flag in ellipses format, e.g. `myhost{1...4}`")
 	}
 
@@ -128,7 +127,7 @@ func (l *csiListVolumesCmd) run(args []string) error {
 			v.Name,
 			v.OwnerNode,
 			v.HostPath,
-			strconv.FormatInt(v.TotalCapacity, 10),
+			humanize.SI(float64(v.TotalCapacity), "B"),
 			"", //TODO: Add Bind Status
 		})
 	}
