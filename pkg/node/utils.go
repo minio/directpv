@@ -29,9 +29,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/pborman/uuid"
-
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	simd "github.com/minio/sha256-simd"
 )
 
 func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_csi.DirectCSIDrive, error) {
@@ -174,7 +173,9 @@ func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_cs
 			}
 		}
 		v.OwnerNode = nodeID
-		driveName := uuid.NewUUID().String()
+		driveName := strings.Join([]string{nodeID, v.Path}, "-")
+		driveName = fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
+
 		v.ObjectMeta.Name, v.Name = driveName, driveName
 		toRet = append(toRet, v)
 	}
