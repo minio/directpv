@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/clientset"
@@ -69,7 +70,8 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 		}
 
 		isReqSatisfiedAlready := func(old, new *v1alpha1.DirectCSIDrive) bool {
-			return new.DriveStatus == v1alpha1.Online && (new.RequestedFormat.Mountpoint == "" || new.RequestedFormat.Mountpoint == old.Mountpoint)
+			return new.DriveStatus == v1alpha1.Online && (new.RequestedFormat.Mountpoint == "" || new.RequestedFormat.Mountpoint == old.Mountpoint ||
+				reflect.DeepEqual(new.RequestedFormat.Mountoptions, old.RequestedFormat.Mountoptions))
 		}
 
 		// Do not process the request if satisfied already
@@ -82,9 +84,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 			mountPoint = filepath.Join("/mnt", new.ObjectMeta.Name)
 		}
 
-		// Mount the device to the mountpoint [Idempotent]
-		mountOptions := []string{""}
-		if err := MountDevice(new.Path, mountPoint, "", mountOptions); err != nil {
+		if err := MountDevice(new.Path, mountPoint, "", new.RequestedFormat.Mountoptions); err != nil {
 			return status.Errorf(codes.Internal, "Failed to format and mount the device: %v", err)
 		}
 

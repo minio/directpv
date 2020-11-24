@@ -23,7 +23,10 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 
+	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	v1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
 	"github.com/minio/kubectl-directcsi/util"
 	"github.com/minio/minio-go/v6/pkg/set"
 	"github.com/minio/minio/pkg/ellipses"
@@ -39,12 +42,13 @@ const (
 )
 
 type csiAddDrivesCmd struct {
-	out        io.Writer
-	errOut     io.Writer
-	output     bool
-	force      bool
-	nodes      string
-	fileSystem string
+	out          io.Writer
+	errOut       io.Writer
+	output       bool
+	force        bool
+	nodes        string
+	fileSystem   string
+	mountOptions string
 }
 
 func newDrivesAddCmd(out io.Writer, errOut io.Writer) *cobra.Command {
@@ -63,6 +67,7 @@ func newDrivesAddCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 	f := cmd.Flags()
 	f.StringVarP(&c.nodes, "nodes", "n", "", "add drives from these nodes only")
 	f.StringVarP(&c.fileSystem, "fs", "f", defaultFS, "filesystem to be formatted")
+	f.StringVarP(&c.mountOptions, "mountOptions", "m", "", "mount options in csv format, e.g. 'noatime,nodiratime'")
 	f.BoolVarP(&c.force, "force", "", false, "overwrite existing filesystem")
 
 	return cmd
@@ -99,10 +104,7 @@ func (c *csiAddDrivesCmd) run(args []string) error {
 			if nodeSet.Contains(drive.OwnerNode) {
 				match, _ := regexp.Match(args[0], []byte(drive.Path))
 				if match {
-					drive.DirectCSIOwned = true
-					drive.RequestedFormat.Filesystem = c.fileSystem
-					drive.RequestedFormat.Force = c.force
-					directCSIClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{})
+					c.updateDrive(ctx, drive, directCSIClient)
 				}
 			}
 		}
@@ -110,13 +112,18 @@ func (c *csiAddDrivesCmd) run(args []string) error {
 		for _, drive := range drives.Items {
 			match, _ := regexp.Match(args[0], []byte(drive.Path))
 			if match {
-				drive.DirectCSIOwned = true
-				drive.RequestedFormat.Filesystem = c.fileSystem
-				drive.RequestedFormat.Force = c.force
-				directCSIClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{})
+				c.updateDrive(ctx, drive, directCSIClient)
 			}
 		}
 	}
 
 	return nil
+}
+
+func (c *csiAddDrivesCmd) updateDrive(ctx context.Context, d directv1alpha1.DirectCSIDrive, client v1alpha1.DirectV1alpha1Interface) {
+	d.DirectCSIOwned = true
+	d.RequestedFormat.Filesystem = c.fileSystem
+	d.RequestedFormat.Force = c.force
+	d.RequestedFormat.Mountoptions = strings.Split(c.mountOptions, ",")
+	client.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{})
 }
