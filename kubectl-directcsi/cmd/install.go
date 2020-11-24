@@ -64,33 +64,49 @@ func (c *csiInstallCmd) run() error {
 	ctx := context.Background()
 
 	kClient := util.GetKubeClient()
+	extClient := util.GetKubeExtensionClient()
 
 	if err := util.CreateDirectCSINamespace(ctx, kClient, identity); err != nil {
 		return err
 	}
-	fmt.Println("Created Namespace ", identity)
+	fmt.Println("Created Namespace", identity)
+
+	if err := util.CreateCRD(ctx, extClient, driveObj); err != nil {
+		return err
+	}
+	fmt.Println("Created Drive CRD", name)
+
+	if err := util.CreateCRD(ctx, extClient, volObj); err != nil {
+		return err
+	}
+	fmt.Println("Created Volume CRD", name)
+
 	if err := util.CreateCSIDriver(ctx, kClient, name); err != nil {
 		return err
 	}
-	fmt.Println("Created CSIDriver ", name)
+	fmt.Println("Created CSIDriver", name)
+
 	if err := util.CreateStorageClass(ctx, kClient, name); err != nil {
 		return err
 	}
-	fmt.Println("Created StorageClass ", name)
+	fmt.Println("Created StorageClass", name)
+
 	if err := util.CreateCSIService(ctx, kClient, name, identity); err != nil {
 		return err
 	}
-	fmt.Println("Created Service ", name)
+	fmt.Println("Created Service", name)
+
 	if err := util.CreateRBACRoles(ctx, kClient, name, identity); err != nil {
 		return err
 	}
 	if err := util.CreateDaemonSet(ctx, kClient, name, identity, c.kubeletDirPath, c.csiRootPath); err != nil {
 		return err
 	}
-	fmt.Println("Created DaemonSet ", name)
+	fmt.Println("Created DaemonSet", name)
+
 	if err := util.CreateDeployment(ctx, kClient, name, identity, c.kubeletDirPath, c.csiRootPath); err != nil {
 		return err
 	}
-	fmt.Println("Created Deployment ", name)
+	fmt.Println("Created Deployment", name)
 	return nil
 }

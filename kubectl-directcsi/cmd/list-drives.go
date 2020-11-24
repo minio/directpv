@@ -26,6 +26,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/dustin/go-humanize"
 	"github.com/minio/kubectl-directcsi/util"
 	"github.com/minio/minio-go/v6/pkg/set"
 	"github.com/minio/minio/pkg/ellipses"
@@ -45,6 +46,7 @@ type csiListDrivesCmd struct {
 	errOut io.Writer
 	output bool
 	all    bool
+	drives string
 	nodes  string
 	status string
 }
@@ -57,13 +59,13 @@ func newDrivesListCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 		Short:   "List drives status across DirectCSI nodes",
 		Long:    csiListDrivesDesc,
 		Example: csiListDrivesExample,
-		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return l.run(args)
+			return l.run()
 		},
 	}
 	f := cmd.Flags()
-	f.StringVarP(&l.nodes, "nodes", "n", "", "add drives from these nodes only")
+	f.StringVarP(&l.drives, "drives", "d", "", "list these drives only")
+	f.StringVarP(&l.nodes, "nodes", "n", "", "list drives from particular nodes only")
 	f.StringVarP(&l.status, "status", "s", "", "filter by status [new, ignore, online, offline]")
 	f.BoolVarP(&l.all, "all", "", false, "list all drives")
 
@@ -71,7 +73,7 @@ func newDrivesListCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 }
 
 // run initializes local config and installs MinIO Operator to Kubernetes cluster.
-func (l *csiListDrivesCmd) run(args []string) error {
+func (l *csiListDrivesCmd) run() error {
 	ctx := context.Background()
 
 	directCSIClient := util.GetDirectCSIClient()
@@ -85,13 +87,13 @@ func (l *csiListDrivesCmd) run(args []string) error {
 		return fmt.Errorf("could not list all drives: %v", err)
 	}
 
-	if !ellipses.HasEllipses(l.nodes) {
+	if l.nodes != "" && !ellipses.HasEllipses(l.nodes) {
 		return fmt.Errorf("please provide --node flag in ellipses format, e.g. `myhost{1...4}`")
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetHeader([]string{"DRIVES", "STATUS", "VOLUMES", "ALLOCATED", "CAPACITY", "FREE", "FS", "MOUNT", "MODEL"})
+	table.SetHeader([]string{"DRIVES", "STATUS", "VOLUMES", "CAPACITY", "ALLOCATED", "FREE", "FS", "MOUNT", "MODEL"})
 
 	var nodes []string
 	if l.nodes != "" {
@@ -108,15 +110,15 @@ func (l *csiListDrivesCmd) run(args []string) error {
 	if !nodeSet.IsEmpty() {
 		for _, drive := range drives.Items {
 			if nodeSet.Contains(drive.OwnerNode) {
-				match, _ := regexp.Match(args[0], []byte(drive.Path))
+				match, _ := regexp.Match(l.drives, []byte(drive.Path))
 				if match {
 					table.Append([]string{
 						drive.OwnerNode + ":" + drive.Path,
 						string(drive.DriveStatus),
 						strconv.Itoa(len(util.ListVolumesInDrive(drive, volumes))),
-						strconv.FormatInt(drive.AllocatedCapacity, 10),
-						strconv.FormatInt(drive.TotalCapacity, 10),
-						strconv.FormatInt(drive.FreeCapacity, 10),
+						humanize.SI(float64(drive.TotalCapacity), "B"),
+						humanize.SI(float64(drive.AllocatedCapacity), "B"),
+						humanize.SI(float64(drive.FreeCapacity), "B"),
 						drive.Filesystem,
 						drive.Mountpoint,
 						drive.ModelNumber,
@@ -126,15 +128,15 @@ func (l *csiListDrivesCmd) run(args []string) error {
 		}
 	} else {
 		for _, drive := range drives.Items {
-			match, _ := regexp.Match(args[0], []byte(drive.Path))
+			match, _ := regexp.Match(l.drives, []byte(drive.Path))
 			if match {
 				table.Append([]string{
 					drive.OwnerNode + ":" + drive.Path,
 					string(drive.DriveStatus),
 					strconv.Itoa(len(util.ListVolumesInDrive(drive, volumes))),
-					strconv.FormatInt(drive.AllocatedCapacity, 10),
-					strconv.FormatInt(drive.TotalCapacity, 10),
-					strconv.FormatInt(drive.FreeCapacity, 10),
+					humanize.SI(float64(drive.TotalCapacity), "B"),
+					humanize.SI(float64(drive.AllocatedCapacity), "B"),
+					humanize.SI(float64(drive.FreeCapacity), "B"),
 					drive.Filesystem,
 					drive.Mountpoint,
 					drive.ModelNumber,
