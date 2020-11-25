@@ -93,7 +93,8 @@ func (l *csiListDrivesCmd) run() error {
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetHeader([]string{"DRIVES", "STATUS", "VOLUMES", "CAPACITY", "ALLOCATED", "FREE", "FS", "MOUNT", "MODEL"})
+	table.SetAutoMergeCells(true)
+	table.SetHeader([]string{"SERVER", "DRIVES", "STATUS", "VOLUMES", "CAPACITY", "ALLOCATED", "FREE", "FS", "MOUNT", "MODEL"})
 
 	var nodes []string
 	if l.nodes != "" {
@@ -113,7 +114,8 @@ func (l *csiListDrivesCmd) run() error {
 				match, _ := regexp.Match(l.drives, []byte(drive.Path))
 				if match {
 					table.Append([]string{
-						drive.OwnerNode + ":" + drive.Path,
+						drive.OwnerNode,
+						drive.Path,
 						string(drive.DriveStatus),
 						strconv.Itoa(len(util.ListVolumesInDrive(drive, volumes))),
 						humanize.SI(float64(drive.TotalCapacity), "B"),
@@ -131,7 +133,8 @@ func (l *csiListDrivesCmd) run() error {
 			match, _ := regexp.Match(l.drives, []byte(drive.Path))
 			if match {
 				table.Append([]string{
-					drive.OwnerNode + ":" + drive.Path,
+					drive.OwnerNode,
+					drive.Path,
 					string(drive.DriveStatus),
 					strconv.Itoa(len(util.ListVolumesInDrive(drive, volumes))),
 					humanize.SI(float64(drive.TotalCapacity), "B"),

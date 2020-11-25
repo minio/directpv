@@ -74,6 +74,8 @@ type RequestedFormat struct {
 	Filesystem string `json:"filesystem,omitempty"`
 	// +optional
 	Mountpoint string `json:"mountpoint,omitempty"`
+	// +optional
+	Mountoptions []string `json:"mountoptions,omitempty"`
 }
 
 type DriveStatus string
