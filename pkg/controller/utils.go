@@ -37,6 +37,9 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 	}
 
 	filteredDrivesByFormat := FilterDrivesByRequestFormat(csiDrives)
+	if len(filteredDrivesByFormat) == 0 {
+		return []direct_csi.DirectCSIDrive{}, status.Error(codes.FailedPrecondition, "No csi drives are been added. Please use `add drives` plugin command to add the drives")
+	}
 
 	capFilteredDrives := FilterDrivesByCapacityRange(capacityRange, filteredDrivesByFormat)
 	if len(capFilteredDrives) == 0 {
@@ -68,7 +71,7 @@ func FilterDrivesByCapacityRange(capacityRange *csi.CapacityRange, csiDrives []d
 func FilterDrivesByRequestFormat(csiDrives []direct_csi.DirectCSIDrive) []direct_csi.DirectCSIDrive {
 	filteredDriveList := []direct_csi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
-		if reflect.DeepEqual(csiDrive.Spec.RequestedFormat, direct_csi.RequestedFormat{}) {
+		if csiDrive.Spec.DirectCSIOwned && reflect.DeepEqual(csiDrive.Spec.RequestedFormat, direct_csi.RequestedFormat{}) {
 			filteredDriveList = append(filteredDriveList, csiDrive)
 		}
 	}

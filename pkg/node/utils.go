@@ -32,7 +32,9 @@ import (
 
 	"github.com/golang/glog"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	k8sExec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 )
@@ -418,4 +420,44 @@ func GetDiskFS(devicePath string) (string, error) {
 		glog.V(5).Infof("Error while reading the disk format: (%s)", err.Error())
 	}
 	return fs, err
+}
+
+// AddDriveFinalizersWithConflictRetry - appends a finalizer to the csidrive's finalizers list
+func AddDriveFinalizersWithConflictRetry(ctx context.Context, csiDriveName string, finalizers []string) error {
+	directCSIClient := utils.GetDirectCSIClient()
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, csiDriveName, metav1.GetOptions{})
+		if dErr != nil {
+			return dErr
+		}
+		copiedDrive := csiDrive.DeepCopy()
+		for _, finalizer := range finalizers {
+			copiedDrive.ObjectMeta.Finalizers = utils.AddFinalizer(copiedDrive.ObjectMeta.Finalizers, finalizer)
+		}
+		_, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{})
+		return err
+	}); err != nil {
+		glog.V(5).Infof("Error while adding finalizers to csidrive: (%s)", err.Error())
+		return err
+	}
+	return nil
+}
+
+// RemoveDriveFinalizerWithConflictRetry - removes a finalizer from the csidrive's finalizers list
+func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName string, finalizer string) error {
+	directCSIClient := utils.GetDirectCSIClient()
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, csiDriveName, metav1.GetOptions{})
+		if dErr != nil {
+			return dErr
+		}
+		copiedDrive := csiDrive.DeepCopy()
+		copiedDrive.ObjectMeta.Finalizers = utils.RemoveFinalizer(copiedDrive.ObjectMeta.Finalizers, finalizer)
+		_, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{})
+		return err
+	}); err != nil {
+		glog.V(5).Infof("Error while adding finalizers to csidrive: (%s)", err.Error())
+		return err
+	}
+	return nil
 }

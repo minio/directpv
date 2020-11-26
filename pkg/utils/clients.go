@@ -69,3 +69,26 @@ func GetDirectCSIClient() directv1alpha1.DirectV1alpha1Interface {
 func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
 	return crdClient
 }
+
+func AddFinalizer(finalizers []string, finalizer string) []string {
+	for _, f := range finalizers {
+		if f == finalizer {
+			return finalizers
+		}
+	}
+	finalizers = append(finalizers, finalizer)
+	return finalizers
+}
+
+func RemoveFinalizer(finalizers []string, finalizer string) []string {
+	removeByIndex := func(s []string, index int) []string {
+		return append(s[:index], s[index+1:]...)
+	}
+	for index, f := range finalizers {
+		if f == finalizer {
+			finalizers = removeByIndex(finalizers, index)
+			break
+		}
+	}
+	return finalizers
+}
