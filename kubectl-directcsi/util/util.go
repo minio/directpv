@@ -477,7 +477,7 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 					fmt.Sprintf("--identity=%s", name),
 					"--v=5",
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
-					fmt.Sprintf("--node-id=%s", kubeNodeNameEnvVar),
+					fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
 					"--procfs=/hostproc",
 					"--driver",
 				},

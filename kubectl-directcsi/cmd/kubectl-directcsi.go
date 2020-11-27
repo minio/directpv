@@ -101,7 +101,7 @@ func NewCmdMinIO(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.AddCommand(newInstallCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
-	cmd.AddCommand(newRemoveCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
+	cmd.AddCommand(newUninstallCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
 	cmd.AddCommand(newDrivesCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
 	cmd.AddCommand(newVolumesCmd(cmd.OutOrStdout(), cmd.ErrOrStderr()))
 
