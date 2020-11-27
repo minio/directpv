@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	csiRemoveDesc = `
- remove command deletes MinIO DirectCSI along with all the dependencies.`
-	csiRemoveExample = `  kubectl directcsi remove`
+	csiUninstallDesc = `
+ uninstall command deletes MinIO DirectCSI along with all the dependencies.`
+	csiUninstallExample = `  kubectl directcsi uninstall`
 )
 
-type csiRemoveCmd struct {
+type csiUninstallCmd struct {
 	out            io.Writer
 	errOut         io.Writer
 	output         bool
@@ -41,14 +41,14 @@ type csiRemoveCmd struct {
 	csiRootPath    string
 }
 
-func newRemoveCmd(out io.Writer, errOut io.Writer) *cobra.Command {
-	c := &csiRemoveCmd{out: out, errOut: errOut, kubeletDirPath: "/var/lib/kubelet", csiRootPath: "/mnt/direct-csi"}
+func newUninstallCmd(out io.Writer, errOut io.Writer) *cobra.Command {
+	c := &csiUninstallCmd{out: out, errOut: errOut, kubeletDirPath: "/var/lib/kubelet", csiRootPath: "/mnt/direct-csi"}
 
 	cmd := &cobra.Command{
-		Use:     "remove",
-		Short:   "Remove MinIO DirectCSI",
-		Long:    csiRemoveDesc,
-		Example: csiRemoveExample,
+		Use:     "uninstall",
+		Short:   "Uninstall MinIO DirectCSI",
+		Long:    csiUninstallDesc,
+		Example: csiUninstallExample,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return c.run()
 		},
@@ -58,7 +58,7 @@ func newRemoveCmd(out io.Writer, errOut io.Writer) *cobra.Command {
 }
 
 // run initializes local config and installs MinIO Operator to Kubernetes cluster.
-func (c *csiRemoveCmd) run() error {
+func (c *csiUninstallCmd) run() error {
 	name := "direct-csi-min-io"
 	identity := "direct-csi"
 	ctx := context.Background()

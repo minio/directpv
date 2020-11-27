@@ -26,7 +26,7 @@ import (
 func ListVolumesInDrive(drive directv1alpha1.DirectCSIDrive, volumes *directv1alpha1.DirectCSIVolumeList) []directv1alpha1.DirectCSIVolume {
 	vols := make([]directv1alpha1.DirectCSIVolume, 0)
 	for _, volume := range volumes.Items {
-		if volume.OwnerDrive == drive.Name {
+		if volume.OwnerDrive == drive.ObjectMeta.Name {
 			vols = append(vols, volume)
 		}
 	}

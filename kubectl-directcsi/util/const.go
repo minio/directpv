@@ -57,7 +57,7 @@ const (
 	livenessProbeContainerImage = "quay.io/k8scsi/livenessprobe:v1.1.0"
 
 	nodeDriverRegistrarContainerName  = "node-driver-registrar"
-	nodeDriverRegistrarContainerImage = "quay.io/k8scsi/csi-node-driver-registrar:v1.3.0"
+	nodeDriverRegistrarContainerImage = "quay.io/k8scsi/csi-node-driver-registrar:v2.0.0"
 
 	healthZContainerPort         = 9898
 	healthZContainerPortName     = "healthz"
