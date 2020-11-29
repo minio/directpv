@@ -288,28 +288,22 @@ func getPartition(path string) (string, bool) {
 }
 
 func WalkWithFollow(path string, callback func(path string, info os.FileInfo, err error) error) error {
-	f, err := os.Open(path)
-	defer f.Close()
-
-	if err != nil {
-		err := callback(path, nil, err)
-		if err != nil {
-			if err != filepath.SkipDir {
-				return err
-			}
+	handleError := func(err error) error {
+		if err = callback(path, nil, err); err != filepath.SkipDir {
+			return err
 		}
 		return nil
 	}
 
+	f, err := os.Open(path)
+	defer f.Close()
+	if err != nil {
+		return handleError(err)
+	}
+
 	stat, err := f.Stat()
 	if err != nil {
-		err := callback(path, nil, err)
-		if err != nil {
-			if err != filepath.SkipDir {
-				return err
-			}
-		}
-		return nil
+		return handleError(err)
 	}
 
 	if err := callback(path, stat, nil); err != nil {
