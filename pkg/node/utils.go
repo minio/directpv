@@ -20,17 +20,18 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/golang/glog"
 	"io/ioutil"
-	"k8s.io/utils/mount"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/golang/glog"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	simd "github.com/minio/sha256-simd"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/utils/mount"
 )
 
 func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_csi.DirectCSIDrive, error) {
@@ -69,26 +70,29 @@ func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_cs
 			return filepath.SkipDir
 		}
 
-		link, err := os.Readlink(path)
+		realpath, err := filepath.EvalSymlinks(path)
 		if err != nil {
-			link = path
+			// Following the symlink failed. Possibly the symlink dangled.
+			utilruntime.HandleError(err)
+			return nil
 		}
-		if _, ok := visited[link]; ok {
+
+		if _, ok := visited[realpath]; ok {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		visited[link] = struct{}{}
+		visited[realpath] = struct{}{}
 
 		// Find drive specific info
-		drive := getDriveForPath(drives, link)
+		drive := getDriveForPath(drives, path)
 		if drive == nil {
 			return nil
 		}
 		if strings.Compare(info.Name(), "wwid") == 0 {
 			if drive.SerialNumber == "" {
-				data, err := ioutil.ReadFile(link)
+				data, err := ioutil.ReadFile(path)
 				if err != nil {
 					return err
 				}
@@ -97,7 +101,7 @@ func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_cs
 		}
 		if strings.Compare(info.Name(), "model") == 0 {
 			if drive.ModelNumber == "" {
-				data, err := ioutil.ReadFile(link)
+				data, err := ioutil.ReadFile(path)
 				if err != nil {
 					return err
 				}
@@ -109,7 +113,7 @@ func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_cs
 			if drive.Name == drive.RootPartition {
 				return nil
 			}
-			data, err := ioutil.ReadFile(link)
+			data, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
 			}
@@ -120,7 +124,7 @@ func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_cs
 			drive.PartitionNum = partNum
 		}
 		if strings.Compare(info.Name(), "size") == 0 {
-			data, err := ioutil.ReadFile(link)
+			data, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
 			}
@@ -136,7 +140,7 @@ func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_cs
 			drive.TotalCapacity = size
 		}
 		if strings.Compare(info.Name(), "logical_block_size") == 0 {
-			data, err := ioutil.ReadFile(link)
+			data, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
 			}
