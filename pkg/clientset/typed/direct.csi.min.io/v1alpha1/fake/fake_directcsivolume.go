@@ -96,6 +96,17 @@ func (c *FakeDirectCSIVolumes) Update(ctx context.Context, directCSIVolume *v1al
 	return obj.(*v1alpha1.DirectCSIVolume), err
 }
 
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (c *FakeDirectCSIVolumes) UpdateStatus(ctx context.Context, directCSIVolume *v1alpha1.DirectCSIVolume, opts v1.UpdateOptions) (*v1alpha1.DirectCSIVolume, error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewRootUpdateSubresourceAction(directcsivolumesResource, "status", directCSIVolume), &v1alpha1.DirectCSIVolume{})
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*v1alpha1.DirectCSIVolume), err
+}
+
 // Delete takes name of the directCSIVolume and deletes it. Returns an error if one occurs.
 func (c *FakeDirectCSIVolumes) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.

@@ -52,39 +52,33 @@ func (b *DirectCSIDriveListener) Add(ctx context.Context, obj *v1alpha1.DirectCS
 }
 
 func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.DirectCSIDrive) error {
-
 	directCSIClient := b.directcsiClient.DirectV1alpha1()
 	var uErr error
 
-	if b.nodeID != new.OwnerNode {
+	if b.nodeID != new.Status.NodeName {
 		glog.V(5).Infof("Skipping drive %s", new.ObjectMeta.Name)
 		return nil
 	}
 
-	// Do not process the request if satisfied already
-	if !new.DirectCSIOwned {
+	if new.Spec.RequestedFormat.Filesystem == "" && new.Spec.RequestedFormat.Mountpoint == "" {
 		return nil
 	}
 
-	if new.RequestedFormat.Filesystem == "" && new.RequestedFormat.Mountpoint == "" {
-		return nil
-	}
-
-	if new.DriveStatus == v1alpha1.Online {
+	if new.Status.DriveStatus == v1alpha1.Online {
 		glog.Errorf("Cannot format a drive in use %s", new.ObjectMeta.Name)
 		return nil
 	}
 
-	fsType := new.RequestedFormat.Filesystem
+	fsType := new.Spec.RequestedFormat.Filesystem
 	if fsType != "" {
-		isForceOptionSet := new.RequestedFormat.Force
-		if new.Mountpoint != "" {
+		isForceOptionSet := new.Spec.RequestedFormat.Force
+		if new.Status.Mountpoint != "" {
 			if !isForceOptionSet {
 				glog.Errorf("Cannot format mounted drive - %s. Set 'force: true' to override", new.ObjectMeta.Name)
 				return nil
 			}
 			// Get absolute path
-			abMountPath, fErr := filepath.Abs(new.Mountpoint)
+			abMountPath, fErr := filepath.Abs(new.Status.Mountpoint)
 			if fErr != nil {
 				return fErr
 			}
@@ -93,50 +87,50 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 				return err
 			}
 			// Update the truth immediately that the drive is been unmounted (OR) the drive does not have a mountpoint
-			new.Mountpoint = ""
+			new.Status.Mountpoint = ""
 			if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
 				return uErr
 			}
 		}
-		if new.Filesystem != "" && !isForceOptionSet {
+		if new.Status.Filesystem != "" && !isForceOptionSet {
 			glog.Errorf("Drive already has a filesystem - %s", new.ObjectMeta.Name)
 			return nil
 		}
-		if fErr := FormatDevice(ctx, new.Path, fsType, isForceOptionSet); fErr != nil {
+		if fErr := FormatDevice(ctx, new.Status.Path, fsType, isForceOptionSet); fErr != nil {
 			return fmt.Errorf("Failed to format the device: %v", fErr)
 		}
 
 		// Update the truth immediately that the drive is been unmounted (OR) the drive does not have a mountpoint
-		new.Filesystem = fsType
-		new.DriveStatus = v1alpha1.New
-		new.RequestedFormat.Filesystem = ""
-		new.Mountpoint = ""
-		new.MountOptions = []string{}
+		new.Status.Filesystem = fsType
+		new.Status.DriveStatus = v1alpha1.New
+		new.Spec.RequestedFormat.Filesystem = ""
+		new.Status.Mountpoint = ""
+		new.Status.MountOptions = []string{}
 		if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
 			return uErr
 		}
 	}
 
-	if new.Mountpoint == "" {
-		mountPoint := new.RequestedFormat.Mountpoint
+	if new.Status.Mountpoint == "" {
+		mountPoint := new.Spec.RequestedFormat.Mountpoint
 		if mountPoint == "" {
 			mountPoint = filepath.Join(string(filepath.Separator), "mnt", "direct-csi", new.ObjectMeta.Name)
 		}
 
-		if err := MountDevice(new.Path, mountPoint, fsType, new.RequestedFormat.Mountoptions); err != nil {
+		if err := MountDevice(new.Status.Path, mountPoint, fsType, new.Spec.RequestedFormat.Mountoptions); err != nil {
 			return fmt.Errorf("Failed to mount the device: %v", err)
 		}
 
-		new.RequestedFormat.Force = false
-		new.Mountpoint = mountPoint
-		new.RequestedFormat.Mountpoint = ""
-		new.RequestedFormat.Mountoptions = []string{}
+		new.Spec.RequestedFormat.Force = false
+		new.Status.Mountpoint = mountPoint
+		new.Spec.RequestedFormat.Mountpoint = ""
+		new.Spec.RequestedFormat.Mountoptions = []string{}
 		stat := &syscall.Statfs_t{}
-		if err := syscall.Statfs(new.Mountpoint, stat); err != nil {
+		if err := syscall.Statfs(new.Status.Mountpoint, stat); err != nil {
 			return err
 		}
 		availBlocks := int64(stat.Bavail)
-		new.FreeCapacity = int64(stat.Bsize) * availBlocks
+		new.Status.FreeCapacity = int64(stat.Bsize) * availBlocks
 
 		if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
 			return uErr

@@ -31,23 +31,25 @@ type DirectCSIDrive struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	OwnerNode string `json:"ownerNode"`
+	Spec   DirectCSIDriveSpec   `json:"spec"`
+	Status DirectCSIDriveStatus `json:"status,omitempty"`
+}
 
+type DirectCSIDriveSpec struct {
+	// +optional
+	RequestedFormat RequestedFormat `json:"requestedFormat"`
+	// required
 	DirectCSIOwned bool `json:"directCSIOwned"`
+	// +optional
+	DriveTaint map[string]string `json:"driveTaint,omitempty"`
+}
 
+type DirectCSIDriveStatus struct {
 	Path string `json:"path"`
-	// +optional
-	ModelNumber string `json:"modelNumber,omitempty"`
-	// +optional
-	SerialNumber string `json:"serialNumber,omitempty"`
-	// +optional
-	TotalCapacity int64 `json:"totalCapacity,omitempty"`
 	// +optional
 	AllocatedCapacity int64 `json:"allocatedCapacity,omitempty"`
 	// +optional
 	FreeCapacity int64 `json:"freeCapacity,omitempty"`
-	// +optional
-	BlockSize int64 `json:"blockSize,omitempty"`
 	// +optional
 	RootPartition string `json:"rootPartition,omitempty"`
 	// +optional
@@ -60,11 +62,19 @@ type DirectCSIDrive struct {
 	// +optional
 	MountOptions []string `json:"mountOptions,omitempty"`
 	// +optional
+	NodeName string `json:"nodeName"`
+	// +optional
 	DriveStatus DriveStatus `json:"driveStatus,omitempty"`
 	// +optional
-	Topology map[string]string `json:"topology,omitempty"`
+	ModelNumber string `json:"modelNumber,omitempty"`
 	// +optional
-	RequestedFormat RequestedFormat `json:"requestedFormat"`
+	SerialNumber string `json:"serialNumber,omitempty"`
+	// +optional
+	TotalCapacity int64 `json:"totalCapacity,omitempty"`
+	// +optional
+	BlockSize int64 `json:"blockSize,omitempty"`
+	// +optional
+	Topology map[string]string `json:"topology,omitempty"`
 }
 
 type RequestedFormat struct {
@@ -76,6 +86,7 @@ type RequestedFormat struct {
 	Filesystem string `json:"filesystem,omitempty"`
 	// +optional
 	Mountpoint string `json:"mountpoint,omitempty"`
+	// +listType=atomic
 	// +optional
 	Mountoptions []string `json:"mountoptions,omitempty"`
 }
@@ -132,6 +143,8 @@ type DirectCSIVolume struct {
 	// +optional
 	ContainerPath string `json:"containerPath,omitempty"`
 	// +optional
-	TotalCapacity int64              `json:"totalCapacity"`
-	Status        []metav1.Condition `json:"status"`
+	TotalCapacity int64 `json:"totalCapacity"`
+	// +listType=atomic
+	// +optional
+	Status []metav1.Condition `json:"status"`
 }
