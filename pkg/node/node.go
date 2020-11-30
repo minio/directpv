@@ -49,7 +49,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	for _, drive := range drives {
 		drive.Topology = driveTopology
-		_, err := directCSIClient.DirectCSIDrives().Create(ctx, drive, metav1.CreateOptions{})
+		_, err := directCSIClient.DirectCSIDrives().Create(ctx, &drive, metav1.CreateOptions{})
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return nil, err

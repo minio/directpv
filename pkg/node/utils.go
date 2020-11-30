@@ -20,320 +20,309 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/golang/glog"
 	"io/ioutil"
-	"k8s.io/utils/mount"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/golang/glog"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	simd "github.com/minio/sha256-simd"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/mount"
 )
 
-func FindDrives(ctx context.Context, nodeID string, procfs string) ([]*direct_csi.DirectCSIDrive, error) {
-	drives := map[string]*direct_csi.DirectCSIDrive{}
-	visited := map[string]struct{}{}
-	if err := WalkWithFollow("/sys/block/", func(path string, info os.FileInfo, err error) error {
-		if strings.Compare(path, "/sys/block/") == 0 {
-			return nil
-		}
-		if err != nil {
-			if os.IsPermission(err) {
-				// skip
-				return nil
-			}
-			return err
-		}
-		if strings.HasPrefix(info.Name(), "loop") {
-			return filepath.SkipDir
-		}
-		if strings.HasPrefix(info.Name(), "driver") {
-			return filepath.SkipDir
-		}
-		if strings.HasPrefix(info.Name(), "iommu") {
-			return filepath.SkipDir
-		}
-		if strings.Compare(info.Name(), "firmware_node") == 0 {
-			return filepath.SkipDir
-		}
-		if strings.Compare(info.Name(), "kernel") == 0 {
-			return filepath.SkipDir
-		}
-		if strings.Compare(info.Name(), "pci") == 0 {
-			return filepath.SkipDir
-		}
-		if strings.Compare(info.Name(), "devices") == 0 {
-			return filepath.SkipDir
-		}
-
-		link, err := os.Readlink(path)
-		if err != nil {
-			link = path
-		}
-		if _, ok := visited[link]; ok {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		visited[link] = struct{}{}
-
-		// Find drive specific info
-		drive := getDriveForPath(drives, link)
-		if drive == nil {
-			return nil
-		}
-		if strings.Compare(info.Name(), "wwid") == 0 {
-			if drive.SerialNumber == "" {
-				data, err := ioutil.ReadFile(link)
-				if err != nil {
-					return err
-				}
-				drive.SerialNumber = strings.TrimSpace(string(data))
-			}
-		}
-		if strings.Compare(info.Name(), "model") == 0 {
-			if drive.ModelNumber == "" {
-				data, err := ioutil.ReadFile(link)
-				if err != nil {
-					return err
-				}
-				drive.ModelNumber = strings.TrimSpace(string(data))
-			}
-		}
-		if strings.Compare(info.Name(), "partition") == 0 {
-			// not needed if this is a root partition
-			if drive.Name == drive.RootPartition {
-				return nil
-			}
-			data, err := ioutil.ReadFile(link)
-			if err != nil {
-				return err
-			}
-			partNum, err := strconv.Atoi(strings.TrimSpace(string(data)))
-			if err != nil {
-				return err
-			}
-			drive.PartitionNum = partNum
-		}
-		if strings.Compare(info.Name(), "size") == 0 {
-			data, err := ioutil.ReadFile(link)
-			if err != nil {
-				return err
-			}
-			size, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
-			if err != nil {
-				return err
-			}
-			blockSize := int64(1)
-			if drive.BlockSize != 0 {
-				blockSize = drive.BlockSize
-			}
-			size = size * blockSize
-			drive.TotalCapacity = size
-		}
-		if strings.Compare(info.Name(), "logical_block_size") == 0 {
-			data, err := ioutil.ReadFile(link)
-			if err != nil {
-				return err
-			}
-			size, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
-			if err != nil {
-				return err
-			}
-			blocks := int64(1)
-			if drive.TotalCapacity != 0 {
-				blocks = drive.TotalCapacity
-			}
-			drive.BlockSize = size
-			totalSize := size * blocks
-			drive.TotalCapacity = totalSize
-		}
-
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	toRet := []*direct_csi.DirectCSIDrive{}
-	for _, v := range drives {
-		if v.Name != v.RootPartition {
-			root := drives[v.RootPartition]
-			if root.ModelNumber != "" {
-				v.ModelNumber = fmt.Sprintf("%s-part%d", root.ModelNumber, v.PartitionNum)
-			}
-			if root.SerialNumber != "" {
-				v.SerialNumber = fmt.Sprintf("%s-part%d", root.SerialNumber, v.PartitionNum)
-			}
-			if v.BlockSize == 0 {
-				v.BlockSize = root.BlockSize
-				v.TotalCapacity = v.TotalCapacity * root.BlockSize
-			}
-		}
-		v.OwnerNode = nodeID
-		driveName := strings.Join([]string{nodeID, v.Path}, "-")
-		driveName = fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
-
-		v.ObjectMeta.Name, v.Name = driveName, driveName
-		toRet = append(toRet, v)
-	}
-	if err := findMounts(toRet, procfs); err != nil {
-		return nil, err
-	}
-	return toRet, nil
+type MountInfo struct {
+	Mountpoint   string
+	Filesystem   string
+	MountOptions []string
 }
 
-func findMounts(drives []*direct_csi.DirectCSIDrive, procfs string) error {
-	mounts, err := os.Open(procfs)
+func FindDrives(ctx context.Context, nodeID string, procfs string) ([]direct_csi.DirectCSIDrive, error) {
+	idMap, err := getIDMap()
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	mountInfoMap, err := getMountInfoMap(procfs)
+	if err != nil {
+		return nil, err
+	}
+
+	diskNames, err := getDiskNames()
+	if err != nil {
+		return nil, err
+	}
+
+	var drives []direct_csi.DirectCSIDrive
+
+	for _, diskName := range diskNames {
+		id, hasID := idMap[diskName]
+		if !hasID {
+			continue
+		}
+
+		drive, err := makeDrive(nodeID, diskName, "", id, mountInfoMap[diskName])
+		if err != nil {
+			return nil, err
+		}
+
+		drives = append(drives, *drive)
+
+		partNames, err := getPartNames(diskName)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, partName := range partNames {
+			if strings.HasPrefix(partName, diskName) {
+				id, hasID := idMap[partName]
+				if !hasID {
+					continue
+				}
+
+				drive, err = makeDrive(nodeID, diskName, partName, id, mountInfoMap[partName])
+				if err != nil {
+					return nil, err
+				}
+
+				drives = append(drives, *drive)
+			}
+		}
+	}
+
+	return drives, nil
+}
+
+func getIDMap() (map[string]string, error) {
+	idMap := make(map[string]string)
+
+	idsDir, err := os.Open("/dev/disk/by-id")
+	defer idsDir.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	ids, err := idsDir.Readdirnames(0)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, id := range ids {
+		dest, err := os.Readlink("/dev/disk/by-id/" + id)
+		if err != nil {
+			return nil, err
+		}
+
+		driveName := filepath.Base(dest)
+
+		if previous, ok := idMap[driveName]; !ok || len(previous) > len(id) {
+			idMap[driveName] = id
+		}
+	}
+
+	return idMap, nil
+}
+
+func getMountInfoMap(procfs string) (map[string]MountInfo, error) {
+	mountInfoMap := make(map[string]MountInfo)
+
+	mounts, err := os.Open(procfs)
 	defer mounts.Close()
+	if err != nil {
+		return nil, err
+	}
+
 	scanner := bufio.NewScanner(mounts)
 
-	index := map[string]string{}
 	for scanner.Scan() {
 		line := scanner.Text()
-		words := strings.SplitN(line, " ", 2)
-		if _, ok := index[words[0]]; !ok {
-			index[words[0]] = line
+		words := strings.Split(line, " ")
+		if len(words) < 6 {
+			return nil, fmt.Errorf("Unrecognized mount format")
 		}
-	}
 
-	for _, drive := range drives {
-		if line, ok := index[drive.Path]; ok {
-			words := strings.Split(line, " ")
-			if len(words) < 6 {
-				// unrecognized format
-				continue
-			}
-			drive.Mountpoint = words[1]
-			drive.Filesystem = words[2]
-			drive.MountOptions = strings.Split(words[3], ",")
-			drive.DriveStatus = direct_csi.New
-			if drive.Filesystem == "" {
-				drive.DriveStatus = direct_csi.Unformatted
-			}
-			stat := &syscall.Statfs_t{}
-			if err := syscall.Statfs(drive.Mountpoint, stat); err != nil {
-				return err
-			}
-			availBlocks := int64(stat.Bavail)
-			drive.FreeCapacity = int64(stat.Bsize) * availBlocks
-		}
-	}
-	return nil
-}
-
-func getDriveForPath(drives map[string]*direct_csi.DirectCSIDrive, path string) *direct_csi.DirectCSIDrive {
-	driveName, isRootPartition := getPartition(path)
-	if driveName == "" {
-		return nil
-	}
-	if _, ok := drives[driveName]; !ok {
-		drives[driveName] = new(direct_csi.DirectCSIDrive)
-	}
-
-	if drives[driveName].Path == "" {
-		drives[driveName].Path = fmt.Sprintf("/dev/%s", driveName)
-	}
-
-	if drives[driveName].Name == "" {
-		drives[driveName].Name = driveName
-	}
-
-	drives[driveName].RootPartition = driveName
-
-	if !isRootPartition {
-		drives[driveName].RootPartition = getRootPartition(path)
-	}
-
-	return drives[driveName]
-}
-
-func getRootPartition(path string) string {
-	cleanPath := filepath.Clean(path)
-	if !strings.HasPrefix(cleanPath, "/sys/block/") {
-		return ""
-	}
-
-	cleanPath = cleanPath[len("/sys/block/"):]
-	cleanPathComponents := strings.SplitN(cleanPath, "/", 2)
-	return cleanPathComponents[0]
-}
-
-func getPartition(path string) (string, bool) {
-	isRootPartition := true
-	cleanPath := filepath.Clean(path)
-	if !strings.HasPrefix(cleanPath, "/sys/block/") {
-		return "", isRootPartition
-	}
-
-	cleanPath = cleanPath[len("/sys/block/"):]
-	cleanPathComponents := strings.SplitN(cleanPath, "/", 2)
-	driveName := cleanPathComponents[0]
-
-	if len(cleanPathComponents) == 1 {
-		return driveName, isRootPartition
-	}
-
-	// if it is a partition
-	if strings.HasPrefix(cleanPathComponents[1], driveName) {
-		isRootPartition = false
-		return strings.SplitN(cleanPathComponents[1], "/", 2)[0], isRootPartition
-	}
-	return driveName, isRootPartition
-}
-
-func WalkWithFollow(path string, callback func(path string, info os.FileInfo, err error) error) error {
-	f, err := os.Open(path)
-	defer f.Close()
-
-	if err != nil {
-		err := callback(path, nil, err)
-		if err != nil {
-			if err != filepath.SkipDir {
-				return err
-			}
-		}
-		return nil
-	}
-
-	stat, err := f.Stat()
-	if err != nil {
-		err := callback(path, nil, err)
-		if err != nil {
-			if err != filepath.SkipDir {
-				return err
-			}
-		}
-		return nil
-	}
-
-	if err := callback(path, stat, nil); err != nil {
-		if err != filepath.SkipDir {
-			return err
-		}
-		return nil
-	}
-
-	if stat.IsDir() {
-		dirs, err := f.Readdir(0)
-		if err != nil {
-			return err
-		}
-		for _, dir := range dirs {
-			if err := WalkWithFollow(filepath.Join(path, dir.Name()), callback); err != nil {
-				if err != filepath.SkipDir {
-					return err
+		driveName := filepath.Base(words[0])
+		if driveName != "" {
+			// TODO (haslersn): What about multiple mount points?
+			if _, ok := mountInfoMap[driveName]; !ok {
+				mountInfoMap[driveName] = MountInfo{
+					Mountpoint:   words[1],
+					Filesystem:   words[2],
+					MountOptions: strings.Split(words[3], ","),
 				}
-				return nil
 			}
 		}
 	}
-	return nil
+
+	return mountInfoMap, nil
+}
+
+func getDiskNames() ([]string, error) {
+	blockDir, err := os.Open("/sys/block/")
+	defer blockDir.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return blockDir.Readdirnames(0)
+}
+
+func getPartNames(diskName string) ([]string, error) {
+	driveDir, err := os.Open("/sys/block/" + diskName)
+	defer driveDir.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return driveDir.Readdirnames(0)
+}
+
+func makeDrive(nodeID string, diskName string, partName string, serialNumber string, mountInfo MountInfo) (*direct_csi.DirectCSIDrive, error) {
+	name, err := makeName(serialNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	partNum, err := getPartNum(diskName, partName)
+	if err != nil {
+		return nil, err
+	}
+
+	model, err := getModel(diskName, partName)
+	if err != nil {
+		return nil, err
+	}
+
+	blockSize, err := getBlockSize(diskName, partName)
+	if err != nil {
+		return nil, err
+	}
+
+	blockCount, err := getBlockCount(diskName, partName)
+	if err != nil {
+		return nil, err
+	}
+
+	freeCapacity, err := getFreeCapacity(mountInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &direct_csi.DirectCSIDrive{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		BlockSize:     blockSize,
+		DriveStatus:   getDriveStatus(mountInfo.Filesystem),
+		Filesystem:    mountInfo.Filesystem,
+		FreeCapacity:  freeCapacity,
+		ModelNumber:   model,
+		MountOptions:  mountInfo.MountOptions,
+		Mountpoint:    mountInfo.Mountpoint,
+		OwnerNode:     nodeID,
+		PartitionNum:  partNum,
+		Path:          getPath(diskName, partName),
+		RootPartition: diskName,
+		SerialNumber:  serialNumber,
+		TotalCapacity: blockSize * blockCount,
+	}, nil
+
+}
+
+var dns1123AllowedCharsRegex = regexp.MustCompile(`[^-\.a-z0-9]+`)
+var dns1123SubdomainRegex = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
+
+func makeName(input string) (string, error) {
+	temp := dns1123AllowedCharsRegex.ReplaceAllString(strings.ToLower(input), "-")
+	inputParts := strings.Split(temp, ".")
+	var subdomainParts []string
+	for _, inputPart := range inputParts {
+		trimmed := strings.Trim(inputPart, "-")
+		if trimmed != "" {
+			subdomainParts = append(subdomainParts, trimmed)
+		}
+	}
+	if len(subdomainParts) == 0 {
+		return "", fmt.Errorf("Can not make a valid DNS-1123 subdomain from '%s'", input)
+	}
+	subdomain := strings.Join(subdomainParts, ".")
+	if !dns1123SubdomainRegex.MatchString(subdomain) {
+		panic(fmt.Errorf("makeName('%s') produced an invalid DNS-1123 subdomain '%s'", input, subdomain))
+	}
+	return subdomain, nil
+}
+
+func getPartNum(diskName string, partName string) (int, error) {
+	if partName == "" {
+		return 0, nil
+	}
+
+	data, err := ioutil.ReadFile(fmt.Sprintf("/sys/block/%s/%s/partition", diskName, partName))
+	if err != nil {
+		return 0, err
+	} else {
+		return strconv.Atoi(strings.TrimSpace(string(data)))
+	}
+}
+
+func getModel(diskName string, partName string) (string, error) {
+	data, err := ioutil.ReadFile(fmt.Sprintf("/sys/block/%s/%s/model", diskName, partName))
+	if os.IsNotExist(err) {
+		return "", nil
+	} else if err != nil {
+		return "", err
+	} else {
+		return strings.TrimSpace(string(data)), nil
+	}
+}
+
+func getBlockSize(diskName string, partName string) (int64, error) {
+	data, err := ioutil.ReadFile(fmt.Sprintf("/sys/block/%s/queue/logical_block_size", diskName))
+	if err != nil {
+		return 0, err
+	} else {
+		return strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+	}
+}
+
+func getBlockCount(diskName string, partName string) (int64, error) {
+	data, err := ioutil.ReadFile(fmt.Sprintf("/sys/block/%s/%s/size", diskName, partName))
+	if err != nil {
+		return 0, err
+	} else {
+		return strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+	}
+}
+
+func getFreeCapacity(mountInfo MountInfo) (int64, error) {
+	if mountInfo.Mountpoint == "" {
+		return 0, nil
+	}
+
+	stat := &syscall.Statfs_t{}
+	if err := syscall.Statfs(mountInfo.Mountpoint, stat); err != nil {
+		return 0, err
+	}
+	return int64(stat.Bsize) * int64(stat.Bavail), nil
+}
+
+func getDriveStatus(filesystem string) direct_csi.DriveStatus {
+	if filesystem == "" {
+		return direct_csi.Unformatted
+	} else {
+		return direct_csi.New
+	}
+}
+
+func getPath(diskName string, partName string) string {
+	if partName == "" {
+		return "/dev/" + diskName
+	} else {
+		return "/dev/" + partName
+	}
 }
 
 // MountDevice - Utility to mount a device in the given mountpoint
