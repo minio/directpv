@@ -427,8 +427,8 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 	privileged := true
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
-		HostNetwork:        true,
-		HostIPC:            true,
+		HostNetwork:        false,
+		HostIPC:            false,
 		HostPID:            true,
 		Volumes: []corev1.Volume{
 			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name)),
@@ -438,7 +438,6 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 			newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
 			newHostPathVolume(volumeNameDevDir, volumePathDevDir),
 			newHostPathVolume(volumeNameSysDir, volumePathSysDir),
-			newHostPathVolume(volumeNameProcDir, volumePathProcDir),
 		},
 		Containers: []corev1.Container{
 			{
@@ -478,7 +477,6 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 					"--v=5",
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
-					"--procfs=/hostproc",
 					"--driver",
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -508,7 +506,6 @@ func CreateDaemonSet(ctx context.Context, kClient clientset.Interface, name, ide
 					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true),
 					newVolumeMount(volumeNameDevDir, "/dev", true),
 					newVolumeMount(volumeNameSysDir, "/sys", true),
-					newVolumeMount(volumeNameProcDir, "/hostproc", true),
 				},
 				Ports: []corev1.ContainerPort{
 					{

@@ -38,8 +38,6 @@ const (
 	volumePathDevDir          = "/dev"
 	volumeNameSysDir          = "sys-fs"
 	volumePathSysDir          = "/sys"
-	volumeNameProcDir         = "proc-fs"
-	volumePathProcDir         = "/proc"
 	volumeNameCSIRootDir      = "direct-csi-common-root"
 	volumeNameMountpointDir   = "mountpoint-dir"
 	volumeNameRegistrationDir = "registration-dir"
