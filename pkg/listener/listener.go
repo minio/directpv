@@ -170,8 +170,8 @@ func NewDirectCSIController(identity string, leaderLockName string, threads int,
 		queue:           workqueue.NewRateLimitingQueue(limiter),
 		threadiness:     threads,
 
-		ResyncPeriod:  30 * time.Second,
-		LeaseDuration: 15 * time.Second,
+		ResyncPeriod:  60 * time.Second,
+		LeaseDuration: 60 * time.Second,
 		RenewDeadline: 10 * time.Second,
 		RetryPeriod:   5 * time.Second,
 	}, nil

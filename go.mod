@@ -23,6 +23,7 @@ require (
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v0.19.3
 	k8s.io/code-generator v0.19.4 // indirect
+	k8s.io/gengo v0.0.0-20201113003025-83324d819ded // indirect
 	k8s.io/kube-openapi v0.0.0-20200805222855-6aeccd4b50c6
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73
 )

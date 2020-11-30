@@ -64,12 +64,14 @@ type DirectCSIDrive struct {
 	// +optional
 	Topology map[string]string `json:"topology,omitempty"`
 	// +optional
-	RequestedFormat RequestedFormat `json:"requestedFormat,omitempty"`
+	RequestedFormat RequestedFormat `json:"requestedFormat"`
 }
 
 type RequestedFormat struct {
 	// +optional
 	Force bool `json:"force,omitempty"`
+	// +optional
+	Purge bool `json:"purge,omitempty"`
 	// +optional
 	Filesystem string `json:"filesystem,omitempty"`
 	// +optional
@@ -130,5 +132,6 @@ type DirectCSIVolume struct {
 	// +optional
 	ContainerPath string `json:"containerPath,omitempty"`
 	// +optional
-	TotalCapacity int64 `json:"totalCapacity"`
+	TotalCapacity int64              `json:"totalCapacity"`
+	Status        []metav1.Condition `json:"status"`
 }

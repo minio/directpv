@@ -18,18 +18,15 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
+	"syscall"
 
 	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
-	"github.com/minio/direct-csi/pkg/utils"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 
 	"github.com/golang/glog"
 	kubeclientset "k8s.io/client-go/kubernetes"
@@ -38,6 +35,7 @@ import (
 type DirectCSIDriveListener struct {
 	kubeClient      kubeclientset.Interface
 	directcsiClient clientset.Interface
+	nodeID          string
 }
 
 func (b *DirectCSIDriveListener) InitializeKubeClient(k kubeclientset.Interface) {
@@ -54,53 +52,98 @@ func (b *DirectCSIDriveListener) Add(ctx context.Context, obj *v1alpha1.DirectCS
 }
 
 func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.DirectCSIDrive) error {
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 
-		var gErr error
-		directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := b.directcsiClient.DirectV1alpha1()
+	var uErr error
 
-		// Fetch the latest version in the queue
-		new, gErr = directCSIClient.DirectCSIDrives().Get(ctx, new.ObjectMeta.Name, metav1.GetOptions{})
-		if gErr != nil {
-			return status.Error(codes.NotFound, gErr.Error())
-		}
-
-		if new.DriveStatus == v1alpha1.Unformatted {
-			return status.Error(codes.Unimplemented, "Formatting drive is not yet implemented")
-		}
-
-		isReqSatisfiedAlready := func(old, new *v1alpha1.DirectCSIDrive) bool {
-			return new.DriveStatus == v1alpha1.Online && (new.RequestedFormat.Mountpoint == "" || new.RequestedFormat.Mountpoint == old.Mountpoint ||
-				reflect.DeepEqual(new.RequestedFormat.Mountoptions, old.RequestedFormat.Mountoptions))
-		}
-
-		// Do not process the request if satisfied already
-		if !new.DirectCSIOwned || isReqSatisfiedAlready(old, new) {
-			return nil
-		}
-
-		var mountPoint string
-		if new.RequestedFormat.Mountpoint == "" {
-			mountPoint = filepath.Join("/mnt", new.ObjectMeta.Name)
-		}
-
-		if err := MountDevice(new.Path, mountPoint, "", new.RequestedFormat.Mountoptions); err != nil {
-			return status.Errorf(codes.Internal, "Failed to format and mount the device: %v", err)
-		}
-
-		copiedDrive := new.DeepCopy()
-		copiedDrive.Mountpoint = mountPoint
-		copiedDrive.DriveStatus = v1alpha1.Online
-
-		if _, uErr := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); uErr != nil {
-			return uErr
-		}
-		glog.V(1).Infof("Successfully added DirectCSIDrive %s", new.ObjectMeta.Name)
+	if b.nodeID != new.OwnerNode {
+		glog.V(5).Infof("Skipping drive %s", new.ObjectMeta.Name)
 		return nil
-	}); err != nil {
-		return err
 	}
 
+	// Do not process the request if satisfied already
+	if !new.DirectCSIOwned {
+		return nil
+	}
+
+	if new.RequestedFormat.Filesystem == "" && new.RequestedFormat.Mountpoint == "" {
+		return nil
+	}
+
+	if new.DriveStatus == v1alpha1.Online {
+		glog.Errorf("Cannot format a drive in use %s", new.ObjectMeta.Name)
+		return nil
+	}
+
+	fsType := new.RequestedFormat.Filesystem
+	if fsType != "" {
+		isForceOptionSet := new.RequestedFormat.Force
+		if new.Mountpoint != "" {
+			if !isForceOptionSet {
+				glog.Errorf("Cannot format mounted drive - %s. Set 'force: true' to override", new.ObjectMeta.Name)
+				return nil
+			}
+			// Get absolute path
+			abMountPath, fErr := filepath.Abs(new.Mountpoint)
+			if fErr != nil {
+				return fErr
+			}
+			// Check and unmount if the drive is already mounted
+			if err := UnmountIfMounted(abMountPath); err != nil {
+				return err
+			}
+			// Update the truth immediately that the drive is been unmounted (OR) the drive does not have a mountpoint
+			new.Mountpoint = ""
+			if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
+				return uErr
+			}
+		}
+		if new.Filesystem != "" && !isForceOptionSet {
+			glog.Errorf("Drive already has a filesystem - %s", new.ObjectMeta.Name)
+			return nil
+		}
+		if fErr := FormatDevice(ctx, new.Path, fsType, isForceOptionSet); fErr != nil {
+			return fmt.Errorf("Failed to format the device: %v", fErr)
+		}
+
+		// Update the truth immediately that the drive is been unmounted (OR) the drive does not have a mountpoint
+		new.Filesystem = fsType
+		new.DriveStatus = v1alpha1.New
+		new.RequestedFormat.Filesystem = ""
+		new.Mountpoint = ""
+		new.MountOptions = []string{}
+		if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
+			return uErr
+		}
+	}
+
+	if new.Mountpoint == "" {
+		mountPoint := new.RequestedFormat.Mountpoint
+		if mountPoint == "" {
+			mountPoint = filepath.Join(string(filepath.Separator), "mnt", "direct-csi", new.ObjectMeta.Name)
+		}
+
+		if err := MountDevice(new.Path, mountPoint, fsType, new.RequestedFormat.Mountoptions); err != nil {
+			return fmt.Errorf("Failed to mount the device: %v", err)
+		}
+
+		new.RequestedFormat.Force = false
+		new.Mountpoint = mountPoint
+		new.RequestedFormat.Mountpoint = ""
+		new.RequestedFormat.Mountoptions = []string{}
+		stat := &syscall.Statfs_t{}
+		if err := syscall.Statfs(new.Mountpoint, stat); err != nil {
+			return err
+		}
+		availBlocks := int64(stat.Bavail)
+		new.FreeCapacity = int64(stat.Bsize) * availBlocks
+
+		if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
+			return uErr
+		}
+	}
+
+	glog.V(4).Infof("Successfully added DirectCSIDrive %s", new.ObjectMeta.Name)
 	return nil
 }
 
@@ -108,7 +151,7 @@ func (b *DirectCSIDriveListener) Delete(ctx context.Context, obj *v1alpha1.Direc
 	return nil
 }
 
-func startController(ctx context.Context) error {
+func startController(ctx context.Context, nodeID string) error {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
@@ -118,6 +161,6 @@ func startController(ctx context.Context) error {
 		glog.Error(err)
 		return err
 	}
-	ctrl.AddDirectCSIDriveListener(&DirectCSIDriveListener{})
+	ctrl.AddDirectCSIDriveListener(&DirectCSIDriveListener{nodeID: nodeID})
 	return ctrl.Run(ctx)
 }

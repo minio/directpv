@@ -68,6 +68,5 @@ func UnstageVolume(ctx context.Context, stagingPath string) error {
 		return err
 	}
 
-	mounter := mount.New("")
-	return mounter.Unmount(stagingPath)
+	return UnmountIfMounted(stagingPath)
 }

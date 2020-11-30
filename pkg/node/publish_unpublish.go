@@ -65,6 +65,5 @@ func UnpublishVolume(ctx context.Context, containerPath string) error {
 		return err
 	}
 
-	mounter := mount.New("")
-	return mounter.Unmount(containerPath)
+	return UnmountIfMounted(containerPath)
 }

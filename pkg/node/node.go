@@ -24,6 +24,7 @@ import (
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
 
+	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -49,6 +50,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	for _, drive := range drives {
 		drive.Topology = driveTopology
+		drive.RequestedFormat = direct_csi.RequestedFormat{}
 		_, err := directCSIClient.DirectCSIDrives().Create(ctx, &drive, metav1.CreateOptions{})
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
@@ -57,7 +59,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		}
 	}
 
-	go startController(ctx)
+	go startController(ctx, nodeID)
 
 	return &NodeServer{
 		NodeID:    nodeID,
@@ -138,6 +140,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		if cErr != nil {
 			return status.Error(codes.NotFound, cErr.Error())
 		}
+
 		if dvol.HostPath == "" || dvol.StagingPath == "" {
 			return status.Error(codes.FailedPrecondition, "volume not yet staged")
 		}
@@ -155,6 +158,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 		copiedVolume := dvol.DeepCopy()
 		copiedVolume.ContainerPath = containerPath
+		copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "published", Status: metav1.ConditionTrue, LastTransitionTime: metav1.Now(), Reason: "VolumePublished", Message: "VolumePublished"})
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -177,6 +181,24 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	if err := UnpublishVolume(ctx, containerPath); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	directCSIClient := utils.GetDirectCSIClient()
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
+		if cErr != nil {
+			return status.Error(codes.NotFound, cErr.Error())
+		}
+		copiedVolume := dvol.DeepCopy()
+		copiedVolume.ContainerPath = ""
+		copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "published", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeUnpublished", Message: "VolumeUnpublished"})
+		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -207,6 +229,10 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 			return status.Error(codes.NotFound, err.Error())
 		}
 
+		if csiDrive.OwnerNode != n.NodeID {
+			return status.Error(codes.InvalidArgument, "NodeID doesn't match the drive owner node")
+		}
+
 		if csiDrive.Filesystem == "" {
 			return status.Error(codes.FailedPrecondition, "Unformatted CSI Drive found")
 		}
@@ -219,10 +245,10 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		copiedVolume := dvol.DeepCopy()
 		copiedVolume.HostPath = hostPath
 		copiedVolume.StagingPath = stagingTargetPath
+		copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "staged", Status: metav1.ConditionTrue, LastTransitionTime: metav1.Now(), Reason: "VolumeStaged", Message: "VolumeStaged"})
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
-
 		return nil
 	}); err != nil {
 		return nil, err
@@ -241,6 +267,24 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	if err := UnstageVolume(ctx, stagingTargetPath); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	directCSIClient := utils.GetDirectCSIClient()
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
+		if cErr != nil {
+			return status.Error(codes.NotFound, cErr.Error())
+		}
+		copiedVolume := dvol.DeepCopy()
+		copiedVolume.HostPath = ""
+		copiedVolume.StagingPath = ""
+		copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "staged", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeUnstaged", Message: "VolumeUnstaged"})
+		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
