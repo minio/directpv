@@ -65,9 +65,7 @@ spec:
         app: direct-csi-min-io
     spec:
       serviceAccountName: direct-csi-min-io
-      hostNetwork: true
       hostPID: true
-      hostIPC: true
       containers:
         - name: node-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
@@ -100,7 +98,6 @@ spec:
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--node-id=$(KUBE_NODE_NAME)"
-            - "--procfs=/hostproc"
             - "--driver"
           env:
             - name: CSI_ENDPOINT
@@ -145,9 +142,6 @@ spec:
             - mountPath: /sys
               name: sys-fs
               mountPropagation: Bidirectional
-            - mountPath: /hostproc
-              name: proc-fs
-              mountPropagation: Bidirectional
         - name: liveness-probe
           volumeMounts:
           - mountPath: /csi
@@ -187,10 +181,6 @@ spec:
             path: /sys
             type: Directory
           name: sys-fs
-        - hostPath:
-            path: /proc
-            type: Directory
-          name: proc-fs
 
 ---
 
