@@ -43,7 +43,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	topologies[topology.TopologyDriverIdentity] = identity
 	topologies[topology.TopologyDriverRack] = rack
 	topologies[topology.TopologyDriverZone] = zone
-	topologies[topology.TopologyDriverZone] = zone
+	topologies[topology.TopologyDriverRegion] = region
 	topologies[topology.TopologyDriverNode] = nodeID
 	driveTopology := topologies
 
