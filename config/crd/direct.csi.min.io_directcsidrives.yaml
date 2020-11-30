@@ -65,14 +65,14 @@ spec:
               allocatedCapacity:
                 format: int64
                 type: integer
-              blockSize:
-                format: int64
-                type: integer
               driveStatus:
                 type: string
               filesystem:
                 type: string
               freeCapacity:
+                format: int64
+                type: integer
+              logicalBlockSize:
                 format: int64
                 type: integer
               modelNumber:
@@ -90,6 +90,9 @@ spec:
                 type: integer
               path:
                 type: string
+              physicalBlockSize:
+                format: int64
+                type: integer
               rootPartition:
                 type: string
               serialNumber:

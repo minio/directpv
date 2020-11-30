@@ -200,12 +200,17 @@ func makeDrive(nodeID string, diskName string, partName string, serialNumber str
 		return nil, err
 	}
 
-	blockSize, err := getBlockSize(diskName, partName)
+	physicalBlockSize, err := getPhysicalBlockSize(diskName, partName)
 	if err != nil {
 		return nil, err
 	}
 
-	blockCount, err := getBlockCount(diskName, partName)
+	logicalBlockSize, err := getLogicalBlockSize(diskName, partName)
+	if err != nil {
+		return nil, err
+	}
+
+	logicalBlockCount, err := getLogicalBlockCount(diskName, partName)
 	if err != nil {
 		return nil, err
 	}
@@ -220,22 +225,22 @@ func makeDrive(nodeID string, diskName string, partName string, serialNumber str
 			Name: name,
 		},
 		Status: direct_csi.DirectCSIDriveStatus{
-			BlockSize:     blockSize,
-			DriveStatus:   getDriveStatus(mountInfo.Filesystem),
-			Filesystem:    mountInfo.Filesystem,
-			FreeCapacity:  freeCapacity,
-			ModelNumber:   model,
-			MountOptions:  mountInfo.MountOptions,
-			Mountpoint:    mountInfo.Mountpoint,
-			NodeName:      nodeID,
-			PartitionNum:  partNum,
-			Path:          getPath(diskName, partName),
-			RootPartition: diskName,
-			SerialNumber:  serialNumber,
-			TotalCapacity: blockSize * blockCount,
+			DriveStatus:       getDriveStatus(mountInfo.Filesystem),
+			Filesystem:        mountInfo.Filesystem,
+			FreeCapacity:      freeCapacity,
+			LogicalBlockSize:  logicalBlockSize,
+			ModelNumber:       model,
+			MountOptions:      mountInfo.MountOptions,
+			Mountpoint:        mountInfo.Mountpoint,
+			NodeName:          nodeID,
+			PartitionNum:      partNum,
+			Path:              getPath(diskName, partName),
+			PhysicalBlockSize: physicalBlockSize,
+			RootPartition:     diskName,
+			SerialNumber:      serialNumber,
+			TotalCapacity:     logicalBlockSize * logicalBlockCount,
 		},
 	}, nil
-
 }
 
 var dns1123AllowedCharsRegex = regexp.MustCompile(`[^-\.a-z0-9]+`)
@@ -285,7 +290,16 @@ func getModel(diskName string, partName string) (string, error) {
 	}
 }
 
-func getBlockSize(diskName string, partName string) (int64, error) {
+func getPhysicalBlockSize(diskName string, partName string) (int64, error) {
+	data, err := ioutil.ReadFile(fmt.Sprintf("/sys/block/%s/queue/physical_block_size", diskName))
+	if err != nil {
+		return 0, err
+	} else {
+		return strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+	}
+}
+
+func getLogicalBlockSize(diskName string, partName string) (int64, error) {
 	data, err := ioutil.ReadFile(fmt.Sprintf("/sys/block/%s/queue/logical_block_size", diskName))
 	if err != nil {
 		return 0, err
@@ -294,7 +308,7 @@ func getBlockSize(diskName string, partName string) (int64, error) {
 	}
 }
 
-func getBlockCount(diskName string, partName string) (int64, error) {
+func getLogicalBlockCount(diskName string, partName string) (int64, error) {
 	data, err := ioutil.ReadFile(fmt.Sprintf("/sys/block/%s/%s/size", diskName, partName))
 	if err != nil {
 		return 0, err
