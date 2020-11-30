@@ -454,7 +454,7 @@ func (c *DirectCSIController) runController(ctx context.Context) {
 		deleteFunc := func(ctx context.Context, obj interface{}) error {
 			return c.DirectCSIVolumeListener.Delete(ctx, obj.(*v1alpha1.DirectCSIVolume))
 		}
-		go controllerFor("DirectCSIVolume", &v1alpha1.DirectCSIVolume{}, addFunc, updateFunc, deleteFunc)
+		go controllerFor("DirectCSIVolumes", &v1alpha1.DirectCSIVolume{}, addFunc, updateFunc, deleteFunc)
 	}
 	if c.DirectCSIDriveListener != nil {
 		c.DirectCSIDriveListener.InitializeKubeClient(c.kubeClient)

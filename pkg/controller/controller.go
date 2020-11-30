@@ -31,7 +31,11 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func NewControllerServer(identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
+func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
+
+	// Start DirectCSI volume listener
+	go startVolumeController(ctx, nodeID)
+
 	return &ControllerServer{
 		NodeID:   nodeID,
 		Identity: identity,
@@ -126,7 +130,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 		vol = &direct_csi.DirectCSIVolume{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+				Name:       name,
+				Finalizers: []string{fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "pv-protection"), fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "purge-protection")},
 			},
 			OwnerDrive:    selectedCSIDrive.ObjectMeta.Name,
 			OwnerNode:     selectedCSIDrive.Status.NodeName,
@@ -173,7 +178,35 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 }
 
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	vID := req.GetVolumeId()
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+	glog.V(5).Infof("DeleteVolumeRequest - %s", vID)
+
+	directCSIClient := utils.GetDirectCSIClient()
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
+		if cErr != nil {
+			return cErr
+		}
+		dvol.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&dvol.ObjectMeta, fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "pv-protection")))
+		if dvol, cErr = directCSIClient.DirectCSIVolumes().Update(ctx, dvol, metav1.UpdateOptions{}); cErr != nil {
+			return cErr
+		}
+		return nil
+	}); err != nil {
+		if errors.IsNotFound(err) || errors.IsGone(err) {
+			return &csi.DeleteVolumeResponse{}, nil
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if dErr := directCSIClient.DirectCSIVolumes().Delete(ctx, vID, metav1.DeleteOptions{}); dErr != nil {
+		return nil, status.Error(codes.Internal, dErr.Error())
+	}
+
+	return &csi.DeleteVolumeResponse{}, nil
 }
 
 func (c *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {

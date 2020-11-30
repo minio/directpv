@@ -82,10 +82,11 @@ func AddFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
 	return finalizers
 }
 
-func RemoveFinalizer(finalizers []string, finalizer string) []string {
+func RemoveFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
 	removeByIndex := func(s []string, index int) []string {
 		return append(s[:index], s[index+1:]...)
 	}
+	finalizers := objectMeta.GetFinalizers()
 	for index, f := range finalizers {
 		if f == finalizer {
 			finalizers = removeByIndex(finalizers, index)

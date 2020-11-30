@@ -57,7 +57,8 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		}
 	}
 
-	go startController(ctx, nodeID)
+	// Start DirectCSI drive listener
+	go startDriveController(ctx, nodeID)
 
 	return &NodeServer{
 		NodeID:    nodeID,
