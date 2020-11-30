@@ -20,26 +20,11 @@ spec:
     schema:
       openAPIV3Schema:
         properties:
-          allocatedCapacity:
-            format: int64
-            type: integer
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
               of an object. Servers should convert recognized schemas to the latest
               internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
-          blockSize:
-            format: int64
-            type: integer
-          directCSIOwned:
-            type: boolean
-          driveStatus:
-            type: string
-          filesystem:
-            type: string
-          freeCapacity:
-            format: int64
-            type: integer
           kind:
             description: 'Kind is a string value representing the REST resource this
               object represents. Servers may infer this from the endpoint the client
@@ -47,52 +32,81 @@ spec:
             type: string
           metadata:
             type: object
-          modelNumber:
-            type: string
-          mountOptions:
-            items:
-              type: string
-            type: array
-            x-kubernetes-list-type: atomic
-          mountpoint:
-            type: string
-          ownerNode:
-            type: string
-          partitionNum:
-            type: integer
-          path:
-            type: string
-          requestedFormat:
+          spec:
             properties:
+              directCSIOwned:
+                description: required
+                type: boolean
+              driveTaint:
+                additionalProperties:
+                  type: string
+                type: object
+              requestedFormat:
+                properties:
+                  filesystem:
+                    type: string
+                  force:
+                    type: boolean
+                  mountoptions:
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  mountpoint:
+                    type: string
+                  purge:
+                    type: boolean
+                type: object
+            required:
+            - directCSIOwned
+            type: object
+          status:
+            properties:
+              allocatedCapacity:
+                format: int64
+                type: integer
+              blockSize:
+                format: int64
+                type: integer
+              driveStatus:
+                type: string
               filesystem:
                 type: string
-              force:
-                type: boolean
-              mountoptions:
+              freeCapacity:
+                format: int64
+                type: integer
+              modelNumber:
+                type: string
+              mountOptions:
                 items:
                   type: string
                 type: array
+                x-kubernetes-list-type: atomic
               mountpoint:
                 type: string
-              purge:
-                type: boolean
+              nodeName:
+                type: string
+              partitionNum:
+                type: integer
+              path:
+                type: string
+              rootPartition:
+                type: string
+              serialNumber:
+                type: string
+              topology:
+                additionalProperties:
+                  type: string
+                type: object
+              totalCapacity:
+                format: int64
+                type: integer
+            required:
+            - path
             type: object
-          rootPartition:
-            type: string
-          serialNumber:
-            type: string
-          topology:
-            additionalProperties:
-              type: string
-            type: object
-          totalCapacity:
-            format: int64
-            type: integer
         required:
-        - directCSIOwned
         - metadata
-        - ownerNode
-        - path
+        - spec
         type: object
     served: true
     storage: true

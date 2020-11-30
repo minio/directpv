@@ -128,8 +128,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				Name: name,
 			},
 			OwnerDrive:    selectedCSIDrive.ObjectMeta.Name,
-			OwnerNode:     selectedCSIDrive.OwnerNode,
-			TotalCapacity: selectedCSIDrive.TotalCapacity,
+			OwnerNode:     selectedCSIDrive.Status.NodeName,
+			TotalCapacity: selectedCSIDrive.Status.TotalCapacity,
 			Status:        []metav1.Condition{},
 		}
 
@@ -140,9 +140,9 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		glog.Infof("Created DirectCSI Volume - %s", vol.ObjectMeta.Name)
 
 		copiedDrive := selectedCSIDrive.DeepCopy()
-		copiedDrive.FreeCapacity = copiedDrive.FreeCapacity - req.GetCapacityRange().GetRequiredBytes()
-		copiedDrive.AllocatedCapacity = copiedDrive.AllocatedCapacity + req.GetCapacityRange().GetRequiredBytes()
-		copiedDrive.DriveStatus = direct_csi.Online
+		copiedDrive.Status.FreeCapacity = copiedDrive.Status.FreeCapacity - req.GetCapacityRange().GetRequiredBytes()
+		copiedDrive.Status.AllocatedCapacity = copiedDrive.Status.AllocatedCapacity + req.GetCapacityRange().GetRequiredBytes()
+		copiedDrive.Status.DriveStatus = direct_csi.Online
 		if _, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -162,7 +162,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			ContentSource: req.GetVolumeContentSource(),
 			AccessibleTopology: []*csi.Topology{
 				{
-					Segments: selectedCSIDrive.Topology,
+					Segments: selectedCSIDrive.Status.Topology,
 				},
 			},
 		},

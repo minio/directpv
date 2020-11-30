@@ -111,12 +111,12 @@ spec:
               - type
               type: object
             type: array
+            x-kubernetes-list-type: atomic
           totalCapacity:
             format: int64
             type: integer
         required:
         - metadata
-        - status
         type: object
     served: true
     storage: true

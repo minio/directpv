@@ -26,7 +26,7 @@ import (
 )
 
 func StageVolume(ctx context.Context, directCSIDrive *direct_csi.DirectCSIDrive, stagingPath string, volumeID string) (string, error) {
-	hostPath := filepath.Join(directCSIDrive.Mountpoint, volumeID)
+	hostPath := filepath.Join(directCSIDrive.Status.Mountpoint, volumeID)
 	if err := os.MkdirAll(hostPath, 0755); err != nil {
 		return "", err
 	}
