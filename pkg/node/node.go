@@ -24,7 +24,6 @@ import (
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -42,15 +41,14 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	topologies := map[string]string{}
 	topologies[topology.TopologyDriverIdentity] = identity
-	topologies[topology.TopologyDriverNode] = nodeID
 	topologies[topology.TopologyDriverRack] = rack
 	topologies[topology.TopologyDriverZone] = zone
-	topologies[topology.TopologyDriverRegion] = region
+	topologies[topology.TopologyDriverZone] = zone
+	topologies[topology.TopologyDriverNode] = nodeID
 	driveTopology := topologies
 
 	for _, drive := range drives {
-		drive.Topology = driveTopology
-		drive.RequestedFormat = direct_csi.RequestedFormat{}
+		drive.Status.Topology = driveTopology
 		_, err := directCSIClient.DirectCSIDrives().Create(ctx, &drive, metav1.CreateOptions{})
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
@@ -84,10 +82,10 @@ func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 	topology := &csi.Topology{
 		Segments: map[string]string{
 			topology.TopologyDriverIdentity: n.Identity,
-			topology.TopologyDriverNode:     n.NodeID,
 			topology.TopologyDriverRack:     n.Rack,
 			topology.TopologyDriverZone:     n.Zone,
 			topology.TopologyDriverRegion:   n.Region,
+			topology.TopologyDriverNode:     n.NodeID,
 		},
 	}
 
@@ -229,11 +227,11 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 			return status.Error(codes.NotFound, err.Error())
 		}
 
-		if csiDrive.OwnerNode != n.NodeID {
+		if csiDrive.Status.NodeName != n.NodeID {
 			return status.Error(codes.InvalidArgument, "NodeID doesn't match the drive owner node")
 		}
 
-		if csiDrive.Filesystem == "" {
+		if csiDrive.Status.Filesystem == "" {
 			return status.Error(codes.FailedPrecondition, "Unformatted CSI Drive found")
 		}
 

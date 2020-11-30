@@ -29,11 +29,13 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDrive":      schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDrive(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveList":  schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveList(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIVolume":     schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolume(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIVolumeList": schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolumeList(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat":     schema_pkg_apis_directcsiminio_v1alpha1_RequestedFormat(ref),
+		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDrive":       schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDrive(ref),
+		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveList":   schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveList(ref),
+		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveSpec":   schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveSpec(ref),
+		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveStatus": schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveStatus(ref),
+		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIVolume":      schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolume(ref),
+		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIVolumeList":  schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolumeList(ref),
+		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat":      schema_pkg_apis_directcsiminio_v1alpha1_RequestedFormat(ref),
 	}
 }
 
@@ -62,133 +64,22 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDrive(ref common.Reference
 							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
-					"ownerNode": {
+					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveSpec"),
 						},
 					},
-					"directCSIOwned": {
+					"status": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-					"path": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"modelNumber": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"serialNumber": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"totalCapacity": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int64",
-						},
-					},
-					"allocatedCapacity": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int64",
-						},
-					},
-					"freeCapacity": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int64",
-						},
-					},
-					"blockSize": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int64",
-						},
-					},
-					"rootPartition": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"partitionNum": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
-						},
-					},
-					"filesystem": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"mountpoint": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"mountOptions": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
-					"driveStatus": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"topology": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
-					"requestedFormat": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat"),
+							Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveStatus"),
 						},
 					},
 				},
-				Required: []string{"metadata", "ownerNode", "directCSIOwned", "path"},
+				Required: []string{"metadata", "spec"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveSpec", "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -236,6 +127,170 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveList(ref common.Refer
 		},
 		Dependencies: []string{
 			"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDrive", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"requestedFormat": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat"),
+						},
+					},
+					"directCSIOwned": {
+						SchemaProps: spec.SchemaProps{
+							Description: "required",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"driveTaint": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"directCSIOwned"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat"},
+	}
+}
+
+func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"allocatedCapacity": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"freeCapacity": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"rootPartition": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"partitionNum": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"filesystem": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"mountpoint": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"mountOptions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"nodeName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"driveStatus": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"modelNumber": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"serialNumber": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"totalCapacity": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"blockSize": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"topology": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"path"},
+			},
+		},
 	}
 }
 
@@ -300,12 +355,29 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolume(ref common.Referenc
 							Format: "int64",
 						},
 					},
+					"status": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"metadata"},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -368,6 +440,12 @@ func schema_pkg_apis_directcsiminio_v1alpha1_RequestedFormat(ref common.Referenc
 							Format: "",
 						},
 					},
+					"purge": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 					"filesystem": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -378,6 +456,24 @@ func schema_pkg_apis_directcsiminio_v1alpha1_RequestedFormat(ref common.Referenc
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
+						},
+					},
+					"mountoptions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
 						},
 					},
 				},

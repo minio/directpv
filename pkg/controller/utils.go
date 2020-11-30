@@ -57,7 +57,7 @@ func FilterDrivesByCapacityRange(capacityRange *csi.CapacityRange, csiDrives []d
 	limitBytes := capacityRange.GetLimitBytes()
 	filteredDriveList := []direct_csi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
-		if csiDrive.FreeCapacity >= reqBytes && (limitBytes == 0 || csiDrive.FreeCapacity <= limitBytes) {
+		if csiDrive.Status.FreeCapacity >= reqBytes && (limitBytes == 0 || csiDrive.Status.FreeCapacity <= limitBytes) {
 			filteredDriveList = append(filteredDriveList, csiDrive)
 		}
 	}
@@ -68,7 +68,7 @@ func FilterDrivesByCapacityRange(capacityRange *csi.CapacityRange, csiDrives []d
 func FilterDrivesByRequestFormat(csiDrives []direct_csi.DirectCSIDrive) []direct_csi.DirectCSIDrive {
 	filteredDriveList := []direct_csi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
-		if reflect.DeepEqual(csiDrive.RequestedFormat, direct_csi.RequestedFormat{}) {
+		if reflect.DeepEqual(csiDrive.Spec.RequestedFormat, direct_csi.RequestedFormat{}) {
 			filteredDriveList = append(filteredDriveList, csiDrive)
 		}
 	}
@@ -82,7 +82,7 @@ func FilterDrivesByFsType(fsType string, csiDrives []direct_csi.DirectCSIDrive) 
 	}
 	filteredDriveList := []direct_csi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
-		if csiDrive.Filesystem == fsType {
+		if csiDrive.Status.Filesystem == fsType {
 			filteredDriveList = append(filteredDriveList, csiDrive)
 		}
 	}
@@ -96,7 +96,7 @@ func SelectDriveByTopologyReq(tReq *csi.TopologyRequirement, csiDrives []direct_
 
 	// Sort the drives by free capacity [Descending]
 	sort.SliceStable(csiDrives, func(i, j int) bool {
-		return csiDrives[i].FreeCapacity > csiDrives[j].FreeCapacity
+		return csiDrives[i].Status.FreeCapacity > csiDrives[j].Status.FreeCapacity
 	})
 
 	// Try to fullfill the preferred topology request, If not, fallback to requisite list.
@@ -123,7 +123,7 @@ func SelectDriveByTopologyReq(tReq *csi.TopologyRequirement, csiDrives []direct_
 func selectDriveByTopology(top *csi.Topology, csiDrives []direct_csi.DirectCSIDrive) (direct_csi.DirectCSIDrive, error) {
 	topSegments := top.GetSegments()
 	for _, csiDrive := range csiDrives {
-		driveSegments := csiDrive.Topology
+		driveSegments := csiDrive.Status.Topology
 		if matchSegments(topSegments, driveSegments) {
 			return csiDrive, nil
 		}
