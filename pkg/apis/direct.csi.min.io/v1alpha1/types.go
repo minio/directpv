@@ -72,7 +72,9 @@ type DirectCSIDriveStatus struct {
 	// +optional
 	TotalCapacity int64 `json:"totalCapacity,omitempty"`
 	// +optional
-	BlockSize int64 `json:"blockSize,omitempty"`
+	PhysicalBlockSize int64 `json:"physicalBlockSize,omitempty"`
+	// +optional
+	LogicalBlockSize int64 `json:"logicalBlockSize,omitempty"`
 	// +optional
 	Topology map[string]string `json:"topology,omitempty"`
 }
