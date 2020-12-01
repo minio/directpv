@@ -19,6 +19,7 @@ package utils
 import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -70,7 +71,8 @@ func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
 	return crdClient
 }
 
-func AddFinalizer(finalizers []string, finalizer string) []string {
+func AddFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
+	finalizers := objectMeta.GetFinalizers()
 	for _, f := range finalizers {
 		if f == finalizer {
 			return finalizers
