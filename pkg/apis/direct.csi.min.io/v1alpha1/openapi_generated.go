@@ -267,7 +267,13 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveStatus(ref common.Ref
 							Format: "int64",
 						},
 					},
-					"blockSize": {
+					"physicalBlockSize": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"logicalBlockSize": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"integer"},
 							Format: "int64",
