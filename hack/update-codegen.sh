@@ -20,36 +20,42 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-SCRIPT_ROOT=$(dirname ${BASH_SOURCE})
-PROJECT_ROOT=${SCRIPT_ROOT}/..
+PATH="$PATH:$GOPATH/bin"
+SCRIPT_ROOT="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+PROJECT_ROOT="${SCRIPT_ROOT}/.."
 
 GO111MODULE=off
-go get -d k8s.io/code-generator/...
+go get k8s.io/code-generator/...
+go get sigs.k8s.io/controller-tools/cmd/controller-gen
 
 REPOSITORY=github.com/minio/direct-csi
-V1ALPHA1=${REPOSITORY}/pkg/apis/direct.csi.min.io/v1alpha1
+V1ALPHA1="${REPOSITORY}/pkg/apis/direct.csi.min.io/v1alpha1"
+
+# Remove old generated code
+rm -rf "${PROJECT_ROOT}/config/crd"
+rm -rf "${PROJECT_ROOT}/pkg/clientset"
 
 # deepcopy
 deepcopy-gen \
-    --go-header-file  ${SCRIPT_ROOT}/boilerplate.go.txt \
-    --output-package ${REPOSITORY}/pkg/ \
-    --input-dirs ${V1ALPHA1}
+    --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
+    --output-package "${REPOSITORY}/pkg/" \
+    --input-dirs "${V1ALPHA1}"
 
 # openapi
 openapi-gen \
-    --go-header-file ${SCRIPT_ROOT}/boilerplate.go.txt \
-    --output-package ${V1ALPHA1} \
-    --input-dirs ${V1ALPHA1}
-	       
-# client	   
+    --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
+    --output-package "${V1ALPHA1}" \
+    --input-dirs "${V1ALPHA1}"
+
+# client
 client-gen \
     --fake-clientset \
-    --go-header-file  ${SCRIPT_ROOT}/boilerplate.go.txt \
+    --go-header-file  "${SCRIPT_ROOT}/boilerplate.go.txt" \
     --clientset-name clientset \
-    --output-package ${REPOSITORY}/pkg/ \
-    --input-dirs ${V1ALPHA1} \
+    --output-package "${REPOSITORY}/pkg/" \
+    --input-dirs "${V1ALPHA1}" \
     --input direct.csi.min.io/v1alpha1 \
-    --input-base ${REPOSITORY}/pkg/apis
+    --input-base "${REPOSITORY}/pkg/apis"
 
 # crd
 controller-gen \

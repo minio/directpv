@@ -19,9 +19,10 @@
 set -e
 
 SCRIPT_ROOT="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-docker run \
-    -u $(id -u ${USER}):$(id -g ${USER}) \
-    -e HOME=/go/home \
-    -v "${SCRIPT_ROOT}:/go/src/github.com/minio/direct-csi" \
-    -w /go/src/github.com/minio/direct-csi \
-    --entrypoint hack/build-without-docker.sh golang:1.14
+REPOSITORY=github.com/minio/direct-csi
+CSI_VERSION=$(git describe --tags --always --dirty)
+
+export CGO_ENABLED=0
+
+"${SCRIPT_ROOT}/update-codegen.sh"
+go build -tags "osusergo netgo static_build" -ldflags="-X ${REPOSITORY}/cmd.Version=${CSI_VERSION} -extldflags=-static"
