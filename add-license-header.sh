@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 cat > /tmp/LICENSE_TEMPLATE << EOF
 This file is part of MinIO Direct CSI
