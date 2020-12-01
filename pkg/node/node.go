@@ -211,7 +211,6 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	directCSIClient := utils.GetDirectCSIClient()
-
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
 		if cErr != nil {
@@ -284,6 +283,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	}); err != nil {
 		return nil, err
 	}
+
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 

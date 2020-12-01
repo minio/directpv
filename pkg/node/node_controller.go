@@ -55,6 +55,11 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 	directCSIClient := b.directcsiClient.DirectV1alpha1()
 	var uErr error
 
+	new, uErr = directCSIClient.DirectCSIDrives().Get(ctx, new.ObjectMeta.Name, metav1.GetOptions{})
+	if uErr != nil {
+		return uErr
+	}
+
 	if b.nodeID != new.Status.NodeName {
 		glog.V(5).Infof("Skipping drive %s", new.ObjectMeta.Name)
 		return nil
@@ -72,9 +77,16 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 	fsType := new.Spec.RequestedFormat.Filesystem
 	if fsType != "" {
 		isForceOptionSet := new.Spec.RequestedFormat.Force
+
+		finalizers := new.ObjectMeta.GetFinalizers()
+		if len(finalizers) > 0 {
+			glog.Errorf("Cannot format the drive as the finalizers are not yet satisfied: %v", finalizers)
+			return nil
+		}
+
 		if new.Status.Mountpoint != "" {
 			if !isForceOptionSet {
-				glog.Errorf("Cannot format mounted drive - %s. Set 'force: true' to override", new.ObjectMeta.Name)
+				glog.Errorf("Cannot format a mounted drive - %s. Set 'force: true' to override", new.ObjectMeta.Name)
 				return nil
 			}
 			// Get absolute path
@@ -135,9 +147,9 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 		if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
 			return uErr
 		}
+		glog.V(4).Infof("Successfully mounted DirectCSIDrive %s", new.ObjectMeta.Name)
 	}
 
-	glog.V(4).Infof("Successfully added DirectCSIDrive %s", new.ObjectMeta.Name)
 	return nil
 }
 

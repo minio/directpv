@@ -19,6 +19,7 @@ package utils
 import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -68,4 +69,28 @@ func GetDirectCSIClient() directv1alpha1.DirectV1alpha1Interface {
 
 func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
 	return crdClient
+}
+
+func AddFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
+	finalizers := objectMeta.GetFinalizers()
+	for _, f := range finalizers {
+		if f == finalizer {
+			return finalizers
+		}
+	}
+	finalizers = append(finalizers, finalizer)
+	return finalizers
+}
+
+func RemoveFinalizer(finalizers []string, finalizer string) []string {
+	removeByIndex := func(s []string, index int) []string {
+		return append(s[:index], s[index+1:]...)
+	}
+	for index, f := range finalizers {
+		if f == finalizer {
+			finalizers = removeByIndex(finalizers, index)
+			break
+		}
+	}
+	return finalizers
 }
