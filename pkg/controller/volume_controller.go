@@ -54,35 +54,37 @@ func (b *DirectCSIVolumeListener) Add(ctx context.Context, obj *v1alpha1.DirectC
 func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1.DirectCSIVolume) error {
 	glog.V(1).Infof("Update called for DirectCSIVolume %s", new.ObjectMeta.Name)
 
-	finalizers := new.ObjectMeta.GetFinalizers()
-	if len(finalizers) > 0 {
-		if len(finalizers) == 1 && finalizers[0] == fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, "purge-protection") {
-			directCSIClient := b.directcsiClient.DirectV1alpha1()
-			if new.OwnerDrive != "" {
-				if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					ownerDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, new.OwnerDrive, metav1.GetOptions{})
-					if dErr != nil {
-						return dErr
+	if !new.ObjectMeta.GetDeletionTimestamp().IsZero() {
+		finalizers := new.ObjectMeta.GetFinalizers()
+		if len(finalizers) > 0 {
+			if len(finalizers) == 1 && finalizers[0] == fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, "purge-protection") {
+				directCSIClient := b.directcsiClient.DirectV1alpha1()
+				if new.OwnerDrive != "" {
+					if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+						ownerDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, new.OwnerDrive, metav1.GetOptions{})
+						if dErr != nil {
+							return dErr
+						}
+						copiedDrive := ownerDrive.DeepCopy()
+						copiedDrive.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&copiedDrive.ObjectMeta, fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, new.ObjectMeta.Name)))
+						if len(copiedDrive.ObjectMeta.Finalizers) == 0 {
+							copiedDrive.Status.DriveStatus = v1alpha1.Other // || ""
+							copiedDrive.Spec.DirectCSIOwned = false         // Format and make it fresh
+						}
+						if _, dErr = directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); dErr != nil {
+							return dErr
+						}
+						return nil
+					}); err != nil {
+						return err
 					}
-					copiedDrive := ownerDrive.DeepCopy()
-					copiedDrive.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&copiedDrive.ObjectMeta, fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, new.ObjectMeta.Name)))
-					if len(copiedDrive.ObjectMeta.Finalizers) == 0 {
-						copiedDrive.Status.DriveStatus = v1alpha1.Other // || ""
-						copiedDrive.Spec.DirectCSIOwned = false         // Format and make it fresh
-					}
-					if _, dErr = directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); dErr != nil {
-						return dErr
-					}
-					return nil
-				}); err != nil {
-					return err
 				}
-			}
 
-			new.OwnerDrive = ""
-			new.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&new.ObjectMeta, fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, "purge-protection")))
-			if _, vErr := directCSIClient.DirectCSIVolumes().Update(ctx, new, metav1.UpdateOptions{}); vErr != nil {
-				return vErr
+				new.OwnerDrive = ""
+				new.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&new.ObjectMeta, fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, "purge-protection")))
+				if _, vErr := directCSIClient.DirectCSIVolumes().Update(ctx, new, metav1.UpdateOptions{}); vErr != nil {
+					return vErr
+				}
 			}
 		}
 	}

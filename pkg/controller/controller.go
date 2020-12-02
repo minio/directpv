@@ -136,7 +136,10 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			OwnerDrive:    selectedCSIDrive.ObjectMeta.Name,
 			OwnerNode:     selectedCSIDrive.Status.NodeName,
 			TotalCapacity: selectedCSIDrive.Status.TotalCapacity,
-			Status:        []metav1.Condition{},
+			Status: []metav1.Condition{
+				{Type: "staged", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeStaged", Message: "VolumeStaged"},
+				{Type: "published", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumePublished", Message: "VolumePublished"},
+			},
 		}
 
 		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); err != nil && !errors.IsAlreadyExists(err) {
@@ -190,6 +193,9 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		if cErr != nil {
 			return cErr
 		}
+		if !utils.CheckVolumeStatusCondition(dvol.Status, "staged", metav1.ConditionFalse) {
+			return status.Errorf(codes.FailedPrecondition, "volume has not been unstaged: %s", vID)
+		}
 		dvol.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&dvol.ObjectMeta, fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "pv-protection")))
 		if dvol, cErr = directCSIClient.DirectCSIVolumes().Update(ctx, dvol, metav1.UpdateOptions{}); cErr != nil {
 			return cErr
@@ -199,12 +205,12 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		if errors.IsNotFound(err) || errors.IsGone(err) {
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
 
-	if dErr := directCSIClient.DirectCSIVolumes().Delete(ctx, vID, metav1.DeleteOptions{}); dErr != nil {
-		return nil, status.Error(codes.Internal, dErr.Error())
-	}
+	// if dErr := directCSIClient.DirectCSIVolumes().Delete(ctx, vID, metav1.DeleteOptions{}); dErr != nil {
+	// 	return nil, status.Error(codes.Internal, dErr.Error())
+	// }
 
 	return &csi.DeleteVolumeResponse{}, nil
 }

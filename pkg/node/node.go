@@ -157,7 +157,8 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 		copiedVolume := dvol.DeepCopy()
 		copiedVolume.ContainerPath = containerPath
-		copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "published", Status: metav1.ConditionTrue, LastTransitionTime: metav1.Now(), Reason: "VolumePublished", Message: "VolumePublished"})
+		utils.UpdateVolumeStatusCondition(copiedVolume.Status, "published", metav1.ConditionTrue)
+		// copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "published", Status: metav1.ConditionTrue, LastTransitionTime: metav1.Now(), Reason: "VolumePublished", Message: "VolumePublished"})
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -189,7 +190,8 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		}
 		copiedVolume := dvol.DeepCopy()
 		copiedVolume.ContainerPath = ""
-		copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "published", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeUnpublished", Message: "VolumeUnpublished"})
+		utils.UpdateVolumeStatusCondition(copiedVolume.Status, "published", metav1.ConditionFalse)
+		// copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "published", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeUnpublished", Message: "VolumeUnpublished"})
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -243,7 +245,8 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		copiedVolume := dvol.DeepCopy()
 		copiedVolume.HostPath = hostPath
 		copiedVolume.StagingPath = stagingTargetPath
-		copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "staged", Status: metav1.ConditionTrue, LastTransitionTime: metav1.Now(), Reason: "VolumeStaged", Message: "VolumeStaged"})
+		utils.UpdateVolumeStatusCondition(copiedVolume.Status, "staged", metav1.ConditionTrue)
+		// copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "staged", Status: metav1.ConditionTrue, LastTransitionTime: metav1.Now(), Reason: "VolumeStaged", Message: "VolumeStaged"})
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -276,7 +279,8 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		copiedVolume := dvol.DeepCopy()
 		copiedVolume.HostPath = ""
 		copiedVolume.StagingPath = ""
-		copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "staged", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeUnstaged", Message: "VolumeUnstaged"})
+		utils.UpdateVolumeStatusCondition(copiedVolume.Status, "staged", metav1.ConditionFalse)
+		// copiedVolume.Status = append(copiedVolume.Status, metav1.Condition{Type: "staged", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeUnstaged", Message: "VolumeUnstaged"})
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
