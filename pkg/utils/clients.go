@@ -97,7 +97,7 @@ func RemoveFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
 }
 
 func UpdateVolumeStatusCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus) {
-	for i, _ := range statusConditions {
+	for i := range statusConditions {
 		if statusConditions[i].Type == condType {
 			statusConditions[i].Status = condStatus
 			statusConditions[i].LastTransitionTime = metav1.Now()
@@ -108,7 +108,7 @@ func UpdateVolumeStatusCondition(statusConditions []metav1.Condition, condType s
 }
 
 func CheckVolumeStatusCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus) bool {
-	for i, _ := range statusConditions {
+	for i := range statusConditions {
 		if statusConditions[i].Type == condType && statusConditions[i].Status == condStatus {
 			return true
 		}

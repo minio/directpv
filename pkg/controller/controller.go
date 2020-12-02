@@ -142,8 +142,23 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			},
 		}
 
-		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); err != nil && !errors.IsAlreadyExists(err) {
-			return err
+		var uErr error
+		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); err != nil {
+			if errors.IsAlreadyExists(err) {
+				exitingVol, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vol.ObjectMeta.Name, metav1.GetOptions{})
+				if vErr != nil {
+					return vErr
+				}
+				exitingVol.OwnerDrive = selectedCSIDrive.ObjectMeta.Name
+				exitingVol.OwnerNode = selectedCSIDrive.Status.NodeName
+				exitingVol.TotalCapacity = selectedCSIDrive.Status.TotalCapacity
+				vol, uErr = directCSIClient.DirectCSIVolumes().Update(ctx, exitingVol, metav1.UpdateOptions{})
+				if uErr != nil {
+					return uErr
+				}
+			} else {
+				return err
+			}
 		}
 
 		glog.Infof("Created DirectCSI Volume - %s", vol.ObjectMeta.Name)
@@ -208,6 +223,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, err
 	}
 
+	// Uncomment the following to test the purge-protection flow.
 	// if dErr := directCSIClient.DirectCSIVolumes().Delete(ctx, vID, metav1.DeleteOptions{}); dErr != nil {
 	// 	return nil, status.Error(codes.Internal, dErr.Error())
 	// }
