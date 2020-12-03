@@ -27,10 +27,12 @@ import (
 	"strconv"
 
 	"github.com/dustin/go-humanize"
+	"github.com/jedib0t/go-pretty/table"
+	"github.com/jedib0t/go-pretty/text"
+	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/kubectl-directcsi/util"
 	"github.com/minio/minio-go/v6/pkg/set"
 	"github.com/minio/minio/pkg/ellipses"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -84,17 +86,16 @@ func (l *csiListDrivesCmd) run() error {
 
 	volumes, err := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("could not list all drives: %v", err)
+		return fmt.Errorf("could not list all volumes: %v", err)
 	}
 
 	if l.nodes != "" && !ellipses.HasEllipses(l.nodes) {
 		return fmt.Errorf("please provide --node flag in ellipses format, e.g. `myhost{1...4}`")
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAutoMergeCells(true)
-	table.SetHeader([]string{"SERVER", "DRIVES", "STATUS", "VOLUMES", "CAPACITY", "ALLOCATED", "FREE", "FS", "MOUNT", "MODEL"})
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"SERVER", "DRIVES", "STATUS", "VOLUMES", "CAPACITY", "ALLOCATED", "FREE", "FS", "MOUNT", "MODEL"})
 
 	var nodes []string
 	if l.nodes != "" {
@@ -110,44 +111,48 @@ func (l *csiListDrivesCmd) run() error {
 	nodeSet := set.CreateStringSet(nodes...)
 	if !nodeSet.IsEmpty() {
 		for _, drive := range drives.Items {
-			if nodeSet.Contains(drive.OwnerNode) {
-				match, _ := regexp.Match(l.drives, []byte(drive.Path))
+			if nodeSet.Contains(drive.Status.NodeName) {
+				match, _ := regexp.Match(l.drives, []byte(drive.Status.Path))
 				if match {
-					table.Append([]string{
-						drive.OwnerNode,
-						drive.Path,
-						string(drive.DriveStatus),
-						strconv.Itoa(len(util.ListVolumesInDrive(drive, volumes))),
-						humanize.SI(float64(drive.TotalCapacity), "B"),
-						humanize.SI(float64(drive.AllocatedCapacity), "B"),
-						humanize.SI(float64(drive.FreeCapacity), "B"),
-						drive.Filesystem,
-						drive.Mountpoint,
-						drive.ModelNumber,
+					t.AppendRow(table.Row{
+						drive.Status.NodeName,
+						drive.Status.Path,
+						string(drive.Status.DriveStatus),
+						strconv.Itoa(len(util.ListVolumesInDrive(drive, volumes, make([]directv1alpha1.DirectCSIVolume, 0)))),
+						humanize.SI(float64(drive.Status.TotalCapacity), "B"),
+						humanize.SI(float64(drive.Status.AllocatedCapacity), "B"),
+						humanize.SI(float64(drive.Status.FreeCapacity), "B"),
+						drive.Status.Filesystem,
+						drive.Status.Mountpoint,
+						drive.Status.ModelNumber,
 					})
 				}
 			}
 		}
 	} else {
 		for _, drive := range drives.Items {
-			match, _ := regexp.Match(l.drives, []byte(drive.Path))
+			match, _ := regexp.Match(l.drives, []byte(drive.Status.Path))
 			if match {
-				table.Append([]string{
-					drive.OwnerNode,
-					drive.Path,
-					string(drive.DriveStatus),
-					strconv.Itoa(len(util.ListVolumesInDrive(drive, volumes))),
-					humanize.SI(float64(drive.TotalCapacity), "B"),
-					humanize.SI(float64(drive.AllocatedCapacity), "B"),
-					humanize.SI(float64(drive.FreeCapacity), "B"),
-					drive.Filesystem,
-					drive.Mountpoint,
-					drive.ModelNumber,
+				t.AppendRow(table.Row{
+					drive.Status.NodeName,
+					drive.Status.Path,
+					string(drive.Status.DriveStatus),
+					strconv.Itoa(len(util.ListVolumesInDrive(drive, volumes, make([]directv1alpha1.DirectCSIVolume, 0)))),
+					humanize.SI(float64(drive.Status.TotalCapacity), "B"),
+					humanize.SI(float64(drive.Status.AllocatedCapacity), "B"),
+					humanize.SI(float64(drive.Status.FreeCapacity), "B"),
+					drive.Status.Filesystem,
+					drive.Status.Mountpoint,
+					drive.Status.ModelNumber,
 				})
 			}
 		}
 	}
-	table.Render()
+	style := table.StyleColoredDark
+	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
+	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
+	t.SetStyle(style)
+	t.Render()
 
 	return nil
 }

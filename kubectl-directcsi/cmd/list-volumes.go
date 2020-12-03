@@ -26,11 +26,12 @@ import (
 	"regexp"
 
 	"github.com/dustin/go-humanize"
+	"github.com/jedib0t/go-pretty/table"
+	"github.com/jedib0t/go-pretty/text"
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/kubectl-directcsi/util"
 	"github.com/minio/minio-go/v6/pkg/set"
 	"github.com/minio/minio/pkg/ellipses"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -88,10 +89,11 @@ func (l *csiListVolumesCmd) run(args []string) error {
 		return fmt.Errorf("please provide --node flag in ellipses format, e.g. `myhost{1...4}`")
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetHeader([]string{"VOLUME", "NODENAME", "DRIVE", "CAPACITY", "STATUS"})
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"VOLUME", "NODENAME", "DRIVE", "CAPACITY", "STATUS"})
 
+	fmt.Println(l.nodes)
 	var nodes []string
 	if l.nodes != "" {
 		pattern, err := ellipses.FindEllipsesPatterns(l.nodes)
@@ -106,24 +108,25 @@ func (l *csiListVolumesCmd) run(args []string) error {
 	nodeSet := set.CreateStringSet(nodes...)
 	if !nodeSet.IsEmpty() {
 		for _, drive := range drives.Items {
-			if nodeSet.Contains(drive.OwnerNode) {
-				match, _ := regexp.Match(l.drives, []byte(drive.Path))
+			if nodeSet.Contains(drive.Status.NodeName) {
+				match, _ := regexp.Match(l.drives, []byte(drive.Status.Path))
 				if match {
-					vols = util.ListVolumesInDrive(drive, volumes)
+					vols = util.ListVolumesInDrive(drive, volumes, vols)
 				}
 			}
 		}
 	} else {
 		for _, drive := range drives.Items {
-			match, _ := regexp.Match(l.drives, []byte(drive.Path))
+			match, _ := regexp.Match(l.drives, []byte(drive.Status.Path))
+			fmt.Println(match)
 			if match {
-				vols = util.ListVolumesInDrive(drive, volumes)
+				vols = util.ListVolumesInDrive(drive, volumes, vols)
 			}
 		}
 	}
 
 	for _, v := range vols {
-		table.Append([]string{
+		t.AppendRow(table.Row{
 			v.Name,
 			v.OwnerNode,
 			v.HostPath,
@@ -131,8 +134,11 @@ func (l *csiListVolumesCmd) run(args []string) error {
 			"", //TODO: Add Bind Status
 		})
 	}
-
-	table.Render()
+	style := table.StyleColoredDark
+	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
+	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
+	t.SetStyle(style)
+	t.Render()
 
 	return nil
 }
