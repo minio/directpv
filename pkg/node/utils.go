@@ -452,7 +452,7 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 			return dErr
 		}
 		copiedDrive := csiDrive.DeepCopy()
-		copiedDrive.ObjectMeta.Finalizers = utils.RemoveFinalizer(copiedDrive.ObjectMeta.Finalizers, finalizer)
+		copiedDrive.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&copiedDrive.ObjectMeta, finalizer))
 		_, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{})
 		return err
 	}); err != nil {

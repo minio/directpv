@@ -27,6 +27,7 @@ kind: StorageClass
 metadata:
   name: direct.csi.min.io
 provisioner: direct.csi.min.io
+reclaimPolicy: Retain
 parameters:
   disable.csi.storage.k8s.io/provisioner-secret-name: direct-csi-min-io
   disable.csi.storage.k8s.io/provisioner-secret-namespace: default

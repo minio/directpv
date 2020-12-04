@@ -66,7 +66,7 @@ func run(ctx context.Context, args []string) error {
 
 	var ctrlServer csi.ControllerServer
 	if controller {
-		ctrlServer, err = ctrl.NewControllerServer(identity, nodeID, rack, zone, region)
+		ctrlServer, err = ctrl.NewControllerServer(ctx, identity, nodeID, rack, zone, region)
 		if err != nil {
 			return err
 		}

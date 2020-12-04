@@ -31,7 +31,11 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func NewControllerServer(identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
+func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
+
+	// Start DirectCSI volume listener
+	go startVolumeController(ctx, nodeID)
+
 	return &ControllerServer{
 		NodeID:   nodeID,
 		Identity: identity,
@@ -126,16 +130,35 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 		vol = &direct_csi.DirectCSIVolume{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+				Name:       name,
+				Finalizers: []string{fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "pv-protection"), fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "purge-protection")},
 			},
 			OwnerDrive:    selectedCSIDrive.ObjectMeta.Name,
 			OwnerNode:     selectedCSIDrive.Status.NodeName,
 			TotalCapacity: selectedCSIDrive.Status.TotalCapacity,
-			Status:        []metav1.Condition{},
+			Status: []metav1.Condition{
+				{Type: "staged", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeStaged", Message: "VolumeStaged"},
+				{Type: "published", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumePublished", Message: "VolumePublished"},
+			},
 		}
 
-		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); err != nil && !errors.IsAlreadyExists(err) {
-			return err
+		var uErr error
+		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); err != nil {
+			if errors.IsAlreadyExists(err) {
+				existingVol, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vol.ObjectMeta.Name, metav1.GetOptions{})
+				if vErr != nil {
+					return vErr
+				}
+				existingVol.OwnerDrive = selectedCSIDrive.ObjectMeta.Name
+				existingVol.OwnerNode = selectedCSIDrive.Status.NodeName
+				existingVol.TotalCapacity = selectedCSIDrive.Status.TotalCapacity
+				vol, uErr = directCSIClient.DirectCSIVolumes().Update(ctx, existingVol, metav1.UpdateOptions{})
+				if uErr != nil {
+					return uErr
+				}
+			} else {
+				return err
+			}
 		}
 
 		glog.Infof("Created DirectCSI Volume - %s", vol.ObjectMeta.Name)
@@ -173,7 +196,39 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 }
 
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	vID := req.GetVolumeId()
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+	glog.V(5).Infof("DeleteVolumeRequest - %s", vID)
+
+	directCSIClient := utils.GetDirectCSIClient()
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
+		if cErr != nil {
+			return cErr
+		}
+		if !utils.CheckVolumeStatusCondition(dvol.Status, "staged", metav1.ConditionFalse) {
+			return status.Errorf(codes.FailedPrecondition, "volume has not been unstaged: %s", vID)
+		}
+		dvol.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&dvol.ObjectMeta, fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "pv-protection")))
+		if dvol, cErr = directCSIClient.DirectCSIVolumes().Update(ctx, dvol, metav1.UpdateOptions{}); cErr != nil {
+			return cErr
+		}
+		return nil
+	}); err != nil {
+		if errors.IsNotFound(err) || errors.IsGone(err) {
+			return &csi.DeleteVolumeResponse{}, nil
+		}
+		return nil, err
+	}
+
+	// Uncomment the following to test the purge-protection flow.
+	// if dErr := directCSIClient.DirectCSIVolumes().Delete(ctx, vID, metav1.DeleteOptions{}); dErr != nil {
+	// 	return nil, status.Error(codes.Internal, dErr.Error())
+	// }
+
+	return &csi.DeleteVolumeResponse{}, nil
 }
 
 func (c *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {

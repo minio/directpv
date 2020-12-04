@@ -77,10 +77,16 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 	fsType := new.Spec.RequestedFormat.Filesystem
 	if fsType != "" {
 		isForceOptionSet := new.Spec.RequestedFormat.Force
+		isPurgeOptionSet := new.Spec.RequestedFormat.Purge
 
 		finalizers := new.ObjectMeta.GetFinalizers()
 		if len(finalizers) > 0 {
 			glog.Errorf("Cannot format the drive as the finalizers are not yet satisfied: %v", finalizers)
+			return nil
+		}
+
+		if new.Status.AllocatedCapacity > 0 && !isPurgeOptionSet {
+			glog.Errorf("Cannot format a used drive - %s. Set 'purge: true' to override", new.ObjectMeta.Name)
 			return nil
 		}
 
@@ -118,6 +124,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 		new.Spec.RequestedFormat.Filesystem = ""
 		new.Status.Mountpoint = ""
 		new.Status.MountOptions = []string{}
+		new.Status.AllocatedCapacity = 0
 		if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
 			return uErr
 		}
@@ -143,6 +150,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 		}
 		availBlocks := int64(stat.Bavail)
 		new.Status.FreeCapacity = int64(stat.Bsize) * availBlocks
+		new.Status.AllocatedCapacity = 0
 
 		if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
 			return uErr
@@ -157,12 +165,12 @@ func (b *DirectCSIDriveListener) Delete(ctx context.Context, obj *v1alpha1.Direc
 	return nil
 }
 
-func startController(ctx context.Context, nodeID string) error {
+func startDriveController(ctx context.Context, nodeID string) error {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
 	}
-	ctrl, err := listener.NewDefaultDirectCSIController("node-controller", hostname, 40)
+	ctrl, err := listener.NewDefaultDirectCSIController("drive-controller", hostname, 40)
 	if err != nil {
 		glog.Error(err)
 		return err

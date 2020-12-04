@@ -58,7 +58,7 @@ rules:
     resources: ["customresourcedefinitions"]
     verbs: ["create","get", "watch", "list", "delete", "update"]    
   - apiGroups: ["direct.csi.min.io"]
-    resources: ["directcsidrives", "directcsivolumes"]
+    resources: ["directcsidrives", "directcsivolumes", "directcsidrive", "directcsivolume"]
     verbs: ["create","get", "watch", "list", "delete", "update"]    
 
 ---
