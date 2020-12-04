@@ -145,14 +145,14 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		var uErr error
 		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); err != nil {
 			if errors.IsAlreadyExists(err) {
-				exitingVol, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vol.ObjectMeta.Name, metav1.GetOptions{})
+				existingVol, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vol.ObjectMeta.Name, metav1.GetOptions{})
 				if vErr != nil {
 					return vErr
 				}
-				exitingVol.OwnerDrive = selectedCSIDrive.ObjectMeta.Name
-				exitingVol.OwnerNode = selectedCSIDrive.Status.NodeName
-				exitingVol.TotalCapacity = selectedCSIDrive.Status.TotalCapacity
-				vol, uErr = directCSIClient.DirectCSIVolumes().Update(ctx, exitingVol, metav1.UpdateOptions{})
+				existingVol.OwnerDrive = selectedCSIDrive.ObjectMeta.Name
+				existingVol.OwnerNode = selectedCSIDrive.Status.NodeName
+				existingVol.TotalCapacity = selectedCSIDrive.Status.TotalCapacity
+				vol, uErr = directCSIClient.DirectCSIVolumes().Update(ctx, existingVol, metav1.UpdateOptions{})
 				if uErr != nil {
 					return uErr
 				}
