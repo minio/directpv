@@ -9,7 +9,6 @@ require (
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/minio/minio v0.0.0-20200622032605-a521907ab497
-	github.com/minio/sha256-simd v0.1.1
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -22,9 +21,6 @@ require (
 	k8s.io/apiextensions-apiserver v0.19.3
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v0.19.3
-	k8s.io/code-generator v0.19.4 // indirect
-	k8s.io/gengo v0.0.0-20201113003025-83324d819ded // indirect
 	k8s.io/kube-openapi v0.0.0-20200805222855-6aeccd4b50c6
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73
-	sigs.k8s.io/controller-tools v0.4.1 // indirect
 )
