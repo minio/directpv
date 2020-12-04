@@ -91,19 +91,19 @@ func (c *csiRemoveDrivesCmd) run(args []string) error {
 	nodeSet := set.CreateStringSet(nodes...)
 	if !nodeSet.IsEmpty() {
 		for _, drive := range drives.Items {
-			if nodeSet.Contains(drive.OwnerNode) {
-				match, _ := regexp.Match(args[0], []byte(drive.Path))
+			if nodeSet.Contains(drive.Status.NodeName) {
+				match, _ := regexp.Match(args[0], []byte(drive.Status.Path))
 				if match {
-					drive.DirectCSIOwned = false
+					drive.Spec.DirectCSIOwned = false
 					directCSIClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{})
 				}
 			}
 		}
 	} else {
 		for _, drive := range drives.Items {
-			match, _ := regexp.Match(args[0], []byte(drive.Path))
+			match, _ := regexp.Match(args[0], []byte(drive.Status.Path))
 			if match {
-				drive.DirectCSIOwned = false
+				drive.Spec.DirectCSIOwned = false
 				directCSIClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{})
 			}
 		}

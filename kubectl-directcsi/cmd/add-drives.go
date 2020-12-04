@@ -101,8 +101,8 @@ func (c *csiAddDrivesCmd) run(args []string) error {
 	nodeSet := set.CreateStringSet(nodes...)
 	if !nodeSet.IsEmpty() {
 		for _, drive := range drives.Items {
-			if nodeSet.Contains(drive.OwnerNode) {
-				match, _ := regexp.Match(args[0], []byte(drive.Path))
+			if nodeSet.Contains(drive.Status.NodeName) {
+				match, _ := regexp.Match(args[0], []byte(drive.Status.Path))
 				if match {
 					c.updateDrive(ctx, drive, directCSIClient)
 				}
@@ -110,7 +110,7 @@ func (c *csiAddDrivesCmd) run(args []string) error {
 		}
 	} else {
 		for _, drive := range drives.Items {
-			match, _ := regexp.Match(args[0], []byte(drive.Path))
+			match, _ := regexp.Match(args[0], []byte(drive.Status.Path))
 			if match {
 				c.updateDrive(ctx, drive, directCSIClient)
 			}
@@ -121,9 +121,9 @@ func (c *csiAddDrivesCmd) run(args []string) error {
 }
 
 func (c *csiAddDrivesCmd) updateDrive(ctx context.Context, d directv1alpha1.DirectCSIDrive, client v1alpha1.DirectV1alpha1Interface) {
-	d.DirectCSIOwned = true
-	d.RequestedFormat.Filesystem = c.fileSystem
-	d.RequestedFormat.Force = c.force
-	d.RequestedFormat.Mountoptions = strings.Split(c.mountOptions, ",")
+	d.Spec.DirectCSIOwned = true
+	d.Spec.RequestedFormat.Filesystem = c.fileSystem
+	d.Spec.RequestedFormat.Force = c.force
+	d.Spec.RequestedFormat.Mountoptions = strings.Split(c.mountOptions, ",")
 	client.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{})
 }
