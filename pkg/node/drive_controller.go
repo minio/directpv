@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,12 +46,12 @@ func (b *DirectCSIDriveListener) InitializeDirectCSIClient(bc clientset.Interfac
 	b.directcsiClient = bc
 }
 
-func (b *DirectCSIDriveListener) Add(ctx context.Context, obj *v1alpha1.DirectCSIDrive) error {
+func (b *DirectCSIDriveListener) Add(ctx context.Context, obj *direct_csi.DirectCSIDrive) error {
 	glog.V(1).Infof("add called for DirectCSIDrive %s", obj.Name)
 	return nil
 }
 
-func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.DirectCSIDrive) error {
+func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_csi.DirectCSIDrive) error {
 	directCSIClient := b.directcsiClient.DirectV1alpha1()
 	var uErr error
 
@@ -69,7 +69,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 		return nil
 	}
 
-	if new.Status.DriveStatus == v1alpha1.Online {
+	if new.Status.DriveStatus == direct_csi.Online {
 		glog.Errorf("Cannot format a drive in use %s", new.ObjectMeta.Name)
 		return nil
 	}
@@ -120,7 +120,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 
 		// Update the truth immediately that the drive is been unmounted (OR) the drive does not have a mountpoint
 		new.Status.Filesystem = fsType
-		new.Status.DriveStatus = v1alpha1.New
+		new.Status.DriveStatus = direct_csi.New
 		new.Spec.RequestedFormat.Filesystem = ""
 		new.Status.Mountpoint = ""
 		new.Status.MountOptions = []string{}
@@ -161,7 +161,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *v1alpha1.
 	return nil
 }
 
-func (b *DirectCSIDriveListener) Delete(ctx context.Context, obj *v1alpha1.DirectCSIDrive) error {
+func (b *DirectCSIDriveListener) Delete(ctx context.Context, obj *direct_csi.DirectCSIDrive) error {
 	return nil
 }
 
