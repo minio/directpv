@@ -1,3 +1,5 @@
+// +build plugin
+
 /*
  * This file is part of MinIO Direct CSI
  * Copyright (C) 2020, MinIO, Inc.
@@ -21,12 +23,12 @@ package main
 import (
 	"os"
 
-	"github.com/minio/kubectl-directcsi/cmd"
+	kctlcmd "github.com/minio/direct-csi/plugin/cmd"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-func main() {
-	if err := cmd.NewCmdMinIO(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}).Execute(); err != nil {
+func init() {
+	if err := kctlcmd.NewCmdMinIO(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}).Execute(); err != nil {
 		os.Exit(1)
 	}
 }

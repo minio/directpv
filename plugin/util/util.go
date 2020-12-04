@@ -41,7 +41,7 @@ import (
 	k8sretry "k8s.io/client-go/util/retry"
 
 	"github.com/golang/glog"
-	"github.com/minio/kubectl-directcsi/util/randomstring"
+	"github.com/minio/direct-csi/plugin/util/randomstring"
 	clientset "k8s.io/client-go/kubernetes"
 )
 

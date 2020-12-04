@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/minio/kubectl-directcsi/util"
+	"github.com/minio/direct-csi/plugin/util"
 	"github.com/spf13/cobra"
 )
 

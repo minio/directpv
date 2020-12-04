@@ -32,7 +32,7 @@ import (
 	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 
 	// Statik CRD assets for our plugin
-	_ "github.com/minio/kubectl-directcsi/statik"
+	_ "github.com/minio/direct-csi/plugin/statik"
 )
 
 var (

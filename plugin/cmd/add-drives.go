@@ -23,8 +23,11 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 
-	"github.com/minio/kubectl-directcsi/util"
+	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	v1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/plugin/util"
 	"github.com/minio/minio-go/v6/pkg/set"
 	"github.com/minio/minio/pkg/ellipses"
 	"github.com/spf13/cobra"
@@ -32,39 +35,46 @@ import (
 )
 
 const (
-	csiRemoveDrivesDesc = `
- remove command removes drives from being managed by DirectCSI. Only works on drives that have no bounded volumes.`
-	csiRemoveDrivesExample = `  kubectl directcsi drives remove /dev/nvme* --nodes myhost{1...4} `
+	csiAddDrivesDesc = `
+ add command lets you add drives to be managed by DirectCSI.`
+	csiAddDrivesExample = `  kubectl directcsi drives add /dev/nvme* --nodes myhost{1...4}`
+	defaultFS           = "xfs"
 )
 
-type csiRemoveDrivesCmd struct {
-	out    io.Writer
-	errOut io.Writer
-	output bool
-	nodes  string
+type csiAddDrivesCmd struct {
+	out          io.Writer
+	errOut       io.Writer
+	output       bool
+	force        bool
+	nodes        string
+	fileSystem   string
+	mountOptions string
 }
 
-func newDrivesRemoveCmd(out io.Writer, errOut io.Writer) *cobra.Command {
-	c := &csiRemoveDrivesCmd{out: out, errOut: errOut}
+func newDrivesAddCmd(out io.Writer, errOut io.Writer) *cobra.Command {
+	c := &csiAddDrivesCmd{out: out, errOut: errOut}
 
 	cmd := &cobra.Command{
-		Use:     "remove",
-		Short:   "Remove Drives from DirectCSI",
-		Long:    csiRemoveDrivesDesc,
-		Example: csiRemoveDrivesExample,
+		Use:     "add",
+		Short:   "Add Drives to DirectCSI",
+		Long:    csiAddDrivesDesc,
+		Example: csiAddDrivesExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return c.run(args)
 		},
 	}
 	f := cmd.Flags()
-	f.StringVarP(&c.nodes, "nodes", "n", "", "remove drives from these nodes only")
+	f.StringVarP(&c.nodes, "nodes", "n", "", "add drives from these nodes only")
+	f.StringVarP(&c.fileSystem, "fs", "f", defaultFS, "filesystem to be formatted")
+	f.StringVarP(&c.mountOptions, "mountOptions", "m", "", "mount options in csv format, e.g. 'noatime,nodiratime'")
+	f.BoolVarP(&c.force, "force", "", false, "overwrite existing filesystem")
 
 	return cmd
 }
 
 // run initializes local config and installs MinIO Operator to Kubernetes cluster.
-func (c *csiRemoveDrivesCmd) run(args []string) error {
+func (c *csiAddDrivesCmd) run(args []string) error {
 	ctx := context.Background()
 
 	directCSIClient := util.GetDirectCSIClient()
@@ -94,8 +104,7 @@ func (c *csiRemoveDrivesCmd) run(args []string) error {
 			if nodeSet.Contains(drive.Status.NodeName) {
 				match, _ := regexp.Match(args[0], []byte(drive.Status.Path))
 				if match {
-					drive.Spec.DirectCSIOwned = false
-					directCSIClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{})
+					c.updateDrive(ctx, drive, directCSIClient)
 				}
 			}
 		}
@@ -103,11 +112,18 @@ func (c *csiRemoveDrivesCmd) run(args []string) error {
 		for _, drive := range drives.Items {
 			match, _ := regexp.Match(args[0], []byte(drive.Status.Path))
 			if match {
-				drive.Spec.DirectCSIOwned = false
-				directCSIClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{})
+				c.updateDrive(ctx, drive, directCSIClient)
 			}
 		}
 	}
 
 	return nil
+}
+
+func (c *csiAddDrivesCmd) updateDrive(ctx context.Context, d directv1alpha1.DirectCSIDrive, client v1alpha1.DirectV1alpha1Interface) {
+	d.Spec.DirectCSIOwned = true
+	d.Spec.RequestedFormat.Filesystem = c.fileSystem
+	d.Spec.RequestedFormat.Force = c.force
+	d.Spec.RequestedFormat.Mountoptions = strings.Split(c.mountOptions, ",")
+	client.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{})
 }
