@@ -40,7 +40,7 @@ func FindDrives(ctx context.Context) ([]BlockDevice, error) {
 
 	if err := filepath.Walk(head, func(path string, info os.FileInfo, err error) error {
 		if ctx.Err() != nil {
-			return err
+			return ctx.Err()
 		}
 		if strings.HasPrefix(info.Name(), "loop") {
 			return filepath.SkipDir
