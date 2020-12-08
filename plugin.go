@@ -1,3 +1,5 @@
+// +build plugin
+
 /*
  * This file is part of MinIO Direct CSI
  * Copyright (C) 2020, MinIO, Inc.
@@ -16,18 +18,17 @@
  *
  */
 
-package util
+package main
 
 import (
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"os"
+
+	kctlcmd "github.com/minio/direct-csi/plugin/cmd"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-// ListVolumesInDrive returns a slice of all the DirectCSIVolumes created on a given DirectCSIDrive
-func ListVolumesInDrive(drive directv1alpha1.DirectCSIDrive, volumes *directv1alpha1.DirectCSIVolumeList, vols []directv1alpha1.DirectCSIVolume) []directv1alpha1.DirectCSIVolume {
-	for _, volume := range volumes.Items {
-		if volume.OwnerDrive == drive.ObjectMeta.Name {
-			vols = append(vols, volume)
-		}
+func init() {
+	if err := kctlcmd.NewCmdMinIO(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}).Execute(); err != nil {
+		os.Exit(1)
 	}
-	return vols
 }

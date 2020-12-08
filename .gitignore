@@ -2,4 +2,4 @@ direct-csi
 *~
 *.test
 dist/
-kubectl-directcsi/kubectl-directcsi
+kubectl-directcsi

@@ -1,3 +1,5 @@
+// +build plugin
+
 /*
  * This file is part of MinIO Direct CSI
  * Copyright (C) 2020, MinIO, Inc.
@@ -29,7 +31,7 @@ import (
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	"github.com/minio/kubectl-directcsi/util"
+	"github.com/minio/direct-csi/plugin/util"
 	"github.com/minio/minio-go/v6/pkg/set"
 	"github.com/minio/minio/pkg/ellipses"
 	"github.com/spf13/cobra"

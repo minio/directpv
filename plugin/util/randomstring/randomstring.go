@@ -1,3 +1,5 @@
+// +build plugin
+
 /*
  * This file is part of MinIO Direct CSI
  * Copyright (C) 2020, MinIO, Inc.
@@ -16,17 +18,26 @@
  *
  */
 
-package main
+package randomstring
 
 import (
-	"os"
-
-	"github.com/minio/kubectl-directcsi/cmd"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"math/rand"
+	"time"
 )
 
-func main() {
-	if err := cmd.NewCmdMinIO(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}).Execute(); err != nil {
-		os.Exit(1)
+const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+var seededRand *rand.Rand = rand.New(
+	rand.NewSource(time.Now().UnixNano()))
+
+func StringWithCharset(length int, charset string) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
 	}
+	return string(b)
+}
+
+func New(length int) string {
+	return StringWithCharset(length, charset)
 }

@@ -1,3 +1,5 @@
+// +build plugin
+
 /*
  * This file is part of MinIO Direct CSI
  * Copyright (C) 2020, MinIO, Inc.
@@ -23,7 +25,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/minio/kubectl-directcsi/util"
+	"github.com/minio/direct-csi/plugin/util"
 	"github.com/spf13/cobra"
 )
 

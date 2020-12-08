@@ -1,3 +1,5 @@
+// +build plugin
+
 /*
  * This file is part of MinIO Direct CSI
  * Copyright (C) 2020, MinIO, Inc.
@@ -41,7 +43,7 @@ import (
 	k8sretry "k8s.io/client-go/util/retry"
 
 	"github.com/golang/glog"
-	"github.com/minio/kubectl-directcsi/util/randomstring"
+	"github.com/minio/direct-csi/plugin/util/randomstring"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
