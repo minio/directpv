@@ -30,18 +30,79 @@ import (
 )
 
 type BlockDevice struct {
-	Major   uint32
-	Minor   uint32
-	Devname string
-	Devtype string
+	Major      uint32      `json:"major"`
+	Minor      uint32      `json:"minor"`
+	Devname    string      `json:"devName,omitempty"`
+	Devtype    string      `json:"devType,omitempty"`
+	Partitions []Partition `json:"partitions,omitempty"`
 
-	LogicalBlockSize  uint64
-	PhysicalBlockSize uint64
+	*DriveInfo `json:"driveInfo,omitempty"`
 }
 
-func FindDrives(ctx context.Context) ([]BlockDevice, error) {
+type DriveInfo struct {
+	NumBlocks         uint64 `json:"numBlocks,omitempty"`
+	StartBlock        uint64 `json:"startBlock,omitempty"`
+	EndBlock          uint64 `json:"endBlock,omitempty"`
+	TotalCapacity     uint64 `json:"totalCapacity,omitempty"`
+	LogicalBlockSize  uint64 `json:"logicalBlockSize,omitempty"`
+	PhysicalBlockSize uint64 `json:"physicalBlockSize,omitempty"`
+
+	*FSInfo `json:"fsInfo,omitempty"`
+}
+
+func (b *BlockDevice) Init() error {
+	b.DriveInfo = &DriveInfo{}
+	logicalBlockSize, physicalBlockSize, err := getBlockSizes(b.Devname)
+	if err != nil {
+		return err
+	}
+	b.LogicalBlockSize = logicalBlockSize
+	b.PhysicalBlockSize = physicalBlockSize
+
+	driveSize, err := getTotalCapacity(b.Devname)
+	if err != nil {
+		return err
+	}
+	b.TotalCapacity = driveSize
+
+	numBlocks := driveSize / logicalBlockSize
+	b.NumBlocks = numBlocks
+	b.EndBlock = numBlocks
+
+	parts, err := b.FindPartitions()
+	if err != nil {
+		if err != ErrNotGPT {
+			return err
+		}
+	}
+	if len(parts) == 0 {
+		offsetBlocks := uint64(0)
+		fsInfo, err := ProbeFS(b.Devname, b.LogicalBlockSize, offsetBlocks)
+		if err != nil {
+			if err != ErrNoFS {
+				return err
+			}
+		}
+		b.FSInfo = fsInfo
+		return nil
+	}
+	for _, p := range parts {
+		offsetBlocks := p.StartBlock
+		fsInfo, err := ProbeFS(b.Devname, b.LogicalBlockSize, offsetBlocks)
+		if err != nil {
+			if err != ErrNoFS {
+				return err
+			}
+		}
+		p.FSInfo = fsInfo
+		b.Partitions = append(b.Partitions, p)
+	}
+	return nil
+}
+
+func FindDrives(ctx context.Context) ([]*BlockDevice, error) {
 	const head = "/sys/devices"
-	drives := []BlockDevice{}
+	drives := []*BlockDevice{}
 
 	if err := filepath.Walk(head, func(path string, info os.FileInfo, err error) error {
 		if ctx.Err() != nil {
@@ -69,13 +130,6 @@ func FindDrives(ctx context.Context) ([]BlockDevice, error) {
 		if subsystem != "block" {
 			return nil
 		}
-		logicalBlockSize, physicalBlockSize, err := getBlockSizes(drive.Devname)
-		if err != nil {
-			return err
-		}
-		drive.LogicalBlockSize = logicalBlockSize
-		drive.PhysicalBlockSize = physicalBlockSize
-
 		drives = append(drives, drive)
 		return nil
 	}); err != nil {
@@ -93,14 +147,14 @@ func subsystem(path string) (string, error) {
 	return filepath.Base(link), nil
 }
 
-func parseUevent(path string) (BlockDevice, error) {
+func parseUevent(path string) (*BlockDevice, error) {
 	if filepath.Base(path) != "uevent" {
-		return BlockDevice{}, fmt.Errorf("not a uevent file")
+		return nil, fmt.Errorf("not a uevent file")
 	}
 
 	uevent, err := ioutil.ReadFile(path)
 	if err != nil {
-		return BlockDevice{}, err
+		return nil, err
 	}
 
 	uev := string(uevent)
@@ -114,7 +168,7 @@ func parseUevent(path string) (BlockDevice, error) {
 		cleanLine := strings.TrimSpace(line)
 		parts := strings.Split(cleanLine, "=")
 		if len(parts) != 2 {
-			return BlockDevice{}, fmt.Errorf("uevent file format not supported: %s", path)
+			return nil, fmt.Errorf("uevent file format not supported: %s", path)
 		}
 		key := parts[0]
 		value := parts[1]
@@ -128,21 +182,21 @@ func parseUevent(path string) (BlockDevice, error) {
 		case "DEVTYPE":
 			devtype = value
 		default:
-			return BlockDevice{}, fmt.Errorf("uevent file format not supported: %s", path)
+			return nil, fmt.Errorf("uevent file format not supported: %s", path)
 		}
 	}
 	majorNum64, err := strconv.ParseUint(major, 10, 32)
 	if err != nil {
-		return BlockDevice{}, fmt.Errorf("invalid major num: %s", major)
+		return nil, fmt.Errorf("invalid major num: %s", major)
 	}
 	minorNum64, err := strconv.ParseUint(minor, 10, 32)
 	if err != nil {
-		return BlockDevice{}, fmt.Errorf("invalid minor num: %s", minor)
+		return nil, fmt.Errorf("invalid minor num: %s", minor)
 	}
 	majorNum := uint32(majorNum64)
 	minorNum := uint32(minorNum64)
 
-	return BlockDevice{
+	return &BlockDevice{
 		Major:   majorNum,
 		Minor:   minorNum,
 		Devname: devname,
@@ -156,7 +210,7 @@ func getBlockSizes(devname string) (uint64, uint64, error) {
 		return 0, 0, err
 	}
 	defer devFile.Close()
-	
+
 	fd := devFile.Fd()
 	logicalBlockSize, err := unix.IoctlGetInt(int(fd), unix.BLKSSZGET)
 	if err != nil {
@@ -169,4 +223,18 @@ func getBlockSizes(devname string) (uint64, uint64, error) {
 		return 0, 0, err
 	}
 	return uint64(logicalBlockSize), uint64(physicalBlockSize), nil
+}
+
+func getTotalCapacity(devname string) (uint64, error) {
+	devFile, err := os.OpenFile(filepath.Join("/dev/", devname), os.O_RDONLY, os.ModeDevice)
+	if err != nil {
+		return 0, err
+	}
+	defer devFile.Close()
+
+	driveSize, err := devFile.Seek(0, os.SEEK_END)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(driveSize), nil
 }

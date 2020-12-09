@@ -29,16 +29,12 @@ import (
 var ErrNotGPT = errors.New("Not a GPT volume")
 
 type Partition struct {
-	PartitionNum      uint32 `json:"partitionNum,omitempty"`
-	Type              string `json:"partitionType,omitempty"`
-	PartitionGUID     string `json:"partitionGUID,omitempty"`
-	DiskGUID          string `json:"diskGUID,omitempty"`
-	LogicalBlockSize  uint64 `json:"logicalBlockSize"`
-	PhysicalBlockSize uint64 `json:"physicalBlockSize"`
+	PartitionNum  uint32 `json:"partitionNum,omitempty"`
+	Type          string `json:"partitionType,omitempty"`
+	PartitionGUID string `json:"partitionGUID,omitempty"`
+	DiskGUID      string `json:"diskGUID,omitempty"`
 
-	StartBlock    uint64 `json:"startBlock,omitempty"`
-	EndBlock      uint64 `json:"endBlock,omitempty"`
-	TotalCapacity uint64 `json:"totalCapacity,omitempty"`
+	*DriveInfo `json:"driveInfo,omitempty"`
 }
 
 func (b *BlockDevice) FindPartitions() ([]Partition, error) {
@@ -93,20 +89,27 @@ func (b *BlockDevice) FindPartitions() ([]Partition, error) {
 			break
 		}
 
+		partTypeUUID := stringifyUUID(lba.PartitionType)
+		partType := PartitionTypes[partTypeUUID]
+		if partType == "" {
+			partType = partTypeUUID
+		}
 		part := Partition{
-			LogicalBlockSize:  b.LogicalBlockSize,
-			PhysicalBlockSize: b.PhysicalBlockSize,
-			PartitionNum:      i + 1,
-			Type:              stringifyUUID(lba.PartitionType),
-			PartitionGUID:     stringifyUUID(lba.PartitionGUID),
-			StartBlock:        lba.Start,
-			EndBlock:          lba.End,
-			TotalCapacity:     (lba.End - lba.Start) * b.LogicalBlockSize,
-			DiskGUID:          stringifyUUID(gpt.DiskGUID),
+			DriveInfo: &DriveInfo{
+				LogicalBlockSize:  b.LogicalBlockSize,
+				PhysicalBlockSize: b.PhysicalBlockSize,
+				StartBlock:        lba.Start,
+				EndBlock:          lba.End,
+				TotalCapacity:     (lba.End - lba.Start) * b.LogicalBlockSize,
+				NumBlocks:         lba.End - lba.Start,
+			},
+			PartitionNum:  i + 1,
+			Type:          partType,
+			PartitionGUID: stringifyUUID(lba.PartitionGUID),
+			DiskGUID:      stringifyUUID(gpt.DiskGUID),
 		}
 		partitions = append(partitions, part)
 	}
-
 	return partitions, nil
 }
 
@@ -115,28 +118,28 @@ func stringifyUUID(uuid [16]byte) string {
 
 	// first part of uuid is LittleEndian encoded uint32
 	for i := 0; i < 4; i++ {
-		str = str + fmt.Sprintf("%02x", uint8(uuid[3-i]))
+		str = str + fmt.Sprintf("%02X", uint8(uuid[3-i]))
 	}
 	str = str + "-"
 
 	// next 2 bytes are LitteEndian encoded uint8
-	str = str + fmt.Sprintf("%02x", uint8(uuid[5]))
-	str = str + fmt.Sprintf("%02x", uint8(uuid[4]))
+	str = str + fmt.Sprintf("%02X", uint8(uuid[5]))
+	str = str + fmt.Sprintf("%02X", uint8(uuid[4]))
 	str = str + "-"
 
 	// next 2 bytes are LitteEndian encoded uint8
-	str = str + fmt.Sprintf("%02x", uint8(uuid[7]))
-	str = str + fmt.Sprintf("%02x", uint8(uuid[6]))
+	str = str + fmt.Sprintf("%02X", uint8(uuid[7]))
+	str = str + fmt.Sprintf("%02X", uint8(uuid[6]))
 	str = str + "-"
 
 	// rest should be taken in order
 	for i := 8; i < 10; i++ {
-		str = str + fmt.Sprintf("%02x", uint8(uuid[i]))
+		str = str + fmt.Sprintf("%02X", uint8(uuid[i]))
 	}
 	str = str + "-"
 
 	for i := 10; i < 16; i++ {
-		str = str + fmt.Sprintf("%02x", uint8(uuid[i]))
+		str = str + fmt.Sprintf("%02X", uint8(uuid[i]))
 	}
 
 	return str
