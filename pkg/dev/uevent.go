@@ -17,18 +17,17 @@
 package dev
 
 import (
-	"bufio"
+	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
-	"io"
 	"log"
 	"os"
-	"strings"
 	"syscall"
+	"unsafe"
 )
 
-// As per /usr/include/linux/netlink.h
-const NETLINK_KOBJECT_UEVENT = 15
+const libudevMagic = 0xfeedcafe
 
 // Uevent from Netlink
 type Uevent struct {
@@ -41,88 +40,132 @@ type Uevent struct {
 }
 
 type Decoder struct {
-	r *bufio.Reader
+	c *Conn
 }
 
-func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{bufio.NewReader(r)}
+func NewDecoder(c *Conn) *Decoder {
+	return &Decoder{c}
 }
 
 // Decode - Parses the incoming uevent and extracts values
-func (d *Decoder) Decode() (*Uevent, error) {
-	ev := &Uevent{
-		Vars: map[string]string{},
-	}
-
-	h, err := d.next()
+func (d *Decoder) ReadAndDecode() (*Uevent, error) {
+	msg, err := d.c.ReadMsg()
 	if err != nil {
 		return nil, err
 	}
-	ev.Header = h
+	return ParseUEvent(msg)
+}
 
-loop:
-	for {
-		kv, err := d.next()
-		if err != nil {
-			return nil, err
+func ParseUEvent(raw []byte) (e *Uevent, err error) {
+	if len(raw) > 40 && bytes.Compare(raw[:8], []byte("libudev\x00")) == 0 {
+		return parseUdevEvent(raw)
+	}
+	return
+}
+
+func parseUdevEvent(raw []byte) (e *Uevent, err error) {
+	// the magic number is stored in network byte order.
+	magic := binary.BigEndian.Uint32(raw[8:])
+	if magic != libudevMagic {
+		return nil, fmt.Errorf("cannot parse libudev event: magic number mismatch")
+	}
+
+	headerFields := bytes.Split(raw, []byte{0x00}) // 0x00 = end of string
+	if len(headerFields) == 0 {
+		err = fmt.Errorf("Wrong uevent format")
+		return
+	}
+
+	e = &Uevent{
+		Header: string(headerFields[0]),
+	}
+
+	// the payload offset int is stored in native byte order.
+	payloadoff := *(*uint32)(unsafe.Pointer(&raw[16]))
+	if payloadoff >= uint32(len(raw)) {
+		return nil, fmt.Errorf("cannot parse libudev event: invalid data offset")
+	}
+
+	fields := bytes.Split(raw[payloadoff:], []byte{0x00}) // 0x00 = end of string
+	if len(fields) == 0 {
+		err = fmt.Errorf("cannot parse libudev event: data missing")
+		return
+	}
+
+	envdata := make(map[string]string, 0)
+	for _, envs := range fields[0 : len(fields)-1] {
+		env := bytes.Split(envs, []byte("="))
+		if len(env) != 2 {
+			err = fmt.Errorf("cannot parse libudev event: invalid env data")
+			return
 		}
+		envdata[string(env[0])] = string(env[1])
+	}
+	e.Vars = envdata
 
-		cleanKv := strings.TrimSpace(kv)
-		parts := strings.Split(cleanKv, "=")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("uevent format not supported: %s", kv)
-		}
-		k := parts[0]
-		v := parts[1]
-
-		ev.Vars[k] = v
-
+	for k, v := range envdata {
 		switch k {
 		case "ACTION":
-			ev.Action = v
+			e.Action = v
 		case "DEVPATH":
-			ev.Devpath = v
+			e.Devpath = v
 		case "SUBSYSTEM":
-			ev.Subsystem = v
+			e.Subsystem = v
 		case "SEQNUM":
-			ev.Seqnum = v
-			break loop
+			e.Seqnum = v
 		}
 	}
 
-	return ev, nil
+	return
 }
 
-// Read the next kv from the fd.
-func (d *Decoder) next() (string, error) {
-	s, err := d.r.ReadString(0x00)
-	if err != nil {
-		return "", err
-	}
-	return s, nil
-}
-
-// Reader wrapper for fd
-type Reader struct {
+// Conn wraps the NETLINK fd.
+type Conn struct {
 	fd int
 }
 
-var _ io.ReadCloser = (*Reader)(nil)
+// ReadMsg allow to read an entire uevent msg
+func (c *Conn) ReadMsg() (msg []byte, err error) {
+	var n int
 
-func (r Reader) Read(p []byte) (n int, err error) {
-	return syscall.Read(r.fd, p)
+	buf := make([]byte, os.Getpagesize())
+	for {
+		// Just read how many bytes are available in the socket
+		if n, _, err = syscall.Recvfrom(c.fd, buf, syscall.MSG_PEEK); err != nil {
+			return
+		}
+
+		// If all message could be store inside the buffer : break
+		if n < len(buf) {
+			break
+		}
+
+		// Increase size of buffer if not enough
+		buf = make([]byte, len(buf)+os.Getpagesize())
+	}
+
+	// Now read complete data
+	n, _, err = syscall.Recvfrom(c.fd, buf, 0)
+	if err != nil {
+		return
+	}
+
+	// Extract only real data from buffer and return that
+	msg = buf[:n]
+
+	return
 }
 
-func (r Reader) Close() error {
-	return syscall.Close(r.fd)
+func (c *Conn) Close() error {
+	return syscall.Close(c.fd)
 }
 
-// NewReader - Opens a NETLINK socket and binds it to the process.
-func NewReader() (io.ReadCloser, error) {
+// NewConn - Opens a NETLINK socket and binds it to the process.
+func NewConn() (*Conn, error) {
 	fd, err := syscall.Socket(
 		syscall.AF_NETLINK,
 		syscall.SOCK_RAW,
-		NETLINK_KOBJECT_UEVENT,
+		syscall.NETLINK_KOBJECT_UEVENT,
 	)
 
 	if err != nil {
@@ -132,19 +175,19 @@ func NewReader() (io.ReadCloser, error) {
 	nl := syscall.SockaddrNetlink{
 		Family: syscall.AF_NETLINK,
 		Pid:    uint32(os.Getpid()),
-		Groups: 1,
+		Groups: 2,
 	}
 
 	err = syscall.Bind(fd, &nl)
-	return &Reader{fd}, err
+	return &Conn{fd}, err
 }
 
-// EventCh - Returns a channel which emits the uevents from the fd.
-func EventsCh(ctx context.Context, r io.Reader, maxRetriesOnError int) (error, <-chan Uevent) {
+// EventsCh - Returns a channel which emits the uevents from the fd.
+func EventsCh(ctx context.Context, c *Conn, maxRetriesOnError int) <-chan Uevent {
 	ueventCh := make(chan Uevent)
 	var errC int
 
-	dec := NewDecoder(r)
+	dec := NewDecoder(c)
 	go func() {
 		defer close(ueventCh)
 		for {
@@ -153,7 +196,7 @@ func EventsCh(ctx context.Context, r io.Reader, maxRetriesOnError int) (error, <
 				break
 			}
 
-			evt, err := dec.Decode()
+			evt, err := dec.ReadAndDecode()
 			if err != nil {
 				log.Fatal(err)
 				errC = errC + 1
@@ -171,23 +214,19 @@ func EventsCh(ctx context.Context, r io.Reader, maxRetriesOnError int) (error, <
 		}
 	}()
 
-	return nil, ueventCh
+	return ueventCh
 }
 
-// Watches for hotplugs and devices and returns a channel which emits block devices.
-func WatchBlockDevices(ctx context.Context) (error, <-chan BlockDevice) {
+// WatchBlockDevices - Watches for hotplugs and devices and returns a channel which emits block devices.
+func WatchBlockDevices(ctx context.Context) (<-chan BlockDevice, error) {
 	blockDeviceCh := make(chan BlockDevice)
 
-	r, err := NewReader()
+	c, err := NewConn()
 	if err != nil {
-		return err, blockDeviceCh
+		return blockDeviceCh, err
 	}
 
-	err, eCh := EventsCh(ctx, r, 10)
-	if err != nil {
-		return err, blockDeviceCh
-	}
-
+	eCh := EventsCh(ctx, c, 10)
 	go func() {
 		defer close(blockDeviceCh)
 		for {
@@ -197,18 +236,13 @@ func WatchBlockDevices(ctx context.Context) (error, <-chan BlockDevice) {
 					// closed channel.
 					return
 				}
-				fmt.Println("Received")
-				fmt.Println("********************EVENT***********************************")
-				fmt.Printf("\nAction: %s", evt.Action)
-				fmt.Printf("\nDevpath: %s", evt.Devpath)
-				fmt.Printf("\nSubsystem: %s", evt.Subsystem)
-				fmt.Printf("\nSeqnum: %s", evt.Seqnum)
-				fmt.Printf("\nVars: %v", evt.Vars)
-
-				// Construct block device
-				blockDeviceCh <- BlockDevice{}
+				// Filter subsystem
+				if evt.Subsystem == "block" {
+					// To-Do: Construct block device data
+					blockDeviceCh <- BlockDevice{}
+				}
 			case <-ctx.Done():
-				if err := r.Close(); err != nil {
+				if err := c.Close(); err != nil {
 					log.Printf("Error while closing reader %s", err.Error())
 				}
 				return
@@ -216,5 +250,5 @@ func WatchBlockDevices(ctx context.Context) (error, <-chan BlockDevice) {
 		}
 	}()
 
-	return nil, blockDeviceCh
+	return blockDeviceCh, err
 }
