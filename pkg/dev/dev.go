@@ -22,16 +22,21 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/golang/glog"
+	"golang.org/x/sys/unix"
 )
 
 type BlockDevice struct {
-	Major   string
-	Minor   string
+	Major   uint32
+	Minor   uint32
 	Devname string
 	Devtype string
+
+	LogicalBlockSize  uint64
+	PhysicalBlockSize uint64
 }
 
 func FindDrives(ctx context.Context) ([]BlockDevice, error) {
@@ -64,6 +69,13 @@ func FindDrives(ctx context.Context) ([]BlockDevice, error) {
 		if subsystem != "block" {
 			return nil
 		}
+		logicalBlockSize, physicalBlockSize, err := getBlockSizes(drive.Devname)
+		if err != nil {
+			return err
+		}
+		drive.LogicalBlockSize = logicalBlockSize
+		drive.PhysicalBlockSize = physicalBlockSize
+
 		drives = append(drives, drive)
 		return nil
 	}); err != nil {
@@ -119,10 +131,42 @@ func parseUevent(path string) (BlockDevice, error) {
 			return BlockDevice{}, fmt.Errorf("uevent file format not supported: %s", path)
 		}
 	}
+	majorNum64, err := strconv.ParseUint(major, 10, 32)
+	if err != nil {
+		return BlockDevice{}, fmt.Errorf("invalid major num: %s", major)
+	}
+	minorNum64, err := strconv.ParseUint(minor, 10, 32)
+	if err != nil {
+		return BlockDevice{}, fmt.Errorf("invalid minor num: %s", minor)
+	}
+	majorNum := uint32(majorNum64)
+	minorNum := uint32(minorNum64)
+
 	return BlockDevice{
-		Major:   major,
-		Minor:   minor,
+		Major:   majorNum,
+		Minor:   minorNum,
 		Devname: devname,
 		Devtype: devtype,
 	}, nil
+}
+
+func getBlockSizes(devname string) (uint64, uint64, error) {
+	devFile, err := os.OpenFile(filepath.Join("/dev/", devname), os.O_RDONLY, os.ModeDevice)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer devFile.Close()
+	
+	fd := devFile.Fd()
+	logicalBlockSize, err := unix.IoctlGetInt(int(fd), unix.BLKSSZGET)
+	if err != nil {
+		glog.Errorf("could not obtain logical block size for device: %s", devname)
+		return 0, 0, err
+	}
+	physicalBlockSize, err := unix.IoctlGetInt(int(fd), unix.BLKBSZGET)
+	if err != nil {
+		glog.Errorf("could not obtain physical block size for device: %s", devname)
+		return 0, 0, err
+	}
+	return uint64(logicalBlockSize), uint64(physicalBlockSize), nil
 }

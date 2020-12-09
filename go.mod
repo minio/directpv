@@ -7,6 +7,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-openapi/spec v0.19.3
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/google/uuid v1.1.1
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
@@ -19,6 +20,7 @@ require (
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.7.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
+	golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	google.golang.org/grpc v1.29.1
 	k8s.io/api v0.19.4
