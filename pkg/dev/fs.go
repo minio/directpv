@@ -123,6 +123,7 @@ func ProbeFSXFS(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*
 		FSBlockSize:   fsBlockSize,
 		TotalCapacity: uint64(xfs.TotalBlocks) * uint64(fsBlockSize),
 		FreeCapacity:  uint64(xfs.FreeBlocks) * uint64(fsBlockSize),
+		Mounts:        []Mount{},
 	}
 
 	return fsInfo, nil

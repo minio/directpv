@@ -60,7 +60,7 @@ func ProbeMounts(procfs string, devName string, partitionNum uint) ([]Mount, err
 		devName := filepath.Join(DevRoot, devName)
 		// usual naming scheme
 		if strings.Contains(line, devName) {
-			parts := strings.SplitN(line, "-", 2)
+			parts := strings.SplitN(line, " - ", 2)
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("invalid format of %s 1", mountinfoFile)
 			}
@@ -93,7 +93,7 @@ func ProbeMounts(procfs string, devName string, partitionNum uint) ([]Mount, err
 
 			fsType := FSType(secondParts[0])
 			mountSource := secondParts[1]
-			if !strings.HasSuffix(mountSource, fmt.Sprintf("%d", partitionNum)) {
+			if partitionNum != 0 && !strings.HasSuffix(mountSource, fmt.Sprintf("%d", partitionNum)) {
 				continue
 			}
 			superblockOptions := strings.Split(secondParts[2], ",")
