@@ -47,6 +47,16 @@ func ProbeFS(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*FSI
 		return ext4FSInfo, nil
 	}
 
+	XFSInfo, err := ProbeFSXFS(devName, logicalBlockSize, offsetBlocks)
+	if err != nil {
+		if err != ErrNotXFS {
+			return nil, err
+		}
+	}
+	if XFSInfo != nil {
+		return XFSInfo, nil
+	}
+
 	return nil, ErrNoFS
 }
 
@@ -79,6 +89,40 @@ func ProbeFSEXT4(devName string, logicalBlockSize uint64, offsetBlocks uint64) (
 		TotalCapacity: uint64(ext4.NumBlocks) * uint64(fsBlockSize),
 		FreeCapacity:  uint64(ext4.FreeBlocks) * uint64(fsBlockSize),
 		Mounts:        []Mount{},
+	}
+
+	return fsInfo, nil
+}
+
+func ProbeFSXFS(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*FSInfo, error) {
+	devPath := filepath.Join("/dev/", devName)
+	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
+	if err != nil {
+		return nil, err
+	}
+	defer devFile.Close()
+
+	_, err = devFile.Seek(int64(logicalBlockSize*offsetBlocks), os.SEEK_CUR)
+	if err != nil {
+		return nil, err
+	}
+
+	xfs := &XFSSuperBlock{}
+	err = binary.Read(devFile, binary.BigEndian, xfs)
+	if err != nil {
+		return nil, err
+	}
+
+	if !xfs.Is() {
+		return nil, ErrNotXFS
+	}
+
+	fsBlockSize := uint64(math.Pow(2, float64(10+xfs.BlockSize)))
+	fsInfo := &FSInfo{
+		FSType:        FSTypeXFS,
+		FSBlockSize:   fsBlockSize,
+		TotalCapacity: uint64(xfs.TotalBlocks) * uint64(fsBlockSize),
+		FreeCapacity:  uint64(xfs.FreeBlocks) * uint64(fsBlockSize),
 	}
 
 	return fsInfo, nil
