@@ -31,6 +31,7 @@ var ErrNotGPT = errors.New("Not a GPT volume")
 type Partition struct {
 	PartitionNum  uint32 `json:"partitionNum,omitempty"`
 	Type          string `json:"partitionType,omitempty"`
+	TypeUUID      string `json:"partitionTypeUUID,omitempty"`
 	PartitionGUID string `json:"partitionGUID,omitempty"`
 	DiskGUID      string `json:"diskGUID,omitempty"`
 
@@ -105,6 +106,7 @@ func (b *BlockDevice) FindPartitions() ([]Partition, error) {
 			},
 			PartitionNum:  i + 1,
 			Type:          partType,
+			TypeUUID:      partTypeUUID,
 			PartitionGUID: stringifyUUID(lba.PartitionGUID),
 			DiskGUID:      stringifyUUID(gpt.DiskGUID),
 		}

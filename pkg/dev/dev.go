@@ -50,7 +50,7 @@ type DriveInfo struct {
 	*FSInfo `json:"fsInfo,omitempty"`
 }
 
-func (b *BlockDevice) Init() error {
+func (b *BlockDevice) Init(procfs string) error {
 	b.DriveInfo = &DriveInfo{}
 	logicalBlockSize, physicalBlockSize, err := getBlockSizes(b.Devname)
 	if err != nil {
@@ -83,16 +83,30 @@ func (b *BlockDevice) Init() error {
 				return err
 			}
 		}
+		mounts, err := ProbeMounts(procfs, b.Devname, 0)
+		if err != nil {
+			return err
+		}
+		fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
 		b.FSInfo = fsInfo
+
 		return nil
 	}
-	for _, p := range parts {
+	for i, p := range parts {
 		offsetBlocks := p.StartBlock
 		fsInfo, err := ProbeFS(b.Devname, b.LogicalBlockSize, offsetBlocks)
 		if err != nil {
 			if err != ErrNoFS {
 				return err
 			}
+		}
+
+		if fsInfo != nil {
+			mounts, err := ProbeMounts(procfs, b.Devname, uint(i+1))
+			if err != nil {
+				return err
+			}
+			fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
 		}
 		p.FSInfo = fsInfo
 		b.Partitions = append(b.Partitions, p)
