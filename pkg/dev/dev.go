@@ -46,11 +46,12 @@ type DriveInfo struct {
 	TotalCapacity     uint64 `json:"totalCapacity,omitempty"`
 	LogicalBlockSize  uint64 `json:"logicalBlockSize,omitempty"`
 	PhysicalBlockSize uint64 `json:"physicalBlockSize,omitempty"`
+	Path              string `json:"path,omitempty"`
 
 	*FSInfo `json:"fsInfo,omitempty"`
 }
 
-func (b *BlockDevice) Init(procfs string) error {
+func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 	b.DriveInfo = &DriveInfo{}
 	logicalBlockSize, physicalBlockSize, err := getBlockSizes(b.Devname)
 	if err != nil {
@@ -68,8 +69,9 @@ func (b *BlockDevice) Init(procfs string) error {
 	numBlocks := driveSize / logicalBlockSize
 	b.NumBlocks = numBlocks
 	b.EndBlock = numBlocks
+	b.Path = filepath.Join("/dev", b.Devname)
 
-	parts, err := b.FindPartitions()
+	parts, err := b.FindPartitions(ctx)
 	if err != nil {
 		if err != ErrNotGPT {
 			return err
