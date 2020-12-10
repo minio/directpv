@@ -29,10 +29,11 @@ var ErrNoFS = errors.New("No FS found")
 type FSType string
 
 type FSInfo struct {
-	FSType        FSType `json:"fsType,omitempty"`
-	TotalCapacity uint64 `json:"totalCapacity,omitempty"`
-	FreeCapacity  uint64 `json:"freeCapacity,omitempty"`
-	FSBlockSize   uint64 `json:"fsBlockSize,omitempty"`
+	FSType        FSType  `json:"fsType,omitempty"`
+	TotalCapacity uint64  `json:"totalCapacity,omitempty"`
+	FreeCapacity  uint64  `json:"freeCapacity,omitempty"`
+	FSBlockSize   uint64  `json:"fsBlockSize,omitempty"`
+	Mounts        []Mount `json:"mounts,omitempty"`
 }
 
 func ProbeFS(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*FSInfo, error) {
@@ -77,6 +78,7 @@ func ProbeFSEXT4(devName string, logicalBlockSize uint64, offsetBlocks uint64) (
 		FSBlockSize:   fsBlockSize,
 		TotalCapacity: uint64(ext4.NumBlocks) * uint64(fsBlockSize),
 		FreeCapacity:  uint64(ext4.FreeBlocks) * uint64(fsBlockSize),
+		Mounts:        []Mount{},
 	}
 
 	return fsInfo, nil
