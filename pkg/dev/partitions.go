@@ -21,14 +21,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/golang/glog"
+	"golang.org/x/sys/unix"
 )
 
 var ErrNotGPT = errors.New("Not a GPT volume")
@@ -76,11 +74,6 @@ func (b *BlockDevice) FindPartitions(ctx context.Context) ([]Partition, error) {
 		offset = int64(pSize) - int64(lbaSize)
 	}
 
-	partPaths, pErr := fetchPartitionPaths(b.Path)
-	if pErr != nil {
-		return nil, pErr
-	}
-
 	partitions := []Partition{}
 	for i := uint32(0); i < gpt.NumPartitionEntries; i++ {
 		lba := &LBA{}
@@ -107,13 +100,9 @@ func (b *BlockDevice) FindPartitions(ctx context.Context) ([]Partition, error) {
 		}
 
 		partNum := int(i + 1)
-		partitionPath := GetPartitionPath(partPaths, partNum)
-		if partitionPath == "" {
-			mkPath := b.Path + "p" + strconv.Itoa(partNum)
-			if err := makeBlockFile(ctx, mkPath, b.Major, b.Minor); err != nil {
-				return nil, err
-			}
-			partitionPath = mkPath
+		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
+		if err := makeBlockFile(partitionPath, b.Major, b.Minor); err != nil {
+			return nil, err
 		}
 
 		part := Partition{
@@ -177,70 +166,9 @@ func curr(f *os.File) int64 {
 	return 0
 }
 
-func makeBlockFile(ctx context.Context, path string, major, minor uint32) error {
-	args := []string{
-		path,
-		"b",
-		fmt.Sprint(major),
-		fmt.Sprint(minor),
+func makeBlockFile(path string, major, minor uint32) error {
+	if err := unix.Mknod(path, unix.S_IFBLK|uint32(os.FileMode(0666)), int(unix.Mkdev(major, minor))); err != nil && !os.IsExist(err) {
+		return err
 	}
-	output, err := exec.CommandContext(ctx, "mknod", args...).CombinedOutput()
-	if err != nil {
-		log.Printf("Failed to mknod: err: (%s) output: (%s)", err.Error(), string(output))
-	}
-	return err
-}
-
-func fetchPartitionPaths(devPath string) ([]string, error) {
-	partPaths := []string{}
-
-	devDir, err := os.Open("/dev")
-	defer devDir.Close()
-	if err != nil {
-		return partPaths, err
-	}
-
-	dentries, dErr := devDir.Readdirnames(0)
-	if dErr != nil {
-		return partPaths, dErr
-	}
-
-	for _, dentry := range dentries {
-		absPath := filepath.Join("/dev", dentry)
-		if absPath == devPath {
-			continue
-		}
-		if strings.HasPrefix(absPath, devPath) {
-			partPaths = append(partPaths, absPath)
-		}
-	}
-
-	return partPaths, nil
-}
-
-func GetPartitionPath(partPaths []string, partNum int) string {
-	for _, partPath := range partPaths {
-		pNum, err := getPartNumFromPath(partPath)
-		if err == nil {
-			if pNum == partNum {
-				return partPath
-			}
-		}
-	}
-	return ""
-}
-
-func getPartNumFromPath(partPath string) (int, error) {
-	numStr := ""
-	for i := len(partPath) - 1; i >= 0; i-- {
-		_, err := strconv.Atoi(string(partPath[i]))
-		if err != nil {
-			if numStr != "" {
-				return strconv.Atoi(numStr)
-			}
-			break
-		}
-		numStr = string(partPath[i]) + numStr
-	}
-	return 0, nil
+	return nil
 }
