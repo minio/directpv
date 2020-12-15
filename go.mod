@@ -13,6 +13,7 @@ require (
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/minio/minio v0.0.0-20200622032605-a521907ab497
 	github.com/minio/minio-go/v6 v6.0.58-0.20200612001654-a57fec8037ec
+	github.com/minio/sha256-simd v0.1.1
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

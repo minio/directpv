@@ -99,13 +99,14 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 				return err
 			}
 		}
-		mounts, err := ProbeMounts(procfs, b.Devname, 0)
-		if err != nil {
-			return err
+		if fsInfo != nil {
+			mounts, err := ProbeMounts(procfs, b.Devname, 0)
+			if err != nil {
+				return err
+			}
+			fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
+			b.FSInfo = fsInfo
 		}
-		fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
-		b.FSInfo = fsInfo
-
 		return nil
 	}
 	for i, p := range parts {
@@ -130,7 +131,7 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 	return nil
 }
 
-func FindDrives(ctx context.Context) ([]*BlockDevice, error) {
+func FindDevices(ctx context.Context) ([]*BlockDevice, error) {
 	const head = "/sys/devices"
 	drives := []*BlockDevice{}
 
@@ -267,4 +268,8 @@ func getTotalCapacity(devname string) (uint64, error) {
 		return 0, err
 	}
 	return uint64(driveSize), nil
+}
+
+func (b *BlockDevice) GetPartitions() []Partition {
+	return b.Partitions
 }
