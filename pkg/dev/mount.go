@@ -97,7 +97,6 @@ func ProbeMounts(procfs string, devName string, partitionNum uint) ([]Mount, err
 				continue
 			}
 			superblockOptions := strings.Split(secondParts[2], ",")
-			fmt.Println("found mount", line)
 
 			mounts = append(mounts, Mount{
 				MountPoint:        mountPoint,
