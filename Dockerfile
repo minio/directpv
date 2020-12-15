@@ -13,6 +13,7 @@ FROM alpine:latest
 
 WORKDIR /
 RUN apk add xfsprogs
+RUN apk add xfsprogs-extra
 RUN apk add e2fsprogs
 RUN apk add dosfstools
 COPY --from=build /go/src/github.com/minio/direct-csi/direct-csi /direct-csi

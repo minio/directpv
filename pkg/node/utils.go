@@ -239,6 +239,21 @@ func UnmountIfMounted(mountPoint string) error {
 	return nil
 }
 
+// UnmountAllMountRefs - Unmount all mount refs. To avoid later mounts to overlap earlier mounts.
+func UnmountAllMountRefs(mountPoint string) error {
+	mountRefs, err := mount.New("").GetMountRefs(mountPoint)
+	if err != nil {
+		return err
+	}
+	for _, mp := range mountRefs {
+		abPath, _ := filepath.Abs(mp)
+		if mErr := mount.New("").Unmount(abPath); mErr != nil {
+			return mErr
+		}
+	}
+	return nil
+}
+
 // GetLatestStatus gets the latest condition by time
 func GetLatestStatus(statusXs []metav1.Condition) metav1.Condition {
 	// Sort the drives by LastTransitionTime [Descending]

@@ -32,6 +32,7 @@ parameters:
   disable.csi.storage.k8s.io/provisioner-secret-name: direct-csi-min-io
   disable.csi.storage.k8s.io/provisioner-secret-namespace: default
   disable.csi.storage.k8s.io/fstype: xfs
+  fstype: xfs
 
 ---
 

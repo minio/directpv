@@ -48,7 +48,7 @@ func PublishVolume(ctx context.Context, stagingPath, containerPath string, readO
 	}
 
 	if shouldBindMount {
-		opts := []string{"bind"}
+		opts := []string{"bind", "prjquota"}
 		if readOnly {
 			opts = append(opts, "ro")
 		}

@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
@@ -178,6 +179,9 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return nil, err
 	}
+
+	volumeContext := req.GetParameters()
+	volumeContext["RequiredBytes"] = strconv.FormatInt(req.GetCapacityRange().GetRequiredBytes(), 10)
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
