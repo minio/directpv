@@ -17,13 +17,16 @@
 package dev
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/golang/glog"
+	"golang.org/x/sys/unix"
 )
 
 var ErrNotGPT = errors.New("Not a GPT volume")
@@ -38,7 +41,7 @@ type Partition struct {
 	*DriveInfo `json:"driveInfo,omitempty"`
 }
 
-func (b *BlockDevice) FindPartitions() ([]Partition, error) {
+func (b *BlockDevice) FindPartitions(ctx context.Context) ([]Partition, error) {
 	devPath := filepath.Join("/dev/", b.Devname)
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
@@ -95,6 +98,13 @@ func (b *BlockDevice) FindPartitions() ([]Partition, error) {
 		if partType == "" {
 			partType = partTypeUUID
 		}
+
+		partNum := int(i + 1)
+		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
+		if err := makeBlockFile(partitionPath, b.Major, b.Minor); err != nil {
+			return nil, err
+		}
+
 		part := Partition{
 			DriveInfo: &DriveInfo{
 				LogicalBlockSize:  b.LogicalBlockSize,
@@ -103,8 +113,9 @@ func (b *BlockDevice) FindPartitions() ([]Partition, error) {
 				EndBlock:          lba.End,
 				TotalCapacity:     (lba.End - lba.Start) * b.LogicalBlockSize,
 				NumBlocks:         lba.End - lba.Start,
+				Path:              partitionPath,
 			},
-			PartitionNum:  i + 1,
+			PartitionNum:  uint32(partNum),
 			Type:          partType,
 			TypeUUID:      partTypeUUID,
 			PartitionGUID: stringifyUUID(lba.PartitionGUID),
@@ -153,4 +164,11 @@ func curr(f *os.File) int64 {
 		return offset
 	}
 	return 0
+}
+
+func makeBlockFile(path string, major, minor uint32) error {
+	if err := unix.Mknod(path, unix.S_IFBLK|uint32(os.FileMode(0666)), int(unix.Mkdev(major, minor))); err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
 }
