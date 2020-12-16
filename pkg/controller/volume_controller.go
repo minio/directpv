@@ -79,7 +79,15 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1
 						return err
 					}
 				}
-
+				// Umount the container path
+				if mErr := utils.UnmountIfMounted(new.ContainerPath); mErr != nil {
+					return mErr
+				}
+				// Umount the staging path
+				if mErr := utils.UnmountIfMounted(new.StagingPath); mErr != nil {
+					return mErr
+				}
+				// Unset the owner drive
 				new.OwnerDrive = ""
 				new.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&new.ObjectMeta, fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, "purge-protection")))
 				if _, vErr := directCSIClient.DirectCSIVolumes().Update(ctx, new, metav1.UpdateOptions{}); vErr != nil {

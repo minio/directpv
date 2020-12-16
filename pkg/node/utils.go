@@ -217,28 +217,6 @@ func FormatDevice(ctx context.Context, source, fsType string, force bool) error 
 	return err
 }
 
-// UnmountIfMounted - Idempotent function to unmount a target
-func UnmountIfMounted(mountPoint string) error {
-	shouldUmount := false
-	mountPoints, mntErr := mount.New("").List()
-	if mntErr != nil {
-		return mntErr
-	}
-	for _, mp := range mountPoints {
-		abPath, _ := filepath.Abs(mp.Path)
-		if mountPoint == abPath {
-			shouldUmount = true
-			break
-		}
-	}
-	if shouldUmount {
-		if mErr := mount.New("").Unmount(mountPoint); mErr != nil {
-			return mErr
-		}
-	}
-	return nil
-}
-
 // UnmountAllMountRefs - Unmount all mount refs. To avoid later mounts to overlap earlier mounts.
 func UnmountAllMountRefs(mountPoint string) error {
 	mounter := mount.New("")
@@ -249,7 +227,7 @@ func UnmountAllMountRefs(mountPoint string) error {
 	}
 	// If there are no refs, Simply unmount.
 	if len(mountRefs) == 0 {
-		return UnmountIfMounted(mountPoint)
+		return utils.UnmountIfMounted(mountPoint)
 	}
 	// Else, Unmount all the mountrefs first.
 	mountPoints, mntErr := mounter.List()

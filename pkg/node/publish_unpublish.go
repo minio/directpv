@@ -18,6 +18,7 @@ package node
 
 import (
 	"context"
+	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/utils/mount"
 	"os"
 	"path/filepath"
@@ -65,5 +66,5 @@ func UnpublishVolume(ctx context.Context, containerPath string) error {
 		return err
 	}
 
-	return UnmountIfMounted(containerPath)
+	return utils.UnmountIfMounted(containerPath)
 }
