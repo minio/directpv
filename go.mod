@@ -5,6 +5,7 @@ go 1.14
 require (
 	github.com/container-storage-interface/spec v1.3.0
 	github.com/dustin/go-humanize v1.0.0
+	github.com/fatih/color v1.7.0
 	github.com/go-openapi/spec v0.19.3
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/google/go-cmp v0.5.2 // indirect
@@ -34,6 +35,8 @@ require (
 	k8s.io/cli-runtime v0.19.4
 	k8s.io/client-go v0.19.4
 	k8s.io/klog/v2 v2.4.0 // indirect
+	k8s.io/code-generator v0.20.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	k8s.io/utils v0.0.0-20200729134348-d5654de09c73
+	sigs.k8s.io/controller-tools v0.4.1 // indirect
 )

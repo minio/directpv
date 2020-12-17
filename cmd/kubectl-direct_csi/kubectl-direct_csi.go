@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/minio/direct-csi/cmd"
 )
 
 func main() {
@@ -40,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}()
 
-	if err := cmd.Execute(ctx); err != nil {
+	if err := Execute(ctx); err != nil {
 		os.Exit(1)
 	}
 }
