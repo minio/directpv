@@ -18,18 +18,20 @@ package utils
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"regexp"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
-	// Label to denote the creator
-	CreatedByLabel = "created-by"
-	// Denotes that it was created by direct-csi-plugin
+	CreatedByLabel      = "created-by"
 	DirectCSIPluginName = "kubectl-direct_csi"
 
 	CSIDriver = "CSIDriver"
@@ -74,6 +76,9 @@ const (
 
 	kubeNodeNameEnvVar = "KUBE_NODE_NAME"
 	endpointEnvVarCSI  = "CSI_ENDPOINT"
+
+	kubeletDirPath = "/var/lib/kubelet"
+	csiRootPath    = "/var/lib/direct-csi/"
 )
 
 func objMeta(name string) metav1.ObjectMeta {
@@ -90,6 +95,7 @@ func objMeta(name string) metav1.ObjectMeta {
 	}
 
 }
+
 func CreateNamespace(ctx context.Context, identity string) error {
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
@@ -249,6 +255,264 @@ func CreateService(ctx context.Context, identity string) error {
 	return nil
 }
 
+func CreateDaemonSet(ctx context.Context, identity string) error {
+	name := sanitizeName(identity)
+	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
+
+	privileged := true
+	podSpec := corev1.PodSpec{
+		ServiceAccountName: name,
+		HostNetwork:        false,
+		HostIPC:            false,
+		HostPID:            true,
+		Volumes: []corev1.Volume{
+			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name)),
+			newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
+			newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
+			newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
+			newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
+			newHostPathVolume(volumeNameDevDir, volumePathDevDir),
+			newHostPathVolume(volumeNameSysDir, volumePathSysDir),
+		},
+		Containers: []corev1.Container{
+			{
+				Name:  nodeDriverRegistrarContainerName,
+				Image: nodeDriverRegistrarContainerImage,
+				Args: []string{
+					"--v=5",
+					"--csi-address=/csi/csi.sock",
+					fmt.Sprintf("--kubelet-registration-path=%s", newDirectCSIPluginsSocketDir(kubeletDirPath, name)+"/csi.sock"),
+				},
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name: kubeNodeNameEnvVar,
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "spec.nodeName",
+							},
+						},
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(volumeNameSocketDir, "/csi", false),
+					newVolumeMount(volumeNameRegistrationDir, "/registration", false),
+				},
+				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+				TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
+			},
+			{
+				Name:  directCSIContainerName,
+				Image: directCSIContainerImage,
+				Args: []string{
+					fmt.Sprintf("--identity=%s", name),
+					"--v=5",
+					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
+					fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
+					"--driver",
+				},
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name: kubeNodeNameEnvVar,
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "spec.nodeName",
+							},
+						},
+					},
+					{
+						Name:  endpointEnvVarCSI,
+						Value: "unix:///csi/csi.sock",
+					},
+				},
+				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+				TerminationMessagePath:   "/var/log/driver-termination-log",
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(volumeNameSocketDir, "/csi", false),
+					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", false),
+					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true),
+					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true),
+					newVolumeMount(volumeNameDevDir, "/dev", true),
+					newVolumeMount(volumeNameSysDir, "/sys", true),
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 9898,
+						Name:          "healthz",
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+				LivenessProbe: &corev1.Probe{
+					FailureThreshold:    5,
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      3,
+					PeriodSeconds:       2,
+					Handler: corev1.Handler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: healthZContainerPortPath,
+							Port: intstr.FromString(healthZContainerPortName),
+						},
+					},
+				},
+			},
+			{
+				Name:  livenessProbeContainerName,
+				Image: livenessProbeContainerImage,
+				Args: []string{
+					"--csi-address=/csi/csi.sock",
+					"--health-port=9898",
+				},
+				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+				TerminationMessagePath:   "/var/log/driver-liveness-termination-log",
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(volumeNameSocketDir, "/csi", false),
+				},
+			},
+		},
+	}
+
+	daemonset := &appsv1.DaemonSet{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DaemonSet",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: objMeta(identity),
+		Spec: appsv1.DaemonSetSpec{
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: objMeta(identity),
+				Spec:       podSpec,
+			},
+		},
+		Status: appsv1.DaemonSetStatus{},
+	}
+	if _, err := kubeClient.AppsV1().DaemonSets(sanitizeName(identity)).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateDeployment(ctx context.Context, identity string) error {
+	name := sanitizeName(identity)
+	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
+	var replicas int32 = 3
+	privileged := true
+	podSpec := corev1.PodSpec{
+		ServiceAccountName: name,
+		Volumes: []corev1.Volume{
+			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name)),
+		},
+		Containers: []corev1.Container{
+			{
+				Name:  csiProvisionerContainerName,
+				Image: csiProvisionerContainerImage,
+				Args: []string{
+					"--v=5",
+					"--timeout=300s",
+					fmt.Sprintf("--csi-address=$(%s)", endpointEnvVarCSI),
+					"--enable-leader-election",
+					"--leader-election-type=leases",
+					"--feature-gates=Topology=true",
+					"--strict-topology",
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name:  endpointEnvVarCSI,
+						Value: "unix:///csi/csi.sock",
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(volumeNameSocketDir, "/csi", false),
+				},
+				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+				TerminationMessagePath:   "/var/log/controller-provisioner-termination-log",
+				// TODO: Enable this after verification
+				// LivenessProbe: &corev1.Probe{
+				// 	FailureThreshold:    5,
+				// 	InitialDelaySeconds: 10,
+				// 	TimeoutSeconds:      3,
+				// 	PeriodSeconds:       2,
+				// 	Handler: corev1.Handler{
+				// 		HTTPGet: &corev1.HTTPGetAction{
+				// 			Path: healthZContainerPortPath,
+				// 			Port: intstr.FromInt(9898),
+				// 		},
+				// 	},
+				// },
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+			},
+			{
+				Name:  directCSIContainerName,
+				Image: directCSIContainerImage,
+				Args: []string{
+					"--v=5",
+					fmt.Sprintf("--identity=%s", name),
+					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
+					"--controller",
+				},
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 9898,
+						Name:          "healthz",
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name: kubeNodeNameEnvVar,
+						ValueFrom: &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "spec.nodeName",
+							},
+						},
+					},
+					{
+						Name:  endpointEnvVarCSI,
+						Value: "unix:///csi/csi.sock",
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(volumeNameSocketDir, "/csi", false),
+				},
+			},
+		},
+	}
+
+	deployment := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: objMeta(identity),
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: objMeta(identity),
+				Spec:       podSpec,
+			},
+		},
+		Status: appsv1.DeploymentStatus{},
+	}
+	if _, err := kubeClient.AppsV1().Deployments(identity).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func sanitizeName(s string) string {
 	re := regexp.MustCompile("[^a-zA-Z0-9-]")
 	s = re.ReplaceAllString(s, "-")
@@ -256,4 +520,51 @@ func sanitizeName(s string) string {
 		s = s + "X"
 	}
 	return s
+}
+
+func generateSanitizedUniqueNameFrom(name string) string {
+	sanitizedName := sanitizeName(name)
+	// Max length of name is 255. If needed, cut out last 6 bytes
+	// to make room for randomstring
+	if len(sanitizedName) >= 255 {
+		sanitizedName = sanitizedName[0:249]
+	}
+
+	// Get a 5 byte randomstring
+	shortUUID := NewRandomString(5)
+
+	// Concatenate sanitizedName (249) and shortUUID (5) with a '-' in between
+	// Max length of the returned name cannot be more than 255 bytes
+	return fmt.Sprintf("%s-%s", sanitizedName, shortUUID)
+}
+
+func newHostPathVolume(name, path string) corev1.Volume {
+	hostPathType := corev1.HostPathDirectoryOrCreate
+	volumeSource := corev1.VolumeSource{
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: path,
+			Type: &hostPathType,
+		},
+	}
+
+	return corev1.Volume{
+		Name:         name,
+		VolumeSource: volumeSource,
+	}
+}
+
+func newDirectCSIPluginsSocketDir(kubeletDir, name string) string {
+	return filepath.Join(kubeletDir, "plugins", sanitizeName(name))
+}
+
+func newVolumeMount(name, path string, bidirectional bool) corev1.VolumeMount {
+	mountProp := corev1.MountPropagationNone
+	if bidirectional {
+		mountProp = corev1.MountPropagationBidirectional
+	}
+	return corev1.VolumeMount{
+		Name:             name,
+		MountPath:        path,
+		MountPropagation: &mountProp,
+	}
 }

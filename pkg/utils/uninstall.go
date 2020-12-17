@@ -81,3 +81,17 @@ func DeleteService(ctx context.Context, identity string) error {
 	}
 	return nil
 }
+
+func DeleteDaemonSet(ctx context.Context, identity string) error {
+	if err := kubeClient.AppsV1().DaemonSets(sanitizeName(identity)).Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteDeployment(ctx context.Context, identity string) error {
+	if err := kubeClient.AppsV1().Deployments(sanitizeName(identity)).Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}

@@ -103,15 +103,19 @@ func install(ctx context.Context, args []string) error {
 	}
 	glog.Infof("'%s' rbac roles created", utils.Bold(identity))
 
-	// if err := util.CreateDaemonSet(ctx, kClient, name, identity, c.kubeletDirPath, c.csiRootPath); err != nil {
-	// 	return err
-	// }
-	// fmt.Println("Created DaemonSet", name)
+	if err := utils.CreateDaemonSet(ctx, identity); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' daemonset created", utils.Bold(identity))
 
-	// if err := util.CreateDeployment(ctx, kClient, name, identity, c.kubeletDirPath, c.csiRootPath); err != nil {
-	// 	return err
-	// }
-	// fmt.Println("Created Deployment", name)
+	if err := utils.CreateDeployment(ctx, identity); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' deployment created", utils.Bold(identity))
 
 	return nil
 }
