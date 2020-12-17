@@ -61,17 +61,20 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDrive(ref common.Reference
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveStatus"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDriveStatus"),
 						},
 					},
 				},
@@ -106,6 +109,7 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveList(ref common.Refer
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
 							Description: "metdata is the standard list metadata.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -115,7 +119,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveList(ref common.Refer
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDrive"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIDrive"),
 									},
 								},
 							},
@@ -138,12 +143,14 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveSpec(ref common.Refer
 				Properties: map[string]spec.Schema{
 					"requestedFormat": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat"),
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat"),
 						},
 					},
 					"directCSIOwned": {
 						SchemaProps: spec.SchemaProps{
 							Description: "required",
+							Default:     false,
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -155,8 +162,9 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveSpec(ref common.Refer
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -179,8 +187,9 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveStatus(ref common.Ref
 				Properties: map[string]spec.Schema{
 					"path": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"allocatedCapacity": {
@@ -230,8 +239,9 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveStatus(ref common.Ref
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -239,8 +249,9 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveStatus(ref common.Ref
 					},
 					"nodeName": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
 						},
 					},
 					"driveStatus": {
@@ -286,8 +297,9 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveStatus(ref common.Ref
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -322,7 +334,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolume(ref common.Referenc
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"ownerDrive": {
@@ -357,8 +370,9 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolume(ref common.Referenc
 					},
 					"totalCapacity": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int64",
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
 						},
 					},
 					"status": {
@@ -372,7 +386,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolume(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
 									},
 								},
 							},
@@ -410,6 +425,7 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolumeList(ref common.Refe
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
 							Description: "metdata is the standard list metadata.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -419,7 +435,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolumeList(ref common.Refe
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIVolume"),
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.DirectCSIVolume"),
 									},
 								},
 							},
@@ -475,8 +492,9 @@ func schema_pkg_apis_directcsiminio_v1alpha1_RequestedFormat(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},

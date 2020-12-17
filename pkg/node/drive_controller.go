@@ -75,7 +75,18 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 	}
 
 	fsType := new.Spec.RequestedFormat.Filesystem
+	if new.Status.Filesystem != "" && new.Status.Filesystem != "xfs" && fsType != "xfs" {
+		glog.Errorf("Only xfs disks can be added - %s", new.ObjectMeta.Name)
+		return nil
+	}
+
 	if fsType != "" {
+
+		if fsType != "xfs" {
+			glog.Errorf("Only xfs formatting is supported - %s", new.ObjectMeta.Name)
+			return nil
+		}
+
 		isForceOptionSet := new.Spec.RequestedFormat.Force
 		isPurgeOptionSet := new.Spec.RequestedFormat.Purge
 
@@ -100,8 +111,8 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 			if fErr != nil {
 				return fErr
 			}
-			// Check and unmount if the drive is already mounted
-			if err := UnmountIfMounted(abMountPath); err != nil {
+			// Unmount all mount refs to avoid later mounts to overlap earlier mounts
+			if err := UnmountAllMountRefs(abMountPath); err != nil {
 				return err
 			}
 			// Update the truth immediately that the drive is been unmounted (OR) the drive does not have a mountpoint
@@ -136,7 +147,9 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 			mountPoint = filepath.Join(string(filepath.Separator), "mnt", "direct-csi", new.ObjectMeta.Name)
 		}
 
-		if err := MountDevice(new.Status.Path, mountPoint, fsType, new.Spec.RequestedFormat.Mountoptions); err != nil {
+		mountOptions := new.Spec.RequestedFormat.Mountoptions
+		mountOptions = append(mountOptions, "prjquota")
+		if err := MountDevice(new.Status.Path, mountPoint, fsType, mountOptions); err != nil {
 			return fmt.Errorf("Failed to mount the device: %v", err)
 		}
 

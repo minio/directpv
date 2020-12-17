@@ -16,4 +16,4 @@
 
 package dev
 
-const DevRoot = "/dev/"
+const DevRoot = "/var/lib/direct-csi/devices"

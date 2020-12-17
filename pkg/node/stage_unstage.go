@@ -55,7 +55,7 @@ func StageVolume(ctx context.Context, directCSIDrive *direct_csi.DirectCSIDrive,
 	}
 
 	if shouldBindMount {
-		if err := mounter.Mount(hostPath, stagingPath, "", []string{"bind"}); err != nil {
+		if err := mounter.Mount(hostPath, stagingPath, "", []string{"bind", "prjquota"}); err != nil {
 			return "", err
 		}
 	}
