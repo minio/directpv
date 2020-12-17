@@ -57,7 +57,7 @@ func ProbeMounts(procfs string, devName string, partitionNum uint) ([]Mount, err
 			}
 			break
 		}
-		devName := filepath.Join(DevRoot, devName)
+		devName := getBlockFile(devName)
 		// usual naming scheme
 		if strings.Contains(line, devName) {
 			parts := strings.SplitN(line, " - ", 2)

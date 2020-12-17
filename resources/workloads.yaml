@@ -138,7 +138,7 @@ spec:
             - mountPath: /mnt/direct-csi
               name: direct-csi-common-root
               mountPropagation: Bidirectional
-            - mountPath: /dev
+            - mountPath: /var/lib/direct-csi
               name: dev-dir
               mountPropagation: Bidirectional
             - mountPath: /sys
@@ -176,8 +176,8 @@ spec:
             type: DirectoryOrCreate
           name: direct-csi-common-root
         - hostPath:
-            path: /dev
-            type: Directory
+            path: /var/lib/direct-csi
+            type: DirectoryOrCreate
           name: dev-dir
         - hostPath:
             path: /sys

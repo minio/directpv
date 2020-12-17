@@ -241,16 +241,43 @@ func UnmountIfMounted(mountPoint string) error {
 
 // UnmountAllMountRefs - Unmount all mount refs. To avoid later mounts to overlap earlier mounts.
 func UnmountAllMountRefs(mountPoint string) error {
-	mountRefs, err := mount.New("").GetMountRefs(mountPoint)
+	mounter := mount.New("")
+	// Get all the mountrefs
+	mountRefs, err := mounter.GetMountRefs(mountPoint)
 	if err != nil {
 		return err
 	}
-	for _, mp := range mountRefs {
-		abPath, _ := filepath.Abs(mp)
-		if mErr := mount.New("").Unmount(abPath); mErr != nil {
-			return mErr
+	// If there are no refs, Simply unmount.
+	if len(mountRefs) == 0 {
+		return UnmountIfMounted(mountPoint)
+	}
+	// Else, Unmount all the mountrefs first.
+	mountPoints, mntErr := mounter.List()
+	if mntErr != nil {
+		return mntErr
+	}
+	for _, mRef := range mountRefs {
+		abmRef, _ := filepath.Abs(mRef)
+		for _, mp := range mountPoints {
+			abMp, _ := filepath.Abs(mp.Path)
+			if abmRef == abMp {
+				if mErr := mounter.Unmount(abmRef); mErr != nil {
+					return mErr
+				}
+			}
 		}
 	}
+	// Finally, unmount the mountpoint
+	for _, mp := range mountPoints {
+		abPath, _ := filepath.Abs(mp.Path)
+		if mountPoint == abPath {
+			if mErr := mounter.Unmount(mountPoint); mErr != nil {
+				return mErr
+			}
+			break
+		}
+	}
+
 	return nil
 }
 

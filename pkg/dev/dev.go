@@ -29,11 +29,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const (
-	// DevicesDir - Directory path to be used by mknod
-	DevicesDir = "/var/direct-csi/devices"
-)
-
 type BlockDevice struct {
 	Major      uint32      `json:"major"`
 	Minor      uint32      `json:"minor"`
@@ -57,7 +52,17 @@ type DriveInfo struct {
 }
 
 func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
+	if err := os.MkdirAll(DevRoot, 0755); err != nil {
+		return err
+	}
+
+	devPath := getBlockFile(b.Devname)
+	if err := makeBlockFile(devPath, b.Major, b.Minor); err != nil {
+		return err
+	}
+
 	b.DriveInfo = &DriveInfo{}
+	b.Path = devPath
 	logicalBlockSize, physicalBlockSize, err := getBlockSizes(b.Devname)
 	if err != nil {
 		return err
@@ -71,19 +76,9 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 	}
 	b.TotalCapacity = driveSize
 
-	if err := os.MkdirAll(DevicesDir, 0755); err != nil {
-		return err
-	}
-
 	numBlocks := driveSize / logicalBlockSize
 	b.NumBlocks = numBlocks
 	b.EndBlock = numBlocks
-
-	devPath := filepath.Join(DevicesDir, b.Devname)
-	if err := makeBlockFile(devPath, b.Major, b.Minor); err != nil {
-		return err
-	}
-	b.Path = devPath
 
 	parts, err := b.FindPartitions(ctx)
 	if err != nil {
@@ -236,7 +231,7 @@ func parseUevent(path string) (*BlockDevice, error) {
 }
 
 func getBlockSizes(devname string) (uint64, uint64, error) {
-	devFile, err := os.OpenFile(filepath.Join("/dev/", devname), os.O_RDONLY, os.ModeDevice)
+	devFile, err := os.OpenFile(getBlockFile(devname), os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -257,7 +252,7 @@ func getBlockSizes(devname string) (uint64, uint64, error) {
 }
 
 func getTotalCapacity(devname string) (uint64, error) {
-	devFile, err := os.OpenFile(filepath.Join("/dev/", devname), os.O_RDONLY, os.ModeDevice)
+	devFile, err := os.OpenFile(getBlockFile(devname), os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return 0, err
 	}

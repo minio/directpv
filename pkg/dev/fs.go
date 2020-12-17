@@ -21,7 +21,6 @@ import (
 	"errors"
 	"math"
 	"os"
-	"path/filepath"
 )
 
 var ErrNoFS = errors.New("No FS found")
@@ -61,7 +60,7 @@ func ProbeFS(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*FSI
 }
 
 func ProbeFSEXT4(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*FSInfo, error) {
-	devPath := filepath.Join("/dev/", devName)
+	devPath := getBlockFile(devName)
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
@@ -95,7 +94,7 @@ func ProbeFSEXT4(devName string, logicalBlockSize uint64, offsetBlocks uint64) (
 }
 
 func ProbeFSXFS(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*FSInfo, error) {
-	devPath := filepath.Join("/dev/", devName)
+	devPath := getBlockFile(devName)
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
@@ -117,12 +116,11 @@ func ProbeFSXFS(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*
 		return nil, ErrNotXFS
 	}
 
-	fsBlockSize := uint64(math.Pow(2, float64(10+xfs.BlockSize)))
 	fsInfo := &FSInfo{
 		FSType:        FSTypeXFS,
-		FSBlockSize:   fsBlockSize,
-		TotalCapacity: uint64(xfs.TotalBlocks) * uint64(fsBlockSize),
-		FreeCapacity:  uint64(xfs.FreeBlocks) * uint64(fsBlockSize),
+		FSBlockSize:   uint64(xfs.BlockSize),
+		TotalCapacity: uint64(xfs.TotalBlocks) * uint64(xfs.BlockSize),
+		FreeCapacity:  uint64(xfs.FreeBlocks) * uint64(xfs.BlockSize),
 		Mounts:        []Mount{},
 	}
 
