@@ -109,25 +109,25 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 	}
 	return gvk, nil
 }
+
 func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
 	gvk, err := GetGroupKindVersions(group, kind, versions...)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	gv := &schema.GroupVersion{
+		Group:   gvk.Group,
+		Version: gvk.Version,
+	}
 	kubeConfig := viper.GetString("kubeconfig")
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			return nil, nil, err
+			glog.Fatalf("could not find client configuration: %v", err)
 		}
 		glog.Infof("obtained client config successfully")
-	}
-
-	gv := &schema.GroupVersion{
-		Group:   gvk.Group,
-		Version: gvk.Version,
 	}
 	config.GroupVersion = gv
 	config.APIPath = "/apis"

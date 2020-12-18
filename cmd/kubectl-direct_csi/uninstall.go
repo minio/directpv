@@ -90,5 +90,18 @@ func uninstall(ctx context.Context, args []string) error {
 	}
 	glog.Infof("'%s' rbac roles deleted", utils.Bold(identity))
 
+	if err := utils.DeleteDaemonSet(ctx, identity); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' daemonset deleted", utils.Bold(identity))
+
+	if err := utils.DeleteDeployment(ctx, identity); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' deployment deleted", utils.Bold(identity))
 	return nil
 }
