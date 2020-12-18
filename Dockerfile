@@ -7,7 +7,7 @@ RUN \
     REPOSITORY=github.com/minio/direct-csi \
     CSI_VERSION=$(git describe --tags --always --dirty) \
     CGO_ENABLED=0 \
-    go build -tags "osusergo netgo static_build" -ldflags="-X ${REPOSITORY}/cmd.Version=${CSI_VERSION} -extldflags=-static"
+    set -x && go build -tags "osusergo netgo static_build" -ldflags="-X ${REPOSITORY}/cmd/direct-csi/cmd.Version=${CSI_VERSION} -extldflags=-static" ${REPOSITORY}/cmd/direct-csi
 
 FROM alpine:latest
 

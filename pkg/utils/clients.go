@@ -41,6 +41,7 @@ var kubeClient kubernetes.Interface
 var crdClient apiextensions.CustomResourceDefinitionInterface
 var discoveryClient discovery.DiscoveryInterface
 var metadataClient metadata.Interface
+var gvk *schema.GroupVersionKind
 
 func Init() {
 	kubeConfig := viper.GetString("kubeconfig")
@@ -81,6 +82,9 @@ func Init() {
 }
 
 func GetGroupKindVersions(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
+	if gvk != nil {
+		return gvk, nil
+	}
 	discoveryClient := GetDiscoveryClient()
 	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {
@@ -88,21 +92,22 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 		return nil, err
 	}
 	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
-	gvk := schema.GroupKind{
+	gk := schema.GroupKind{
 		Group: group,
 		Kind:  kind,
 	}
-	mapper, err := restMapper.RESTMapping(gvk, versions...)
+	mapper, err := restMapper.RESTMapping(gk, versions...)
 	if err != nil {
 		glog.Errorf("could not find valid restmapping: %v", err)
 		return nil, err
 	}
 
-	return &schema.GroupVersionKind{
+	gvk = &schema.GroupVersionKind{
 		Group:   mapper.Resource.Group,
 		Version: mapper.Resource.Version,
 		Kind:    mapper.Resource.Resource,
-	}, nil
+	}
+	return gvk, nil
 }
 func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
 	gvk, err := GetGroupKindVersions(group, kind, versions...)

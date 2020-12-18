@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -36,7 +37,7 @@ var (
 )
 
 var pluginCmd = &cobra.Command{
-	Use:           os.Args[0],
+	Use:           filepath.Base(os.Args[0]),
 	Short:         "Plugin for managing Direct CSI drives and volumes",
 	Long:          os.Args[0],
 	SilenceUsage:  true,

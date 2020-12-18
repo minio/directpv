@@ -29,8 +29,8 @@ import (
 const (
 	// Label to denote the creator
 	CreatedByLabel = "created-by"
-	// Denotes that it was created by direct-csi-controller
-	DirectCSIControllerName = "controller.direct.csi.min.io"
+	// Denotes that it was created by direct-csi-plugin
+	DirectCSIPluginName = "kubectl-direct_csi"
 
 	CSIDriver = "CSIDriver"
 	DirectCSI = "direct.csi.min.io"
@@ -76,22 +76,26 @@ const (
 	endpointEnvVarCSI  = "CSI_ENDPOINT"
 )
 
+func objMeta(name string) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name: sanitizeName(name),
+		Annotations: map[string]string{
+			CreatedByLabel: DirectCSIPluginName,
+		},
+		Labels: map[string]string{
+			"app":  DirectCSI,
+			"type": CSIDriver,
+		},
+	}
+
+}
 func CreateNamespace(ctx context.Context, identity string) error {
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Namespace",
 			APIVersion: "v1",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: sanitizeName(identity),
-			Labels: map[string]string{
-				CreatedByLabel: DirectCSIControllerName,
-			},
-			Annotations: map[string]string{
-				"app":  DirectCSI,
-				"type": CSIDriver,
-			},
-		},
+		ObjectMeta: objMeta(identity),
 		Spec: corev1.NamespaceSpec{
 			Finalizers: []corev1.FinalizerName{},
 		},
@@ -121,16 +125,7 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 				Kind:       "CSIDriver",
 				APIVersion: "storage.k8s.io/v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: sanitizeName(identity),
-				Labels: map[string]string{
-					CreatedByLabel: DirectCSIControllerName,
-				},
-				Annotations: map[string]string{
-					"app":  DirectCSI,
-					"type": CSIDriver,
-				},
-			},
+			ObjectMeta: objMeta(identity),
 			Spec: storagev1.CSIDriverSpec{
 				PodInfoOnMount: &podInfoOnMount,
 				AttachRequired: &attachRequired,
@@ -151,16 +146,7 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 				Kind:       "CSIDriver",
 				APIVersion: "storage.k8s.io/v1beta1",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: sanitizeName(identity),
-				Labels: map[string]string{
-					CreatedByLabel: DirectCSIControllerName,
-				},
-				Annotations: map[string]string{
-					"app":  DirectCSI,
-					"type": CSIDriver,
-				},
-			},
+			ObjectMeta: objMeta(identity),
 			Spec: storagev1beta1.CSIDriverSpec{
 				PodInfoOnMount: &podInfoOnMount,
 				AttachRequired: &attachRequired,
@@ -173,6 +159,61 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 
 		// Create CSIDriver Obj
 		if _, err := kubeClient.StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+	default:
+		return ErrKubeVersionNotSupported
+	}
+	return nil
+}
+
+func CreateStorageClass(ctx context.Context, identity string) error {
+	allowExpansion := false
+	allowedTopologies := []corev1.TopologySelectorTerm{}
+	retainPolicy := corev1.PersistentVolumeReclaimRetain
+
+	gvk, err := GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	if err != nil {
+		return err
+	}
+
+	switch gvk.Version {
+	case "v1":
+		bindingMode := storagev1.VolumeBindingWaitForFirstConsumer
+		// Create StorageClass for the new driver
+		storageClass := &storagev1.StorageClass{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "StorageClass",
+				APIVersion: "storage.k8s.io/v1",
+			},
+			ObjectMeta:           objMeta(identity),
+			Provisioner:          identity,
+			AllowVolumeExpansion: &allowExpansion,
+			VolumeBindingMode:    &bindingMode,
+			AllowedTopologies:    allowedTopologies,
+			ReclaimPolicy:        &retainPolicy,
+		}
+
+		if _, err := kubeClient.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+	case "v1beta1":
+		bindingMode := storagev1beta1.VolumeBindingWaitForFirstConsumer
+		// Create StorageClass for the new driver
+		storageClass := &storagev1beta1.StorageClass{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "StorageClass",
+				APIVersion: "storage.k8s.io/v1beta1",
+			},
+			ObjectMeta:           objMeta(identity),
+			Provisioner:          identity,
+			AllowVolumeExpansion: &allowExpansion,
+			VolumeBindingMode:    &bindingMode,
+			AllowedTopologies:    allowedTopologies,
+			ReclaimPolicy:        &retainPolicy,
+		}
+
+		if _, err := kubeClient.StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	default:

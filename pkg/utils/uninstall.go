@@ -53,3 +53,24 @@ func DeleteCSIDriver(ctx context.Context, identity string) error {
 	}
 	return nil
 }
+
+func DeleteStorageClass(ctx context.Context, identity string) error {
+	gvk, err := GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	if err != nil {
+		return err
+	}
+
+	switch gvk.Version {
+	case "v1":
+		if err := kubeClient.StorageV1().StorageClasses().Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	case "v1beta1":
+		if err := kubeClient.StorageV1beta1().StorageClasses().Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	default:
+		return ErrKubeVersionNotSupported
+	}
+	return nil
+}
