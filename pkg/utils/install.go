@@ -61,13 +61,13 @@ const (
 	csiProvisionerContainerImage = "quay.io/k8scsi/csi-provisioner:v1.2.1"
 
 	directCSIContainerName  = "direct-csi"
-	directCSIContainerImage = "minio/direct-csi:v0.2.1"
+	directCSIContainerImage = "minio/direct-csi:v1.0-rc-1"
 
 	livenessProbeContainerName  = "liveness-probe"
 	livenessProbeContainerImage = "quay.io/k8scsi/livenessprobe:v1.1.0"
 
 	nodeDriverRegistrarContainerName  = "node-driver-registrar"
-	nodeDriverRegistrarContainerImage = "quay.io/k8scsi/csi-node-driver-registrar:v2.0.0"
+	nodeDriverRegistrarContainerImage = "quay.io/k8scsi/csi-node-driver-registrar:v1.3.0"
 
 	healthZContainerPort         = 9898
 	healthZContainerPortName     = "healthz"
@@ -194,11 +194,14 @@ func CreateStorageClass(ctx context.Context, identity string) error {
 				APIVersion: "storage.k8s.io/v1",
 			},
 			ObjectMeta:           objMeta(identity),
-			Provisioner:          identity,
+			Provisioner:          sanitizeName(identity),
 			AllowVolumeExpansion: &allowExpansion,
 			VolumeBindingMode:    &bindingMode,
 			AllowedTopologies:    allowedTopologies,
 			ReclaimPolicy:        &retainPolicy,
+			Parameters: map[string]string{
+				"fstype": "xfs",
+			},
 		}
 
 		if _, err := kubeClient.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
@@ -218,6 +221,9 @@ func CreateStorageClass(ctx context.Context, identity string) error {
 			VolumeBindingMode:    &bindingMode,
 			AllowedTopologies:    allowedTopologies,
 			ReclaimPolicy:        &retainPolicy,
+			Parameters: map[string]string{
+				"fstype": "xfs",
+			},
 		}
 
 		if _, err := kubeClient.StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
@@ -387,8 +393,17 @@ func CreateDaemonSet(ctx context.Context, identity string) error {
 		Spec: appsv1.DaemonSetSpec{
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: objMeta(identity),
-				Spec:       podSpec,
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      sanitizeName(name),
+					Namespace: sanitizeName(name),
+					Annotations: map[string]string{
+						CreatedByLabel: DirectCSIPluginName,
+					},
+					Labels: map[string]string{
+						directCSISelector: generatedSelectorValue,
+					},
+				},
+				Spec: podSpec,
 			},
 		},
 		Status: appsv1.DaemonSetStatus{},
@@ -407,7 +422,7 @@ func CreateDeployment(ctx context.Context, identity string) error {
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
 		Volumes: []corev1.Volume{
-			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name)),
+			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", name))),
 		},
 		Containers: []corev1.Container{
 			{
@@ -501,13 +516,22 @@ func CreateDeployment(ctx context.Context, identity string) error {
 			Replicas: &replicas,
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: objMeta(identity),
-				Spec:       podSpec,
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      sanitizeName(name),
+					Namespace: sanitizeName(name),
+					Annotations: map[string]string{
+						CreatedByLabel: DirectCSIPluginName,
+					},
+					Labels: map[string]string{
+						directCSISelector: generatedSelectorValue,
+					},
+				},
+				Spec: podSpec,
 			},
 		},
 		Status: appsv1.DeploymentStatus{},
 	}
-	if _, err := kubeClient.AppsV1().Deployments(identity).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+	if _, err := kubeClient.AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
