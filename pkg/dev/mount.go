@@ -57,9 +57,9 @@ func ProbeMounts(procfs string, devName string, partitionNum uint) ([]Mount, err
 			}
 			break
 		}
-		devName := getBlockFile(devName)
+		newDevName := getBlockFile(devName)
 		// usual naming scheme
-		if strings.Contains(line, devName) {
+		if strings.Contains(line, newDevName) || strings.Contains(line, filepath.Join("/dev", devName)) {
 			parts := strings.SplitN(line, " - ", 2)
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("invalid format of %s 1", mountinfoFile)
