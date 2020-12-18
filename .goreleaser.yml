@@ -1,18 +1,24 @@
 project_name: direct-csi
 
 release:
-   name_template: "Version {{.Version}}"
+   name_template: "Release version {{.Version}}"
 
    github:
     owner: minio
     name: direct-csi
 
+   extra_files:
+     - glob: "*.minisig"
+     - glob: "*.zip"
+
 before:
   hooks:
     - go mod tidy
+    - go mod download
 
 builds:
   -
+    main: ./cmd/direct-csi
     goos:
       - linux
     goarch:
@@ -23,7 +29,27 @@ builds:
       - -trimpath
       - -tags="osusergo netgo static_build"
     ldflags:
-      - -s -w -X github.com/minio/direct-csi/cmd.Version={{ .Version }}
+      - -s -w -X main.Version={{ .Tag }}
+    hooks:
+      post: ./package.sh {{ .Path }}
+
+  -
+    main: ./cmd/kubectl-direct_csi
+    id: kubectl-direct_csi
+    binary: kubectl-direct_csi
+    goos:
+      - linux
+    goarch:
+      - amd64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+      - -tags="osusergo netgo static_build"
+    ldflags:
+      - -s -w -X main.Version={{ .Tag }}
+    hooks:
+      post: ./package.sh {{ .Path }}
 
 archives:
   - format: binary
@@ -39,3 +65,8 @@ dockers:
     image_templates:
       - minio/direct-csi:{{ .Tag }}
       - minio/direct-csi:latest
+    extra_files:
+      - LICENSE
+      - README.md
+      - CREDITS
+      - direct-csi.minisig

@@ -2,3 +2,7 @@
 *.test
 dist/
 direct-csi
+*.zip
+direct-csi_*
+kubectl-direct_csi_*
+*.minisig
