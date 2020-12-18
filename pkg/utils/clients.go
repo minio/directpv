@@ -17,6 +17,8 @@
 package utils
 
 import (
+	"path/filepath"
+
 	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +28,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/spf13/viper"
+	"k8s.io/utils/mount"
 )
 
 var directCSIClient directv1alpha1.DirectV1alpha1Interface
@@ -115,4 +118,26 @@ func CheckVolumeStatusCondition(statusConditions []metav1.Condition, condType st
 	}
 	return false
 
+}
+
+// UnmountIfMounted - Idempotent function to unmount a target
+func UnmountIfMounted(mountPoint string) error {
+	shouldUmount := false
+	mountPoints, mntErr := mount.New("").List()
+	if mntErr != nil {
+		return mntErr
+	}
+	for _, mp := range mountPoints {
+		abPath, _ := filepath.Abs(mp.Path)
+		if mountPoint == abPath {
+			shouldUmount = true
+			break
+		}
+	}
+	if shouldUmount {
+		if mErr := mount.New("").Unmount(mountPoint); mErr != nil {
+			return mErr
+		}
+	}
+	return nil
 }

@@ -18,6 +18,7 @@ package node
 
 import (
 	"context"
+	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/utils/mount"
 	"os"
 	"path/filepath"
@@ -68,5 +69,5 @@ func UnstageVolume(ctx context.Context, stagingPath string) error {
 		return err
 	}
 
-	return UnmountIfMounted(stagingPath)
+	return utils.UnmountIfMounted(stagingPath)
 }
