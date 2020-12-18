@@ -270,7 +270,7 @@ func CreateDirectCSINamespace(ctx context.Context, kClient clientset.Interface, 
 
 func CreateStorageClass(ctx context.Context, kClient clientset.Interface, name string) error {
 	allowExpansion := false
-	bindingMode := storagev1beta1.VolumeBindingImmediate
+	bindingMode := storagev1beta1.VolumeBindingWaitForFirstConsumer
 	allowedTopologies := []corev1.TopologySelectorTerm{}
 	retainPolicy := corev1.PersistentVolumeReclaimRetain
 
