@@ -82,5 +82,13 @@ func uninstall(ctx context.Context, args []string) error {
 		}
 	}
 	glog.Infof("'%s' service deleted", bold(identity))
+
+	if err := utils.RemoveRBACRoles(ctx, identity); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' rbac roles deleted", utils.Bold(identity))
+
 	return nil
 }

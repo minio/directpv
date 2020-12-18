@@ -96,9 +96,13 @@ func install(ctx context.Context, args []string) error {
 	}
 	glog.Infof("'%s' service created", utils.Bold(identity))
 
-	// if err := util.CreateRBACRoles(ctx, kClient, name, identity); err != nil {
-	// 	return err
-	// }
+	if err := utils.CreateRBACRoles(ctx, identity); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' rbac roles created", utils.Bold(identity))
+
 	// if err := util.CreateDaemonSet(ctx, kClient, name, identity, c.kubeletDirPath, c.csiRootPath); err != nil {
 	// 	return err
 	// }
