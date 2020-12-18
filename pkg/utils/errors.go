@@ -14,33 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package utils
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+	"errors"
+	"fmt"
 
-	"github.com/golang/glog"
-	"github.com/minio/direct-csi/cmd"
+	"github.com/fatih/color"
 )
 
-func main() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSEGV)
+var (
+	Bold = color.New(color.Bold).SprintFunc()
+	Red  = color.New(color.FgRed).SprintFunc()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		s := <-sigs
-		glog.Infof("Exiting on signal %s %#v", s.String(), s)
-		cancel()
-		<-time.After(1 * time.Second)
-		os.Exit(1)
-	}()
-
-	if err := cmd.Execute(ctx); err != nil {
-		os.Exit(1)
-	}
-}
+	ErrKubeVersionNotSupported = errors.New(
+		fmt.Sprintf("%s: This version of kubernetes is not supported by direct-csi. Please upgrade your kubernetes installation and try again", Red("ERR")))
+)

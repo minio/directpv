@@ -25,5 +25,5 @@ CSI_VERSION=$(git describe --tags --always --dirty)
 export CGO_ENABLED=0
 
 "${SCRIPT_ROOT}/update-codegen.sh"
-go build -tags "osusergo netgo static_build" -ldflags="-X ${REPOSITORY}/cmd.Version=${CSI_VERSION} -extldflags=-static"
-go build -tags "plugin" -ldflags="-X ${REPOSITORY}/cmd.Version=${CSI_VERSION} -extldflags=-static" -o kubectl-directcsi
+go build -tags "osusergo netgo static_build" -ldflags="-X ${REPOSITORY}/cmd/direct-csi/cmd.Version=${CSI_VERSION} -extldflags=-static" ${REPOSITORY}/cmd/direct-csi
+go build -tags "osusergo netgo static_build" -ldflags="-X ${REPOSITORY}/cmd/kubectl-direct_csi/cmd.Version=${CSI_VERSION} -extldflags=-static" ${REPOSITORY}/cmd/kubectl-direct_csi

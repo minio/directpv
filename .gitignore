@@ -1,5 +1,5 @@
-direct-csi
 *~
 *.test
 dist/
-kubectl-directcsi
+direct-csi
+kubectl-direct_csi
