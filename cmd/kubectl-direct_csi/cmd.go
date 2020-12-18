@@ -74,8 +74,8 @@ func init() {
 	pluginCmd.AddCommand(infoCmd)
 	pluginCmd.AddCommand(installCmd)
 	pluginCmd.AddCommand(uninstallCmd)
-	// pluginCmd.AddCommand(drivesCmd)
-	// pluginCmd.AddCommand(volumesCmd)
+	pluginCmd.AddCommand(newDrivesCmd())
+	pluginCmd.AddCommand(newVolumesCmd())
 }
 
 func Execute(ctx context.Context) error {
