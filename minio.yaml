@@ -58,7 +58,7 @@ spec:
       resources:
         requests:
           storage: 2Gi        
-      storageClassName: direct.csi.min.io # This field references the existing StorageClass
+      storageClassName: direct-csi-min-io # This field references the existing StorageClass
   - metadata:
       name: minio-data-2
     spec:
@@ -66,7 +66,7 @@ spec:
       resources:
         requests:
           storage: 2Gi        
-      storageClassName: direct.csi.min.io # This field references the existing StorageClass
+      storageClassName: direct-csi-min-io # This field references the existing StorageClass
   - metadata:
       name: minio-data-3
     spec:
@@ -74,7 +74,7 @@ spec:
       resources:
         requests:
           storage: 2Gi        
-      storageClassName: direct.csi.min.io # This field references the existing StorageClass
+      storageClassName: direct-csi-min-io # This field references the existing StorageClass
   - metadata:
       name: minio-data-4
     spec:
@@ -82,4 +82,4 @@ spec:
       resources:
         requests:
           storage: 2Gi        
-      storageClassName: direct.csi.min.io # This field references the existing StorageClass
+      storageClassName: direct-csi-min-io # This field references the existing StorageClass

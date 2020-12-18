@@ -52,7 +52,7 @@ func createServiceAccount(ctx context.Context, identity string) error {
 		AutomountServiceAccountToken: nil,
 	}
 
-	if _, err := kubeClient.CoreV1().ServiceAccounts(identity).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
+	if _, err := kubeClient.CoreV1().ServiceAccounts(sanitizeName(identity)).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -69,7 +69,7 @@ func createClusterRoleBinding(ctx context.Context, identity string) error {
 			{
 				Kind:      "ServiceAccount",
 				Name:      sanitizeName(identity),
-				Namespace: identity,
+				Namespace: sanitizeName(identity),
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -79,6 +79,7 @@ func createClusterRoleBinding(ctx context.Context, identity string) error {
 		},
 	}
 
+	clusterRoleBinding.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
 	if _, err := kubeClient.RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
 		return err
 	}
@@ -297,6 +298,7 @@ func createClusterRole(ctx context.Context, identity string) error {
 		AggregationRule: nil,
 	}
 
+	clusterRole.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
 	if _, err := kubeClient.RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
 		return err
 	}

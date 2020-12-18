@@ -82,7 +82,7 @@ func (c *csiAddDrivesCmd) run(args []string) error {
 	}
 
 	if !ellipses.HasEllipses(c.nodes) {
-		return fmt.Errorf("please provide --node flag in ellipses format, e.g. `myhost{1...4}`")
+		return fmt.Errorf("please provide --nodes flag in ellipses format, e.g. `myhost{1...4}`")
 	}
 
 	var nodes []string

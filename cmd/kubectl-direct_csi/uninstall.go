@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/minio/direct-csi/pkg/utils"
 )
@@ -39,20 +40,66 @@ var uninstallCmd = &cobra.Command{
 
 var (
 	uninstallCRD = false
+	dangerous    = false
+	unfinalize   = false
 )
 
 func init() {
-	uninstallCmd.PersistentFlags().BoolVarP(&uninstallCRD, "crd", "c", uninstallCRD, "register crds along with installation")
+	uninstallCmd.PersistentFlags().BoolVarP(&uninstallCRD, "crd", "c", uninstallCRD, "unregister direct.csi.min.io group crds")
+
+	uninstallCmd.PersistentFlags().BoolVarP(&dangerous, "dangerous", "", dangerous, "potentially dangerous operation. May cause data loss. Required for --unfinalize to work")
+	uninstallCmd.PersistentFlags().BoolVarP(&unfinalize, "unfinalize", "", unfinalize, "remove all finalizers from direct.csi.min.io resources. only works along with --dangerous")
+
+	uninstallCmd.PersistentFlags().MarkHidden("dangerous")
+	uninstallCmd.PersistentFlags().MarkHidden("unfinalize")
+
 }
 
 func uninstall(ctx context.Context, args []string) error {
 	utils.Init()
 	bold := color.New(color.Bold).SprintFunc()
+	directCSIClient := utils.GetDirectCSIClient()
 
 	if uninstallCRD {
-		if err := unregisterCRDs(ctx); err != nil {
-			return err
+		if unfinalize && dangerous {
+			volumes, err := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+
+			for _, v := range volumes.Items {
+				v.ObjectMeta.SetFinalizers([]string{})
+				if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, &v, metav1.UpdateOptions{}); err != nil {
+					return err
+				}
+				if err := directCSIClient.DirectCSIVolumes().Delete(ctx, v.Name, metav1.DeleteOptions{}); err != nil {
+					if !errors.IsNotFound(err) {
+						return err
+					}
+				}
+			}
+			drives, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+			for _, d := range drives.Items {
+				d.ObjectMeta.SetFinalizers([]string{})
+				if _, err := directCSIClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
+					return err
+				}
+				if err := directCSIClient.DirectCSIDrives().Delete(ctx, d.Name, metav1.DeleteOptions{}); err != nil {
+					if !errors.IsNotFound(err) {
+						return err
+					}
+				}
+			}
 		}
+		if err := unregisterCRDs(ctx); err != nil {
+			if !errors.IsNotFound(err) {
+				return err
+			}
+		}
+		glog.Infof("'%s' crds deleted", bold(identity))
 	}
 
 	if err := utils.DeleteNamespace(ctx, identity); err != nil {
@@ -91,14 +138,14 @@ func uninstall(ctx context.Context, args []string) error {
 	glog.Infof("'%s' rbac roles deleted", utils.Bold(identity))
 
 	if err := utils.DeleteDaemonSet(ctx, identity); err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' daemonset deleted", utils.Bold(identity))
 
 	if err := utils.DeleteDeployment(ctx, identity); err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
