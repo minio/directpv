@@ -19,18 +19,18 @@ package main
 import (
 	"context"
 	"fmt"
-	"unsafe"
+	"os"
+	"time"
+
+	"github.com/fatih/color"
+	"github.com/jedib0t/go-pretty/table"
+	"github.com/jedib0t/go-pretty/text"
+	"github.com/spf13/cobra"
 
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/restmapper"
-
-	"github.com/fatih/color"
-	"github.com/golang/glog"
-	"github.com/spf13/cobra"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/minio/direct-csi/pkg/utils"
 )
@@ -48,42 +48,27 @@ const DefaultIdentity = "direct.csi.min.io"
 
 func info(ctx context.Context, args []string) error {
 	utils.Init()
+	bold := color.New(color.Bold).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
 
-	discoveryClient := utils.GetDiscoveryClient()
-	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
+	client, gvk, err := utils.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
-		glog.Errorf("could not obtain API group resources: %v", err)
 		return err
 	}
-	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
-	gvk := schema.GroupKind{
-		Group: "storage.k8s.io",
-		Kind:  "CSINode",
-	}
-	mapper, err := restMapper.RESTMapping(gvk, "v1", "v1beta1", "v1alpha1")
-	if err != nil {
-		glog.Errorf("could not find valid restmapping: %v", err)
-		return err
-	}
-
-	metadataClient := utils.GetMetadataClient()
-	csiNodes, err := metadataClient.Resource(mapper.Resource).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		glog.Errorf("could not fetch %s/%s", gvk.Group, gvk.Kind)
-		return err
-	}
-
-	defer func() {
-		// since we are doing unsafe conversions
-		if r := recover(); r != nil {
-			glog.Errorf("could not find the resource version of CSINode in the k8s cluster")
-		}
-	}()
 
 	nodeList := []string{}
-	for _, csiNodeMeta := range csiNodes.Items {
-		if mapper.Resource.Version == "v1" {
-			csiNode := (*storagev1.CSINode)(unsafe.Pointer(&csiNodeMeta))
+
+	if gvk.Version == "v1" {
+		result := &storagev1.CSINodeList{}
+		if err := client.Get().
+			Resource("csinodes").
+			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
+			Timeout(10 * time.Second).
+			Do(ctx).
+			Into(result); err != nil {
+			return err
+		}
+		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
 				if driver.Name == DefaultIdentity {
 					nodeList = append(nodeList, csiNode.Name)
@@ -91,8 +76,18 @@ func info(ctx context.Context, args []string) error {
 				}
 			}
 		}
-		if mapper.Resource.Version == "v1beta1" {
-			csiNode := (*storagev1beta1.CSINode)(unsafe.Pointer(&csiNodeMeta))
+	}
+	if gvk.Version == "v1beta1" {
+		result := &storagev1beta1.CSINodeList{}
+		if err := client.Get().
+			Resource(gvk.Kind).
+			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
+			Timeout(10 * time.Second).
+			Do(ctx).
+			Into(result); err != nil {
+			return err
+		}
+		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
 				if driver.Name == DefaultIdentity {
 					nodeList = append(nodeList, csiNode.Name)
@@ -100,16 +95,84 @@ func info(ctx context.Context, args []string) error {
 				}
 			}
 		}
-		if mapper.Resource.Version == "v1alpha1" {
-			// TODO: Query daemonsets to find the directcsi nodes
-			return nil
-		}
+	}
+
+	if gvk.Version == "v1alpha1" {
+		return fmt.Errorf("%s: DirectCSI is not supported with this version of k8s. Please upgrade to latest version and try again.\n",
+			red(bold("ERR")))
 	}
 
 	if len(nodeList) == 0 {
-		bold := color.New(color.Bold).SprintFunc()
-		fmt.Printf("  DirectCSI installation %s found\n", bold("NOT"))
+		fmt.Printf("%s: DirectCSI installation %s found\n", red(bold("ERR")), "NOT")
+		fmt.Println()
+		fmt.Printf("run '%s' to get started\n", bold("kubectl direct-csi install"))
 		return nil
 	}
+
+	directCSIClient := utils.GetDirectCSIClient()
+	drives, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("could not list all drives: %v", err)
+	}
+
+	volumes, err := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("could not list all drives: %v", err)
+	}
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"#", "NodeName", "", "#Drives", "", "#Volumes"})
+
+	totalOwnedDrives := 0
+	totalDrives := len(drives.Items)
+	totalVolumes := len(volumes.Items)
+	for _, d := range drives.Items {
+		if d.Spec.DirectCSIOwned {
+			totalOwnedDrives++
+		}
+	}
+	for i, n := range nodeList {
+		driveList := []string{}
+		numDrives := 0
+		for _, d := range drives.Items {
+			if d.Status.NodeName == n {
+				numDrives++
+				if d.Spec.DirectCSIOwned {
+					driveList = append(driveList, d.Name)
+				}
+			}
+		}
+		numVols := 0
+		for _, v := range volumes.Items {
+			if v.OwnerNode == n {
+				numVols++
+			}
+		}
+		t.AppendRow([]interface{}{
+			fmt.Sprintf("%d", i+1),
+			n,
+			"",
+			fmt.Sprintf("(%d/%d)", len(driveList), numDrives),
+			"",
+			fmt.Sprintf(" %d", numVols),
+		})
+	}
+
+	style := table.StyleColoredDark
+	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
+	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
+	t.SetStyle(style)
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 1, Align: text.AlignJustify},
+		{Number: 2, Align: text.AlignJustify},
+		{Number: 3, Align: text.AlignJustify},
+		{Number: 4, Align: text.AlignJustify},
+		{Number: 5, Align: text.AlignJustify},
+	})
+	t.Render()
+	fmt.Println()
+	fmt.Printf("(%s/%s) Drives managed by direct-csi, %s Total Volumes\n", bold(fmt.Sprintf("%d", totalOwnedDrives)), bold(fmt.Sprintf("%d", totalDrives)), bold(fmt.Sprintf("%d", totalVolumes)))
+
 	return nil
 }

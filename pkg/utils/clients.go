@@ -22,10 +22,13 @@ import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/golang/glog"
@@ -75,6 +78,58 @@ func Init() {
 	if err != nil {
 		glog.Fatalf("could not initialize metadata client: %v", err)
 	}
+}
+
+func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
+	discoveryClient := GetDiscoveryClient()
+	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
+	if err != nil {
+		glog.Errorf("could not obtain API group resources: %v", err)
+		return nil, nil, err
+	}
+	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
+	gvk := schema.GroupKind{
+		Group: group,
+		Kind:  kind,
+	}
+	mapper, err := restMapper.RESTMapping(gvk, versions...)
+	if err != nil {
+		glog.Errorf("could not find valid restmapping: %v", err)
+		return nil, nil, err
+	}
+
+	gv := schema.GroupVersion{
+		Group:   mapper.Resource.Group,
+		Version: mapper.Resource.Version,
+	}
+
+	kubeConfig := viper.GetString("kubeconfig")
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	if err != nil {
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, nil, err
+		}
+		glog.Infof("obtained client config successfully")
+	}
+
+	config.GroupVersion = &gv
+	config.APIPath = "/apis"
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+
+	if config.UserAgent == "" {
+		config.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+
+	client, err := rest.RESTClientFor(config)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, &schema.GroupVersionKind{
+		Group:   group,
+		Kind:    mapper.Resource.Resource,
+		Version: mapper.Resource.Version,
+	}, nil
 }
 
 func GetKubeClient() kubernetes.Interface {
