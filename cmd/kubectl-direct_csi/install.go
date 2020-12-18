@@ -89,10 +89,12 @@ func install(ctx context.Context, args []string) error {
 	}
 	glog.Infof("'%s' storageclass created", utils.Bold(identity))
 
-	// if err := util.CreateCSIService(ctx, kClient, name, identity); err != nil {
-	// 	return err
-	// }
-	// fmt.Println("Created Service", name)
+	if err := utils.CreateService(ctx, identity); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' service created", utils.Bold(identity))
 
 	// if err := util.CreateRBACRoles(ctx, kClient, name, identity); err != nil {
 	// 	return err

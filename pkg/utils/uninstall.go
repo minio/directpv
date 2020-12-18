@@ -74,3 +74,10 @@ func DeleteStorageClass(ctx context.Context, identity string) error {
 	}
 	return nil
 }
+
+func DeleteService(ctx context.Context, identity string) error {
+	if err := kubeClient.CoreV1().Services(sanitizeName(identity)).Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}

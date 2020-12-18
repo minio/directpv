@@ -76,5 +76,11 @@ func uninstall(ctx context.Context, args []string) error {
 	}
 	glog.Infof("'%s' storageclass deleted", bold(identity))
 
+	if err := utils.DeleteService(ctx, identity); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' service deleted", bold(identity))
 	return nil
 }

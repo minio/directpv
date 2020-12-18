@@ -78,7 +78,8 @@ const (
 
 func objMeta(name string) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
-		Name: sanitizeName(name),
+		Name:      sanitizeName(name),
+		Namespace: sanitizeName(name),
 		Annotations: map[string]string{
 			CreatedByLabel: DirectCSIPluginName,
 		},
@@ -218,6 +219,32 @@ func CreateStorageClass(ctx context.Context, identity string) error {
 		}
 	default:
 		return ErrKubeVersionNotSupported
+	}
+	return nil
+}
+
+func CreateService(ctx context.Context, identity string) error {
+	csiPort := corev1.ServicePort{
+		Port: 12345,
+		Name: "unused",
+	}
+	svc := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: objMeta(identity),
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{csiPort},
+			Selector: map[string]string{
+				"app":  DirectCSI,
+				"type": CSIDriver,
+			},
+		},
+	}
+
+	if _, err := kubeClient.CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+		return err
 	}
 	return nil
 }
