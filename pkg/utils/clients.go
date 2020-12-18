@@ -80,12 +80,12 @@ func Init() {
 	}
 }
 
-func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
+func GetGroupKindVersions(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
 	discoveryClient := GetDiscoveryClient()
 	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {
 		glog.Errorf("could not obtain API group resources: %v", err)
-		return nil, nil, err
+		return nil, err
 	}
 	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
 	gvk := schema.GroupKind{
@@ -95,12 +95,19 @@ func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string
 	mapper, err := restMapper.RESTMapping(gvk, versions...)
 	if err != nil {
 		glog.Errorf("could not find valid restmapping: %v", err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	gv := schema.GroupVersion{
+	return &schema.GroupVersionKind{
 		Group:   mapper.Resource.Group,
 		Version: mapper.Resource.Version,
+		Kind:    mapper.Resource.Resource,
+	}, nil
+}
+func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
+	gvk, err := GetGroupKindVersions(group, kind, versions...)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	kubeConfig := viper.GetString("kubeconfig")
@@ -113,7 +120,11 @@ func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string
 		glog.Infof("obtained client config successfully")
 	}
 
-	config.GroupVersion = &gv
+	gv := &schema.GroupVersion{
+		Group:   gvk.Group,
+		Version: gvk.Version,
+	}
+	config.GroupVersion = gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
@@ -125,11 +136,7 @@ func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string
 	if err != nil {
 		return nil, nil, err
 	}
-	return client, &schema.GroupVersionKind{
-		Group:   group,
-		Kind:    mapper.Resource.Resource,
-		Version: mapper.Resource.Version,
-	}, nil
+	return client, gvk, nil
 }
 
 func GetKubeClient() kubernetes.Interface {

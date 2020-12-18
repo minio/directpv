@@ -44,10 +44,9 @@ var infoCmd = &cobra.Command{
 	},
 }
 
-const DefaultIdentity = "direct.csi.min.io"
-
 func info(ctx context.Context, args []string) error {
 	utils.Init()
+
 	bold := color.New(color.Bold).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
 
@@ -70,7 +69,7 @@ func info(ctx context.Context, args []string) error {
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == DefaultIdentity {
+				if driver.Name == identity {
 					nodeList = append(nodeList, csiNode.Name)
 					break
 				}
@@ -89,7 +88,7 @@ func info(ctx context.Context, args []string) error {
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == DefaultIdentity {
+				if driver.Name == identity {
 					nodeList = append(nodeList, csiNode.Name)
 					break
 				}
@@ -98,8 +97,7 @@ func info(ctx context.Context, args []string) error {
 	}
 
 	if gvk.Version == "v1alpha1" {
-		return fmt.Errorf("%s: DirectCSI is not supported with this version of k8s. Please upgrade to latest version and try again.\n",
-			red(bold("ERR")))
+		return utils.ErrKubeVersionNotSupported
 	}
 
 	if len(nodeList) == 0 {

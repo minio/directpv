@@ -20,7 +20,7 @@ import (
 	"context"
 	"flag"
 	"os"
-	
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -32,15 +32,16 @@ var Version string
 // flags
 var (
 	kubeconfig = ""
+	identity   = "direct.csi.min.io"
 )
 
 var pluginCmd = &cobra.Command{
-	Use:          os.Args[0],
-	Short:        "Plugin for managing Direct CSI drives and volumes",
-	Long:         os.Args[0],
-	SilenceUsage: true,
+	Use:           os.Args[0],
+	Short:         "Plugin for managing Direct CSI drives and volumes",
+	Long:          os.Args[0],
+	SilenceUsage:  true,
 	SilenceErrors: true,
-	Version: Version,
+	Version:       Version,
 }
 
 func init() {
@@ -69,10 +70,10 @@ func init() {
 	viper.BindPFlags(pluginCmd.PersistentFlags())
 
 	pluginCmd.AddCommand(infoCmd)
-	// pluginCommand.AddCommand(installCmd)
-	// pluginCommand.AddCommand(uninstallCmd)
-	// pluginCommand.AddCommand(drivesCmd)
-	// pluginCommand.AddCommand(volumesCmd)
+	pluginCmd.AddCommand(installCmd)
+	pluginCmd.AddCommand(uninstallCmd)
+	// pluginCmd.AddCommand(drivesCmd)
+	// pluginCmd.AddCommand(volumesCmd)
 }
 
 func Execute(ctx context.Context) error {
