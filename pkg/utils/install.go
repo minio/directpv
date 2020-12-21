@@ -61,7 +61,7 @@ const (
 	csiProvisionerContainerImage = "quay.io/k8scsi/csi-provisioner:v1.2.1"
 
 	directCSIContainerName  = "direct-csi"
-	directCSIContainerImage = "minio/direct-csi:v1.0-rc-1"
+	directCSIContainerImage = "minio/direct-csi:v1.0-rc-2"
 
 	livenessProbeContainerName  = "liveness-probe"
 	livenessProbeContainerImage = "quay.io/k8scsi/livenessprobe:v1.1.0"
