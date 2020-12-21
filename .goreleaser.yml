@@ -61,7 +61,7 @@ dockers:
   -
     goos: linux
     goarch: amd64
-    dockerfile: Dockerfile.release
+    dockerfile: Dockerfile
     image_templates:
       - minio/direct-csi:{{ .Tag }}
       - minio/direct-csi:latest
