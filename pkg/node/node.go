@@ -18,6 +18,7 @@ package node
 
 import (
 	"context"
+	"reflect"
 	"strconv"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -51,9 +52,24 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	for _, drive := range drives {
 		drive.Status.Topology = driveTopology
-		_, err := directCSIClient.DirectCSIDrives().Create(ctx, &drive, metav1.CreateOptions{})
-		if err != nil {
-			if !errors.IsAlreadyExists(err) {
+		if _, err := directCSIClient.DirectCSIDrives().Create(ctx, &drive, metav1.CreateOptions{}); err != nil {
+			if errors.IsAlreadyExists(err) {
+				if rErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					existingDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, drive.ObjectMeta.Name, metav1.GetOptions{})
+					if dErr != nil {
+						return dErr
+					}
+					if !reflect.DeepEqual(existingDrive.Status, drive.Status) {
+						existingDrive.Status = drive.Status
+						if _, uErr := directCSIClient.DirectCSIDrives().Update(ctx, existingDrive, metav1.UpdateOptions{}); uErr != nil {
+							return uErr
+						}
+					}
+					return nil
+				}); rErr != nil {
+					return nil, rErr
+				}
+			} else {
 				return nil, err
 			}
 		}
