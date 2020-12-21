@@ -31,5 +31,6 @@ jobs:
         diff -au <(gofmt -s -d cmd) <(printf "")
         diff -au <(gofmt -s -d pkg) <(printf "")
         go test -v ./...
+        ./build.sh
         docker build . -t "direct-csi:latest"
 
