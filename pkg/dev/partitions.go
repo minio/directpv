@@ -42,6 +42,7 @@ type Partition struct {
 }
 
 func (b *BlockDevice) FindPartitions(ctx context.Context) ([]Partition, error) {
+
 	devPath := getBlockFile(b.Devname)
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {

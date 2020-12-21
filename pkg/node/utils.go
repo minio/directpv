@@ -101,12 +101,19 @@ func makePartitionDrive(nodeID string, partition dev.Partition, rootPartition st
 		}
 	}
 
+	driveStatus := getDriveStatus(fs)
+	_, ok := dev.SystemPartitionTypes[partition.TypeUUID]
+	if ok || mountPoint == "/" {
+		// system partition
+		driveStatus = direct_csi.Unavailable
+	}
+
 	return &direct_csi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: makeName(nodeID, partition.Path),
 		},
 		Status: direct_csi.DirectCSIDriveStatus{
-			DriveStatus:       getDriveStatus(fs),
+			DriveStatus:       driveStatus,
 			Filesystem:        fs,
 			FreeCapacity:      freeCapacity,
 			LogicalBlockSize:  int64(partition.LogicalBlockSize),

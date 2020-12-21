@@ -97,7 +97,7 @@ spec:
         - name: direct-csi
           image: $(REPOSITORY_ORG)/$(REPOSITORY_IMAGE):$(VERSION)
           args:
-            - "--identity=direct.csi.min.io"
+            - "--identity=direct-csi-min-io"
             - "--v=5"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--node-id=$(KUBE_NODE_NAME)"
@@ -234,7 +234,7 @@ spec:
           image: $(REPOSITORY_ORG)/$(REPOSITORY_IMAGE):$(VERSION)
           args:
             - "--v=5"
-            - "--identity=direct.csi.min.io"
+            - "--identity=direct-csi-min-io"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--controller"
           env:
