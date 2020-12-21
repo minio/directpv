@@ -12,10 +12,12 @@ RUN \
 FROM alpine:latest
 
 WORKDIR /
+COPY CREDITS /licenses/CREDITS
+COPY LICENSE /licenses/LICENSE
+
+RUN apk add -U --no-cache ca-certificates
 RUN apk add xfsprogs
 RUN apk add xfsprogs-extra
-RUN apk add e2fsprogs
-RUN apk add dosfstools
 COPY --from=build /go/src/github.com/minio/direct-csi/direct-csi /direct-csi
 
 ENTRYPOINT ["/direct-csi"]
