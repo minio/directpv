@@ -129,6 +129,11 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return dErr
 		}
 
+		totalVolumeCapacity := req.GetCapacityRange().GetRequiredBytes()
+		if totalVolumeCapacity == int64(0) {
+			totalVolumeCapacity = selectedCSIDrive.Status.TotalCapacity
+		}
+
 		vol = &direct_csi.DirectCSIVolume{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
@@ -136,7 +141,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			},
 			OwnerDrive:    selectedCSIDrive.ObjectMeta.Name,
 			OwnerNode:     selectedCSIDrive.Status.NodeName,
-			TotalCapacity: selectedCSIDrive.Status.TotalCapacity,
+			TotalCapacity: totalVolumeCapacity,
 			Status: []metav1.Condition{
 				{Type: "staged", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeStaged", Message: "VolumeStaged"},
 				{Type: "published", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumePublished", Message: "VolumePublished"},
@@ -152,7 +157,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				}
 				existingVol.OwnerDrive = selectedCSIDrive.ObjectMeta.Name
 				existingVol.OwnerNode = selectedCSIDrive.Status.NodeName
-				existingVol.TotalCapacity = selectedCSIDrive.Status.TotalCapacity
+				existingVol.TotalCapacity = totalVolumeCapacity
 				vol, uErr = directCSIClient.DirectCSIVolumes().Update(ctx, existingVol, metav1.UpdateOptions{})
 				if uErr != nil {
 					return uErr
