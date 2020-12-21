@@ -1,38 +1,8 @@
-![Go](https://github.com/minio/direct-csi/workflows/Go/badge.svg)
 # Direct CSI 
-Container Storage Interface (CSI) driver for Direct Volume Access 
 
-## Overview
+![Go](https://github.com/minio/direct-csi/workflows/Go/badge.svg)
 
-Direct CSI provides a CSI interface used by container orchestrators to provision volumes from local drives. Unlike networked volumes, local volumes cannot be moved between machines. 
-
-Applications that require fast, local access to underlying storage, and manage the durability of data at the application layer, rather than the block layer are the target for this CSI driver. eg. MinIO
-
-## Features
-
-#### CLI 
-
-The CSI driver ships with a CLI that can be used to list volumes, format them, and manage their lifecycle. 
-
-#### Automatic Volume Discovery
-
-The CSI driver probes the machine to discover all the block devices automatically
-
-#### Dynamic Thin provisioning
-
-The CSI driver carves out chunks of volume for each request based on resource requirements
-
-#### Volume Health
-
-Drive temperature, I/O failures, Drive stats etc. are measured and reported by this CSI driver
-
-#### Portable
-
-Seamlessly move your application between cloud providers, and/or baremetal infrastructure without any changes to your application spec
-
-## Architecture
-
-![ArchitectureDiagram](DirectCSI_Arch.png)
+Direct CSI is a driver to allocate volumes for pods that require _direct access_ to storage media (eg. MinIO). It maintains a global view of storage in the cluster, and directs pods to run on nodes where volume is provisioned. Each volume is a subdirectory carved out of available drives on the node and mounted into pods.
 
 ## Installation
 
@@ -45,12 +15,13 @@ kubectl krew install directcsi
 ###### Install Direct-CSI driver
 
 ```bash
-kubectl directcsi install
+kubectl directcsi install --crd 
 ```
 
 ###### Add Drives to DirectCSI pool
 
 Choose drives to be managed by DirectCSI. Refer to [Add Drives](#add-drives) command for more info.
+
 ```bash
 kubectl directcsi drives add /dev/nvme* --nodes myhost{1...4}
 ```
