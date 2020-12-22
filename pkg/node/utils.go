@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -317,4 +318,76 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 		return err
 	}
 	return nil
+}
+
+// UpdateDriveStatusOnDiff Updates the drive status fields on diff.
+func UpdateDriveStatusOnDiff(newObj direct_csi.DirectCSIDrive, existingObj *direct_csi.DirectCSIDrive) bool {
+	isUpdated := false
+	if existingObj.Status.Path != newObj.Status.Path {
+		existingObj.Status.Path = newObj.Status.Path
+		isUpdated = true
+	}
+	if existingObj.Status.AllocatedCapacity != newObj.Status.AllocatedCapacity {
+		existingObj.Status.AllocatedCapacity = newObj.Status.AllocatedCapacity
+		isUpdated = true
+	}
+	if existingObj.Status.FreeCapacity != newObj.Status.FreeCapacity {
+		existingObj.Status.FreeCapacity = newObj.Status.FreeCapacity
+		isUpdated = true
+	}
+	if existingObj.Status.RootPartition != newObj.Status.RootPartition {
+		existingObj.Status.RootPartition = newObj.Status.RootPartition
+		isUpdated = true
+	}
+	if existingObj.Status.PartitionNum != newObj.Status.PartitionNum {
+		existingObj.Status.PartitionNum = newObj.Status.PartitionNum
+		isUpdated = true
+	}
+	if existingObj.Status.Filesystem != newObj.Status.Filesystem {
+		existingObj.Status.Filesystem = newObj.Status.Filesystem
+		isUpdated = true
+	}
+	if existingObj.Status.Mountpoint != newObj.Status.Mountpoint {
+		existingObj.Status.Mountpoint = newObj.Status.Mountpoint
+		isUpdated = true
+	}
+	if !reflect.DeepEqual(existingObj.Status.MountOptions, newObj.Status.MountOptions) {
+		existingObj.Status.MountOptions = newObj.Status.MountOptions
+		isUpdated = true
+	}
+	if existingObj.Status.NodeName != newObj.Status.NodeName {
+		existingObj.Status.NodeName = newObj.Status.NodeName
+		isUpdated = true
+	}
+	if existingObj.Status.DriveStatus != newObj.Status.DriveStatus {
+		existingObj.Status.DriveStatus = newObj.Status.DriveStatus
+		isUpdated = true
+	}
+	if existingObj.Status.ModelNumber != newObj.Status.ModelNumber {
+		existingObj.Status.ModelNumber = newObj.Status.ModelNumber
+		isUpdated = true
+	}
+	if existingObj.Status.SerialNumber != newObj.Status.SerialNumber {
+		existingObj.Status.SerialNumber = newObj.Status.SerialNumber
+		isUpdated = true
+	}
+	if existingObj.Status.TotalCapacity != newObj.Status.TotalCapacity {
+		existingObj.Status.TotalCapacity = newObj.Status.TotalCapacity
+		isUpdated = true
+	}
+	if existingObj.Status.PhysicalBlockSize != newObj.Status.PhysicalBlockSize {
+		existingObj.Status.PhysicalBlockSize = newObj.Status.PhysicalBlockSize
+		isUpdated = true
+	}
+	if existingObj.Status.LogicalBlockSize != newObj.Status.LogicalBlockSize {
+		existingObj.Status.LogicalBlockSize = newObj.Status.LogicalBlockSize
+		isUpdated = true
+	}
+	if !reflect.DeepEqual(existingObj.Status.Topology, newObj.Status.Topology) {
+		existingObj.Status.Topology = newObj.Status.Topology
+		isUpdated = true
+	}
+	// Add new status canditates here
+
+	return isUpdated
 }

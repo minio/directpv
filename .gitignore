@@ -6,3 +6,4 @@ direct-csi
 direct-csi_*
 kubectl-direct_csi_*
 *.minisig
+kubectl-direct_csi
