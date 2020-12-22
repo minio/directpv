@@ -31,6 +31,7 @@ import (
 	// objectstorage
 	v1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/clientset"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	// k8s api
 	v1 "k8s.io/api/core/v1"
@@ -43,9 +44,7 @@ import (
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
@@ -53,9 +52,6 @@ import (
 
 	// logging
 	"github.com/golang/glog"
-
-	// config
-	"github.com/spf13/viper"
 )
 
 type addFunc func(ctx context.Context, obj interface{}) error
@@ -132,26 +128,9 @@ func NewDefaultDirectCSIController(identity string, leaderLockName string, threa
 }
 
 func NewDirectCSIController(identity string, leaderLockName string, threads int, limiter workqueue.RateLimiter) (*DirectCSIController, error) {
-	cfg, err := func() (*rest.Config, error) {
-		kubeConfig := viper.GetString("kubeconfig")
-
-		if kubeConfig != "" {
-			return clientcmd.BuildConfigFromFlags("", kubeConfig)
-		}
-		return rest.InClusterConfig()
-	}()
-	if err != nil {
-		return nil, err
-	}
-
-	kubeClient, err := kubeclientset.NewForConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-	directcsiClient, err := clientset.NewForConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
+	var err error
+	directcsiClient := utils.GetDirectClientset()
+	kubeClient := utils.GetKubeClient()
 
 	id := identity
 	if id == "" {
