@@ -48,7 +48,6 @@ var pluginCmd = &cobra.Command{
 func init() {
 	if pluginCmd.Version == "" {
 		pluginCmd.Version = "dev"
-		Version = "dev"
 	}
 
 	viper.AutomaticEnv()
