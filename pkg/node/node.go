@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"reflect"
 	"strconv"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -59,8 +58,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 					if dErr != nil {
 						return dErr
 					}
-					if !reflect.DeepEqual(existingDrive.Status, drive.Status) {
-						existingDrive.Status = drive.Status
+					if UpdateDriveStatusOnDiff(drive, existingDrive) {
 						if _, uErr := directCSIClient.DirectCSIDrives().Update(ctx, existingDrive, metav1.UpdateOptions{}); uErr != nil {
 							return uErr
 						}
