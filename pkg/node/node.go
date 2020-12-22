@@ -156,15 +156,15 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 			return status.Error(codes.NotFound, cErr.Error())
 		}
 
-		if dvol.HostPath == "" || dvol.StagingPath == "" {
+		if dvol.Status.HostPath == "" || dvol.Status.StagingPath == "" {
 			return status.Error(codes.FailedPrecondition, "volume not yet staged")
 		}
 
-		if dvol.StagingPath != stagingTargetPath {
+		if dvol.Status.StagingPath != stagingTargetPath {
 			return status.Errorf(codes.InvalidArgument, "staging target path does not match staging path")
 		}
 
-		if dvol.ContainerPath == containerPath {
+		if dvol.Status.ContainerPath == containerPath {
 			return nil
 		}
 		if err := PublishVolume(ctx, stagingTargetPath, containerPath, readOnly); err != nil {
@@ -172,8 +172,8 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		}
 
 		copiedVolume := dvol.DeepCopy()
-		copiedVolume.ContainerPath = containerPath
-		utils.UpdateVolumeStatusCondition(copiedVolume.Status, "published", metav1.ConditionTrue)
+		copiedVolume.Status.ContainerPath = containerPath
+		utils.UpdateVolumeStatusCondition(copiedVolume.Status.Conditions, "published", metav1.ConditionTrue)
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -221,8 +221,8 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 			return status.Error(codes.NotFound, cErr.Error())
 		}
 		copiedVolume := dvol.DeepCopy()
-		copiedVolume.ContainerPath = ""
-		utils.UpdateVolumeStatusCondition(copiedVolume.Status, "published", metav1.ConditionFalse)
+		copiedVolume.Status.ContainerPath = ""
+		utils.UpdateVolumeStatusCondition(copiedVolume.Status.Conditions, "published", metav1.ConditionFalse)
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -251,11 +251,11 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 			return status.Error(codes.NotFound, cErr.Error())
 		}
 
-		if dvol.StagingPath == stagingTargetPath {
+		if dvol.Status.StagingPath == stagingTargetPath {
 			return nil
 		}
 
-		csiDrive, err := directCSIClient.DirectCSIDrives().Get(ctx, dvol.OwnerDrive, metav1.GetOptions{})
+		csiDrive, err := directCSIClient.DirectCSIDrives().Get(ctx, dvol.Status.OwnerDrive, metav1.GetOptions{})
 		if err != nil {
 			return status.Error(codes.NotFound, err.Error())
 		}
@@ -274,9 +274,9 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		}
 
 		copiedVolume := dvol.DeepCopy()
-		copiedVolume.HostPath = hostPath
-		copiedVolume.StagingPath = stagingTargetPath
-		utils.UpdateVolumeStatusCondition(copiedVolume.Status, "staged", metav1.ConditionTrue)
+		copiedVolume.Status.HostPath = hostPath
+		copiedVolume.Status.StagingPath = stagingTargetPath
+		utils.UpdateVolumeStatusCondition(copiedVolume.Status.Conditions, "staged", metav1.ConditionTrue)
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -324,9 +324,9 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 			return status.Error(codes.NotFound, cErr.Error())
 		}
 		copiedVolume := dvol.DeepCopy()
-		copiedVolume.HostPath = ""
-		copiedVolume.StagingPath = ""
-		utils.UpdateVolumeStatusCondition(copiedVolume.Status, "staged", metav1.ConditionFalse)
+		copiedVolume.Status.HostPath = ""
+		copiedVolume.Status.StagingPath = ""
+		utils.UpdateVolumeStatusCondition(copiedVolume.Status.Conditions, "staged", metav1.ConditionFalse)
 		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -353,12 +353,12 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		return nil, status.Error(codes.NotFound, cErr.Error())
 	}
 
-	if !(volumePath == dvol.StagingPath || volumePath == dvol.ContainerPath) {
+	if !(volumePath == dvol.Status.StagingPath || volumePath == dvol.Status.ContainerPath) {
 		return nil, status.Error(codes.NotFound, "volume path in the request is not been used by the volume corresponding to the volumeID in the request")
 	}
 
 	if stagingPath != "" {
-		if stagingPath != dvol.StagingPath {
+		if stagingPath != dvol.Status.StagingPath {
 			return nil, status.Error(codes.NotFound, "The staging path in the request does not match with the volume's staging path")
 		}
 	}
@@ -380,7 +380,7 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	}
 
 	message := "VolumePublished"
-	isAbnormal := !utils.CheckVolumeStatusCondition(dvol.Status, "published", metav1.ConditionTrue)
+	isAbnormal := !utils.CheckVolumeStatusCondition(dvol.Status.Conditions, "published", metav1.ConditionTrue)
 	if isAbnormal {
 		message = "VolumeUnPublished"
 	}

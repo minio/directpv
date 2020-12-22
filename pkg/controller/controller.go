@@ -134,17 +134,24 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			totalVolumeCapacity = selectedCSIDrive.Status.TotalCapacity
 		}
 
+		conditions := []metav1.Condition{
+			{Type: "staged", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeStaged", Message: "VolumeStaged"},
+			{Type: "published", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumePublished", Message: "VolumePublished"},
+			{Type: "volumestats", Status: metav1.ConditionTrue, LastTransitionTime: metav1.Now(), Reason: "StatsRefreshed", Message: "StatsRefreshed"},
+		}
+
 		vol = &direct_csi.DirectCSIVolume{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Finalizers: []string{fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "pv-protection"), fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "purge-protection")},
 			},
-			OwnerDrive:    selectedCSIDrive.ObjectMeta.Name,
-			OwnerNode:     selectedCSIDrive.Status.NodeName,
-			TotalCapacity: totalVolumeCapacity,
-			Status: []metav1.Condition{
-				{Type: "staged", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumeStaged", Message: "VolumeStaged"},
-				{Type: "published", Status: metav1.ConditionFalse, LastTransitionTime: metav1.Now(), Reason: "VolumePublished", Message: "VolumePublished"},
+			Status: direct_csi.DirectCSIVolumeStatus{
+				OwnerDrive:        selectedCSIDrive.ObjectMeta.Name,
+				OwnerNode:         selectedCSIDrive.Status.NodeName,
+				TotalCapacity:     totalVolumeCapacity,
+				AvailableCapacity: totalVolumeCapacity,
+				UsedCapacity:      int64(0),
+				Conditions:        conditions,
 			},
 		}
 
@@ -155,9 +162,12 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				if vErr != nil {
 					return vErr
 				}
-				existingVol.OwnerDrive = selectedCSIDrive.ObjectMeta.Name
-				existingVol.OwnerNode = selectedCSIDrive.Status.NodeName
-				existingVol.TotalCapacity = totalVolumeCapacity
+				existingVol.Status.OwnerDrive = selectedCSIDrive.ObjectMeta.Name
+				existingVol.Status.OwnerNode = selectedCSIDrive.Status.NodeName
+				existingVol.Status.TotalCapacity = totalVolumeCapacity
+				existingVol.Status.AvailableCapacity = totalVolumeCapacity
+				existingVol.Status.UsedCapacity = int64(0)
+				existingVol.Status.Conditions = conditions
 				vol, uErr = directCSIClient.DirectCSIVolumes().Update(ctx, existingVol, metav1.UpdateOptions{})
 				if uErr != nil {
 					return uErr
@@ -217,7 +227,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		if cErr != nil {
 			return cErr
 		}
-		if !utils.CheckVolumeStatusCondition(dvol.Status, "staged", metav1.ConditionFalse) {
+		if !utils.CheckVolumeStatusCondition(dvol.Status.Conditions, "staged", metav1.ConditionFalse) {
 			return status.Errorf(codes.FailedPrecondition, "volume has not been unstaged: %s", vID)
 		}
 		dvol.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&dvol.ObjectMeta, fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "pv-protection")))

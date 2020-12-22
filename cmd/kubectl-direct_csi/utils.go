@@ -23,7 +23,7 @@ import (
 // ListVolumesInDrive returns a slice of all the DirectCSIVolumes created on a given DirectCSIDrive
 func ListVolumesInDrive(drive directv1alpha1.DirectCSIDrive, volumes *directv1alpha1.DirectCSIVolumeList, vols []directv1alpha1.DirectCSIVolume) []directv1alpha1.DirectCSIVolume {
 	for _, volume := range volumes.Items {
-		if volume.OwnerDrive == drive.ObjectMeta.Name {
+		if volume.Status.OwnerDrive == drive.ObjectMeta.Name {
 			vols = append(vols, volume)
 		}
 	}

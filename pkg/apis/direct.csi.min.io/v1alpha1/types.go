@@ -135,6 +135,10 @@ type DirectCSIVolume struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
+	Status DirectCSIVolumeStatus `json:"status,omitempty"`
+}
+
+type DirectCSIVolumeStatus struct {
 	// +optional
 	OwnerDrive string `json:"ownerDrive,omitempty"`
 	// +optional
@@ -147,7 +151,11 @@ type DirectCSIVolume struct {
 	ContainerPath string `json:"containerPath,omitempty"`
 	// +optional
 	TotalCapacity int64 `json:"totalCapacity"`
+	// +optional
+	AvailableCapacity int64 `json:"availableCapacity"`
+	// +optional
+	UsedCapacity int64 `json:"usedCapacity"`
 	// +listType=atomic
 	// +optional
-	Status []metav1.Condition `json:"status"`
+	Conditions []metav1.Condition `json:"conditions"`
 }

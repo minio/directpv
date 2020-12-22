@@ -232,7 +232,15 @@ func CheckVolumeStatusCondition(statusConditions []metav1.Condition, condType st
 		}
 	}
 	return false
+}
 
+func GetVolumeStatusCondition(statusConditions []metav1.Condition, condType string) metav1.Condition {
+	for i := range statusConditions {
+		if statusConditions[i].Type == condType {
+			return statusConditions[i]
+		}
+	}
+	return metav1.Condition{}
 }
 
 // UnmountIfMounted - Idempotent function to unmount a target
