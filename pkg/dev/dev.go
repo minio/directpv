@@ -86,6 +86,7 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 			return err
 		}
 	}
+
 	if len(parts) == 0 {
 		offsetBlocks := uint64(0)
 		fsInfo, err := ProbeFS(b.Devname, b.LogicalBlockSize, offsetBlocks)
