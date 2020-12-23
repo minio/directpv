@@ -22,19 +22,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	csiDriveDesc = `
- drives command allows managing Drives on MinIO DirectCSI.`
-)
+var drivesCmd = &cobra.Command{
+	Use:   "drives",
+	Short: "Mangage Drives on DirectCSI",
+	Long:  "",
+}
 
-func newDrivesCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "drives",
-		Short: "Mangage Drives on DirectCSI",
-		Long:  csiDriveDesc,
-	}
-	cmd.AddCommand(newDrivesAddCmd())
-	cmd.AddCommand(newDrivesRemoveCmd())
-	cmd.AddCommand(newDrivesListCmd())
-	return cmd
+func init() {
+	drivesCmd.AddCommand(listDrivesCmd)
 }
