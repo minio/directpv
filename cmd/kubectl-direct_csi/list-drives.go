@@ -22,6 +22,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/table"
@@ -38,6 +39,8 @@ const (
 	csiListDrivesDesc = `
 list command lists drives status across the storage nodes managed by DirectCSI.`
 	csiListDrivesExample = `  kubectl directcsi drives list /dev/nvme* --nodes 'rack*' --all`
+	csiDrivePrefix       = "/var/lib/direct-csi/devices"
+	devPath              = "/dev"
 )
 
 type csiListDrivesCmd struct {
@@ -67,6 +70,10 @@ func newDrivesListCmd() *cobra.Command {
 	f.BoolVarP(&l.all, "all", "", false, "list all drives")
 
 	return cmd
+}
+
+func sanitizeDrivePath(path string) string {
+	return strings.Replace(path, csiDrivePrefix, devPath, 1)
 }
 
 // run initializes local config and installs MinIO Operator to Kubernetes cluster.
@@ -113,7 +120,7 @@ func (l *csiListDrivesCmd) run() error {
 				if match {
 					t.AppendRow(table.Row{
 						drive.Status.NodeName,
-						drive.Status.Path,
+						sanitizeDrivePath(drive.Status.Path),
 						string(drive.Status.DriveStatus),
 						strconv.Itoa(len(ListVolumesInDrive(drive, volumes, make([]directv1alpha1.DirectCSIVolume, 0)))),
 						humanize.SI(float64(drive.Status.TotalCapacity), "B"),
@@ -132,7 +139,7 @@ func (l *csiListDrivesCmd) run() error {
 			if match {
 				t.AppendRow(table.Row{
 					drive.Status.NodeName,
-					drive.Status.Path,
+					sanitizeDrivePath(drive.Status.Path),
 					string(drive.Status.DriveStatus),
 					strconv.Itoa(len(ListVolumesInDrive(drive, volumes, make([]directv1alpha1.DirectCSIVolume, 0)))),
 					humanize.SI(float64(drive.Status.TotalCapacity), "B"),
