@@ -68,7 +68,6 @@ For more information, use '%s man [sched | examples | ...]'
 func init() {
 	if driverCmd.Version == "" {
 		driverCmd.Version = "dev"
-		Version = "dev"
 	}
 
 	viper.AutomaticEnv()

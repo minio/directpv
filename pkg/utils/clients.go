@@ -17,8 +17,10 @@
 package utils
 
 import (
+	"os"
 	"path/filepath"
 
+	direct "github.com/minio/direct-csi/pkg/clientset"
 	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +39,7 @@ import (
 )
 
 var directCSIClient directv1alpha1.DirectV1alpha1Interface
+var directClientset direct.Interface
 var kubeClient kubernetes.Interface
 var crdClient apiextensions.CustomResourceDefinitionInterface
 var discoveryClient discovery.DiscoveryInterface
@@ -44,7 +47,7 @@ var metadataClient metadata.Interface
 var gvk *schema.GroupVersionKind
 
 func Init() {
-	kubeConfig := viper.GetString("kubeconfig")
+	kubeConfig := GetKubeConfig()
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		config, err = rest.InClusterConfig()
@@ -57,6 +60,11 @@ func Init() {
 	kubeClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		glog.Fatalf("could not initialize kubeclient: %v", err)
+	}
+
+	directClientset, err = direct.NewForConfig(config)
+	if err != nil {
+		glog.Fatalf("could not initialize direct clientset: %v", err)
 	}
 
 	directCSIClient, err = directv1alpha1.NewForConfig(config)
@@ -79,6 +87,19 @@ func Init() {
 	if err != nil {
 		glog.Fatalf("could not initialize metadata client: %v", err)
 	}
+}
+
+func GetKubeConfig() string {
+	kubeConfig := viper.GetString("kubeconfig")
+	if kubeConfig == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			glog.Infof("could not find home dir: %v", err)
+			return ""
+		}
+		return filepath.Join(home, ".kube", "config")
+	}
+	return kubeConfig
 }
 
 func GetGroupKindVersions(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
@@ -120,7 +141,7 @@ func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string
 		Group:   gvk.Group,
 		Version: gvk.Version,
 	}
-	kubeConfig := viper.GetString("kubeconfig")
+	kubeConfig := GetKubeConfig()
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		config, err = rest.InClusterConfig()
@@ -150,6 +171,10 @@ func GetKubeClient() kubernetes.Interface {
 
 func GetDirectCSIClient() directv1alpha1.DirectV1alpha1Interface {
 	return directCSIClient
+}
+
+func GetDirectClientset() direct.Interface {
+	return directClientset
 }
 
 func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
