@@ -66,7 +66,7 @@ func newDrivesListCmd() *cobra.Command {
 	f := cmd.Flags()
 	f.StringVarP(&l.drives, "drives", "d", "", "list these drives only")
 	f.StringVarP(&l.nodes, "nodes", "n", "", "list drives from particular nodes only")
-	f.StringVarP(&l.status, "status", "s", "", "filter by status [new, ignore, online, offline]")
+	f.StringVarP(&l.status, "status", "s", "", "filter by status [in-use, unformatted, new, terminating, unavailable, ready]")
 	f.BoolVarP(&l.all, "all", "", false, "list all drives")
 
 	return cmd
