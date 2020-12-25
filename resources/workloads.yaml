@@ -2,7 +2,7 @@ apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
   name: direct.csi.min.io
-  namespace: direct-csi
+  namespace: direct-csi-min-io
 spec:
   volumeLifecycleModes:
   - Persistent
@@ -16,7 +16,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: direct-csi-min-io
-  namespace: direct-csi
+  namespace: direct-csi-min-io
 data:
   key: none
 
@@ -41,7 +41,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: direct-csi-min-io
-  namespace: direct-csi
+  namespace: direct-csi-min-io
   labels:
     app: direct-csi-min-io
 spec:
@@ -57,7 +57,7 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: direct-csi-min-io
-  namespace: direct-csi
+  namespace: direct-csi-min-io
 spec:
   selector:
     matchLabels:
@@ -136,7 +136,7 @@ spec:
             - mountPath: $(KUBELET_DIR_PATH)/plugins
               mountPropagation: Bidirectional
               name: plugins-dir
-            - mountPath: /mnt/direct-csi
+            - mountPath: /var/lib/direct-csi/mnt
               name: direct-csi-common-root
               mountPropagation: Bidirectional
             - mountPath: /var/lib/direct-csi
@@ -173,7 +173,7 @@ spec:
             type: Directory
           name: plugins-dir
         - hostPath:
-            path: /mnt/direct-csi
+            path: /var/lib/direct-csi/mnt
             type: DirectoryOrCreate
           name: direct-csi-common-root
         - hostPath:
@@ -191,7 +191,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: direct-csi-controller-min-io
-  namespace: direct-csi
+  namespace: direct-csi-min-io
 spec:
   replicas: 3
   selector:
