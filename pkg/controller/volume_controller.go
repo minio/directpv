@@ -20,9 +20,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/clientset"
+	"github.com/minio/direct-csi/pkg/dev"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,14 +56,36 @@ func (b *DirectCSIVolumeListener) Add(ctx context.Context, obj *v1alpha1.DirectC
 func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1.DirectCSIVolume) error {
 	glog.V(1).Infof("Update called for DirectCSIVolume %s", new.ObjectMeta.Name)
 
+	directCSIClient := b.directcsiClient.DirectV1alpha1()
+	if utils.CheckVolumeStatusCondition(new.Status.Conditions, "published", metav1.ConditionTrue) {
+		sc := utils.GetVolumeStatusCondition(new.Status.Conditions, "volumestats")
+		duration := time.Since(sc.LastTransitionTime.Time)
+		if duration > 5*time.Minute {
+			xfsQuota := &dev.XFSQuota{
+				Path:      new.Status.ContainerPath,
+				ProjectID: new.ObjectMeta.Name,
+			}
+			volStats, err := xfsQuota.GetVolumeStats(ctx)
+			if err != nil {
+				return err
+			}
+			new.Status.TotalCapacity = volStats.TotalBytes
+			new.Status.AvailableCapacity = volStats.AvailableBytes
+			new.Status.UsedCapacity = volStats.UsedBytes
+			utils.UpdateVolumeStatusCondition(new.Status.Conditions, "volumestats", metav1.ConditionTrue)
+			if _, vErr := directCSIClient.DirectCSIVolumes().Update(ctx, new, metav1.UpdateOptions{}); vErr != nil {
+				return vErr
+			}
+		}
+	}
+
 	if !new.ObjectMeta.GetDeletionTimestamp().IsZero() {
 		finalizers := new.ObjectMeta.GetFinalizers()
 		if len(finalizers) > 0 {
 			if len(finalizers) == 1 && finalizers[0] == fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, "purge-protection") {
-				directCSIClient := b.directcsiClient.DirectV1alpha1()
-				if new.OwnerDrive != "" {
+				if new.Status.OwnerDrive != "" {
 					if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-						ownerDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, new.OwnerDrive, metav1.GetOptions{})
+						ownerDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, new.Status.OwnerDrive, metav1.GetOptions{})
 						if dErr != nil {
 							return dErr
 						}
@@ -80,15 +104,15 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1
 					}
 				}
 				// Umount the container path
-				if mErr := utils.UnmountIfMounted(new.ContainerPath); mErr != nil {
+				if mErr := utils.UnmountIfMounted(new.Status.ContainerPath); mErr != nil {
 					return mErr
 				}
 				// Umount the staging path
-				if mErr := utils.UnmountIfMounted(new.StagingPath); mErr != nil {
+				if mErr := utils.UnmountIfMounted(new.Status.StagingPath); mErr != nil {
 					return mErr
 				}
 				// Unset the owner drive
-				new.OwnerDrive = ""
+				new.Status.OwnerDrive = ""
 				new.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&new.ObjectMeta, fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, "purge-protection")))
 				if _, vErr := directCSIClient.DirectCSIVolumes().Update(ctx, new, metav1.UpdateOptions{}); vErr != nil {
 					return vErr

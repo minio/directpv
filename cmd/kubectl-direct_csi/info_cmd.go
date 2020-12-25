@@ -143,7 +143,7 @@ func info(ctx context.Context, args []string) error {
 		}
 		numVols := 0
 		for _, v := range volumes.Items {
-			if v.OwnerNode == n {
+			if v.Status.OwnerNode == n {
 				numVols++
 			}
 		}
