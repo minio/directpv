@@ -68,7 +68,7 @@ Usage:
 [FLAGS]
   --nodes, -n  VALUE      drives from nodes whose name matches WILDCARD. Defaults to '*'
   --all                   list all drives
-  --status, -s VALUE      filter by status [*new, ignore, online, offline]
+  --status, -s VALUE      filter by status [in-use, unformatted, new, terminating, unavailable, ready]
 ```
 
 ###### Example
@@ -78,7 +78,7 @@ Usage:
 # list nvme drives on nodes in rack1 and rack2
 $> kubectl directcsi drives list --nodes 'rack1*' '/dev/nvme*' --all
 DRIVES                      STATUS      VOLUMES  ALLOCATED      CAPACITY     FREE          FS         MOUNT           MODEL
-rack1node1:/dev/nvme1n1     online      4        376 GiB        1 TiB        36 GiB        xfs        (internal)      WDC PC SN730 SDBQNTY-986G-2001
+rack1node1:/dev/nvme1n1     in-use      4        376 GiB        1 TiB        36 GiB        xfs        (internal)      WDC PC SN730 SDBQNTY-986G-2001
 rack1node1:/dev/nvme2n1     new         0        0              1 TiB        986 GiB       -          -               WDC PC SN730 SDBQNTY-986G-2001
 rack1node2:/dev/nvme1n1     ignore      0        0              1 TiB        986 GiB       xfs        /mnt/dat...     WDC PC SN730 SDBQNTY-986G-2001
 rack1node2:/dev/nvme2n1     new         0        0              1 TiB        986 GiB       xfs        -               WDC PC SN730 SDBQNTY-986G-2001

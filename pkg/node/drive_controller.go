@@ -69,7 +69,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 		return nil
 	}
 
-	if new.Status.DriveStatus == direct_csi.Online {
+	if new.Status.DriveStatus == direct_csi.InUse {
 		glog.Errorf("Cannot format a drive in use %s", new.ObjectMeta.Name)
 		return nil
 	}
@@ -144,7 +144,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 	if new.Status.Mountpoint == "" {
 		mountPoint := new.Spec.RequestedFormat.Mountpoint
 		if mountPoint == "" {
-			mountPoint = filepath.Join(string(filepath.Separator), "mnt", "direct-csi", new.ObjectMeta.Name)
+			mountPoint = filepath.Join(string(filepath.Separator), "var", "lib", "direct-csi", "mnt", new.ObjectMeta.Name)
 		}
 
 		mountOptions := new.Spec.RequestedFormat.Mountoptions
@@ -155,6 +155,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 
 		new.Spec.RequestedFormat.Force = false
 		new.Status.Mountpoint = mountPoint
+		new.Status.DriveStatus = direct_csi.Ready
 		new.Spec.RequestedFormat.Mountpoint = ""
 		new.Spec.RequestedFormat.Mountoptions = []string{}
 		stat := &syscall.Statfs_t{}

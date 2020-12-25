@@ -92,8 +92,8 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1
 						copiedDrive := ownerDrive.DeepCopy()
 						copiedDrive.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&copiedDrive.ObjectMeta, fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, new.ObjectMeta.Name)))
 						if len(copiedDrive.ObjectMeta.Finalizers) == 0 {
-							copiedDrive.Status.DriveStatus = v1alpha1.Other // || ""
-							copiedDrive.Spec.DirectCSIOwned = false         // Format and make it fresh
+							copiedDrive.Status.DriveStatus = v1alpha1.Terminating // || ""
+							copiedDrive.Spec.DirectCSIOwned = false               // Format and make it fresh
 						}
 						if _, dErr = directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); dErr != nil {
 							return dErr

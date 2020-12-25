@@ -182,7 +182,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		copiedDrive := selectedCSIDrive.DeepCopy()
 		copiedDrive.Status.FreeCapacity = copiedDrive.Status.FreeCapacity - req.GetCapacityRange().GetRequiredBytes()
 		copiedDrive.Status.AllocatedCapacity = copiedDrive.Status.AllocatedCapacity + req.GetCapacityRange().GetRequiredBytes()
-		copiedDrive.Status.DriveStatus = direct_csi.Online
+		copiedDrive.Status.DriveStatus = direct_csi.InUse
 		copiedDrive.ObjectMeta.SetFinalizers(utils.AddFinalizer(&copiedDrive.ObjectMeta, fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, vol.ObjectMeta.Name)))
 		if _, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); err != nil {
 			return err

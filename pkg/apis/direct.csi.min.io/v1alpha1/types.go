@@ -96,12 +96,12 @@ type RequestedFormat struct {
 type DriveStatus string
 
 const (
-	Online      DriveStatus = "online"
-	Offline                 = "offline"
+	InUse       DriveStatus = "in-use"
 	Unformatted             = "unformatted"
 	New                     = "new"
-	Other                   = "other"
+	Terminating             = "terminating"
 	Unavailable             = "unavailable"
+	Ready                   = "ready"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
