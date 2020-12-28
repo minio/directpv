@@ -40,6 +40,7 @@ func main() {
 	}()
 
 	if err := Execute(ctx); err != nil {
-		glog.Fatal(err)
+		glog.V(5).Info(err)
+		os.Exit(1)
 	}
 }

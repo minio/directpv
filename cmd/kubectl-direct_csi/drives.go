@@ -26,6 +26,9 @@ var drivesCmd = &cobra.Command{
 	Use:   "drives",
 	Short: "Mangage Drives on DirectCSI",
 	Long:  "",
+	Aliases: []string{
+		"drive",
+	},
 }
 
 func init() {
