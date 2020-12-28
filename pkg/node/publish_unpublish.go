@@ -18,13 +18,16 @@ package node
 
 import (
 	"context"
+	"fmt"
+	"github.com/golang/glog"
 	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/utils/mount"
 	"os"
 	"path/filepath"
+	"time"
 )
 
-func PublishVolume(ctx context.Context, stagingPath, containerPath string, readOnly bool) error {
+func (n *NodeServer) PublishVolume(ctx context.Context, stagingPath, containerPath string, readOnly bool) error {
 	if err := os.MkdirAll(containerPath, 0755); err != nil {
 		return err
 	}
@@ -35,36 +38,44 @@ func PublishVolume(ctx context.Context, stagingPath, containerPath string, readO
 
 	mounter := mount.New("")
 
-	shouldBindMount := true
-	mountPoints, mntErr := mounter.List()
-	if mntErr != nil {
-		return mntErr
-	}
-	for _, mp := range mountPoints {
-		abPath, _ := filepath.Abs(mp.Path)
-		if containerPath == abPath {
-			shouldBindMount = false
-			break
+	glog.V(5).Infof("Obtaining lock for publishing volume path %s", containerPath)
+	if n.nsLockMap.lockLoop(ctx, containerPath, 1*time.Minute, 2*time.Second) {
+		defer n.nsLockMap.unlock(containerPath)
+		shouldBindMount := true
+		mountPoints, mntErr := mounter.List()
+		if mntErr != nil {
+			return mntErr
 		}
+		for _, mp := range mountPoints {
+			abPath, _ := filepath.Abs(mp.Path)
+			if containerPath == abPath {
+				shouldBindMount = false
+				break
+			}
+		}
+
+		if shouldBindMount {
+			opts := []string{"bind", "prjquota"}
+			if readOnly {
+				opts = append(opts, "ro")
+			}
+			if err := mounter.Mount(stagingPath, containerPath, "", opts); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
-	if shouldBindMount {
-		opts := []string{"bind", "prjquota"}
-		if readOnly {
-			opts = append(opts, "ro")
-		}
-		if err := mounter.Mount(stagingPath, containerPath, "", opts); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return fmt.Errorf("Failed to obtain ns lock while Publishing volume for %s", containerPath)
 }
 
-func UnpublishVolume(ctx context.Context, containerPath string) error {
-	if _, err := os.Lstat(containerPath); err != nil {
-		return err
+func (n *NodeServer) UnpublishVolume(ctx context.Context, containerPath string) error {
+	if n.nsLockMap.lockLoop(ctx, containerPath, 1*time.Minute, 2*time.Second) {
+		defer n.nsLockMap.unlock(containerPath)
+		if _, err := os.Lstat(containerPath); err != nil {
+			return err
+		}
+		return utils.UnmountIfMounted(containerPath)
 	}
-
-	return utils.UnmountIfMounted(containerPath)
+	return fmt.Errorf("Failed to obtain ns lock while Unpublishing volume path %s", containerPath)
 }

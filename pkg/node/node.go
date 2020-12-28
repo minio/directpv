@@ -76,6 +76,8 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	// Start DirectCSI drive listener
 	go startDriveController(ctx, nodeID)
 
+	nsLockMap := newNSLockMap()
+
 	return &NodeServer{
 		NodeID:    nodeID,
 		Identity:  identity,
@@ -83,6 +85,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		Zone:      zone,
 		Region:    region,
 		BasePaths: basePaths,
+		nsLockMap: nsLockMap,
 	}, nil
 }
 
@@ -93,6 +96,7 @@ type NodeServer struct {
 	Zone      string
 	Region    string
 	BasePaths []string
+	nsLockMap *nsLockMap
 }
 
 func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
@@ -167,7 +171,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		if dvol.Status.ContainerPath == containerPath {
 			return nil
 		}
-		if err := PublishVolume(ctx, stagingTargetPath, containerPath, readOnly); err != nil {
+		if err := n.PublishVolume(ctx, stagingTargetPath, containerPath, readOnly); err != nil {
 			return status.Errorf(codes.Internal, "Publish volume failed: %v", err)
 		}
 
@@ -210,7 +214,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
 
-	if err := UnpublishVolume(ctx, containerPath); err != nil {
+	if err := n.UnpublishVolume(ctx, containerPath); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -268,7 +272,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 			return status.Error(codes.FailedPrecondition, "Unformatted CSI Drive found")
 		}
 
-		hostPath, err := StageVolume(ctx, csiDrive, stagingTargetPath, vID)
+		hostPath, err := n.StageVolume(ctx, csiDrive, stagingTargetPath, vID)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Staging volume failed: %v", err)
 		}
@@ -313,7 +317,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
 
-	if err := UnstageVolume(ctx, stagingTargetPath); err != nil {
+	if err := n.UnstageVolume(ctx, stagingTargetPath); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

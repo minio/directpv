@@ -18,15 +18,18 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/utils/mount"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/golang/glog"
 	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 )
 
-func StageVolume(ctx context.Context, directCSIDrive *direct_csi.DirectCSIDrive, stagingPath string, volumeID string) (string, error) {
+func (n *NodeServer) StageVolume(ctx context.Context, directCSIDrive *direct_csi.DirectCSIDrive, stagingPath string, volumeID string) (string, error) {
 	hostPath := filepath.Join(directCSIDrive.Status.Mountpoint, volumeID)
 	if err := os.MkdirAll(hostPath, 0755); err != nil {
 		return "", err
@@ -42,32 +45,42 @@ func StageVolume(ctx context.Context, directCSIDrive *direct_csi.DirectCSIDrive,
 
 	mounter := mount.New("")
 
-	shouldBindMount := true
-	mountPoints, mntErr := mounter.List()
-	if mntErr != nil {
-		return "", mntErr
-	}
-	for _, mp := range mountPoints {
-		abPath, _ := filepath.Abs(mp.Path)
-		if stagingPath == abPath {
-			shouldBindMount = false
-			break
+	glog.V(5).Infof("Obtaining lock for staging path %s volume %s", stagingPath, volumeID)
+	if n.nsLockMap.lockLoop(ctx, stagingPath, 1*time.Minute, 2*time.Second) {
+		defer n.nsLockMap.unlock(stagingPath)
+		shouldBindMount := true
+		mountPoints, mntErr := mounter.List()
+		if mntErr != nil {
+			return "", mntErr
 		}
+		for _, mp := range mountPoints {
+			abPath, _ := filepath.Abs(mp.Path)
+			if stagingPath == abPath {
+				shouldBindMount = false
+				break
+			}
+		}
+
+		if shouldBindMount {
+			if err := mounter.Mount(hostPath, stagingPath, "", []string{"bind", "prjquota"}); err != nil {
+				return "", err
+			}
+		}
+
+		return hostPath, nil
 	}
 
-	if shouldBindMount {
-		if err := mounter.Mount(hostPath, stagingPath, "", []string{"bind", "prjquota"}); err != nil {
-			return "", err
-		}
-	}
+	return hostPath, fmt.Errorf("Failed to obtain ns lock while Staging volume for %s", volumeID)
 
-	return hostPath, nil
 }
 
-func UnstageVolume(ctx context.Context, stagingPath string) error {
-	if _, err := os.Lstat(stagingPath); err != nil {
-		return err
+func (n *NodeServer) UnstageVolume(ctx context.Context, stagingPath string) error {
+	if n.nsLockMap.lockLoop(ctx, stagingPath, 1*time.Minute, 2*time.Second) {
+		defer n.nsLockMap.unlock(stagingPath)
+		if _, err := os.Lstat(stagingPath); err != nil {
+			return err
+		}
+		return utils.UnmountIfMounted(stagingPath)
 	}
-
-	return utils.UnmountIfMounted(stagingPath)
+	return fmt.Errorf("Failed to obtain ns lock while Unstaging volume path %s", stagingPath)
 }
