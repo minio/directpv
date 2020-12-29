@@ -41,7 +41,7 @@ var pluginCmd = &cobra.Command{
 	Short:         "Plugin for managing Direct CSI drives and volumes",
 	Long:          os.Args[0],
 	SilenceUsage:  true,
-	SilenceErrors: true,
+	SilenceErrors: false,
 	Version:       Version,
 }
 

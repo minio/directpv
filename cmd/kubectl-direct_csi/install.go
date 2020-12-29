@@ -39,11 +39,13 @@ var installCmd = &cobra.Command{
 var (
 	installCRD   = false
 	overwriteCRD = false
+	image        = "minio/direct-csi:" + Version
 )
 
 func init() {
 	installCmd.PersistentFlags().BoolVarP(&installCRD, "crd", "c", installCRD, "register crds along with installation")
 	installCmd.PersistentFlags().BoolVarP(&overwriteCRD, "force", "f", overwriteCRD, "delete and recreate CRDs")
+	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "direct-csi image")
 }
 
 func install(ctx context.Context, args []string) error {
@@ -103,14 +105,14 @@ func install(ctx context.Context, args []string) error {
 	}
 	glog.Infof("'%s' rbac roles created", utils.Bold(identity))
 
-	if err := utils.CreateDaemonSet(ctx, identity); err != nil {
+	if err := utils.CreateDaemonSet(ctx, identity, image); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' daemonset created", utils.Bold(identity))
 
-	if err := utils.CreateDeployment(ctx, identity); err != nil {
+	if err := utils.CreateDeployment(ctx, identity, image); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}

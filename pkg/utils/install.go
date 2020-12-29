@@ -60,8 +60,7 @@ const (
 	csiProvisionerContainerName  = "csi-provisioner"
 	csiProvisionerContainerImage = "quay.io/k8scsi/csi-provisioner:v1.2.1"
 
-	directCSIContainerName  = "direct-csi"
-	directCSIContainerImage = "minio/direct-csi:v1.0-rc-2"
+	directCSIContainerName = "direct-csi"
 
 	livenessProbeContainerName  = "liveness-probe"
 	livenessProbeContainerImage = "quay.io/k8scsi/livenessprobe:v1.1.0"
@@ -261,7 +260,7 @@ func CreateService(ctx context.Context, identity string) error {
 	return nil
 }
 
-func CreateDaemonSet(ctx context.Context, identity string) error {
+func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 
@@ -414,7 +413,7 @@ func CreateDaemonSet(ctx context.Context, identity string) error {
 	return nil
 }
 
-func CreateDeployment(ctx context.Context, identity string) error {
+func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	var replicas int32 = 3

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -70,7 +71,7 @@ func info(ctx context.Context, args []string, quiet bool) error {
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == identity {
+				if driver.Name == strings.ReplaceAll(identity, ".", "-") {
 					nodeList = append(nodeList, csiNode.Name)
 					break
 				}
@@ -89,7 +90,7 @@ func info(ctx context.Context, args []string, quiet bool) error {
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == identity {
+				if driver.Name == strings.ReplaceAll(identity, ".", "-") {
 					nodeList = append(nodeList, csiNode.Name)
 					break
 				}
