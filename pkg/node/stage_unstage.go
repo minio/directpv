@@ -27,6 +27,9 @@ import (
 )
 
 func StageVolume(ctx context.Context, directCSIDrive *direct_csi.DirectCSIDrive, stagingPath string, volumeID string) (string, error) {
+	acquireLock(stagingPath)
+	defer releaseLock(stagingPath)
+
 	hostPath := filepath.Join(directCSIDrive.Status.Mountpoint, volumeID)
 	if err := os.MkdirAll(hostPath, 0755); err != nil {
 		return "", err
@@ -65,6 +68,9 @@ func StageVolume(ctx context.Context, directCSIDrive *direct_csi.DirectCSIDrive,
 }
 
 func UnstageVolume(ctx context.Context, stagingPath string) error {
+	acquireLock(stagingPath)
+	defer releaseLock(stagingPath)
+
 	if _, err := os.Lstat(stagingPath); err != nil {
 		return err
 	}
