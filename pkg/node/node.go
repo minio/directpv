@@ -76,6 +76,9 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	// Start DirectCSI drive listener
 	go startDriveController(ctx, nodeID)
 
+	// Start volume stats refresher
+	go refreshVolumeStats(ctx, nodeID)
+
 	return &NodeServer{
 		NodeID:    nodeID,
 		Identity:  identity,
@@ -180,23 +183,6 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil
 	}); err != nil {
 		return nil, err
-	}
-
-	volumeContext := req.GetVolumeContext()
-	if val, ok := volumeContext["RequiredBytes"]; ok {
-		requiredBytes, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
-		}
-		if requiredBytes > 0 {
-			xfsQuota := &dev.XFSQuota{
-				Path:      containerPath,
-				ProjectID: vID,
-			}
-			if qErr := xfsQuota.SetQuota(ctx, requiredBytes); qErr != nil {
-				return nil, status.Errorf(codes.Internal, "Error while setting xfs limits: %v", qErr)
-			}
-		}
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -363,19 +349,10 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		}
 	}
 
-	xfsQuota := &dev.XFSQuota{
-		Path:      volumePath,
-		ProjectID: vID,
-	}
-	volStats, err := xfsQuota.GetVolumeStats(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Error while getting xfs volume stats: %v", err)
-	}
-
 	volUsage := &csi.VolumeUsage{
-		Available: volStats.AvailableBytes,
-		Total:     volStats.TotalBytes,
-		Used:      volStats.UsedBytes,
+		Available: dvol.Status.AvailableCapacity,
+		Total:     dvol.Status.TotalCapacity,
+		Used:      dvol.Status.UsedCapacity,
 		Unit:      csi.VolumeUsage_BYTES,
 	}
 

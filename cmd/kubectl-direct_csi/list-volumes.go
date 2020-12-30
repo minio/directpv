@@ -125,7 +125,7 @@ func (l *csiListVolumesCmd) run(args []string) error {
 		t.AppendRow(table.Row{
 			v.Name,
 			v.Status.OwnerNode,
-			v.Status.HostPath,
+			v.Status.OwnerDrive,
 			humanize.SI(float64(v.Status.TotalCapacity), "B"),
 			"", //TODO: Add Bind Status
 		})

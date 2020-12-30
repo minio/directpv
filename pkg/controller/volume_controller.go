@@ -20,11 +20,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/clientset"
-	"github.com/minio/direct-csi/pkg/dev"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,27 +55,6 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1
 	glog.V(1).Infof("Update called for DirectCSIVolume %s", new.ObjectMeta.Name)
 
 	directCSIClient := b.directcsiClient.DirectV1alpha1()
-	if utils.CheckVolumeStatusCondition(new.Status.Conditions, "published", metav1.ConditionTrue) {
-		sc := utils.GetVolumeStatusCondition(new.Status.Conditions, "volumestats")
-		duration := time.Since(sc.LastTransitionTime.Time)
-		if duration > 5*time.Minute {
-			xfsQuota := &dev.XFSQuota{
-				Path:      new.Status.ContainerPath,
-				ProjectID: new.ObjectMeta.Name,
-			}
-			volStats, err := xfsQuota.GetVolumeStats(ctx)
-			if err != nil {
-				return err
-			}
-			new.Status.TotalCapacity = volStats.TotalBytes
-			new.Status.AvailableCapacity = volStats.AvailableBytes
-			new.Status.UsedCapacity = volStats.UsedBytes
-			utils.UpdateVolumeStatusCondition(new.Status.Conditions, "volumestats", metav1.ConditionTrue)
-			if _, vErr := directCSIClient.DirectCSIVolumes().Update(ctx, new, metav1.UpdateOptions{}); vErr != nil {
-				return vErr
-			}
-		}
-	}
 
 	if !new.ObjectMeta.GetDeletionTimestamp().IsZero() {
 		finalizers := new.ObjectMeta.GetFinalizers()
