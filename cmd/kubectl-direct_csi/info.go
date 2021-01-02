@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
@@ -46,11 +47,21 @@ var infoCmd = &cobra.Command{
 	},
 }
 
+const dot = "•"
+
+var (
+	bold   = color.New(color.Bold).SprintFunc()
+	red    = color.New(color.FgRed).SprintFunc()
+	green  = color.New(color.FgGreen).SprintFunc()
+	yellow = color.New(color.FgYellow).SprintFunc()
+)
+
 func info(ctx context.Context, args []string, quiet bool) error {
 	utils.Init()
 
 	bold := color.New(color.Bold).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
 
 	client, gvk, err := utils.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
@@ -124,24 +135,31 @@ func info(ctx context.Context, args []string, quiet bool) error {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"#", "NodeName", "", "#Drives", "", "#Volumes"})
+	t.AppendHeader(table.Row{"NODE", "CAPACITY", "ALLOCATED", "VOLUMES", "DRIVES"})
 
+	var totalSize int64
+	var allocatedSize int64
 	totalOwnedDrives := 0
-	totalDrives := len(drives.Items)
 	totalVolumes := len(volumes.Items)
 	for _, d := range drives.Items {
 		if d.Spec.DirectCSIOwned {
 			totalOwnedDrives++
+			totalSize = totalSize + d.Status.TotalCapacity
 		}
 	}
-	for i, n := range nodeList {
+	for _, n := range nodeList {
 		driveList := []string{}
 		numDrives := 0
+		var nodeVolSize int64
+		var nodeDriveSize int64
+		status := red(dot)
 		for _, d := range drives.Items {
 			if d.Status.NodeName == n {
 				numDrives++
 				if d.Spec.DirectCSIOwned {
+					status = green(dot)
 					driveList = append(driveList, d.Name)
+					nodeDriveSize = nodeDriveSize + d.Status.TotalCapacity
 				}
 			}
 		}
@@ -149,33 +167,45 @@ func info(ctx context.Context, args []string, quiet bool) error {
 		for _, v := range volumes.Items {
 			if v.Status.OwnerNode == n {
 				numVols++
+				allocatedSize = allocatedSize + v.Status.TotalCapacity
+				nodeVolSize = nodeVolSize + v.Status.TotalCapacity
 			}
 		}
+		if len(driveList) == 0 {
+			t.AppendRow([]interface{}{
+				fmt.Sprintf("%s %s", status, n),
+				"-",
+				"-",
+				"-",
+				"-",
+			})
+			continue
+		}
 		t.AppendRow([]interface{}{
-			fmt.Sprintf("%d", i+1),
-			n,
-			"",
-			fmt.Sprintf("(%d/%d)", len(driveList), numDrives),
-			"",
-			fmt.Sprintf(" %d", numVols),
+			fmt.Sprintf("%s %s", status, n),
+			fmt.Sprintf("%s", humanize.IBytes(uint64(nodeDriveSize))),
+			fmt.Sprintf("%s", humanize.IBytes(uint64(nodeVolSize))),
+			fmt.Sprintf("%d", numVols),
+			fmt.Sprintf("%d", len(driveList)),
 		})
 	}
+
+	text.DisableColors()
 
 	style := table.StyleColoredDark
 	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	t.SetStyle(style)
-	t.SetColumnConfigs([]table.ColumnConfig{
-		{Number: 1, Align: text.AlignJustify},
-		{Number: 2, Align: text.AlignJustify},
-		{Number: 3, Align: text.AlignJustify},
-		{Number: 4, Align: text.AlignJustify},
-		{Number: 5, Align: text.AlignJustify},
-	})
 	if !quiet {
 		t.Render()
-		fmt.Println()
-		fmt.Printf("(%s/%s) Drives managed by direct-csi, %s Total Volumes\n", bold(fmt.Sprintf("%d", totalOwnedDrives)), bold(fmt.Sprintf("%d", totalDrives)), bold(fmt.Sprintf("%d", totalVolumes)))
+		if totalOwnedDrives > 0 {
+			fmt.Println()
+			fmt.Printf("%s/%s used, %s volumes, %s drives\n",
+				bold(fmt.Sprintf("%s", humanize.IBytes(uint64(allocatedSize)))),
+				bold(fmt.Sprintf("%s", humanize.IBytes(uint64(totalSize)))),
+				bold(fmt.Sprintf("%d", totalVolumes)),
+				bold(fmt.Sprintf("%d", totalOwnedDrives)))
+		}
 	}
 
 	return nil

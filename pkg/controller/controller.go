@@ -146,7 +146,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				Finalizers: []string{fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "pv-protection"), fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, "purge-protection")},
 			},
 			Status: direct_csi.DirectCSIVolumeStatus{
-				OwnerDrive:        selectedCSIDrive.ObjectMeta.Name,
+				OwnerDrive:        selectedCSIDrive.Name,
 				OwnerNode:         selectedCSIDrive.Status.NodeName,
 				TotalCapacity:     totalVolumeCapacity,
 				AvailableCapacity: totalVolumeCapacity,
@@ -158,11 +158,11 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		var uErr error
 		if _, err = directCSIClient.DirectCSIVolumes().Create(ctx, vol, metav1.CreateOptions{}); err != nil {
 			if errors.IsAlreadyExists(err) {
-				existingVol, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vol.ObjectMeta.Name, metav1.GetOptions{})
+				existingVol, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vol.Name, metav1.GetOptions{})
 				if vErr != nil {
 					return vErr
 				}
-				existingVol.Status.OwnerDrive = selectedCSIDrive.ObjectMeta.Name
+				existingVol.Status.OwnerDrive = selectedCSIDrive.Name
 				existingVol.Status.OwnerNode = selectedCSIDrive.Status.NodeName
 				existingVol.Status.TotalCapacity = totalVolumeCapacity
 				existingVol.Status.AvailableCapacity = totalVolumeCapacity
@@ -177,13 +177,13 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			}
 		}
 
-		glog.Infof("Created DirectCSI Volume - %s", vol.ObjectMeta.Name)
+		glog.Infof("Created DirectCSI Volume - %s", vol.Name)
 
 		copiedDrive := selectedCSIDrive.DeepCopy()
 		copiedDrive.Status.FreeCapacity = copiedDrive.Status.FreeCapacity - req.GetCapacityRange().GetRequiredBytes()
 		copiedDrive.Status.AllocatedCapacity = copiedDrive.Status.AllocatedCapacity + req.GetCapacityRange().GetRequiredBytes()
 		copiedDrive.Status.DriveStatus = direct_csi.InUse
-		copiedDrive.ObjectMeta.SetFinalizers(utils.AddFinalizer(&copiedDrive.ObjectMeta, fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, vol.ObjectMeta.Name)))
+		copiedDrive.ObjectMeta.SetFinalizers(utils.AddFinalizer(&copiedDrive.ObjectMeta, fmt.Sprintf("%s/%s", direct_csi.SchemeGroupVersion.Group, vol.Name)))
 		if _, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -200,7 +200,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:      vol.ObjectMeta.Name,
+			VolumeId:      vol.Name,
 			CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
 			VolumeContext: req.GetParameters(),
 			ContentSource: req.GetVolumeContentSource(),

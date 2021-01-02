@@ -45,7 +45,7 @@ func (g GPTHeader) Is() bool {
 	return true
 }
 
-type LBA struct {
+type GPTLBA struct {
 	PartitionType [16]byte `json:"partitionType,omitempty"`
 	PartitionGUID [16]byte `json:"partitionGUID,omitempty"`
 
@@ -53,7 +53,7 @@ type LBA struct {
 	End   uint64 `json:"End,omitempty"`
 }
 
-func (l LBA) Is() bool {
+func (l GPTLBA) Is() bool {
 	invalidLBA := [16]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00}
 	for i := range invalidLBA {
 		if l.PartitionType[i] != invalidLBA[i] {

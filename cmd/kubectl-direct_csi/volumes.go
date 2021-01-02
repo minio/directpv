@@ -22,17 +22,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	csiVolumesDesc = `
-  volumes command allows managing Volumes created by MinIO DirectCSI.`
-)
+var volumesCmd = &cobra.Command{
+	Use:   "volumes",
+	Short: "Mangage Volumes on DirectCSI",
+	Long:  "",
+	Aliases: []string{
+		"volume",
+	},
+}
 
-func newVolumesCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "volumes",
-		Short: "Mangage Volumes on DirectCSI",
-		Long:  csiVolumesDesc,
-	}
-	cmd.AddCommand(newVolumesListCmd())
-	return cmd
+func init() {
+	volumesCmd.AddCommand(listVolumesCmd)
 }

@@ -28,10 +28,10 @@ The kubectl plugin makes it easy to discover drives in your cluster
 $ kubectl direct-csi drives list --help
 
 Flags:
-  -d, --drives [glob]   filter by drive paths
-  -n, --nodes  [glob]   filter by node names
-  -s, --status [glob]   filter by drive status
-  -h, --help            help for list
+  -d, --drives strings   glob selector for drive paths
+  -h, --help             help for list
+  -n, --nodes strings    glob selector for node names
+  -s, --status strings   glob selector for drive status
 
 Examples:
 
@@ -76,27 +76,42 @@ $ kubectl direct-csi drives list
 
 ```sh
 $ kubectl direct-csi drives add --help
+add drives to the DirectCSI cluster
 
-Flags:
-  -f, --filter [string]   filter by nodes, status or drive paths [glob pattern]
-  -h, --help              help for list
+Usage:
+  kubectl-direct_csi drives add [flags]
 
-Example:
+Examples:
+
+# Add all available drives
+$ kubectl direct-csi drives add
 
 # Add all nvme drives in all nodes 
-$ kubectl direct-csi drives list --filters drives=/dev/nvme*
+$ kubectl direct-csi drives add --drives=/dev/nvme*
 
-# Filter all new drives 
-$ kubectl direct-csi drives list --filters status=new
+# Add all new drives
+$ kubectl direct-csi drives add --status=new
 
-# Filter all drives from a particular node
-$ kubectl direct-csi drives list --filters nodes=directcsi-1
+# Add all drives from a particular node
+$ kubectl direct-csi drives add --nodes=directcsi-1
 
-# Combine multiple filters
-$ kubectl direct-csi drives list --filters nodes=directcsi-1 --filter nodes=othernodes-2 --filter status=new
+# Combine multiple parameters using multi-arg
+$ kubectl direct-csi drives add --nodes=directcsi-1 --nodes=othernode-2 --status=new
 
-# Combine multiple filters using csv
-$ kubectl direct-csi drives list --filters nodes=directcsi-1,nodes=othernodes-2,status=new
+# Combine multiple parameters using csv
+$ kubectl direct-csi drives add --nodes=directcsi-1,othernode-2 --status=new
+
+Flags:
+  -d, --drives strings      glog selector for drive paths
+  -f, --force               force format a drive even if a FS is already present
+  -h, --help                help for add
+  -m, --mountOpts strings   csv list of mount options
+  -n, --nodes strings       glob selector for node names
+  -s, --status strings      glob selector for drive status
+
+Global Flags:
+  -k, --kubeconfig string   path to kubeconfig
+  -v, --v Level             log level for V logs
 ```
 
 **WARNING** - Adding drives to direct-csi will result in them being formatted
@@ -123,7 +138,7 @@ $ kubectl direct-csi drives list --filters nodes=directcsi-1,nodes=othernodes-2,
  - Add drives that you would like DirectCSI to manage
 
 ```sh
-$ kubectl direct-csi drives add /dev/xvd{b...c}
+$ kubectl direct-csi drives add --drives=/dev/xvdb,/dev/xvdc
  SERVER       DRIVES     STATUS  VOLUMES  CAPACITY      ALLOCATED  FREE          FS   MOUNT
  directcsi-1  /dev/xvdb  ready   0        10.737418 GB  0 B        10.618384 GB  xfs  /var/lib/direct-csi/mnt/19de...
  directcsi-1  /dev/xvdc  ready   0        10.737418 GB  0 B        10.618384 GB  xfs  /var/lib/direct-csi/mnt/1a44...
@@ -182,7 +197,7 @@ $ kubectl direct-csi drives list
 (0/12) Drives available
 ```
 
- - Check if drives have been added to DirectCSI. Atleast 1 drive should be available
+ - Check if drives have been added to DirectCSI. Atleast 1 drive should be available for volumes to be provisioned
 
 ```sh
 $ kubectl direct-csi drives list

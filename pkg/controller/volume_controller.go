@@ -54,7 +54,7 @@ func (b *DirectCSIVolumeListener) Add(ctx context.Context, obj *v1alpha1.DirectC
 }
 
 func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1.DirectCSIVolume) error {
-	glog.V(1).Infof("Update called for DirectCSIVolume %s", new.ObjectMeta.Name)
+	glog.V(1).Infof("Update called for DirectCSIVolume %s", new.Name)
 
 	directCSIClient := b.directcsiClient.DirectV1alpha1()
 	if utils.CheckVolumeStatusCondition(new.Status.Conditions, "published", metav1.ConditionTrue) {
@@ -63,7 +63,7 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1
 		if duration > 5*time.Minute {
 			xfsQuota := &dev.XFSQuota{
 				Path:      new.Status.ContainerPath,
-				ProjectID: new.ObjectMeta.Name,
+				ProjectID: new.Name,
 			}
 			volStats, err := xfsQuota.GetVolumeStats(ctx)
 			if err != nil {
@@ -90,7 +90,7 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1
 							return dErr
 						}
 						copiedDrive := ownerDrive.DeepCopy()
-						copiedDrive.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&copiedDrive.ObjectMeta, fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, new.ObjectMeta.Name)))
+						copiedDrive.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&copiedDrive.ObjectMeta, fmt.Sprintf("%s/%s", v1alpha1.SchemeGroupVersion.Group, new.Name)))
 						if len(copiedDrive.ObjectMeta.Finalizers) == 0 {
 							copiedDrive.Status.DriveStatus = v1alpha1.Terminating // || ""
 							copiedDrive.Spec.DirectCSIOwned = false               // Format and make it fresh
@@ -125,7 +125,7 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *v1alpha1
 }
 
 func (b *DirectCSIVolumeListener) Delete(ctx context.Context, obj *v1alpha1.DirectCSIVolume) error {
-	glog.V(1).Infof("Delete called for DirectCSIVolume %s", obj.ObjectMeta.Name)
+	glog.V(1).Infof("Delete called for DirectCSIVolume %s", obj.Name)
 	return nil
 }
 

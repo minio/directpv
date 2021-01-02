@@ -22,6 +22,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	drives = []string{}
+	nodes  = []string{}
+	status = []string{}
+)
+
 var drivesCmd = &cobra.Command{
 	Use:   "drives",
 	Short: "Mangage Drives on DirectCSI",
@@ -33,4 +39,5 @@ var drivesCmd = &cobra.Command{
 
 func init() {
 	drivesCmd.AddCommand(listDrivesCmd)
+	drivesCmd.AddCommand(addDrivesCmd)
 }

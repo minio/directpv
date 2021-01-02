@@ -55,13 +55,13 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 	directCSIClient := b.directcsiClient.DirectV1alpha1()
 	var uErr error
 
-	new, uErr = directCSIClient.DirectCSIDrives().Get(ctx, new.ObjectMeta.Name, metav1.GetOptions{})
+	new, uErr = directCSIClient.DirectCSIDrives().Get(ctx, new.Name, metav1.GetOptions{})
 	if uErr != nil {
 		return uErr
 	}
 
 	if b.nodeID != new.Status.NodeName {
-		glog.V(5).Infof("Skipping drive %s", new.ObjectMeta.Name)
+		glog.V(5).Infof("Skipping drive %s", new.Name)
 		return nil
 	}
 
@@ -70,20 +70,20 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 	}
 
 	if new.Status.DriveStatus == direct_csi.InUse {
-		glog.Errorf("Cannot format a drive in use %s", new.ObjectMeta.Name)
+		glog.Errorf("Cannot format a drive in use %s", new.Name)
 		return nil
 	}
 
 	fsType := new.Spec.RequestedFormat.Filesystem
 	if new.Status.Filesystem != "" && new.Status.Filesystem != "xfs" && fsType != "xfs" {
-		glog.Errorf("Only xfs disks can be added - %s", new.ObjectMeta.Name)
+		glog.Errorf("Only xfs disks can be added - %s", new.Name)
 		return nil
 	}
 
 	if fsType != "" {
 
 		if fsType != "xfs" {
-			glog.Errorf("Only xfs formatting is supported - %s", new.ObjectMeta.Name)
+			glog.Errorf("Only xfs formatting is supported - %s", new.Name)
 			return nil
 		}
 
@@ -97,13 +97,13 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 		}
 
 		if new.Status.AllocatedCapacity > 0 && !isPurgeOptionSet {
-			glog.Errorf("Cannot format a used drive - %s. Set 'purge: true' to override", new.ObjectMeta.Name)
+			glog.Errorf("Cannot format a used drive - %s. Set 'purge: true' to override", new.Name)
 			return nil
 		}
 
 		if new.Status.Mountpoint != "" {
 			if !isForceOptionSet {
-				glog.Errorf("Cannot format a mounted drive - %s. Set 'force: true' to override", new.ObjectMeta.Name)
+				glog.Errorf("Cannot format a mounted drive - %s. Set 'force: true' to override", new.Name)
 				return nil
 			}
 			// Get absolute path
@@ -122,7 +122,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 			}
 		}
 		if new.Status.Filesystem != "" && !isForceOptionSet {
-			glog.Errorf("Drive already has a filesystem - %s", new.ObjectMeta.Name)
+			glog.Errorf("Drive already has a filesystem - %s", new.Name)
 			return nil
 		}
 		if fErr := FormatDevice(ctx, new.Status.Path, fsType, isForceOptionSet); fErr != nil {
@@ -144,7 +144,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 	if new.Status.Mountpoint == "" {
 		mountPoint := new.Spec.RequestedFormat.Mountpoint
 		if mountPoint == "" {
-			mountPoint = filepath.Join(string(filepath.Separator), "var", "lib", "direct-csi", "mnt", new.ObjectMeta.Name)
+			mountPoint = filepath.Join(string(filepath.Separator), "var", "lib", "direct-csi", "mnt", new.Name)
 		}
 
 		mountOptions := new.Spec.RequestedFormat.Mountoptions
@@ -169,7 +169,7 @@ func (b *DirectCSIDriveListener) Update(ctx context.Context, old, new *direct_cs
 		if new, uErr = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); uErr != nil {
 			return uErr
 		}
-		glog.V(4).Infof("Successfully mounted DirectCSIDrive %s", new.ObjectMeta.Name)
+		glog.V(4).Infof("Successfully mounted DirectCSIDrive %s", new.Name)
 	}
 
 	return nil

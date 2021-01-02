@@ -35,7 +35,7 @@ import (
 )
 
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string) (*NodeServer, error) {
-	drives, err := FindDrives(ctx, nodeID, procfs)
+	drives, err := findDrives(ctx, nodeID, procfs)
 	if err != nil {
 		return nil, err
 	}
@@ -51,23 +51,29 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	for _, drive := range drives {
 		drive.Status.Topology = driveTopology
-		if _, err := directCSIClient.DirectCSIDrives().Create(ctx, &drive, metav1.CreateOptions{}); err != nil {
-			if errors.IsAlreadyExists(err) {
-				if rErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					existingDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, drive.ObjectMeta.Name, metav1.GetOptions{})
-					if dErr != nil {
-						return dErr
-					}
-					if UpdateDriveStatusOnDiff(drive, existingDrive) {
-						if _, uErr := directCSIClient.DirectCSIDrives().Update(ctx, existingDrive, metav1.UpdateOptions{}); uErr != nil {
-							return uErr
-						}
-					}
-					return nil
-				}); rErr != nil {
-					return nil, rErr
+		driveClient := directCSIClient.DirectCSIDrives()
+		_, err := driveClient.Create(ctx, &drive, metav1.CreateOptions{})
+
+		if err != nil {
+			if !errors.IsAlreadyExists(err) {
+				return nil, err
+			}
+
+			driveUpdate := func() error {
+				existingDrive, err := driveClient.Get(ctx, drive.Name, metav1.GetOptions{})
+				if err != nil {
+					return err
 				}
-			} else {
+				if UpdateDriveStatusOnDiff(drive, existingDrive) {
+					_, err := driveClient.Update(ctx, existingDrive, metav1.UpdateOptions{})
+					if err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+			err := retry.RetryOnConflict(retry.DefaultRetry, driveUpdate)
+			if err != nil {
 				return nil, err
 			}
 		}

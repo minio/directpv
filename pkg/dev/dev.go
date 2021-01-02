@@ -51,7 +51,52 @@ type DriveInfo struct {
 	*FSInfo `json:"fsInfo,omitempty"`
 }
 
-func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
+const defaultProcfs = "/proc/"
+
+func FindDevices(ctx context.Context) ([]BlockDevice, error) {
+	const head = "/sys/devices"
+	drives := []BlockDevice{}
+
+	return drives, filepath.Walk(head, func(path string, info os.FileInfo, err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if strings.HasPrefix(info.Name(), "loop") {
+			return filepath.SkipDir
+		}
+		if info.Name() != "uevent" {
+			return nil
+		}
+		drive, err := parseUevent(path)
+		if err != nil {
+			glog.V(3).Info(err)
+			return nil
+		}
+		if drive.Devtype != "disk" {
+			return nil
+		}
+		subsystem, err := subsystem(path)
+		if err != nil {
+			glog.V(3).Info(err)
+			return nil
+		}
+		if subsystem != "block" {
+			return nil
+		}
+		if err := drive.probeBlockDev(ctx, ""); err != nil {
+			return err
+		}
+		
+		drives = append(drives, *drive)
+		return nil
+	})
+}
+
+func (b *BlockDevice) probeBlockDev(ctx context.Context, procfs string) error {
+	if procfs == "" {
+		procfs = defaultProcfs
+	}
+	
 	if err := os.MkdirAll(DevRoot, 0755); err != nil {
 		return err
 	}
@@ -80,9 +125,9 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 	b.NumBlocks = numBlocks
 	b.EndBlock = numBlocks
 
-	parts, err := b.FindPartitions(ctx)
+	parts, err := b.findPartitions(ctx)
 	if err != nil {
-		if err != ErrNotGPT {
+		if err != ErrNotPartition {
 			return err
 		}
 	}
@@ -125,44 +170,6 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 		b.Partitions = append(b.Partitions, p)
 	}
 	return nil
-}
-
-func FindDevices(ctx context.Context) ([]*BlockDevice, error) {
-	const head = "/sys/devices"
-	drives := []*BlockDevice{}
-
-	if err := filepath.Walk(head, func(path string, info os.FileInfo, err error) error {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if strings.HasPrefix(info.Name(), "loop") {
-			return filepath.SkipDir
-		}
-		if info.Name() != "uevent" {
-			return nil
-		}
-		drive, err := parseUevent(path)
-		if err != nil {
-			glog.V(10).Info(err)
-			return nil
-		}
-		if drive.Devtype != "disk" {
-			return nil
-		}
-		subsystem, err := subsystem(path)
-		if err != nil {
-			glog.V(10).Info(err)
-			return nil
-		}
-		if subsystem != "block" {
-			return nil
-		}
-		drives = append(drives, drive)
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return drives, nil
 }
 
 func subsystem(path string) (string, error) {
