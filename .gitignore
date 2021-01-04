@@ -1,7 +1,5 @@
 *~
 *.test
 dist/
-direct-csi
 *.zip
 *.minisig
-kubectl-direct_csi

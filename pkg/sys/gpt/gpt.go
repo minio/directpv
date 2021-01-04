@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package dev
+package gpt
 
 var GPTSignature = [8]byte{0x45, 0x46, 0x49, 0x20, 0x50, 0x41, 0x52, 0x54}
 

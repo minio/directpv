@@ -106,14 +106,16 @@ spec:
                   - type
                   type: object
                 type: array
-                x-kubernetes-list-type: atomic
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               containerPath:
+                type: string
+              drive:
                 type: string
               hostPath:
                 type: string
-              ownerDrive:
-                type: string
-              ownerNode:
+              nodeName:
                 type: string
               stagingPath:
                 type: string

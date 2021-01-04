@@ -18,97 +18,22 @@ package node
 
 import (
 	"context"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"reflect"
 	"sort"
+
+	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/pkg/sys/xfs"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	kexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	"github.com/minio/direct-csi/pkg/utils"
-
 	"github.com/golang/glog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
-
-// MountDevice - Utility to mount a device in the given mountpoint
-func MountDevice(devicePath, mountPoint, fsType string, options []string) error {
-	if err := os.MkdirAll(mountPoint, 0755); err != nil {
-		return err
-	}
-	if err := mount.New("").Mount(devicePath, mountPoint, fsType, options); err != nil {
-		glog.V(5).Info(err)
-		return err
-	}
-	return nil
-}
-
-// FormatDevice - Formats the given device
-func FormatDevice(ctx context.Context, source, fsType string, force bool) error {
-	args := []string{source}
-	forceFlag := "-F"
-	if fsType == "xfs" {
-		forceFlag = "-f"
-	}
-	if force {
-		args = []string{
-			forceFlag, // Force flag
-			source,
-		}
-	}
-	glog.V(5).Infof("args: %v", args)
-	output, err := exec.CommandContext(ctx, "mkfs."+fsType, args...).CombinedOutput()
-	if err != nil {
-		glog.V(5).Infof("Failed to format the device: err: (%s) output: (%s)", err.Error(), string(output))
-	}
-	return err
-}
-
-// UnmountAllMountRefs - Unmount all mount refs. To avoid later mounts to overlap earlier mounts.
-func UnmountAllMountRefs(mountPoint string) error {
-	mounter := mount.New("")
-	// Get all the mountrefs
-	mountRefs, err := mounter.GetMountRefs(mountPoint)
-	if err != nil {
-		return err
-	}
-	// If there are no refs, Simply unmount.
-	if len(mountRefs) == 0 {
-		return utils.UnmountIfMounted(mountPoint)
-	}
-	// Else, Unmount all the mountrefs first.
-	mountPoints, mntErr := mounter.List()
-	if mntErr != nil {
-		return mntErr
-	}
-	for _, mRef := range mountRefs {
-		abmRef, _ := filepath.Abs(mRef)
-		for _, mp := range mountPoints {
-			abMp, _ := filepath.Abs(mp.Path)
-			if abmRef == abMp {
-				if mErr := mounter.Unmount(abmRef); mErr != nil {
-					return mErr
-				}
-			}
-		}
-	}
-	// Finally, unmount the mountpoint
-	for _, mp := range mountPoints {
-		abPath, _ := filepath.Abs(mp.Path)
-		if mountPoint == abPath {
-			if mErr := mounter.Unmount(mountPoint); mErr != nil {
-				return mErr
-			}
-			break
-		}
-	}
-
-	return nil
-}
 
 // GetLatestStatus gets the latest condition by time
 func GetLatestStatus(statusXs []metav1.Condition) metav1.Condition {
@@ -119,7 +44,7 @@ func GetLatestStatus(statusXs []metav1.Condition) metav1.Condition {
 	return statusXs[0]
 }
 
-// GetDiskFS - To get the filesystem of a block device
+// GetDiskFS - To get the filesystem of a block sys.ce
 func GetDiskFS(devicePath string) (string, error) {
 	diskMounter := &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: kexec.New()}
 	// Internally uses 'blkid' to see if the given disk is unformatted
@@ -240,4 +165,32 @@ func UpdateDriveStatusOnDiff(newObj directv1alpha1.DirectCSIDrive, existingObj *
 	// Add new status canditates here
 
 	return isUpdated
+}
+
+// Idempotent function to bind mount a xfs filesystem with limits
+func mountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error {
+	if err := utils.SafeMount(src, dest, string(utils.FSTypeXFS),
+		func() []utils.MountOption {
+			mOpts := []utils.MountOption{
+				utils.MountOptionMSBind,
+			}
+			if readOnly {
+				mOpts = append(mOpts, utils.MountOptionMSReadOnly)
+			}
+			return mOpts
+		}(), []string{"prjquota"}); err != nil {
+		return err
+	}
+
+	if size > 0 {
+		xfsQuota := &xfs.XFSQuota{
+			Path:      dest,
+			ProjectID: vID,
+		}
+		if err := xfsQuota.SetQuota(ctx, size); err != nil {
+			return status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
+		}
+	}
+
+	return nil
 }

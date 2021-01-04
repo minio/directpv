@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
 	"github.com/spf13/cobra"
@@ -43,25 +42,12 @@ var infoCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		return info(c.Context(), args, false)
+		return getInfo(c.Context(), args, false)
 	},
 }
 
-const dot = "•"
-
-var (
-	bold   = color.New(color.Bold).SprintFunc()
-	red    = color.New(color.FgRed).SprintFunc()
-	green  = color.New(color.FgGreen).SprintFunc()
-	yellow = color.New(color.FgYellow).SprintFunc()
-)
-
-func info(ctx context.Context, args []string, quiet bool) error {
+func getInfo(ctx context.Context, args []string, quiet bool) error {
 	utils.Init()
-
-	bold := color.New(color.Bold).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-	green := color.New(color.FgGreen).SprintFunc()
 
 	client, gvk, err := utils.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {

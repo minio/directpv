@@ -33,7 +33,7 @@ import (
 const (
 	csiRemoveDrivesDesc = `
   remove command removes drives from being managed by DirectCSI. Only works on drives that have no bounded volumes.`
-	csiRemoveDrivesExample = `  kubectl directcsi drives remove /dev/nvme* --nodes myhost{1...4} `
+	csiRemoveDrivesExample = `  kubectl directcsi drives remove /sys.nvme* --nodes myhost{1...4} `
 )
 
 type csiRemoveDrivesCmd struct {

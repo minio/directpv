@@ -18,59 +18,113 @@ package node
 
 import (
 	"context"
+
+	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/utils"
-	"k8s.io/utils/mount"
-	"os"
-	"path/filepath"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-func PublishVolume(ctx context.Context, stagingPath, containerPath string, readOnly bool) error {
-	acquireLock(stagingPath)
-	defer releaseLock(stagingPath)
-
-	if err := os.MkdirAll(containerPath, 0755); err != nil {
-		return err
+func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	vID := req.GetVolumeId()
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+	stagingTargetPath := req.GetStagingTargetPath()
+	if stagingTargetPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
+	}
+	containerPath := req.GetTargetPath()
+	if containerPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "containerPath missing in request")
 	}
 
-	if _, err := os.Lstat(containerPath); err != nil {
-		return err
+	readOnly := req.GetReadonly()
+	directCSIClient := utils.GetDirectCSIClient()
+	vclient := directCSIClient.DirectCSIVolumes()
+
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{})
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	mounter := mount.New("")
-
-	shouldBindMount := true
-	mountPoints, mntErr := mounter.List()
-	if mntErr != nil {
-		return mntErr
+	// If not staged
+	if vol.Status.StagingPath != stagingTargetPath {
+		return nil, status.Error(codes.Internal, "cannot publish volume that hasn't been staged")
 	}
-	for _, mp := range mountPoints {
-		abPath, _ := filepath.Abs(mp.Path)
-		if containerPath == abPath {
-			shouldBindMount = false
-			break
+
+	// If published
+	if vol.Status.ContainerPath == containerPath {
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
+	if err := mountVolume(ctx, stagingTargetPath, containerPath, vID, 0, readOnly); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed volume publish: %v", err)
+	}
+
+	conditions := vol.Status.Conditions
+	for i, c := range conditions {
+		switch c.Type {
+		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
+			conditions[i].Status = utils.BoolToCondition(true)
+		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
 		}
 	}
+	vol.Status.ContainerPath = containerPath
 
-	if shouldBindMount {
-		opts := []string{"bind", "prjquota"}
-		if readOnly {
-			opts = append(opts, "ro")
-		}
-		if err := mounter.Mount(stagingPath, containerPath, "", opts); err != nil {
-			return err
-		}
+	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
+		return nil, err
 	}
 
-	return nil
+	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func UnpublishVolume(ctx context.Context, containerPath string) error {
-	acquireLock(containerPath)
-	defer releaseLock(containerPath)
-
-	if _, err := os.Lstat(containerPath); err != nil {
-		return err
+func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	vID := req.GetVolumeId()
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+	containerPath := req.GetTargetPath()
+	if containerPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "containerPath missing in request")
 	}
 
-	return utils.UnmountIfMounted(containerPath)
+	directCSIClient := utils.GetDirectCSIClient()
+	vclient := directCSIClient.DirectCSIVolumes()
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return &csi.NodeUnpublishVolumeResponse{}, nil
+		}
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	// If not published
+	if vol.Status.ContainerPath == "" {
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
+
+	if err := utils.SafeUnmount(containerPath, nil); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	conditions := vol.Status.Conditions
+	for i, c := range conditions {
+		switch c.Type {
+		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
+			conditions[i].Status = utils.BoolToCondition(false)
+		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+		}
+	}
+	vol.Status.ContainerPath = ""
+
+	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
+		return nil, err
+	}
+
+	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

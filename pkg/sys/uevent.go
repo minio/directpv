@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package dev
+package sys
 
 import (
 	"bytes"
@@ -27,7 +27,7 @@ import (
 	"unsafe"
 )
 
-const libudevMagic = 0xfeedcafe
+const libudevMagic = uint32(0xfeedcafe)
 
 // Uevent from Netlink
 type Uevent struct {

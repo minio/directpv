@@ -78,6 +78,8 @@ const (
 
 	kubeletDirPath = "/var/lib/kubelet"
 	csiRootPath    = "/var/lib/direct-csi/"
+
+	logLevel = LogLevelDebug
 )
 
 func objMeta(name string) metav1.ObjectMeta {
@@ -268,7 +270,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
 		HostNetwork:        false,
-		HostIPC:            false,
+		HostIPC:            true,
 		HostPID:            true,
 		Volumes: []corev1.Volume{
 			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name)),
@@ -276,7 +278,6 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 			newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
 			newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
 			newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
-			newHostPathVolume(volumeNameDevDir, volumePathDevDir),
 			newHostPathVolume(volumeNameSysDir, volumePathSysDir),
 		},
 		Containers: []corev1.Container{
@@ -284,12 +285,10 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 				Name:  nodeDriverRegistrarContainerName,
 				Image: nodeDriverRegistrarContainerImage,
 				Args: []string{
-					"--v=1",
-					"--csi-address=/csi/csi.sock",
-					fmt.Sprintf("--kubelet-registration-path=%s", newDirectCSIPluginsSocketDir(kubeletDirPath, name)+"/csi.sock"),
-				},
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &privileged,
+					fmt.Sprintf("--v=%d", logLevel),
+					"--csi-address=unix:///csi/csi.sock",
+					fmt.Sprintf("--kubelet-registration-path=%s",
+						newDirectCSIPluginsSocketDir(kubeletDirPath, name)+"/csi.sock"),
 				},
 				Env: []corev1.EnvVar{
 					{
@@ -314,7 +313,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 				Image: directCSIContainerImage,
 				Args: []string{
 					fmt.Sprintf("--identity=%s", name),
-					"--v=1",
+					fmt.Sprintf("--v=%d", logLevel),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
 					"--driver",
@@ -341,10 +340,9 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 				TerminationMessagePath:   "/var/log/driver-termination-log",
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(volumeNameSocketDir, "/csi", false),
-					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", false),
+					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", true),
 					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true),
 					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true),
-					newVolumeMount(volumeNameDevDir, "/dev", true),
 					newVolumeMount(volumeNameSysDir, "/sys", true),
 				},
 				Ports: []corev1.ContainerPort{
@@ -428,7 +426,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 				Name:  csiProvisionerContainerName,
 				Image: csiProvisionerContainerImage,
 				Args: []string{
-					"--v=1",
+					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
 					fmt.Sprintf("--csi-address=$(%s)", endpointEnvVarCSI),
 					"--enable-leader-election",
@@ -468,7 +466,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 				Name:  directCSIContainerName,
 				Image: directCSIContainerImage,
 				Args: []string{
-					"--v=1",
+					fmt.Sprintf("--v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", name),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					"--controller",

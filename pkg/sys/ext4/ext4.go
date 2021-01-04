@@ -14,16 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package dev
-
-import (
-	"errors"
-)
-
-const FSTypeEXT4 FSType = "ext4"
-
-var EXT4MagicNum uint16 = 0xef53
-var ErrNotEXT4 = errors.New("Not a ext4 partition")
+package ext4
 
 type EXT4SuperBlock struct {
 	_                         [1024]byte

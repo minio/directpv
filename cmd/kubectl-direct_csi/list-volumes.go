@@ -38,7 +38,7 @@ import (
 const (
 	csiListVolumesDesc = `
   list command lists volumes provisioned by DirectCSI.`
-	csiListVolumesExample = `  kubectl directcsi volumes list --drives /dev/nvme* --nodes 'rack*'`
+	csiListVolumesExample = `  kubectl directcsi volumes list --drives /sys.nvme* --nodes 'rack*'`
 )
 
 type csiListVolumesCmd struct {

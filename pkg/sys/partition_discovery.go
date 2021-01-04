@@ -14,24 +14,64 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package dev
+package sys
 
 import (
 	"context"
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/golang/glog"
+	"golang.org/x/sys/unix"
+
+	"github.com/minio/direct-csi/pkg/sys/gpt"
+	"github.com/minio/direct-csi/pkg/sys/mbr"
 )
 
-var (
-	ErrNotGPT               = errors.New("Not a GPR partition")
-	ErrNotClassicMBR        = errors.New("Not a Classic MBR partition")
-	ErrNotModernStandardMBR = errors.New("Not a Modern Standard MBR partition")
-	ErrNotAAPMBR            = errors.New("Not a AAP MBR partition")
-)
+func (b *BlockDevice) probePartitions(ctx context.Context) ([]Partition, error) {
+	parts, err := b.probeGPT(ctx)
+	if err != nil {
+		if err != ErrNotGPT {
+			return nil, err
+		}
+	} else {
+		return parts, nil
+	}
+
+	parts, err = b.probeAAPMBR(ctx)
+	if err != nil {
+		if err != ErrNotAAPMBR {
+			return nil, err
+		}
+	} else {
+		return parts, nil
+	}
+
+	parts, err = b.probeModernStandardMBR(ctx)
+	if err != nil {
+		if err != ErrNotModernStandardMBR {
+			return nil, err
+		}
+	} else {
+		return parts, nil
+	}
+
+	// This should be the last MBR check
+	parts, err = b.probeClassicMBR(ctx)
+	if err != nil {
+		if err != ErrNotClassicMBR {
+			return nil, err
+		}
+	} else {
+		return parts, nil
+	}
+
+	return nil, ErrNotPartition
+}
 
 func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 	devPath := getBlockFile(b.Devname)
@@ -41,7 +81,7 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 	}
 	defer devFile.Close()
 
-	mbr := &AAPMBRHeader{}
+	mbr := &mbr.AAPMBRHeader{}
 	err = binary.Read(devFile, binary.LittleEndian, mbr)
 	if err != nil {
 		return nil, err
@@ -73,7 +113,10 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 				Path:              partitionPath,
 			},
 			PartitionNum: uint32(partNum),
-			Type:         mbrPartType(p.PartitionType),
+			// Type:          p.PartitionType,
+			// TypeUUID:      "",
+			// PartitionGUID: "",
+			// DiskGUID:      "",
 		}
 		partitions = append(partitions, part)
 	}
@@ -88,7 +131,7 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 	}
 	defer devFile.Close()
 
-	mbr := &ClassicMBRHeader{}
+	mbr := &mbr.ClassicMBRHeader{}
 	err = binary.Read(devFile, binary.LittleEndian, mbr)
 	if err != nil {
 		return nil, err
@@ -120,7 +163,10 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 				Path:              partitionPath,
 			},
 			PartitionNum: uint32(partNum),
-			Type:         mbrPartType(p.PartitionType),
+			// Type:          p.PartitionType,
+			// TypeUUID:      "",
+			// PartitionGUID: "",
+			// DiskGUID:      "",
 		}
 		partitions = append(partitions, part)
 	}
@@ -135,7 +181,7 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 	}
 	defer devFile.Close()
 
-	mbr := &ModernStandardMBRHeader{}
+	mbr := &mbr.ModernStandardMBRHeader{}
 	err = binary.Read(devFile, binary.LittleEndian, mbr)
 	if err != nil {
 		return nil, err
@@ -167,7 +213,10 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 				Path:              partitionPath,
 			},
 			PartitionNum: uint32(partNum),
-			Type:         mbrPartType(p.PartitionType),
+			// Type:          p.PartitionType,
+			// TypeUUID:      "",
+			// PartitionGUID: "",
+			// DiskGUID:      "",
 		}
 		partitions = append(partitions, part)
 	}
@@ -182,13 +231,13 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 	}
 	defer devFile.Close()
 
-	gpt := &GPTHeader{}
-	err = binary.Read(devFile, binary.LittleEndian, gpt)
+	gptPart := &gpt.GPTHeader{}
+	err = binary.Read(devFile, binary.LittleEndian, gptPart)
 	if err != nil {
 		return nil, err
 	}
 
-	if !gpt.Is() {
+	if !gptPart.Is() {
 		return nil, ErrNotGPT
 	}
 
@@ -200,15 +249,15 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 	}
 
 	var offset int64
-	pSize := gpt.PartitionEntrySize
+	pSize := gptPart.PartitionEntrySize
 	lbaSize := 48 // manually calculated based on struct definition
 	if int64(pSize) > int64(lbaSize) {
 		offset = int64(pSize) - int64(lbaSize)
 	}
 
 	partitions := []Partition{}
-	for i := uint32(0); i < gpt.NumPartitionEntries; i++ {
-		lba := &GPTLBA{}
+	for i := uint32(0); i < gptPart.NumPartitionEntries; i++ {
+		lba := &gpt.GPTLBA{}
 		err = binary.Read(devFile, binary.LittleEndian, lba)
 		if err != nil {
 			return nil, err
@@ -226,7 +275,7 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 		}
 
 		partTypeUUID := stringifyUUID(lba.PartitionType)
-		partType := PartitionTypes[partTypeUUID]
+		partType := gpt.PartitionTypes[partTypeUUID]
 		if partType == "" {
 			partType = partTypeUUID
 		}
@@ -251,9 +300,76 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 			Type:          partType,
 			TypeUUID:      partTypeUUID,
 			PartitionGUID: stringifyUUID(lba.PartitionGUID),
-			DiskGUID:      stringifyUUID(gpt.DiskGUID),
+			DiskGUID:      stringifyUUID(gptPart.DiskGUID),
 		}
 		partitions = append(partitions, part)
 	}
 	return partitions, nil
+}
+
+func stringifyUUID(uuid [16]byte) string {
+	str := ""
+
+	// first part of uuid is LittleEndian encoded uint32
+	for i := 0; i < 4; i++ {
+		str = str + fmt.Sprintf("%02X", uint8(uuid[3-i]))
+	}
+	str = str + "-"
+
+	// next 2 bytes are LitteEndian encoded uint8
+	str = str + fmt.Sprintf("%02X", uint8(uuid[5]))
+	str = str + fmt.Sprintf("%02X", uint8(uuid[4]))
+	str = str + "-"
+
+	// next 2 bytes are LitteEndian encoded uint8
+	str = str + fmt.Sprintf("%02X", uint8(uuid[7]))
+	str = str + fmt.Sprintf("%02X", uint8(uuid[6]))
+	str = str + "-"
+
+	// rest should be taken in order
+	for i := 8; i < 10; i++ {
+		str = str + fmt.Sprintf("%02X", uint8(uuid[i]))
+	}
+	str = str + "-"
+
+	for i := 10; i < 16; i++ {
+		str = str + fmt.Sprintf("%02X", uint8(uuid[i]))
+	}
+
+	return str
+}
+
+func curr(f *os.File) int64 {
+	offset, err := f.Seek(0, os.SEEK_CUR)
+	if err == nil {
+		return offset
+	}
+	return 0
+}
+
+func makeBlockFile(path string, major, minor uint32) error {
+	if err := unix.Mknod(path, unix.S_IFBLK|uint32(os.FileMode(0666)), int(unix.Mkdev(major, minor))); err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
+}
+
+func getBlockFile(devName string) string {
+	if strings.Contains(devName, DirectCSIDevRoot) {
+		return devName
+	}
+	if strings.HasPrefix(devName, HostDevRoot) {
+		return getBlockFile(filepath.Base(devName))
+	}
+	return filepath.Join(DirectCSIDevRoot, devName)
+}
+
+func getRootBlockFile(devName string) string {
+	if strings.Contains(devName, DirectCSIDevRoot) {
+		return getRootBlockFile(filepath.Base(devName))
+	}
+	if strings.HasPrefix(devName, HostDevRoot) {
+		return devName
+	}
+	return filepath.Join(HostDevRoot, devName)
 }

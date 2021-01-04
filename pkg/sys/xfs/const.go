@@ -14,6 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package dev
+package xfs
 
-const DevRoot = "/var/lib/direct-csi/devices"
+import (
+	"errors"
+)
+
+const FSTypeXFS = "xfs"
+
+var XFSMagicNum = uint32(0x58465342)
+var ErrNotXFS = errors.New("Not a xfs partition")

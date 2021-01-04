@@ -69,6 +69,7 @@ spec:
     spec:
       serviceAccountName: direct-csi-min-io
       hostPID: true
+      hostIPC: true
       containers:
         - name: node-driver-registrar
           image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
