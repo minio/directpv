@@ -198,39 +198,35 @@ func startDriveController(ctx context.Context, nodeID string) error {
 	return ctrl.Run(ctx)
 }
 
-func refreshVolumeStats(ctx context.Context, nodeID string) {
-	retryTicker := time.NewTicker(5 * time.Minute)
-	defer retryTicker.Stop()
+func refreshVolumeStats(ctx context.Context, nodeID string, refreshTimeInterval time.Duration) {
+	refreshTicker := time.NewTicker(refreshTimeInterval)
+	defer refreshTicker.Stop()
 
 	directCSIClient := utils.GetDirectCSIClient()
 	refreshStatsFunc := func(dvol direct_csi.DirectCSIVolume) error {
 		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			if utils.CheckVolumeStatusCondition(dvol.Status.Conditions, "published", metav1.ConditionTrue) {
-				sc := utils.GetVolumeStatusCondition(dvol.Status.Conditions, "volumestats")
-				duration := time.Since(sc.LastTransitionTime.Time)
-				if duration > 5*time.Minute {
-					xfsQuota := &dev.XFSQuota{
-						Path:      dvol.Status.StagingPath,
-						ProjectID: dvol.ObjectMeta.Name,
-					}
-					volStats, err := xfsQuota.GetVolumeStats(ctx)
-					if err != nil {
-						return err
-					}
-					dvol.Status.TotalCapacity = volStats.TotalBytes
-					dvol.Status.AvailableCapacity = volStats.AvailableBytes
-					dvol.Status.UsedCapacity = volStats.UsedBytes
-					utils.UpdateVolumeStatusCondition(dvol.Status.Conditions, "volumestats", metav1.ConditionTrue)
-					if _, vErr := directCSIClient.DirectCSIVolumes().Update(ctx, &dvol, metav1.UpdateOptions{}); vErr != nil {
-						if errors.IsConflict(vErr) {
-							dvolPtr, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, dvol.ObjectMeta.Name, metav1.GetOptions{})
-							if cErr != nil {
-								return cErr
-							}
-							dvol = *dvolPtr
+				xfsQuota := &dev.XFSQuota{
+					Path:      dvol.Status.StagingPath,
+					ProjectID: dvol.ObjectMeta.Name,
+				}
+				volStats, err := xfsQuota.GetVolumeStats(ctx)
+				if err != nil {
+					return err
+				}
+				dvol.Status.TotalCapacity = volStats.TotalBytes
+				dvol.Status.AvailableCapacity = volStats.AvailableBytes
+				dvol.Status.UsedCapacity = volStats.UsedBytes
+				utils.UpdateVolumeStatusCondition(dvol.Status.Conditions, "volumestats", metav1.ConditionTrue)
+				if _, vErr := directCSIClient.DirectCSIVolumes().Update(ctx, &dvol, metav1.UpdateOptions{}); vErr != nil {
+					if errors.IsConflict(vErr) {
+						dvolPtr, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, dvol.ObjectMeta.Name, metav1.GetOptions{})
+						if cErr != nil {
+							return cErr
 						}
-						return vErr
+						dvol = *dvolPtr
 					}
+					return vErr
 				}
 			}
 			return nil
@@ -243,7 +239,7 @@ func refreshVolumeStats(ctx context.Context, nodeID string) {
 
 	for {
 		select {
-		case <-retryTicker.C:
+		case <-refreshTicker.C:
 			volList, cErr := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
 			if cErr != nil {
 				glog.V(4).Infof("Error while listing volumes %v", cErr)

@@ -19,6 +19,7 @@ package node
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
@@ -32,6 +33,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/util/retry"
+)
+
+const (
+	volumeStatsRefreshInterval = 5 * time.Minute
 )
 
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string) (*NodeServer, error) {
@@ -77,7 +82,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	go startDriveController(ctx, nodeID)
 
 	// Start volume stats refresher
-	go refreshVolumeStats(ctx, nodeID)
+	go refreshVolumeStats(ctx, nodeID, volumeStatsRefreshInterval)
 
 	return &NodeServer{
 		NodeID:    nodeID,
