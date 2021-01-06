@@ -21,6 +21,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"reflect"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -164,4 +166,61 @@ func TestGetLatestStatus(t1 *testing.T) {
 		})
 	}
 
+}
+
+func TestVolumeLock(t *testing.T) {
+
+	path := "node/path"
+	for i := 0; i < 100; i++ {
+
+		acquireLock(path)
+
+		lk1ch := make(chan bool)
+		go func() {
+			acquireLock(path)
+			lk1ch <- true
+			releaseLock(path)
+		}()
+
+		lk2ch := make(chan bool)
+		go func() {
+			acquireLock(path)
+			lk2ch <- true
+			releaseLock(path)
+		}()
+
+		var wg sync.WaitGroup
+		var lk1ok, lk2ok bool
+		go func() {
+			wg.Add(1)
+			lk1ok = <-lk1ch
+			wg.Done()
+		}()
+
+		go func() {
+			wg.Add(1)
+			lk2ok = <-lk2ch
+			wg.Done()
+		}()
+		runtime.Gosched()
+
+		if lk1ok || lk2ok {
+			t.Fatalf("Able to pick a locked resource; iteration=%d, lk1=%t, lk2=%t", i, lk1ok, lk2ok)
+		}
+
+		time.Sleep(3 * time.Millisecond)
+		releaseLock(path)
+
+		// wait for the results
+		wg.Wait()
+
+		if !lk1ok || !lk2ok {
+			t.Fatalf("Unable to pick an unlocked resource; iteration=%d, lk1=%t, lk2=%t", i, lk1ok, lk2ok)
+		}
+
+	}
+
+	if _, ok := volumeLocker[path]; ok {
+		t.Fatal("Failed to clean up the volume locker")
+	}
 }

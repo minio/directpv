@@ -25,6 +25,9 @@ import (
 )
 
 func PublishVolume(ctx context.Context, stagingPath, containerPath string, readOnly bool) error {
+	acquireLock(stagingPath)
+	defer releaseLock(stagingPath)
+
 	if err := os.MkdirAll(containerPath, 0755); err != nil {
 		return err
 	}
@@ -62,6 +65,9 @@ func PublishVolume(ctx context.Context, stagingPath, containerPath string, readO
 }
 
 func UnpublishVolume(ctx context.Context, containerPath string) error {
+	acquireLock(containerPath)
+	defer releaseLock(containerPath)
+
 	if _, err := os.Lstat(containerPath); err != nil {
 		return err
 	}
