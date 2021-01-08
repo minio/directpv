@@ -254,7 +254,7 @@ func addDrives(ctx context.Context, args []string) error {
 	for _, d := range updatedFilterStatus {
 		volumes := 0
 		for _, v := range volList.Items {
-			if v.Status.OwnerDrive == d.Name {
+			if v.Status.Drive == d.Name {
 				volumes++
 			}
 		}

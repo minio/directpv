@@ -62,7 +62,7 @@ const (
 type UnmountOption string
 
 const (
-	UnmountOptionForce    UnmountOption = "force"
-	UnmountOptionDetach                 = "detach"
-	UnmountOptionExpire                 = "expire"
+	UnmountOptionForce  UnmountOption = "force"
+	UnmountOptionDetach               = "detach"
+	UnmountOptionExpire               = "expire"
 )

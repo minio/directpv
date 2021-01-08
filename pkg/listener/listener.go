@@ -257,17 +257,17 @@ func (c *DirectCSIController) processNextItem(ctx context.Context) bool {
 	switch o := op.(type) {
 	case addOp:
 		opKind = "add"
-		key  = o.Key
+		key = o.Key
 		add := *o.AddFunc
 		err = add(ctx, o.Object)
 	case updateOp:
 		opKind = "update"
-		key  = o.Key
+		key = o.Key
 		update := *o.UpdateFunc
 		err = update(ctx, o.OldObject, o.NewObject)
 	case deleteOp:
 		opKind = "delete"
-		key  = o.Key
+		key = o.Key
 		delete := *o.DeleteFunc
 		err = delete(ctx, o.Object)
 	default:

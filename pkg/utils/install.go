@@ -178,7 +178,7 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 func CreateStorageClass(ctx context.Context, identity string) error {
 	allowExpansion := false
 	allowedTopologies := []corev1.TopologySelectorTerm{}
-	retainPolicy := corev1.PersistentVolumeReclaimRetain
+	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
 	gvk, err := GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {

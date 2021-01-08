@@ -151,7 +151,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		}
 		numVols := 0
 		for _, v := range volumes.Items {
-			if v.Status.OwnerNode == n {
+			if v.Status.NodeName == n {
 				numVols++
 				allocatedSize = allocatedSize + v.Status.TotalCapacity
 				nodeVolSize = nodeVolSize + v.Status.TotalCapacity

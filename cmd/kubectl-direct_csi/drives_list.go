@@ -137,8 +137,8 @@ func listDrives(ctx context.Context, args []string) error {
 		for _, n := range drivesList {
 			pathTransform := func(in string) string {
 				path := strings.ReplaceAll(in, "-part-", "")
-				path = strings.ReplaceAll(path, sys.DirectCSIDevRoot + "/", "")
-				path = strings.ReplaceAll(path, sys.HostDevRoot + "/", "")
+				path = strings.ReplaceAll(path, sys.DirectCSIDevRoot+"/", "")
+				path = strings.ReplaceAll(path, sys.HostDevRoot+"/", "")
 				return filepath.Base(path)
 			}
 
@@ -230,14 +230,14 @@ func listDrives(ctx context.Context, args []string) error {
 	for _, d := range filterStatus {
 		volumes := 0
 		for _, v := range volList.Items {
-			if v.Status.OwnerDrive == d.Name {
+			if v.Status.Drive == d.Name {
 				volumes++
 			}
 		}
 
 		dr := func(val string) string {
-			dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot + "/", "")
-			dr = strings.ReplaceAll(dr, sys.HostDevRoot + "/", "")
+			dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
+			dr = strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
 			col := red(dot)
 			for _, c := range d.Status.Conditions {
 				if c.Type == string(directv1alpha1.DirectCSIDriveConditionOwned) {

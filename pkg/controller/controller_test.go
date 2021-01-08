@@ -154,6 +154,14 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 						FreeCapacity: 5000,
 					},
 				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					Status: direct_csi.DirectCSIDriveStatus{
+						FreeCapacity: 7000,
+					},
+				},
 			},
 		},
 		{
@@ -214,9 +222,34 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 			selectedDriveList: []direct_csi.DirectCSIDrive{},
 		},
 		{
-			name:              "test5",
-			capacityRange:     &csi.CapacityRange{RequiredBytes: 500, LimitBytes: 800},
-			selectedDriveList: []direct_csi.DirectCSIDrive{},
+			name:          "test5",
+			capacityRange: &csi.CapacityRange{RequiredBytes: 500, LimitBytes: 800},
+			selectedDriveList: []direct_csi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					Status: direct_csi.DirectCSIDriveStatus{
+						FreeCapacity: 5000,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					Status: direct_csi.DirectCSIDriveStatus{
+						FreeCapacity: 1000,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					Status: direct_csi.DirectCSIDriveStatus{
+						FreeCapacity: 7000,
+					},
+				},
+			},
 		},
 	}
 
@@ -354,30 +387,24 @@ func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{
-							Filesystem: "ext4",
-							Force:      true,
-						},
-						DirectCSIOwned: true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusAvailable,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusInUse,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 			},
@@ -386,18 +413,16 @@ func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusInUse,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 			},
@@ -409,27 +434,24 @@ func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 			},
@@ -438,27 +460,24 @@ func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 			},
@@ -470,27 +489,24 @@ func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  false,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusTerminating,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  false,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusUnavailable,
 					},
 				},
 			},
@@ -499,9 +515,8 @@ func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Spec: direct_csi.DirectCSIDriveSpec{
-						RequestedFormat: direct_csi.RequestedFormat{},
-						DirectCSIOwned:  true,
+					Status: direct_csi.DirectCSIDriveStatus{
+						DriveStatus: direct_csi.DriveStatusReady,
 					},
 				},
 			},
