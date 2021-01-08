@@ -114,7 +114,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		if errors.IsNotFound(err) {
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
-		return nil, status.Error(codes.NotFound, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if vol.Status.StagingPath == "" {
 		return &csi.NodeUnstageVolumeResponse{}, nil
