@@ -16,21 +16,26 @@
  *
  */
 
-package main
+package utils
 
 import (
-	"github.com/spf13/cobra"
+	"context"
+
+	"os/exec"
 )
 
-var volumesCmd = &cobra.Command{
-	Use:   "volumes",
-	Short: "Mangage Volumes on DirectCSI",
-	Long:  "",
-	Aliases: []string{
-		"volume",
-	},
-}
-
-func init() {
-	volumesCmd.AddCommand(listVolumesCmd)
+func Format(ctx context.Context, path, fs string, force bool) (string, error) {
+	bin := "mkfs." + fs
+	args := []string{
+		func() string {
+			if force {
+				return "-f"
+			}
+			return ""
+		}(),
+		path,
+	}
+	cmd := exec.CommandContext(ctx, bin, args...)
+	outputBytes, err := cmd.CombinedOutput()
+	return string(outputBytes), err
 }

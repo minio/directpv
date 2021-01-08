@@ -41,7 +41,7 @@ var pluginCmd = &cobra.Command{
 	Short:         "Plugin for managing Direct CSI drives and volumes",
 	Long:          os.Args[0],
 	SilenceUsage:  true,
-	SilenceErrors: true,
+	SilenceErrors: false,
 	Version:       Version,
 }
 
@@ -73,8 +73,8 @@ func init() {
 	pluginCmd.AddCommand(infoCmd)
 	pluginCmd.AddCommand(installCmd)
 	pluginCmd.AddCommand(uninstallCmd)
-	pluginCmd.AddCommand(newDrivesCmd())
-	pluginCmd.AddCommand(newVolumesCmd())
+	pluginCmd.AddCommand(drivesCmd)
+	//pluginCmd.AddCommand(newVolumesCmd())
 }
 
 func Execute(ctx context.Context) error {

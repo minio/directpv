@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package dev
+package gpt
 
 var GPTSignature = [8]byte{0x45, 0x46, 0x49, 0x20, 0x50, 0x41, 0x52, 0x54}
 
@@ -45,7 +45,7 @@ func (g GPTHeader) Is() bool {
 	return true
 }
 
-type LBA struct {
+type GPTLBA struct {
 	PartitionType [16]byte `json:"partitionType,omitempty"`
 	PartitionGUID [16]byte `json:"partitionGUID,omitempty"`
 
@@ -53,7 +53,7 @@ type LBA struct {
 	End   uint64 `json:"End,omitempty"`
 }
 
-func (l LBA) Is() bool {
+func (l GPTLBA) Is() bool {
 	invalidLBA := [16]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00}
 	for i := range invalidLBA {
 		if l.PartitionType[i] != invalidLBA[i] {

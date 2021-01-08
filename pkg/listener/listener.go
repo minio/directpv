@@ -250,23 +250,32 @@ func (c *DirectCSIController) processNextItem(ctx context.Context) bool {
 	c.OpLock(op)
 	defer c.OpUnlock(op)
 
+	var opKind string
+	var key string
 	var err error
+
 	switch o := op.(type) {
 	case addOp:
+		opKind = "add"
+		key = o.Key
 		add := *o.AddFunc
 		err = add(ctx, o.Object)
 	case updateOp:
+		opKind = "update"
+		key = o.Key
 		update := *o.UpdateFunc
 		err = update(ctx, o.OldObject, o.NewObject)
 	case deleteOp:
+		opKind = "delete"
+		key = o.Key
 		delete := *o.DeleteFunc
 		err = delete(ctx, o.Object)
 	default:
 		panic("unknown item in queue")
 	}
-
-	// Handle the error if something went wrong
-	c.handleErr(err, op)
+	if err != nil {
+		glog.Errorf("op: %s key: %s err: %v", opKind, key, err)
+	}
 	return true
 }
 

@@ -144,8 +144,7 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveSpec(ref common.Refer
 				Properties: map[string]spec.Schema{
 					"requestedFormat": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat"),
+							Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1.RequestedFormat"),
 						},
 					},
 					"directCSIOwned": {
@@ -306,10 +305,35 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveStatus(ref common.Ref
 							},
 						},
 					},
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "type",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"path"},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
@@ -409,13 +433,13 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolumeStatus(ref common.Re
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"ownerDrive": {
+					"drive": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
 						},
 					},
-					"ownerNode": {
+					"nodeName": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
@@ -463,7 +487,12 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolumeStatus(ref common.Re
 					"conditions": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "type",
+								"x-kubernetes-patch-strategy":  "merge",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -516,7 +545,7 @@ func schema_pkg_apis_directcsiminio_v1alpha1_RequestedFormat(ref common.Referenc
 							Format: "",
 						},
 					},
-					"mountoptions": {
+					"mountOptions": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
 								"x-kubernetes-list-type": "atomic",

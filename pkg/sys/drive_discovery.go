@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package dev
+package sys
 
 import (
 	"context"
@@ -29,30 +29,51 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type BlockDevice struct {
-	Major      uint32      `json:"major"`
-	Minor      uint32      `json:"minor"`
-	Devname    string      `json:"devName,omitempty"`
-	Devtype    string      `json:"devType,omitempty"`
-	Partitions []Partition `json:"partitions,omitempty"`
+func FindDevices(ctx context.Context) ([]BlockDevice, error) {
+	const head = "/sys/devices"
+	drives := []BlockDevice{}
 
-	*DriveInfo `json:"driveInfo,omitempty"`
+	return drives, filepath.Walk(head, func(path string, info os.FileInfo, err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if strings.HasPrefix(info.Name(), "loop") {
+			return filepath.SkipDir
+		}
+		if info.Name() != "uevent" {
+			return nil
+		}
+		drive, err := parseUevent(path)
+		if err != nil {
+			glog.V(5).Info(err)
+			return nil
+		}
+		if drive.Devtype != "disk" {
+			return nil
+		}
+		subsystem, err := subsystem(path)
+		if err != nil {
+			glog.V(5).Info(err)
+			return nil
+		}
+		if subsystem != "block" {
+			return nil
+		}
+		if err := drive.probeBlockDev(ctx); err != nil {
+			return err
+		}
+
+		drives = append(drives, *drive)
+		return nil
+	})
 }
 
-type DriveInfo struct {
-	NumBlocks         uint64 `json:"numBlocks,omitempty"`
-	StartBlock        uint64 `json:"startBlock,omitempty"`
-	EndBlock          uint64 `json:"endBlock,omitempty"`
-	TotalCapacity     uint64 `json:"totalCapacity,omitempty"`
-	LogicalBlockSize  uint64 `json:"logicalBlockSize,omitempty"`
-	PhysicalBlockSize uint64 `json:"physicalBlockSize,omitempty"`
-	Path              string `json:"path,omitempty"`
-
-	*FSInfo `json:"fsInfo,omitempty"`
+func (b *BlockDevice) GetPartitions() []Partition {
+	return b.Partitions
 }
 
-func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
-	if err := os.MkdirAll(DevRoot, 0755); err != nil {
+func (b *BlockDevice) probeBlockDev(ctx context.Context) error {
+	if err := os.MkdirAll(DirectCSIDevRoot, 0755); err != nil {
 		return err
 	}
 
@@ -80,23 +101,23 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 	b.NumBlocks = numBlocks
 	b.EndBlock = numBlocks
 
-	parts, err := b.FindPartitions(ctx)
+	parts, err := b.probePartitions(ctx)
 	if err != nil {
-		if err != ErrNotGPT {
+		if err != ErrNotPartition {
 			return err
 		}
 	}
 
 	if len(parts) == 0 {
 		offsetBlocks := uint64(0)
-		fsInfo, err := ProbeFS(b.Devname, b.LogicalBlockSize, offsetBlocks)
+		fsInfo, err := b.probeFS(offsetBlocks)
 		if err != nil {
 			if err != ErrNoFS {
 				return err
 			}
 		}
 		if fsInfo != nil {
-			mounts, err := ProbeMounts(procfs, b.Devname, 0)
+			mounts, err := b.probeMountInfo(0)
 			if err != nil {
 				return err
 			}
@@ -107,7 +128,7 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 	}
 	for i, p := range parts {
 		offsetBlocks := p.StartBlock
-		fsInfo, err := ProbeFS(b.Devname, b.LogicalBlockSize, offsetBlocks)
+		fsInfo, err := b.probeFS(offsetBlocks)
 		if err != nil {
 			if err != ErrNoFS {
 				return err
@@ -115,7 +136,7 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 		}
 
 		if fsInfo != nil {
-			mounts, err := ProbeMounts(procfs, b.Devname, uint(i+1))
+			mounts, err := b.probeMountInfo(uint(i + 1))
 			if err != nil {
 				return err
 			}
@@ -125,44 +146,6 @@ func (b *BlockDevice) Init(ctx context.Context, procfs string) error {
 		b.Partitions = append(b.Partitions, p)
 	}
 	return nil
-}
-
-func FindDevices(ctx context.Context) ([]*BlockDevice, error) {
-	const head = "/sys/devices"
-	drives := []*BlockDevice{}
-
-	if err := filepath.Walk(head, func(path string, info os.FileInfo, err error) error {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if strings.HasPrefix(info.Name(), "loop") {
-			return filepath.SkipDir
-		}
-		if info.Name() != "uevent" {
-			return nil
-		}
-		drive, err := parseUevent(path)
-		if err != nil {
-			glog.V(10).Info(err)
-			return nil
-		}
-		if drive.Devtype != "disk" {
-			return nil
-		}
-		subsystem, err := subsystem(path)
-		if err != nil {
-			glog.V(10).Info(err)
-			return nil
-		}
-		if subsystem != "block" {
-			return nil
-		}
-		drives = append(drives, drive)
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return drives, nil
 }
 
 func subsystem(path string) (string, error) {
@@ -264,8 +247,4 @@ func getTotalCapacity(devname string) (uint64, error) {
 		return 0, err
 	}
 	return uint64(driveSize), nil
-}
-
-func (b *BlockDevice) GetPartitions() []Partition {
-	return b.Partitions
 }

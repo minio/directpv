@@ -14,33 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package ext4
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"github.com/golang/glog"
+	"errors"
 )
 
-func main() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSEGV)
+const FSTypeEXT4 = "ext4"
 
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		s := <-sigs
-		glog.Infof("Exiting on signal %s %#v", s.String(), s)
-		cancel()
-		<-time.After(1 * time.Second)
-		os.Exit(1)
-	}()
-
-	if err := Execute(ctx); err != nil {
-		glog.V(5).Info(err)
-		os.Exit(1)
-	}
-}
+var EXT4MagicNum = uint16(0xef53)
+var ErrNotEXT4 = errors.New("Not a ext4 partition")

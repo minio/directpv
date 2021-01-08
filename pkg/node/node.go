@@ -18,24 +18,25 @@ package node
 
 import (
 	"context"
-	"strconv"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/glog"
-	"github.com/minio/direct-csi/pkg/dev"
+	"github.com/minio/direct-csi/pkg/drive"
+	"github.com/minio/direct-csi/pkg/sys/xfs"
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/volume"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/client-go/util/retry"
 )
 
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string) (*NodeServer, error) {
-	drives, err := FindDrives(ctx, nodeID, procfs)
+	drives, err := findDrives(ctx, nodeID, procfs)
 	if err != nil {
 		return nil, err
 	}
@@ -51,48 +52,55 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	for _, drive := range drives {
 		drive.Status.Topology = driveTopology
-		if _, err := directCSIClient.DirectCSIDrives().Create(ctx, &drive, metav1.CreateOptions{}); err != nil {
-			if errors.IsAlreadyExists(err) {
-				if rErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					existingDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, drive.ObjectMeta.Name, metav1.GetOptions{})
-					if dErr != nil {
-						return dErr
-					}
-					if UpdateDriveStatusOnDiff(drive, existingDrive) {
-						if _, uErr := directCSIClient.DirectCSIDrives().Update(ctx, existingDrive, metav1.UpdateOptions{}); uErr != nil {
-							return uErr
-						}
-					}
-					return nil
-				}); rErr != nil {
-					return nil, rErr
+		driveClient := directCSIClient.DirectCSIDrives()
+		_, err := driveClient.Create(ctx, &drive, metav1.CreateOptions{})
+
+		if err != nil {
+			if !errors.IsAlreadyExists(err) {
+				return nil, err
+			}
+
+			driveUpdate := func() error {
+				existingDrive, err := driveClient.Get(ctx, drive.Name, metav1.GetOptions{})
+				if err != nil {
+					glog.V(3).Infof("Error fetching directcsidrive: %v", err)
+					return err
 				}
-			} else {
+				if UpdateDriveStatusOnDiff(drive, existingDrive) {
+					_, err := driveClient.Update(ctx, existingDrive, metav1.UpdateOptions{})
+					if err != nil {
+						glog.V(3).Infof("Error updating directcsidrive: %v", err)
+						return err
+					}
+				}
+				return nil
+			}
+			err := retry.RetryOnConflict(retry.DefaultRetry, driveUpdate)
+			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	// Start DirectCSI drive listener
-	go startDriveController(ctx, nodeID)
+	// Start background tasks
+	go drive.StartDriveController(ctx, nodeID)
+	go volume.StartVolumeController(ctx, nodeID)
 
 	return &NodeServer{
-		NodeID:    nodeID,
-		Identity:  identity,
-		Rack:      rack,
-		Zone:      zone,
-		Region:    region,
-		BasePaths: basePaths,
+		NodeID:   nodeID,
+		Identity: identity,
+		Rack:     rack,
+		Zone:     zone,
+		Region:   region,
 	}, nil
 }
 
 type NodeServer struct {
-	NodeID    string
-	Identity  string
-	Rack      string
-	Zone      string
-	Region    string
-	BasePaths []string
+	NodeID   string
+	Identity string
+	Rack     string
+	Zone     string
+	Region   string
 }
 
 func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
@@ -108,7 +116,7 @@ func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 
 	return &csi.NodeGetInfoResponse{
 		NodeId:             n.NodeID,
-		MaxVolumesPerNode:  int64(100 * len(n.BasePaths)),
+		MaxVolumesPerNode:  int64(100),
 		AccessibleTopology: topology,
 	}, nil
 }
@@ -134,236 +142,15 @@ func (n *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 	}, nil
 }
 
-func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	vID := req.GetVolumeId()
-	if vID == "" {
-		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
-	}
-	stagingTargetPath := req.GetStagingTargetPath()
-	if stagingTargetPath == "" {
-		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
-	}
-	containerPath := req.GetTargetPath()
-	if containerPath == "" {
-		return nil, status.Error(codes.InvalidArgument, "containerPath missing in request")
-	}
-	readOnly := req.GetReadonly()
-	directCSIClient := utils.GetDirectCSIClient()
-
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
-		if cErr != nil {
-			return status.Error(codes.NotFound, cErr.Error())
-		}
-
-		if dvol.Status.HostPath == "" || dvol.Status.StagingPath == "" {
-			return status.Error(codes.FailedPrecondition, "volume not yet staged")
-		}
-
-		if dvol.Status.StagingPath != stagingTargetPath {
-			return status.Errorf(codes.InvalidArgument, "staging target path does not match staging path")
-		}
-
-		if dvol.Status.ContainerPath == containerPath {
-			return nil
-		}
-		if err := PublishVolume(ctx, stagingTargetPath, containerPath, readOnly); err != nil {
-			return status.Errorf(codes.Internal, "Publish volume failed: %v", err)
-		}
-
-		copiedVolume := dvol.DeepCopy()
-		copiedVolume.Status.ContainerPath = containerPath
-		utils.UpdateVolumeStatusCondition(copiedVolume.Status.Conditions, "published", metav1.ConditionTrue)
-		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	volumeContext := req.GetVolumeContext()
-	if val, ok := volumeContext["RequiredBytes"]; ok {
-		requiredBytes, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
-		}
-		if requiredBytes > 0 {
-			xfsQuota := &dev.XFSQuota{
-				Path:      containerPath,
-				ProjectID: vID,
-			}
-			if qErr := xfsQuota.SetQuota(ctx, requiredBytes); qErr != nil {
-				return nil, status.Errorf(codes.Internal, "Error while setting xfs limits: %v", qErr)
-			}
-		}
-	}
-
-	return &csi.NodePublishVolumeResponse{}, nil
-}
-
-func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	vID := req.GetVolumeId()
-	containerPath := req.GetTargetPath()
-
-	if vID == "" {
-		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
-	}
-
-	if err := UnpublishVolume(ctx, containerPath); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	directCSIClient := utils.GetDirectCSIClient()
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
-		if cErr != nil {
-			return status.Error(codes.NotFound, cErr.Error())
-		}
-		copiedVolume := dvol.DeepCopy()
-		copiedVolume.Status.ContainerPath = ""
-		utils.UpdateVolumeStatusCondition(copiedVolume.Status.Conditions, "published", metav1.ConditionFalse)
-		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	return &csi.NodeUnpublishVolumeResponse{}, nil
-}
-
-func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	vID := req.GetVolumeId()
-	if vID == "" {
-		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
-	}
-	stagingTargetPath := req.GetStagingTargetPath()
-	if stagingTargetPath == "" {
-		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
-	}
-
-	directCSIClient := utils.GetDirectCSIClient()
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
-		if cErr != nil {
-			return status.Error(codes.NotFound, cErr.Error())
-		}
-
-		if dvol.Status.StagingPath == stagingTargetPath {
-			return nil
-		}
-
-		csiDrive, err := directCSIClient.DirectCSIDrives().Get(ctx, dvol.Status.OwnerDrive, metav1.GetOptions{})
-		if err != nil {
-			return status.Error(codes.NotFound, err.Error())
-		}
-
-		if csiDrive.Status.NodeName != n.NodeID {
-			return status.Error(codes.InvalidArgument, "NodeID doesn't match the drive owner node")
-		}
-
-		if csiDrive.Status.Filesystem == "" {
-			return status.Error(codes.FailedPrecondition, "Unformatted CSI Drive found")
-		}
-
-		hostPath, err := StageVolume(ctx, csiDrive, stagingTargetPath, vID)
-		if err != nil {
-			return status.Errorf(codes.Internal, "Staging volume failed: %v", err)
-		}
-
-		copiedVolume := dvol.DeepCopy()
-		copiedVolume.Status.HostPath = hostPath
-		copiedVolume.Status.StagingPath = stagingTargetPath
-		utils.UpdateVolumeStatusCondition(copiedVolume.Status.Conditions, "staged", metav1.ConditionTrue)
-		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	volumeContext := req.GetVolumeContext()
-	if val, ok := volumeContext["RequiredBytes"]; ok {
-		requiredBytes, err := strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
-		}
-		if requiredBytes > 0 {
-			xfsQuota := &dev.XFSQuota{
-				Path:      stagingTargetPath,
-				ProjectID: vID,
-			}
-			if qErr := xfsQuota.SetQuota(ctx, requiredBytes); qErr != nil {
-				return nil, status.Errorf(codes.Internal, "Error while setting xfs limits: %v", qErr)
-			}
-		}
-	}
-
-	return &csi.NodeStageVolumeResponse{}, nil
-}
-
-func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	vID := req.GetVolumeId()
-	stagingTargetPath := req.GetStagingTargetPath()
-
-	if vID == "" {
-		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
-	}
-
-	if err := UnstageVolume(ctx, stagingTargetPath); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	directCSIClient := utils.GetDirectCSIClient()
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
-		if cErr != nil {
-			return status.Error(codes.NotFound, cErr.Error())
-		}
-		copiedVolume := dvol.DeepCopy()
-		copiedVolume.Status.HostPath = ""
-		copiedVolume.Status.StagingPath = ""
-		utils.UpdateVolumeStatusCondition(copiedVolume.Status.Conditions, "staged", metav1.ConditionFalse)
-		if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, copiedVolume, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	return &csi.NodeUnstageVolumeResponse{}, nil
-}
-
 func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	vID := req.GetVolumeId()
 	volumePath := req.GetVolumePath()
-	stagingPath := req.GetStagingTargetPath()
 
 	if volumePath == "" {
 		return &csi.NodeGetVolumeStatsResponse{}, nil
 	}
 
-	directCSIClient := utils.GetDirectCSIClient()
-	dvol, cErr := directCSIClient.DirectCSIVolumes().Get(ctx, vID, metav1.GetOptions{})
-	if cErr != nil {
-		return nil, status.Error(codes.NotFound, cErr.Error())
-	}
-
-	if !(volumePath == dvol.Status.StagingPath || volumePath == dvol.Status.ContainerPath) {
-		return nil, status.Error(codes.NotFound, "volume path in the request is not been used by the volume corresponding to the volumeID in the request")
-	}
-
-	if stagingPath != "" {
-		if stagingPath != dvol.Status.StagingPath {
-			return nil, status.Error(codes.NotFound, "The staging path in the request does not match with the volume's staging path")
-		}
-	}
-
-	xfsQuota := &dev.XFSQuota{
+	xfsQuota := &xfs.XFSQuota{
 		Path:      volumePath,
 		ProjectID: vID,
 	}
@@ -379,17 +166,13 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		Unit:      csi.VolumeUsage_BYTES,
 	}
 
-	message := "VolumePublished"
-	isAbnormal := !utils.CheckVolumeStatusCondition(dvol.Status.Conditions, "published", metav1.ConditionTrue)
-	if isAbnormal {
-		message = "VolumeUnPublished"
-	}
-
 	return &csi.NodeGetVolumeStatsResponse{
-		Usage: []*csi.VolumeUsage{volUsage},
+		Usage: []*csi.VolumeUsage{
+			volUsage,
+		},
 		VolumeCondition: &csi.VolumeCondition{
-			Abnormal: isAbnormal,
-			Message:  message,
+			Abnormal: false,
+			Message:  "",
 		},
 	}, nil
 }

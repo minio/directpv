@@ -1,0 +1,71 @@
+// This file is part of MinIO Direct CSI
+// Copyright (c) 2020 MinIO, Inc.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+package sys
+
+type BlockDevice struct {
+	Major      uint32      `json:"major"`
+	Minor      uint32      `json:"minor"`
+	Devname    string      `json:"devName,omitempty"`
+	Devtype    string      `json:"devType,omitempty"`
+	Partitions []Partition `json:"partitions,omitempty"`
+
+	*DriveInfo `json:"driveInfo,omitempty"`
+}
+
+type Partition struct {
+	PartitionNum  uint32 `json:"partitionNum,omitempty"`
+	Type          string `json:"partitionType,omitempty"`
+	TypeUUID      string `json:"partitionTypeUUID,omitempty"`
+	PartitionGUID string `json:"partitionGUID,omitempty"`
+	DiskGUID      string `json:"diskGUID,omitempty"`
+
+	*DriveInfo `json:"driveInfo,omitempty"`
+}
+
+type DriveInfo struct {
+	NumBlocks         uint64 `json:"numBlocks,omitempty"`
+	StartBlock        uint64 `json:"startBlock,omitempty"`
+	EndBlock          uint64 `json:"endBlock,omitempty"`
+	TotalCapacity     uint64 `json:"totalCapacity,omitempty"`
+	LogicalBlockSize  uint64 `json:"logicalBlockSize,omitempty"`
+	PhysicalBlockSize uint64 `json:"physicalBlockSize,omitempty"`
+	Path              string `json:"path,omitempty"`
+
+	*FSInfo `json:"fsInfo,omitempty"`
+}
+
+type FSInfo struct {
+	FSType        string  `json:"fsType,omitempty"`
+	TotalCapacity uint64  `json:"totalCapacity,omitempty"`
+	FreeCapacity  uint64  `json:"freeCapacity,omitempty"`
+	FSBlockSize   uint64  `json:"fsBlockSize,omitempty"`
+	Mounts        []Mount `json:"mounts,omitempty"`
+}
+
+type Mount struct {
+	Mountpoint        string   `json:"mountPoint,omitempty"`
+	MountFlags        []string `json:"mountFlags,omitempty"`
+	MountRoot         string   `json:"mountRoot,omitempty"`
+	MountID           uint32   `json:"mountID,omitempty"`
+	ParentID          uint32   `json:"parentID,omitempty"`
+	MountSource       string   `json:"mountSource,omitempty"`
+	SuperblockOptions []string `json:"superblockOptions,omitempty"`
+	FSType            string   `json:"fsType,omitempty"`
+	OptionalFields    []string `json:"optionalFields,omitempty"`
+	DevName           string   `json:"devName,omitempty"`
+	PartitionNum      uint     `json:"partitionNum,omitempty"`
+}

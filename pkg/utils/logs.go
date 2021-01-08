@@ -16,21 +16,24 @@
  *
  */
 
-package main
+package utils
 
 import (
-	"github.com/spf13/cobra"
+	"github.com/golang/glog"
 )
 
-var volumesCmd = &cobra.Command{
-	Use:   "volumes",
-	Short: "Mangage Volumes on DirectCSI",
-	Long:  "",
-	Aliases: []string{
-		"volume",
-	},
-}
+type LogLevel int
 
-func init() {
-	volumesCmd.AddCommand(listVolumesCmd)
-}
+const (
+	LogLevelInvalid LogLevel = iota
+	LogLevelInfo
+	LogLevelWarn
+	LogLevelDebug
+)
+
+var _debug = glog.V(3).Infof
+var _warn = glog.V(2).Infof
+var _info = glog.V(1).Infof
+
+var _err = glog.Errorf
+var _fatal = glog.Fatalf

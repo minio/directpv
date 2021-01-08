@@ -18,254 +18,22 @@ package node
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"reflect"
 	"sort"
-	"strings"
 
-	"github.com/golang/glog"
-	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	"github.com/minio/direct-csi/pkg/dev"
+	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/pkg/sys/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
-	simd "github.com/minio/sha256-simd"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
-	k8sExec "k8s.io/utils/exec"
+	kexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
+
+	"github.com/golang/glog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
-
-func FindDrives(ctx context.Context, nodeID string, procfs string) ([]direct_csi.DirectCSIDrive, error) {
-
-	var drives []direct_csi.DirectCSIDrive
-
-	blockDevices, err := dev.FindDevices(ctx)
-	if err != nil {
-		return drives, err
-	}
-
-	for _, blockDevice := range blockDevices {
-
-		if err := blockDevice.Init(ctx, procfs); err != nil {
-			glog.V(5).Infof("Failed to initialize the block device: (%s) err: (%s)", blockDevice.Devname, err.Error())
-			continue
-		}
-
-		partitions := blockDevice.GetPartitions()
-		if len(partitions) > 0 {
-			for _, partition := range partitions {
-				drive, dErr := makePartitionDrive(nodeID, partition, blockDevice.Devname)
-				if dErr != nil {
-					glog.V(5).Infof("Failed to initialize the partition of block device: (%s) err: (%s)", blockDevice.Devname, dErr.Error())
-					continue
-				}
-				drives = append(drives, *drive)
-			}
-			continue
-		}
-
-		drive, err := makeRootDrive(nodeID, blockDevice)
-		if err != nil {
-			return nil, err
-		}
-		drives = append(drives, *drive)
-
-	}
-
-	return drives, nil
-}
-
-func makePartitionDrive(nodeID string, partition dev.Partition, rootPartition string) (*direct_csi.DirectCSIDrive, error) {
-
-	var fs string
-	if partition.FSInfo != nil {
-		fs = string(partition.FSInfo.FSType)
-	}
-
-	var freeCapacity, totalCapacity int64
-	if partition.FSInfo != nil {
-		freeCapacity = int64(partition.FSInfo.FreeCapacity)
-		totalCapacity = int64(partition.FSInfo.TotalCapacity)
-	}
-
-	var mountOptions []string
-	var mountPoint string
-	var mounts []dev.Mount
-	if partition.FSInfo != nil {
-		mounts = partition.FSInfo.Mounts
-		if len(mounts) > 0 {
-			mountOptions = mounts[0].MountFlags
-			mountPoint = mounts[0].MountPoint
-		}
-	}
-
-	driveStatus := getDriveStatus(fs)
-	_, ok := dev.SystemPartitionTypes[partition.TypeUUID]
-	if ok || mountPoint == "/" {
-		// system partition
-		driveStatus = direct_csi.Unavailable
-	}
-
-	return &direct_csi.DirectCSIDrive{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: makeName(nodeID, partition.Path),
-		},
-		Status: direct_csi.DirectCSIDriveStatus{
-			DriveStatus:       driveStatus,
-			Filesystem:        fs,
-			FreeCapacity:      freeCapacity,
-			LogicalBlockSize:  int64(partition.LogicalBlockSize),
-			ModelNumber:       "", // Fix Me
-			MountOptions:      mountOptions,
-			Mountpoint:        mountPoint,
-			NodeName:          nodeID,
-			PartitionNum:      int(partition.PartitionNum),
-			Path:              partition.Path,
-			PhysicalBlockSize: int64(partition.PhysicalBlockSize),
-			RootPartition:     rootPartition,
-			SerialNumber:      "", // Fix me
-			TotalCapacity:     totalCapacity,
-		},
-	}, nil
-}
-
-func makeRootDrive(nodeID string, blockDevice *dev.BlockDevice) (*direct_csi.DirectCSIDrive, error) {
-
-	var fs string
-	if blockDevice.FSInfo != nil {
-		fs = string(blockDevice.FSInfo.FSType)
-	}
-
-	var freeCapacity, totalCapacity int64
-	if blockDevice.FSInfo != nil {
-		freeCapacity = int64(blockDevice.FSInfo.FreeCapacity)
-		totalCapacity = int64(blockDevice.FSInfo.TotalCapacity)
-	}
-
-	var mountOptions []string
-	var mountPoint string
-	var mounts []dev.Mount
-
-	if blockDevice.FSInfo != nil {
-		mounts = blockDevice.FSInfo.Mounts
-		if len(mounts) > 0 {
-			mountOptions = mounts[0].MountFlags
-			mountPoint = mounts[0].MountPoint
-		}
-	}
-
-	return &direct_csi.DirectCSIDrive{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: makeName(nodeID, blockDevice.Path),
-		},
-		Status: direct_csi.DirectCSIDriveStatus{
-			DriveStatus:       getDriveStatus(fs),
-			Filesystem:        fs,
-			FreeCapacity:      freeCapacity,
-			LogicalBlockSize:  int64(blockDevice.LogicalBlockSize),
-			ModelNumber:       "", // Fix Me
-			MountOptions:      mountOptions,
-			Mountpoint:        mountPoint,
-			NodeName:          nodeID,
-			PartitionNum:      int(0),
-			Path:              blockDevice.Path,
-			PhysicalBlockSize: int64(blockDevice.PhysicalBlockSize),
-			RootPartition:     blockDevice.Devname,
-			SerialNumber:      "", // Fix me
-			TotalCapacity:     totalCapacity,
-		},
-	}, nil
-}
-
-func makeName(nodeID, path string) string {
-	driveName := strings.Join([]string{nodeID, path}, "-")
-	return fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
-}
-
-func getDriveStatus(filesystem string) direct_csi.DriveStatus {
-	if filesystem == "" {
-		return direct_csi.Unformatted
-	} else {
-		return direct_csi.New
-	}
-}
-
-// MountDevice - Utility to mount a device in the given mountpoint
-func MountDevice(devicePath, mountPoint, fsType string, options []string) error {
-	if err := os.MkdirAll(mountPoint, 0755); err != nil {
-		return err
-	}
-	if err := mount.New("").Mount(devicePath, mountPoint, fsType, options); err != nil {
-		glog.V(5).Info(err)
-		return err
-	}
-	return nil
-}
-
-// FormatDevice - Formats the given device
-func FormatDevice(ctx context.Context, source, fsType string, force bool) error {
-	args := []string{source}
-	forceFlag := "-F"
-	if fsType == "xfs" {
-		forceFlag = "-f"
-	}
-	if force {
-		args = []string{
-			forceFlag, // Force flag
-			source,
-		}
-	}
-	glog.V(5).Infof("args: %v", args)
-	output, err := exec.CommandContext(ctx, "mkfs."+fsType, args...).CombinedOutput()
-	if err != nil {
-		glog.V(5).Infof("Failed to format the device: err: (%s) output: (%s)", err.Error(), string(output))
-	}
-	return err
-}
-
-// UnmountAllMountRefs - Unmount all mount refs. To avoid later mounts to overlap earlier mounts.
-func UnmountAllMountRefs(mountPoint string) error {
-	mounter := mount.New("")
-	// Get all the mountrefs
-	mountRefs, err := mounter.GetMountRefs(mountPoint)
-	if err != nil {
-		return err
-	}
-	// If there are no refs, Simply unmount.
-	if len(mountRefs) == 0 {
-		return utils.UnmountIfMounted(mountPoint)
-	}
-	// Else, Unmount all the mountrefs first.
-	mountPoints, mntErr := mounter.List()
-	if mntErr != nil {
-		return mntErr
-	}
-	for _, mRef := range mountRefs {
-		abmRef, _ := filepath.Abs(mRef)
-		for _, mp := range mountPoints {
-			abMp, _ := filepath.Abs(mp.Path)
-			if abmRef == abMp {
-				if mErr := mounter.Unmount(abmRef); mErr != nil {
-					return mErr
-				}
-			}
-		}
-	}
-	// Finally, unmount the mountpoint
-	for _, mp := range mountPoints {
-		abPath, _ := filepath.Abs(mp.Path)
-		if mountPoint == abPath {
-			if mErr := mounter.Unmount(mountPoint); mErr != nil {
-				return mErr
-			}
-			break
-		}
-	}
-
-	return nil
-}
 
 // GetLatestStatus gets the latest condition by time
 func GetLatestStatus(statusXs []metav1.Condition) metav1.Condition {
@@ -276,9 +44,9 @@ func GetLatestStatus(statusXs []metav1.Condition) metav1.Condition {
 	return statusXs[0]
 }
 
-// GetDiskFS - To get the filesystem of a block device
+// GetDiskFS - To get the filesystem of a block sys.ce
 func GetDiskFS(devicePath string) (string, error) {
-	diskMounter := &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: k8sExec.New()}
+	diskMounter := &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: kexec.New()}
 	// Internally uses 'blkid' to see if the given disk is unformatted
 	fs, err := diskMounter.GetDiskFormat(devicePath)
 	if err != nil {
@@ -328,14 +96,10 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 }
 
 // UpdateDriveStatusOnDiff Updates the drive status fields on diff.
-func UpdateDriveStatusOnDiff(newObj direct_csi.DirectCSIDrive, existingObj *direct_csi.DirectCSIDrive) bool {
+func UpdateDriveStatusOnDiff(newObj directv1alpha1.DirectCSIDrive, existingObj *directv1alpha1.DirectCSIDrive) bool {
 	isUpdated := false
 	if existingObj.Status.Path != newObj.Status.Path {
 		existingObj.Status.Path = newObj.Status.Path
-		isUpdated = true
-	}
-	if existingObj.Status.AllocatedCapacity != newObj.Status.AllocatedCapacity {
-		existingObj.Status.AllocatedCapacity = newObj.Status.AllocatedCapacity
 		isUpdated = true
 	}
 	if existingObj.Status.FreeCapacity != newObj.Status.FreeCapacity {
@@ -366,10 +130,6 @@ func UpdateDriveStatusOnDiff(newObj direct_csi.DirectCSIDrive, existingObj *dire
 		existingObj.Status.NodeName = newObj.Status.NodeName
 		isUpdated = true
 	}
-	if existingObj.Status.DriveStatus != newObj.Status.DriveStatus {
-		existingObj.Status.DriveStatus = newObj.Status.DriveStatus
-		isUpdated = true
-	}
 	if existingObj.Status.ModelNumber != newObj.Status.ModelNumber {
 		existingObj.Status.ModelNumber = newObj.Status.ModelNumber
 		isUpdated = true
@@ -397,4 +157,32 @@ func UpdateDriveStatusOnDiff(newObj direct_csi.DirectCSIDrive, existingObj *dire
 	// Add new status canditates here
 
 	return isUpdated
+}
+
+// Idempotent function to bind mount a xfs filesystem with limits
+func mountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error {
+	if err := utils.SafeMount(src, dest, string(utils.FSTypeXFS),
+		func() []utils.MountOption {
+			mOpts := []utils.MountOption{
+				utils.MountOptionMSBind,
+			}
+			if readOnly {
+				mOpts = append(mOpts, utils.MountOptionMSReadOnly)
+			}
+			return mOpts
+		}(), []string{"prjquota"}); err != nil {
+		return err
+	}
+
+	if size > 0 {
+		xfsQuota := &xfs.XFSQuota{
+			Path:      dest,
+			ProjectID: vID,
+		}
+		if err := xfsQuota.SetQuota(ctx, size); err != nil {
+			return status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
+		}
+	}
+
+	return nil
 }

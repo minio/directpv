@@ -60,8 +60,7 @@ const (
 	csiProvisionerContainerName  = "csi-provisioner"
 	csiProvisionerContainerImage = "quay.io/k8scsi/csi-provisioner:v1.2.1"
 
-	directCSIContainerName  = "direct-csi"
-	directCSIContainerImage = "minio/direct-csi:v1.0-rc-2"
+	directCSIContainerName = "direct-csi"
 
 	livenessProbeContainerName  = "liveness-probe"
 	livenessProbeContainerImage = "quay.io/k8scsi/livenessprobe:v1.1.0"
@@ -79,6 +78,8 @@ const (
 
 	kubeletDirPath = "/var/lib/kubelet"
 	csiRootPath    = "/var/lib/direct-csi/"
+
+	logLevel = LogLevelDebug
 )
 
 func objMeta(name string) metav1.ObjectMeta {
@@ -177,7 +178,7 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 func CreateStorageClass(ctx context.Context, identity string) error {
 	allowExpansion := false
 	allowedTopologies := []corev1.TopologySelectorTerm{}
-	retainPolicy := corev1.PersistentVolumeReclaimRetain
+	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
 	gvk, err := GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
@@ -261,7 +262,7 @@ func CreateService(ctx context.Context, identity string) error {
 	return nil
 }
 
-func CreateDaemonSet(ctx context.Context, identity string) error {
+func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 
@@ -269,7 +270,7 @@ func CreateDaemonSet(ctx context.Context, identity string) error {
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
 		HostNetwork:        false,
-		HostIPC:            false,
+		HostIPC:            true,
 		HostPID:            true,
 		Volumes: []corev1.Volume{
 			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name)),
@@ -277,7 +278,6 @@ func CreateDaemonSet(ctx context.Context, identity string) error {
 			newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
 			newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
 			newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
-			newHostPathVolume(volumeNameDevDir, volumePathDevDir),
 			newHostPathVolume(volumeNameSysDir, volumePathSysDir),
 		},
 		Containers: []corev1.Container{
@@ -285,12 +285,10 @@ func CreateDaemonSet(ctx context.Context, identity string) error {
 				Name:  nodeDriverRegistrarContainerName,
 				Image: nodeDriverRegistrarContainerImage,
 				Args: []string{
-					"--v=5",
-					"--csi-address=/csi/csi.sock",
-					fmt.Sprintf("--kubelet-registration-path=%s", newDirectCSIPluginsSocketDir(kubeletDirPath, name)+"/csi.sock"),
-				},
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &privileged,
+					fmt.Sprintf("--v=%d", logLevel),
+					"--csi-address=unix:///csi/csi.sock",
+					fmt.Sprintf("--kubelet-registration-path=%s",
+						newDirectCSIPluginsSocketDir(kubeletDirPath, name)+"/csi.sock"),
 				},
 				Env: []corev1.EnvVar{
 					{
@@ -315,7 +313,7 @@ func CreateDaemonSet(ctx context.Context, identity string) error {
 				Image: directCSIContainerImage,
 				Args: []string{
 					fmt.Sprintf("--identity=%s", name),
-					"--v=5",
+					fmt.Sprintf("--v=%d", logLevel),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
 					"--driver",
@@ -342,10 +340,9 @@ func CreateDaemonSet(ctx context.Context, identity string) error {
 				TerminationMessagePath:   "/var/log/driver-termination-log",
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(volumeNameSocketDir, "/csi", false),
-					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", false),
+					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", true),
 					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true),
 					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true),
-					newVolumeMount(volumeNameDevDir, "/dev", true),
 					newVolumeMount(volumeNameSysDir, "/sys", true),
 				},
 				Ports: []corev1.ContainerPort{
@@ -414,7 +411,7 @@ func CreateDaemonSet(ctx context.Context, identity string) error {
 	return nil
 }
 
-func CreateDeployment(ctx context.Context, identity string) error {
+func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	var replicas int32 = 3
@@ -429,7 +426,7 @@ func CreateDeployment(ctx context.Context, identity string) error {
 				Name:  csiProvisionerContainerName,
 				Image: csiProvisionerContainerImage,
 				Args: []string{
-					"--v=5",
+					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
 					fmt.Sprintf("--csi-address=$(%s)", endpointEnvVarCSI),
 					"--enable-leader-election",
@@ -469,7 +466,7 @@ func CreateDeployment(ctx context.Context, identity string) error {
 				Name:  directCSIContainerName,
 				Image: directCSIContainerImage,
 				Args: []string{
-					"--v=5",
+					fmt.Sprintf("--v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", name),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					"--controller",

@@ -14,119 +14,28 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package dev
+package sys
 
 import (
-	"encoding/binary"
 	"errors"
-	"math"
-	"os"
 )
 
-var ErrNoFS = errors.New("No FS found")
+const (
+	DirectCSIDevRoot = "/var/lib/direct-csi/devices"
+	HostDevRoot      = "/dev"
+	DefaultProcFS    = "/proc"
+)
 
-type FSType string
+var (
+	ErrNoFS                 = errors.New("no filesystem found")
+	ErrNotGPT               = errors.New("Not a GPR partition")
+	ErrNotClassicMBR        = errors.New("Not a Classic MBR partition")
+	ErrNotModernStandardMBR = errors.New("Not a Modern Standard MBR partition")
+	ErrNotAAPMBR            = errors.New("Not a AAP MBR partition")
+	ErrNotPartition         = errors.New("Not a partitioned volume")
+)
 
-type FSInfo struct {
-	FSType        FSType  `json:"fsType,omitempty"`
-	TotalCapacity uint64  `json:"totalCapacity,omitempty"`
-	FreeCapacity  uint64  `json:"freeCapacity,omitempty"`
-	FSBlockSize   uint64  `json:"fsBlockSize,omitempty"`
-	Mounts        []Mount `json:"mounts,omitempty"`
-}
-
-func ProbeFS(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*FSInfo, error) {
-	ext4FSInfo, err := ProbeFSEXT4(devName, logicalBlockSize, offsetBlocks)
-	if err != nil {
-		if err != ErrNotEXT4 {
-			return nil, err
-		}
-	}
-	if ext4FSInfo != nil {
-		return ext4FSInfo, nil
-	}
-
-	XFSInfo, err := ProbeFSXFS(devName, logicalBlockSize, offsetBlocks)
-	if err != nil {
-		if err != ErrNotXFS {
-			return nil, err
-		}
-	}
-	if XFSInfo != nil {
-		return XFSInfo, nil
-	}
-
-	return nil, ErrNoFS
-}
-
-func ProbeFSEXT4(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*FSInfo, error) {
-	devPath := getBlockFile(devName)
-	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return nil, err
-	}
-	defer devFile.Close()
-
-	_, err = devFile.Seek(int64(logicalBlockSize*offsetBlocks), os.SEEK_CUR)
-	if err != nil {
-		return nil, err
-	}
-
-	ext4 := &EXT4SuperBlock{}
-	err = binary.Read(devFile, binary.LittleEndian, ext4)
-	if err != nil {
-		return nil, err
-	}
-	if !ext4.Is() {
-		return nil, ErrNotEXT4
-	}
-
-	fsBlockSize := uint64(math.Pow(2, float64(10+ext4.LogBlockSize)))
-	fsInfo := &FSInfo{
-		FSType:        FSTypeEXT4,
-		FSBlockSize:   fsBlockSize,
-		TotalCapacity: uint64(ext4.NumBlocks) * uint64(fsBlockSize),
-		FreeCapacity:  uint64(ext4.FreeBlocks) * uint64(fsBlockSize),
-		Mounts:        []Mount{},
-	}
-
-	return fsInfo, nil
-}
-
-func ProbeFSXFS(devName string, logicalBlockSize uint64, offsetBlocks uint64) (*FSInfo, error) {
-	devPath := getBlockFile(devName)
-	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return nil, err
-	}
-	defer devFile.Close()
-
-	_, err = devFile.Seek(int64(logicalBlockSize*offsetBlocks), os.SEEK_CUR)
-	if err != nil {
-		return nil, err
-	}
-
-	xfs := &XFSSuperBlock{}
-	err = binary.Read(devFile, binary.BigEndian, xfs)
-	if err != nil {
-		return nil, err
-	}
-
-	if !xfs.Is() {
-		return nil, ErrNotXFS
-	}
-
-	fsInfo := &FSInfo{
-		FSType:        FSTypeXFS,
-		FSBlockSize:   uint64(xfs.BlockSize),
-		TotalCapacity: uint64(xfs.TotalBlocks) * uint64(xfs.BlockSize),
-		FreeCapacity:  uint64(xfs.FreeBlocks) * uint64(xfs.BlockSize),
-		Mounts:        []Mount{},
-	}
-
-	return fsInfo, nil
-}
-
+// filesystem constants
 const (
 	None                uint32 = 0x0
 	ADFS_SUPER_MAGIC           = 0xadf5

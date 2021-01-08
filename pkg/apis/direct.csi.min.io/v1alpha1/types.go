@@ -20,6 +20,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	DirectCSIVolumeFinalizerPVProtection    = Group + "/pv-protection"
+	DirectCSIVolumeFinalizerPurgeProtection = Group + "/purge-protection"
+
+	DirectCSIDriveFinalizerDataProtection = Group + "/data-protection"
+	DirectCSIDriveFinalizerPrefix         = Group + ".volume/"
+)
+
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
@@ -37,7 +45,7 @@ type DirectCSIDrive struct {
 
 type DirectCSIDriveSpec struct {
 	// +optional
-	RequestedFormat RequestedFormat `json:"requestedFormat"`
+	RequestedFormat *RequestedFormat `json:"requestedFormat,omitempty"`
 	// required
 	DirectCSIOwned bool `json:"directCSIOwned"`
 	// +optional
@@ -77,7 +85,28 @@ type DirectCSIDriveStatus struct {
 	LogicalBlockSize int64 `json:"logicalBlockSize,omitempty"`
 	// +optional
 	Topology map[string]string `json:"topology,omitempty"`
+	// +optional
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
+
+type DirectCSIDriveCondition string
+
+const (
+	DirectCSIDriveConditionOwned     DirectCSIDriveCondition = "Owned"
+	DirectCSIDriveConditionMounted                           = "Mounted"
+	DirectCSIDriveConditionFormatted                         = "Formatted"
+)
+
+type DirectCSIDriveReason string
+
+const (
+	DirectCSIDriveReasonNotAdded DirectCSIDriveReason = "NotAdded"
+	DirectCSIDriveReasonAdded                         = "Added"
+)
 
 type RequestedFormat struct {
 	// +optional
@@ -90,18 +119,17 @@ type RequestedFormat struct {
 	Mountpoint string `json:"mountpoint,omitempty"`
 	// +listType=atomic
 	// +optional
-	Mountoptions []string `json:"mountoptions,omitempty"`
+	MountOptions []string `json:"mountOptions,omitempty"`
 }
 
 type DriveStatus string
 
 const (
-	InUse       DriveStatus = "in-use"
-	Unformatted             = "unformatted"
-	New                     = "new"
-	Terminating             = "terminating"
-	Unavailable             = "unavailable"
-	Ready                   = "ready"
+	DriveStatusInUse       DriveStatus = "in-use"
+	DriveStatusAvailable               = "available"
+	DriveStatusUnavailable             = "unavailable"
+	DriveStatusReady                   = "ready"
+	DriveStatusTerminating             = "terminating"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -138,11 +166,25 @@ type DirectCSIVolume struct {
 	Status DirectCSIVolumeStatus `json:"status,omitempty"`
 }
 
+type DirectCSIVolumeCondition string
+
+const (
+	DirectCSIVolumeConditionPublished DirectCSIVolumeCondition = "Published"
+	DirectCSIVolumeConditionStaged                             = "Staged"
+)
+
+type DirectCSIVolumeReason string
+
+const (
+	DirectCSIVolumeReasonNotInUse DirectCSIVolumeReason = "NotInUse"
+	DirectCSIVolumeReasonInUse                          = "InUse"
+)
+
 type DirectCSIVolumeStatus struct {
 	// +optional
-	OwnerDrive string `json:"ownerDrive,omitempty"`
+	Drive string `json:"drive,omitempty"`
 	// +optional
-	OwnerNode string `json:"ownerNode,omitempty"`
+	NodeName string `json:"nodeName,omitempty"`
 	// +optional
 	HostPath string `json:"hostPath,omitempty"`
 	// +optional
@@ -155,7 +197,10 @@ type DirectCSIVolumeStatus struct {
 	AvailableCapacity int64 `json:"availableCapacity"`
 	// +optional
 	UsedCapacity int64 `json:"usedCapacity"`
-	// +listType=atomic
 	// +optional
-	Conditions []metav1.Condition `json:"conditions"`
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }

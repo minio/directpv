@@ -18,62 +18,126 @@ package node
 
 import (
 	"context"
-	"github.com/minio/direct-csi/pkg/utils"
-	"k8s.io/utils/mount"
 	"os"
 	"path/filepath"
+	"strconv"
 
-	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/pkg/utils"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-func StageVolume(ctx context.Context, directCSIDrive *direct_csi.DirectCSIDrive, stagingPath string, volumeID string) (string, error) {
-	acquireLock(stagingPath)
-	defer releaseLock(stagingPath)
-
-	hostPath := filepath.Join(directCSIDrive.Status.Mountpoint, volumeID)
-	if err := os.MkdirAll(hostPath, 0755); err != nil {
-		return "", err
+func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	vID := req.GetVolumeId()
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+	stagingTargetPath := req.GetStagingTargetPath()
+	if stagingTargetPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
 	}
 
-	if err := os.MkdirAll(stagingPath, 0755); err != nil {
-		return "", err
+	directCSIClient := utils.GetDirectCSIClient()
+	dclient := directCSIClient.DirectCSIDrives()
+	vclient := directCSIClient.DirectCSIVolumes()
+
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{})
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if _, err := os.Lstat(stagingPath); err != nil {
-		return "", err
+	// If already staged
+	if vol.Status.StagingPath == stagingTargetPath {
+		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
-	mounter := mount.New("")
-
-	shouldBindMount := true
-	mountPoints, mntErr := mounter.List()
-	if mntErr != nil {
-		return "", mntErr
+	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{})
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	for _, mp := range mountPoints {
-		abPath, _ := filepath.Abs(mp.Path)
-		if stagingPath == abPath {
-			shouldBindMount = false
-			break
+
+	var size int64
+	if val, ok := req.GetVolumeContext()["RequiredBytes"]; ok {
+		size, err = strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "invalid volume size [%s]: %v", val, err)
 		}
 	}
-
-	if shouldBindMount {
-		if err := mounter.Mount(hostPath, stagingPath, "", []string{"bind", "prjquota"}); err != nil {
-			return "", err
-		}
+	path := filepath.Join(drive.Status.Mountpoint, vID)
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return nil, err
 	}
 
-	return hostPath, nil
+	if err := mountVolume(ctx, path, stagingTargetPath, vID, size, false); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed stage volume: %v", err)
+	}
+
+	conditions := vol.Status.Conditions
+	for _, c := range conditions {
+		switch c.Type {
+		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
+		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+			c.Status = utils.BoolToCondition(true)
+		}
+	}
+	vol.Status.HostPath = path
+	vol.Status.StagingPath = stagingTargetPath
+
+	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
+		return nil, err
+	}
+
+	return &csi.NodeStageVolumeResponse{}, nil
 }
 
-func UnstageVolume(ctx context.Context, stagingPath string) error {
-	acquireLock(stagingPath)
-	defer releaseLock(stagingPath)
-
-	if _, err := os.Lstat(stagingPath); err != nil {
-		return err
+func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	vID := req.GetVolumeId()
+	if vID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+	stagingTargetPath := req.GetStagingTargetPath()
+	if stagingTargetPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
 	}
 
-	return utils.UnmountIfMounted(stagingPath)
+	directCSIClient := utils.GetDirectCSIClient()
+	vclient := directCSIClient.DirectCSIVolumes()
+
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return &csi.NodeUnstageVolumeResponse{}, nil
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if vol.Status.StagingPath == "" {
+		return &csi.NodeUnstageVolumeResponse{}, nil
+	}
+
+	if err := utils.SafeUnmount(stagingTargetPath, nil); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	conditions := vol.Status.Conditions
+	for i, c := range conditions {
+		switch c.Type {
+		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
+		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+			conditions[i].Status = utils.BoolToCondition(false)
+		}
+	}
+
+	vol.Status.HostPath = ""
+	vol.Status.StagingPath = ""
+	if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
+		return nil, err
+	}
+
+	return &csi.NodeUnstageVolumeResponse{}, nil
 }
