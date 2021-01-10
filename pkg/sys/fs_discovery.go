@@ -77,7 +77,7 @@ func (b *BlockDevice) probeFSEXT4(offsetBlocks uint64) (*FSInfo, error) {
 		FSBlockSize:   fsBlockSize,
 		TotalCapacity: uint64(ext4.NumBlocks) * uint64(fsBlockSize),
 		FreeCapacity:  uint64(ext4.FreeBlocks) * uint64(fsBlockSize),
-		Mounts:        []Mount{},
+		Mounts:        []MountInfo{},
 	}
 
 	return fsInfo, nil
@@ -111,7 +111,7 @@ func (b *BlockDevice) probeFSXFS(offsetBlocks uint64) (*FSInfo, error) {
 		FSBlockSize:   uint64(xfs.BlockSize),
 		TotalCapacity: uint64(xfs.TotalBlocks) * uint64(xfs.BlockSize),
 		FreeCapacity:  uint64(xfs.FreeBlocks) * uint64(xfs.BlockSize),
-		Mounts:        []Mount{},
+		Mounts:        []MountInfo{},
 	}
 
 	return fsInfo, nil

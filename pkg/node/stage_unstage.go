@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -120,7 +121,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return &csi.NodeUnstageVolumeResponse{}, nil
 	}
 
-	if err := utils.SafeUnmount(stagingTargetPath, nil); err != nil {
+	if err := sys.SafeUnmount(stagingTargetPath, nil); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -130,6 +131,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
 		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
 			conditions[i].Status = utils.BoolToCondition(false)
+			conditions[i].Reason = directv1alpha1.DirectCSIVolumeReasonInUse
 		}
 	}
 

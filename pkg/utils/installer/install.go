@@ -14,13 +14,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package installer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
+
+	"github.com/minio/direct-csi/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -79,7 +82,13 @@ const (
 	kubeletDirPath = "/var/lib/kubelet"
 	csiRootPath    = "/var/lib/direct-csi/"
 
-	logLevel = LogLevelDebug
+	// debug log level default
+	logLevel = 3
+)
+
+var (
+	ErrKubeVersionNotSupported = errors.New(
+		fmt.Sprintf("%s: This version of kubernetes is not supported by direct-csi. Please upgrade your kubernetes installation and try again", utils.Red("ERR")))
 )
 
 func objMeta(name string) metav1.ObjectMeta {
@@ -111,7 +120,7 @@ func CreateNamespace(ctx context.Context, identity string) error {
 	}
 
 	// Create Namespace Obj
-	if _, err := kubeClient.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -121,7 +130,7 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 	podInfoOnMount := false
 	attachRequired := false
 
-	gvk, err := GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
@@ -145,7 +154,7 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 		}
 
 		// Create CSIDriver Obj
-		if _, err := kubeClient.StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
+		if _, err := utils.GetKubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	case "v1beta1":
@@ -166,7 +175,7 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 		}
 
 		// Create CSIDriver Obj
-		if _, err := kubeClient.StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
+		if _, err := utils.GetKubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	default:
@@ -180,7 +189,7 @@ func CreateStorageClass(ctx context.Context, identity string) error {
 	allowedTopologies := []corev1.TopologySelectorTerm{}
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
-	gvk, err := GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
@@ -205,7 +214,7 @@ func CreateStorageClass(ctx context.Context, identity string) error {
 			},
 		}
 
-		if _, err := kubeClient.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
+		if _, err := utils.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	case "v1beta1":
@@ -227,7 +236,7 @@ func CreateStorageClass(ctx context.Context, identity string) error {
 			},
 		}
 
-		if _, err := kubeClient.StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
+		if _, err := utils.GetKubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	default:
@@ -256,7 +265,7 @@ func CreateService(ctx context.Context, identity string) error {
 		},
 	}
 
-	if _, err := kubeClient.CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -405,7 +414,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 		},
 		Status: appsv1.DaemonSetStatus{},
 	}
-	if _, err := kubeClient.AppsV1().DaemonSets(sanitizeName(identity)).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().AppsV1().DaemonSets(sanitizeName(identity)).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -528,7 +537,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		},
 		Status: appsv1.DeploymentStatus{},
 	}
-	if _, err := kubeClient.AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil

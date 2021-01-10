@@ -23,17 +23,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/go-humanize"
-	"github.com/jedib0t/go-pretty/table"
-	"github.com/jedib0t/go-pretty/text"
-	"github.com/spf13/cobra"
+	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/utils/installer"
 
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/dustin/go-humanize"
+	"github.com/golang/glog"
+	"github.com/jedib0t/go-pretty/table"
+	"github.com/jedib0t/go-pretty/text"
+	"github.com/spf13/cobra"
 )
 
 var infoCmd = &cobra.Command{
@@ -48,6 +50,32 @@ var infoCmd = &cobra.Command{
 
 func getInfo(ctx context.Context, args []string, quiet bool) error {
 	utils.Init()
+
+	crdclient := utils.GetCRDClient()
+
+	if crds, err := crdclient.List(ctx, metav1.ListOptions{}); err != nil {
+		if !quiet {
+			glog.Errorf("error listing crds: %v", err)
+		}
+		return err
+	} else {
+		drivesFound := false
+		volumesFound := false
+		for _, crd := range crds.Items {
+			if strings.Contains(crd.Name, "directcsidrives.direct.csi.min.io") {
+				drivesFound = true
+			}
+			if strings.Contains(crd.Name, "directcsivolumes.direct.csi.min.io") {
+				volumesFound = true
+			}
+		}
+		if !(drivesFound && volumesFound) {
+			if !quiet {
+				glog.Errorf("directcsi crds not found")
+			}
+			return fmt.Errorf("directcsi crds not found")
+		}
+	}
 
 	client, gvk, err := utils.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
@@ -64,6 +92,9 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 			Timeout(10 * time.Second).
 			Do(ctx).
 			Into(result); err != nil {
+			if !quiet {
+				glog.Errorf("error getting csinodes: %v", err)
+			}
 			return err
 		}
 		for _, csiNode := range result.Items {
@@ -83,6 +114,9 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 			Timeout(10 * time.Second).
 			Do(ctx).
 			Into(result); err != nil {
+			if !quiet {
+				glog.Errorf("error getting storagev1beta1/csinodes: %v", err)
+			}
 			return err
 		}
 		for _, csiNode := range result.Items {
@@ -96,7 +130,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	}
 
 	if gvk.Version == "v1alpha1" {
-		return utils.ErrKubeVersionNotSupported
+		return installer.ErrKubeVersionNotSupported
 	}
 
 	if len(nodeList) == 0 {
@@ -111,12 +145,18 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	directCSIClient := utils.GetDirectCSIClient()
 	drives, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("could not list all drives: %v", err)
+		if !quiet {
+			glog.Errorf("error getting drive list: %v", err)
+		}
+		return err
 	}
 
 	volumes, err := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("could not list all drives: %v", err)
+		if !quiet {
+			glog.Errorf("error getting volume list: %v", err)
+		}
+		return err
 	}
 
 	t := table.NewWriter()

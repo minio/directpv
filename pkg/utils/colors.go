@@ -17,16 +17,10 @@
 package utils
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/fatih/color"
 )
 
 var (
 	Bold = color.New(color.Bold).SprintFunc()
 	Red  = color.New(color.FgRed).SprintFunc()
-
-	ErrKubeVersionNotSupported = errors.New(
-		fmt.Sprintf("%s: This version of kubernetes is not supported by direct-csi. Please upgrade your kubernetes installation and try again", Red("ERR")))
 )

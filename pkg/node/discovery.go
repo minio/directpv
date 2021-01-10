@@ -76,7 +76,7 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 
 	var mountOptions []string
 	var mountPoint string
-	var mounts []sys.Mount
+	var mounts []sys.MountInfo
 	var driveStatus directv1alpha1.DriveStatus
 
 	driveStatus = directv1alpha1.DriveStatusAvailable
@@ -166,7 +166,7 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 
 	var mountOptions []string
 	var mountPoint string
-	var mounts []sys.Mount
+	var mounts []sys.MountInfo
 	var driveStatus directv1alpha1.DriveStatus
 
 	driveStatus = directv1alpha1.DriveStatusAvailable

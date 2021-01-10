@@ -16,10 +16,12 @@
  *
  */
 
-package utils
+package installer
 
 import (
 	"context"
+
+	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -52,7 +54,7 @@ func createServiceAccount(ctx context.Context, identity string) error {
 		AutomountServiceAccountToken: nil,
 	}
 
-	if _, err := kubeClient.CoreV1().ServiceAccounts(sanitizeName(identity)).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().CoreV1().ServiceAccounts(sanitizeName(identity)).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -80,7 +82,7 @@ func createClusterRoleBinding(ctx context.Context, identity string) error {
 	}
 
 	clusterRoleBinding.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
-	if _, err := kubeClient.RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -299,7 +301,7 @@ func createClusterRole(ctx context.Context, identity string) error {
 	}
 
 	clusterRole.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
-	if _, err := kubeClient.RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -320,13 +322,13 @@ func RemoveRBACRoles(ctx context.Context, identity string) error {
 }
 
 func removeServiceAccount(ctx context.Context, identity string) error {
-	return kubeClient.CoreV1().ServiceAccounts(sanitizeName(identity)).Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{})
+	return utils.GetKubeClient().CoreV1().ServiceAccounts(sanitizeName(identity)).Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{})
 }
 
 func removeClusterRoleBinding(ctx context.Context, identity string) error {
-	return kubeClient.RbacV1().ClusterRoleBindings().Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{})
+	return utils.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{})
 }
 
 func removeClusterRole(ctx context.Context, identity string) error {
-	return kubeClient.RbacV1().ClusterRoles().Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{})
+	return utils.GetKubeClient().RbacV1().ClusterRoles().Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{})
 }

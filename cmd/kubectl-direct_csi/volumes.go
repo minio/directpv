@@ -28,9 +28,11 @@ var volumesCmd = &cobra.Command{
 	Long:  "",
 	Aliases: []string{
 		"volume",
+		"vol",
 	},
 }
 
 func init() {
 	volumesCmd.AddCommand(listVolumesCmd)
+	//volumesCmd.AddCommand(purgeVolumesCmd)
 }

@@ -16,24 +16,26 @@
  *
  */
 
-package utils
+package installer
 
 import (
-	"github.com/golang/glog"
+	"math/rand"
+	"time"
 )
 
-type LogLevel int
+const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-const (
-	LogLevelInvalid LogLevel = iota
-	LogLevelInfo
-	LogLevelWarn
-	LogLevelDebug
-)
+var seededRand *rand.Rand = rand.New(
+	rand.NewSource(time.Now().UnixNano()))
 
-var _debug = glog.V(3).Infof
-var _warn = glog.V(2).Infof
-var _info = glog.V(1).Infof
+func StringWithCharset(length int, charset string) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
+}
 
-var _err = glog.Errorf
-var _fatal = glog.Fatalf
+func NewRandomString(length int) string {
+	return StringWithCharset(length, charset)
+}

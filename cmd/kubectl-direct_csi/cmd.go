@@ -74,6 +74,7 @@ func init() {
 	pluginCmd.AddCommand(installCmd)
 	pluginCmd.AddCommand(uninstallCmd)
 	pluginCmd.AddCommand(drivesCmd)
+	pluginCmd.AddCommand(volumesCmd)
 	//pluginCmd.AddCommand(newVolumesCmd())
 }
 
