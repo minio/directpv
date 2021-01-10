@@ -49,14 +49,14 @@ type DriveInfo struct {
 }
 
 type FSInfo struct {
-	FSType        string  `json:"fsType,omitempty"`
-	TotalCapacity uint64  `json:"totalCapacity,omitempty"`
-	FreeCapacity  uint64  `json:"freeCapacity,omitempty"`
-	FSBlockSize   uint64  `json:"fsBlockSize,omitempty"`
-	Mounts        []Mount `json:"mounts,omitempty"`
+	FSType        string      `json:"fsType,omitempty"`
+	TotalCapacity uint64      `json:"totalCapacity,omitempty"`
+	FreeCapacity  uint64      `json:"freeCapacity,omitempty"`
+	FSBlockSize   uint64      `json:"fsBlockSize,omitempty"`
+	Mounts        []MountInfo `json:"mounts,omitempty"`
 }
 
-type Mount struct {
+type MountInfo struct {
 	Mountpoint        string   `json:"mountPoint,omitempty"`
 	MountFlags        []string `json:"mountFlags,omitempty"`
 	MountRoot         string   `json:"mountRoot,omitempty"`

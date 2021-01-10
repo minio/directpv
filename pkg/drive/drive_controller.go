@@ -26,6 +26,7 @@ import (
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/sys"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientset "k8s.io/client-go/kubernetes"
@@ -174,7 +175,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 			return fmt.Errorf("invalid state reached. Please contact subnet.min.io")
 		}
 
-		if err := utils.SafeUnmount(filepath.Join(utils.MountRoot, new.Name), nil); err != nil {
+		if err := sys.SafeUnmount(filepath.Join(sys.MountRoot, new.Name), nil); err != nil {
 			return err
 		}
 
@@ -194,7 +195,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 		formatted := new.Status.Filesystem == ""
 
 		source := new.Status.Path
-		target := filepath.Join(utils.MountRoot, new.Name)
+		target := filepath.Join(sys.MountRoot, new.Name)
 		mountOpts := new.Spec.RequestedFormat.MountOptions
 
 		switch new.Status.DriveStatus {

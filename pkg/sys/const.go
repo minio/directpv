@@ -21,9 +21,53 @@ import (
 )
 
 const (
-	DirectCSIDevRoot = "/var/lib/direct-csi/devices"
 	HostDevRoot      = "/dev"
 	DefaultProcFS    = "/proc"
+	DirectCSIRoot    = "/var/lib/direct-csi"
+	MountRoot        = "/var/lib/direct-csi/mnt"
+	DirectCSIDevRoot = "/var/lib/direct-csi/devices"
+)
+
+type FSType string
+
+const (
+	FSTypeXFS  FSType = "xfs"
+	FSTypeEXT4        = "ext4"
+)
+
+// Mount options
+type MountOption string
+
+const (
+	MountOptionMSRemount     MountOption = "remount"
+	MountOptionMSBind                    = "bind"
+	MountOptionMSShared                  = "shared"
+	MountOptionMSPrivate                 = "private"
+	MountOptionMSSlave                   = "slave"
+	MountOptionMSUnBindable              = "unbindable"
+	MountOptionMSMove                    = "move"
+	MountOptionMSDirSync                 = "dirsync"
+	MountOptionMSMandLock                = "mand"
+	MountOptionMSNoATime                 = "noatime"
+	MountOptionMSNoDev                   = "nodev"
+	MountOptionMSNoDirATime              = "nodiratime"
+	MountOptionMSNoExec                  = "noexec"
+	MountOptionMSNoSUID                  = "nosuid"
+	MountOptionMSReadOnly                = "ro"
+	MountOptionMSRelatime                = "relatime"
+	MountOptionMSRecursive               = "recursive"
+	MountOptionMSSilent                  = "silent"
+	MountOptionMSStrictATime             = "strictatime"
+	MountOptionMSSynchronous             = "sync"
+)
+
+// Unmount options
+type UnmountOption string
+
+const (
+	UnmountOptionForce  UnmountOption = "force"
+	UnmountOptionDetach               = "detach"
+	UnmountOptionExpire               = "expire"
 )
 
 var (

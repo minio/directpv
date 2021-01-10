@@ -16,24 +16,26 @@
  *
  */
 
-package utils
+package sys
 
 import (
-	"github.com/golang/glog"
+	"context"
+
+	"os/exec"
 )
 
-type LogLevel int
-
-const (
-	LogLevelInvalid LogLevel = iota
-	LogLevelInfo
-	LogLevelWarn
-	LogLevelDebug
-)
-
-var _debug = glog.V(3).Infof
-var _warn = glog.V(2).Infof
-var _info = glog.V(1).Infof
-
-var _err = glog.Errorf
-var _fatal = glog.Fatalf
+func Format(ctx context.Context, path, fs string, force bool) (string, error) {
+	bin := "mkfs." + fs
+	args := []string{
+		func() string {
+			if force {
+				return "-f"
+			}
+			return ""
+		}(),
+		path,
+	}
+	cmd := exec.CommandContext(ctx, bin, args...)
+	outputBytes, err := cmd.CombinedOutput()
+	return string(outputBytes), err
+}

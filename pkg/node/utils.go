@@ -22,6 +22,7 @@ import (
 	"sort"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/sys/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -161,13 +162,13 @@ func UpdateDriveStatusOnDiff(newObj directv1alpha1.DirectCSIDrive, existingObj *
 
 // Idempotent function to bind mount a xfs filesystem with limits
 func mountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error {
-	if err := utils.SafeMount(src, dest, string(utils.FSTypeXFS),
-		func() []utils.MountOption {
-			mOpts := []utils.MountOption{
-				utils.MountOptionMSBind,
+	if err := sys.SafeMount(src, dest, string(sys.FSTypeXFS),
+		func() []sys.MountOption {
+			mOpts := []sys.MountOption{
+				sys.MountOptionMSBind,
 			}
 			if readOnly {
-				mOpts = append(mOpts, utils.MountOptionMSReadOnly)
+				mOpts = append(mOpts, sys.MountOptionMSReadOnly)
 			}
 			return mOpts
 		}(), []string{"prjquota"}); err != nil {

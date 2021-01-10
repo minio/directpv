@@ -16,26 +16,26 @@
  *
  */
 
-package utils
+package installer
 
 import (
-	"context"
-
-	"os/exec"
+	"math/rand"
+	"time"
 )
 
-func Format(ctx context.Context, path, fs string, force bool) (string, error) {
-	bin := "mkfs." + fs
-	args := []string{
-		func() string {
-			if force {
-				return "-f"
-			}
-			return ""
-		}(),
-		path,
+const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+var seededRand *rand.Rand = rand.New(
+	rand.NewSource(time.Now().UnixNano()))
+
+func StringWithCharset(length int, charset string) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
 	}
-	cmd := exec.CommandContext(ctx, bin, args...)
-	outputBytes, err := cmd.CombinedOutput()
-	return string(outputBytes), err
+	return string(b)
+}
+
+func NewRandomString(length int) string {
+	return StringWithCharset(length, charset)
 }

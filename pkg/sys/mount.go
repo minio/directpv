@@ -16,20 +16,18 @@
  *
  */
 
-package utils
+package sys
 
 import (
 	"fmt"
 	"strings"
 	"syscall"
 
-	"github.com/minio/direct-csi/pkg/sys"
-
 	"github.com/golang/glog"
 )
 
 func SafeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
-	mounts, err := sys.ProbeMountInfo()
+	mounts, err := ProbeMountInfo()
 	if err != nil {
 		return err
 	}
@@ -216,7 +214,7 @@ func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpt
 }
 
 func SafeUnmount(target string, opts []UnmountOption) error {
-	mounts, err := sys.ProbeMountInfo()
+	mounts, err := ProbeMountInfo()
 	if err != nil {
 		return err
 	}

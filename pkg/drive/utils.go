@@ -20,7 +20,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/sys"
 
 	"github.com/golang/glog"
 )
@@ -33,10 +33,10 @@ func mountDrive(source, target string, mountOpts []string) error {
 	}
 
 	glog.V(3).Infof("mounting drive %s at %s", source, target)
-	return utils.SafeMount(source, target, string(utils.FSTypeXFS), func(opts []string) []utils.MountOption {
-		newOpts := []utils.MountOption{}
+	return sys.SafeMount(source, target, string(sys.FSTypeXFS), func(opts []string) []sys.MountOption {
+		newOpts := []sys.MountOption{}
 		for _, opt := range opts {
-			newOpts = append(newOpts, utils.MountOption(opt))
+			newOpts = append(newOpts, sys.MountOption(opt))
 		}
 		return newOpts
 	}(mountOpts), []string{
@@ -48,8 +48,8 @@ func mountDrive(source, target string, mountOpts []string) error {
 
 // unmountDrive - Idempotent function to unmount a DirectCSIDrive
 func unmountDrive(path string) error {
-	if err := utils.SafeUnmount(path, []utils.UnmountOption{
-		utils.UnmountOptionDetach,
+	if err := sys.SafeUnmount(path, []sys.UnmountOption{
+		sys.UnmountOptionDetach,
 	}); err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func unmountDrive(path string) error {
 // formatDrive - Idempotent function to format a DirectCSIDrive
 func formatDrive(ctx context.Context, path string) error {
 	force := true
-	output, err := utils.Format(ctx, path, string(utils.FSTypeXFS), force)
+	output, err := sys.Format(ctx, path, string(sys.FSTypeXFS), force)
 	if err != nil {
 		glog.Errorf("failed to format drive: %s", output)
 		return err

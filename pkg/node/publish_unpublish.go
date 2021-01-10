@@ -20,6 +20,7 @@ import (
 	"context"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -108,7 +109,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	if err := utils.SafeUnmount(containerPath, nil); err != nil {
+	if err := sys.SafeUnmount(containerPath, nil); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

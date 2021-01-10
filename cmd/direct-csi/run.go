@@ -24,6 +24,7 @@ import (
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
 	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/utils/grpc"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
@@ -73,5 +74,5 @@ func run(ctx context.Context, args []string) error {
 		glog.V(5).Infof("controller manager started")
 	}
 
-	return utils.Run(ctx, endpoint, idServer, ctrlServer, nodeSrv)
+	return grpc.Run(ctx, endpoint, idServer, ctrlServer, nodeSrv)
 }

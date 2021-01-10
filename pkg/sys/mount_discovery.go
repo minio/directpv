@@ -26,7 +26,7 @@ import (
 	"strings"
 )
 
-func (b *BlockDevice) probeMountInfo(partitionNum uint) ([]Mount, error) {
+func (b *BlockDevice) probeMountInfo(partitionNum uint) ([]MountInfo, error) {
 	mounts, err := ProbeMountInfo()
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (b *BlockDevice) probeMountInfo(partitionNum uint) ([]Mount, error) {
 	devName := b.Devname
 	newDevName := getBlockFile(devName)
 	rootDevName := getRootBlockFile(devName)
-	toRet := []Mount{}
+	toRet := []MountInfo{}
 	for _, m := range mounts {
 		if m.DevName != rootDevName && m.DevName != newDevName {
 			continue
@@ -50,7 +50,7 @@ func (b *BlockDevice) probeMountInfo(partitionNum uint) ([]Mount, error) {
 }
 
 // ProbeMountInfo - fetches the list of mounted filesystems on particular node
-func ProbeMountInfo() ([]Mount, error) {
+func ProbeMountInfo() ([]MountInfo, error) {
 	mountinfoFile := filepath.Join(DefaultProcFS, "1", "mountinfo")
 	f, err := os.Open(mountinfoFile)
 	if err != nil {
@@ -58,7 +58,7 @@ func ProbeMountInfo() ([]Mount, error) {
 	}
 	defer f.Close()
 
-	mounts := []Mount{}
+	mounts := []MountInfo{}
 	fbuf := bufio.NewReader(f)
 
 	for {
@@ -130,7 +130,7 @@ func ProbeMountInfo() ([]Mount, error) {
 			return str, 0
 		}(mountSource)
 
-		mounts = append(mounts, Mount{
+		mounts = append(mounts, MountInfo{
 			Mountpoint:        mountPoint,
 			MountFlags:        mountFlags,
 			MountRoot:         mountRoot,
