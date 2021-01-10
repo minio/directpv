@@ -25,8 +25,8 @@ import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
-	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/sys"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientset "k8s.io/client-go/kubernetes"
@@ -94,20 +94,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 		if new.Spec.RequestedFormat == nil {
 			return false
 		}
-
-		// if requested format changes
-		if new.Spec.RequestedFormat != nil && old.Spec.RequestedFormat == nil {
-			return true
-		}
-		// if filesystem is changed
-		if new.Spec.RequestedFormat.Filesystem != old.Spec.RequestedFormat.Filesystem {
-			return true
-		}
-		// if force is set
-		if new.Spec.RequestedFormat.Force && !old.Spec.RequestedFormat.Force {
-			return true
-		}
-		return false
+		return true
 	}
 
 	storageSpace := func(ctx context.Context, old, new *directv1alpha1.DirectCSIDrive) bool {
@@ -215,24 +202,33 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 			if !formatted || force {
 				if mounted {
 					if err := unmountDrive(target); err != nil {
-						glog.Errorf("failed to unmount drive: %s %v", new.Name, err)
-						return err
+						err = fmt.Errorf("failed to unmount drive: %s %v", new.Name, err)
+						glog.Error(err)
+						updateErr = err
+					} else {
+						mounted = false
 					}
 				}
-				mounted = false
-				if err := formatDrive(ctx, source); err != nil {
-					glog.Errorf("failed to format drive: %s %v", new.Name, err)
-					return err
+
+				if updateErr == nil {
+					if err := formatDrive(ctx, source, force); err != nil {
+						err = fmt.Errorf("failed to format drive: %s %v", new.Name, err)
+						glog.Error(err)
+						updateErr = err
+					} else {
+						formatted = true
+					}
 				}
-				formatted = true
 			}
 
-			if !mounted {
+			if updateErr == nil && !mounted {
 				if err := mountDrive(source, target, mountOpts); err != nil {
-					glog.Errorf("failed to mount drive: %s %v", new.Name, err)
-					return err
+					err = fmt.Errorf("failed to mount drive: %s %v", new.Name, err)
+					glog.Error(err)
+					updateErr = err
+				} else {
+					mounted = true
 				}
-				mounted = true
 			}
 
 			conditions := new.Status.Conditions
@@ -244,6 +240,10 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 						conditions[i].Reason = string(directv1alpha1.DirectCSIDriveReasonAdded)
 						conditions[i].LastTransitionTime = metav1.Now()
 					}
+					conditions[i].Message = ""
+					if updateErr != nil {
+						conditions[i].Message = updateErr.Error()
+					}
 				case string(directv1alpha1.DirectCSIDriveConditionMounted):
 					conditions[i].Status = utils.BoolToCondition(mounted)
 					conditions[i].Reason = string(directv1alpha1.DirectCSIDriveReasonAdded)
@@ -254,13 +254,15 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 					conditions[i].LastTransitionTime = metav1.Now()
 				}
 			}
-			new.Finalizers = []string{
-				directv1alpha1.DirectCSIDriveFinalizerDataProtection,
+			if updateErr == nil {
+				new.Finalizers = []string{
+					directv1alpha1.DirectCSIDriveFinalizerDataProtection,
+				}
+				new.Status.DriveStatus = directv1alpha1.DriveStatusReady
+				new.Status.Mountpoint = target
+				new.Status.MountOptions = mountOpts
+				new.Spec.RequestedFormat = nil
 			}
-			new.Status.DriveStatus = directv1alpha1.DriveStatusReady
-			new.Status.Mountpoint = target
-			new.Status.MountOptions = mountOpts
-			new.Spec.RequestedFormat = nil
 
 			if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{}); err != nil {
 				return err

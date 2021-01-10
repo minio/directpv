@@ -18,6 +18,7 @@ package drive
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/minio/direct-csi/pkg/sys"
@@ -58,12 +59,11 @@ func unmountDrive(path string) error {
 }
 
 // formatDrive - Idempotent function to format a DirectCSIDrive
-func formatDrive(ctx context.Context, path string) error {
-	force := true
+func formatDrive(ctx context.Context, path string, force bool) error {
 	output, err := sys.Format(ctx, path, string(sys.FSTypeXFS), force)
 	if err != nil {
 		glog.Errorf("failed to format drive: %s", output)
-		return err
+		return fmt.Errorf("%s", output)
 	}
 	return nil
 }

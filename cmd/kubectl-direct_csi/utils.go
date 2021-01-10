@@ -20,18 +20,6 @@ import (
 	"github.com/fatih/color"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	// "github.com/minio/direct-csi/pkg/utils"
-
-	"github.com/golang/glog"
-)
-
-// logging utils
-var (
-	info   = glog.V(1).Info
-	warn   = glog.V(2).Info
-	debug  = glog.V(3).Info
-	errlog = glog.Errorf
-	fatal  = glog.Fatalf
 )
 
 // pretty printing utils

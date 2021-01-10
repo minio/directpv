@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
@@ -37,51 +36,43 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var listDrivesCmd = &cobra.Command{
+var listVolumesCmd = &cobra.Command{
 	Use:   "list",
-	Short: "list drives in the DirectCSI cluster",
+	Short: "list volumes in the DirectCSI cluster",
 	Long:  "",
 	Example: `
-# Filter all nvme drives in all nodes 
-$ kubectl direct-csi drives ls --drives=/sys.nvme
+# List all volumes provisioned on nvme drives across all nodes 
+$ kubectl direct-csi volumes ls --drives=/dev/nvme*
 
-# Filter all new drives 
-$ kubectl direct-csi drives ls --status=new
+# List all staged and published volumes
+$ kubectl direct-csi volumes ls --status=staged,published
 
-# Filter all drives from a particular node
-$ kubectl direct-csi drives ls --nodes=directcsi-1
-
-# Combine multiple filters using multi-arg
-$ kubectl direct-csi drives ls --nodes=directcsi-1 --nodes=othernode-2 --status=new
+# List all volumes from a particular node
+$ kubectl direct-csi volumes ls --nodes=directcsi-1
 
 # Combine multiple filters using csv
-$ kubectl direct-csi drives ls --nodes=directcsi-1,othernode-2 --status=new
+$ kubectl direct-csi vol ls --nodes=directcsi-1,directcsi-2 --status=staged --drives=/dev/nvme0n1
 `,
 	RunE: func(c *cobra.Command, args []string) error {
-		return listDrives(c.Context(), args)
+		return listVolumes(c.Context(), args)
 	},
 	Aliases: []string{
 		"ls",
 	},
 }
 
-var (
-	all = false
-)
-
 func init() {
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glob prefix match for drive paths")
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob prefix match for node names")
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "glob prefix match for drive status")
-
-	listDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all drives (including unavailable)")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glob prefix match for drive paths")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob prefix match for node names")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "glob prefix match for drive status")
 }
 
-func listDrives(ctx context.Context, args []string) error {
+func listVolumes(ctx context.Context, args []string) error {
 	utils.Init()
+	dclient := utils.GetDirectCSIClient().DirectCSIDrives()
+	vclient := utils.GetDirectCSIClient().DirectCSIVolumes()
 
-	directClient := utils.GetDirectCSIClient()
-	driveList, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
+	driveList, err := dclient.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -89,11 +80,6 @@ func listDrives(ctx context.Context, args []string) error {
 	if len(driveList.Items) == 0 {
 		fmt.Printf("No resource of direct.csi.min.io/v1alpha1.%s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
-	}
-
-	volList, err := directClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
 	}
 
 	nodeList := nodes
@@ -167,65 +153,68 @@ func listDrives(ctx context.Context, args []string) error {
 		}
 	}
 
-	statusesList := status
-	if len(status) == 0 {
-		statusesList = []string{"**"}
-	}
-	if len(status) == 1 {
-		if status[0] == "*" {
-			statusesList = []string{"**"}
+	hasStatus := func(vol *directv1alpha1.DirectCSIVolume, status []string) bool {
+		statusMatches := 0
+		for _, c := range vol.Status.Conditions {
+			switch c.Type {
+			case string(directv1alpha1.DirectCSIVolumeConditionPublished):
+				for _, s := range status {
+					if strings.ToLower(s) == strings.ToLower(string(directv1alpha1.DirectCSIVolumeConditionPublished)) {
+						if c.Status == metav1.ConditionTrue {
+							statusMatches = statusMatches + 1
+						}
+					}
+				}
+			case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+				for _, s := range status {
+					if strings.ToLower(s) == strings.ToLower(string(directv1alpha1.DirectCSIVolumeConditionStaged)) {
+						if c.Status == metav1.ConditionTrue {
+							statusMatches = statusMatches + 1
+						}
+					}
+				}
+			}
 		}
+		return statusMatches == len(status)
 	}
 
 	// reset filterSet
 	filterSet = map[string]struct{}{}
-	filterStatus := []directv1alpha1.DirectCSIDrive{}
+	vols := []*directv1alpha1.DirectCSIVolume{}
+
+	drivePaths := map[string]string{}
+	driveName := func(val string) string {
+		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
+		return strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
+	}
+
 	for _, d := range filterDrives {
-		if !all && (d.Status.DriveStatus == directv1alpha1.DriveStatusUnavailable) {
+		if d.Status.DriveStatus == directv1alpha1.DriveStatusUnavailable {
 			continue
 		}
-		for _, n := range statusesList {
-			if ok, _ := glob.Match(n, string(d.Status.DriveStatus)); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterStatus = append(filterStatus, d)
-					filterSet[d.Name] = struct{}{}
+		drivePaths[d.Name] = driveName(d.Status.Path)
+		for _, f := range d.GetFinalizers() {
+			if strings.HasPrefix(f, directv1alpha1.DirectCSIDriveFinalizerPrefix) {
+				name := strings.ReplaceAll(f, directv1alpha1.DirectCSIDriveFinalizerPrefix, "")
+				vol, err := vclient.Get(ctx, name, metav1.GetOptions{})
+				if err != nil {
+					return err
 				}
-				continue
-			} else if ok, _ := glob.Match(n+"*", string(d.Status.DriveStatus)); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterStatus = append(filterStatus, d)
-					filterSet[d.Name] = struct{}{}
+				if hasStatus(vol, status) {
+					vols = append(vols, vol)
 				}
-				continue
 			}
 		}
 	}
-
-	sort.SliceStable(filterStatus, func(i, j int) bool {
-		d1 := filterStatus[i]
-		d2 := filterStatus[j]
-
-		if v := strings.Compare(d1.Status.NodeName, d2.Status.NodeName); v != 0 {
-			return v < 0
-		}
-
-		if v := strings.Compare(d1.Status.Path, d2.Status.Path); v != 0 {
-			return v < 0
-		}
-
-		return strings.Compare(string(d1.Status.DriveStatus), string(d2.Status.DriveStatus)) < 0
-	})
 
 	text.DisableColors()
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{
-		"DRIVE",
+		"VOLUME",
 		"CAPACITY",
-		"ALLOCATED",
-		"VOLUMES",
 		"NODE",
-		"STATUS",
+		"DRIVE",
 		"",
 	})
 
@@ -234,48 +223,7 @@ func listDrives(ctx context.Context, args []string) error {
 	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	t.SetStyle(style)
 
-	driveName := func(val string) string {
-		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
-		dr = strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
-		return strings.ReplaceAll(dr, "-part-", "")
-	}
-
-	for _, d := range filterStatus {
-		volumes := 0
-		for _, v := range volList.Items {
-			if v.Status.Drive == d.Name {
-				volumes++
-			}
-		}
-
-		msg := ""
-		dr := func(val string) string {
-			dr := driveName(val)
-			col := red(dot)
-			for _, c := range d.Status.Conditions {
-				if c.Type == string(directv1alpha1.DirectCSIDriveConditionOwned) {
-					if c.Status == metav1.ConditionTrue {
-						col = green(dot)
-					}
-					msg = c.Message
-				}
-			}
-			return strings.ReplaceAll(col+" "+dr, "-part-", "")
-		}(d.Status.Path)
-		drStatus := d.Status.DriveStatus
-		if msg != "" {
-			drStatus = drStatus + "*"
-			msg = strings.ReplaceAll(msg, d.Name, "")
-			msg = strings.ReplaceAll(msg, "/var/lib/direct-csi/devices", "/dev")
-			msg = strings.Split(msg, "\n")[0]
-		}
-
-		emptyOrVal := func(val int) string {
-			if val == 0 {
-				return "-"
-			}
-			return fmt.Sprintf("%d", val)
-		}
+	for _, v := range vols {
 		emptyOrBytes := func(val int64) string {
 			if val == 0 {
 				return "-"
@@ -283,13 +231,10 @@ func listDrives(ctx context.Context, args []string) error {
 			return humanize.IBytes(uint64(val))
 		}
 		t.AppendRow([]interface{}{
-			dr,                                       //DRIVE
-			emptyOrBytes(d.Status.TotalCapacity),     //CAPACITY
-			emptyOrBytes(d.Status.AllocatedCapacity), //ALLOCATED
-			emptyOrVal(volumes),                      //VOLUMES
-			d.Status.NodeName,                        //SERVER
-			utils.Bold(drStatus),                     //STATUS
-			msg,                                      //MESSAGE
+			v.Name,                                //VOLUME
+			emptyOrBytes(v.Status.TotalCapacity),  //CAPACITY
+			v.Status.NodeName,                     //SERVER
+			driveName(drivePaths[v.Status.Drive]), //DRIVE
 		})
 	}
 

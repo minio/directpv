@@ -23,10 +23,11 @@ import (
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
+	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/utils/installer"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/minio/direct-csi/pkg/utils"
 )
 
 var uninstallCmd = &cobra.Command{
@@ -102,49 +103,49 @@ func uninstall(ctx context.Context, args []string) error {
 		glog.Infof("'%s' crds deleted", bold(identity))
 	}
 
-	if err := utils.DeleteNamespace(ctx, identity); err != nil {
+	if err := installer.DeleteNamespace(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' namespace deleted", bold(identity))
 
-	if err := utils.DeleteCSIDriver(ctx, identity); err != nil {
+	if err := installer.DeleteCSIDriver(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' csidriver deleted", bold(identity))
 
-	if err := utils.DeleteStorageClass(ctx, identity); err != nil {
+	if err := installer.DeleteStorageClass(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' storageclass deleted", bold(identity))
 
-	if err := utils.DeleteService(ctx, identity); err != nil {
+	if err := installer.DeleteService(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' service deleted", bold(identity))
 
-	if err := utils.RemoveRBACRoles(ctx, identity); err != nil {
+	if err := installer.RemoveRBACRoles(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' rbac roles deleted", utils.Bold(identity))
 
-	if err := utils.DeleteDaemonSet(ctx, identity); err != nil {
+	if err := installer.DeleteDaemonSet(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' daemonset deleted", utils.Bold(identity))
 
-	if err := utils.DeleteDeployment(ctx, identity); err != nil {
+	if err := installer.DeleteDeployment(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}

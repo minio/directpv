@@ -34,6 +34,7 @@ var drivesCmd = &cobra.Command{
 	Long:  "",
 	Aliases: []string{
 		"drive",
+		"dr",
 	},
 }
 

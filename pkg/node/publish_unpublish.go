@@ -118,6 +118,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		switch c.Type {
 		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
 			conditions[i].Status = utils.BoolToCondition(false)
+			conditions[i].Reason = directv1alpha1.DirectCSIVolumeReasonInUse
 		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
 		}
 	}

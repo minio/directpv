@@ -26,15 +26,14 @@ import (
 
 func Format(ctx context.Context, path, fs string, force bool) (string, error) {
 	bin := "mkfs." + fs
-	args := []string{
-		func() string {
-			if force {
-				return "-f"
-			}
-			return ""
-		}(),
-		path,
-	}
+	args := func() []string {
+		args := []string{}
+		if force {
+			args = append(args, "-f")
+		}
+		return append(args, path)
+	}()
+
 	cmd := exec.CommandContext(ctx, bin, args...)
 	outputBytes, err := cmd.CombinedOutput()
 	return string(outputBytes), err

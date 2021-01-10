@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/utils/installer"
 )
 
 var installCmd = &cobra.Command{
@@ -70,49 +71,49 @@ func install(ctx context.Context, args []string) error {
 		glog.Infof("crds successfully registered")
 	}
 
-	if err := utils.CreateNamespace(ctx, identity); err != nil {
+	if err := installer.CreateNamespace(ctx, identity); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' namespace created", utils.Bold(identity))
 
-	if err := utils.CreateCSIDriver(ctx, identity); err != nil {
+	if err := installer.CreateCSIDriver(ctx, identity); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' csidriver created", utils.Bold(identity))
 
-	if err := utils.CreateStorageClass(ctx, identity); err != nil {
+	if err := installer.CreateStorageClass(ctx, identity); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' storageclass created", utils.Bold(identity))
 
-	if err := utils.CreateService(ctx, identity); err != nil {
+	if err := installer.CreateService(ctx, identity); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' service created", utils.Bold(identity))
 
-	if err := utils.CreateRBACRoles(ctx, identity); err != nil {
+	if err := installer.CreateRBACRoles(ctx, identity); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' rbac roles created", utils.Bold(identity))
 
-	if err := utils.CreateDaemonSet(ctx, identity, image); err != nil {
+	if err := installer.CreateDaemonSet(ctx, identity, image); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' daemonset created", utils.Bold(identity))
 
-	if err := utils.CreateDeployment(ctx, identity, image); err != nil {
+	if err := installer.CreateDeployment(ctx, identity, image); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}

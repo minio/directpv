@@ -131,6 +131,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
 		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
 			conditions[i].Status = utils.BoolToCondition(false)
+			conditions[i].Reason = directv1alpha1.DirectCSIVolumeReasonInUse
 		}
 	}
 
