@@ -46,28 +46,25 @@ var (
 	force = false
 )
 
-var addDrivesCmd = &cobra.Command{
-	Use:   "add",
-	Short: "add drives to the DirectCSI cluster",
+var formatDrivesCmd = &cobra.Command{
+	Use:   "format",
+	Short: "format drives in the DirectCSI cluster",
 	Long:  "",
 	Example: `
-# Add all available drives in the cluster
-$ kubectl direct-csi drives add
+# Format all available drives in the cluster
+$ kubectl direct-csi drives format --all
 
-# Add all nvme drives in all nodes 
-$ kubectl direct-csi drives add --drives=/sys.nvme*
+# Format all nvme drives in all nodes 
+$ kubectl direct-csi drives format --drives=/dev/nvme*
 
-# Add all new drives
-$ kubectl direct-csi drives add --status=new
-
-# Add all drives from a particular node
-$ kubectl direct-csi drives add --nodes=directcsi-1
+# Format all drives from a particular node
+$ kubectl direct-csi drives format --nodes=directcsi-1
 
 # Combine multiple parameters using multi-arg
-$ kubectl direct-csi drives add --nodes=directcsi-1 --nodes=othernode-2 --status=new
+$ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=new
 
 # Combine multiple parameters using csv
-$ kubectl direct-csi drives add --nodes=directcsi-1,othernode-2 --status=new
+$ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=new
 `,
 	RunE: func(c *cobra.Command, args []string) error {
 		return addDrives(c.Context(), args)
@@ -76,13 +73,19 @@ $ kubectl direct-csi drives add --nodes=directcsi-1,othernode-2 --status=new
 }
 
 func init() {
-	addDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glog selector for drive paths")
-	addDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob selector for node names")
-	addDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "glob selector for drive status")
-	addDrivesCmd.PersistentFlags().BoolVarP(&force, "force", "f", force, "force format a drive even if a FS is already present")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glog selector for drive paths")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob selector for node names")
+	formatDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "format all available drives")
+
+	formatDrivesCmd.PersistentFlags().BoolVarP(&force, "force", "f", force, "force format a drive even if a FS is already present")
 }
 
 func addDrives(ctx context.Context, args []string) error {
+	if !all {
+		if len(drives) == 0 && len(nodes) == 0 {
+			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should to be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"))
+		}
+	}
 	utils.Init()
 
 	directClient := utils.GetDirectCSIClient()
@@ -172,46 +175,21 @@ func addDrives(ctx context.Context, args []string) error {
 		}
 	}
 
-	statusesList := status
-	if len(status) == 0 {
-		statusesList = []string{"**"}
-	}
-	if len(status) == 1 {
-		if status[0] == "*" {
-			statusesList = []string{"**"}
-		}
-	}
-
-	// reset filterSet
-	filterSet = map[string]struct{}{}
-	filterStatus := []directv1alpha1.DirectCSIDrive{}
-	for _, d := range filterDrives {
-		for _, n := range statusesList {
-			if ok, _ := glob.Match(n, string(d.Status.DriveStatus)); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterStatus = append(filterStatus, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			} else if ok, _ := glob.Match(n+"*", string(d.Status.DriveStatus)); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterStatus = append(filterStatus, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			}
-		}
-	}
-
 	driveName := func(val string) string {
 		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
 		dr = strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
 		return strings.ReplaceAll(dr, "-part-", "")
 	}
 
-	updatedFilterStatus := []*directv1alpha1.DirectCSIDrive{}
-	for _, d := range filterStatus {
+	updatedFilterDrives := []*directv1alpha1.DirectCSIDrive{}
+	for _, d := range filterDrives {
 		if d.Status.DriveStatus == directv1alpha1.DriveStatusUnavailable {
+			continue
+		}
+
+		if d.Status.DriveStatus == directv1alpha1.DriveStatusInUse {
+			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
+			glog.Errorf("%s in use. Cannot be formatted", utils.Bold(driveAddr))
 			continue
 		}
 
@@ -235,12 +213,12 @@ func addDrives(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		updatedFilterStatus = append(updatedFilterStatus, updated)
+		updatedFilterDrives = append(updatedFilterDrives, updated)
 	}
 
-	sort.SliceStable(updatedFilterStatus, func(i, j int) bool {
-		d1 := updatedFilterStatus[i]
-		d2 := updatedFilterStatus[j]
+	sort.SliceStable(updatedFilterDrives, func(i, j int) bool {
+		d1 := updatedFilterDrives[i]
+		d2 := updatedFilterDrives[j]
 
 		if v := strings.Compare(d1.Status.NodeName, d2.Status.NodeName); v != 0 {
 			return v < 0
@@ -271,7 +249,7 @@ func addDrives(ctx context.Context, args []string) error {
 	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	t.SetStyle(style)
 
-	for _, d := range updatedFilterStatus {
+	for _, d := range updatedFilterDrives {
 		volumes := 0
 		for _, v := range volList.Items {
 			if v.Status.Drive == d.Name {
