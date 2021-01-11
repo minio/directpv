@@ -120,5 +120,12 @@ func install(ctx context.Context, args []string) error {
 	}
 	glog.Infof("'%s' deployment created", utils.Bold(identity))
 
+	if err := installer.RegisterDriveValidationRules(ctx, identity); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' drive validation rules registered", utils.Bold(identity))
+
 	return nil
 }
