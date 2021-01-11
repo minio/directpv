@@ -3,3 +3,5 @@
 dist/
 *.zip
 *.minisig
+direct-csi
+kubectl-direct_csi
