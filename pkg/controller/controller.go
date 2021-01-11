@@ -71,6 +71,9 @@ import (
  */
 
 func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
+	// Start admission webhook server
+	go serveAdmissionController(ctx)
+
 	return &ControllerServer{
 		NodeID:   nodeID,
 		Identity: identity,

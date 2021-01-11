@@ -25,11 +25,14 @@ import (
 
 	"github.com/minio/direct-csi/pkg/utils"
 
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	k8sErr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -84,9 +87,21 @@ const (
 
 	// debug log level default
 	logLevel = 3
+
+	// Admission controller
+	admissionControllerCertsDir    = "admission-webhook-certs"
+	admissionWebhookSecretName     = "validationwebhookcerts"
+	validationControllerName       = "directcsi-validation-controller"
+	admissionControllerWebhookName = "validatinghook"
+	admissionControllerWebhookPort = 443
+	certsDir                       = "/etc/certs"
+	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
+	privateKeyFileName             = "key.pem"
+	publicCertFileName             = "cert.pem"
 )
 
 var (
+	caBundle                   []byte
 	ErrKubeVersionNotSupported = errors.New(
 		fmt.Sprintf("%s: This version of kubernetes is not supported by direct-csi. Please upgrade your kubernetes installation and try again", utils.Red("ERR")))
 )
@@ -420,15 +435,75 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 	return nil
 }
 
+func CreateControllerService(ctx context.Context, generatedSelectorValue, identity string) error {
+	admissionWebhookPort := corev1.ServicePort{
+		Port: admissionControllerWebhookPort,
+		TargetPort: intstr.IntOrString{
+			Type:   intstr.String,
+			StrVal: admissionControllerWebhookName,
+		},
+	}
+	svc := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      validationControllerName,
+			Namespace: sanitizeName(identity),
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{admissionWebhookPort},
+			Selector: map[string]string{
+				directCSISelector: generatedSelectorValue,
+			},
+		},
+	}
+
+	if _, err := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateControllerSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte) error {
+
+	getCertsDataMap := func() map[string][]byte {
+		mp := make(map[string][]byte)
+		mp[privateKeyFileName] = privateKeyBytes
+		mp[publicCertFileName] = publicCertBytes
+		return mp
+	}
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      admissionWebhookSecretName,
+			Namespace: sanitizeName(identity),
+		},
+		Data: getCertsDataMap(),
+	}
+
+	if _, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
+
 	var replicas int32 = 3
 	privileged := true
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
 		Volumes: []corev1.Volume{
 			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", name))),
+			newSecretVolume(admissionControllerCertsDir, admissionWebhookSecretName),
 		},
 		Containers: []corev1.Container{
 			{
@@ -485,6 +560,11 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 				},
 				Ports: []corev1.ContainerPort{
 					{
+						ContainerPort: admissionControllerWebhookPort,
+						Name:          admissionControllerWebhookName,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
 						ContainerPort: 9898,
 						Name:          "healthz",
 						Protocol:      corev1.ProtocolTCP,
@@ -507,9 +587,22 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(volumeNameSocketDir, "/csi", false),
+					newVolumeMount(admissionControllerCertsDir, certsDir, false),
 				},
 			},
 		},
+	}
+
+	caCertBytes, publicCertBytes, privateKeyBytes, certErr := getCerts([]string{admissionWehookDNSName})
+	if certErr != nil {
+		return certErr
+	}
+	caBundle = caCertBytes
+
+	if err := CreateControllerSecret(ctx, identity, publicCertBytes, privateKeyBytes); err != nil {
+		if !k8sErr.IsAlreadyExists(err) {
+			return err
+		}
 	}
 
 	deployment := &appsv1.Deployment{
@@ -537,9 +630,15 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		},
 		Status: appsv1.DeploymentStatus{},
 	}
+
 	if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		return err
 	}
+
+	if err := CreateControllerService(ctx, generatedSelectorValue, identity); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -583,6 +682,18 @@ func newHostPathVolume(name, path string) corev1.Volume {
 	}
 }
 
+func newSecretVolume(name, secretName string) corev1.Volume {
+	volumeSource := corev1.VolumeSource{
+		Secret: &corev1.SecretVolumeSource{
+			SecretName: secretName,
+		},
+	}
+	return corev1.Volume{
+		Name:         name,
+		VolumeSource: volumeSource,
+	}
+}
+
 func newDirectCSIPluginsSocketDir(kubeletDir, name string) string {
 	return filepath.Join(kubeletDir, "plugins", sanitizeName(name))
 }
@@ -597,4 +708,75 @@ func newVolumeMount(name, path string, bidirectional bool) corev1.VolumeMount {
 		MountPath:        path,
 		MountPropagation: &mountProp,
 	}
+}
+
+func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebhookConfiguration {
+
+	name := sanitizeName(identity)
+	getServiceRef := func() *admissionv1.ServiceReference {
+		path := "/validatedrive"
+		return &admissionv1.ServiceReference{
+			Namespace: name,
+			Name:      validationControllerName,
+			Path:      &path,
+		}
+	}
+
+	getClientConfig := func() admissionv1.WebhookClientConfig {
+		return admissionv1.WebhookClientConfig{
+			Service:  getServiceRef(),
+			CABundle: []byte(caBundle),
+		}
+
+	}
+
+	getValidationRules := func() []admissionv1.RuleWithOperations {
+		return []admissionv1.RuleWithOperations{
+			{
+				Operations: []admissionv1.OperationType{admissionv1.Create, admissionv1.Update},
+				Rule: admissionv1.Rule{
+					APIGroups:   []string{"*"},
+					APIVersions: []string{"*"},
+					Resources:   []string{"directcsidrives"},
+				},
+			},
+		}
+	}
+
+	getValidatingWebhooks := func(validationControllerName string) []admissionv1.ValidatingWebhook {
+		supportedReviewVersions := []string{"v1", "v1beta1"}
+		sideEffectClass := admissionv1.SideEffectClassNone
+		return []admissionv1.ValidatingWebhook{
+			{
+				Name:                    validationControllerName,
+				ClientConfig:            getClientConfig(),
+				AdmissionReviewVersions: supportedReviewVersions,
+				SideEffects:             &sideEffectClass,
+				Rules:                   getValidationRules(),
+			},
+		}
+	}
+
+	validationControllerName := "drive.validation.controller"
+	validatingWebhookConfiguration := admissionv1.ValidatingWebhookConfiguration{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ValidatingWebhookConfiguration",
+			APIVersion: "admissionregistration.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      validationControllerName,
+			Namespace: name,
+		},
+		Webhooks: getValidatingWebhooks(validationControllerName),
+	}
+
+	return validatingWebhookConfiguration
+}
+
+func RegisterDriveValidationRules(ctx context.Context, identity string) error {
+	driveValidatingWebhookConfig := getDriveValidatingWebhookConfig(identity)
+	if _, err := utils.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(ctx, &driveValidatingWebhookConfig, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
 }
