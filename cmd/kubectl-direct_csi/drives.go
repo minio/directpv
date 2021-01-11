@@ -40,5 +40,5 @@ var drivesCmd = &cobra.Command{
 
 func init() {
 	drivesCmd.AddCommand(listDrivesCmd)
-	drivesCmd.AddCommand(addDrivesCmd)
+	drivesCmd.AddCommand(formatDrivesCmd)
 }

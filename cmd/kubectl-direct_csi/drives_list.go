@@ -251,16 +251,14 @@ func listDrives(ctx context.Context, args []string) error {
 		msg := ""
 		dr := func(val string) string {
 			dr := driveName(val)
-			col := red(dot)
 			for _, c := range d.Status.Conditions {
 				if c.Type == string(directv1alpha1.DirectCSIDriveConditionOwned) {
-					if c.Status == metav1.ConditionTrue {
-						col = green(dot)
+					if c.Status != metav1.ConditionTrue {
+						msg = c.Message
 					}
-					msg = c.Message
 				}
 			}
-			return strings.ReplaceAll(col+" "+dr, "-part-", "")
+			return strings.ReplaceAll("/dev/"+dr, "-part-", "")
 		}(d.Status.Path)
 		drStatus := d.Status.DriveStatus
 		if msg != "" {
