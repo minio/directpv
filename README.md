@@ -4,28 +4,30 @@
 
 Direct CSI is a driver to allocate volumes for pods that require _direct access_ to storage media (eg. MinIO). It maintains a global view of storage in the cluster, and directs pods to run on nodes where volume is provisioned. Each volume is a subdirectory carved out of available drives on the node and mounted into pods.
 
-Visit our [documentation](https://direct-csi.github.io) for more information.
+## Getting Started
 
-## Installation
-
-###### Install Direct-CSI cli
+###### Install Direct-CSI plugin
 
 ```bash
-kubectl krew install directcsi
+curl -sfL get.direct-csi.com | sh -
 ```
+
+This will install direct-csi plugin
 
 ###### Install Direct-CSI driver
 
+Use the plugin to install the driver
+
 ```bash
-kubectl directcsi install --crd 
+kubectl direct-csi install --crd 
 ```
 
-###### Add Drives to DirectCSI pool
+###### Format Drives intended for DirectCSI
 
-Choose drives to be managed by DirectCSI. Refer to [Add Drives](./docs/cli.md#add-drives) command for more info.
+Choose drives to be managed by DirectCSI. It is first formatted before use. Direct-CSI automatically ignores any root ('/') mounts
 
 ```bash
-kubectl directcsi drives add /dev/nvme* --nodes myhost{1...4}
+kubectl direct-csi drives format /dev/xvd* --nodes myhost{1...4}
 ```
 
 ## Make a Persistent Volume Claim
@@ -46,13 +48,6 @@ volumeClaimTemplates:
     storageClassName: direct.csi.min.io
 ```
 
-## References
-
- - [Documentation](https://direct-csi.github.io)
- - [CLI reference](./docs/cli.md)
- - [Architecture](./docs/arch.md) 
- - [Drives and Volumes](./docs/drives.md)
-
 ## License
 
-Use of `directcsi` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
+Use of `direct-csi` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
