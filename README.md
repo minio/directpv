@@ -1,53 +1,61 @@
-# Direct CSI 
+DirectCSI
+----------
 
 ![build](https://github.com/minio/direct-csi/workflows/Go/badge.svg) ![license](https://img.shields.io/badge/license-AGPL%20V3-blue)
 
-Direct CSI is a driver to allocate volumes for pods that require _direct access_ to storage media (eg. MinIO). It maintains a global view of storage in the cluster, and directs pods to run on nodes where volume is provisioned. Each volume is a subdirectory carved out of available drives on the node and mounted into pods.
+DirectCSI is a CSI driver that provisions volumes for workloads that require direct access to the storage medium. A storage medium is accessed _directly_ when there are no layers of indirection between the application accessing storage and the storage medium. Direct access is crucial for applications that are:
 
-## Getting Started
+ 1. I/O intensive or
+ 2. IOPS intensive or
+ 3. Manage reliability of data at the application layer or
+ 4. Require high consistency guarantees or
+ 4. Any combination of the above
 
-###### Install Direct-CSI plugin
+High performance applications that are tolerant to drive failures, and/or have the capability to heal data are ideal applications for DirectCSI. Examples of such applications are:
 
-```bash
-curl -sfL get.direct-csi.com | sh -
+ 1. MinIO
+ 2. Cassandra DB
+
+### QuickStart
+
+Here is the ***extremely*** quickstart:
+
+```sh
+kubectl krew install direct-csi
+kubectl direct-csi install --crd
+kubectl direct-csi drives ls
+# choose all the drives that direct-csi should manage and format them
+kubectl direct-csi format --drives $DRIVE_SELECTOR_GLOB --nodes $NODE_SELECTOR_GLOB
+# 'direct-csi-min-io' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates
 ```
 
-This will install direct-csi plugin
+For more information, please visit our [documentation](./docs/index.md).
 
-###### Install Direct-CSI driver
+### How is it different from LocalVolume provisioner?
 
-Use the plugin to install the driver
+[LocalVolume](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) provisioner also allows direct access to the storage medium. However, it requires manual management of drives and volumes - i.e. it does not support dynamic provisioning of volumes, storage management or dynamic scheduling of pods on nodes with available volumes. 
 
-```bash
-kubectl direct-csi install --crd 
-```
+DirectCSI on the other hand, supports dynamic provisioning of volumes, performs allocation of volumes based on storage capacity, and schedules pods to run on nodes which have most capacity available. 
 
-###### Format Drives intended for DirectCSI
+### How is it different from HostPath volume?
 
-Choose drives to be managed by DirectCSI. It is first formatted before use. Direct-CSI automatically ignores any root ('/') mounts
+[HostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath) volume also allows direct access to the storage medium. However, it only supports ephermeral volumes. i.e. pod scheduling is not tied to volume provisioning. Therefore, if a pod is rescheduled or restarted, it might end up on a node where the data is not available. However, since HostPath volumes are ephemeral, pod startup will go on without raising any errors.
 
-```bash
-kubectl direct-csi drives format /dev/xvd* --nodes myhost{1...4}
-```
+HostPath volumes cannot be provisioned and managed via PVC resources. It is always provisioned either manually as a PV or directly specified in the PodSpec. 
 
-## Make a Persistent Volume Claim
 
-Provision a Direct-CSI volume by specifying `volumeClaimTemplates`:
+### Limitations of DirectCSI
 
-###### Example
+The high consistency and performance benefits of DirectCSI come with the limitation that once provisioned, volumes cannot be moved to other nodes i.e. volumes are sticky to nodes. In case a node is lost, then the volume is also lost. 
 
-```yaml
-volumeClaimTemplates:
-  - metadata:
-    name: myvol1
-  spec:
-    accessModes: [ "ReadWriteOnce" ]
-    resources:
-      requests:
-        storage: 500G
-    storageClassName: direct.csi.min.io
-```
 
-## License
+### References
+
+ - [Installation](./docs/installation.md)
+ - [CLI reference](./docs/cli.md)
+<!-- - [Usage Guide](./docs/usage-guide.md) -->
+<!-- - [Troubleshooting](./docs/troubleshooting.md) -->
+
+### LICENSE
 
 Use of `direct-csi` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
