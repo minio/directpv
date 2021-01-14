@@ -20,7 +20,7 @@ metadata:
   labels:
     app: minio
 spec:
-  serviceName: "minio-svc"
+  serviceName: "minio"
   replicas: 4
   selector:
     matchLabels:
@@ -49,7 +49,7 @@ spec:
           mountPath: /data4
         args:
         - "server"
-        - "http://minio-{1...4}:9000/data{1...4}"
+        - "http://minio-{0...3}.minio.default.svc:9000/data{1...4}"
   volumeClaimTemplates: # This is the specification in which you reference the StorageClass
   - metadata:
       name: minio-data-1
