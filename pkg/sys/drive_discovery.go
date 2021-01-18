@@ -116,14 +116,15 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) error {
 				return err
 			}
 		}
-		if fsInfo != nil {
-			mounts, err := b.probeMountInfo(0)
-			if err != nil {
-				return err
-			}
-			fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
-			b.FSInfo = fsInfo
+		if fsInfo == nil {
+			fsInfo = &FSInfo{}
 		}
+		mounts, err := b.probeMountInfo(0)
+		if err != nil {
+			return err
+		}
+		fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
+		b.FSInfo = fsInfo
 		return nil
 	}
 	for i, p := range parts {
@@ -135,13 +136,15 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) error {
 			}
 		}
 
-		if fsInfo != nil {
-			mounts, err := b.probeMountInfo(uint(i + 1))
-			if err != nil {
-				return err
-			}
-			fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
+		if fsInfo == nil {
+			fsInfo = &FSInfo{}
 		}
+
+		mounts, err := b.probeMountInfo(uint(i + 1))
+		if err != nil {
+			return err
+		}
+		fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
 		p.FSInfo = fsInfo
 		b.Partitions = append(b.Partitions, p)
 	}
