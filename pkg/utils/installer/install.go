@@ -733,7 +733,7 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 	getValidationRules := func() []admissionv1.RuleWithOperations {
 		return []admissionv1.RuleWithOperations{
 			{
-				Operations: []admissionv1.OperationType{admissionv1.Create, admissionv1.Update},
+				Operations: []admissionv1.OperationType{admissionv1.Update},
 				Rule: admissionv1.Rule{
 					APIGroups:   []string{"*"},
 					APIVersions: []string{"*"},

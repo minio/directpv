@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -32,6 +31,8 @@ import (
 const (
 	FailureStatus = "Failure"
 	SuccessStatus = "Success"
+	rootPath      = "/"
+	xfsFileSystem = "xfs"
 )
 
 type ValidationHandler struct {
@@ -76,48 +77,101 @@ func writeSuccessResponse(admissionReview admissionv1.AdmissionReview, w http.Re
 func validateRequestedFormat(directCSIDrive directv1alpha1.DirectCSIDrive, admissionReview *admissionv1.AdmissionReview) bool {
 	requestedFormat := directCSIDrive.Spec.RequestedFormat
 
-	if reflect.DeepEqual(requestedFormat, directv1alpha1.RequestedFormat{}) {
+	// Check if the `requestedFormat` field is set
+	if requestedFormat == nil {
 		return true
 	}
 
-	if directCSIDrive.Status.DriveStatus == directv1alpha1.DriveStatusUnavailable || directCSIDrive.Status.Mountpoint == "/" {
-		admissionReview.Response.Allowed = false
-		admissionReview.Response.Result = &metav1.Status{
-			Status:  FailureStatus,
-			Message: "Root partition'ed drives cannot be added/formatted",
-		}
-		return false
-	}
-
-	if directCSIDrive.Status.DriveStatus == directv1alpha1.DriveStatusInUse {
-		admissionReview.Response.Allowed = false
-		admissionReview.Response.Result = &metav1.Status{
-			Status:  FailureStatus,
-			Message: "Drives in-use cannot be formatted and added",
-		}
-		return false
-	}
-
-	if requestedFormat.Filesystem != "" && requestedFormat.Filesystem != "xfs" {
-		admissionReview.Response.Allowed = false
-		admissionReview.Response.Result = &metav1.Status{
-			Status:  FailureStatus,
-			Message: "DirectCSI supports only xfs filesystem format",
-		}
-		return false
-	}
-
-	if directCSIDrive.Status.Filesystem != "" || directCSIDrive.Status.Mountpoint != "" {
-		if !requestedFormat.Force {
+	// Drive Status checks
+	// (*) Do not allow updates on `Unavailable`/`InUse` drives
+	validateDriveStatus := func() bool {
+		driveStatus := directCSIDrive.Status.DriveStatus
+		switch driveStatus {
+		case directv1alpha1.DriveStatusUnavailable:
 			admissionReview.Response.Allowed = false
 			admissionReview.Response.Result = &metav1.Status{
 				Status:  FailureStatus,
-				Message: "Force flag must be set to override the format and remount",
+				Message: "Unavailable drives cannot be added/formatted",
+			}
+			return false
+		case directv1alpha1.DriveStatusInUse:
+			admissionReview.Response.Allowed = false
+			admissionReview.Response.Result = &metav1.Status{
+				Status:  FailureStatus,
+				Message: "Drives in-use cannot be formatted and added",
+			}
+			return false
+		default:
+			return true
+		}
+	}
+	if !validateDriveStatus() {
+		return false
+	}
+
+	// Mountpoint checks
+	// (*) Do not allow updates on root partitions
+	// (*) Check if `force` flag is set for unmounting
+	validateMountpoint := func() bool {
+		mountPoint := directCSIDrive.Status.Mountpoint
+		switch mountPoint {
+		case "":
+			return true
+		case rootPath:
+			admissionReview.Response.Allowed = false
+			admissionReview.Response.Result = &metav1.Status{
+				Status:  FailureStatus,
+				Message: "Root partition'ed drives cannot be added/formatted",
+			}
+			return false
+		default:
+			if !requestedFormat.Force {
+				admissionReview.Response.Allowed = false
+				admissionReview.Response.Result = &metav1.Status{
+					Status:  FailureStatus,
+					Message: "Force flag must be set to unmount and format the drive",
+				}
+				return false
+			}
+			return true
+		}
+	}
+	if !validateMountpoint() {
+		return false
+	}
+
+	// Filesystem validation
+	// (*) Allow only "xfs" formatting
+	// (*) Check if `force` flag is set for formatting
+	validateFS := func() bool {
+		requestedFilesystem := requestedFormat.Filesystem
+		switch requestedFilesystem {
+		case "":
+			return true
+		case xfsFileSystem:
+			if !requestedFormat.Force {
+				admissionReview.Response.Allowed = false
+				admissionReview.Response.Result = &metav1.Status{
+					Status:  FailureStatus,
+					Message: "Force flag must be set to override the format and remount",
+				}
+				return false
+			}
+			return true
+		default:
+			admissionReview.Response.Allowed = false
+			admissionReview.Response.Result = &metav1.Status{
+				Status:  FailureStatus,
+				Message: "DirectCSI supports only xfs filesystem format",
 			}
 			return false
 		}
 	}
+	if !validateFS() {
+		return false
+	}
 
+	// All validations passed!
 	return true
 }
 
@@ -152,6 +206,8 @@ func (vh *ValidationHandler) validateDrive(w http.ResponseWriter, r *http.Reques
 		writeSuccessResponse(admissionReview, w)
 		return
 	}
+
+	// Add more validations here
 
 	writeSuccessResponse(admissionReview, w)
 }
