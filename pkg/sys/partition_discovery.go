@@ -98,7 +98,7 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 		}
 		partNum := int(i + 1)
 		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
-		if err := makeBlockFile(partitionPath, b.Major, b.Minor); err != nil {
+		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
 
@@ -148,7 +148,7 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 		}
 		partNum := int(i + 1)
 		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
-		if err := makeBlockFile(partitionPath, b.Major, b.Minor); err != nil {
+		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
 
@@ -198,7 +198,7 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 		}
 		partNum := int(i + 1)
 		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
-		if err := makeBlockFile(partitionPath, b.Major, b.Minor); err != nil {
+		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
 
@@ -282,7 +282,7 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 
 		partNum := int(i + 1)
 		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
-		if err := makeBlockFile(partitionPath, b.Major, b.Minor); err != nil {
+		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
 
@@ -348,7 +348,8 @@ func curr(f *os.File) int64 {
 }
 
 func makeBlockFile(path string, major, minor uint32) error {
-	if err := unix.Mknod(path, unix.S_IFBLK|uint32(os.FileMode(0666)), int(unix.Mkdev(major, minor))); err != nil && !os.IsExist(err) {
+	mkdevResp := unix.Mkdev(major, minor)
+	if err := unix.Mknod(path, unix.S_IFBLK|uint32(os.FileMode(0666)), int(mkdevResp)); err != nil && !os.IsExist(err) {
 		return err
 	}
 	return nil

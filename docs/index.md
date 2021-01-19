@@ -9,13 +9,16 @@ Documentation
  - [Installation](./installation.md)
  - [CLI reference](./cli.md)
 
+### Advanced
+ - [Architecture](./architecture.md)
+ - [Security](./security.md)
+ - [CSI Specification](./specification.md)
+
 <!--- 
  - [Usage Guide](./usage-guide.md)
  - [Upgrades](./cli/upgrades.md) 
  
 ### Advanced
- - [Architecture](./arch.md)
- - [Specification](./specification.md)
  - [Internals](./internals.md)
  - [Troubleshooting](./troubleshooting.md)
 ### Community

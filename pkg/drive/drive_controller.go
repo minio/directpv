@@ -201,7 +201,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 		case directv1alpha1.DriveStatusAvailable:
 			if !formatted || force {
 				if mounted {
-					if err := unmountDrive(target); err != nil {
+					if err := unmountDrive(source); err != nil {
 						err = fmt.Errorf("failed to unmount drive: %s %v", new.Name, err)
 						glog.Error(err)
 						updateErr = err
