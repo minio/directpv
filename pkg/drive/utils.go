@@ -48,8 +48,9 @@ func mountDrive(source, target string, mountOpts []string) error {
 }
 
 // unmountDrive - Idempotent function to unmount a DirectCSIDrive
-func unmountDrive(path string) error {
-	if err := sys.SafeUnmount(path, []sys.UnmountOption{
+func unmountDrive(drivePath string) error {
+	glog.V(3).Infof("unmounting drive %s", drivePath)
+	if err := sys.SafeUnmountAll(drivePath, []sys.UnmountOption{
 		sys.UnmountOptionDetach,
 	}); err != nil {
 		return err

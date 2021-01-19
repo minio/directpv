@@ -209,7 +209,7 @@ func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpt
 		}
 	}
 
-	fmt.Println("mounting", source, "to", target)
+	glog.V(5).Infof("mounting %s at %s", source, target)
 	return syscall.Mount(source, target, fsType, flags, strings.Join(superblockOpts, ","))
 }
 
@@ -236,6 +236,24 @@ func SafeUnmount(target string, opts []UnmountOption) error {
 	return Unmount(target, opts)
 
 }
+
+func SafeUnmountAll(drivePath string, opts []UnmountOption) error {
+	mounts, err := ProbeMountInfo()
+	if err != nil {
+		return err
+	}
+
+	for _, m := range mounts {
+		if getBlockFile(m.DevName) == getBlockFile(drivePath) {
+			if err := SafeUnmount(m.Mountpoint, opts); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func Unmount(target string, opts []UnmountOption) error {
 	flags := 0
 	for _, opt := range opts {
@@ -250,5 +268,6 @@ func Unmount(target string, opts []UnmountOption) error {
 			return fmt.Errorf("Unsupport unmount flag: %s", opt)
 		}
 	}
+	glog.V(5).Infof("unmounting %s", target)
 	return syscall.Unmount(target, flags)
 }
