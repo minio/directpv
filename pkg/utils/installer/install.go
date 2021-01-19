@@ -127,7 +127,7 @@ func CreateNamespace(ctx context.Context, identity string) error {
 }
 
 func CreateCSIDriver(ctx context.Context, identity string) error {
-	podInfoOnMount := false
+	podInfoOnMount := true
 	attachRequired := false
 
 	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")

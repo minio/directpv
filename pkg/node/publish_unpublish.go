@@ -18,6 +18,7 @@ package node
 
 import (
 	"context"
+	"strings"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/sys"
@@ -29,6 +30,10 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	directCSIVolumeContextPrefix = "csi.storage.k8s.io"
 )
 
 func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -77,6 +82,17 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		}
 	}
 	vol.Status.ContainerPath = containerPath
+
+	volumeContext, volumeLabels := req.GetVolumeContext(), vol.ObjectMeta.GetLabels()
+	if volumeLabels == nil {
+		volumeLabels = make(map[string]string)
+	}
+	for k, v := range volumeContext {
+		if strings.Contains(k, directCSIVolumeContextPrefix) {
+			volumeLabels[k] = v
+		}
+	}
+	vol.ObjectMeta.Labels = volumeLabels
 
 	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
 		return nil, err
