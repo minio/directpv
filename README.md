@@ -59,3 +59,8 @@ The high consistency and performance benefits of DirectCSI come with the limitat
 ### LICENSE
 
 Use of `direct-csi` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
+
+Security
+---------
+
+**Important**: Report security issues to security@min.io. Please do not report security issues here.
