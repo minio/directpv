@@ -52,6 +52,7 @@ func unmountDrive(drivePath string) error {
 	glog.V(3).Infof("unmounting drive %s", drivePath)
 	if err := sys.SafeUnmountAll(drivePath, []sys.UnmountOption{
 		sys.UnmountOptionDetach,
+		sys.UnmountOptionForce,
 	}); err != nil {
 		return err
 	}
