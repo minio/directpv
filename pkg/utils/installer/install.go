@@ -90,14 +90,18 @@ const (
 
 	// Admission controller
 	admissionControllerCertsDir    = "admission-webhook-certs"
-	admissionWebhookSecretName     = "validationwebhookcerts"
+	AdmissionWebhookSecretName     = "validationwebhookcerts"
 	validationControllerName       = "directcsi-validation-controller"
 	admissionControllerWebhookName = "validatinghook"
+	ValidationWebhookConfigName    = "drive.validation.controller"
 	admissionControllerWebhookPort = 443
 	certsDir                       = "/etc/certs"
 	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
 	privateKeyFileName             = "key.pem"
 	publicCertFileName             = "cert.pem"
+
+	// Finalizers
+	DirectCSIFinalizerDeleteProtection = "/delete-protection"
 )
 
 var (
@@ -481,7 +485,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      admissionWebhookSecretName,
+			Name:      AdmissionWebhookSecretName,
 			Namespace: sanitizeName(identity),
 		},
 		Data: getCertsDataMap(),
@@ -503,7 +507,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		ServiceAccountName: name,
 		Volumes: []corev1.Volume{
 			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", name))),
-			newSecretVolume(admissionControllerCertsDir, admissionWebhookSecretName),
+			newSecretVolume(admissionControllerCertsDir, AdmissionWebhookSecretName),
 		},
 		Containers: []corev1.Container{
 			{
@@ -630,6 +634,9 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		},
 		Status: appsv1.DeploymentStatus{},
 	}
+	deployment.ObjectMeta.Finalizers = []string{
+		sanitizeName(identity) + DirectCSIFinalizerDeleteProtection,
+	}
 
 	if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		return err
@@ -743,12 +750,12 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 		}
 	}
 
-	getValidatingWebhooks := func(validationControllerName string) []admissionv1.ValidatingWebhook {
+	getValidatingWebhooks := func() []admissionv1.ValidatingWebhook {
 		supportedReviewVersions := []string{"v1", "v1beta1"}
 		sideEffectClass := admissionv1.SideEffectClassNone
 		return []admissionv1.ValidatingWebhook{
 			{
-				Name:                    validationControllerName,
+				Name:                    ValidationWebhookConfigName,
 				ClientConfig:            getClientConfig(),
 				AdmissionReviewVersions: supportedReviewVersions,
 				SideEffects:             &sideEffectClass,
@@ -757,17 +764,19 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 		}
 	}
 
-	validationControllerName := "drive.validation.controller"
 	validatingWebhookConfiguration := admissionv1.ValidatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ValidatingWebhookConfiguration",
 			APIVersion: "admissionregistration.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      validationControllerName,
+			Name:      ValidationWebhookConfigName,
 			Namespace: name,
+			Finalizers: []string{
+				sanitizeName(identity) + DirectCSIFinalizerDeleteProtection,
+			},
 		},
-		Webhooks: getValidatingWebhooks(validationControllerName),
+		Webhooks: getValidatingWebhooks(),
 	}
 
 	return validatingWebhookConfiguration

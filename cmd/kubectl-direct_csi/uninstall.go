@@ -145,6 +145,20 @@ func uninstall(ctx context.Context, args []string) error {
 	}
 	glog.Infof("'%s' daemonset deleted", utils.Bold(identity))
 
+	if err := installer.DeleteDriveValidationRules(ctx, identity); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' drive validation rules removed", utils.Bold(identity))
+
+	if err := installer.DeleteSecrets(ctx, identity); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' secrets deleted", utils.Bold(identity))
+
 	if err := installer.DeleteDeployment(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
