@@ -91,8 +91,69 @@ func DeleteDaemonSet(ctx context.Context, identity string) error {
 	return nil
 }
 
+func DeleteDriveValidationRules(ctx context.Context, identity string) error {
+	vClient := utils.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations()
+
+	getDeleteProtectionFinalizer := func() string {
+		return sanitizeName(identity) + DirectCSIFinalizerDeleteProtection
+	}
+
+	clearFinalizers := func() error {
+		config, err := vClient.Get(ctx, ValidationWebhookConfigName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		finalizer := getDeleteProtectionFinalizer()
+		config.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&config.ObjectMeta, finalizer))
+		if _, err := vClient.Update(ctx, config, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := clearFinalizers(); err != nil {
+		return err
+	}
+
+	if err := vClient.Delete(ctx, ValidationWebhookConfigName, metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteSecrets(ctx context.Context, identity string) error {
+	if err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Delete(ctx, AdmissionWebhookSecretName, metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func DeleteDeployment(ctx context.Context, identity string) error {
-	if err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{}); err != nil {
+	dClient := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity))
+
+	getDeleteProtectionFinalizer := func() string {
+		return sanitizeName(identity) + DirectCSIFinalizerDeleteProtection
+	}
+
+	clearFinalizers := func(name string) error {
+		deployment, err := dClient.Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		finalizer := getDeleteProtectionFinalizer()
+		deployment.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&deployment.ObjectMeta, finalizer))
+		if _, err := dClient.Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	name := sanitizeName(identity)
+	if err := clearFinalizers(name); err != nil {
+		return err
+	}
+
+	if err := dClient.Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil
