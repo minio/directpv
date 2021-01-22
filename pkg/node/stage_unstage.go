@@ -20,7 +20,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/sys"
@@ -63,18 +62,12 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	var size int64
-	if val, ok := req.GetVolumeContext()["RequiredBytes"]; ok {
-		size, err = strconv.ParseInt(val, 10, 64)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "invalid volume size [%s]: %v", val, err)
-		}
-	}
 	path := filepath.Join(drive.Status.Mountpoint, vID)
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return nil, err
 	}
 
+	size := vol.Status.TotalCapacity
 	if err := mountVolume(ctx, path, stagingTargetPath, vID, size, false); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed stage volume: %v", err)
 	}

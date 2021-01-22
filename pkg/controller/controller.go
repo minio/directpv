@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -293,14 +292,11 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	volumeContext := req.GetParameters()
-	volumeContext["RequiredBytes"] = fmt.Sprintf("%d", size)
-
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      name,
 			CapacityBytes: size,
-			VolumeContext: volumeContext,
+			VolumeContext: req.GetParameters(),
 			ContentSource: req.GetVolumeContentSource(),
 			AccessibleTopology: []*csi.Topology{
 				{
