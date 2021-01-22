@@ -29,6 +29,8 @@ spec:
     metadata:
       labels:
         app: minio
+        direct.csi.min.io/organization: minio
+        direct.csi.min.io/app: minio-example
     spec:
       containers:
       - name: minio

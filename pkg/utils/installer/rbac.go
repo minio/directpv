@@ -296,6 +296,20 @@ func createClusterRole(ctx context.Context, identity string) error {
 					"direct.csi.min.io",
 				},
 			},
+			{
+				Verbs: []string{
+					clusterRoleVerbGet,
+					clusterRoleVerbList,
+					clusterRoleVerbWatch,
+				},
+				Resources: []string{
+					"pods",
+					"pod",
+				},
+				APIGroups: []string{
+					"",
+				},
+			},
 		},
 		AggregationRule: nil,
 	}

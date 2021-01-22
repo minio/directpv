@@ -18,6 +18,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
@@ -33,8 +34,32 @@ import (
 )
 
 const (
-	directCSIVolumeContextPrefix = "csi.storage.k8s.io"
+	podNameKey      = "csi.storage.k8s.io/pod.name"
+	podNamespaceKey = "csi.storage.k8s.io/pod.namespace"
 )
+
+func parseVolumeContext(volumeContext map[string]string) (name, ns string, err error) {
+
+	parseValue := func(key string) (string, error) {
+		value, ok := volumeContext[key]
+		if !ok {
+			return "", fmt.Errorf("required volume context key not found: %v", key)
+		}
+		return value, nil
+	}
+
+	name, err = parseValue(podNameKey)
+	if err != nil {
+		return "", "", err
+	}
+
+	ns, err = parseValue(podNamespaceKey)
+	if err != nil {
+		return "", "", err
+	}
+
+	return
+}
 
 func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	vID := req.GetVolumeId()
@@ -69,6 +94,38 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
+	extractPodLabels := func() (map[string]string, error) {
+		volumeContext, volumeLabels := req.GetVolumeContext(), vol.ObjectMeta.GetLabels()
+		if volumeLabels == nil {
+			volumeLabels = make(map[string]string)
+		}
+
+		podName, podNs, parseErr := parseVolumeContext(volumeContext)
+		if parseErr != nil {
+			return nil, status.Errorf(codes.Internal, "failed to parse the volume context: %v", parseErr)
+		}
+
+		pod, err := utils.GetKubeClient().CoreV1().Pods(podNs).Get(ctx, podName, metav1.GetOptions{})
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "Pod not found: %v", err)
+		}
+
+		podLabels := pod.ObjectMeta.GetLabels()
+		for k, v := range podLabels {
+			if strings.HasPrefix(k, directv1alpha1.Group+"/") {
+				volumeLabels[k] = v
+			}
+		}
+
+		return volumeLabels, nil
+	}
+
+	volLabels, vErr := extractPodLabels()
+	if vErr != nil {
+		return nil, vErr
+	}
+	vol.ObjectMeta.Labels = volLabels
+
 	if err := mountVolume(ctx, stagingTargetPath, containerPath, vID, 0, readOnly); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed volume publish: %v", err)
 	}
@@ -82,17 +139,6 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		}
 	}
 	vol.Status.ContainerPath = containerPath
-
-	volumeContext, volumeLabels := req.GetVolumeContext(), vol.ObjectMeta.GetLabels()
-	if volumeLabels == nil {
-		volumeLabels = make(map[string]string)
-	}
-	for k, v := range volumeContext {
-		if strings.Contains(k, directCSIVolumeContextPrefix) {
-			volumeLabels[k] = v
-		}
-	}
-	vol.ObjectMeta.Labels = volumeLabels
 
 	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
 		return nil, err
