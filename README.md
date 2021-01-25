@@ -1,7 +1,7 @@
 DirectCSI
 ----------
 
-![build](https://github.com/minio/direct-csi/workflows/Go/badge.svg) ![license](https://img.shields.io/badge/license-AGPL%20V3-blue)
+![build](https://github.com/minio/direct-csi/workflows/Go/badge.svg) ![license](https://img.shields.io/badge/license-AGPL%20V3-blue) ![Codecov](https://codecov.io/gh/minio/direct-csi)
 
 DirectCSI is a CSI driver that provisions volumes for workloads that require direct access to the storage medium. A storage medium is accessed _directly_ when there are no layers of indirection between the application accessing storage and the storage medium. Direct access is crucial for applications that are:
 
@@ -9,7 +9,7 @@ DirectCSI is a CSI driver that provisions volumes for workloads that require dir
  2. IOPS intensive or
  3. Manage reliability of data at the application layer or
  4. Require high consistency guarantees or
- 4. Any combination of the above
+ 5. Any combination of the above
 
 High performance applications that are tolerant to drive failures, and/or have the capability to heal data are ideal applications for DirectCSI. Examples of such applications are:
 
