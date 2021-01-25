@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -94,7 +95,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	extractPodLabels := func() (map[string]string, error) {
+	extractPodLabels := func() map[string]string {
 		volumeContext, volumeLabels := req.GetVolumeContext(), vol.ObjectMeta.GetLabels()
 		if volumeLabels == nil {
 			volumeLabels = make(map[string]string)
@@ -102,12 +103,14 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 		podName, podNs, parseErr := parseVolumeContext(volumeContext)
 		if parseErr != nil {
-			return nil, status.Errorf(codes.Internal, "failed to parse the volume context: %v", parseErr)
+			glog.V(5).Infof("Failed to parse the volume context: %v", parseErr)
+			return nil
 		}
 
 		pod, err := utils.GetKubeClient().CoreV1().Pods(podNs).Get(ctx, podName, metav1.GetOptions{})
 		if err != nil {
-			return nil, status.Errorf(codes.NotFound, "Pod not found: %v", err)
+			glog.V(5).Infof("Failed to extract pod labels: %v", err)
+			return nil
 		}
 
 		podLabels := pod.ObjectMeta.GetLabels()
@@ -117,14 +120,13 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 			}
 		}
 
-		return volumeLabels, nil
+		return volumeLabels
 	}
 
-	volLabels, vErr := extractPodLabels()
-	if vErr != nil {
-		return nil, vErr
+	volLabels := extractPodLabels()
+	if volLabels != nil {
+		vol.ObjectMeta.Labels = volLabels
 	}
-	vol.ObjectMeta.Labels = volLabels
 
 	if err := mountVolume(ctx, stagingTargetPath, containerPath, vID, 0, readOnly); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed volume publish: %v", err)
