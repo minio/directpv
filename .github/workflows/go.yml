@@ -23,14 +23,16 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
-    - name: Build
+    - name: Build and upload coverage to Codecov
       env:
         CGO_ENABLED: 0
         GO111MODULE: on
+        CODECOV_TOKEN: "d8ab4164-f215-4ccb-a14a-bacf23e27258"
       run: |
         diff -au <(gofmt -s -d cmd) <(printf "")
         diff -au <(gofmt -s -d pkg) <(printf "")
-        go test -v ./...
+        go test -v ./... -coverprofile="codecov-coverage.txt" -covermode=atomic
         ./build.sh
+        curl -s https://codecov.io/bash | bash -s -- -f "codecov-coverage.txt" -F ubuntu-latest
         docker build . -t "direct-csi:latest"
 
