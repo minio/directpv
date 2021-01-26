@@ -27,7 +27,7 @@ jobs:
       env:
         CGO_ENABLED: 0
         GO111MODULE: on
-        CODECOV_TOKEN: "d8ab4164-f215-4ccb-a14a-bacf23e27258"
+        CODECOV_TOKEN: "9128c679-541f-4cf7-b9a7-6b7d9c95f774"
       run: |
         diff -au <(gofmt -s -d cmd) <(printf "")
         diff -au <(gofmt -s -d pkg) <(printf "")
