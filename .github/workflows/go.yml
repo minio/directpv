@@ -1,4 +1,4 @@
-name: Build Static Binary
+name: GitHub CI
 
 on:
   push:

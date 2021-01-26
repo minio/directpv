@@ -1,7 +1,7 @@
 DirectCSI
 ----------
 
-![build](https://github.com/minio/direct-csi/workflows/Go/badge.svg) ![license](https://img.shields.io/badge/license-AGPL%20V3-blue) ![Codecov](https://codecov.io/gh/minio/direct-csi/branch/master/graph/badge.svg)
+![build](https://github.com/minio/direct-csi/workflows/Go/badge.svg) ![license](https://img.shields.io/badge/license-AGPL%20V3-blue) [![codecov](https://codecov.io/gh/minio/direct-csi/branch/master/graph/badge.svg?token=NV0686IUUI)](https://codecov.io/gh/minio/direct-csi)
 
 DirectCSI is a CSI driver that provisions volumes for workloads that require direct access to the storage medium. A storage medium is accessed _directly_ when there are no layers of indirection between the application accessing storage and the storage medium. Direct access is crucial for applications that are:
 
