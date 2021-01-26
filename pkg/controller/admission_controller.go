@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -41,7 +42,6 @@ func serveAdmissionController(ctx context.Context) {
 
 	// Create a secure http server
 	server := &http.Server{
-		Addr: fmt.Sprintf(":%v", port),
 		TLSConfig: &tls.Config{
 			Certificates:       []tls.Certificate{certs},
 			InsecureSkipVerify: true,
@@ -55,18 +55,15 @@ func serveAdmissionController(ctx context.Context) {
 	mux.HandleFunc(volumeHandlerPath, vh.validateVolume)
 	server.Handler = mux
 
-	// start webhook server in new rountine
-	go func() {
-		if err := server.ListenAndServeTLS("", ""); err != nil {
-			glog.Errorf("Failed to listen and serve admission webhook server: %v", err)
-		}
-	}()
+	lc := net.ListenConfig{}
+	listener, lErr := lc.Listen(ctx, "tcp", fmt.Sprintf(":%v", port))
+	if lErr != nil {
+		panic(lErr)
+	}
 
-	glog.V(5).Infof("controller manager started")
-	glog.Infof("Admission webhook server started and listening in port: %s", port)
-
-	<-ctx.Done()
-
-	glog.Info("Got shutdown signal, shutting down admission webhook server gracefully")
-	server.Shutdown(context.Background())
+	glog.Infof("Starting admission webhook server in port: %s", port)
+	if err := server.ServeTLS(listener, "", ""); err != nil {
+		glog.Errorf("Failed to listen and serve admission webhook server: %v", err)
+		panic(err)
+	}
 }

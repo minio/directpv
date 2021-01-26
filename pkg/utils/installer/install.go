@@ -32,7 +32,7 @@ import (
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	k8sErr "k8s.io/apimachinery/pkg/api/errors"
+	kErr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -604,7 +604,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 	caBundle = caCertBytes
 
 	if err := CreateControllerSecret(ctx, identity, publicCertBytes, privateKeyBytes); err != nil {
-		if !k8sErr.IsAlreadyExists(err) {
+		if !kErr.IsAlreadyExists(err) {
 			return err
 		}
 	}
