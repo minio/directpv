@@ -74,7 +74,7 @@ func ProbeMountInfo() ([]MountInfo, error) {
 			return nil, fmt.Errorf("invalid format of %s", mountinfoFile)
 		}
 		firstParts := strings.Fields(strings.TrimSpace(parts[0]))
-		if len(firstParts) < 7 {
+		if len(firstParts) < 6 {
 			return nil, fmt.Errorf("invalid format of %s", mountinfoFile)
 		}
 		mID, err := strconv.ParseUint(firstParts[0], 10, 32)
