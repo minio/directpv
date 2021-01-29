@@ -48,6 +48,10 @@ func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
 	return crdClient
 }
 
+func GetAPIExtensionsClient() *apiextensions.ApiextensionsV1Client {
+	return apiextensionsClient
+}
+
 func GetDiscoveryClient() discovery.DiscoveryInterface {
 	return discoveryClient
 }

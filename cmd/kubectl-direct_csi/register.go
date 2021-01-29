@@ -19,69 +19,41 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"strings"
 
-	"sigs.k8s.io/controller-tools/pkg/crd"
-	crdmarkers "sigs.k8s.io/controller-tools/pkg/crd/markers"
-	"sigs.k8s.io/controller-tools/pkg/genall"
-	"sigs.k8s.io/controller-tools/pkg/loader"
-	"sigs.k8s.io/controller-tools/pkg/markers"
-
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	scheme "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/minio/direct-csi/pkg/utils"
 )
 
-const version = "v1alpha1"
-
 func registerCRDs(ctx context.Context) error {
-	roots, err := loader.LoadRoots("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/" + version)
-	if err != nil {
-		return err
+	crdObjs := []runtime.Object{}
+	for _, asset := range AssetNames() {
+		crdBytes, err := Asset(asset)
+		if err != nil {
+			return err
+		}
+		crdObj, err := utils.ParseSingleKubeNativeFromBytes(crdBytes)
+		if err != nil {
+			return err
+		}
+		crdObjs = append(crdObjs, crdObj)
 	}
 
-	defn := markers.Must(markers.MakeDefinition("crd", markers.DescribesPackage, crd.Generator{}))
-	optionsRegistry := &markers.Registry{}
-	if err := optionsRegistry.Register(defn); err != nil {
-		return err
-	}
-	if err := genall.RegisterOptionsMarkers(optionsRegistry); err != nil {
-		return err
-	}
-	if err := crdmarkers.Register(optionsRegistry); err != nil {
-		return err
-	}
-	parser := &crd.Parser{
-		Collector: &markers.Collector{
-			Registry: optionsRegistry,
-		},
-		Checker: &loader.TypeChecker{},
-	}
-	crd.AddKnownTypes(parser)
-	for _, root := range roots {
-		parser.NeedPackage(root)
-	}
-
-	metav1Pkg := crd.FindMetav1(roots)
-	if metav1Pkg == nil {
-		// no objects in the roots, since nothing imported metav1
-		return fmt.Errorf("no objects found in all roots")
-	}
-
-	// TODO: allow selecting a specific object
-	kubeKinds := crd.FindKubeKinds(parser, metav1Pkg)
-	if len(kubeKinds) == 0 {
-		// no objects in the roots
-		return fmt.Errorf("no kube kind-objects found in all roots")
-	}
-	crdClient := utils.GetCRDClient()
-
-	for groupKind := range kubeKinds {
-		parser.NeedCRDFor(groupKind, func() *int {
-			i := 256
-			return &i
-		}())
-		crdRaw := parser.CustomResourceDefinitions[groupKind]
-		if _, err := crdClient.Create(ctx, &crdRaw, metav1.CreateOptions{}); err != nil {
+	crdClient := utils.GetAPIExtensionsClient()
+	for _, crd := range crdObjs {
+		res := &apiextensions.CustomResourceDefinition{}
+		if err := crdClient.RESTClient().
+			Post().
+			Resource("customresourcedefinitions").
+			VersionedParams(&metav1.CreateOptions{}, scheme.ParameterCodec).
+			Body(crd).
+			Do(ctx).
+			Into(res); err != nil {
 			return err
 		}
 	}
@@ -89,56 +61,25 @@ func registerCRDs(ctx context.Context) error {
 }
 
 func unregisterCRDs(ctx context.Context) error {
-	roots, err := loader.LoadRoots("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/" + version)
-	if err != nil {
-		return err
+	crdNames := []string{}
+	for _, asset := range AssetNames() {
+		base := filepath.Base(asset)
+		baseWithoutExtension := strings.Split(base, ".yaml")[0]
+		parts := strings.Split(baseWithoutExtension, "_")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid crd name: %v", baseWithoutExtension)
+		}
+		crd := parts[1]
+		apiGroup := parts[0]
+		crdNames = append(crdNames, fmt.Sprintf("%s.%s", crd, apiGroup))
 	}
 
-	defn := markers.Must(markers.MakeDefinition("crd", markers.DescribesPackage, crd.Generator{}))
-	optionsRegistry := &markers.Registry{}
-	if err := optionsRegistry.Register(defn); err != nil {
-		return err
-	}
-	if err := genall.RegisterOptionsMarkers(optionsRegistry); err != nil {
-		return err
-	}
-	if err := crdmarkers.Register(optionsRegistry); err != nil {
-		return err
-	}
-	parser := &crd.Parser{
-		Collector: &markers.Collector{
-			Registry: optionsRegistry,
-		},
-		Checker: &loader.TypeChecker{},
-	}
-	crd.AddKnownTypes(parser)
-	for _, root := range roots {
-		parser.NeedPackage(root)
-	}
-
-	metav1Pkg := crd.FindMetav1(roots)
-	if metav1Pkg == nil {
-		// no objects in the roots, since nothing imported metav1
-		return fmt.Errorf("no objects found in all roots")
-	}
-
-	// TODO: allow selecting a specific object
-	kubeKinds := crd.FindKubeKinds(parser, metav1Pkg)
-	if len(kubeKinds) == 0 {
-		// no objects in the roots
-		return fmt.Errorf("no kube kind-objects found in all roots")
-	}
 	crdClient := utils.GetCRDClient()
-
-	for groupKind := range kubeKinds {
-		parser.NeedCRDFor(groupKind, func() *int {
-			i := 256
-			return &i
-		}())
-		crdRaw := parser.CustomResourceDefinitions[groupKind]
-		if err := crdClient.Delete(ctx, crdRaw.Name, metav1.DeleteOptions{}); err != nil {
+	for _, crd := range crdNames {
+		if err := crdClient.Delete(ctx, crd, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }

@@ -38,15 +38,18 @@ var installCmd = &cobra.Command{
 }
 
 var (
-	installCRD   = false
-	overwriteCRD = false
-	image        = "minio/direct-csi:" + Version
+	installCRD       = false
+	overwriteCRD     = false
+	admissionControl = false
+	image            = "minio/direct-csi:" + Version
 )
 
 func init() {
 	installCmd.PersistentFlags().BoolVarP(&installCRD, "crd", "c", installCRD, "register crds along with installation")
 	installCmd.PersistentFlags().BoolVarP(&overwriteCRD, "force", "f", overwriteCRD, "delete and recreate CRDs")
 	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "direct-csi image")
+	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl,
+		"turn on direct-csi admission controller")
 }
 
 func install(ctx context.Context, args []string) error {
@@ -120,12 +123,14 @@ func install(ctx context.Context, args []string) error {
 	}
 	glog.Infof("'%s' deployment created", utils.Bold(identity))
 
-	if err := installer.RegisterDriveValidationRules(ctx, identity); err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return err
+	if admissionControl {
+		if err := installer.RegisterDriveValidationRules(ctx, identity); err != nil {
+			if !errors.IsAlreadyExists(err) {
+				return err
+			}
 		}
+		glog.Infof("'%s' drive validation rules registered", utils.Bold(identity))
 	}
-	glog.Infof("'%s' drive validation rules registered", utils.Bold(identity))
 
 	return nil
 }
