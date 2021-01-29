@@ -23,6 +23,9 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
+      - ppc64le
+      - s390x
     env:
       - CGO_ENABLED=0
     flags:
@@ -30,8 +33,6 @@ builds:
       - -tags="osusergo netgo static_build"
     ldflags:
       - -s -w -X main.Version={{ .Tag }}
-    hooks:
-      post: ./package.sh {{ .Path }}
 
   -
     main: ./cmd/kubectl-direct_csi
@@ -39,8 +40,18 @@ builds:
     binary: kubectl-direct_csi
     goos:
       - linux
+      - windows
+      - darwin
     goarch:
       - amd64
+      - arm64
+      - ppc64le
+      - s390x
+    ignore:
+      - goos: darwin
+        goarch: arm64
+      - goos: windows
+        goarch: arm64
     env:
       - CGO_ENABLED=0
     flags:
@@ -52,21 +63,61 @@ builds:
       post: ./package.sh {{ .Path }}
 
 archives:
-  - format: binary
+  -
+    allow_different_binary_count: true
+    format: binary
 
 changelog:
   sort: asc
 
 dockers:
-  -
-    goos: linux
-    goarch: amd64
-    dockerfile: Dockerfile
-    image_templates:
-      - minio/direct-csi:{{ .Tag }}
-      - minio/direct-csi:latest
-    extra_files:
-      - LICENSE
-      - README.md
-      - CREDITS
-      - direct-csi.minisig
+- image_templates:
+  - "minio/direct-csi:{{ .Tag }}-amd64"
+  use_buildx: true
+  dockerfile: Dockerfile
+  extra_files:
+    - LICENSE
+    - CREDITS
+  build_flag_templates:
+  - "--platform=linux/amd64"
+- image_templates:
+  - "minio/direct-csi:{{ .Tag }}-ppc64le"
+  use_buildx: true
+  dockerfile: Dockerfile
+  extra_files:
+    - LICENSE
+    - CREDITS
+  build_flag_templates:
+  - "--platform=linux/ppc64le"
+- image_templates:
+  - "minio/direct-csi:{{ .Tag }}-s390x"
+  use_buildx: true
+  dockerfile: Dockerfile
+  extra_files:
+    - LICENSE
+    - CREDITS
+  build_flag_templates:
+  - "--platform=linux/s390x"
+- image_templates:
+  - "minio/direct-csi:{{ .Tag }}-arm64"
+  use_buildx: true
+  goarch: arm64
+  dockerfile: Dockerfile
+  extra_files:
+    - LICENSE
+    - CREDITS
+  build_flag_templates:
+  - "--platform=linux/arm64"
+docker_manifests:
+- name_template: minio/direct-csi:{{ .Tag }}
+  image_templates:
+  - minio/direct-csi:{{ .Tag }}-amd64
+  - minio/direct-csi:{{ .Tag }}-arm64
+  - minio/direct-csi:{{ .Tag }}-ppc64le
+  - minio/direct-csi:{{ .Tag }}-s390x
+- name_template: minio/direct-csi:latest
+  image_templates:
+  - minio/direct-csi:{{ .Tag }}-amd64
+  - minio/direct-csi:{{ .Tag }}-arm64
+  - minio/direct-csi:{{ .Tag }}-ppc64le
+  - minio/direct-csi:{{ .Tag }}-s390x
