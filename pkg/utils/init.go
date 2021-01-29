@@ -40,6 +40,7 @@ var directCSIClient directv1alpha1.DirectV1alpha1Interface
 var directClientset direct.Interface
 var kubeClient kubernetes.Interface
 var crdClient apiextensions.CustomResourceDefinitionInterface
+var apiextensionsClient *apiextensions.ApiextensionsV1Client
 var discoveryClient discovery.DiscoveryInterface
 var metadataClient metadata.Interface
 var gvk *schema.GroupVersionKind
@@ -74,6 +75,7 @@ func Init() {
 	if err != nil {
 		glog.Fatalf("could not initialize crd client: %v", err)
 	}
+	apiextensionsClient = crdClientset
 	crdClient = crdClientset.CustomResourceDefinitions()
 
 	discoveryClient, err = discovery.NewDiscoveryClientForConfig(config)
