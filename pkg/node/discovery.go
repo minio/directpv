@@ -42,7 +42,7 @@ func findDrives(ctx context.Context, nodeID string, procfs string) ([]directv1al
 		partitions := d.GetPartitions()
 		if len(partitions) > 0 {
 			for _, partition := range partitions {
-				drive, err := makePartitionDrive(nodeID, partition, d.Devname)
+				drive, err := makePartitionDrive(nodeID, partition, d.Devname, d.BlockDiscoveryError)
 				if err != nil {
 					glog.Errorf("Error discovering parition %s: %v", d.Devname, err)
 					continue
@@ -62,7 +62,7 @@ func findDrives(ctx context.Context, nodeID string, procfs string) ([]directv1al
 	return drives, nil
 }
 
-func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition string) (*directv1alpha1.DirectCSIDrive, error) {
+func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition, blockErrString string) (*directv1alpha1.DirectCSIDrive, error) {
 	var fs string
 	if partition.FSInfo != nil {
 		fs = string(partition.FSInfo.FSType)
@@ -94,8 +94,13 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 	}
 
 	_, ok := gpt.SystemPartitionTypes[partition.TypeUUID]
-	if ok {
+	if ok || blockErrString != "" {
 		driveStatus = directv1alpha1.DriveStatusUnavailable
+	}
+
+	blockDiscoveryFailureStatus := metav1.ConditionFalse
+	if blockErrString != "" {
+		blockDiscoveryFailureStatus = metav1.ConditionTrue
 	}
 
 	mounted := metav1.ConditionFalse
@@ -147,6 +152,13 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 					Reason:             string(directv1alpha1.DirectCSIDriveReasonNotAdded),
 					LastTransitionTime: metav1.Now(),
 				},
+				{
+					Type:               string(directv1alpha1.DirectCSIDriveConditionDiscovered),
+					Status:             blockDiscoveryFailureStatus,
+					Message:            string(blockErrString),
+					Reason:             string(blockErrString),
+					LastTransitionTime: metav1.Now(),
+				},
 			},
 		},
 	}, nil
@@ -181,6 +193,12 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 			mountOptions = mounts[0].MountFlags
 			mountPoint = mounts[0].Mountpoint
 		}
+	}
+
+	blockDiscoveryFailureStatus := metav1.ConditionFalse
+	if blockDevice.BlockDiscoveryError != "" {
+		driveStatus = directv1alpha1.DriveStatusUnavailable
+		blockDiscoveryFailureStatus = metav1.ConditionTrue
 	}
 
 	mounted := metav1.ConditionFalse
@@ -230,6 +248,13 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 					Status:             formatted,
 					Message:            "xfs",
 					Reason:             string(directv1alpha1.DirectCSIDriveReasonNotAdded),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directv1alpha1.DirectCSIDriveConditionDiscovered),
+					Status:             blockDiscoveryFailureStatus,
+					Message:            string(blockDevice.BlockDiscoveryError),
+					Reason:             string(blockDevice.BlockDiscoveryError),
 					LastTransitionTime: metav1.Now(),
 				},
 			},
