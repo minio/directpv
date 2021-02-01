@@ -60,7 +60,8 @@ func FindDevices(ctx context.Context) ([]BlockDevice, error) {
 			return nil
 		}
 		if err := drive.probeBlockDev(ctx); err != nil {
-			return err
+			glog.Errorf("could not get device information: %v", err)
+			return nil
 		}
 
 		drives = append(drives, *drive)
