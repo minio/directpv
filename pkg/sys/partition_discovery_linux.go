@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/golang/glog"
@@ -96,8 +95,8 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 		if !p.Is() {
 			continue
 		}
-		partNum := int(i + 1)
-		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
+		partNum := uint32(i) + b.Minor
+		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -146,8 +145,8 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 		if !p.Is() {
 			continue
 		}
-		partNum := int(i + 1)
-		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
+		partNum := b.Minor + uint32(i)
+		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -196,8 +195,8 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 		if !p.Is() {
 			continue
 		}
-		partNum := int(i + 1)
-		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
+		partNum := b.Minor + uint32(i)
+		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -280,8 +279,8 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 			partType = partTypeUUID
 		}
 
-		partNum := int(i + 1)
-		partitionPath := b.Path + "-part-" + strconv.Itoa(partNum)
+		partNum := b.Minor + uint32(i)
+		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
