@@ -60,8 +60,7 @@ func FindDevices(ctx context.Context) ([]BlockDevice, error) {
 			return nil
 		}
 		if err := drive.probeBlockDev(ctx); err != nil {
-			glog.Errorf("could not get device information: %v", err)
-			return nil
+			glog.Errorf("Error while probing block device: %v", err)
 		}
 
 		drives = append(drives, *drive)
@@ -73,26 +72,37 @@ func (b *BlockDevice) GetPartitions() []Partition {
 	return b.Partitions
 }
 
-func (b *BlockDevice) probeBlockDev(ctx context.Context) error {
-	if err := os.MkdirAll(DirectCSIDevRoot, 0755); err != nil {
+func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
+	defer func() {
+		if err != nil {
+			b.TagError(err)
+		}
+		return
+	}()
+
+	err = os.MkdirAll(DirectCSIDevRoot, 0755)
+	if err != nil {
 		return err
 	}
 
 	devPath := getBlockFile(b.Devname)
-	if err := makeBlockFile(devPath, b.Major, b.Minor); err != nil {
+	err = makeBlockFile(devPath, b.Major, b.Minor)
+	if err != nil {
 		return err
 	}
 
 	b.DriveInfo = &DriveInfo{}
 	b.Path = devPath
-	logicalBlockSize, physicalBlockSize, err := getBlockSizes(b.Devname)
+	var logicalBlockSize, physicalBlockSize uint64
+	logicalBlockSize, physicalBlockSize, err = getBlockSizes(b.Devname)
 	if err != nil {
 		return err
 	}
 	b.LogicalBlockSize = logicalBlockSize
 	b.PhysicalBlockSize = physicalBlockSize
 
-	driveSize, err := getTotalCapacity(b.Devname)
+	var driveSize uint64
+	driveSize, err = getTotalCapacity(b.Devname)
 	if err != nil {
 		return err
 	}
@@ -102,7 +112,8 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) error {
 	b.NumBlocks = numBlocks
 	b.EndBlock = numBlocks
 
-	parts, err := b.probePartitions(ctx)
+	var parts []Partition
+	parts, err = b.probePartitions(ctx)
 	if err != nil {
 		if err != ErrNotPartition {
 			return err
@@ -111,7 +122,8 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) error {
 
 	if len(parts) == 0 {
 		offsetBlocks := uint64(0)
-		fsInfo, err := b.probeFS(offsetBlocks)
+		var fsInfo *FSInfo
+		fsInfo, err = b.probeFS(offsetBlocks)
 		if err != nil {
 			if err != ErrNoFS {
 				return err
@@ -120,7 +132,8 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) error {
 		if fsInfo == nil {
 			fsInfo = &FSInfo{}
 		}
-		mounts, err := b.probeMountInfo(0)
+		var mounts []MountInfo
+		mounts, err = b.probeMountInfo(0)
 		if err != nil {
 			return err
 		}
@@ -130,7 +143,8 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) error {
 	}
 	for i, p := range parts {
 		offsetBlocks := p.StartBlock
-		fsInfo, err := b.probeFS(offsetBlocks)
+		var fsInfo *FSInfo
+		fsInfo, err = b.probeFS(offsetBlocks)
 		if err != nil {
 			if err != ErrNoFS {
 				return err
@@ -141,7 +155,8 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) error {
 			fsInfo = &FSInfo{}
 		}
 
-		mounts, err := b.probeMountInfo(uint(i + 1))
+		var mounts []MountInfo
+		mounts, err = b.probeMountInfo(uint(i + 1))
 		if err != nil {
 			return err
 		}
