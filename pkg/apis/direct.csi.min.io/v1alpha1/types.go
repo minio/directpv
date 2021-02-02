@@ -96,17 +96,18 @@ type DirectCSIDriveStatus struct {
 type DirectCSIDriveCondition string
 
 const (
-	DirectCSIDriveConditionOwned      DirectCSIDriveCondition = "Owned"
-	DirectCSIDriveConditionMounted                            = "Mounted"
-	DirectCSIDriveConditionFormatted                          = "Formatted"
-	DirectCSIDriveConditionDiscovered                         = "Discovered"
+	DirectCSIDriveConditionOwned       DirectCSIDriveCondition = "Owned"
+	DirectCSIDriveConditionMounted                             = "Mounted"
+	DirectCSIDriveConditionFormatted                           = "Formatted"
+	DirectCSIDriveConditionInitialized                         = "Initialized"
 )
 
 type DirectCSIDriveReason string
 
 const (
-	DirectCSIDriveReasonNotAdded DirectCSIDriveReason = "NotAdded"
-	DirectCSIDriveReasonAdded                         = "Added"
+	DirectCSIDriveReasonNotAdded    DirectCSIDriveReason = "NotAdded"
+	DirectCSIDriveReasonAdded                            = "Added"
+	DirectCSIDriveReasonInitialized                      = "Initialized"
 )
 
 type RequestedFormat struct {

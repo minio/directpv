@@ -42,7 +42,7 @@ func findDrives(ctx context.Context, nodeID string, procfs string) ([]directv1al
 		partitions := d.GetPartitions()
 		if len(partitions) > 0 {
 			for _, partition := range partitions {
-				drive, err := makePartitionDrive(nodeID, partition, d.Devname, d.BlockDiscoveryError)
+				drive, err := makePartitionDrive(nodeID, partition, d.Devname, d.BlockInitializationError)
 				if err != nil {
 					glog.Errorf("Error discovering parition %s: %v", d.Devname, err)
 					continue
@@ -98,9 +98,9 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition, b
 		driveStatus = directv1alpha1.DriveStatusUnavailable
 	}
 
-	blockDiscoveryFailureStatus := metav1.ConditionFalse
+	blockInitializationStatus := metav1.ConditionTrue
 	if blockErrString != "" {
-		blockDiscoveryFailureStatus = metav1.ConditionTrue
+		blockInitializationStatus = metav1.ConditionFalse
 	}
 
 	mounted := metav1.ConditionFalse
@@ -153,10 +153,15 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition, b
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionDiscovered),
-					Status:             blockDiscoveryFailureStatus,
-					Message:            string(blockErrString),
-					Reason:             string(blockErrString),
+					Type:    string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Status:  blockInitializationStatus,
+					Message: "DriveInitialized",
+					Reason: func() string {
+						if blockErrString == "" {
+							return directv1alpha1.DirectCSIDriveReasonInitialized
+						}
+						return blockErrString
+					}(),
 					LastTransitionTime: metav1.Now(),
 				},
 			},
@@ -195,10 +200,10 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 		}
 	}
 
-	blockDiscoveryFailureStatus := metav1.ConditionFalse
-	if blockDevice.BlockDiscoveryError != "" {
+	blockInitializationStatus := metav1.ConditionTrue
+	if blockDevice.BlockInitializationError != "" {
 		driveStatus = directv1alpha1.DriveStatusUnavailable
-		blockDiscoveryFailureStatus = metav1.ConditionTrue
+		blockInitializationStatus = metav1.ConditionFalse
 	}
 
 	mounted := metav1.ConditionFalse
@@ -251,10 +256,15 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionDiscovered),
-					Status:             blockDiscoveryFailureStatus,
-					Message:            string(blockDevice.BlockDiscoveryError),
-					Reason:             string(blockDevice.BlockDiscoveryError),
+					Type:    string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Status:  blockInitializationStatus,
+					Message: "DriveInitialized",
+					Reason: func() string {
+						if blockDevice.BlockInitializationError == "" {
+							return directv1alpha1.DirectCSIDriveReasonInitialized
+						}
+						return blockDevice.BlockInitializationError
+					}(),
 					LastTransitionTime: metav1.Now(),
 				},
 			},
