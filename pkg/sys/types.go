@@ -17,19 +17,19 @@
 package sys
 
 type BlockDevice struct {
-	Major               uint32      `json:"major"`
-	Minor               uint32      `json:"minor"`
-	Devname             string      `json:"devName,omitempty"`
-	Devtype             string      `json:"devType,omitempty"`
-	Partitions          []Partition `json:"partitions,omitempty"`
-	BlockDiscoveryError string      `json:"errString"`
+	Major                    uint32      `json:"major"`
+	Minor                    uint32      `json:"minor"`
+	Devname                  string      `json:"devName,omitempty"`
+	Devtype                  string      `json:"devType,omitempty"`
+	Partitions               []Partition `json:"partitions,omitempty"`
+	BlockInitializationError string      `json:"blockInitializationError"`
 
 	*DriveInfo `json:"driveInfo,omitempty"`
 }
 
 func (b *BlockDevice) TagError(err error) {
 	if err != nil {
-		b.BlockDiscoveryError = err.Error()
+		b.BlockInitializationError = err.Error()
 	}
 	return
 }

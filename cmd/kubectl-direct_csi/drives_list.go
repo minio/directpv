@@ -252,7 +252,7 @@ func listDrives(ctx context.Context, args []string) error {
 		dr := func(val string) string {
 			dr := driveName(val)
 			for _, c := range d.Status.Conditions {
-				if c.Type == string(directv1alpha1.DirectCSIDriveConditionDiscovered) {
+				if c.Type == string(directv1alpha1.DirectCSIDriveConditionInitialized) {
 					if c.Status != metav1.ConditionTrue {
 						msg = c.Reason
 						continue

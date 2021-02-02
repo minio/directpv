@@ -155,9 +155,26 @@ func UpdateDriveStatusOnDiff(newObj directv1alpha1.DirectCSIDrive, existingObj *
 		existingObj.Status.Topology = newObj.Status.Topology
 		isUpdated = true
 	}
+
+	if !CheckStatusEquality(existingObj.Status.Conditions, newObj.Status.Conditions) {
+		existingObj.Status.Conditions = newObj.Status.Conditions
+		isUpdated = true
+	}
 	// Add new status canditates here
 
 	return isUpdated
+}
+
+func CheckStatusEquality(existingConditions, newConditions []metav1.Condition) bool {
+	extractStatuses := func(conds []metav1.Condition) []metav1.ConditionStatus {
+		condStatuses := []metav1.ConditionStatus{}
+		for _, cond := range conds {
+			condStatuses = append(condStatuses, cond.Status)
+		}
+		return condStatuses
+	}
+
+	return reflect.DeepEqual(extractStatuses(existingConditions), extractStatuses(newConditions))
 }
 
 // Idempotent function to bind mount a xfs filesystem with limits
