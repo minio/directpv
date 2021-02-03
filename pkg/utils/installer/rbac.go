@@ -29,20 +29,20 @@ import (
 )
 
 // CreateRBACRoles creates SA, ClusterRole and CRBs
-func CreateRBACRoles(ctx context.Context, identity string) error {
-	if err := createServiceAccount(ctx, identity); err != nil {
+func CreateRBACRoles(ctx context.Context, identity string, dryRun bool) error {
+	if err := createServiceAccount(ctx, identity, dryRun); err != nil {
 		return err
 	}
-	if err := createClusterRole(ctx, identity); err != nil {
+	if err := createClusterRole(ctx, identity, dryRun); err != nil {
 		return err
 	}
-	if err := createClusterRoleBinding(ctx, identity); err != nil {
+	if err := createClusterRoleBinding(ctx, identity, dryRun); err != nil {
 		return err
 	}
 	return nil
 }
 
-func createServiceAccount(ctx context.Context, identity string) error {
+func createServiceAccount(ctx context.Context, identity string, dryRun bool) error {
 	serviceAccount := &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
@@ -54,13 +54,17 @@ func createServiceAccount(ctx context.Context, identity string) error {
 		AutomountServiceAccountToken: nil,
 	}
 
+	if dryRun {
+		return utils.LogYAML(serviceAccount)
+	}
+
 	if _, err := utils.GetKubeClient().CoreV1().ServiceAccounts(sanitizeName(identity)).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func createClusterRoleBinding(ctx context.Context, identity string) error {
+func createClusterRoleBinding(ctx context.Context, identity string, dryRun bool) error {
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ClusterRoleBinding",
@@ -82,13 +86,18 @@ func createClusterRoleBinding(ctx context.Context, identity string) error {
 	}
 
 	clusterRoleBinding.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
+
+	if dryRun {
+		return utils.LogYAML(clusterRoleBinding)
+	}
+
 	if _, err := utils.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func createClusterRole(ctx context.Context, identity string) error {
+func createClusterRole(ctx context.Context, identity string, dryRun bool) error {
 	clusterRole := &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ClusterRole",
@@ -315,6 +324,11 @@ func createClusterRole(ctx context.Context, identity string) error {
 	}
 
 	clusterRole.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
+
+	if dryRun {
+		return utils.LogYAML(clusterRole)
+	}
+
 	if _, err := utils.GetKubeClient().RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
 		return err
 	}

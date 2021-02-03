@@ -125,7 +125,7 @@ func objMeta(name string) metav1.ObjectMeta {
 
 }
 
-func CreateNamespace(ctx context.Context, identity string) error {
+func CreateNamespace(ctx context.Context, identity string, dryRun bool) error {
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Namespace",
@@ -138,6 +138,10 @@ func CreateNamespace(ctx context.Context, identity string) error {
 		Status: corev1.NamespaceStatus{},
 	}
 
+	if dryRun {
+		return utils.LogYAML(ns)
+	}
+
 	// Create Namespace Obj
 	if _, err := utils.GetKubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 		return err
@@ -145,7 +149,7 @@ func CreateNamespace(ctx context.Context, identity string) error {
 	return nil
 }
 
-func CreateCSIDriver(ctx context.Context, identity string) error {
+func CreateCSIDriver(ctx context.Context, identity string, dryRun bool) error {
 	podInfoOnMount := true
 	attachRequired := false
 
@@ -172,6 +176,10 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 			},
 		}
 
+		if dryRun {
+			return utils.LogYAML(csiDriver)
+		}
+
 		// Create CSIDriver Obj
 		if _, err := utils.GetKubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
 			return err
@@ -193,6 +201,10 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 			},
 		}
 
+		if dryRun {
+			return utils.LogYAML(csiDriver)
+		}
+
 		// Create CSIDriver Obj
 		if _, err := utils.GetKubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
 			return err
@@ -203,7 +215,7 @@ func CreateCSIDriver(ctx context.Context, identity string) error {
 	return nil
 }
 
-func CreateStorageClass(ctx context.Context, identity string) error {
+func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error {
 	allowExpansion := false
 	allowedTopologies := []corev1.TopologySelectorTerm{}
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
@@ -233,6 +245,10 @@ func CreateStorageClass(ctx context.Context, identity string) error {
 			},
 		}
 
+		if dryRun {
+			return utils.LogYAML(storageClass)
+		}
+
 		if _, err := utils.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
 			return err
 		}
@@ -255,6 +271,10 @@ func CreateStorageClass(ctx context.Context, identity string) error {
 			},
 		}
 
+		if dryRun {
+			return utils.LogYAML(storageClass)
+		}
+
 		if _, err := utils.GetKubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
 			return err
 		}
@@ -264,7 +284,7 @@ func CreateStorageClass(ctx context.Context, identity string) error {
 	return nil
 }
 
-func CreateService(ctx context.Context, identity string) error {
+func CreateService(ctx context.Context, identity string, dryRun bool) error {
 	csiPort := corev1.ServicePort{
 		Port: 12345,
 		Name: "unused",
@@ -284,13 +304,17 @@ func CreateService(ctx context.Context, identity string) error {
 		},
 	}
 
+	if dryRun {
+		return utils.LogYAML(svc)
+	}
+
 	if _, err := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string) error {
+func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 
@@ -433,13 +457,18 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 		},
 		Status: appsv1.DaemonSetStatus{},
 	}
+
+	if dryRun {
+		return utils.LogYAML(daemonset)
+	}
+
 	if _, err := utils.GetKubeClient().AppsV1().DaemonSets(sanitizeName(identity)).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func CreateControllerService(ctx context.Context, generatedSelectorValue, identity string) error {
+func CreateControllerService(ctx context.Context, generatedSelectorValue, identity string, dryRun bool) error {
 	admissionWebhookPort := corev1.ServicePort{
 		Port: admissionControllerWebhookPort,
 		TargetPort: intstr.IntOrString{
@@ -464,13 +493,17 @@ func CreateControllerService(ctx context.Context, generatedSelectorValue, identi
 		},
 	}
 
+	if dryRun {
+		return utils.LogYAML(svc)
+	}
+
 	if _, err := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func CreateControllerSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte) error {
+func CreateControllerSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool) error {
 
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
@@ -491,13 +524,17 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 		Data: getCertsDataMap(),
 	}
 
+	if dryRun {
+		return utils.LogYAML(secret)
+	}
+
 	if _, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string) error {
+func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 
@@ -603,7 +640,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 	}
 	caBundle = caCertBytes
 
-	if err := CreateControllerSecret(ctx, identity, publicCertBytes, privateKeyBytes); err != nil {
+	if err := CreateControllerSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
 		if !kerr.IsAlreadyExists(err) {
 			return err
 		}
@@ -638,11 +675,15 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		sanitizeName(identity) + DirectCSIFinalizerDeleteProtection,
 	}
 
+	if dryRun {
+		return utils.LogYAML(deployment)
+	}
+
 	if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 
-	if err := CreateControllerService(ctx, generatedSelectorValue, identity); err != nil {
+	if err := CreateControllerService(ctx, generatedSelectorValue, identity, dryRun); err != nil {
 		return err
 	}
 
@@ -782,8 +823,12 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 	return validatingWebhookConfiguration
 }
 
-func RegisterDriveValidationRules(ctx context.Context, identity string) error {
+func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun bool) error {
 	driveValidatingWebhookConfig := getDriveValidatingWebhookConfig(identity)
+	if dryRun {
+		return utils.LogYAML(driveValidatingWebhookConfig)
+	}
+
 	if _, err := utils.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(ctx, &driveValidatingWebhookConfig, metav1.CreateOptions{}); err != nil {
 		return err
 	}

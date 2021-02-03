@@ -5,7 +5,11 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"sigs.k8s.io/yaml"
+
 	"github.com/golang/glog"
+
+	"fmt"
 )
 
 func JSONifyAndLog(val interface{}) {
@@ -21,4 +25,20 @@ func BoolToCondition(val bool) metav1.ConditionStatus {
 		return metav1.ConditionTrue
 	}
 	return metav1.ConditionFalse
+}
+
+func LogYAML(obj interface{}) error {
+	y, err := yaml.Marshal(obj)
+	if err != nil {
+		return err
+	}
+	PrintYaml(y)
+	return nil
+}
+
+func PrintYaml(data []byte) {
+	fmt.Print(string(data))
+	fmt.Println()
+	fmt.Println("---")
+	fmt.Println()
 }

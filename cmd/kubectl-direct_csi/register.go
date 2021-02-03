@@ -46,6 +46,10 @@ func registerCRDs(ctx context.Context) error {
 
 	crdClient := utils.GetAPIExtensionsClient()
 	for _, crd := range crdObjs {
+		if dryRun {
+			utils.LogYAML(crd)
+			continue
+		}
 		res := &apiextensions.CustomResourceDefinition{}
 		if err := crdClient.RESTClient().
 			Post().

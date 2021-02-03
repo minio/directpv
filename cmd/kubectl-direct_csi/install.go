@@ -41,6 +41,7 @@ var (
 	installCRD       = false
 	overwriteCRD     = false
 	admissionControl = false
+	dryRun           = false
 	image            = "minio/direct-csi:" + Version
 )
 
@@ -48,8 +49,8 @@ func init() {
 	installCmd.PersistentFlags().BoolVarP(&installCRD, "crd", "c", installCRD, "register crds along with installation")
 	installCmd.PersistentFlags().BoolVarP(&overwriteCRD, "force", "f", overwriteCRD, "delete and recreate CRDs")
 	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "direct-csi image")
-	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl,
-		"turn on direct-csi admission controller")
+	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on direct-csi admission controller")
+	installCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "", dryRun, "prints the installation yaml")
 }
 
 func install(ctx context.Context, args []string) error {
@@ -62,7 +63,7 @@ func install(ctx context.Context, args []string) error {
 				return err
 			}
 			// if it exists
-			if overwriteCRD {
+			if !dryRun && overwriteCRD {
 				if err := unregisterCRDs(ctx); err != nil {
 					if !errors.IsNotFound(err) {
 						return err
@@ -71,65 +72,83 @@ func install(ctx context.Context, args []string) error {
 				}
 			}
 		}
-		glog.Infof("crds successfully registered")
+		if !dryRun {
+			glog.Infof("crds successfully registered")
+		}
 	}
 
-	if err := installer.CreateNamespace(ctx, identity); err != nil {
+	if err := installer.CreateNamespace(ctx, identity, dryRun); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' namespace created", utils.Bold(identity))
+	if !dryRun {
+		glog.Infof("'%s' namespace created", utils.Bold(identity))
+	}
 
-	if err := installer.CreateCSIDriver(ctx, identity); err != nil {
+	if err := installer.CreateCSIDriver(ctx, identity, dryRun); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' csidriver created", utils.Bold(identity))
+	if !dryRun {
+		glog.Infof("'%s' csidriver created", utils.Bold(identity))
+	}
 
-	if err := installer.CreateStorageClass(ctx, identity); err != nil {
+	if err := installer.CreateStorageClass(ctx, identity, dryRun); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' storageclass created", utils.Bold(identity))
+	if !dryRun {
+		glog.Infof("'%s' storageclass created", utils.Bold(identity))
+	}
 
-	if err := installer.CreateService(ctx, identity); err != nil {
+	if err := installer.CreateService(ctx, identity, dryRun); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' service created", utils.Bold(identity))
+	if !dryRun {
+		glog.Infof("'%s' service created", utils.Bold(identity))
+	}
 
-	if err := installer.CreateRBACRoles(ctx, identity); err != nil {
+	if err := installer.CreateRBACRoles(ctx, identity, dryRun); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' rbac roles created", utils.Bold(identity))
+	if !dryRun {
+		glog.Infof("'%s' rbac roles created", utils.Bold(identity))
+	}
 
-	if err := installer.CreateDaemonSet(ctx, identity, image); err != nil {
+	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' daemonset created", utils.Bold(identity))
+	if !dryRun {
+		glog.Infof("'%s' daemonset created", utils.Bold(identity))
+	}
 
-	if err := installer.CreateDeployment(ctx, identity, image); err != nil {
+	if err := installer.CreateDeployment(ctx, identity, image, dryRun); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' deployment created", utils.Bold(identity))
+	if !dryRun {
+		glog.Infof("'%s' deployment created", utils.Bold(identity))
+	}
 
 	if admissionControl {
-		if err := installer.RegisterDriveValidationRules(ctx, identity); err != nil {
+		if err := installer.RegisterDriveValidationRules(ctx, identity, dryRun); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return err
 			}
 		}
-		glog.Infof("'%s' drive validation rules registered", utils.Bold(identity))
+		if !dryRun {
+			glog.Infof("'%s' drive validation rules registered", utils.Bold(identity))
+		}
 	}
 
 	return nil
