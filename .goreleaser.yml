@@ -72,7 +72,7 @@ changelog:
 
 dockers:
 - image_templates:
-  - "minio/direct-csi:{{ .Tag }}-amd64"
+  - "quay.io/minio/direct-csi:{{ .Tag }}-amd64"
   use_buildx: true
   dockerfile: Dockerfile
   extra_files:
@@ -81,7 +81,7 @@ dockers:
   build_flag_templates:
   - "--platform=linux/amd64"
 - image_templates:
-  - "minio/direct-csi:{{ .Tag }}-ppc64le"
+  - "quay.io/minio/direct-csi:{{ .Tag }}-ppc64le"
   use_buildx: true
   dockerfile: Dockerfile
   extra_files:
@@ -90,7 +90,7 @@ dockers:
   build_flag_templates:
   - "--platform=linux/ppc64le"
 - image_templates:
-  - "minio/direct-csi:{{ .Tag }}-s390x"
+  - "quay.io/minio/direct-csi:{{ .Tag }}-s390x"
   use_buildx: true
   dockerfile: Dockerfile
   extra_files:
@@ -99,7 +99,7 @@ dockers:
   build_flag_templates:
   - "--platform=linux/s390x"
 - image_templates:
-  - "minio/direct-csi:{{ .Tag }}-arm64"
+  - "quay.io/minio/direct-csi:{{ .Tag }}-arm64"
   use_buildx: true
   goarch: arm64
   dockerfile: Dockerfile
@@ -109,15 +109,15 @@ dockers:
   build_flag_templates:
   - "--platform=linux/arm64"
 docker_manifests:
-- name_template: minio/direct-csi:{{ .Tag }}
+- name_template: quay.io/minio/direct-csi:{{ .Tag }}
   image_templates:
-  - minio/direct-csi:{{ .Tag }}-amd64
-  - minio/direct-csi:{{ .Tag }}-arm64
-  - minio/direct-csi:{{ .Tag }}-ppc64le
-  - minio/direct-csi:{{ .Tag }}-s390x
-- name_template: minio/direct-csi:latest
+  - quay.io/minio/direct-csi:{{ .Tag }}-amd64
+  - quay.io/minio/direct-csi:{{ .Tag }}-arm64
+  - quay.io/minio/direct-csi:{{ .Tag }}-ppc64le
+  - quay.io/minio/direct-csi:{{ .Tag }}-s390x
+- name_template: quay.io/minio/direct-csi:latest
   image_templates:
-  - minio/direct-csi:{{ .Tag }}-amd64
-  - minio/direct-csi:{{ .Tag }}-arm64
-  - minio/direct-csi:{{ .Tag }}-ppc64le
-  - minio/direct-csi:{{ .Tag }}-s390x
+  - quay.io/minio/direct-csi:{{ .Tag }}-amd64
+  - quay.io/minio/direct-csi:{{ .Tag }}-arm64
+  - quay.io/minio/direct-csi:{{ .Tag }}-ppc64le
+  - quay.io/minio/direct-csi:{{ .Tag }}-s390x
