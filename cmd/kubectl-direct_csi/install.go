@@ -21,6 +21,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
@@ -41,7 +42,6 @@ var (
 	installCRD       = false
 	overwriteCRD     = false
 	admissionControl = false
-	dryRun           = false
 	image            = "minio/direct-csi:" + Version
 )
 
@@ -50,11 +50,14 @@ func init() {
 	installCmd.PersistentFlags().BoolVarP(&overwriteCRD, "force", "f", overwriteCRD, "delete and recreate CRDs")
 	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "direct-csi image")
 	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on direct-csi admission controller")
-	installCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "", dryRun, "prints the installation yaml")
+
 }
 
 func install(ctx context.Context, args []string) error {
-	utils.Init()
+	dryRun := viper.GetBool(dryRunFlagName)
+	if !dryRun {
+		utils.Init()
+	}
 
 	if installCRD {
 	crdInstall:

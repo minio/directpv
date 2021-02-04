@@ -153,12 +153,16 @@ func CreateCSIDriver(ctx context.Context, identity string, dryRun bool) error {
 	podInfoOnMount := true
 	attachRequired := false
 
-	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
-	if err != nil {
-		return err
+	version := "v1"
+	if !dryRun {
+		gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+		if err != nil {
+			return err
+		}
+		version = gvk.Version
 	}
 
-	switch gvk.Version {
+	switch version {
 	case "v1":
 		csiDriver := &storagev1.CSIDriver{
 			TypeMeta: metav1.TypeMeta{
@@ -220,12 +224,16 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error
 	allowedTopologies := []corev1.TopologySelectorTerm{}
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
-	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
-	if err != nil {
-		return err
+	version := "v1"
+	if !dryRun {
+		gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+		if err != nil {
+			return err
+		}
+		version = gvk.Version
 	}
 
-	switch gvk.Version {
+	switch version {
 	case "v1":
 		bindingMode := storagev1.VolumeBindingWaitForFirstConsumer
 		// Create StorageClass for the new driver
