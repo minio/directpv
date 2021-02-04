@@ -43,12 +43,14 @@ var (
 	overwriteCRD     = false
 	admissionControl = false
 	image            = "minio/direct-csi:" + Version
+	registry         = "quay.io"
 )
 
 func init() {
 	installCmd.PersistentFlags().BoolVarP(&installCRD, "crd", "c", installCRD, "register crds along with installation")
 	installCmd.PersistentFlags().BoolVarP(&overwriteCRD, "force", "f", overwriteCRD, "delete and recreate CRDs")
 	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "direct-csi image")
+	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "registry where direct-csi images are available")
 	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on direct-csi admission controller")
 
 }
@@ -125,7 +127,7 @@ func install(ctx context.Context, args []string) error {
 		glog.Infof("'%s' rbac roles created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun); err != nil {
+	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -134,7 +136,7 @@ func install(ctx context.Context, args []string) error {
 		glog.Infof("'%s' daemonset created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDeployment(ctx, identity, image, dryRun); err != nil {
+	if err := installer.CreateDeployment(ctx, identity, image, dryRun, registry); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
