@@ -64,15 +64,15 @@ const (
 	directCSISelector = "selector.direct.csi.min.io"
 
 	csiProvisionerContainerName  = "csi-provisioner"
-	csiProvisionerContainerImage = "quay.io/k8scsi/csi-provisioner:v1.2.1"
+	csiProvisionerContainerImage = "k8scsi/csi-provisioner:v1.2.1"
 
 	directCSIContainerName = "direct-csi"
 
 	livenessProbeContainerName  = "liveness-probe"
-	livenessProbeContainerImage = "quay.io/k8scsi/livenessprobe:v1.1.0"
+	livenessProbeContainerImage = "k8scsi/livenessprobe:v1.1.0"
 
 	nodeDriverRegistrarContainerName  = "node-driver-registrar"
-	nodeDriverRegistrarContainerImage = "quay.io/k8scsi/csi-node-driver-registrar:v1.3.0"
+	nodeDriverRegistrarContainerImage = "k8scsi/csi-node-driver-registrar:v1.3.0"
 
 	healthZContainerPort         = 9898
 	healthZContainerPortName     = "healthz"
@@ -322,7 +322,7 @@ func CreateService(ctx context.Context, identity string, dryRun bool) error {
 	return nil
 }
 
-func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool) error {
+func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 
@@ -343,7 +343,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 		Containers: []corev1.Container{
 			{
 				Name:  nodeDriverRegistrarContainerName,
-				Image: nodeDriverRegistrarContainerImage,
+				Image: filepath.Join(registry, nodeDriverRegistrarContainerImage),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--csi-address=unix:///csi/csi.sock",
@@ -370,7 +370,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 			},
 			{
 				Name:  directCSIContainerName,
-				Image: directCSIContainerImage,
+				Image: filepath.Join(registry, directCSIContainerImage),
 				Args: []string{
 					fmt.Sprintf("--identity=%s", name),
 					fmt.Sprintf("--v=%d", logLevel),
@@ -427,7 +427,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 			},
 			{
 				Name:  livenessProbeContainerName,
-				Image: livenessProbeContainerImage,
+				Image: filepath.Join(registry, livenessProbeContainerImage),
 				Args: []string{
 					"--csi-address=/csi/csi.sock",
 					"--health-port=9898",
@@ -542,7 +542,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 	return nil
 }
 
-func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool) error {
+func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 
@@ -557,7 +557,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		Containers: []corev1.Container{
 			{
 				Name:  csiProvisionerContainerName,
-				Image: csiProvisionerContainerImage,
+				Image: filepath.Join(registry, csiProvisionerContainerImage),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
@@ -597,7 +597,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 			},
 			{
 				Name:  directCSIContainerName,
-				Image: directCSIContainerImage,
+				Image: filepath.Join(registry, directCSIContainerImage),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", name),
