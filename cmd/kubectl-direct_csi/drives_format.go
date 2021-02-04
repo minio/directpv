@@ -38,6 +38,7 @@ import (
 	"github.com/jedib0t/go-pretty/text"
 	"github.com/mb0/glob"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const XFS = "xfs"
@@ -81,6 +82,8 @@ func init() {
 }
 
 func addDrives(ctx context.Context, args []string) error {
+	dryRun := viper.GetBool(dryRunFlagName)
+
 	if !all {
 		if len(drives) == 0 && len(nodes) == 0 {
 			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should to be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"))
@@ -209,11 +212,21 @@ func addDrives(ctx context.Context, args []string) error {
 			Filesystem: XFS,
 			Force:      force,
 		}
+		if dryRun {
+			if err := utils.LogYAML(d); err != nil {
+				return err
+			}
+			continue
+		}
 		updated, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 		updatedFilterDrives = append(updatedFilterDrives, updated)
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	sort.SliceStable(updatedFilterDrives, func(i, j int) bool {

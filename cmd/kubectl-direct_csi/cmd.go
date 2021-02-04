@@ -30,8 +30,10 @@ var Version string
 
 // flags
 var (
-	kubeconfig = ""
-	identity   = "direct.csi.min.io"
+	kubeconfig     = ""
+	identity       = "direct.csi.min.io"
+	dryRun         = false
+	dryRunFlagName = "dry-run"
 )
 
 var pluginCmd = &cobra.Command{
@@ -54,6 +56,7 @@ func init() {
 	flag.Set("logtostderr", "true")
 
 	pluginCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "path to kubeconfig")
+	pluginCmd.PersistentFlags().BoolVarP(&dryRun, dryRunFlagName, "", dryRun, "prints the installation yaml")
 
 	pluginCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	pluginCmd.PersistentFlags().MarkHidden("log_backtrace_at")

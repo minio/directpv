@@ -22,6 +22,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/utils/installer"
@@ -57,6 +58,13 @@ func init() {
 }
 
 func uninstall(ctx context.Context, args []string) error {
+
+	dryRun := viper.GetBool(dryRunFlagName)
+	if dryRun {
+		glog.Infof("'%s' flag is not supported for uninstall", bold(dryRunFlagName))
+		return nil
+	}
+
 	utils.Init()
 	bold := color.New(color.Bold).SprintFunc()
 	directCSIClient := utils.GetDirectCSIClient()
