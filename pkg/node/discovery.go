@@ -153,15 +153,15 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition, b
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:    string(directv1alpha1.DirectCSIDriveConditionInitialized),
-					Status:  blockInitializationStatus,
-					Message: "DriveInitialized",
-					Reason: func() string {
+					Type:   string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Status: blockInitializationStatus,
+					Message: func() string {
 						if blockErrString == "" {
 							return directv1alpha1.DirectCSIDriveReasonInitialized
 						}
 						return blockErrString
 					}(),
+					Reason:             string(directv1alpha1.DirectCSIDriveReasonInitialized),
 					LastTransitionTime: metav1.Now(),
 				},
 			},
@@ -256,15 +256,15 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:    string(directv1alpha1.DirectCSIDriveConditionInitialized),
-					Status:  blockInitializationStatus,
-					Message: "DriveInitialized",
-					Reason: func() string {
+					Type:   string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Status: blockInitializationStatus,
+					Message: func() string {
 						if blockDevice.BlockInitializationError == "" {
 							return directv1alpha1.DirectCSIDriveReasonInitialized
 						}
 						return blockDevice.BlockInitializationError
 					}(),
+					Reason:             string(directv1alpha1.DirectCSIDriveReasonInitialized),
 					LastTransitionTime: metav1.Now(),
 				},
 			},
