@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"syscall"
 
 	"github.com/minio/direct-csi/pkg/sys"
 
@@ -68,4 +69,14 @@ func formatDrive(ctx context.Context, path string, force bool) error {
 		return fmt.Errorf("%s", output)
 	}
 	return nil
+}
+
+func getFreeCapacityFromStatfs(path string) (freeCapacity int64, err error) {
+	stat := &syscall.Statfs_t{}
+	err = syscall.Statfs(path, stat)
+	if err != nil {
+		return
+	}
+	freeCapacity = int64(stat.Frsize) * int64(stat.Bavail)
+	return
 }

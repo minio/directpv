@@ -206,6 +206,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 						glog.Error(err)
 						updateErr = err
 					} else {
+						new.Status.Mountpoint = ""
 						mounted = false
 					}
 				}
@@ -216,6 +217,8 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 						glog.Error(err)
 						updateErr = err
 					} else {
+						new.Status.Filesystem = string(sys.FSTypeXFS)
+						new.Status.AllocatedCapacity = int64(0)
 						formatted = true
 					}
 				}
@@ -227,7 +230,16 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 					glog.Error(err)
 					updateErr = err
 				} else {
-					mounted = true
+					new.Status.Mountpoint = target
+					new.Status.MountOptions = mountOpts
+					freeCapacity, sErr := getFreeCapacityFromStatfs(new.Status.Mountpoint)
+					if sErr != nil {
+						glog.Error(err)
+						updateErr = err
+					} else {
+						mounted = true
+						new.Status.FreeCapacity = freeCapacity
+					}
 				}
 			}
 
@@ -259,8 +271,6 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 					directv1alpha1.DirectCSIDriveFinalizerDataProtection,
 				}
 				new.Status.DriveStatus = directv1alpha1.DriveStatusReady
-				new.Status.Mountpoint = target
-				new.Status.MountOptions = mountOpts
 				new.Spec.RequestedFormat = nil
 			}
 
