@@ -95,7 +95,7 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 		if !p.Is() {
 			continue
 		}
-		partNum := uint32(i) + b.Minor
+		partNum := uint32(i+1) + b.Minor
 		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
@@ -145,7 +145,7 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 		if !p.Is() {
 			continue
 		}
-		partNum := b.Minor + uint32(i)
+		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
@@ -195,7 +195,7 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 		if !p.Is() {
 			continue
 		}
-		partNum := b.Minor + uint32(i)
+		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
@@ -279,7 +279,7 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 			partType = partTypeUUID
 		}
 
-		partNum := b.Minor + uint32(i)
+		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
