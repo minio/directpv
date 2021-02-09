@@ -77,7 +77,6 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 		if err != nil {
 			b.TagError(err)
 		}
-		return
 	}()
 
 	err = os.MkdirAll(DirectCSIDevRoot, 0755)
