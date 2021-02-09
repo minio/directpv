@@ -129,7 +129,10 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 			}
 		}
 		if fsInfo == nil {
-			fsInfo = &FSInfo{}
+			fsInfo = &FSInfo{
+				TotalCapacity: b.TotalCapacity,
+				FSBlockSize:   b.LogicalBlockSize,
+			}
 		}
 		var mounts []MountInfo
 		mounts, err = b.probeMountInfo(0)
@@ -151,7 +154,10 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 		}
 
 		if fsInfo == nil {
-			fsInfo = &FSInfo{}
+			fsInfo = &FSInfo{
+				TotalCapacity: p.TotalCapacity,
+				FSBlockSize:   p.LogicalBlockSize,
+			}
 		}
 
 		var mounts []MountInfo

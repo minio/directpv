@@ -185,14 +185,14 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 		filteredDrives, err := FilterDrivesByVolumeRequest(req, drives)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "no suitable drive matching requested resources: %v", err)
+			return nil, err
 		}
 
 		utils.JSONifyAndLog(req.GetAccessibilityRequirements())
 
 		selectedDrive, err := FilterDrivesByTopologyRequirements(req, filteredDrives)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "no suitable drive matching requested topology: %v", err)
+			return nil, err
 		}
 		return &selectedDrive, nil
 	}
