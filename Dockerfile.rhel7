@@ -1,0 +1,11 @@
+FROM alpine:3.8
+
+WORKDIR /
+
+RUN apk add -U --no-cache ca-certificates xfsprogs=4.16.1-r1 xfsprogs-extra=4.16.1-r1
+
+COPY direct-csi /direct-csi
+COPY CREDITS /licenses/CREDITS
+COPY LICENSE /licenses/LICENSE
+
+ENTRYPOINT ["/direct-csi"]
