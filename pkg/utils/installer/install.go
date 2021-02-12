@@ -64,15 +64,15 @@ const (
 	directCSISelector = "selector.direct.csi.min.io"
 
 	csiProvisionerContainerName  = "csi-provisioner"
-	csiProvisionerContainerImage = "k8scsi/csi-provisioner:v1.2.1"
+	csiProvisionerContainerImage = "k8scsi/csi-provisioner:v2.1.0"
 
 	directCSIContainerName = "direct-csi"
 
 	livenessProbeContainerName  = "liveness-probe"
-	livenessProbeContainerImage = "k8scsi/livenessprobe:v1.1.0"
+	livenessProbeContainerImage = "k8scsi/livenessprobe:v2.1.0"
 
 	nodeDriverRegistrarContainerName  = "node-driver-registrar"
-	nodeDriverRegistrarContainerImage = "k8scsi/csi-node-driver-registrar:v1.3.0"
+	nodeDriverRegistrarContainerImage = "k8scsi/csi-node-driver-registrar:v2.1.0"
 
 	healthZContainerPort         = 9898
 	healthZContainerPortName     = "healthz"
@@ -562,8 +562,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
 					fmt.Sprintf("--csi-address=$(%s)", endpointEnvVarCSI),
-					"--enable-leader-election",
-					"--leader-election-type=leases",
+					"--leader-election",
 					"--feature-gates=Topology=true",
 					"--strict-topology",
 				},
