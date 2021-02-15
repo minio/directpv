@@ -69,6 +69,10 @@ var (
 	all = false
 )
 
+const (
+	directCSIPartitionInfix = "-part-"
+)
+
 func init() {
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glob prefix match for drive paths")
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob prefix match for node names")
@@ -142,7 +146,7 @@ func listDrives(ctx context.Context, args []string) error {
 	for _, d := range filterNodes {
 		for _, n := range drivesList {
 			pathTransform := func(in string) string {
-				path := strings.ReplaceAll(in, "-part-", "")
+				path := strings.ReplaceAll(in, directCSIPartitionInfix, "")
 				path = strings.ReplaceAll(path, sys.DirectCSIDevRoot+"/", "")
 				path = strings.ReplaceAll(path, sys.HostDevRoot+"/", "")
 				return filepath.Base(path)
@@ -237,7 +241,7 @@ func listDrives(ctx context.Context, args []string) error {
 	driveName := func(val string) string {
 		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
 		dr = strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
-		return strings.ReplaceAll(dr, "-part-", "")
+		return strings.ReplaceAll(dr, directCSIPartitionInfix, "")
 	}
 
 	for _, d := range filterStatus {
@@ -265,13 +269,14 @@ func listDrives(ctx context.Context, args []string) error {
 					}
 				}
 			}
-			return strings.ReplaceAll("/dev/"+dr, "-part-", "")
+			return strings.ReplaceAll("/dev/"+dr, directCSIPartitionInfix, "")
 		}(d.Status.Path)
 		drStatus := d.Status.DriveStatus
 		if msg != "" {
 			drStatus = drStatus + "*"
 			msg = strings.ReplaceAll(msg, d.Name, "")
 			msg = strings.ReplaceAll(msg, "/var/lib/direct-csi/devices", "/dev")
+			msg = strings.ReplaceAll(msg, directCSIPartitionInfix, "")
 			msg = strings.Split(msg, "\n")[0]
 		}
 
