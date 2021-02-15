@@ -31,6 +31,10 @@ import (
 	"github.com/minio/direct-csi/pkg/sys/mbr"
 )
 
+const (
+	directCSIPartitionInfix = "-part-"
+)
+
 func (b *BlockDevice) probePartitions(ctx context.Context) ([]Partition, error) {
 	parts, err := b.probeGPT(ctx)
 	if err != nil {
@@ -96,7 +100,7 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 			continue
 		}
 		partNum := uint32(i+1) + b.Minor
-		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
+		partitionPath := fmt.Sprintf("%s%s%d", b.Path, directCSIPartitionInfix, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -146,7 +150,7 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 			continue
 		}
 		partNum := b.Minor + uint32(i+1)
-		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
+		partitionPath := fmt.Sprintf("%s%s%d", b.Path, directCSIPartitionInfix, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -196,7 +200,7 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 			continue
 		}
 		partNum := b.Minor + uint32(i+1)
-		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
+		partitionPath := fmt.Sprintf("%s%s%d", b.Path, directCSIPartitionInfix, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -280,7 +284,7 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 		}
 
 		partNum := b.Minor + uint32(i+1)
-		partitionPath := fmt.Sprintf("%s-part-%d", b.Path, i+1)
+		partitionPath := fmt.Sprintf("%s%s%d", b.Path, directCSIPartitionInfix, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -361,7 +365,22 @@ func getBlockFile(devName string) string {
 	if strings.HasPrefix(devName, HostDevRoot) {
 		return getBlockFile(filepath.Base(devName))
 	}
-	return filepath.Join(DirectCSIDevRoot, devName)
+	return filepath.Join(DirectCSIDevRoot, makeBlockDeviceName(devName))
+}
+
+func makeBlockDeviceName(devName string) string {
+	dName := strings.Builder{}
+	var wrotePrefix bool
+	for _, r := range devName {
+		if r >= '0' && r <= '9' {
+			if !wrotePrefix {
+				dName.WriteString(directCSIPartitionInfix)
+				wrotePrefix = true
+			}
+		}
+		dName.WriteRune(r)
+	}
+	return dName.String()
 }
 
 func getRootBlockFile(devName string) string {
@@ -371,5 +390,9 @@ func getRootBlockFile(devName string) string {
 	if strings.HasPrefix(devName, HostDevRoot) {
 		return devName
 	}
-	return filepath.Join(HostDevRoot, devName)
+	return filepath.Join(HostDevRoot, makeRootDeviceName(devName))
+}
+
+func makeRootDeviceName(devName string) string {
+	return strings.ReplaceAll(devName, directCSIPartitionInfix, "")
 }

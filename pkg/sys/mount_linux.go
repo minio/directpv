@@ -244,7 +244,7 @@ func SafeUnmountAll(drivePath string, opts []UnmountOption) error {
 	}
 
 	for _, m := range mounts {
-		if getBlockFile(m.DevName) == getBlockFile(drivePath) {
+		if getBlockFile(m.MountSource) == getBlockFile(drivePath) {
 			if err := SafeUnmount(m.Mountpoint, opts); err != nil {
 				return err
 			}
