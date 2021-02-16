@@ -21,8 +21,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/golang/glog"
 	"golang.org/x/sys/unix"
@@ -356,43 +354,4 @@ func makeBlockFile(path string, major, minor uint32) error {
 		return err
 	}
 	return nil
-}
-
-func getBlockFile(devName string) string {
-	if strings.Contains(devName, DirectCSIDevRoot) {
-		return devName
-	}
-	if strings.HasPrefix(devName, HostDevRoot) {
-		return getBlockFile(filepath.Base(devName))
-	}
-	return filepath.Join(DirectCSIDevRoot, makeBlockDeviceName(devName))
-}
-
-func makeBlockDeviceName(devName string) string {
-	dName := strings.Builder{}
-	var wrotePrefix bool
-	for _, r := range devName {
-		if r >= '0' && r <= '9' {
-			if !wrotePrefix {
-				dName.WriteString(directCSIPartitionInfix)
-				wrotePrefix = true
-			}
-		}
-		dName.WriteRune(r)
-	}
-	return dName.String()
-}
-
-func getRootBlockFile(devName string) string {
-	if strings.Contains(devName, DirectCSIDevRoot) {
-		return getRootBlockFile(filepath.Base(devName))
-	}
-	if strings.HasPrefix(devName, HostDevRoot) {
-		return devName
-	}
-	return filepath.Join(HostDevRoot, makeRootDeviceName(devName))
-}
-
-func makeRootDeviceName(devName string) string {
-	return strings.ReplaceAll(devName, directCSIPartitionInfix, "")
 }

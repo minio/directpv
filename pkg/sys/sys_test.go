@@ -1,5 +1,5 @@
 // This file is part of MinIO Direct CSI
-// Copyright (c) 2020 MinIO, Inc.
+// Copyright (c) 2021 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -52,6 +52,16 @@ func TestGetBlockFile(t1 *testing.T) {
 			devName:   "/dev/xvdb15",
 			blockFile: "/var/lib/direct-csi/devices/xvdb-part-15",
 		},
+		{
+			name:      "test6",
+			devName:   "/dev/nvmen1p4",
+			blockFile: "/var/lib/direct-csi/devices/nvmen1p-part-4",
+		},
+		{
+			name:      "test7",
+			devName:   "/dev/nvmen12p11",
+			blockFile: "/var/lib/direct-csi/devices/nvmen12p-part-11",
+		},
 	}
 
 	for _, tt := range testCases {
@@ -96,6 +106,16 @@ func TestGetRootBlockFile(t1 *testing.T) {
 			name:     "test5",
 			devName:  "/var/lib/direct-csi/devices/xvdb-part-15",
 			rootFile: "/dev/xvdb15",
+		},
+		{
+			name:     "test6",
+			devName:  "/var/lib/direct-csi/devices/nvmen1p-part-4",
+			rootFile: "/dev/nvmen1p4",
+		},
+		{
+			name:     "test7",
+			devName:  "/var/lib/direct-csi/devices/nvmen12p-part-11",
+			rootFile: "/dev/nvmen12p11",
 		},
 	}
 
