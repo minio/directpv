@@ -53,33 +53,13 @@ func init() {
 	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "registry where direct-csi images are available")
 	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on direct-csi admission controller")
 
+	installCmd.PersistentFlags().MarkDeprecated("crd", "Will be removed in version 1.5 or greater")
 }
 
 func install(ctx context.Context, args []string) error {
 	dryRun := viper.GetBool(dryRunFlagName)
 	if !dryRun {
 		utils.Init()
-	}
-
-	if installCRD {
-	crdInstall:
-		if err := registerCRDs(ctx); err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return err
-			}
-			// if it exists
-			if !dryRun && overwriteCRD {
-				if err := unregisterCRDs(ctx); err != nil {
-					if !errors.IsNotFound(err) {
-						return err
-					}
-					goto crdInstall
-				}
-			}
-		}
-		if !dryRun {
-			glog.Infof("crds successfully registered")
-		}
 	}
 
 	if err := installer.CreateNamespace(ctx, identity, dryRun); err != nil {
@@ -89,6 +69,36 @@ func install(ctx context.Context, args []string) error {
 	}
 	if !dryRun {
 		glog.Infof("'%s' namespace created", utils.Bold(identity))
+	}
+
+	if err := installer.CreateConversionDeployment(ctx, identity, image, dryRun, registry); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	if !dryRun {
+		glog.Infof("'%s' conversion deployment created", utils.Bold(identity))
+	}
+
+crdInstall:
+	if err := registerCRDs(ctx, identity); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+		// if it exists
+		if !dryRun && overwriteCRD {
+			glog.Infof("overwriting CRDs")
+			if err := unregisterCRDs(ctx); err != nil {
+				if !errors.IsNotFound(err) {
+					return err
+				}
+			}
+			glog.Infof("Writing CRDs again")
+			goto crdInstall
+		}
+	}
+	if !dryRun {
+		glog.Infof("crds successfully registered")
 	}
 
 	if err := installer.CreateCSIDriver(ctx, identity, dryRun); err != nil {

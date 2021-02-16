@@ -32,16 +32,18 @@ var Version string
 
 // flags
 var (
-	identity   = "direct-csi-min-io"
-	nodeID     = ""
-	rack       = "default"
-	zone       = "default"
-	region     = "default"
-	endpoint   = "unix://csi/csi.sock"
-	kubeconfig = ""
-	controller = false
-	driver     = false
-	procfs     = "/proc"
+	identity             = "direct-csi-min-io"
+	nodeID               = ""
+	rack                 = "default"
+	zone                 = "default"
+	region               = "default"
+	endpoint             = "unix://csi/csi.sock"
+	kubeconfig           = ""
+	controller           = false
+	driver               = false
+	procfs               = "/proc"
+	conversionWebhook    = false
+	conversionWebhookURL = ""
 )
 
 var driverCmd = &cobra.Command{
@@ -56,8 +58,8 @@ For more information, use '%s man [sched | examples | ...]'
 `, os.Args[0]),
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		if !controller && !driver {
-			return fmt.Errorf("either --controller or --driver should be set")
+		if !controller && !driver && !conversionWebhook {
+			return fmt.Errorf("one among [--controller, --driver, --conversion-webhook] should be set")
 		}
 
 		return run(c.Context(), args)
@@ -86,6 +88,8 @@ func init() {
 	driverCmd.Flags().StringVarP(&procfs, "procfs", "", procfs, "path to host /proc for accessing mount information")
 	driverCmd.Flags().BoolVarP(&controller, "controller", "", controller, "running in controller mode")
 	driverCmd.Flags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
+	driverCmd.Flags().BoolVarP(&conversionWebhook, "conversion-webhook", "", conversionWebhook, "start and serve conversion webhook")
+	driverCmd.Flags().StringVarP(&conversionWebhookURL, "conversion-webhook-url", "", conversionWebhookURL, "The URL of the conversion webhook")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")

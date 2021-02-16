@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -102,12 +103,25 @@ const (
 
 	// Finalizers
 	DirectCSIFinalizerDeleteProtection = "/delete-protection"
+
+	// Conversion webhook
+	conversionWebhookName       = "directcsi-conversion-webhook"
+	ConversionWebhookSecretName = "conversionwebhookcerts"
+	conversionWebhookPortName   = "convwebhook"
+	conversionWebhookPort       = 443
+
+	conversionWebhookCertVolume  = "conversion-webhook-certs"
+	conversionWebhookCertsSecret = "converionwebhookcertsecret"
+	caCertFileName               = "ca.pem"
+	caDir                        = "/etc/CAs"
 )
 
 var (
-	caBundle                   []byte
+	validationWebhookCaBundle  []byte
+	conversionWebhookCaBundle  []byte
 	ErrKubeVersionNotSupported = errors.New(
 		fmt.Sprintf("%s: This version of kubernetes is not supported by direct-csi. Please upgrade your kubernetes installation and try again", utils.Red("ERR")))
+	ErrEmptyCABundle = errors.New("CA bundle is empty")
 )
 
 func objMeta(name string) metav1.ObjectMeta {
@@ -322,9 +336,20 @@ func CreateService(ctx context.Context, identity string, dryRun bool) error {
 	return nil
 }
 
+func getConversionWebhookDNSName(identity string) string {
+	return strings.Join([]string{conversionWebhookName, sanitizeName(identity), "svc"}, ".") // "directcsi-conversion-webhook.direct-csi-min-io.svc"
+}
+
+func getConversionWebhookURL(identity string) (conversionWebhookURL string) {
+	conversionWebhookDNSName := getConversionWebhookDNSName(identity)
+	conversionWebhookURL = fmt.Sprintf("https://%s", conversionWebhookDNSName+healthZContainerPortPath) // https://directcsi-conversion-webhook.direct-csi-min-io.svc/healthz
+	return
+}
+
 func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
+	conversionWebhookURL := getConversionWebhookURL(identity)
 
 	privileged := true
 	podSpec := corev1.PodSpec{
@@ -339,6 +364,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 			newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
 			newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
 			newHostPathVolume(volumeNameSysDir, volumePathSysDir),
+			newSecretVolume(conversionWebhookCertVolume, conversionWebhookCertsSecret),
 		},
 		Containers: []corev1.Container{
 			{
@@ -376,6 +402,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 					fmt.Sprintf("--v=%d", logLevel),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
+					fmt.Sprintf("--conversion-webhook-url=%s", conversionWebhookURL),
 					"--driver",
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -404,6 +431,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true),
 					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true),
 					newVolumeMount(volumeNameSysDir, "/sys", true),
+					newVolumeMount(conversionWebhookCertVolume, caDir, false),
 				},
 				Ports: []corev1.ContainerPort{
 					{
@@ -542,9 +570,40 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 	return nil
 }
 
+func CreateConversionCASecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool) error {
+
+	getCertsDataMap := func() map[string][]byte {
+		mp := make(map[string][]byte)
+		mp[caCertFileName] = caCertBytes
+		return mp
+	}
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      conversionWebhookCertsSecret,
+			Namespace: sanitizeName(identity),
+		},
+		Data: getCertsDataMap(),
+	}
+
+	if dryRun {
+		return utils.LogYAML(secret)
+	}
+
+	if _, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
+	conversionWebhookURL := getConversionWebhookURL(identity)
 
 	var replicas int32 = 3
 	privileged := true
@@ -553,6 +612,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		Volumes: []corev1.Volume{
 			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", name))),
 			newSecretVolume(admissionControllerCertsDir, AdmissionWebhookSecretName),
+			newSecretVolume(conversionWebhookCertVolume, conversionWebhookCertsSecret),
 		},
 		Containers: []corev1.Container{
 			{
@@ -601,6 +661,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 					fmt.Sprintf("--v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", name),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
+					fmt.Sprintf("--conversion-webhook-url=%s", conversionWebhookURL),
 					"--controller",
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -636,6 +697,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(volumeNameSocketDir, "/csi", false),
 					newVolumeMount(admissionControllerCertsDir, certsDir, false),
+					newVolumeMount(conversionWebhookCertVolume, caDir, false),
 				},
 			},
 		},
@@ -645,7 +707,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 	if certErr != nil {
 		return certErr
 	}
-	caBundle = caCertBytes
+	validationWebhookCaBundle = caCertBytes
 
 	if err := CreateControllerSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
 		if !kerr.IsAlreadyExists(err) {
@@ -704,6 +766,11 @@ func sanitizeName(s string) string {
 		s = s + "X"
 	}
 	return s
+}
+
+// Exported
+func SanitizeName(s string) string {
+	return sanitizeName(s)
 }
 
 func generateSanitizedUniqueNameFrom(name string) string {
@@ -780,7 +847,7 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 	getClientConfig := func() admissionv1.WebhookClientConfig {
 		return admissionv1.WebhookClientConfig{
 			Service:  getServiceRef(),
-			CABundle: []byte(caBundle),
+			CABundle: []byte(validationWebhookCaBundle),
 		}
 
 	}
@@ -840,4 +907,206 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 		return err
 	}
 	return nil
+}
+
+func CreateConversionSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool) error {
+
+	getCertsDataMap := func() map[string][]byte {
+		mp := make(map[string][]byte)
+		mp[privateKeyFileName] = privateKeyBytes
+		mp[publicCertFileName] = publicCertBytes
+		return mp
+	}
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ConversionWebhookSecretName,
+			Namespace: sanitizeName(identity),
+		},
+		Data: getCertsDataMap(),
+	}
+
+	if dryRun {
+		return utils.LogYAML(secret)
+	}
+
+	if _, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateConversionService(ctx context.Context, generatedSelectorValue, identity string, dryRun bool) error {
+	webhookPort := corev1.ServicePort{
+		Port: conversionWebhookPort,
+		TargetPort: intstr.IntOrString{
+			Type:   intstr.String,
+			StrVal: conversionWebhookPortName,
+		},
+	}
+	svc := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      conversionWebhookName,
+			Namespace: sanitizeName(identity),
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{webhookPort},
+			Selector: map[string]string{
+				directCSISelector: generatedSelectorValue,
+			},
+		},
+	}
+
+	if dryRun {
+		return utils.LogYAML(svc)
+	}
+
+	if _, err := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateConversionDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry string) error {
+	name := sanitizeName(identity)
+	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
+	conversionWebhookDNSName := getConversionWebhookDNSName(identity)
+	var replicas int32 = 3
+	privileged := true
+	podSpec := corev1.PodSpec{
+		ServiceAccountName: name,
+		Volumes: []corev1.Volume{
+			newSecretVolume(conversionWebhookName, ConversionWebhookSecretName),
+		},
+		Containers: []corev1.Container{
+			{
+				Name:  directCSIContainerName,
+				Image: filepath.Join(registry, directCSIContainerImage),
+				Args: []string{
+					"--conversion-webhook",
+				},
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: conversionWebhookPort,
+						Name:          conversionWebhookPortName,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+				// // Enable after investigating the CrashLoopBackOff on pods
+				// LivenessProbe: &corev1.Probe{
+				// 	FailureThreshold:    5,
+				// 	InitialDelaySeconds: 10,
+				// 	TimeoutSeconds:      3,
+				// 	PeriodSeconds:       2,
+				// 	Handler: corev1.Handler{
+				// 		HTTPGet: &corev1.HTTPGetAction{
+				// 			Path:   healthZContainerPortPath,
+				// 			Port:   intstr.FromString(conversionWebhookPortName),
+				// 			Host:   conversionWebhookDNSName,
+				// 			Scheme: corev1.URISchemeHTTPS,
+				// 		},
+				// 	},
+				// },
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(conversionWebhookName, certsDir, false),
+				},
+			},
+		},
+	}
+
+	caCertBytes, publicCertBytes, privateKeyBytes, certErr := getCerts([]string{conversionWebhookDNSName})
+	if certErr != nil {
+		return certErr
+	}
+	conversionWebhookCaBundle = caCertBytes
+
+	if err := CreateConversionSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
+		if !kerr.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	if err := CreateConversionCASecret(ctx, identity, caCertBytes, dryRun); err != nil {
+		if !kerr.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	getObjMeta := func() metav1.ObjectMeta {
+		return metav1.ObjectMeta{
+			Name:      conversionWebhookName,
+			Namespace: sanitizeName(name),
+			Annotations: map[string]string{
+				CreatedByLabel: DirectCSIPluginName,
+			},
+			Labels: map[string]string{
+				"app": DirectCSI,
+			},
+		}
+	}
+
+	deployment := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: getObjMeta(),
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      conversionWebhookName,
+					Namespace: sanitizeName(name),
+					Annotations: map[string]string{
+						CreatedByLabel: DirectCSIPluginName,
+					},
+					Labels: map[string]string{
+						directCSISelector: generatedSelectorValue,
+					},
+				},
+				Spec: podSpec,
+			},
+		},
+		Status: appsv1.DeploymentStatus{},
+	}
+	deployment.ObjectMeta.Finalizers = []string{
+		sanitizeName(identity) + DirectCSIFinalizerDeleteProtection,
+	}
+
+	if dryRun {
+		return utils.LogYAML(deployment)
+	}
+
+	if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+
+	if err := CreateConversionService(ctx, generatedSelectorValue, identity, dryRun); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetConversionCABundle() ([]byte, error) {
+	if len(conversionWebhookCaBundle) == 0 {
+		return []byte{}, ErrEmptyCABundle
+	}
+	return conversionWebhookCaBundle, nil
+}
+
+func GetConversionServiceName() string {
+	return conversionWebhookName
 }

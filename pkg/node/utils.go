@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"sort"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/sys/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -57,10 +57,12 @@ func GetDiskFS(devicePath string) (string, error) {
 }
 
 // AddDriveFinalizersWithConflictRetry - appends a finalizer to the csidrive's finalizers list
-func AddDriveFinalizersWithConflictRetry(ctx context.Context, csiDriveName string, finalizers []string) error {
+func AddDriveFinalizersWithConflictRetry(ctx context.Context, csiDriveName string, finalizers []string, crdVersion string) error {
 	directCSIClient := utils.GetDirectCSIClient()
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, csiDriveName, metav1.GetOptions{})
+		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, csiDriveName, metav1.GetOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+		})
 		if dErr != nil {
 			return dErr
 		}
@@ -68,7 +70,9 @@ func AddDriveFinalizersWithConflictRetry(ctx context.Context, csiDriveName strin
 		for _, finalizer := range finalizers {
 			copiedDrive.ObjectMeta.SetFinalizers(utils.AddFinalizer(&copiedDrive.ObjectMeta, finalizer))
 		}
-		_, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{})
+		_, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+		})
 		return err
 	}); err != nil {
 		glog.V(5).Infof("Error while adding finalizers to csidrive: (%s)", err.Error())
@@ -78,16 +82,20 @@ func AddDriveFinalizersWithConflictRetry(ctx context.Context, csiDriveName strin
 }
 
 // RemoveDriveFinalizerWithConflictRetry - removes a finalizer from the csidrive's finalizers list
-func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName string, finalizer string) error {
+func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName string, finalizer, crdVersion string) error {
 	directCSIClient := utils.GetDirectCSIClient()
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, csiDriveName, metav1.GetOptions{})
+		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, csiDriveName, metav1.GetOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+		})
 		if dErr != nil {
 			return dErr
 		}
 		copiedDrive := csiDrive.DeepCopy()
 		copiedDrive.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&copiedDrive.ObjectMeta, finalizer))
-		_, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{})
+		_, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+		})
 		return err
 	}); err != nil {
 		glog.V(5).Infof("Error while adding finalizers to csidrive: (%s)", err.Error())
@@ -97,7 +105,7 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 }
 
 // UpdateDriveStatusOnDiff Updates the drive status fields on diff.
-func UpdateDriveStatusOnDiff(newObj directv1alpha1.DirectCSIDrive, existingObj *directv1alpha1.DirectCSIDrive) bool {
+func UpdateDriveStatusOnDiff(newObj directcsi.DirectCSIDrive, existingObj *directcsi.DirectCSIDrive) bool {
 	isUpdated := false
 	if existingObj.Status.Path != newObj.Status.Path {
 		existingObj.Status.Path = newObj.Status.Path

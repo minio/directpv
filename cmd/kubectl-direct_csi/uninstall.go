@@ -42,19 +42,12 @@ var uninstallCmd = &cobra.Command{
 
 var (
 	uninstallCRD = false
-	dangerous    = false
-	unfinalize   = false
+	forceRemove  = false
 )
 
 func init() {
 	uninstallCmd.PersistentFlags().BoolVarP(&uninstallCRD, "crd", "c", uninstallCRD, "unregister direct.csi.min.io group crds")
-
-	uninstallCmd.PersistentFlags().BoolVarP(&dangerous, "dangerous", "", dangerous, "potentially dangerous operation. May cause data loss. Required for --unfinalize to work")
-	uninstallCmd.PersistentFlags().BoolVarP(&unfinalize, "unfinalize", "", unfinalize, "remove all finalizers from direct.csi.min.io resources. only works along with --dangerous")
-
-	uninstallCmd.PersistentFlags().MarkHidden("dangerous")
-	uninstallCmd.PersistentFlags().MarkHidden("unfinalize")
-
+	uninstallCmd.PersistentFlags().BoolVarP(&forceRemove, "force", "", forceRemove, "Removes the direct.csi.min.io resources [May cause data loss]")
 }
 
 func uninstall(ctx context.Context, args []string) error {
@@ -70,53 +63,70 @@ func uninstall(ctx context.Context, args []string) error {
 	directCSIClient := utils.GetDirectCSIClient()
 
 	if uninstallCRD {
-		if unfinalize && dangerous {
-			volumes, err := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
-			if err != nil {
+		volumes, err := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
+		if err != nil {
+			if !errors.IsNotFound(err) {
 				return err
 			}
+		}
 
-			for _, v := range volumes.Items {
-				v.ObjectMeta.SetFinalizers([]string{})
-				if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, &v, metav1.UpdateOptions{}); err != nil {
-					return err
-				}
-				if err := directCSIClient.DirectCSIVolumes().Delete(ctx, v.Name, metav1.DeleteOptions{}); err != nil {
-					if !errors.IsNotFound(err) {
-						return err
-					}
-				}
-			}
-			drives, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
-			if err != nil {
+		if len(volumes.Items) > 0 && !forceRemove {
+			glog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
+			return nil
+		}
+
+		for _, v := range volumes.Items {
+			v.ObjectMeta.SetFinalizers([]string{})
+			if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, &v, metav1.UpdateOptions{}); err != nil {
 				return err
 			}
-			for _, d := range drives.Items {
-				d.ObjectMeta.SetFinalizers([]string{})
-				if _, err := directCSIClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
+			if err := directCSIClient.DirectCSIVolumes().Delete(ctx, v.Name, metav1.DeleteOptions{}); err != nil {
+				if !errors.IsNotFound(err) {
 					return err
-				}
-				if err := directCSIClient.DirectCSIDrives().Delete(ctx, d.Name, metav1.DeleteOptions{}); err != nil {
-					if !errors.IsNotFound(err) {
-						return err
-					}
 				}
 			}
 		}
+		drives, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				return err
+			}
+		}
+
+		if len(drives.Items) > 0 && !forceRemove {
+			glog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
+			return nil
+		}
+
+		for _, d := range drives.Items {
+			d.ObjectMeta.SetFinalizers([]string{})
+			if _, err := directCSIClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
+			if err := directCSIClient.DirectCSIDrives().Delete(ctx, d.Name, metav1.DeleteOptions{}); err != nil {
+				if !errors.IsNotFound(err) {
+					return err
+				}
+			}
+		}
+		if forceRemove {
+			glog.Infof("'%s' CRD resources deleted", bold(identity))
+		}
+
 		if err := unregisterCRDs(ctx); err != nil {
 			if !errors.IsNotFound(err) {
 				return err
 			}
 		}
 		glog.Infof("'%s' crds deleted", bold(identity))
-	}
 
-	if err := installer.DeleteNamespace(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
+		if err := installer.DeleteNamespace(ctx, identity); err != nil {
+			if !errors.IsNotFound(err) {
+				return err
+			}
 		}
+		glog.Infof("'%s' namespace deleted", bold(identity))
 	}
-	glog.Infof("'%s' namespace deleted", bold(identity))
 
 	if err := installer.DeleteCSIDriver(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
@@ -159,18 +169,34 @@ func uninstall(ctx context.Context, args []string) error {
 		}
 	}
 
-	if err := installer.DeleteSecrets(ctx, identity); err != nil {
+	if err := installer.DeleteControllerSecret(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' drive validation rules removed", utils.Bold(identity))
 
-	if err := installer.DeleteDeployment(ctx, identity); err != nil {
+	if err := installer.DeleteControllerDeployment(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' deployment deleted", utils.Bold(identity))
+	glog.Infof("'%s' controller deployment deleted", utils.Bold(identity))
+
+	if uninstallCRD {
+		if err := installer.DeleteConversionDeployment(ctx, identity); err != nil {
+			if !errors.IsNotFound(err) {
+				return err
+			}
+		}
+
+		if err := installer.DeleteConversionSecret(ctx, identity); err != nil {
+			if !errors.IsNotFound(err) {
+				return err
+			}
+		}
+		glog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
+	}
+
 	return nil
 }

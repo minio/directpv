@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package v1alpha1
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +31,7 @@ const (
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -50,6 +51,15 @@ type DirectCSIDriveSpec struct {
 	// +optional
 	DriveTaint map[string]string `json:"driveTaint,omitempty"`
 }
+
+type AccessTier string
+
+const (
+	AccessTierWarm    AccessTier = "Warm"
+	AccessTierHot                = "Hot"
+	AccessTierCold               = "Cold"
+	AccessTierUnknown            = "Unknown"
+)
 
 type DirectCSIDriveStatus struct {
 	Path string `json:"path"`
@@ -84,6 +94,9 @@ type DirectCSIDriveStatus struct {
 	LogicalBlockSize int64 `json:"logicalBlockSize,omitempty"`
 	// +optional
 	Topology map[string]string `json:"topology,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	AccessTier AccessTier `json:"accessTier,omitempty"`
 	// +optional
 	// +patchMergeKey=type
 	// +patchStrategy=merge
@@ -156,6 +169,7 @@ type DirectCSIVolumeList struct {
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

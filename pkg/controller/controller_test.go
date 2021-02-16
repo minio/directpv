@@ -21,18 +21,18 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	direct_csi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestSelectDriveByTopology(t1 *testing.T) {
 
-	testDriveSet := []direct_csi.DirectCSIDrive{
+	testDriveSet := []directcsi.DirectCSIDrive{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive1",
 			},
-			Status: direct_csi.DirectCSIDriveStatus{
+			Status: directcsi.DirectCSIDriveStatus{
 				Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
 			},
 		},
@@ -40,7 +40,7 @@ func TestSelectDriveByTopology(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive2",
 			},
-			Status: direct_csi.DirectCSIDriveStatus{
+			Status: directcsi.DirectCSIDriveStatus{
 				Topology: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
 			},
 		},
@@ -48,7 +48,7 @@ func TestSelectDriveByTopology(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive3",
 			},
-			Status: direct_csi.DirectCSIDriveStatus{
+			Status: directcsi.DirectCSIDriveStatus{
 				Topology: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"},
 			},
 		},
@@ -111,12 +111,12 @@ func TestSelectDriveByTopology(t1 *testing.T) {
 }
 
 func TestFilterDrivesByCapacityRange(t1 *testing.T) {
-	testDriveSet := []direct_csi.DirectCSIDrive{
+	testDriveSet := []directcsi.DirectCSIDrive{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive1",
 			},
-			Status: direct_csi.DirectCSIDriveStatus{
+			Status: directcsi.DirectCSIDriveStatus{
 				FreeCapacity: 5000,
 			},
 		},
@@ -124,7 +124,7 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive2",
 			},
-			Status: direct_csi.DirectCSIDriveStatus{
+			Status: directcsi.DirectCSIDriveStatus{
 				FreeCapacity: 1000,
 			},
 		},
@@ -132,7 +132,7 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive3",
 			},
-			Status: direct_csi.DirectCSIDriveStatus{
+			Status: directcsi.DirectCSIDriveStatus{
 				FreeCapacity: 7000,
 			},
 		},
@@ -140,17 +140,17 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 	testCases := []struct {
 		name              string
 		capacityRange     *csi.CapacityRange
-		selectedDriveList []direct_csi.DirectCSIDrive
+		selectedDriveList []directcsi.DirectCSIDrive
 	}{
 		{
 			name:          "test1",
 			capacityRange: &csi.CapacityRange{RequiredBytes: 2000, LimitBytes: 6000},
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 5000,
 					},
 				},
@@ -158,7 +158,7 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 7000,
 					},
 				},
@@ -167,12 +167,12 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 		{
 			name:          "test2",
 			capacityRange: &csi.CapacityRange{RequiredBytes: 0, LimitBytes: 0},
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 5000,
 					},
 				},
@@ -180,7 +180,7 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 1000,
 					},
 				},
@@ -188,7 +188,7 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 7000,
 					},
 				},
@@ -197,12 +197,12 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 		{
 			name:          "test3",
 			capacityRange: &csi.CapacityRange{RequiredBytes: 2000, LimitBytes: 0},
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 5000,
 					},
 				},
@@ -210,7 +210,7 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 7000,
 					},
 				},
@@ -219,17 +219,17 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 		{
 			name:              "test4",
 			capacityRange:     &csi.CapacityRange{RequiredBytes: 10000, LimitBytes: 0},
-			selectedDriveList: []direct_csi.DirectCSIDrive{},
+			selectedDriveList: []directcsi.DirectCSIDrive{},
 		},
 		{
 			name:          "test5",
 			capacityRange: &csi.CapacityRange{RequiredBytes: 500, LimitBytes: 800},
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 5000,
 					},
 				},
@@ -237,7 +237,7 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 1000,
 					},
 				},
@@ -245,7 +245,7 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						FreeCapacity: 7000,
 					},
 				},
@@ -264,12 +264,12 @@ func TestFilterDrivesByCapacityRange(t1 *testing.T) {
 }
 
 func TestFilterDrivesByFsType(t1 *testing.T) {
-	testDriveSet := []direct_csi.DirectCSIDrive{
+	testDriveSet := []directcsi.DirectCSIDrive{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive1",
 			},
-			Status: direct_csi.DirectCSIDriveStatus{
+			Status: directcsi.DirectCSIDriveStatus{
 
 				Filesystem: "ext4",
 			},
@@ -278,7 +278,7 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive2",
 			},
-			Status: direct_csi.DirectCSIDriveStatus{
+			Status: directcsi.DirectCSIDriveStatus{
 				Filesystem: "ext4",
 			},
 		},
@@ -286,7 +286,7 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive3",
 			},
-			Status: direct_csi.DirectCSIDriveStatus{
+			Status: directcsi.DirectCSIDriveStatus{
 				Filesystem: "xfs",
 			},
 		},
@@ -294,17 +294,17 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 	testCases := []struct {
 		name              string
 		fsType            string
-		selectedDriveList []direct_csi.DirectCSIDrive
+		selectedDriveList []directcsi.DirectCSIDrive
 	}{
 		{
 			name:   "test1",
 			fsType: "ext4",
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						Filesystem: "ext4",
 					},
 				},
@@ -312,7 +312,7 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						Filesystem: "ext4",
 					},
 				},
@@ -321,12 +321,12 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 		{
 			name:   "test2",
 			fsType: "xfs",
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						Filesystem: "xfs",
 					},
 				},
@@ -335,12 +335,12 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 		{
 			name:   "test3",
 			fsType: "",
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						Filesystem: "ext4",
 					},
 				},
@@ -348,7 +348,7 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						Filesystem: "ext4",
 					},
 				},
@@ -356,7 +356,7 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
+					Status: directcsi.DirectCSIDriveStatus{
 						Filesystem: "xfs",
 					},
 				},
@@ -377,146 +377,146 @@ func TestFilterDrivesByFsType(t1 *testing.T) {
 func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
 	testCases := []struct {
 		name              string
-		driveList         []direct_csi.DirectCSIDrive
-		selectedDriveList []direct_csi.DirectCSIDrive
+		driveList         []directcsi.DirectCSIDrive
+		selectedDriveList []directcsi.DirectCSIDrive
 	}{
 		{
 			name: "test1",
-			driveList: []direct_csi.DirectCSIDrive{
+			driveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusAvailable,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusAvailable,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusInUse,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusInUse,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 			},
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusInUse,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusInUse,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 			},
 		},
 		{
 			name: "test2",
-			driveList: []direct_csi.DirectCSIDrive{
+			driveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 			},
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 			},
 		},
 		{
 			name: "test3",
-			driveList: []direct_csi.DirectCSIDrive{
+			driveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive2",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusTerminating,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusTerminating,
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive3",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusUnavailable,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusUnavailable,
 					},
 				},
 			},
-			selectedDriveList: []direct_csi.DirectCSIDrive{
+			selectedDriveList: []directcsi.DirectCSIDrive{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "drive1",
 					},
-					Status: direct_csi.DirectCSIDriveStatus{
-						DriveStatus: direct_csi.DriveStatusReady,
+					Status: directcsi.DirectCSIDriveStatus{
+						DriveStatus: directcsi.DriveStatusReady,
 					},
 				},
 			},

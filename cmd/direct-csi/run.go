@@ -18,9 +18,16 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"io/ioutil"
+	"net/http"
 	"strings"
+	"time"
 
 	ctrl "github.com/minio/direct-csi/pkg/controller"
+	"github.com/minio/direct-csi/pkg/converter"
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -31,9 +38,67 @@ import (
 	"github.com/minio/minio/pkg/ellipses"
 )
 
-func run(ctx context.Context, args []string) error {
-	utils.Init()
+const (
+	caFile = "/etc/CAs/ca.pem"
+)
 
+var (
+	conversionHookURLPollInterval  = 3 * time.Second
+	errInvalidConversionWebhookURL = errors.New("The `--conversion-webhook-url` flag is unset/empty")
+)
+
+func waitForConversionWebhook() error {
+	if conversionWebhookURL == "" {
+		return errInvalidConversionWebhookURL
+	}
+
+	caCert, err := ioutil.ReadFile(caFile)
+	if err != nil {
+		glog.V(2).Infof("Error while reading cacert %v", err)
+		return err
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: caCertPool,
+			},
+		},
+	}
+	defer client.CloseIdleConnections()
+
+	for {
+		_, err := client.Get(conversionWebhookURL)
+		if err == nil {
+			glog.V(2).Info("The conversion webhook is live!")
+			// The conversion webhook is live
+			break
+		}
+		glog.V(2).Infof("Waiting for conversion webhook: %v", err)
+		time.Sleep(conversionHookURLPollInterval)
+	}
+
+	return nil
+}
+
+func run(ctx context.Context, args []string) error {
+
+	if conversionWebhook {
+		// Start conversion webserver
+		if err := converter.ServeConversionWebhook(ctx); err != nil {
+			return err
+		}
+		// Do not start node server and central controller in conversion mode
+		return nil
+	}
+
+	if err := waitForConversionWebhook(); err != nil {
+		return err
+	}
+
+	utils.Init()
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err
@@ -57,8 +122,10 @@ func run(ctx context.Context, args []string) error {
 	}
 
 	var nodeSrv csi.NodeServer
+	currentCRDVersion := utils.CurrentCRDVersion()
+
 	if driver {
-		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths, procfs)
+		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths, procfs, currentCRDVersion)
 		if err != nil {
 			return err
 		}
@@ -67,7 +134,7 @@ func run(ctx context.Context, args []string) error {
 
 	var ctrlServer csi.ControllerServer
 	if controller {
-		ctrlServer, err = ctrl.NewControllerServer(ctx, identity, nodeID, rack, zone, region)
+		ctrlServer, err = ctrl.NewControllerServer(ctx, identity, nodeID, rack, zone, region, currentCRDVersion)
 		if err != nil {
 			return err
 		}

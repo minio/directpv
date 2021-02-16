@@ -29,35 +29,46 @@ go get k8s.io/code-generator/...
 go get sigs.k8s.io/controller-tools/cmd/controller-gen
 
 REPOSITORY=github.com/minio/direct-csi
-V1ALPHA1="${REPOSITORY}/pkg/apis/direct.csi.min.io/v1alpha1"
 
 # Remove old generated code
 rm -rf "${PROJECT_ROOT}/config/crd"
 rm -rf "${PROJECT_ROOT}/pkg/clientset"
 
-# deepcopy
-deepcopy-gen \
-    --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
-    --output-package "${REPOSITORY}/pkg/" \
-    --input-dirs "${V1ALPHA1}"
+versions="v1alpha1 v1beta1"
+for version in $versions; do
+    repo="${REPOSITORY}/pkg/apis/direct.csi.min.io/${version}"
 
-# openapi
-openapi-gen \
-    --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
-    --output-package "${V1ALPHA1}" \
-    --input-dirs "${V1ALPHA1}"
+    # deepcopy
+    deepcopy-gen \
+        --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
+        --output-package "${REPOSITORY}/pkg/" \
+        --input-dirs "${repo}"
 
-# client
-client-gen \
-    --fake-clientset \
-    --go-header-file  "${SCRIPT_ROOT}/boilerplate.go.txt" \
-    --clientset-name clientset \
-    --output-package "${REPOSITORY}/pkg/" \
-    --input-dirs "${V1ALPHA1}" \
-    --input direct.csi.min.io/v1alpha1 \
-    --input-base "${REPOSITORY}/pkg/apis"
+    # openapi
+    openapi-gen \
+        --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
+        --output-package "${repo}" \
+        --input-dirs "${repo}"
+
+    # client
+    inputDir="direct.csi.min.io/${version}"
+    client-gen \
+        --fake-clientset \
+        --go-header-file  "${SCRIPT_ROOT}/boilerplate.go.txt" \
+        --clientset-name clientset \
+        --output-package "${REPOSITORY}/pkg/" \
+        --input-dirs "${repo}" \
+        --input "${inputDir}" \
+        --input-base "${REPOSITORY}/pkg/apis"
+
+done
 
 # crd
 controller-gen \
-    crd:crdVersions=v1,trivialVersions=false \
+    crd:crdVersions=v1 \
     paths=./...
+
+conversion-gen \
+        --input-dirs "${REPOSITORY}/pkg/apis/direct.csi.min.io/v1beta1,${REPOSITORY}/pkg/apis/direct.csi.min.io/v1alpha1 " \
+        --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
+        --output-package "${REPOSITORY}/pkg/" 

@@ -24,7 +24,7 @@ import (
 	"sort"
 	"strings"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -91,7 +91,7 @@ func listDrives(ctx context.Context, args []string) error {
 	}
 
 	if len(driveList.Items) == 0 {
-		fmt.Printf("No resource of direct.csi.min.io/v1alpha1.%s found\n", bold("DirectCSIDrive"))
+		fmt.Printf("No resource of direct.csi.min.io/v1beta1.%s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 
@@ -111,7 +111,7 @@ func listDrives(ctx context.Context, args []string) error {
 	}
 
 	filterSet := map[string]struct{}{}
-	filterNodes := []directv1alpha1.DirectCSIDrive{}
+	filterNodes := []directcsi.DirectCSIDrive{}
 	for _, d := range driveList.Items {
 		for _, n := range nodeList {
 			if ok, _ := glob.Match(n, d.Status.NodeName); ok {
@@ -142,7 +142,7 @@ func listDrives(ctx context.Context, args []string) error {
 
 	// reset filterSet
 	filterSet = map[string]struct{}{}
-	filterDrives := []directv1alpha1.DirectCSIDrive{}
+	filterDrives := []directcsi.DirectCSIDrive{}
 	for _, d := range filterNodes {
 		for _, n := range drivesList {
 			pathTransform := func(in string) string {
@@ -183,9 +183,9 @@ func listDrives(ctx context.Context, args []string) error {
 
 	// reset filterSet
 	filterSet = map[string]struct{}{}
-	filterStatus := []directv1alpha1.DirectCSIDrive{}
+	filterStatus := []directcsi.DirectCSIDrive{}
 	for _, d := range filterDrives {
-		if !all && (d.Status.DriveStatus == directv1alpha1.DriveStatusUnavailable) {
+		if !all && (d.Status.DriveStatus == directcsi.DriveStatusUnavailable) {
 			continue
 		}
 		for _, n := range statusesList {
@@ -256,13 +256,13 @@ func listDrives(ctx context.Context, args []string) error {
 		dr := func(val string) string {
 			dr := driveName(val)
 			for _, c := range d.Status.Conditions {
-				if c.Type == string(directv1alpha1.DirectCSIDriveConditionInitialized) {
+				if c.Type == string(directcsi.DirectCSIDriveConditionInitialized) {
 					if c.Status != metav1.ConditionTrue {
 						msg = c.Message
 						continue
 					}
 				}
-				if c.Type == string(directv1alpha1.DirectCSIDriveConditionOwned) {
+				if c.Type == string(directcsi.DirectCSIDriveConditionOwned) {
 					if c.Status != metav1.ConditionTrue {
 						msg = c.Message
 						continue

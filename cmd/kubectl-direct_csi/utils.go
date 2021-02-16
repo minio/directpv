@@ -19,7 +19,7 @@ package main
 import (
 	"github.com/fatih/color"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 )
 
 // pretty printing utils
@@ -33,7 +33,7 @@ var (
 )
 
 // ListVolumesInDrive returns a slice of all the DirectCSIVolumes created on a given DirectCSIDrive
-func ListVolumesInDrive(drive directv1alpha1.DirectCSIDrive, volumes *directv1alpha1.DirectCSIVolumeList, vols []directv1alpha1.DirectCSIVolume) []directv1alpha1.DirectCSIVolume {
+func ListVolumesInDrive(drive directv1beta1.DirectCSIDrive, volumes *directv1beta1.DirectCSIVolumeList, vols []directv1beta1.DirectCSIVolume) []directv1beta1.DirectCSIVolume {
 	for _, volume := range volumes.Items {
 		if volume.Status.Drive == drive.ObjectMeta.Name {
 			vols = append(vols, volume)

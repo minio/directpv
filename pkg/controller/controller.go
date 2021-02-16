@@ -19,7 +19,7 @@ package controller
 import (
 	"context"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -70,25 +70,27 @@ import (
  *
  */
 
-func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
+func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region, crdVersion string) (*ControllerServer, error) {
 	// Start admission webhook server
 	go serveAdmissionController(ctx)
 
 	return &ControllerServer{
-		NodeID:   nodeID,
-		Identity: identity,
-		Rack:     rack,
-		Zone:     zone,
-		Region:   region,
+		NodeID:     nodeID,
+		Identity:   identity,
+		Rack:       rack,
+		Zone:       zone,
+		Region:     region,
+		CRDVersion: crdVersion,
 	}, nil
 }
 
 type ControllerServer struct {
-	NodeID   string
-	Identity string
-	Rack     string
-	Zone     string
-	Region   string
+	NodeID     string
+	Identity   string
+	Rack       string
+	Zone       string
+	Region     string
+	CRDVersion string
 }
 
 func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
@@ -143,6 +145,8 @@ func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 
 // CreateVolume - Creates a DirectCSI Volume
 func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	glog.V(3).Infof("CreateVolume req: %v", req)
+
 	name := req.GetName()
 	if name == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
@@ -166,14 +170,16 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil
 	}
 
-	matchDrive := func() (*directv1alpha1.DirectCSIDrive, error) {
-		driveList, err := dclient.List(ctx, metav1.ListOptions{})
+	matchDrive := func() (*directcsi.DirectCSIDrive, error) {
+		driveList, err := dclient.List(ctx, metav1.ListOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(c.CRDVersion),
+		})
 		if err != nil {
 			return nil, status.Errorf(codes.NotFound, "could not retreive directcsidrives: %v", err)
 		}
 		drives := driveList.Items
 
-		volFinalizer := directv1alpha1.DirectCSIDriveFinalizerPrefix + name
+		volFinalizer := directcsi.DirectCSIDriveFinalizerPrefix + name
 		for _, drive := range drives {
 			finalizers := drive.GetFinalizers()
 			for _, f := range finalizers {
@@ -197,7 +203,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return &selectedDrive, nil
 	}
 
-	getSize := func(drive *directv1alpha1.DirectCSIDrive) int64 {
+	getSize := func(drive *directcsi.DirectCSIDrive) int64 {
 		var size int64
 		if capRange := req.GetCapacityRange(); capRange != nil {
 			size = capRange.GetRequiredBytes()
@@ -209,11 +215,11 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return size
 	}
 
-	reserveDrive := func(drive *directv1alpha1.DirectCSIDrive) error {
+	reserveDrive := func(drive *directcsi.DirectCSIDrive) error {
 		size := getSize(drive)
 
 		var found bool
-		finalizer := directv1alpha1.DirectCSIDriveFinalizerPrefix + name
+		finalizer := directcsi.DirectCSIDriveFinalizerPrefix + name
 		finalizers := drive.GetFinalizers()
 		for _, f := range finalizers {
 			if f == finalizer {
@@ -225,14 +231,16 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if !found {
 			drive.Status.FreeCapacity = drive.Status.FreeCapacity - size
 			drive.Status.AllocatedCapacity = drive.Status.AllocatedCapacity + size
-			if drive.Status.DriveStatus == directv1alpha1.DriveStatusReady {
-				drive.Status.DriveStatus = directv1alpha1.DriveStatusInUse
+			if drive.Status.DriveStatus == directcsi.DriveStatusReady {
+				drive.Status.DriveStatus = directcsi.DriveStatusInUse
 			}
 
 			finalizers = append(finalizers, finalizer)
 			drive.SetFinalizers(finalizers)
 
-			if _, err := dclient.Update(ctx, drive, metav1.UpdateOptions{}); err != nil {
+			if _, err := dclient.Update(ctx, drive, metav1.UpdateOptions{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(c.CRDVersion),
+			}); err != nil {
 				return status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
 			}
 		}
@@ -256,15 +264,15 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
-	vol := &directv1alpha1.DirectCSIVolume{
+	vol := &directcsi.DirectCSIVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Finalizers: []string{
-				string(directv1alpha1.DirectCSIVolumeFinalizerPVProtection),
-				string(directv1alpha1.DirectCSIVolumeFinalizerPurgeProtection),
+				string(directcsi.DirectCSIVolumeFinalizerPVProtection),
+				string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
 			},
 		},
-		Status: directv1alpha1.DirectCSIVolumeStatus{
+		Status: directcsi.DirectCSIVolumeStatus{
 			Drive:             drive.Name,
 			NodeName:          drive.Status.NodeName,
 			TotalCapacity:     size,
@@ -272,17 +280,17 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			UsedCapacity:      0,
 			Conditions: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIVolumeConditionStaged),
+					Type:               string(directcsi.DirectCSIVolumeConditionStaged),
 					Status:             metav1.ConditionFalse,
 					Message:            "",
-					Reason:             string(directv1alpha1.DirectCSIVolumeReasonNotInUse),
+					Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIVolumeConditionPublished),
+					Type:               string(directcsi.DirectCSIVolumeConditionPublished),
 					Status:             metav1.ConditionFalse,
 					Message:            "",
-					Reason:             string(directv1alpha1.DirectCSIVolumeReasonNotInUse),
+					Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
 					LastTransitionTime: metav1.Now(),
 				},
 			},
@@ -320,7 +328,9 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	directCSIClient := utils.GetDirectCSIClient()
 	vclient := directCSIClient.DirectCSIVolumes()
 
-	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{})
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(c.CRDVersion),
+	})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return &csi.DeleteVolumeResponse{}, nil
@@ -331,14 +341,16 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	finalizers := vol.GetFinalizers()
 	updatedFinalizers := []string{}
 	for _, f := range finalizers {
-		if f == directv1alpha1.DirectCSIVolumeFinalizerPVProtection {
+		if f == directcsi.DirectCSIVolumeFinalizerPVProtection {
 			continue
 		}
 		updatedFinalizers = append(updatedFinalizers, f)
 	}
 	vol.SetFinalizers(updatedFinalizers)
 
-	_, err = vclient.Update(ctx, vol, metav1.UpdateOptions{})
+	_, err = vclient.Update(ctx, vol, metav1.UpdateOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(c.CRDVersion),
+	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove finalizer for volume [%s]: %v", vID, err)
 	}

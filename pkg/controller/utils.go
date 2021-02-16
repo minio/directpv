@@ -20,7 +20,7 @@ import (
 	"sort"
 	"strings"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -30,7 +30,7 @@ import (
 )
 
 // FilterDrivesByVolumeRequest - Filters the CSI drives by create volume request
-func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []directv1alpha1.DirectCSIDrive) ([]directv1alpha1.DirectCSIDrive, error) {
+func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []directcsi.DirectCSIDrive) ([]directcsi.DirectCSIDrive, error) {
 	capacityRange := volReq.GetCapacityRange()
 	vCaps := volReq.GetVolumeCapabilities()
 	fsType := ""
@@ -40,7 +40,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	filteredDrivesByFormat := FilterDrivesByRequestFormat(csiDrives)
 	if len(filteredDrivesByFormat) == 0 {
-		return []directv1alpha1.DirectCSIDrive{}, status.Error(codes.FailedPrecondition, "No csi drives are been added. Please use `add drives` plugin command to add the drives")
+		return []directcsi.DirectCSIDrive{}, status.Error(codes.FailedPrecondition, "No csi drives are been added. Please use `add drives` plugin command to add the drives")
 	}
 
 	filDrNames := []string{}
@@ -51,7 +51,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	capFilteredDrives := FilterDrivesByCapacityRange(capacityRange, filteredDrivesByFormat)
 	if len(capFilteredDrives) == 0 {
-		return []directv1alpha1.DirectCSIDrive{}, status.Error(codes.OutOfRange, "Invalid capacity range")
+		return []directcsi.DirectCSIDrive{}, status.Error(codes.OutOfRange, "Invalid capacity range")
 	}
 
 	cFilDrNames := []string{}
@@ -62,7 +62,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	fsFilteredDrives := FilterDrivesByFsType(fsType, capFilteredDrives)
 	if len(fsFilteredDrives) == 0 {
-		return []directv1alpha1.DirectCSIDrive{}, status.Errorf(codes.InvalidArgument, "Cannot find any drives by the fstype: %s", fsType)
+		return []directcsi.DirectCSIDrive{}, status.Errorf(codes.InvalidArgument, "Cannot find any drives by the fstype: %s", fsType)
 	}
 
 	fsFilDrNames := []string{}
@@ -75,10 +75,10 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 }
 
 // FilterDrivesByCapacityRange - Filters the CSI drives by capacity range in the create volume request
-func FilterDrivesByCapacityRange(capacityRange *csi.CapacityRange, csiDrives []directv1alpha1.DirectCSIDrive) []directv1alpha1.DirectCSIDrive {
+func FilterDrivesByCapacityRange(capacityRange *csi.CapacityRange, csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
 	reqBytes := capacityRange.GetRequiredBytes()
 	//limitBytes := capacityRange.GetLimitBytes()
-	filteredDriveList := []directv1alpha1.DirectCSIDrive{}
+	filteredDriveList := []directcsi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
 		if csiDrive.Status.FreeCapacity >= reqBytes {
 			filteredDriveList = append(filteredDriveList, csiDrive)
@@ -88,12 +88,12 @@ func FilterDrivesByCapacityRange(capacityRange *csi.CapacityRange, csiDrives []d
 }
 
 // FilterDrivesByRequestFormat - Selects the drives only if the requested format is empty/satisfied already.
-func FilterDrivesByRequestFormat(csiDrives []directv1alpha1.DirectCSIDrive) []directv1alpha1.DirectCSIDrive {
-	filteredDriveList := []directv1alpha1.DirectCSIDrive{}
+func FilterDrivesByRequestFormat(csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
+	filteredDriveList := []directcsi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
 		dStatus := csiDrive.Status.DriveStatus
-		if dStatus == directv1alpha1.DriveStatusReady ||
-			dStatus == directv1alpha1.DriveStatusInUse {
+		if dStatus == directcsi.DriveStatusReady ||
+			dStatus == directcsi.DriveStatusInUse {
 			filteredDriveList = append(filteredDriveList, csiDrive)
 		}
 	}
@@ -101,11 +101,11 @@ func FilterDrivesByRequestFormat(csiDrives []directv1alpha1.DirectCSIDrive) []di
 }
 
 // FilterDrivesByFsType - Filters the CSI drives by filesystem
-func FilterDrivesByFsType(fsType string, csiDrives []directv1alpha1.DirectCSIDrive) []directv1alpha1.DirectCSIDrive {
+func FilterDrivesByFsType(fsType string, csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
 	if fsType == "" {
 		return csiDrives
 	}
-	filteredDriveList := []directv1alpha1.DirectCSIDrive{}
+	filteredDriveList := []directcsi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
 		if csiDrive.Status.Filesystem == fsType {
 			filteredDriveList = append(filteredDriveList, csiDrive)
@@ -115,7 +115,7 @@ func FilterDrivesByFsType(fsType string, csiDrives []directv1alpha1.DirectCSIDri
 }
 
 // FilterDrivesByTopologyRequirements - selects the CSI drive by topology in the create volume request
-func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDrives []directv1alpha1.DirectCSIDrive) (directv1alpha1.DirectCSIDrive, error) {
+func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDrives []directcsi.DirectCSIDrive) (directcsi.DirectCSIDrive, error) {
 	tReq := volReq.GetAccessibilityRequirements()
 
 	preferredXs := tReq.GetPreferred()
@@ -144,10 +144,10 @@ func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDriv
 		return csiDrives[0], nil
 	}
 
-	return directv1alpha1.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
+	return directcsi.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
 }
 
-func selectDriveByTopology(top *csi.Topology, csiDrives []directv1alpha1.DirectCSIDrive) (directv1alpha1.DirectCSIDrive, error) {
+func selectDriveByTopology(top *csi.Topology, csiDrives []directcsi.DirectCSIDrive) (directcsi.DirectCSIDrive, error) {
 	topSegments := top.GetSegments()
 	for _, csiDrive := range csiDrives {
 		driveSegments := csiDrive.Status.Topology
@@ -155,7 +155,7 @@ func selectDriveByTopology(top *csi.Topology, csiDrives []directv1alpha1.DirectC
 			return csiDrive, nil
 		}
 	}
-	return directv1alpha1.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
+	return directcsi.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
 }
 
 func matchSegments(topSegments, driveSegments map[string]string) bool {

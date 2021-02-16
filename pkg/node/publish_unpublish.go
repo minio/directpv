@@ -22,7 +22,7 @@ import (
 	"os"
 	"strings"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -81,7 +81,9 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	directCSIClient := utils.GetDirectCSIClient()
 	vclient := directCSIClient.DirectCSIVolumes()
 
-	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{})
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(n.CRDVersion),
+	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -116,7 +118,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 		podLabels := pod.ObjectMeta.GetLabels()
 		for k, v := range podLabels {
-			if strings.HasPrefix(k, directv1alpha1.Group+"/") {
+			if strings.HasPrefix(k, directcsi.Group+"/") {
 				volumeLabels[k] = v
 			}
 		}
@@ -140,14 +142,16 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	conditions := vol.Status.Conditions
 	for i, c := range conditions {
 		switch c.Type {
-		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
+		case string(directcsi.DirectCSIVolumeConditionPublished):
 			conditions[i].Status = utils.BoolToCondition(true)
-		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+		case string(directcsi.DirectCSIVolumeConditionStaged):
 		}
 	}
 	vol.Status.ContainerPath = containerPath
 
-	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
+	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(n.CRDVersion),
+	}); err != nil {
 		return nil, err
 	}
 
@@ -166,7 +170,9 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	directCSIClient := utils.GetDirectCSIClient()
 	vclient := directCSIClient.DirectCSIVolumes()
-	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{})
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(n.CRDVersion),
+	})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -185,15 +191,17 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	conditions := vol.Status.Conditions
 	for i, c := range conditions {
 		switch c.Type {
-		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
+		case string(directcsi.DirectCSIVolumeConditionPublished):
 			conditions[i].Status = utils.BoolToCondition(false)
-			conditions[i].Reason = directv1alpha1.DirectCSIVolumeReasonInUse
-		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+			conditions[i].Reason = directcsi.DirectCSIVolumeReasonInUse
+		case string(directcsi.DirectCSIVolumeConditionStaged):
 		}
 	}
 	vol.Status.ContainerPath = ""
 
-	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
+	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(n.CRDVersion),
+	}); err != nil {
 		return nil, err
 	}
 

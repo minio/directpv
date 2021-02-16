@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -78,7 +78,7 @@ func listVolumes(ctx context.Context, args []string) error {
 	}
 
 	if len(driveList.Items) == 0 {
-		fmt.Printf("No resource of direct.csi.min.io/v1alpha1.%s found\n", bold("DirectCSIDrive"))
+		fmt.Printf("No resource of direct.csi.min.io/v1beta1.%s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 
@@ -93,7 +93,7 @@ func listVolumes(ctx context.Context, args []string) error {
 	}
 
 	filterSet := map[string]struct{}{}
-	filterNodes := []directv1alpha1.DirectCSIDrive{}
+	filterNodes := []directv1beta1.DirectCSIDrive{}
 	for _, d := range driveList.Items {
 		for _, n := range nodeList {
 			if ok, _ := glob.Match(n, d.Status.NodeName); ok {
@@ -124,7 +124,7 @@ func listVolumes(ctx context.Context, args []string) error {
 
 	// reset filterSet
 	filterSet = map[string]struct{}{}
-	filterDrives := []directv1alpha1.DirectCSIDrive{}
+	filterDrives := []directv1beta1.DirectCSIDrive{}
 	for _, d := range filterNodes {
 		for _, n := range drivesList {
 			pathTransform := func(in string) string {
@@ -153,21 +153,21 @@ func listVolumes(ctx context.Context, args []string) error {
 		}
 	}
 
-	hasStatus := func(vol *directv1alpha1.DirectCSIVolume, status []string) bool {
+	hasStatus := func(vol *directv1beta1.DirectCSIVolume, status []string) bool {
 		statusMatches := 0
 		for _, c := range vol.Status.Conditions {
 			switch c.Type {
-			case string(directv1alpha1.DirectCSIVolumeConditionPublished):
+			case string(directv1beta1.DirectCSIVolumeConditionPublished):
 				for _, s := range status {
-					if strings.ToLower(s) == strings.ToLower(string(directv1alpha1.DirectCSIVolumeConditionPublished)) {
+					if strings.ToLower(s) == strings.ToLower(string(directv1beta1.DirectCSIVolumeConditionPublished)) {
 						if c.Status == metav1.ConditionTrue {
 							statusMatches = statusMatches + 1
 						}
 					}
 				}
-			case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+			case string(directv1beta1.DirectCSIVolumeConditionStaged):
 				for _, s := range status {
-					if strings.ToLower(s) == strings.ToLower(string(directv1alpha1.DirectCSIVolumeConditionStaged)) {
+					if strings.ToLower(s) == strings.ToLower(string(directv1beta1.DirectCSIVolumeConditionStaged)) {
 						if c.Status == metav1.ConditionTrue {
 							statusMatches = statusMatches + 1
 						}
@@ -180,7 +180,7 @@ func listVolumes(ctx context.Context, args []string) error {
 
 	// reset filterSet
 	filterSet = map[string]struct{}{}
-	vols := []*directv1alpha1.DirectCSIVolume{}
+	vols := []*directv1beta1.DirectCSIVolume{}
 
 	drivePaths := map[string]string{}
 	driveName := func(val string) string {
@@ -189,13 +189,13 @@ func listVolumes(ctx context.Context, args []string) error {
 	}
 
 	for _, d := range filterDrives {
-		if d.Status.DriveStatus == directv1alpha1.DriveStatusUnavailable {
+		if d.Status.DriveStatus == directv1beta1.DriveStatusUnavailable {
 			continue
 		}
 		drivePaths[d.Name] = driveName(d.Status.Path)
 		for _, f := range d.GetFinalizers() {
-			if strings.HasPrefix(f, directv1alpha1.DirectCSIDriveFinalizerPrefix) {
-				name := strings.ReplaceAll(f, directv1alpha1.DirectCSIDriveFinalizerPrefix, "")
+			if strings.HasPrefix(f, directv1beta1.DirectCSIDriveFinalizerPrefix) {
+				name := strings.ReplaceAll(f, directv1beta1.DirectCSIDriveFinalizerPrefix, "")
 				vol, err := vclient.Get(ctx, name, metav1.GetOptions{})
 				if err != nil {
 					return err

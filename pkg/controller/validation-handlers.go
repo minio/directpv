@@ -23,7 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -74,7 +74,7 @@ func writeSuccessResponse(admissionReview admissionv1.AdmissionReview, w http.Re
 	w.(http.Flusher).Flush()
 }
 
-func validateRequestedFormat(directCSIDrive directv1alpha1.DirectCSIDrive, admissionReview *admissionv1.AdmissionReview) bool {
+func validateRequestedFormat(directCSIDrive directcsi.DirectCSIDrive, admissionReview *admissionv1.AdmissionReview) bool {
 	requestedFormat := directCSIDrive.Spec.RequestedFormat
 
 	// Check if the `requestedFormat` field is set
@@ -87,14 +87,14 @@ func validateRequestedFormat(directCSIDrive directv1alpha1.DirectCSIDrive, admis
 	validateDriveStatus := func() bool {
 		driveStatus := directCSIDrive.Status.DriveStatus
 		switch driveStatus {
-		case directv1alpha1.DriveStatusUnavailable:
+		case directcsi.DriveStatusUnavailable:
 			admissionReview.Response.Allowed = false
 			admissionReview.Response.Result = &metav1.Status{
 				Status:  FailureStatus,
 				Message: "Unavailable drives cannot be added/formatted",
 			}
 			return false
-		case directv1alpha1.DriveStatusInUse:
+		case directcsi.DriveStatusInUse:
 			admissionReview.Response.Allowed = false
 			admissionReview.Response.Result = &metav1.Status{
 				Status:  FailureStatus,
@@ -191,7 +191,7 @@ func (vh *ValidationHandler) validateDrive(w http.ResponseWriter, r *http.Reques
 
 	rawObj := admissionReview.Request.Object.Raw
 
-	dcsiDrive := directv1alpha1.DirectCSIDrive{}
+	dcsiDrive := directcsi.DirectCSIDrive{}
 	if err := json.Unmarshal(rawObj, &dcsiDrive); err != nil {
 		http.Error(w, fmt.Sprintf("could not parse directCSI object: %v", err), http.StatusInternalServerError)
 		return
