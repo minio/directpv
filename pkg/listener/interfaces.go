@@ -20,7 +20,7 @@ import (
 	"context"
 
 	// storage
-	"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/clientset"
 
 	// k8s client
@@ -36,9 +36,9 @@ type GenericListener interface {
 type DirectCSIVolumeListener interface {
 	GenericListener
 
-	Add(ctx context.Context, b *v1alpha1.DirectCSIVolume) error
-	Update(ctx context.Context, old *v1alpha1.DirectCSIVolume, new *v1alpha1.DirectCSIVolume) error
-	Delete(ctx context.Context, b *v1alpha1.DirectCSIVolume) error
+	Add(ctx context.Context, b *directcsi.DirectCSIVolume) error
+	Update(ctx context.Context, old *directcsi.DirectCSIVolume, new *directcsi.DirectCSIVolume) error
+	Delete(ctx context.Context, b *directcsi.DirectCSIVolume) error
 }
 
 func (c *DirectCSIController) AddDirectCSIVolumeListener(b DirectCSIVolumeListener) {
@@ -49,9 +49,9 @@ func (c *DirectCSIController) AddDirectCSIVolumeListener(b DirectCSIVolumeListen
 type DirectCSIDriveListener interface {
 	GenericListener
 
-	Add(ctx context.Context, b *v1alpha1.DirectCSIDrive) error
-	Update(ctx context.Context, old *v1alpha1.DirectCSIDrive, new *v1alpha1.DirectCSIDrive) error
-	Delete(ctx context.Context, b *v1alpha1.DirectCSIDrive) error
+	Add(ctx context.Context, b *directcsi.DirectCSIDrive) error
+	Update(ctx context.Context, old *directcsi.DirectCSIDrive, new *directcsi.DirectCSIDrive) error
+	Delete(ctx context.Context, b *directcsi.DirectCSIDrive) error
 }
 
 func (c *DirectCSIController) AddDirectCSIDriveListener(b DirectCSIDriveListener) {

@@ -21,13 +21,14 @@ import (
 	"fmt"
 	"os"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/golang/glog"
 )
@@ -35,6 +36,8 @@ import (
 type VolumeUpdateType int
 
 const (
+	directCSIVolumeKind = "DirectCSIVolume"
+
 	VolumeUpdateTypeDeleting VolumeUpdateType = iota
 	VolumeUpdateTypeUnknown
 )
@@ -43,6 +46,7 @@ type DirectCSIVolumeListener struct {
 	kubeClient      kubeclientset.Interface
 	directcsiClient clientset.Interface
 	nodeID          string
+	CRDVersion      string
 }
 
 func (b *DirectCSIVolumeListener) InitializeKubeClient(k kubeclientset.Interface) {
@@ -53,11 +57,11 @@ func (b *DirectCSIVolumeListener) InitializeDirectCSIClient(bc clientset.Interfa
 	b.directcsiClient = bc
 }
 
-func (b *DirectCSIVolumeListener) Add(ctx context.Context, obj *directv1alpha1.DirectCSIVolume) error {
+func (b *DirectCSIVolumeListener) Add(ctx context.Context, obj *directcsi.DirectCSIVolume) error {
 	return nil
 }
 
-func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1alpha1.DirectCSIVolume) error {
+func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directcsi.DirectCSIVolume) error {
 	directCSIClient := utils.GetDirectCSIClient()
 	dclient := directCSIClient.DirectCSIDrives()
 	vclient := directCSIClient.DirectCSIVolumes()
@@ -68,11 +72,13 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 	}
 
 	rmVolFromDrive := func(driveName string, volumeName string, capacity int64) error {
-		drive, err := dclient.Get(ctx, driveName, metav1.GetOptions{})
+		drive, err := dclient.Get(ctx, driveName, metav1.GetOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(b.CRDVersion),
+		})
 		if err != nil {
 			return err
 		}
-		vFinalizer := directv1alpha1.DirectCSIDriveFinalizerPrefix + volumeName
+		vFinalizer := directcsi.DirectCSIDriveFinalizerPrefix + volumeName
 
 		dfinalizers := drive.GetFinalizers()
 
@@ -97,8 +103,8 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 			updatedFinalizers = append(updatedFinalizers, df)
 		}
 		if len(updatedFinalizers) == 1 {
-			if updatedFinalizers[0] == directv1alpha1.DirectCSIDriveFinalizerDataProtection {
-				drive.Status.DriveStatus = directv1alpha1.DriveStatusReady
+			if updatedFinalizers[0] == directcsi.DirectCSIDriveFinalizerDataProtection {
+				drive.Status.DriveStatus = directcsi.DriveStatusReady
 			}
 		}
 		drive.SetFinalizers(updatedFinalizers)
@@ -106,14 +112,16 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 		drive.Status.FreeCapacity = drive.Status.FreeCapacity + capacity
 		drive.Status.AllocatedCapacity = drive.Status.TotalCapacity - drive.Status.FreeCapacity
 
-		_, err = dclient.Update(ctx, drive, metav1.UpdateOptions{})
+		_, err = dclient.Update(ctx, drive, metav1.UpdateOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(b.CRDVersion),
+		})
 		if err != nil {
 			return err
 		}
 		return nil
 	}
 
-	cleanupVolume := func(vol *directv1alpha1.DirectCSIVolume) error {
+	cleanupVolume := func(vol *directcsi.DirectCSIVolume) error {
 		if err := os.RemoveAll(vol.Status.HostPath); err != nil {
 			return err
 		}
@@ -152,9 +160,9 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 		conditions := new.Status.Conditions
 		for i, c := range conditions {
 			switch c.Type {
-			case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+			case string(directcsi.DirectCSIVolumeConditionStaged):
 				fallthrough
-			case string(directv1alpha1.DirectCSIVolumeConditionPublished):
+			case string(directcsi.DirectCSIVolumeConditionPublished):
 				if conditions[i].Status == metav1.ConditionTrue {
 					return fmt.Errorf("waiting for volume to be released before cleaning up")
 				}
@@ -168,14 +176,16 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 		vfinalizers := new.GetFinalizers()
 		updatedFinalizers := []string{}
 		for _, vf := range vfinalizers {
-			if vf == string(directv1alpha1.DirectCSIVolumeFinalizerPurgeProtection) {
+			if vf == string(directcsi.DirectCSIVolumeFinalizerPurgeProtection) {
 				continue
 			}
 			updatedFinalizers = append(updatedFinalizers, vf)
 		}
 		new.SetFinalizers(updatedFinalizers)
 
-		_, err := vclient.Update(ctx, new, metav1.UpdateOptions{})
+		_, err := vclient.Update(ctx, new, metav1.UpdateOptions{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(b.CRDVersion),
+		})
 		if err != nil {
 			return err
 		}
@@ -185,11 +195,11 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 	return nil
 }
 
-func (b *DirectCSIVolumeListener) Delete(ctx context.Context, obj *directv1alpha1.DirectCSIVolume) error {
+func (b *DirectCSIVolumeListener) Delete(ctx context.Context, obj *directcsi.DirectCSIVolume) error {
 	return nil
 }
 
-func StartVolumeController(ctx context.Context, nodeID string) error {
+func StartVolumeController(ctx context.Context, nodeID, crdVersion string) error {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
@@ -199,6 +209,39 @@ func StartVolumeController(ctx context.Context, nodeID string) error {
 		glog.Error(err)
 		return err
 	}
-	ctrl.AddDirectCSIVolumeListener(&DirectCSIVolumeListener{nodeID: nodeID})
+	ctrl.AddDirectCSIVolumeListener(&DirectCSIVolumeListener{nodeID: nodeID, CRDVersion: crdVersion})
 	return ctrl.Run(ctx)
+}
+
+func SyncVolumeCRDVersions(ctx context.Context, nodeID, currentCRDVersion string) {
+	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
+	volumeList, err := volumeClient.List(ctx, metav1.ListOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(currentCRDVersion),
+	})
+	if err != nil {
+		glog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
+		return
+	}
+	volumes := volumeList.Items
+	for _, volume := range volumes {
+		// Skip volumes from other nodes
+		if volume.Status.NodeName == nodeID {
+			continue
+		}
+		updateFunc := func() error {
+			vol, err := volumeClient.Get(ctx, volume.Name, metav1.GetOptions{
+				TypeMeta: utils.DirectCSIVolumeTypeMeta(currentCRDVersion),
+			})
+			if err == nil {
+				updateOpts := metav1.UpdateOptions{
+					TypeMeta: utils.DirectCSIVolumeTypeMeta(currentCRDVersion),
+				}
+				_, err = volumeClient.Update(ctx, vol, updateOpts)
+			}
+			return err
+		}
+		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
+			glog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
+		}
+	}
 }

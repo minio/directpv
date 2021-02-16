@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/sys/gpt"
 
@@ -31,8 +31,8 @@ import (
 	simd "github.com/minio/sha256-simd"
 )
 
-func findDrives(ctx context.Context, nodeID string, procfs string) ([]directv1alpha1.DirectCSIDrive, error) {
-	drives := []directv1alpha1.DirectCSIDrive{}
+func findDrives(ctx context.Context, nodeID string, procfs string) ([]directcsi.DirectCSIDrive, error) {
+	drives := []directcsi.DirectCSIDrive{}
 	devs, err := sys.FindDevices(ctx)
 	if err != nil {
 		return drives, err
@@ -62,7 +62,7 @@ func findDrives(ctx context.Context, nodeID string, procfs string) ([]directv1al
 	return drives, nil
 }
 
-func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition string, blockErr error) (*directv1alpha1.DirectCSIDrive, error) {
+func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition string, blockErr error) (*directcsi.DirectCSIDrive, error) {
 	var fs string
 	if partition.FSInfo != nil {
 		fs = string(partition.FSInfo.FSType)
@@ -78,14 +78,14 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 	var mountOptions []string
 	var mountPoint string
 	var mounts []sys.MountInfo
-	var driveStatus directv1alpha1.DriveStatus
+	var driveStatus directcsi.DriveStatus
 
-	driveStatus = directv1alpha1.DriveStatusAvailable
+	driveStatus = directcsi.DriveStatusAvailable
 	if partition.FSInfo != nil {
 		mounts = partition.FSInfo.Mounts
 		for _, m := range mounts {
 			if m.Mountpoint == "/" {
-				driveStatus = directv1alpha1.DriveStatusUnavailable
+				driveStatus = directcsi.DriveStatusUnavailable
 			}
 		}
 		if len(mounts) > 0 {
@@ -95,7 +95,7 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 	}
 	_, ok := gpt.SystemPartitionTypes[partition.TypeUUID]
 	if ok || blockErr != nil {
-		driveStatus = directv1alpha1.DriveStatusUnavailable
+		driveStatus = directcsi.DriveStatusUnavailable
 	}
 
 	blockInitializationStatus := metav1.ConditionTrue
@@ -112,11 +112,11 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 		mounted = metav1.ConditionTrue
 	}
 
-	return &directv1alpha1.DirectCSIDrive{
+	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: makeName(nodeID, partition.Path),
 		},
-		Status: directv1alpha1.DirectCSIDriveStatus{
+		Status: directcsi.DirectCSIDriveStatus{
 			DriveStatus:       driveStatus,
 			Filesystem:        fs,
 			FreeCapacity:      freeCapacity,
@@ -134,27 +134,27 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 			TotalCapacity:     totalCapacity,
 			Conditions: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
-					Reason:             string(directv1alpha1.DirectCSIDriveReasonNotAdded),
+					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             mounted,
 					Message:            mountPoint,
-					Reason:             string(directv1alpha1.DirectCSIDriveReasonNotAdded),
+					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             formatted,
 					Message:            "xfs",
-					Reason:             string(directv1alpha1.DirectCSIDriveReasonNotAdded),
+					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:   string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:   string(directcsi.DirectCSIDriveConditionInitialized),
 					Status: blockInitializationStatus,
 					Message: func() string {
 						if blockErr == nil {
@@ -162,7 +162,7 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 						}
 						return blockErr.Error()
 					}(),
-					Reason:             string(directv1alpha1.DirectCSIDriveReasonInitialized),
+					Reason:             string(directcsi.DirectCSIDriveReasonInitialized),
 					LastTransitionTime: metav1.Now(),
 				},
 			},
@@ -170,7 +170,7 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 	}, nil
 }
 
-func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.DirectCSIDrive, error) {
+func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directcsi.DirectCSIDrive, error) {
 	var fs string
 	if blockDevice.FSInfo != nil {
 		fs = string(blockDevice.FSInfo.FSType)
@@ -186,14 +186,14 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 	var mountOptions []string
 	var mountPoint string
 	var mounts []sys.MountInfo
-	var driveStatus directv1alpha1.DriveStatus
+	var driveStatus directcsi.DriveStatus
 
-	driveStatus = directv1alpha1.DriveStatusAvailable
+	driveStatus = directcsi.DriveStatusAvailable
 	if blockDevice.FSInfo != nil {
 		mounts = blockDevice.FSInfo.Mounts
 		for _, m := range mounts {
 			if m.Mountpoint == "/" {
-				driveStatus = directv1alpha1.DriveStatusUnavailable
+				driveStatus = directcsi.DriveStatusUnavailable
 			}
 		}
 		if len(mounts) > 0 {
@@ -204,7 +204,7 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 
 	blockInitializationStatus := metav1.ConditionTrue
 	if blockDevice.DeviceError != nil {
-		driveStatus = directv1alpha1.DriveStatusUnavailable
+		driveStatus = directcsi.DriveStatusUnavailable
 		blockInitializationStatus = metav1.ConditionFalse
 	}
 
@@ -217,11 +217,11 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 		mounted = metav1.ConditionTrue
 	}
 
-	return &directv1alpha1.DirectCSIDrive{
+	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: makeName(nodeID, blockDevice.Path),
 		},
-		Status: directv1alpha1.DirectCSIDriveStatus{
+		Status: directcsi.DirectCSIDriveStatus{
 			DriveStatus:       driveStatus,
 			Filesystem:        fs,
 			FreeCapacity:      freeCapacity,
@@ -239,30 +239,30 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 			TotalCapacity:     totalCapacity,
 			Conditions: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
-					Reason:             string(directv1alpha1.DirectCSIDriveReasonNotAdded),
+					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             mounted,
 					Message:            mountPoint,
-					Reason:             string(directv1alpha1.DirectCSIDriveReasonNotAdded),
+					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             formatted,
 					Message:            "xfs",
-					Reason:             string(directv1alpha1.DirectCSIDriveReasonNotAdded),
+					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
 					Status:             blockInitializationStatus,
 					Message:            blockDevice.Error(),
-					Reason:             string(directv1alpha1.DirectCSIDriveReasonInitialized),
+					Reason:             string(directcsi.DirectCSIDriveReasonInitialized),
 					LastTransitionTime: metav1.Now(),
 				},
 			},

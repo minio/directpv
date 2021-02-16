@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 
 	direct "github.com/minio/direct-csi/pkg/clientset"
-	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta1"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -36,7 +36,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var directCSIClient directv1alpha1.DirectV1alpha1Interface
+var directCSIClient directcsi.DirectV1beta1Interface
 var directClientset direct.Interface
 var kubeClient kubernetes.Interface
 var crdClient apiextensions.CustomResourceDefinitionInterface
@@ -66,7 +66,7 @@ func Init() {
 		glog.Fatalf("could not initialize direct clientset: %v", err)
 	}
 
-	directCSIClient, err = directv1alpha1.NewForConfig(config)
+	directCSIClient, err = directcsi.NewForConfig(config)
 	if err != nil {
 		glog.Fatalf("could not initialize direct-csi client: %v", err)
 	}

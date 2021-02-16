@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -47,7 +47,9 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	dclient := directCSIClient.DirectCSIDrives()
 	vclient := directCSIClient.DirectCSIVolumes()
 
-	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{})
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(n.CRDVersion),
+	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -57,7 +59,9 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
-	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{})
+	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(n.CRDVersion),
+	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -75,15 +79,17 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	conditions := vol.Status.Conditions
 	for _, c := range conditions {
 		switch c.Type {
-		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
-		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+		case string(directcsi.DirectCSIVolumeConditionPublished):
+		case string(directcsi.DirectCSIVolumeConditionStaged):
 			c.Status = utils.BoolToCondition(true)
 		}
 	}
 	vol.Status.HostPath = path
 	vol.Status.StagingPath = stagingTargetPath
 
-	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
+	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(n.CRDVersion),
+	}); err != nil {
 		return nil, err
 	}
 
@@ -103,7 +109,9 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	directCSIClient := utils.GetDirectCSIClient()
 	vclient := directCSIClient.DirectCSIVolumes()
 
-	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{})
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(n.CRDVersion),
+	})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return &csi.NodeUnstageVolumeResponse{}, nil
@@ -121,16 +129,18 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	conditions := vol.Status.Conditions
 	for i, c := range conditions {
 		switch c.Type {
-		case string(directv1alpha1.DirectCSIVolumeConditionPublished):
-		case string(directv1alpha1.DirectCSIVolumeConditionStaged):
+		case string(directcsi.DirectCSIVolumeConditionPublished):
+		case string(directcsi.DirectCSIVolumeConditionStaged):
 			conditions[i].Status = utils.BoolToCondition(false)
-			conditions[i].Reason = directv1alpha1.DirectCSIVolumeReasonInUse
+			conditions[i].Reason = directcsi.DirectCSIVolumeReasonInUse
 		}
 	}
 
 	vol.Status.HostPath = ""
 	vol.Status.StagingPath = ""
-	if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, vol, metav1.UpdateOptions{}); err != nil {
+	if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, vol, metav1.UpdateOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(n.CRDVersion),
+	}); err != nil {
 		return nil, err
 	}
 

@@ -31,11 +31,13 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string) (*NodeServer, error) {
+func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string, crdVersion string) (*NodeServer, error) {
+
 	drives, err := findDrives(ctx, nodeID, procfs)
 	if err != nil {
 		return nil, err
@@ -52,55 +54,60 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	for _, drive := range drives {
 		drive.Status.Topology = driveTopology
+		drive.Status.AccessTier = directcsi.AccessTierUnknown
 		driveClient := directCSIClient.DirectCSIDrives()
-		_, err := driveClient.Create(ctx, &drive, metav1.CreateOptions{})
 
-		if err != nil {
-			if !errors.IsAlreadyExists(err) {
+		driveUpdate := func() error {
+			existingDrive, err := driveClient.Get(ctx, drive.Name, metav1.GetOptions{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+			})
+			if err != nil {
+				return err
+			}
+			if UpdateDriveStatusOnDiff(drive, existingDrive) {
+				glog.V(2).Infof("[Drive: %v] Successfully Updated the drive status during restart", existingDrive.Name)
+			}
+			updateOpts := metav1.UpdateOptions{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+			}
+			_, err = driveClient.Update(ctx, existingDrive, updateOpts)
+			return err
+		}
+
+		// Do a dummy update to ensure the drive object is migrated to the latest CRD version
+		if err := retry.RetryOnConflict(retry.DefaultRetry, driveUpdate); err != nil {
+			if !errors.IsNotFound(err) {
 				return nil, err
 			}
-
-			driveUpdate := func() error {
-				existingDrive, err := driveClient.Get(ctx, drive.Name, metav1.GetOptions{})
-				if err != nil {
-					glog.V(3).Infof("Error fetching directcsidrive: %v", err)
-					return err
-				}
-				if UpdateDriveStatusOnDiff(drive, existingDrive) {
-					_, err := driveClient.Update(ctx, existingDrive, metav1.UpdateOptions{})
-					if err != nil {
-						glog.V(3).Infof("Error updating directcsidrive: %v", err)
-						return err
-					}
-				}
-				return nil
-			}
-			err := retry.RetryOnConflict(retry.DefaultRetry, driveUpdate)
-			if err != nil {
+			if _, err := driveClient.Create(ctx, &drive, metav1.CreateOptions{}); err != nil {
 				return nil, err
 			}
 		}
 	}
 
 	// Start background tasks
-	go drive.StartDriveController(ctx, nodeID)
-	go volume.StartVolumeController(ctx, nodeID)
+	go drive.StartDriveController(ctx, nodeID, crdVersion)
+	go volume.StartVolumeController(ctx, nodeID, crdVersion)
+	// Check if the volume objects are migrated and CRDs versions are in-sync
+	go volume.SyncVolumeCRDVersions(ctx, nodeID, crdVersion)
 
 	return &NodeServer{
-		NodeID:   nodeID,
-		Identity: identity,
-		Rack:     rack,
-		Zone:     zone,
-		Region:   region,
+		NodeID:     nodeID,
+		Identity:   identity,
+		Rack:       rack,
+		Zone:       zone,
+		Region:     region,
+		CRDVersion: crdVersion,
 	}, nil
 }
 
 type NodeServer struct {
-	NodeID   string
-	Identity string
-	Rack     string
-	Zone     string
-	Region   string
+	NodeID     string
+	Identity   string
+	Rack       string
+	Zone       string
+	Region     string
+	CRDVersion string
 }
 
 func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {

@@ -26,7 +26,7 @@ import (
 	"sort"
 	"strings"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -98,7 +98,7 @@ func addDrives(ctx context.Context, args []string) error {
 	}
 
 	if len(driveList.Items) == 0 {
-		fmt.Printf("No resource of direct.csi.min.io/v1alpha1.%s found\n", bold("DirectCSIDrive"))
+		fmt.Printf("No resource of direct.csi.min.io/v1beta1.%s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 
@@ -118,7 +118,7 @@ func addDrives(ctx context.Context, args []string) error {
 	}
 
 	filterSet := map[string]struct{}{}
-	filterNodes := []directv1alpha1.DirectCSIDrive{}
+	filterNodes := []directv1beta1.DirectCSIDrive{}
 	for _, d := range driveList.Items {
 		for _, n := range nodeList {
 			if ok, _ := glob.Match(n, d.Status.NodeName); ok {
@@ -149,7 +149,7 @@ func addDrives(ctx context.Context, args []string) error {
 
 	// reset filterSet
 	filterSet = map[string]struct{}{}
-	filterDrives := []directv1alpha1.DirectCSIDrive{}
+	filterDrives := []directv1beta1.DirectCSIDrive{}
 	for _, d := range filterNodes {
 		for _, n := range drivesList {
 			pathTransform := func(in string) string {
@@ -184,19 +184,19 @@ func addDrives(ctx context.Context, args []string) error {
 		return strings.ReplaceAll(dr, "-part-", "")
 	}
 
-	updatedFilterDrives := []*directv1alpha1.DirectCSIDrive{}
+	updatedFilterDrives := []*directv1beta1.DirectCSIDrive{}
 	for _, d := range filterDrives {
-		if d.Status.DriveStatus == directv1alpha1.DriveStatusUnavailable {
+		if d.Status.DriveStatus == directv1beta1.DriveStatusUnavailable {
 			continue
 		}
 
-		if d.Status.DriveStatus == directv1alpha1.DriveStatusInUse {
+		if d.Status.DriveStatus == directv1beta1.DriveStatusInUse {
 			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
 			glog.Errorf("%s in use. Cannot be formatted", utils.Bold(driveAddr))
 			continue
 		}
 
-		if d.Status.DriveStatus == directv1alpha1.DriveStatusReady {
+		if d.Status.DriveStatus == directv1beta1.DriveStatusReady {
 			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
 			glog.Errorf("%s already owned and managed. Use %s to overwrite", utils.Bold(driveAddr), utils.Bold("--force"))
 			continue
@@ -208,7 +208,7 @@ func addDrives(ctx context.Context, args []string) error {
 		}
 
 		d.Spec.DirectCSIOwned = true
-		d.Spec.RequestedFormat = &directv1alpha1.RequestedFormat{
+		d.Spec.RequestedFormat = &directv1beta1.RequestedFormat{
 			Filesystem: XFS,
 			Force:      force,
 		}
@@ -275,7 +275,7 @@ func addDrives(ctx context.Context, args []string) error {
 			dr := driveName(val)
 			col := red(dot)
 			for _, c := range d.Status.Conditions {
-				if c.Type == string(directv1alpha1.DirectCSIDriveConditionOwned) {
+				if c.Type == string(directv1beta1.DirectCSIDriveConditionOwned) {
 					if c.Status == metav1.ConditionTrue {
 						col = green(dot)
 					}

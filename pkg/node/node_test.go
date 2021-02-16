@@ -17,7 +17,7 @@
 package node
 
 import (
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"testing"
@@ -164,44 +164,44 @@ func TestCheckStatusEquality(t2 *testing.T) {
 			name: "Test1",
 			conditionList1: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 			},
 			conditionList2: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
@@ -212,44 +212,44 @@ func TestCheckStatusEquality(t2 *testing.T) {
 			name: "Test2",
 			conditionList1: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
 					Status:             metav1.ConditionTrue,
 					LastTransitionTime: metav1.Now(),
 				},
 			},
 			conditionList2: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
@@ -260,44 +260,44 @@ func TestCheckStatusEquality(t2 *testing.T) {
 			name: "Test3",
 			conditionList1: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             metav1.ConditionTrue,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
 					Status:             metav1.ConditionTrue,
 					LastTransitionTime: metav1.Now(),
 				},
 			},
 			conditionList2: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
@@ -308,44 +308,44 @@ func TestCheckStatusEquality(t2 *testing.T) {
 			name: "Test4",
 			conditionList1: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 			},
 			conditionList2: []metav1.Condition{
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionOwned),
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionMounted),
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionFormatted),
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(directv1alpha1.DirectCSIDriveConditionInitialized),
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
 					Status:             metav1.ConditionTrue,
 					LastTransitionTime: metav1.Now(),
 				},

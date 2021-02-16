@@ -281,12 +281,15 @@ func createClusterRole(ctx context.Context, identity string, dryRun bool) error 
 					clusterRoleVerbCreate,
 					clusterRoleVerbUpdate,
 					clusterRoleVerbDelete,
+					clusterRoleVerbPatch,
 				},
 				Resources: []string{
 					"customresourcedefinitions",
+					"customresourcedefinition",
 				},
 				APIGroups: []string{
 					"apiextensions.k8s.io",
+					"direct.csi.min.io",
 				},
 			},
 			{

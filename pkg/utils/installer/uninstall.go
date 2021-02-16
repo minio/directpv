@@ -121,14 +121,22 @@ func DeleteDriveValidationRules(ctx context.Context, identity string) error {
 	return nil
 }
 
-func DeleteSecrets(ctx context.Context, identity string) error {
+func DeleteControllerSecret(ctx context.Context, identity string) error {
 	if err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Delete(ctx, AdmissionWebhookSecretName, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func DeleteDeployment(ctx context.Context, identity string) error {
+func DeleteControllerDeployment(ctx context.Context, identity string) error {
+	return DeleteDeployment(ctx, identity, sanitizeName(identity))
+}
+
+func DeleteConversionDeployment(ctx context.Context, identity string) error {
+	return DeleteDeployment(ctx, identity, conversionWebhookName)
+}
+
+func DeleteDeployment(ctx context.Context, identity, name string) error {
 	dClient := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity))
 
 	getDeleteProtectionFinalizer := func() string {
@@ -148,12 +156,18 @@ func DeleteDeployment(ctx context.Context, identity string) error {
 		return nil
 	}
 
-	name := sanitizeName(identity)
 	if err := clearFinalizers(name); err != nil {
 		return err
 	}
 
 	if err := dClient.Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteConversionSecret(ctx context.Context, identity string) error {
+	if err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Delete(ctx, ConversionWebhookSecretName, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil

@@ -29,7 +29,7 @@ import (
 	"golang.org/x/time/rate"
 
 	// objectstorage
-	v1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
+	v1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -352,7 +352,7 @@ func (c *DirectCSIController) runController(ctx context.Context) {
 		indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
 		resyncPeriod := c.ResyncPeriod
 
-		lw := cache.NewListWatchFromClient(c.directcsiClient.DirectV1alpha1().RESTClient(), name, "", fields.Everything())
+		lw := cache.NewListWatchFromClient(c.directcsiClient.DirectV1beta1().RESTClient(), name, "", fields.Everything())
 		cfg := &cache.Config{
 			Queue: cache.NewDeltaFIFOWithOptions(cache.DeltaFIFOOptions{
 				KnownObjects:          indexer,
@@ -434,29 +434,29 @@ func (c *DirectCSIController) runController(ctx context.Context) {
 		c.DirectCSIVolumeListener.InitializeKubeClient(c.kubeClient)
 		c.DirectCSIVolumeListener.InitializeDirectCSIClient(c.directcsiClient)
 		addFunc := func(ctx context.Context, obj interface{}) error {
-			return c.DirectCSIVolumeListener.Add(ctx, obj.(*v1alpha1.DirectCSIVolume))
+			return c.DirectCSIVolumeListener.Add(ctx, obj.(*v1beta1.DirectCSIVolume))
 		}
 		updateFunc := func(ctx context.Context, old interface{}, new interface{}) error {
-			return c.DirectCSIVolumeListener.Update(ctx, old.(*v1alpha1.DirectCSIVolume), new.(*v1alpha1.DirectCSIVolume))
+			return c.DirectCSIVolumeListener.Update(ctx, old.(*v1beta1.DirectCSIVolume), new.(*v1beta1.DirectCSIVolume))
 		}
 		deleteFunc := func(ctx context.Context, obj interface{}) error {
-			return c.DirectCSIVolumeListener.Delete(ctx, obj.(*v1alpha1.DirectCSIVolume))
+			return c.DirectCSIVolumeListener.Delete(ctx, obj.(*v1beta1.DirectCSIVolume))
 		}
-		go controllerFor("DirectCSIVolumes", &v1alpha1.DirectCSIVolume{}, addFunc, updateFunc, deleteFunc)
+		go controllerFor("DirectCSIVolumes", &v1beta1.DirectCSIVolume{}, addFunc, updateFunc, deleteFunc)
 	}
 	if c.DirectCSIDriveListener != nil {
 		c.DirectCSIDriveListener.InitializeKubeClient(c.kubeClient)
 		c.DirectCSIDriveListener.InitializeDirectCSIClient(c.directcsiClient)
 		addFunc := func(ctx context.Context, obj interface{}) error {
-			return c.DirectCSIDriveListener.Add(ctx, obj.(*v1alpha1.DirectCSIDrive))
+			return c.DirectCSIDriveListener.Add(ctx, obj.(*v1beta1.DirectCSIDrive))
 		}
 		updateFunc := func(ctx context.Context, old interface{}, new interface{}) error {
-			return c.DirectCSIDriveListener.Update(ctx, old.(*v1alpha1.DirectCSIDrive), new.(*v1alpha1.DirectCSIDrive))
+			return c.DirectCSIDriveListener.Update(ctx, old.(*v1beta1.DirectCSIDrive), new.(*v1beta1.DirectCSIDrive))
 		}
 		deleteFunc := func(ctx context.Context, obj interface{}) error {
-			return c.DirectCSIDriveListener.Delete(ctx, obj.(*v1alpha1.DirectCSIDrive))
+			return c.DirectCSIDriveListener.Delete(ctx, obj.(*v1beta1.DirectCSIDrive))
 		}
-		go controllerFor("DirectCSIDrives", &v1alpha1.DirectCSIDrive{}, addFunc, updateFunc, deleteFunc)
+		go controllerFor("DirectCSIDrives", &v1beta1.DirectCSIDrive{}, addFunc, updateFunc, deleteFunc)
 	}
 
 	<-ctx.Done()
