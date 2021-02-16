@@ -104,31 +104,7 @@ func ProbeMountInfo() ([]MountInfo, error) {
 		mountSource := secondParts[1]
 		superblockOptions := strings.Split(secondParts[2], ",")
 
-		devName, partNum := func(s string) (string, int) {
-			possibleNum := strings.Builder{}
-			toRet := strings.Builder{}
-
-			//finds number at the end of a string
-			for _, r := range s {
-				if r >= '0' && r <= '9' {
-					possibleNum.WriteRune(r)
-					continue
-				}
-				toRet.WriteRune(r)
-				possibleNum.Reset()
-			}
-			num := possibleNum.String()
-			str := toRet.String()
-			if len(num) > 0 {
-				numVal, err := strconv.Atoi(num)
-				if err != nil {
-					// return full input string in this case
-					return s, 0
-				}
-				return str, numVal
-			}
-			return str, 0
-		}(mountSource)
+		devName, partNum := splitDevAndPartNum(mountSource)
 
 		mounts = append(mounts, MountInfo{
 			Mountpoint:        mountPoint,
