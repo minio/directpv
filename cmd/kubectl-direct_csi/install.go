@@ -61,6 +61,24 @@ func install(ctx context.Context, args []string) error {
 		utils.Init()
 	}
 
+	if err := installer.CreateNamespace(ctx, identity, dryRun); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	if !dryRun {
+		glog.Infof("'%s' namespace created", utils.Bold(identity))
+	}
+
+	if err := installer.CreateConversionDeployment(ctx, identity, image, dryRun, registry); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	if !dryRun {
+		glog.Infof("'%s' conversion deployment created", utils.Bold(identity))
+	}
+
 	if installCRD {
 	crdInstall:
 		if err := registerCRDs(ctx); err != nil {
@@ -80,15 +98,6 @@ func install(ctx context.Context, args []string) error {
 		if !dryRun {
 			glog.Infof("crds successfully registered")
 		}
-	}
-
-	if err := installer.CreateNamespace(ctx, identity, dryRun); err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		glog.Infof("'%s' namespace created", utils.Bold(identity))
 	}
 
 	if err := installer.CreateCSIDriver(ctx, identity, dryRun); err != nil {

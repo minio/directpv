@@ -159,18 +159,32 @@ func uninstall(ctx context.Context, args []string) error {
 		}
 	}
 
-	if err := installer.DeleteSecrets(ctx, identity); err != nil {
+	if err := installer.DeleteControllerSecret(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
 	glog.Infof("'%s' drive validation rules removed", utils.Bold(identity))
 
-	if err := installer.DeleteDeployment(ctx, identity); err != nil {
+	if err := installer.DeleteControllerDeployment(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' deployment deleted", utils.Bold(identity))
+	glog.Infof("'%s' controller deployment deleted", utils.Bold(identity))
+
+	if err := installer.DeleteConversionDeployment(ctx, identity); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	if err := installer.DeleteConversionSecret(ctx, identity); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+	}
+	glog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
+
 	return nil
 }

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -102,10 +103,17 @@ const (
 
 	// Finalizers
 	DirectCSIFinalizerDeleteProtection = "/delete-protection"
+
+	// Conversion webhook
+	conversionWebhookName       = "directcsi-conversion-webhook"
+	ConversionWebhookSecretName = "conversionwebhookcerts"
+	conversionWebhookPortName   = "convwebhook"
+	conversionWebhookPort       = 443
 )
 
 var (
-	caBundle                   []byte
+	validationWebhookCaBundle  []byte
+	conversionWebhookCaBundle  []byte
 	ErrKubeVersionNotSupported = errors.New(
 		fmt.Sprintf("%s: This version of kubernetes is not supported by direct-csi. Please upgrade your kubernetes installation and try again", utils.Red("ERR")))
 )
@@ -645,7 +653,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 	if certErr != nil {
 		return certErr
 	}
-	caBundle = caCertBytes
+	validationWebhookCaBundle = caCertBytes
 
 	if err := CreateControllerSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
 		if !kerr.IsAlreadyExists(err) {
@@ -780,7 +788,7 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 	getClientConfig := func() admissionv1.WebhookClientConfig {
 		return admissionv1.WebhookClientConfig{
 			Service:  getServiceRef(),
-			CABundle: []byte(caBundle),
+			CABundle: []byte(validationWebhookCaBundle),
 		}
 
 	}
@@ -839,5 +847,176 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 	if _, err := utils.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(ctx, &driveValidatingWebhookConfig, metav1.CreateOptions{}); err != nil {
 		return err
 	}
+	return nil
+}
+
+func CreateConversionSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool) error {
+
+	getCertsDataMap := func() map[string][]byte {
+		mp := make(map[string][]byte)
+		mp[privateKeyFileName] = privateKeyBytes
+		mp[publicCertFileName] = publicCertBytes
+		return mp
+	}
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ConversionWebhookSecretName,
+			Namespace: sanitizeName(identity),
+		},
+		Data: getCertsDataMap(),
+	}
+
+	if dryRun {
+		return utils.LogYAML(secret)
+	}
+
+	if _, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateConversionService(ctx context.Context, generatedSelectorValue, identity string, dryRun bool) error {
+	webhookPort := corev1.ServicePort{
+		Port: conversionWebhookPort,
+		TargetPort: intstr.IntOrString{
+			Type:   intstr.String,
+			StrVal: conversionWebhookPortName,
+		},
+	}
+	svc := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      conversionWebhookName,
+			Namespace: sanitizeName(identity),
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{webhookPort},
+			Selector: map[string]string{
+				directCSISelector: generatedSelectorValue,
+			},
+		},
+	}
+
+	if dryRun {
+		return utils.LogYAML(svc)
+	}
+
+	if _, err := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateConversionDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry string) error {
+	name := sanitizeName(identity)
+	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
+
+	var replicas int32 = 3
+	privileged := true
+	podSpec := corev1.PodSpec{
+		ServiceAccountName: name,
+		Volumes: []corev1.Volume{
+			newSecretVolume(conversionWebhookName, ConversionWebhookSecretName),
+		},
+		Containers: []corev1.Container{
+			{
+				Name:  directCSIContainerName,
+				Image: filepath.Join(registry, directCSIContainerImage),
+				Args: []string{
+					"--conversion",
+				},
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: conversionWebhookPort,
+						Name:          conversionWebhookPortName,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(conversionWebhookName, certsDir, false),
+				},
+			},
+		},
+	}
+
+	conversionWebhookDNSName := strings.Join([]string{conversionWebhookName, sanitizeName(identity), "svc"}, ".") // "directcsi-conversion-webhook.direct-csi-min-io.svc"
+	caCertBytes, publicCertBytes, privateKeyBytes, certErr := getCerts([]string{conversionWebhookDNSName})
+	if certErr != nil {
+		return certErr
+	}
+	conversionWebhookCaBundle = caCertBytes
+
+	if err := CreateConversionSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
+		if !kerr.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	getObjMeta := func() metav1.ObjectMeta {
+		return metav1.ObjectMeta{
+			Name:      conversionWebhookName,
+			Namespace: sanitizeName(name),
+			Annotations: map[string]string{
+				CreatedByLabel: DirectCSIPluginName,
+			},
+			Labels: map[string]string{
+				"app": DirectCSI,
+			},
+		}
+	}
+
+	deployment := &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: getObjMeta(),
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      conversionWebhookName,
+					Namespace: sanitizeName(name),
+					Annotations: map[string]string{
+						CreatedByLabel: DirectCSIPluginName,
+					},
+					Labels: map[string]string{
+						directCSISelector: generatedSelectorValue,
+					},
+				},
+				Spec: podSpec,
+			},
+		},
+		Status: appsv1.DeploymentStatus{},
+	}
+	deployment.ObjectMeta.Finalizers = []string{
+		sanitizeName(identity) + DirectCSIFinalizerDeleteProtection,
+	}
+
+	if dryRun {
+		return utils.LogYAML(deployment)
+	}
+
+	if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+
+	if err := CreateConversionService(ctx, generatedSelectorValue, identity, dryRun); err != nil {
+		return err
+	}
+
 	return nil
 }

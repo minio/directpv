@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	ctrl "github.com/minio/direct-csi/pkg/controller"
+	"github.com/minio/direct-csi/pkg/converter"
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -32,8 +33,17 @@ import (
 )
 
 func run(ctx context.Context, args []string) error {
-	utils.Init()
 
+	if conversion {
+		// Start conversion webserver
+		if err := converter.ServeConversionWebhook(ctx); err != nil {
+			return err
+		}
+		// Do not start node server and central controller in conversion mode
+		return nil
+	}
+
+	utils.Init()
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err

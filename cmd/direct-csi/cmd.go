@@ -42,6 +42,7 @@ var (
 	controller = false
 	driver     = false
 	procfs     = "/proc"
+	conversion = false
 )
 
 var driverCmd = &cobra.Command{
@@ -56,8 +57,8 @@ For more information, use '%s man [sched | examples | ...]'
 `, os.Args[0]),
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		if !controller && !driver {
-			return fmt.Errorf("either --controller or --driver should be set")
+		if !controller && !driver && !conversion {
+			return fmt.Errorf("one among [--controller, --driver, --conversion] should be set")
 		}
 
 		return run(c.Context(), args)
@@ -86,6 +87,7 @@ func init() {
 	driverCmd.Flags().StringVarP(&procfs, "procfs", "", procfs, "path to host /proc for accessing mount information")
 	driverCmd.Flags().BoolVarP(&controller, "controller", "", controller, "running in controller mode")
 	driverCmd.Flags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
+	driverCmd.Flags().BoolVarP(&conversion, "conversion", "", conversion, "run in conversion mode")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")
