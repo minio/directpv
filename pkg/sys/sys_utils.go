@@ -67,6 +67,13 @@ func splitDevAndPartNum(s string) (string, int) {
 	possibleNum := strings.Builder{}
 	toRet := strings.Builder{}
 
+	cleanPartitionInfix := func(str string) string {
+		if strings.HasSuffix(str, directCSIPartitionInfix) {
+			return str[:len(str)-len(directCSIPartitionInfix)]
+		}
+		return str
+	}
+
 	//finds number at the end of a string
 	for _, r := range s {
 		if r >= '0' && r <= '9' {
@@ -83,9 +90,9 @@ func splitDevAndPartNum(s string) (string, int) {
 		numVal, err := strconv.Atoi(num)
 		if err != nil {
 			// return full input string in this case
-			return s, 0
+			return cleanPartitionInfix(s), 0
 		}
-		return str, numVal
+		return cleanPartitionInfix(str), numVal
 	}
 	return str, 0
 }

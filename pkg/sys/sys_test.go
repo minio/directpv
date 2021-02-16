@@ -129,3 +129,54 @@ func TestGetRootBlockFile(t1 *testing.T) {
 	}
 
 }
+
+func TestSplitDevAndPartNum(t1 *testing.T) {
+
+	testCases := []struct {
+		name     string
+		inputStr string
+		devName  string
+		partNum  int
+	}{
+		{
+			name:     "test1",
+			inputStr: "/var/lib/direct-csi/devices/xvdb-part-11",
+			devName:  "/var/lib/direct-csi/devices/xvdb",
+			partNum:  11,
+		},
+		{
+			name:     "test2",
+			inputStr: "/var/lib/direct-csi/devices/xvdb",
+			devName:  "/var/lib/direct-csi/devices/xvdb",
+			partNum:  0,
+		},
+		{
+			name:     "test3",
+			inputStr: "/var/lib/direct-csi/devices/nvmen1p-part-13",
+			devName:  "/var/lib/direct-csi/devices/nvmen1p",
+			partNum:  13,
+		},
+		{
+			name:     "test4",
+			inputStr: "/dev/sdb1",
+			devName:  "/dev/sdb",
+			partNum:  1,
+		},
+		{
+			name:     "test5",
+			inputStr: "/dev/sdb1",
+			devName:  "/dev/sdb",
+			partNum:  1,
+		},
+	}
+
+	for _, tt := range testCases {
+		t1.Run(tt.name, func(t1 *testing.T) {
+			dName, partNum := splitDevAndPartNum(tt.inputStr)
+			if dName != tt.devName || partNum != tt.partNum {
+				t1.Errorf("Test case name %s: Expected (devName, partNum) = (%s, %d) got: (%s, %d)", tt.name, tt.devName, tt.partNum, dName, partNum)
+			}
+		})
+	}
+
+}
