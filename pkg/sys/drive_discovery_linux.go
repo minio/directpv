@@ -84,16 +84,19 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 		return err
 	}
 
-	devPath := getBlockFile(b.Devname)
-	err = makeBlockFile(devPath, b.Major, b.Minor)
+	if b.DriveInfo == nil {
+		return fmt.Errorf("Invalid drive info for %s", b.Devname)
+	}
+
+	devPath := b.DirectCSIDrivePath()
+	err = makeBlockFile(devPath, b.DriveInfo.Major, b.DriveInfo.Minor)
 	if err != nil {
 		return err
 	}
 
-	b.DriveInfo = &DriveInfo{}
 	b.Path = devPath
 	var logicalBlockSize, physicalBlockSize uint64
-	logicalBlockSize, physicalBlockSize, err = getBlockSizes(b.Devname)
+	logicalBlockSize, physicalBlockSize, err = b.getBlockSizes()
 	if err != nil {
 		return err
 	}
@@ -101,7 +104,7 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 	b.PhysicalBlockSize = physicalBlockSize
 
 	var driveSize uint64
-	driveSize, err = getTotalCapacity(b.Devname)
+	driveSize, err = b.getTotalCapacity()
 	if err != nil {
 		return err
 	}
@@ -135,7 +138,7 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 			}
 		}
 		var mounts []MountInfo
-		mounts, err = b.probeMountInfo(0)
+		mounts, err = b.probeMountInfo(b.DriveInfo.Major, b.DriveInfo.Minor)
 		if err != nil {
 			return err
 		}
@@ -143,7 +146,7 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 		b.FSInfo = fsInfo
 		return nil
 	}
-	for i, p := range parts {
+	for _, p := range parts {
 		offsetBlocks := p.StartBlock
 		var fsInfo *FSInfo
 		fsInfo, err = b.probeFS(offsetBlocks)
@@ -161,7 +164,7 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 		}
 
 		var mounts []MountInfo
-		mounts, err = b.probeMountInfo(uint(i + 1))
+		mounts, err = b.probeMountInfo(p.DriveInfo.Major, p.DriveInfo.Minor)
 		if err != nil {
 			return err
 		}
@@ -231,15 +234,17 @@ func parseUevent(path string) (*BlockDevice, error) {
 	minorNum := uint32(minorNum64)
 
 	return &BlockDevice{
-		Major:   majorNum,
-		Minor:   minorNum,
 		Devname: devname,
 		Devtype: devtype,
+		DriveInfo: &DriveInfo{
+			Major: majorNum,
+			Minor: minorNum,
+		},
 	}, nil
 }
 
-func getBlockSizes(devname string) (uint64, uint64, error) {
-	devFile, err := os.OpenFile(getBlockFile(devname), os.O_RDONLY, os.ModeDevice)
+func (b *BlockDevice) getBlockSizes() (uint64, uint64, error) {
+	devFile, err := os.OpenFile(b.DirectCSIDrivePath(), os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -248,19 +253,19 @@ func getBlockSizes(devname string) (uint64, uint64, error) {
 	fd := devFile.Fd()
 	logicalBlockSize, err := unix.IoctlGetInt(int(fd), unix.BLKSSZGET)
 	if err != nil {
-		glog.Errorf("could not obtain logical block size for device: %s", devname)
+		glog.Errorf("could not obtain logical block size for device: %s", b.Devname)
 		return 0, 0, err
 	}
 	physicalBlockSize, err := unix.IoctlGetInt(int(fd), unix.BLKBSZGET)
 	if err != nil {
-		glog.Errorf("could not obtain physical block size for device: %s", devname)
+		glog.Errorf("could not obtain physical block size for device: %s", b.Devname)
 		return 0, 0, err
 	}
 	return uint64(logicalBlockSize), uint64(physicalBlockSize), nil
 }
 
-func getTotalCapacity(devname string) (uint64, error) {
-	devFile, err := os.OpenFile(getBlockFile(devname), os.O_RDONLY, os.ModeDevice)
+func (b *BlockDevice) getTotalCapacity() (uint64, error) {
+	devFile, err := os.OpenFile(b.DirectCSIDrivePath(), os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return 0, err
 	}
