@@ -234,8 +234,8 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 					new.Status.MountOptions = mountOpts
 					freeCapacity, sErr := getFreeCapacityFromStatfs(new.Status.Mountpoint)
 					if sErr != nil {
-						glog.Error(err)
-						updateErr = err
+						glog.Error(sErr)
+						updateErr = sErr
 					} else {
 						mounted = true
 						new.Status.FreeCapacity = freeCapacity

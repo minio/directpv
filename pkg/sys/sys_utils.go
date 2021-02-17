@@ -22,6 +22,14 @@ import (
 	"strings"
 )
 
+func (b *BlockDevice) DirectCSIDrivePath() string {
+	return getBlockFile(b.Devname)
+}
+
+func (b *BlockDevice) HostDrivePath() string {
+	return getRootBlockFile(b.Devname)
+}
+
 func getBlockFile(devName string) string {
 	if strings.Contains(devName, DirectCSIDevRoot) {
 		return devName
@@ -88,4 +96,15 @@ func splitDevAndPartNum(s string) (string, int) {
 		return str, numVal
 	}
 	return str, 0
+}
+
+func (b *BlockDevice) TagError(err error) {
+	b.DeviceError = err
+}
+
+func (b *BlockDevice) Error() string {
+	if b.DeviceError == nil {
+		return ""
+	}
+	return b.DeviceError.Error()
 }

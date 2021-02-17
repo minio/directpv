@@ -50,7 +50,7 @@ func (b *BlockDevice) probeFS(offsetBlocks uint64) (*FSInfo, error) {
 }
 
 func (b *BlockDevice) probeFSEXT4(offsetBlocks uint64) (*FSInfo, error) {
-	devPath := getBlockFile(b.Devname)
+	devPath := b.DirectCSIDrivePath()
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (b *BlockDevice) probeFSEXT4(offsetBlocks uint64) (*FSInfo, error) {
 }
 
 func (b *BlockDevice) probeFSXFS(offsetBlocks uint64) (*FSInfo, error) {
-	devPath := getBlockFile(b.Devname)
+	devPath := b.DirectCSIDrivePath()
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
