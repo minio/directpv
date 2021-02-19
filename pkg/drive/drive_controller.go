@@ -179,7 +179,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 			return false
 		}()
 		mounted := new.Status.Mountpoint != ""
-		formatted := new.Status.Filesystem == ""
+		formatted := new.Status.Filesystem != ""
 
 		source := new.Status.Path
 		target := filepath.Join(sys.MountRoot, new.Name)
