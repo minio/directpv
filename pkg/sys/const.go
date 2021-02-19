@@ -169,3 +169,7 @@ const (
 	XFS_SUPER_MAGIC       = 0x58465342
 	_XIAFS_SUPER_MAGIC    = 0x012fd16d /* Linux 2.0 and earlier */
 )
+
+const (
+	DirectCSIPartitionInfix = "-part-"
+)

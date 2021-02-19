@@ -46,7 +46,7 @@ func makeBlockDeviceName(devName string) string {
 		return devName
 	}
 
-	return strings.Join([]string{dName, partNumStr}, directCSIPartitionInfix)
+	return strings.Join([]string{dName, partNumStr}, DirectCSIPartitionInfix)
 }
 
 func getRootBlockFile(devName string) string {
@@ -60,7 +60,7 @@ func getRootBlockFile(devName string) string {
 }
 
 func makeRootDeviceName(devName string) string {
-	return strings.ReplaceAll(devName, directCSIPartitionInfix, "")
+	return strings.ReplaceAll(devName, DirectCSIPartitionInfix, "")
 }
 
 func splitDevAndPartNum(s string) (string, int) {
