@@ -29,10 +29,6 @@ import (
 	"github.com/minio/direct-csi/pkg/sys/mbr"
 )
 
-const (
-	directCSIPartitionInfix = "-part-"
-)
-
 func (b *BlockDevice) probePartitions(ctx context.Context) ([]Partition, error) {
 	parts, err := b.probeGPT(ctx)
 	if err != nil {
@@ -98,7 +94,7 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 			continue
 		}
 		partNum := uint32(i+1) + b.Minor
-		partitionPath := fmt.Sprintf("%s%s%d", b.Path, directCSIPartitionInfix, i+1)
+		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -148,7 +144,7 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 			continue
 		}
 		partNum := b.Minor + uint32(i+1)
-		partitionPath := fmt.Sprintf("%s%s%d", b.Path, directCSIPartitionInfix, i+1)
+		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -198,7 +194,7 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 			continue
 		}
 		partNum := b.Minor + uint32(i+1)
-		partitionPath := fmt.Sprintf("%s%s%d", b.Path, directCSIPartitionInfix, i+1)
+		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
@@ -282,7 +278,7 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 		}
 
 		partNum := b.Minor + uint32(i+1)
-		partitionPath := fmt.Sprintf("%s%s%d", b.Path, directCSIPartitionInfix, i+1)
+		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
 		if err := makeBlockFile(partitionPath, b.Major, uint32(partNum)); err != nil {
 			return nil, err
 		}
