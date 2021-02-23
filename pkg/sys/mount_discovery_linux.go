@@ -33,7 +33,7 @@ func (b *BlockDevice) probeMountInfo(major, minor uint32) ([]MountInfo, error) {
 	}
 	toRet := []MountInfo{}
 	for _, m := range mounts {
-		if major == m.MajorNumber && minor == m.MinorNumber {
+		if major == m.Major && minor == m.Minor {
 			toRet = append(toRet, m)
 		}
 	}
@@ -120,8 +120,8 @@ func ProbeMountInfo() ([]MountInfo, error) {
 			SuperblockOptions: superblockOptions,
 			FSType:            fsType,
 			OptionalFields:    optionalFields,
-			MajorNumber:       uint32(majorNumber),
-			MinorNumber:       uint32(minorNumber),
+			Major:             uint32(majorNumber),
+			Minor:             uint32(minorNumber),
 			DevName:           devName,
 			PartitionNum:      uint(partNum),
 		})
