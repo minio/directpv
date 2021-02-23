@@ -19,6 +19,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
@@ -126,6 +127,10 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	volLabels := extractPodLabels()
 	if volLabels != nil {
 		vol.ObjectMeta.Labels = volLabels
+	}
+
+	if err := os.MkdirAll(containerPath, 0755); err != nil {
+		return nil, err
 	}
 
 	if err := mountVolume(ctx, stagingTargetPath, containerPath, vID, 0, readOnly); err != nil {
