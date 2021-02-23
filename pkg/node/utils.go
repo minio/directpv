@@ -179,6 +179,7 @@ func CheckStatusEquality(existingConditions, newConditions []metav1.Condition) b
 
 // Idempotent function to bind mount a xfs filesystem with limits
 func mountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error {
+	glog.V(5).Infof("[mountVolume] source: %v destination: %v", src, dest)
 	if err := sys.SafeMount(src, dest, string(sys.FSTypeXFS),
 		func() []sys.MountOption {
 			mOpts := []sys.MountOption{
