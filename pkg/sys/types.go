@@ -67,8 +67,8 @@ type MountInfo struct {
 	SuperblockOptions []string `json:"superblockOptions,omitempty"`
 	FSType            string   `json:"fsType,omitempty"`
 	OptionalFields    []string `json:"optionalFields,omitempty"`
-	MajorNumber       uint32   `json:"majorNumber,omitempty"`
-	MinorNumber       uint32   `json:"minorNumber,omitempty"`
+	Major             uint32   `json:"major,omitempty"`
+	Minor             uint32   `json:"minor,omitempty"`
 	DevName           string   `json:"devName,omitempty"`
 	PartitionNum      uint     `json:"partitionNum,omitempty"`
 }
