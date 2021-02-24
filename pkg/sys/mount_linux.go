@@ -80,6 +80,7 @@ func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpt
 			case MountOptionMSMandLock:
 			case MountOptionMSNoDev:
 			case MountOptionMSNoDirATime:
+			case MountOptionMSNoATime:
 			case MountOptionMSNoExec:
 			case MountOptionMSNoSUID:
 			case MountOptionMSRelatime:
