@@ -26,25 +26,16 @@ import (
 	"strings"
 )
 
-func (b *BlockDevice) probeMountInfo(partitionNum uint) ([]MountInfo, error) {
+func (b *BlockDevice) probeMountInfo(major, minor uint32) ([]MountInfo, error) {
 	mounts, err := ProbeMountInfo()
 	if err != nil {
 		return nil, err
 	}
-	devName := b.Devname
-	newDevName := getBlockFile(devName)
-	rootDevName := getRootBlockFile(devName)
 	toRet := []MountInfo{}
 	for _, m := range mounts {
-		if m.DevName != rootDevName && m.DevName != newDevName {
-			continue
+		if major == m.Major && minor == m.Minor {
+			toRet = append(toRet, m)
 		}
-		if partitionNum > 0 {
-			if m.PartitionNum != partitionNum {
-				continue
-			}
-		}
-		toRet = append(toRet, m)
 	}
 	return toRet, nil
 }
@@ -89,6 +80,19 @@ func ProbeMountInfo() ([]MountInfo, error) {
 		}
 		parentID := uint32(pID)
 
+		majorMinorParts := strings.Split(firstParts[2], ":")
+		if len(majorMinorParts) != 2 {
+			return nil, fmt.Errorf("invalid 'major:minor' format in %s", mountinfoFile)
+		}
+		majorNumber, err := strconv.ParseUint(majorMinorParts[0], 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse the major number in %s", mountinfoFile)
+		}
+		minorNumber, err := strconv.ParseUint(majorMinorParts[1], 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse the minor number in %s", mountinfoFile)
+		}
+
 		mountRoot := firstParts[3]
 		mountPoint := firstParts[4]
 		mountOptions := firstParts[5]
@@ -116,6 +120,8 @@ func ProbeMountInfo() ([]MountInfo, error) {
 			SuperblockOptions: superblockOptions,
 			FSType:            fsType,
 			OptionalFields:    optionalFields,
+			Major:             uint32(majorNumber),
+			Minor:             uint32(minorNumber),
 			DevName:           devName,
 			PartitionNum:      uint(partNum),
 		})

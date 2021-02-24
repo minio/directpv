@@ -17,21 +17,12 @@
 package sys
 
 type BlockDevice struct {
-	Major                    uint32      `json:"major"`
-	Minor                    uint32      `json:"minor"`
-	Devname                  string      `json:"devName,omitempty"`
-	Devtype                  string      `json:"devType,omitempty"`
-	Partitions               []Partition `json:"partitions,omitempty"`
-	BlockInitializationError string      `json:"blockInitializationError"`
+	Devname     string      `json:"devName,omitempty"`
+	Devtype     string      `json:"devType,omitempty"`
+	Partitions  []Partition `json:"partitions,omitempty"`
+	DeviceError error       `json:"error, omitempty"`
 
 	*DriveInfo `json:"driveInfo,omitempty"`
-}
-
-func (b *BlockDevice) TagError(err error) {
-	if err != nil {
-		b.BlockInitializationError = err.Error()
-	}
-	return
 }
 
 type Partition struct {
@@ -52,6 +43,8 @@ type DriveInfo struct {
 	LogicalBlockSize  uint64 `json:"logicalBlockSize,omitempty"`
 	PhysicalBlockSize uint64 `json:"physicalBlockSize,omitempty"`
 	Path              string `json:"path,omitempty"`
+	Major             uint32 `json:"major,omitempty"`
+	Minor             uint32 `json:"minor",omitempty`
 
 	*FSInfo `json:"fsInfo,omitempty"`
 }
@@ -74,6 +67,8 @@ type MountInfo struct {
 	SuperblockOptions []string `json:"superblockOptions,omitempty"`
 	FSType            string   `json:"fsType,omitempty"`
 	OptionalFields    []string `json:"optionalFields,omitempty"`
+	Major             uint32   `json:"major,omitempty"`
+	Minor             uint32   `json:"minor,omitempty"`
 	DevName           string   `json:"devName,omitempty"`
 	PartitionNum      uint     `json:"partitionNum,omitempty"`
 }
