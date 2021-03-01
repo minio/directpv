@@ -104,6 +104,10 @@ func UpdateDriveStatusOnDiff(newObj directv1alpha1.DirectCSIDrive, existingObj *
 		isUpdated = true
 	}
 	if existingObj.Status.FreeCapacity != newObj.Status.FreeCapacity {
+		diffInCap := newObj.Status.FreeCapacity - existingObj.Status.FreeCapacity
+		if diffInCap > 0 {
+			existingObj.Status.AllocatedCapacity = newObj.Status.AllocatedCapacity
+		}
 		existingObj.Status.FreeCapacity = newObj.Status.FreeCapacity
 		isUpdated = true
 	}
@@ -153,11 +157,6 @@ func UpdateDriveStatusOnDiff(newObj directv1alpha1.DirectCSIDrive, existingObj *
 	}
 	if !reflect.DeepEqual(existingObj.Status.Topology, newObj.Status.Topology) {
 		existingObj.Status.Topology = newObj.Status.Topology
-		isUpdated = true
-	}
-
-	if !CheckStatusEquality(existingObj.Status.Conditions, newObj.Status.Conditions) {
-		existingObj.Status.Conditions = newObj.Status.Conditions
 		isUpdated = true
 	}
 	// Add new status canditates here
