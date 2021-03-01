@@ -68,10 +68,11 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 		fs = string(partition.FSInfo.FSType)
 	}
 
-	var freeCapacity, totalCapacity int64
+	var allocatedCapacity, freeCapacity, totalCapacity int64
 	if partition.FSInfo != nil {
 		freeCapacity = int64(partition.FSInfo.FreeCapacity)
 		totalCapacity = int64(partition.FSInfo.TotalCapacity)
+		allocatedCapacity = totalCapacity - freeCapacity
 	}
 
 	var mountOptions []string
@@ -119,6 +120,7 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 			DriveStatus:       driveStatus,
 			Filesystem:        fs,
 			FreeCapacity:      freeCapacity,
+			AllocatedCapacity: allocatedCapacity,
 			LogicalBlockSize:  int64(partition.LogicalBlockSize),
 			ModelNumber:       "", // Fix Me
 			MountOptions:      mountOptions,
@@ -174,10 +176,11 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 		fs = string(blockDevice.FSInfo.FSType)
 	}
 
-	var freeCapacity, totalCapacity int64
+	var freeCapacity, totalCapacity, allocatedCapacity int64
 	if blockDevice.FSInfo != nil {
 		freeCapacity = int64(blockDevice.FSInfo.FreeCapacity)
 		totalCapacity = int64(blockDevice.FSInfo.TotalCapacity)
+		allocatedCapacity = totalCapacity - freeCapacity
 	}
 
 	var mountOptions []string
@@ -222,6 +225,7 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directv1alpha1.
 			DriveStatus:       driveStatus,
 			Filesystem:        fs,
 			FreeCapacity:      freeCapacity,
+			AllocatedCapacity: allocatedCapacity,
 			LogicalBlockSize:  int64(blockDevice.LogicalBlockSize),
 			ModelNumber:       "", // Fix Me
 			MountOptions:      mountOptions,
