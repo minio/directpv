@@ -42,7 +42,6 @@ func mountDrive(source, target string, mountOpts []string) error {
 		}
 		return newOpts
 	}(mountOpts), []string{
-		"noatime",
 		"prjquota",
 	})
 
