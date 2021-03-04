@@ -343,6 +343,10 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Errorf(codes.Internal, "could not remove finalizer for volume [%s]: %v", vID, err)
 	}
 
+	if err = vclient.Delete(ctx, vol.Name, metav1.DeleteOptions{}); err != nil {
+		return nil, status.Errorf(codes.Internal, "could not delete volume [%s]: %v", vID, err)
+	}
+
 	return &csi.DeleteVolumeResponse{}, nil
 }
 

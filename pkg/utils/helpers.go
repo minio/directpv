@@ -45,10 +45,29 @@ func RemoveFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
 	return finalizers
 }
 
-func UpdateVolumeStatusCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus) {
+func AddCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus, reason, msg string) {
+	for i := range statusConditions {
+		if statusConditions[i].Type == condType {
+			UpdateCondition(statusConditions, condType, condStatus, reason, msg)
+			return
+		}
+	}
+	statusConditions = append(statusConditions, metav1.Condition{
+		Type:               condType,
+		Status:             condStatus,
+		Reason:             reason,
+		Message:            msg,
+		LastTransitionTime: metav1.Now(),
+	})
+	return
+}
+
+func UpdateCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus, reason, msg string) {
 	for i := range statusConditions {
 		if statusConditions[i].Type == condType {
 			statusConditions[i].Status = condStatus
+			statusConditions[i].Reason = reason
+			statusConditions[i].Message = msg
 			statusConditions[i].LastTransitionTime = metav1.Now()
 			break
 		}
@@ -56,16 +75,29 @@ func UpdateVolumeStatusCondition(statusConditions []metav1.Condition, condType s
 	return
 }
 
-func CheckVolumeStatusCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus) bool {
+func IsCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus, reason, msg string) bool {
 	for i := range statusConditions {
-		if statusConditions[i].Type == condType && statusConditions[i].Status == condStatus {
+		if statusConditions[i].Type == condType &&
+			statusConditions[i].Status == condStatus &&
+			statusConditions[i].Reason == reason &&
+			statusConditions[i].Message == msg {
 			return true
 		}
 	}
 	return false
 }
 
-func GetVolumeStatusCondition(statusConditions []metav1.Condition, condType string) metav1.Condition {
+func IsConditionStatus(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus) bool {
+	for i := range statusConditions {
+		if statusConditions[i].Type == condType &&
+			statusConditions[i].Status == condStatus {
+			return true
+		}
+	}
+	return false
+}
+
+func GetCondition(statusConditions []metav1.Condition, condType string) metav1.Condition {
 	for i := range statusConditions {
 		if statusConditions[i].Type == condType {
 			return statusConditions[i]

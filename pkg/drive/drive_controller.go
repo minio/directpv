@@ -41,6 +41,7 @@ const (
 	DriveUpdateTypeOwnAndFormat
 	DriveUpdateTypeStorageSpace
 	DriveUpdateTypeDriveParams
+	DriveUpdateTypeVolumeDelete
 	DriveUpdateTypeUnknown
 )
 
@@ -239,6 +240,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directv1a
 					} else {
 						mounted = true
 						new.Status.FreeCapacity = freeCapacity
+						new.Status.AllocatedCapacity = new.Status.TotalCapacity - new.Status.FreeCapacity
 					}
 				}
 			}
