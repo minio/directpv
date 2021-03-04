@@ -66,8 +66,8 @@ func TestVolumeStatusTransitions(t1 *testing.T) {
 
 	for _, tt := range testCases {
 		t1.Run(tt.name, func(t1 *testing.T) {
-			UpdateVolumeStatusCondition(statusList, tt.condType, tt.condStatus)
-			if !CheckVolumeStatusCondition(statusList, tt.condType, tt.condStatus) {
+			UpdateCondition(statusList, tt.condType, tt.condStatus, "", "")
+			if !IsCondition(statusList, tt.condType, tt.condStatus, "", "") {
 				t1.Errorf("Test case name %s: Status transition failed (Type, Status) = (%s, %v) condition list: %v", tt.name, tt.condType, tt.condStatus, statusList)
 			}
 		})

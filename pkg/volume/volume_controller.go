@@ -66,7 +66,8 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 	if new.Status.NodeName != b.nodeID {
 		return nil
 	}
-	rmVolFinalizerFromDrive := func(driveName string, volumeName string) error {
+
+	rmVolFromDrive := func(driveName string, volumeName string, capacity int64) error {
 		drive, err := dclient.Get(ctx, driveName, metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -74,6 +75,20 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 		vFinalizer := directv1alpha1.DirectCSIDriveFinalizerPrefix + volumeName
 
 		dfinalizers := drive.GetFinalizers()
+
+		// check if finalizer has already been removed
+		found := false
+		for _, df := range dfinalizers {
+			if df == vFinalizer {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil
+		}
+
+		// if not, remove finalizer
 		updatedFinalizers := []string{}
 		for _, df := range dfinalizers {
 			if df == vFinalizer {
@@ -81,13 +96,29 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 			}
 			updatedFinalizers = append(updatedFinalizers, df)
 		}
+		if len(updatedFinalizers) == 1 {
+			if updatedFinalizers[0] == directv1alpha1.DirectCSIDriveFinalizerDataProtection {
+				drive.Status.DriveStatus = directv1alpha1.DriveStatusReady
+			}
+		}
 		drive.SetFinalizers(updatedFinalizers)
+
+		drive.Status.FreeCapacity = drive.Status.FreeCapacity + capacity
+		drive.Status.AllocatedCapacity = drive.Status.TotalCapacity - drive.Status.FreeCapacity
 
 		_, err = dclient.Update(ctx, drive, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 		return nil
+	}
+
+	cleanupVolume := func(vol *directv1alpha1.DirectCSIVolume) error {
+		if err := os.RemoveAll(vol.Status.HostPath); err != nil {
+			return err
+		}
+
+		return rmVolFromDrive(vol.Status.Drive, vol.Name, vol.Status.TotalCapacity)
 	}
 
 	deleting := func() bool {
@@ -130,7 +161,7 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directv1
 			}
 		}
 
-		if err := rmVolFinalizerFromDrive(new.Status.Drive, new.Name); err != nil {
+		if err := cleanupVolume(new); err != nil {
 			return err
 		}
 
