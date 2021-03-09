@@ -33,7 +33,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v0.20.2
-	k8s.io/code-generator v0.20.4 // indirect
+	k8s.io/code-generator v0.20.5 // indirect
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	sigs.k8s.io/controller-tools v0.5.0 // indirect

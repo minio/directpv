@@ -21,26 +21,26 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/time/rate"
-
 	// objectstorage
 	v1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	// k8s api
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 
 	// k8s client
+	"k8s.io/apimachinery/pkg/types"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -61,6 +61,7 @@ type deleteFunc func(ctx context.Context, obj interface{}) error
 type addOp struct {
 	Object  interface{}
 	AddFunc *addFunc
+	Indexer cache.Indexer
 
 	Key string
 }
@@ -73,6 +74,7 @@ type updateOp struct {
 	OldObject  interface{}
 	NewObject  interface{}
 	UpdateFunc *updateFunc
+	Indexer    cache.Indexer
 
 	Key string
 }
@@ -84,6 +86,7 @@ func (u updateOp) String() string {
 type deleteOp struct {
 	Object     interface{}
 	DeleteFunc *deleteFunc
+	Indexer    cache.Indexer
 
 	Key string
 }
@@ -115,15 +118,13 @@ type DirectCSIController struct {
 	directcsiClient clientset.Interface
 	kubeClient      kubeclientset.Interface
 
-	locker     map[string]*sync.Mutex
 	lockerLock sync.Mutex
+	locker     map[types.UID]*sync.Mutex
+	opMap      *sync.Map
 }
 
 func NewDefaultDirectCSIController(identity string, leaderLockName string, threads int) (*DirectCSIController, error) {
-	rateLimit := workqueue.NewMaxOfRateLimiter(
-		workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 600*time.Second),
-		&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
-	)
+	rateLimit := workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 30*time.Second)
 	return NewDirectCSIController(identity, leaderLockName, threads, rateLimit)
 }
 
@@ -149,10 +150,12 @@ func NewDirectCSIController(identity string, leaderLockName string, threads int,
 		queue:           workqueue.NewRateLimitingQueue(limiter),
 		threadiness:     threads,
 
-		ResyncPeriod:  60 * time.Second,
+		ResyncPeriod:  30 * time.Second,
 		LeaseDuration: 60 * time.Second,
-		RenewDeadline: 10 * time.Second,
+		RenewDeadline: 15 * time.Second,
 		RetryPeriod:   5 * time.Second,
+
+		opMap: &sync.Map{},
 	}, nil
 }
 
@@ -206,10 +209,11 @@ func (c *DirectCSIController) Run(ctx context.Context) error {
 	}
 
 	leaderConfig := leaderelection.LeaderElectionConfig{
-		Lock:          l,
-		LeaseDuration: c.LeaseDuration,
-		RenewDeadline: c.RenewDeadline,
-		RetryPeriod:   c.RetryPeriod,
+		Lock:            l,
+		ReleaseOnCancel: true,
+		LeaseDuration:   c.LeaseDuration,
+		RenewDeadline:   c.RenewDeadline,
+		RetryPeriod:     c.RetryPeriod,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
 				glog.V(2).Info("became leader, starting")
@@ -235,82 +239,83 @@ func (c *DirectCSIController) runWorker(ctx context.Context) {
 
 func (c *DirectCSIController) processNextItem(ctx context.Context) bool {
 	// Wait until there is a new item in the working queue
-	op, quit := c.queue.Get()
+	uuidInterface, quit := c.queue.Get()
 	if quit {
 		return false
 	}
 
-	// With the lock below in place, we can safely tell the queue that we are done
-	// processing this item. The lock will ensure that multiple items of the same
-	// name and kind do not get processed simultaneously
-	defer c.queue.Done(op)
+	uuid := uuidInterface.(types.UID)
+	defer c.queue.Done(uuid)
+
+	op, ok := c.opMap.Load(uuid)
+	if !ok {
+		panic("unreachable code")
+	}
 
 	// Ensure that multiple operations on different versions of the same object
 	// do not happen in parallel
-	c.OpLock(op)
-	defer c.OpUnlock(op)
+	c.OpLock(uuid)
+	defer c.OpUnlock(uuid)
 
-	var opKind string
-	var key string
 	var err error
 
 	switch o := op.(type) {
 	case addOp:
-		opKind = "add"
-		key = o.Key
 		add := *o.AddFunc
+		objMeta := o.Object.(metav1.Object)
+		name := objMeta.GetName()
 		err = add(ctx, o.Object)
+		if err == nil {
+			o.Indexer.Add(o.Object)
+		} else {
+			glog.Errorf("Error adding %s: %v", name, err)
+		}
 	case updateOp:
-		opKind = "update"
-		key = o.Key
 		update := *o.UpdateFunc
+		objMeta := o.OldObject.(metav1.Object)
+		name := objMeta.GetName()
 		err = update(ctx, o.OldObject, o.NewObject)
+		if err == nil {
+			o.Indexer.Update(o.NewObject)
+		} else {
+			glog.Errorf("Error updating %s: %v", name, err)
+		}
 	case deleteOp:
-		opKind = "delete"
-		key = o.Key
 		delete := *o.DeleteFunc
+		objMeta := o.Object.(metav1.Object)
+		name := objMeta.GetName()
 		err = delete(ctx, o.Object)
+		if err == nil {
+			o.Indexer.Delete(o.Object)
+		} else {
+			glog.Errorf("Error deleting %s: %v", name, err)
+		}
 	default:
 		panic("unknown item in queue")
 	}
-	if err != nil {
-		glog.Errorf("op: %s key: %s err: %v", opKind, key, err)
-	}
+
+	// Handle the error if something went wrong
+	c.handleErr(err, uuid)
 	return true
 }
 
-func (c *DirectCSIController) OpLock(op interface{}) {
+func (c *DirectCSIController) OpLock(op types.UID) {
 	c.GetOpLock(op).Lock()
 }
 
-func (c *DirectCSIController) OpUnlock(op interface{}) {
+func (c *DirectCSIController) OpUnlock(op types.UID) {
 	c.GetOpLock(op).Unlock()
 }
 
-func (c *DirectCSIController) GetOpLock(op interface{}) *sync.Mutex {
-	var key string
-	var ext string
-
-	switch o := op.(type) {
-	case addOp:
-		key = o.Key
-		ext = fmt.Sprintf("%v", o.AddFunc)
-	case updateOp:
-		key = o.Key
-		ext = fmt.Sprintf("%v", o.UpdateFunc)
-	case deleteOp:
-		key = o.Key
-		ext = fmt.Sprintf("%v", o.DeleteFunc)
-	default:
-		panic("unknown item in queue")
-	}
-
+func (c *DirectCSIController) GetOpLock(op types.UID) *sync.Mutex {
+	lockKey := op
 	c.lockerLock.Lock()
 	defer c.lockerLock.Unlock()
-	lockKey := fmt.Sprintf("%s/%s", key, ext)
+
 	if c.locker == nil {
-		c.locker = map[string]*sync.Mutex{}
+		c.locker = map[types.UID]*sync.Mutex{}
 	}
+
 	if _, ok := c.locker[lockKey]; !ok {
 		c.locker[lockKey] = &sync.Mutex{}
 	}
@@ -318,45 +323,24 @@ func (c *DirectCSIController) GetOpLock(op interface{}) *sync.Mutex {
 }
 
 // handleErr checks if an error happened and makes sure we will retry later.
-func (c *DirectCSIController) handleErr(err error, op interface{}) {
+func (c *DirectCSIController) handleErr(err error, uuid types.UID) {
 	if err == nil {
-		// Forget about the #AddRateLimited history of the op on every successful synchronization.
-		// This ensures that future processing of updates for this op is not delayed because of
-		// an outdated error history.
-		c.queue.Forget(op)
+		c.opMap.Delete(uuid)
 		return
 	}
-
-	/* TODO: Determine if there is a maxium number of retries or time allowed before giving up
-	// This controller retries 5 times if something goes wrong. After that, it stops trying.
-	if c.queue.NumRequeues(op) < 5 {
-		klog.Infof("Error syncing op %v: %v", key, err)
-
-		// Re-enqueue the key rate limited. Based on the rate limiter on the
-		// queue and the re-enqueue history, the op will be processed later again.
-		c.queue.AddRateLimited(op)
-		return
-	}
-
-	c.queue.Forget(key)
-	// Report to an external entity that, even after several retries, we could not successfully process this op
-	utilruntime.HandleError(err)
-	klog.Infof("Dropping op %+v out of the queue: %v", op, err)
-	*/
-	glog.V(5).Infof("Error executing operation %+v: %+v", op, err)
-	c.queue.AddRateLimited(op)
+	c.queue.AddRateLimited(uuid)
 }
 
 func (c *DirectCSIController) runController(ctx context.Context) {
 	controllerFor := func(name string, objType runtime.Object, add addFunc, update updateFunc, delete deleteFunc) {
-		indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+		indexer := cache.NewIndexer(cache.DeletionHandlingMetaNamespaceKeyFunc, cache.Indexers{})
 		resyncPeriod := c.ResyncPeriod
 
 		lw := cache.NewListWatchFromClient(c.directcsiClient.DirectV1beta1().RESTClient(), name, "", fields.Everything())
 		cfg := &cache.Config{
 			Queue: cache.NewDeltaFIFOWithOptions(cache.DeltaFIFOOptions{
 				KnownObjects:          indexer,
-				EmitDeltaTypeReplaced: true,
+				EmitDeltaTypeReplaced: false,
 			}),
 			ListerWatcher:    lw,
 			ObjectType:       objType,
@@ -372,25 +356,42 @@ func (c *DirectCSIController) runController(ctx context.Context) {
 								panic(err)
 							}
 
-							c.queue.Add(updateOp{
+							if reflect.DeepEqual(d.Object, old) {
+								return nil
+							}
+
+							uuid := d.Object.(metav1.Object).GetUID()
+
+							c.opMap.Store(uuid, updateOp{
 								OldObject:  old,
 								NewObject:  d.Object,
 								UpdateFunc: &update,
 								Key:        key,
+								Indexer:    indexer,
 							})
-							return indexer.Update(d.Object)
+							c.queue.Add(uuid)
 						} else {
 							key, err := cache.MetaNamespaceKeyFunc(d.Object)
 							if err != nil {
 								panic(err)
 							}
+							uuid := d.Object.(metav1.Object).GetUID()
 
-							c.queue.Add(addOp{
+							// If an update to the k8s object happens before add has succeeded
+							if op, ok := c.opMap.Load(uuid); ok {
+								if _, ok := op.(updateOp); ok {
+									err := fmt.Errorf("cannot add already added object: %s", key)
+									return err
+								}
+							}
+
+							c.opMap.Store(uuid, addOp{
 								Object:  d.Object,
 								AddFunc: &add,
 								Key:     key,
+								Indexer: indexer,
 							})
-							return indexer.Add(d.Object)
+							c.queue.Add(uuid)
 						}
 					case cache.Deleted:
 						key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(d.Object)
@@ -398,12 +399,14 @@ func (c *DirectCSIController) runController(ctx context.Context) {
 							panic(err)
 						}
 
-						c.queue.Add(deleteOp{
+						uuid := d.Object.(metav1.Object).GetUID()
+						c.opMap.Store(uuid, deleteOp{
 							Object:     d.Object,
 							DeleteFunc: &delete,
 							Key:        key,
+							Indexer:    indexer,
 						})
-						return indexer.Delete(d.Object)
+						c.queue.Add(uuid)
 					}
 				}
 				return nil
@@ -423,7 +426,7 @@ func (c *DirectCSIController) runController(ctx context.Context) {
 		}
 
 		for i := 0; i < c.threadiness; i++ {
-			go wait.UntilWithContext(ctx, c.runWorker, time.Second)
+			go c.runWorker(ctx)
 		}
 
 		<-ctx.Done()
