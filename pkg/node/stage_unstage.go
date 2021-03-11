@@ -77,13 +77,18 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	conditions := vol.Status.Conditions
-	for _, c := range conditions {
+	for i, c := range conditions {
 		switch c.Type {
+		case string(directcsi.DirectCSIVolumeConditionReady):
+			conditions[i].Status = utils.BoolToCondition(true)
+			conditions[i].Reason = directcsi.DirectCSIVolumeReasonReady
 		case string(directcsi.DirectCSIVolumeConditionPublished):
 		case string(directcsi.DirectCSIVolumeConditionStaged):
-			c.Status = utils.BoolToCondition(true)
+			conditions[i].Status = utils.BoolToCondition(true)
+			conditions[i].Reason = directcsi.DirectCSIVolumeReasonInUse
 		}
 	}
+
 	vol.Status.HostPath = path
 	vol.Status.StagingPath = stagingTargetPath
 
@@ -132,7 +137,8 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		case string(directcsi.DirectCSIVolumeConditionPublished):
 		case string(directcsi.DirectCSIVolumeConditionStaged):
 			conditions[i].Status = utils.BoolToCondition(false)
-			conditions[i].Reason = directcsi.DirectCSIVolumeReasonInUse
+			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonNotInUse)
+		case string(directcsi.DirectCSIVolumeConditionReady):
 		}
 	}
 

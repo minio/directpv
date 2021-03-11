@@ -144,7 +144,9 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		switch c.Type {
 		case string(directcsi.DirectCSIVolumeConditionPublished):
 			conditions[i].Status = utils.BoolToCondition(true)
+			conditions[i].Reason = directcsi.DirectCSIVolumeReasonInUse
 		case string(directcsi.DirectCSIVolumeConditionStaged):
+		case string(directcsi.DirectCSIVolumeConditionReady):
 		}
 	}
 	vol.Status.ContainerPath = containerPath
@@ -193,8 +195,9 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		switch c.Type {
 		case string(directcsi.DirectCSIVolumeConditionPublished):
 			conditions[i].Status = utils.BoolToCondition(false)
-			conditions[i].Reason = directcsi.DirectCSIVolumeReasonInUse
+			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonNotInUse)
 		case string(directcsi.DirectCSIVolumeConditionStaged):
+		case string(directcsi.DirectCSIVolumeConditionReady):
 		}
 	}
 	vol.Status.ContainerPath = ""

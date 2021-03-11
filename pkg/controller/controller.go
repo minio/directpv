@@ -145,8 +145,6 @@ func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 
 // CreateVolume - Creates a DirectCSI Volume
 func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	glog.V(3).Infof("CreateVolume req: %v", req)
-
 	name := req.GetName()
 	if name == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
@@ -215,20 +213,18 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return size
 	}
 
-	reserveDrive := func(drive *directcsi.DirectCSIDrive) error {
-		size := getSize(drive)
-
-		var found bool
+	reserveDrive := func(drive *directcsi.DirectCSIDrive, size int64) error {
+		var alreadyReserved bool
 		finalizer := directcsi.DirectCSIDriveFinalizerPrefix + name
 		finalizers := drive.GetFinalizers()
 		for _, f := range finalizers {
 			if f == finalizer {
-				found = true
+				alreadyReserved = true
 				break
 			}
 		}
 		// only if drive was not previously reserved
-		if !found {
+		if !alreadyReserved {
 			drive.Status.FreeCapacity = drive.Status.FreeCapacity - size
 			drive.Status.AllocatedCapacity = drive.Status.AllocatedCapacity + size
 			if drive.Status.DriveStatus == directcsi.DriveStatusReady {
@@ -258,12 +254,6 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	size := getSize(drive)
-
-	// reserve the drive first, then create the volume
-	if err := reserveDrive(drive); err != nil {
-		return nil, err
-	}
-
 	vol := &directcsi.DirectCSIVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
@@ -293,14 +283,38 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 					Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
 					LastTransitionTime: metav1.Now(),
 				},
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionReady),
+					Status:             metav1.ConditionFalse,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonNotReady),
+					LastTransitionTime: metav1.Now(),
+				},
 			},
 		},
 	}
 
-	if _, err = vclient.Create(ctx, vol, metav1.CreateOptions{}); err != nil {
+	if _, err := vclient.Create(ctx, vol, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.Internal, "could not create volume [%s]: %v", name, err)
 		}
+		existingVol, gErr := vclient.Get(ctx, vol.Name, metav1.GetOptions{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(c.CRDVersion),
+		})
+		if gErr != nil {
+			return nil, status.Error(codes.NotFound, gErr.Error())
+		}
+		existingVol.ObjectMeta.Finalizers = vol.ObjectMeta.Finalizers
+		existingVol.Status = vol.Status
+		if _, cErr := vclient.Update(ctx, existingVol, metav1.UpdateOptions{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(c.CRDVersion),
+		}); cErr != nil {
+			return nil, cErr
+		}
+	}
+
+	if err := reserveDrive(drive, size); err != nil {
+		return nil, err
 	}
 
 	return &csi.CreateVolumeResponse{
