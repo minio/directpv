@@ -72,10 +72,8 @@ func registerCRDs(ctx context.Context, identity string) error {
 			if !errors.IsNotFound(err) {
 				return err
 			}
-			if crdObj.Name == driveCRDName {
-				if err := setConversionWebhook(&crdObj, identity); err != nil {
-					return err
-				}
+			if err := setConversionWebhook(&crdObj, identity); err != nil {
+				return err
 			}
 			if _, err := crdClient.Create(ctx, &crdObj, metav1.CreateOptions{}); err != nil {
 				return err
@@ -113,10 +111,8 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 
 	existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 
-	if existingCRD.Name == driveCRDName {
-		if err := setConversionWebhook(existingCRD, identity); err != nil {
-			return err
-		}
+	if err := setConversionWebhook(existingCRD, identity); err != nil {
+		return err
 	}
 
 	crdClient := utils.GetCRDClient()
@@ -133,7 +129,13 @@ func setConversionWebhook(crdObj *apiextensions.CustomResourceDefinition, identi
 
 	name := installer.SanitizeName(identity)
 	getServiceRef := func() *apiextensions.ServiceReference {
-		path := converter.DriveHandlerPath
+		path := func() string {
+			if crdObj.Name == driveCRDName {
+				return converter.DriveHandlerPath
+			}
+			return converter.VolumeHandlerPath
+		}()
+
 		return &apiextensions.ServiceReference{
 			Namespace: name,
 			Name:      installer.GetConversionServiceName(),

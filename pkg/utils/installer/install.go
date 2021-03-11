@@ -283,7 +283,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error
 				APIVersion: "storage.k8s.io/v1beta1",
 			},
 			ObjectMeta:           objMeta(identity),
-			Provisioner:          identity,
+			Provisioner:          sanitizeName(identity),
 			AllowVolumeExpansion: &allowExpansion,
 			VolumeBindingMode:    &bindingMode,
 			AllowedTopologies:    allowedTopologies,

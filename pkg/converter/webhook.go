@@ -27,11 +27,12 @@ import (
 )
 
 const (
-	port             = "443"
-	certPath         = "/etc/certs/cert.pem"
-	keyPath          = "/etc/certs/key.pem"
-	DriveHandlerPath = "/convertdrive"
-	healthzPath      = "/healthz"
+	port              = "443"
+	certPath          = "/etc/certs/cert.pem"
+	keyPath           = "/etc/certs/key.pem"
+	DriveHandlerPath  = "/convertdrive"
+	VolumeHandlerPath = "/convertvolume"
+	healthzPath       = "/healthz"
 )
 
 func ServeConversionWebhook(ctx context.Context) error {
@@ -51,7 +52,8 @@ func ServeConversionWebhook(ctx context.Context) error {
 
 	// define http server and server handler
 	mux := http.NewServeMux()
-	mux.HandleFunc(DriveHandlerPath, ServeConversion)
+	mux.HandleFunc(DriveHandlerPath, ServeDriveConversion)
+	mux.HandleFunc(VolumeHandlerPath, ServeVolumeConversion)
 	mux.HandleFunc(healthzPath, LivenessCheckHandler)
 	server.Handler = mux
 

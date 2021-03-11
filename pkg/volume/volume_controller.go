@@ -160,8 +160,8 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directcs
 		conditions := new.Status.Conditions
 		for i, c := range conditions {
 			switch c.Type {
+			case string(directcsi.DirectCSIVolumeConditionReady):
 			case string(directcsi.DirectCSIVolumeConditionStaged):
-				fallthrough
 			case string(directcsi.DirectCSIVolumeConditionPublished):
 				if conditions[i].Status == metav1.ConditionTrue {
 					return fmt.Errorf("waiting for volume to be released before cleaning up")

@@ -21,7 +21,6 @@ import (
 	"reflect"
 	"sort"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/sys/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -102,74 +101,6 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 		return err
 	}
 	return nil
-}
-
-// UpdateDriveStatusOnDiff Updates the drive status fields on diff.
-func UpdateDriveStatusOnDiff(newObj directcsi.DirectCSIDrive, existingObj *directcsi.DirectCSIDrive) bool {
-	isUpdated := false
-	if existingObj.Status.Path != newObj.Status.Path {
-		existingObj.Status.Path = newObj.Status.Path
-		isUpdated = true
-	}
-	if existingObj.Status.FreeCapacity != newObj.Status.FreeCapacity {
-		diffInCap := newObj.Status.FreeCapacity - existingObj.Status.FreeCapacity
-		if diffInCap > 0 {
-			existingObj.Status.AllocatedCapacity = newObj.Status.AllocatedCapacity
-		}
-		existingObj.Status.FreeCapacity = newObj.Status.FreeCapacity
-		isUpdated = true
-	}
-	if existingObj.Status.RootPartition != newObj.Status.RootPartition {
-		existingObj.Status.RootPartition = newObj.Status.RootPartition
-		isUpdated = true
-	}
-	if existingObj.Status.PartitionNum != newObj.Status.PartitionNum {
-		existingObj.Status.PartitionNum = newObj.Status.PartitionNum
-		isUpdated = true
-	}
-	if existingObj.Status.Filesystem != newObj.Status.Filesystem {
-		existingObj.Status.Filesystem = newObj.Status.Filesystem
-		isUpdated = true
-	}
-	if existingObj.Status.Mountpoint != newObj.Status.Mountpoint {
-		existingObj.Status.Mountpoint = newObj.Status.Mountpoint
-		isUpdated = true
-	}
-	if !reflect.DeepEqual(existingObj.Status.MountOptions, newObj.Status.MountOptions) {
-		existingObj.Status.MountOptions = newObj.Status.MountOptions
-		isUpdated = true
-	}
-	if existingObj.Status.NodeName != newObj.Status.NodeName {
-		existingObj.Status.NodeName = newObj.Status.NodeName
-		isUpdated = true
-	}
-	if existingObj.Status.ModelNumber != newObj.Status.ModelNumber {
-		existingObj.Status.ModelNumber = newObj.Status.ModelNumber
-		isUpdated = true
-	}
-	if existingObj.Status.SerialNumber != newObj.Status.SerialNumber {
-		existingObj.Status.SerialNumber = newObj.Status.SerialNumber
-		isUpdated = true
-	}
-	if existingObj.Status.TotalCapacity != newObj.Status.TotalCapacity {
-		existingObj.Status.TotalCapacity = newObj.Status.TotalCapacity
-		isUpdated = true
-	}
-	if existingObj.Status.PhysicalBlockSize != newObj.Status.PhysicalBlockSize {
-		existingObj.Status.PhysicalBlockSize = newObj.Status.PhysicalBlockSize
-		isUpdated = true
-	}
-	if existingObj.Status.LogicalBlockSize != newObj.Status.LogicalBlockSize {
-		existingObj.Status.LogicalBlockSize = newObj.Status.LogicalBlockSize
-		isUpdated = true
-	}
-	if !reflect.DeepEqual(existingObj.Status.Topology, newObj.Status.Topology) {
-		existingObj.Status.Topology = newObj.Status.Topology
-		isUpdated = true
-	}
-	// Add new status canditates here
-
-	return isUpdated
 }
 
 func CheckStatusEquality(existingConditions, newConditions []metav1.Condition) bool {

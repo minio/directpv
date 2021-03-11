@@ -185,6 +185,7 @@ type DirectCSIVolumeCondition string
 const (
 	DirectCSIVolumeConditionPublished DirectCSIVolumeCondition = "Published"
 	DirectCSIVolumeConditionStaged                             = "Staged"
+	DirectCSIVolumeConditionReady                              = "Ready"
 )
 
 type DirectCSIVolumeReason string
@@ -192,6 +193,8 @@ type DirectCSIVolumeReason string
 const (
 	DirectCSIVolumeReasonNotInUse DirectCSIVolumeReason = "NotInUse"
 	DirectCSIVolumeReasonInUse                          = "InUse"
+	DirectCSIVolumeReasonReady                          = "Ready"
+	DirectCSIVolumeReasonNotReady                       = "NotReady" 
 )
 
 type DirectCSIVolumeStatus struct {
