@@ -20,16 +20,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-  "testing"
+	"testing"
 
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-  "k8s.io/apimachinery/pkg/runtime/serializer/json"
-  
-  "github.com/minio/direct-csi/pkg/utils"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+
+	"github.com/minio/direct-csi/pkg/utils"
 )
 
 func TestV1alpha1ToV1beta1DriveUpgrade(t *testing.T) {
@@ -239,8 +239,8 @@ request:
 		t.Errorf("Error while converting %v", err)
 	}
 
-  if !utils.IsCondition(directCSIVolume.Status.Conditions, string(directv1beta1.DirectCSIVolumeConditionReady), metav1.ConditionTrue, string(directv1beta1.DirectCSIVolumeReasonReady), "") {
-    t.Errorf("unexpected status.conditions = %v", directCSIVolume.Status.Conditions)
-  }
+	if !utils.IsCondition(directCSIVolume.Status.Conditions, string(directv1beta1.DirectCSIVolumeConditionReady), metav1.ConditionTrue, string(directv1beta1.DirectCSIVolumeReasonReady), "") {
+		t.Errorf("unexpected status.conditions = %v", directCSIVolume.Status.Conditions)
+	}
 
 }

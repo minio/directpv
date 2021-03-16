@@ -194,7 +194,7 @@ const (
 	DirectCSIVolumeReasonNotInUse DirectCSIVolumeReason = "NotInUse"
 	DirectCSIVolumeReasonInUse                          = "InUse"
 	DirectCSIVolumeReasonReady                          = "Ready"
-	DirectCSIVolumeReasonNotReady                       = "NotReady" 
+	DirectCSIVolumeReasonNotReady                       = "NotReady"
 )
 
 type DirectCSIVolumeStatus struct {

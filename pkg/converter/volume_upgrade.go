@@ -23,10 +23,9 @@ import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 )
 
 func upgradeVolumeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
@@ -87,7 +86,7 @@ func volumeUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) err
 					return string(directv1beta1.DirectCSIVolumeReasonNotReady)
 				}
 			}(),
-			Message: "",
+			Message:            "",
 			LastTransitionTime: metav1.Now(),
 		}
 	}
