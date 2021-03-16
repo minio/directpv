@@ -19,61 +19,49 @@ package converter
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-type migrateFunc func(fromVersion, toVersion string, Object *unstructured.Unstructured, crdKind CRDKind) error
+type migrateFunc func(fromVersion, toVersion string, Object *unstructured.Unstructured) error
 
 var (
 	ErrCRDKindNotSupported = errors.New("Unsupported CRD Kind")
 )
 
 func convertDriveCRD(Object *unstructured.Unstructured, toVersion string) (*unstructured.Unstructured, metav1.Status) {
-	glog.V(2).Info("converting drive crd")
-
-	fmt.Println()
-	fmt.Printf("Converting drive crd kind: %s", Object.GetKind()) 
-
 	convertedObject := Object.DeepCopy()
-	fromVersion := Object.GetAPIVersion()
-
-	migrateFn, err := getMigrateFunc(fromVersion, toVersion)
-	if err != nil {
+	if err := Migrate(convertedObject, toVersion); err != nil {
 		return nil, statusErrorWithMessage(err.Error())
 	}
-
-	// migrate the CRDs
-	if err := migrateFn(fromVersion, toVersion, convertedObject, DriveCRDKind); err != nil {
-		return nil, statusErrorWithMessage(err.Error())
-	}
-
 	return convertedObject, statusSucceed()
 }
 
 func convertVolumeCRD(Object *unstructured.Unstructured, toVersion string) (*unstructured.Unstructured, metav1.Status) {
-	glog.V(2).Info("converting volume crd")
-
-	fmt.Println()
-	fmt.Printf("Converting volume crd kind: %s", Object.GetKind()) 
-
 	convertedObject := Object.DeepCopy()
-	fromVersion := Object.GetAPIVersion()
+	if err := Migrate(convertedObject, toVersion); err != nil {
+		return nil, statusErrorWithMessage(err.Error())
+	}
+	return convertedObject, statusSucceed()
+}
 
+func Migrate(convertedObject *unstructured.Unstructured, toVersion string) error {
+
+	fromVersion := convertedObject.GetAPIVersion()
 	migrateFn, err := getMigrateFunc(fromVersion, toVersion)
 	if err != nil {
-		return nil, statusErrorWithMessage(err.Error())
+		return err
 	}
 
 	// migrate the CRDs
-	if err := migrateFn(fromVersion, toVersion, convertedObject, VolumeCRDKind); err != nil {
-		return nil, statusErrorWithMessage(err.Error())
+	if err := migrateFn(fromVersion, toVersion, convertedObject); err != nil {
+		return err
 	}
 
-	return convertedObject, statusSucceed()
+	return nil
 }
 
 func getMigrateFunc(fromVersion, toVersion string) (migrateFunc, error) {
@@ -123,7 +111,14 @@ func getMigrateFunc(fromVersion, toVersion string) (migrateFunc, error) {
 	return migrateFn, nil
 }
 
-func upgradeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured, crdKind CRDKind) error {
+func getCRDKind(convertedObject *unstructured.Unstructured) CRDKind {
+	crdKindUntyped := convertedObject.GetKind()
+	cleanKindStr := strings.ReplaceAll(crdKindUntyped, " ", "")
+	return CRDKind(cleanKindStr)
+}
+
+func upgradeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
+	crdKind := getCRDKind(convertedObject)
 	switch crdKind {
 	case DriveCRDKind:
 		if err := upgradeDriveObject(fromVersion, toVersion, convertedObject); err != nil {
@@ -139,7 +134,8 @@ func upgradeObject(fromVersion, toVersion string, convertedObject *unstructured.
 	return nil
 }
 
-func downgradeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured, crdKind CRDKind) error {
+func downgradeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
+	crdKind := getCRDKind(convertedObject)
 	switch crdKind {
 	case DriveCRDKind:
 		if err := downgradeDriveObject(fromVersion, toVersion, convertedObject); err != nil {
