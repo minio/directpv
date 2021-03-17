@@ -38,6 +38,7 @@ import (
 const (
 	currentCRDStorageVersion = "v1beta1"
 	driveCRDName             = "directcsidrives.direct.csi.min.io"
+	volumeCRDName            = "directcsivolumes.direct.csi.min.io"
 )
 
 func registerCRDs(ctx context.Context, identity string) error {
@@ -130,10 +131,14 @@ func setConversionWebhook(crdObj *apiextensions.CustomResourceDefinition, identi
 	name := installer.SanitizeName(identity)
 	getServiceRef := func() *apiextensions.ServiceReference {
 		path := func() string {
-			if crdObj.Name == driveCRDName {
+			switch crdObj.Name {
+			case driveCRDName:
 				return converter.DriveHandlerPath
+			case volumeCRDName:
+				return converter.VolumeHandlerPath
+			default:
+				panic("unknown crd name found")
 			}
-			return converter.VolumeHandlerPath
 		}()
 
 		return &apiextensions.ServiceReference{
