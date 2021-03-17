@@ -40,7 +40,7 @@ var directCSIClient directcsi.DirectV1beta1Interface
 var directClientset direct.Interface
 var kubeClient kubernetes.Interface
 var crdClient apiextensions.CustomResourceDefinitionInterface
-var apiextensionsClient *apiextensions.ApiextensionsV1Client
+var apiextensionsClient apiextensions.ApiextensionsV1Interface
 var discoveryClient discovery.DiscoveryInterface
 var metadataClient metadata.Interface
 var gvk *schema.GroupVersionKind
@@ -87,6 +87,10 @@ func Init() {
 	if err != nil {
 		glog.Fatalf("could not initialize metadata client: %v", err)
 	}
+
+	// Initialize fake sets
+	InitFake()
+
 }
 
 func GetKubeConfig() string {
