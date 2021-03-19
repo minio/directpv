@@ -64,9 +64,6 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 			if err != nil {
 				return err
 			}
-			if UpdateDriveStatusOnDiff(drive, existingDrive) {
-				glog.V(2).Infof("[Drive: %v] Successfully Updated the drive status during restart", existingDrive.Name)
-			}
 			updateOpts := metav1.UpdateOptions{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
 			}

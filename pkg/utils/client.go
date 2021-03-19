@@ -32,31 +32,64 @@ import (
 	"github.com/golang/glog"
 )
 
+var (
+	fakeMode bool
+)
+
+func SetFake() {
+	fakeMode = true
+}
+
+func GetFake() bool {
+	return fakeMode
+}
+
 func GetKubeClient() kubernetes.Interface {
+	if fakeMode {
+		return fakeKubeClient
+	}
 	return kubeClient
 }
 
 func GetDirectCSIClient() directcsi.DirectV1beta1Interface {
+	if fakeMode {
+		return fakeDirectCSIClient
+	}
 	return directCSIClient
 }
 
 func GetDirectClientset() direct.Interface {
+	if fakeMode {
+		return fakeDirectClientset
+	}
 	return directClientset
 }
 
 func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
+	if fakeMode {
+		return fakeCRDClient
+	}
 	return crdClient
 }
 
-func GetAPIExtensionsClient() *apiextensions.ApiextensionsV1Client {
+func GetAPIExtensionsClient() apiextensions.ApiextensionsV1Interface {
+	if fakeMode {
+		return fakeAPIExtenstionsClient
+	}
 	return apiextensionsClient
 }
 
 func GetDiscoveryClient() discovery.DiscoveryInterface {
+	if fakeMode {
+		return fakeDiscoveryClient
+	}
 	return discoveryClient
 }
 
 func GetMetadataClient() metadata.Interface {
+	if fakeMode {
+		return fakeMetadataClient
+	}
 	return metadataClient
 }
 

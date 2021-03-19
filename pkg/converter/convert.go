@@ -17,44 +17,51 @@
 package converter
 
 import (
+	"errors"
 	"fmt"
-	"github.com/golang/glog"
+	"strings"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-)
-
-const (
-	versionV1Alpha1 = "direct.csi.min.io/v1alpha1"
-	versionV1Beta1  = "direct.csi.min.io/v1beta1"
-)
-
-var (
-	supportedVersions = []string{versionV1Alpha1,
-		versionV1Beta1} //ordered
 )
 
 type migrateFunc func(fromVersion, toVersion string, Object *unstructured.Unstructured) error
 
+var (
+	ErrCRDKindNotSupported = errors.New("Unsupported CRD Kind")
+)
+
 func convertDriveCRD(Object *unstructured.Unstructured, toVersion string) (*unstructured.Unstructured, metav1.Status) {
-	glog.V(2).Info("converting crd")
-
 	convertedObject := Object.DeepCopy()
-	fromVersion := Object.GetAPIVersion()
+	if err := Migrate(convertedObject, toVersion); err != nil {
+		return nil, statusErrorWithMessage(err.Error())
+	}
+	return convertedObject, statusSucceed()
+}
 
+func convertVolumeCRD(Object *unstructured.Unstructured, toVersion string) (*unstructured.Unstructured, metav1.Status) {
+	convertedObject := Object.DeepCopy()
+	if err := Migrate(convertedObject, toVersion); err != nil {
+		return nil, statusErrorWithMessage(err.Error())
+	}
+	return convertedObject, statusSucceed()
+}
+
+func Migrate(convertedObject *unstructured.Unstructured, toVersion string) error {
+
+	fromVersion := convertedObject.GetAPIVersion()
 	migrateFn, err := getMigrateFunc(fromVersion, toVersion)
 	if err != nil {
-		return nil, statusErrorWithMessage(err.Error())
+		return err
 	}
 
 	// migrate the CRDs
-	migrateFn(fromVersion, toVersion, convertedObject)
+	if err := migrateFn(fromVersion, toVersion, convertedObject); err != nil {
+		return err
+	}
 
-	return convertedObject, statusSucceed()
+	return nil
 }
 
 func getMigrateFunc(fromVersion, toVersion string) (migrateFunc, error) {
@@ -104,90 +111,42 @@ func getMigrateFunc(fromVersion, toVersion string) (migrateFunc, error) {
 	return migrateFn, nil
 }
 
-func upgradeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
-	switch fromVersion {
-	case versionV1Alpha1:
-		if err := upgradeV1alpha1ToV1Beta1(convertedObject); err != nil {
-			return err
-		}
-		fallthrough
-	case versionV1Beta1:
-		if toVersion == versionV1Beta1 {
-			glog.V(2).Info("Successfully migrated")
-			break
-		}
-	}
-	return nil
+func getCRDKind(convertedObject *unstructured.Unstructured) CRDKind {
+	crdKindUntyped := convertedObject.GetKind()
+	cleanKindStr := strings.ReplaceAll(crdKindUntyped, " ", "")
+	return CRDKind(cleanKindStr)
 }
 
-func upgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) error {
-
-	unstructuredObject := unstructured.Object
-
-	var v1alpha1DirectCSIDrive directv1alpha1.DirectCSIDrive
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObject, &v1alpha1DirectCSIDrive)
-	if err != nil {
-		return err
+func upgradeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
+	crdKind := getCRDKind(convertedObject)
+	switch crdKind {
+	case DriveCRDKind:
+		if err := upgradeDriveObject(fromVersion, toVersion, convertedObject); err != nil {
+			return err
+		}
+	case VolumeCRDKind:
+		if err := upgradeVolumeObject(fromVersion, toVersion, convertedObject); err != nil {
+			return err
+		}
+	default:
+		return ErrCRDKindNotSupported
 	}
-
-	fmt.Println()
-	fmt.Printf("Converting %v to v1beta1", v1alpha1DirectCSIDrive.Name)
-
-	var v1beta1DirectCSIDrive directv1beta1.DirectCSIDrive
-	if err := directv1beta1.Convert_v1alpha1_DirectCSIDrive_To_v1beta1_DirectCSIDrive(&v1alpha1DirectCSIDrive, &v1beta1DirectCSIDrive, nil); err != nil {
-		return err
-	}
-
-	v1beta1DirectCSIDrive.TypeMeta = v1alpha1DirectCSIDrive.TypeMeta
-	v1beta1DirectCSIDrive.Status.AccessTier = directv1beta1.AccessTierUnknown
-	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta1DirectCSIDrive)
-	if err != nil {
-		return err
-	}
-
-	unstructured.Object = convertedObj
 	return nil
 }
 
 func downgradeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
-	switch fromVersion {
-	case versionV1Beta1:
-		if err := downgradeV1Beta1ToV1alpha1(convertedObject); err != nil {
+	crdKind := getCRDKind(convertedObject)
+	switch crdKind {
+	case DriveCRDKind:
+		if err := downgradeDriveObject(fromVersion, toVersion, convertedObject); err != nil {
 			return err
 		}
-		fallthrough
-	case versionV1Alpha1:
-		if toVersion == versionV1Alpha1 {
-			glog.V(2).Info("Successfully migrated")
-			break
+	case VolumeCRDKind:
+		if err := downgradeVolumeObject(fromVersion, toVersion, convertedObject); err != nil {
+			return err
 		}
+	default:
+		return ErrCRDKindNotSupported
 	}
-	return nil
-}
-
-func downgradeV1Beta1ToV1alpha1(unstructured *unstructured.Unstructured) error {
-
-	unstructuredObject := unstructured.Object
-
-	var v1beta1DirectCSIDrive directv1beta1.DirectCSIDrive
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObject, &v1beta1DirectCSIDrive); err != nil {
-		return err
-	}
-
-	fmt.Println()
-	fmt.Printf("Converting %v to v1alpha1", v1beta1DirectCSIDrive.Name)
-
-	var v1alpha1DirectCSIDrive directv1alpha1.DirectCSIDrive
-	if err := directv1beta1.Convert_v1beta1_DirectCSIDrive_To_v1alpha1_DirectCSIDrive(&v1beta1DirectCSIDrive, &v1alpha1DirectCSIDrive, nil); err != nil {
-		return err
-	}
-
-	v1alpha1DirectCSIDrive.TypeMeta = v1beta1DirectCSIDrive.TypeMeta
-	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(v1alpha1DirectCSIDrive)
-	if err != nil {
-		return err
-	}
-
-	unstructured.Object = convertedObj
 	return nil
 }

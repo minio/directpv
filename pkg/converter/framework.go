@@ -33,6 +33,23 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
 
+const (
+	versionV1Alpha1 = "direct.csi.min.io/v1alpha1"
+	versionV1Beta1  = "direct.csi.min.io/v1beta1"
+)
+
+var (
+	supportedVersions = []string{versionV1Alpha1,
+		versionV1Beta1} //ordered
+)
+
+type CRDKind string
+
+const (
+	DriveCRDKind  CRDKind = "DirectCSIDrive"
+	VolumeCRDKind CRDKind = "DirectCSIVolume"
+)
+
 // convertFunc is the user defined function for any conversion. The code in this file is a
 // template that can be use for any CR conversion given this function.
 type convertFunc func(Object *unstructured.Unstructured, version string) (*unstructured.Unstructured, metav1.Status)
@@ -135,8 +152,12 @@ func serve(w http.ResponseWriter, r *http.Request, convert convertFunc) {
 	}
 }
 
-func ServeConversion(w http.ResponseWriter, r *http.Request) {
+func ServeDriveConversion(w http.ResponseWriter, r *http.Request) {
 	serve(w, r, convertDriveCRD)
+}
+
+func ServeVolumeConversion(w http.ResponseWriter, r *http.Request) {
+	serve(w, r, convertVolumeCRD)
 }
 
 type mediaType struct {
