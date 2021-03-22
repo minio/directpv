@@ -54,5 +54,5 @@ func InitFake() {
 	fakeDiscoveryClient = &fakediscovery.FakeDiscovery{}
 	scheme := runtime.NewScheme()
 	metav1.AddMetaToScheme(scheme)
-	fakeMetadataClient = fakemetadata.NewSimpleMetadataClient(scheme, nil)
+	fakeMetadataClient = fakemetadata.NewSimpleMetadataClient(scheme)
 }
