@@ -62,6 +62,31 @@ func TestGetBlockFile(t1 *testing.T) {
 			devName:   "/dev/nvmen12p11",
 			blockFile: "/var/lib/direct-csi/devices/nvmen12p-part-11",
 		},
+		{
+			name:      "test8",
+			devName:   "/var/lib/direct-csi/devices/loop0",
+			blockFile: "/var/lib/direct-csi/devices/loop0",
+		},
+		{
+			name:      "test9",
+			devName:   "/var/lib/direct-csi/devices/loop-part-12",
+			blockFile: "/var/lib/direct-csi/devices/loop-part-12",
+		},
+		{
+			name:      "test10",
+			devName:   "loop0",
+			blockFile: "/var/lib/direct-csi/devices/loop0",
+		},
+		{
+			name:      "test11",
+			devName:   "loop12",
+			blockFile: "/var/lib/direct-csi/devices/loop-part-12",
+		},
+		{
+			name:      "test12",
+			devName:   "/dev/loop3",
+			blockFile: "/var/lib/direct-csi/devices/loop-part-3",
+		},
 	}
 
 	for _, tt := range testCases {
@@ -116,6 +141,31 @@ func TestGetRootBlockFile(t1 *testing.T) {
 			name:     "test7",
 			devName:  "/var/lib/direct-csi/devices/nvmen12p-part-11",
 			rootFile: "/dev/nvmen12p11",
+		},
+		{
+			name:     "test8",
+			devName:  "/var/lib/direct-csi/devices/loop0",
+			rootFile: "/dev/loop0",
+		},
+		{
+			name:     "test9",
+			devName:  "/var/lib/direct-csi/devices/loop-part-5",
+			rootFile: "/dev/loop5",
+		},
+		{
+			name:     "test10",
+			devName:  "/var/lib/direct-csi/devices/loop-part-12",
+			rootFile: "/dev/loop12",
+		},
+		{
+			name:     "test11",
+			devName:  "loop12",
+			rootFile: "/dev/loop12",
+		},
+		{
+			name:     "test12",
+			devName:  "loop0",
+			rootFile: "/dev/loop0",
 		},
 	}
 

@@ -31,9 +31,25 @@ import (
 	simd "github.com/minio/sha256-simd"
 )
 
-func findDrives(ctx context.Context, nodeID string, procfs string) ([]directcsi.DirectCSIDrive, error) {
+const (
+	loopBackDeviceCount = 4
+)
+
+func findDrives(ctx context.Context, nodeID string, procfs string, loopBackOnly bool) ([]directcsi.DirectCSIDrive, error) {
 	drives := []directcsi.DirectCSIDrive{}
-	devs, err := sys.FindDevices(ctx)
+
+	if loopBackOnly {
+		// Flush the existing loopback setups
+		if err := sys.FlushLoopBackReservations(); err != nil {
+			return drives, err
+		}
+		// Reserve loopbacks
+		if err := sys.ReserveLoopbackDevices(loopBackDeviceCount); err != nil {
+			return drives, err
+		}
+	}
+
+	devs, err := sys.FindDevices(ctx, loopBackOnly)
 	if err != nil {
 		return drives, err
 	}

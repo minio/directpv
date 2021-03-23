@@ -125,7 +125,7 @@ func run(ctx context.Context, args []string) error {
 	currentCRDVersion := utils.CurrentCRDVersion()
 
 	if driver {
-		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths, procfs, currentCRDVersion)
+		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths, procfs, currentCRDVersion, loopBackOnly)
 		if err != nil {
 			return err
 		}

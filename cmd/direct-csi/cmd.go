@@ -44,6 +44,7 @@ var (
 	procfs               = "/proc"
 	conversionWebhook    = false
 	conversionWebhookURL = ""
+	loopBackOnly         = false
 )
 
 var driverCmd = &cobra.Command{
@@ -90,6 +91,7 @@ func init() {
 	driverCmd.Flags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
 	driverCmd.Flags().BoolVarP(&conversionWebhook, "conversion-webhook", "", conversionWebhook, "start and serve conversion webhook")
 	driverCmd.Flags().StringVarP(&conversionWebhookURL, "conversion-webhook-url", "", conversionWebhookURL, "The URL of the conversion webhook")
+	driverCmd.Flags().BoolVarP(&loopBackOnly, "loopback-only", "", loopBackOnly, "Create and uses loopback devices only")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")
