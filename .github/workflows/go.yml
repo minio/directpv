@@ -31,7 +31,7 @@ jobs:
       run: |
         diff -au <(gofmt -s -d cmd) <(printf "")
         diff -au <(gofmt -s -d pkg) <(printf "")
-        go test -v ./... -coverprofile="codecov-coverage.txt" -covermode=atomic
+        go test -v ./... -tags skip -coverprofile="codecov-coverage.txt" -covermode=atomic
         ./build.sh
         curl -s https://codecov.io/bash | bash -s -- -f "codecov-coverage.txt" -F ubuntu-latest
         docker build . -t "direct-csi:latest"

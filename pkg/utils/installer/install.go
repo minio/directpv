@@ -346,7 +346,7 @@ func getConversionWebhookURL(identity string) (conversionWebhookURL string) {
 	return
 }
 
-func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
+func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, loopBackOnly bool) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookURL := getConversionWebhookURL(identity)
@@ -397,14 +397,20 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 			{
 				Name:  directCSIContainerName,
 				Image: filepath.Join(registry, org, directCSIContainerImage),
-				Args: []string{
-					fmt.Sprintf("--identity=%s", name),
-					fmt.Sprintf("--v=%d", logLevel),
-					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
-					fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
-					fmt.Sprintf("--conversion-webhook-url=%s", conversionWebhookURL),
-					"--driver",
-				},
+				Args: func() []string {
+					args := []string{
+						fmt.Sprintf("--identity=%s", name),
+						fmt.Sprintf("--v=%d", logLevel),
+						fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
+						fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
+						fmt.Sprintf("--conversion-webhook-url=%s", conversionWebhookURL),
+						"--driver",
+					}
+					if loopBackOnly {
+						args = append(args, "--loopback-only")
+					}
+					return args
+				}(),
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
 				},

@@ -36,9 +36,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string, crdVersion string) (*NodeServer, error) {
+func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string, crdVersion string, loopBackOnly bool) (*NodeServer, error) {
 
-	drives, err := findDrives(ctx, nodeID, procfs)
+	drives, err := findDrives(ctx, nodeID, procfs, loopBackOnly)
 	if err != nil {
 		return nil, err
 	}

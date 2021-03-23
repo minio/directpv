@@ -27,19 +27,41 @@ import (
 
 	"github.com/golang/glog"
 	"golang.org/x/sys/unix"
+
+	"github.com/minio/direct-csi/pkg/sys/loopback"
 )
 
-func FindDevices(ctx context.Context) ([]BlockDevice, error) {
-	const head = "/sys/devices"
+func FindDevices(ctx context.Context, loopBackOnly bool) ([]BlockDevice, error) {
+	var head = func() string {
+		var deviceHead = "/sys/devices"
+		if loopBackOnly {
+			return filepath.Join(deviceHead, "virtual", "block")
+		}
+		return deviceHead
+	}()
+
 	drives := []BlockDevice{}
+	var attachedLoopDeviceNames []string
+	if loopBackOnly {
+		var err error
+		attachedLoopDeviceNames, err = loopback.GetAttachedDeviceNames()
+		if err != nil {
+			return drives, err
+		}
+		if len(attachedLoopDeviceNames) == 0 {
+			return drives, fmt.Errorf("No loop devices attached")
+		}
+	}
 
 	return drives, filepath.Walk(head, func(path string, info os.FileInfo, err error) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if strings.HasPrefix(info.Name(), "loop") {
+
+		if !loopBackOnly && strings.HasPrefix(info.Name(), "loop") {
 			return filepath.SkipDir
 		}
+
 		if info.Name() != "uevent" {
 			return nil
 		}
@@ -48,6 +70,20 @@ func FindDevices(ctx context.Context) ([]BlockDevice, error) {
 			glog.V(5).Info(err)
 			return nil
 		}
+
+		if loopBackOnly {
+			if isAttachedDev := func() bool {
+				for _, ldName := range attachedLoopDeviceNames {
+					if ldName == drive.Devname {
+						return true
+					}
+				}
+				return false
+			}(); isAttachedDev == false {
+				return nil
+			}
+		}
+
 		if drive.Devtype != "disk" {
 			return nil
 		}

@@ -17,9 +17,16 @@
 package sys
 
 import (
+	"errors"
+	"fmt"
+	"github.com/golang/glog"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/minio/direct-csi/pkg/sys/loopback"
 )
 
 func (b *BlockDevice) DirectCSIDrivePath() string {
@@ -75,7 +82,7 @@ func splitDevAndPartNum(s string) (string, int) {
 	possibleNum := strings.Builder{}
 	toRet := strings.Builder{}
 
-	//finds number at the end of a string
+	// finds number at the end of a string
 	for _, r := range s {
 		if r >= '0' && r <= '9' {
 			possibleNum.WriteRune(r)
@@ -107,4 +114,61 @@ func (b *BlockDevice) Error() string {
 		return ""
 	}
 	return b.DeviceError.Error()
+}
+
+func FlushLoopBackReservations() error {
+
+	umountLoopDev := func(devPath string) error {
+		if err := SafeUnmountAll(devPath, []UnmountOption{
+			UnmountOptionDetach,
+			UnmountOptionForce,
+		}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	flushLoopDevice := func(loopDevName string) error {
+		// umount
+		blockFile := getBlockFile(loopDevName)
+		if err := umountLoopDev(blockFile); err != nil {
+			return err
+		}
+		// Remove loop device
+		loopFilePath := getRootBlockFile(loopDevName)
+		if err := loopback.RemoveLoopDevice(loopFilePath); err != nil {
+			return err
+		}
+		// Remove direct-csi (loop)device file
+		if err := os.Remove(blockFile); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	files, err := ioutil.ReadDir(loopback.DirectCSIBackFileRoot)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("Error while reading (%s): %v", loopback.DirectCSIBackFileRoot, err)
+	}
+	for _, file := range files {
+		loopDevName := file.Name() // filebase
+		if err := flushLoopDevice(loopDevName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ReserveLoopbackDevices(devCount int) error {
+	for i := 1; i <= devCount; i++ {
+		dev, err := loopback.CreateLoopbackDevice()
+		if err != nil {
+			return err
+		}
+		glog.V(2).Infof("Successfully created loopback device %v", dev)
+	}
+	return nil
 }

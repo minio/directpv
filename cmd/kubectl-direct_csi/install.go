@@ -46,6 +46,7 @@ var (
 	image            = "direct-csi:" + Version
 	registry         = "quay.io"
 	org              = "minio"
+	loopBackOnly     = false
 )
 
 func init() {
@@ -55,8 +56,10 @@ func init() {
 	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "registry where direct-csi images are available")
 	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "organization name where direct-csi images are available")
 	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on direct-csi admission controller")
-
 	installCmd.PersistentFlags().MarkDeprecated("crd", "Will be removed in version 1.5 or greater")
+
+	installCmd.PersistentFlags().BoolVarP(&loopBackOnly, "loopback-only", "", loopBackOnly, "Uses 4 free loopback devices per node and treat them as DirectCSIDrive resources. This is recommended only for testing/development purposes")
+	installCmd.PersistentFlags().MarkHidden("loopback-only")
 }
 
 func install(ctx context.Context, args []string) error {
@@ -150,7 +153,7 @@ crdInstall:
 		glog.Infof("'%s' rbac roles created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org); err != nil {
+	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
