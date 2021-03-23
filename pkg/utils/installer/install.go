@@ -65,15 +65,15 @@ const (
 	directCSISelector = "selector.direct.csi.min.io"
 
 	csiProvisionerContainerName  = "csi-provisioner"
-	csiProvisionerContainerImage = "k8scsi/csi-provisioner:v2.1.0"
+	csiProvisionerContainerImage = "csi-provisioner:v2.1.0"
 
 	directCSIContainerName = "direct-csi"
 
 	livenessProbeContainerName  = "liveness-probe"
-	livenessProbeContainerImage = "k8scsi/livenessprobe:v2.1.0"
+	livenessProbeContainerImage = "livenessprobe:v2.1.0"
 
 	nodeDriverRegistrarContainerName  = "node-driver-registrar"
-	nodeDriverRegistrarContainerImage = "k8scsi/csi-node-driver-registrar:v2.1.0"
+	nodeDriverRegistrarContainerImage = "csi-node-driver-registrar:v2.1.0"
 
 	healthZContainerPort         = 9898
 	healthZContainerPortName     = "healthz"
@@ -346,7 +346,7 @@ func getConversionWebhookURL(identity string) (conversionWebhookURL string) {
 	return
 }
 
-func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry string) error {
+func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookURL := getConversionWebhookURL(identity)
@@ -369,7 +369,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 		Containers: []corev1.Container{
 			{
 				Name:  nodeDriverRegistrarContainerName,
-				Image: filepath.Join(registry, nodeDriverRegistrarContainerImage),
+				Image: filepath.Join(registry, org, nodeDriverRegistrarContainerImage),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--csi-address=unix:///csi/csi.sock",
@@ -396,7 +396,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 			},
 			{
 				Name:  directCSIContainerName,
-				Image: filepath.Join(registry, directCSIContainerImage),
+				Image: filepath.Join(registry, org, directCSIContainerImage),
 				Args: []string{
 					fmt.Sprintf("--identity=%s", name),
 					fmt.Sprintf("--v=%d", logLevel),
@@ -455,7 +455,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 			},
 			{
 				Name:  livenessProbeContainerName,
-				Image: filepath.Join(registry, livenessProbeContainerImage),
+				Image: filepath.Join(registry, org, livenessProbeContainerImage),
 				Args: []string{
 					"--csi-address=/csi/csi.sock",
 					"--health-port=9898",
@@ -600,7 +600,7 @@ func CreateConversionCASecret(ctx context.Context, identity string, caCertBytes 
 	return nil
 }
 
-func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry string) error {
+func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookURL := getConversionWebhookURL(identity)
@@ -617,7 +617,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		Containers: []corev1.Container{
 			{
 				Name:  csiProvisionerContainerName,
-				Image: filepath.Join(registry, csiProvisionerContainerImage),
+				Image: filepath.Join(registry, org, csiProvisionerContainerImage),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
@@ -656,7 +656,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 			},
 			{
 				Name:  directCSIContainerName,
-				Image: filepath.Join(registry, directCSIContainerImage),
+				Image: filepath.Join(registry, org, directCSIContainerImage),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", name),
@@ -975,7 +975,7 @@ func CreateConversionService(ctx context.Context, generatedSelectorValue, identi
 	return nil
 }
 
-func CreateConversionDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry string) error {
+func CreateConversionDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookDNSName := getConversionWebhookDNSName(identity)
@@ -989,7 +989,7 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 		Containers: []corev1.Container{
 			{
 				Name:  directCSIContainerName,
-				Image: filepath.Join(registry, directCSIContainerImage),
+				Image: filepath.Join(registry, org, directCSIContainerImage),
 				Args: []string{
 					"--conversion-webhook",
 				},

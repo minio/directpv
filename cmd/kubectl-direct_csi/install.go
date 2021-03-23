@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
@@ -42,8 +43,9 @@ var (
 	installCRD       = false
 	overwriteCRD     = false
 	admissionControl = false
-	image            = "minio/direct-csi:" + Version
+	image            = "direct-csi:" + Version
 	registry         = "quay.io"
+	org              = "minio"
 )
 
 func init() {
@@ -51,12 +53,23 @@ func init() {
 	installCmd.PersistentFlags().BoolVarP(&overwriteCRD, "force", "f", overwriteCRD, "delete and recreate CRDs")
 	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "direct-csi image")
 	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "registry where direct-csi images are available")
+	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "organization name where direct-csi images are available")
 	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on direct-csi admission controller")
 
 	installCmd.PersistentFlags().MarkDeprecated("crd", "Will be removed in version 1.5 or greater")
 }
 
 func install(ctx context.Context, args []string) error {
+	if err := validImage(image); err != nil {
+		return fmt.Errorf("invalid argument. format of '--image' must be [image:tag] err=%v", err)
+	}
+	if err := validOrg(org); err != nil {
+		return fmt.Errorf("invalid org. format of '--org' must be [a-zA-Z][a-zA-Z0-9-.]* err=%v", err)
+	}
+	if err := validRegistry(registry); err != nil {
+		return fmt.Errorf("invalid registry. format of '--registry' must be [host:port?]")
+	}
+
 	dryRun := viper.GetBool(dryRunFlagName)
 	if !dryRun {
 		utils.Init()
@@ -71,7 +84,7 @@ func install(ctx context.Context, args []string) error {
 		glog.Infof("'%s' namespace created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateConversionDeployment(ctx, identity, image, dryRun, registry); err != nil {
+	if err := installer.CreateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -137,7 +150,7 @@ crdInstall:
 		glog.Infof("'%s' rbac roles created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry); err != nil {
+	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
@@ -146,7 +159,7 @@ crdInstall:
 		glog.Infof("'%s' daemonset created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDeployment(ctx, identity, image, dryRun, registry); err != nil {
+	if err := installer.CreateDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
