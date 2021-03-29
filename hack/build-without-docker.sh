@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This file is part of MinIO Direct CSI
-# Copyright (c) 2020 MinIO, Inc.
+# Copyright (c) 2021 MinIO, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by

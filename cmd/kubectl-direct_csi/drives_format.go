@@ -1,6 +1,6 @@
 /*
  * This file is part of MinIO Direct CSI
- * Copyright (C) 2020, MinIO, Inc.
+ * Copyright (C) 2021, MinIO, Inc.
  *
  * This code is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -22,11 +22,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
-	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -36,7 +35,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
-	"github.com/mb0/glob"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -61,14 +59,17 @@ $ kubectl direct-csi drives format --drives=/dev/nvme*
 # Format all drives from a particular node
 $ kubectl direct-csi drives format --nodes=directcsi-1
 
+# Format all drives based on the access-tier set [hot|cold|warm]
+$ kubectl direct-csi drives format --access-tier=hot
+
 # Combine multiple parameters using multi-arg
-$ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=new
+$ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=available
 
 # Combine multiple parameters using csv
-$ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=new
+$ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=available
 `,
 	RunE: func(c *cobra.Command, args []string) error {
-		return addDrives(c.Context(), args)
+		return formatDrives(c.Context(), args)
 	},
 	Aliases: []string{},
 }
@@ -79,14 +80,16 @@ func init() {
 	formatDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "format all available drives")
 
 	formatDrivesCmd.PersistentFlags().BoolVarP(&force, "force", "f", force, "force format a drive even if a FS is already present")
+
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "format based on access-tier set. The possible values are [hot,cold,warm] ")
 }
 
-func addDrives(ctx context.Context, args []string) error {
+func formatDrives(ctx context.Context, args []string) error {
 	dryRun := viper.GetBool(dryRunFlagName)
 
 	if !all {
-		if len(drives) == 0 && len(nodes) == 0 {
-			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should to be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"))
+		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 {
+			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"))
 		}
 	}
 	utils.Init()
@@ -98,7 +101,7 @@ func addDrives(ctx context.Context, args []string) error {
 	}
 
 	if len(driveList.Items) == 0 {
-		fmt.Printf("No resource of direct.csi.min.io/v1beta1.%s found\n", bold("DirectCSIDrive"))
+		glog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 
@@ -107,73 +110,15 @@ func addDrives(ctx context.Context, args []string) error {
 		return err
 	}
 
-	nodeList := nodes
-	if len(nodes) == 0 {
-		nodeList = []string{"**"}
+	accessTierSet, aErr := getAccessTierSet(accessTiers)
+	if aErr != nil {
+		return aErr
 	}
-	if len(nodes) == 1 {
-		if nodes[0] == "*" {
-			nodeList = []string{"**"}
-		}
-	}
-
-	filterSet := map[string]struct{}{}
-	filterNodes := []directv1beta1.DirectCSIDrive{}
+	filterDrives := []directcsi.DirectCSIDrive{}
 	for _, d := range driveList.Items {
-		for _, n := range nodeList {
-			if ok, _ := glob.Match(n, d.Status.NodeName); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterNodes = append(filterNodes, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			} else if ok, _ := glob.Match(n+"*", d.Status.NodeName); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterNodes = append(filterNodes, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			}
-		}
-	}
-
-	drivesList := drives
-	if len(drives) == 0 {
-		drivesList = []string{"**"}
-	}
-	if len(drives) == 1 {
-		if drives[0] == "*" {
-			drivesList = []string{"**"}
-		}
-	}
-
-	// reset filterSet
-	filterSet = map[string]struct{}{}
-	filterDrives := []directv1beta1.DirectCSIDrive{}
-	for _, d := range filterNodes {
-		for _, n := range drivesList {
-			pathTransform := func(in string) string {
-				path := strings.ReplaceAll(in, "-part-", "")
-				path = strings.ReplaceAll(path, sys.DirectCSIDevRoot, "")
-				path = strings.ReplaceAll(path, sys.HostDevRoot, "")
-				return filepath.Base(path)
-			}
-
-			path := pathTransform(n)
-			statusPath := pathTransform(d.Status.Path)
-
-			if ok, _ := glob.Match(path, statusPath); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterDrives = append(filterDrives, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			} else if ok, _ := glob.Match(path+"*", d.Status.RootPartition); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterDrives = append(filterDrives, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
+		if d.MatchGlob(nodes, drives, status) {
+			if d.MatchAccessTier(accessTierSet) {
+				filterDrives = append(filterDrives, d)
 			}
 		}
 	}
@@ -184,19 +129,19 @@ func addDrives(ctx context.Context, args []string) error {
 		return strings.ReplaceAll(dr, "-part-", "")
 	}
 
-	updatedFilterDrives := []*directv1beta1.DirectCSIDrive{}
+	updatedFilterDrives := []*directcsi.DirectCSIDrive{}
 	for _, d := range filterDrives {
-		if d.Status.DriveStatus == directv1beta1.DriveStatusUnavailable {
+		if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
 			continue
 		}
 
-		if d.Status.DriveStatus == directv1beta1.DriveStatusInUse {
+		if d.Status.DriveStatus == directcsi.DriveStatusInUse {
 			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
 			glog.Errorf("%s in use. Cannot be formatted", utils.Bold(driveAddr))
 			continue
 		}
 
-		if d.Status.DriveStatus == directv1beta1.DriveStatusReady {
+		if d.Status.DriveStatus == directcsi.DriveStatusReady {
 			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
 			glog.Errorf("%s already owned and managed. Use %s to overwrite", utils.Bold(driveAddr), utils.Bold("--force"))
 			continue
@@ -208,7 +153,7 @@ func addDrives(ctx context.Context, args []string) error {
 		}
 
 		d.Spec.DirectCSIOwned = true
-		d.Spec.RequestedFormat = &directv1beta1.RequestedFormat{
+		d.Spec.RequestedFormat = &directcsi.RequestedFormat{
 			Filesystem: XFS,
 			Force:      force,
 		}
@@ -275,7 +220,7 @@ func addDrives(ctx context.Context, args []string) error {
 			dr := driveName(val)
 			col := red(dot)
 			for _, c := range d.Status.Conditions {
-				if c.Type == string(directv1beta1.DirectCSIDriveConditionOwned) {
+				if c.Type == string(directcsi.DirectCSIDriveConditionOwned) {
 					if c.Status == metav1.ConditionTrue {
 						col = green(dot)
 					}

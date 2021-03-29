@@ -1,6 +1,6 @@
 /*
  * This file is part of MinIO Direct CSI
- * Copyright (C) 2020, MinIO, Inc.
+ * Copyright (C) 2021, MinIO, Inc.
  *
  * This code is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -23,14 +23,15 @@ import (
 )
 
 var (
-	drives = []string{}
-	nodes  = []string{}
-	status = []string{}
+	drives      = []string{}
+	nodes       = []string{}
+	status      = []string{}
+	accessTiers = []string{}
 )
 
 var drivesCmd = &cobra.Command{
 	Use:   "drives",
-	Short: "Mangage Drives on DirectCSI",
+	Short: "Manage Drives on DirectCSI",
 	Long:  "",
 	Aliases: []string{
 		"drive",
@@ -41,4 +42,5 @@ var drivesCmd = &cobra.Command{
 func init() {
 	drivesCmd.AddCommand(listDrivesCmd)
 	drivesCmd.AddCommand(formatDrivesCmd)
+	drivesCmd.AddCommand(drivesAccessTierCmd)
 }

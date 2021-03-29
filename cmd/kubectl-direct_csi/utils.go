@@ -17,9 +17,12 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/fatih/color"
 
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	"github.com/minio/direct-csi/pkg/utils"
 )
 
 // pretty printing utils
@@ -40,4 +43,21 @@ func ListVolumesInDrive(drive directv1beta1.DirectCSIDrive, volumes *directv1bet
 		}
 	}
 	return vols
+}
+
+func getAccessTierSet(accessTiers []string) ([]directv1beta1.AccessTier, error) {
+	var atSet []directv1beta1.AccessTier
+	for i := range accessTiers {
+		if accessTiers[i] == "*" {
+			return []directv1beta1.AccessTier{directv1beta1.AccessTierHot,
+				directv1beta1.AccessTierWarm,
+				directv1beta1.AccessTierCold}, nil
+		}
+		at, err := utils.ValidateAccessTier(strings.TrimSpace(accessTiers[i]))
+		if err != nil {
+			return atSet, err
+		}
+		atSet = append(atSet, at)
+	}
+	return atSet, nil
 }

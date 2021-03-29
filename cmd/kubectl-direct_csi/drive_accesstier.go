@@ -16,25 +16,22 @@
  *
  */
 
-package sys
+package main
 
 import (
-	"context"
-
-	"os/exec"
+	"github.com/spf13/cobra"
 )
 
-func Format(ctx context.Context, path, fs string, options []string, force bool) (string, error) {
-	bin := "mkfs." + fs
-	args := func() []string {
-		args := options
-		if force {
-			args = append(args, "-f")
-		}
-		return append(args, path)
-	}()
+var drivesAccessTierCmd = &cobra.Command{
+	Use:   "access-tier",
+	Short: "tag/untag DirectCSI drives based on thier access-tiers",
+	Long:  "",
+	Aliases: []string{
+		"accesstier",
+	},
+}
 
-	cmd := exec.CommandContext(ctx, bin, args...)
-	outputBytes, err := cmd.CombinedOutput()
-	return string(outputBytes), err
+func init() {
+	drivesAccessTierCmd.AddCommand(accessTierSet)
+	drivesAccessTierCmd.AddCommand(accessTierUnset)
 }

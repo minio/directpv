@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -71,7 +72,21 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 	}
 	glog.Infof("fsFilteredDrives: %s", strings.Join(fsFilDrNames, ","))
 
-	return fsFilteredDrives, nil
+	paramFilteredDrives, pErr := FilterDrivesByParameters(volReq.GetParameters(), fsFilteredDrives)
+	if pErr != nil {
+		return fsFilteredDrives, status.Errorf(codes.InvalidArgument, "Error while filtering based on sc parameters: %v", pErr)
+	}
+	if len(paramFilteredDrives) == 0 {
+		return []directcsi.DirectCSIDrive{}, status.Errorf(codes.InvalidArgument, "Cannot match any drives by the provided storage class parameters: %s", volReq.GetParameters())
+	}
+
+	paramFilDrNames := []string{}
+	for _, f := range paramFilteredDrives {
+		paramFilDrNames = append(paramFilDrNames, f.Status.NodeName+"-"+f.Name[0:8])
+	}
+	glog.Infof("paramFilteredDrives: %s", strings.Join(paramFilDrNames, ","))
+
+	return paramFilteredDrives, nil
 }
 
 // FilterDrivesByCapacityRange - Filters the CSI drives by capacity range in the create volume request
@@ -108,6 +123,33 @@ func FilterDrivesByFsType(fsType string, csiDrives []directcsi.DirectCSIDrive) [
 	filteredDriveList := []directcsi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
 		if csiDrive.Status.Filesystem == fsType {
+			filteredDriveList = append(filteredDriveList, csiDrive)
+		}
+	}
+	return filteredDriveList
+}
+
+// FilterDrivesByParameters - Filters the CSI drives by request parameters
+func FilterDrivesByParameters(parameters map[string]string, csiDrives []directcsi.DirectCSIDrive) ([]directcsi.DirectCSIDrive, error) {
+	filteredDriveList := csiDrives
+	for k, v := range parameters {
+		switch k {
+		case "direct-csi-min-io/access-tier":
+			accessT, err := utils.ValidateAccessTier(v)
+			if err != nil {
+				return csiDrives, err
+			}
+			filteredDriveList = FilterDrivesByAccessTier(accessT, filteredDriveList)
+		default:
+		}
+	}
+	return filteredDriveList, nil
+}
+
+func FilterDrivesByAccessTier(accessTier directcsi.AccessTier, csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
+	filteredDriveList := []directcsi.DirectCSIDrive{}
+	for _, csiDrive := range csiDrives {
+		if csiDrive.Status.AccessTier == accessTier {
 			filteredDriveList = append(filteredDriveList, csiDrive)
 		}
 	}
