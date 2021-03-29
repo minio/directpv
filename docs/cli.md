@@ -57,17 +57,17 @@ Examples:
 # Filter all nvme drives in all nodes 
 $ kubectl direct-csi drives list --drives=/dev/nvme*
 
-# Filter all new drives 
-$ kubectl direct-csi drives list --status=new
+# Filter all available drives 
+$ kubectl direct-csi drives list --status=available
 
 # Filter all drives from a particular node
 $ kubectl direct-csi drives list --nodes=directcsi-1
 
 # Combine multiple filters
-$ kubectl direct-csi drives list --nodes=directcsi-1 --nodes=othernode-2 --status=new
+$ kubectl direct-csi drives list --nodes=directcsi-1 --nodes=othernode-2 --status=ready
 
 # Combine multiple filters using csv
-$ kubectl direct-csi drives list --nodes=directcsi-1,othernode-2 --status=new
+$ kubectl direct-csi drives list --nodes=directcsi-1,othernode-2 --status=ready
 ```
 
 **EXAMPLE** When direct-csi is first installed, the output will look something like this, with most drives in `Available` status
@@ -102,17 +102,14 @@ $ kubectl direct-csi drives format --all
 # Add all nvme drives in all nodes 
 $ kubectl direct-csi drives format --drives=/dev/nvme*
 
-# Add all new drives
-$ kubectl direct-csi drives format --status=new
-
 # Add all drives from a particular node
 $ kubectl direct-csi drives format --nodes=directcsi-1
 
 # Combine multiple parameters using multi-arg
-$ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=new
+$ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=ready
 
 # Combine multiple parameters using csv
-$ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=new
+$ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=ready
 
 Flags:
   -d, --drives strings      glog selector for drive paths

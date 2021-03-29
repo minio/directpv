@@ -18,7 +18,9 @@ package utils
 
 import (
 	"encoding/json"
+	"strings"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/yaml"
@@ -57,4 +59,19 @@ func PrintYaml(data []byte) {
 	fmt.Println()
 	fmt.Println("---")
 	fmt.Println()
+}
+
+func ValidateAccessTier(at string) (directcsi.AccessTier, error) {
+	switch directcsi.AccessTier(strings.Title(at)) {
+	case directcsi.AccessTierWarm:
+		return directcsi.AccessTierWarm, nil
+	case directcsi.AccessTierHot:
+		return directcsi.AccessTierHot, nil
+	case directcsi.AccessTierCold:
+		return directcsi.AccessTierCold, nil
+	case directcsi.AccessTierUnknown:
+		return directcsi.AccessTierUnknown, fmt.Errorf("Please set any one among ['hot','warm', 'cold']")
+	default:
+		return directcsi.AccessTierUnknown, fmt.Errorf("Invalid 'access-tier' value, Please set any one among ['hot','warm','cold']")
+	}
 }

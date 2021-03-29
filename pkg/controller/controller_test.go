@@ -532,3 +532,199 @@ func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
 		})
 	}
 }
+
+func TestFilterDrivesByParameters(t1 *testing.T) {
+	testCases := []struct {
+		name              string
+		parameters        map[string]string
+		driveList         []directcsi.DirectCSIDrive
+		selectedDriveList []directcsi.DirectCSIDrive
+		expectError       bool
+	}{
+		{
+			name:       "test1",
+			parameters: map[string]string{"abc": "def"},
+			driveList: []directcsi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierUnknown,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierUnknown,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierCold,
+					},
+				},
+			},
+			selectedDriveList: []directcsi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierUnknown,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierUnknown,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierCold,
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:       "test2",
+			parameters: map[string]string{"direct-csi-min-io/access-tier": "hot", "abc": "def"},
+			driveList: []directcsi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierHot,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierHot,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierUnknown,
+					},
+				},
+			},
+			selectedDriveList: []directcsi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierHot,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierHot,
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:       "test3",
+			parameters: map[string]string{"direct-csi-min-io/access-tier": "cold", "abc": "def"},
+			driveList: []directcsi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierHot,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierHot,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierUnknown,
+					},
+				},
+			},
+			selectedDriveList: []directcsi.DirectCSIDrive{},
+			expectError:       false,
+		},
+		{
+			name:       "test4",
+			parameters: map[string]string{"direct-csi-min-io/access-tier": "inVaLidValue", "abc": "def"},
+			driveList: []directcsi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierHot,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierHot,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						AccessTier: directcsi.AccessTierUnknown,
+					},
+				},
+			},
+			selectedDriveList: []directcsi.DirectCSIDrive{},
+			expectError:       true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t1.Run(tt.name, func(t1 *testing.T) {
+			driveList, err := FilterDrivesByParameters(tt.parameters, tt.driveList)
+			if err != nil {
+				if !tt.expectError {
+					t1.Errorf("Test case name %s: Failed with %v", tt.name, err)
+				}
+			} else {
+				if !reflect.DeepEqual(driveList, tt.selectedDriveList) {
+					t1.Errorf("Test case name %s: Expected drive list = %v, got %v", tt.name, tt.selectedDriveList, driveList)
+				}
+			}
+		})
+	}
+}

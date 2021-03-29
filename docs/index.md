@@ -8,6 +8,7 @@ Documentation
 ### Setup and Usage
  - [Installation](./installation.md)
  - [CLI reference](./cli.md)
+ - [Scheduling](./scheduling.md)
 
 ### Advanced
  - [Architecture](./architecture.md)

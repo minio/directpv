@@ -1,6 +1,6 @@
 /*
  * This file is part of MinIO Direct CSI
- * Copyright (C) 2020, MinIO, Inc.
+ * Copyright (C) 2021, MinIO, Inc.
  *
  * This code is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,

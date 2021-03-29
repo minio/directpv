@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -31,9 +30,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/dustin/go-humanize"
+	"github.com/golang/glog"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/mb0/glob"
 	"github.com/spf13/cobra"
 )
 
@@ -45,17 +44,23 @@ var listDrivesCmd = &cobra.Command{
 # Filter all nvme drives in all nodes 
 $ kubectl direct-csi drives ls --drives=/sys.nvme
 
-# Filter all new drives 
-$ kubectl direct-csi drives ls --status=new
+# Filter all ready drives 
+$ kubectl direct-csi drives ls --status=ready
 
 # Filter all drives from a particular node
 $ kubectl direct-csi drives ls --nodes=directcsi-1
 
 # Combine multiple filters using multi-arg
-$ kubectl direct-csi drives ls --nodes=directcsi-1 --nodes=othernode-2 --status=new
+$ kubectl direct-csi drives ls --nodes=directcsi-1 --nodes=othernode-2 --status=available
 
 # Combine multiple filters using csv
-$ kubectl direct-csi drives ls --nodes=directcsi-1,othernode-2 --status=new
+$ kubectl direct-csi drives ls --nodes=directcsi-1,othernode-2 --status=ready
+
+# Filter all drives based on access-tier
+$ kubectl direct-csi drives drives ls --access-tier="hot"
+
+# Filter all drives with access-tier being set
+$ kubectl direct-csi drives drives ls --access-tier="*"
 `,
 	RunE: func(c *cobra.Command, args []string) error {
 		return listDrives(c.Context(), args)
@@ -79,6 +84,8 @@ func init() {
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "glob prefix match for drive status")
 
 	listDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all drives (including unavailable)")
+
+	listDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "filter based on access-tier")
 }
 
 func listDrives(ctx context.Context, args []string) error {
@@ -91,7 +98,7 @@ func listDrives(ctx context.Context, args []string) error {
 	}
 
 	if len(driveList.Items) == 0 {
-		fmt.Printf("No resource of direct.csi.min.io/v1beta1.%s found\n", bold("DirectCSIDrive"))
+		glog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 
@@ -100,114 +107,25 @@ func listDrives(ctx context.Context, args []string) error {
 		return err
 	}
 
-	nodeList := nodes
-	if len(nodes) == 0 {
-		nodeList = []string{"**"}
+	accessTierSet, aErr := getAccessTierSet(accessTiers)
+	if aErr != nil {
+		return aErr
 	}
-	if len(nodes) == 1 {
-		if nodes[0] == "*" {
-			nodeList = []string{"**"}
-		}
-	}
-
-	filterSet := map[string]struct{}{}
-	filterNodes := []directcsi.DirectCSIDrive{}
+	filteredDrives := []directcsi.DirectCSIDrive{}
 	for _, d := range driveList.Items {
-		for _, n := range nodeList {
-			if ok, _ := glob.Match(n, d.Status.NodeName); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterNodes = append(filterNodes, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			} else if ok, _ := glob.Match(n+"*", d.Status.NodeName); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterNodes = append(filterNodes, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			}
-		}
-	}
-
-	drivesList := drives
-	if len(drives) == 0 {
-		drivesList = []string{"**"}
-	}
-	if len(drives) == 1 {
-		if drives[0] == "*" {
-			drivesList = []string{"**"}
-		}
-	}
-
-	// reset filterSet
-	filterSet = map[string]struct{}{}
-	filterDrives := []directcsi.DirectCSIDrive{}
-	for _, d := range filterNodes {
-		for _, n := range drivesList {
-			pathTransform := func(in string) string {
-				path := strings.ReplaceAll(in, directCSIPartitionInfix, "")
-				path = strings.ReplaceAll(path, sys.DirectCSIDevRoot+"/", "")
-				path = strings.ReplaceAll(path, sys.HostDevRoot+"/", "")
-				return filepath.Base(path)
-			}
-
-			path := pathTransform(n)
-			statusPath := pathTransform(d.Status.Path)
-
-			if ok, _ := glob.Match(path, statusPath); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterDrives = append(filterDrives, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			} else if ok, _ := glob.Match(path+"*", d.Status.RootPartition); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterDrives = append(filterDrives, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			}
-		}
-	}
-
-	statusesList := status
-	if len(status) == 0 {
-		statusesList = []string{"**"}
-	}
-	if len(status) == 1 {
-		if status[0] == "*" {
-			statusesList = []string{"**"}
-		}
-	}
-
-	// reset filterSet
-	filterSet = map[string]struct{}{}
-	filterStatus := []directcsi.DirectCSIDrive{}
-	for _, d := range filterDrives {
 		if !all && (d.Status.DriveStatus == directcsi.DriveStatusUnavailable) {
 			continue
 		}
-		for _, n := range statusesList {
-			if ok, _ := glob.Match(n, string(d.Status.DriveStatus)); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterStatus = append(filterStatus, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
-			} else if ok, _ := glob.Match(n+"*", string(d.Status.DriveStatus)); ok {
-				if _, ok := filterSet[d.Name]; !ok {
-					filterStatus = append(filterStatus, d)
-					filterSet[d.Name] = struct{}{}
-				}
-				continue
+		if d.MatchGlob(nodes, drives, status) {
+			if d.MatchAccessTier(accessTierSet) {
+				filteredDrives = append(filteredDrives, d)
 			}
 		}
 	}
 
-	sort.SliceStable(filterStatus, func(i, j int) bool {
-		d1 := filterStatus[i]
-		d2 := filterStatus[j]
+	sort.SliceStable(filteredDrives, func(i, j int) bool {
+		d1 := filteredDrives[i]
+		d2 := filteredDrives[j]
 
 		if v := strings.Compare(d1.Status.NodeName, d2.Status.NodeName); v != 0 {
 			return v < 0
@@ -229,6 +147,7 @@ func listDrives(ctx context.Context, args []string) error {
 		"ALLOCATED",
 		"VOLUMES",
 		"NODE",
+		"ACCESS-TIER",
 		"STATUS",
 		"",
 	})
@@ -244,7 +163,7 @@ func listDrives(ctx context.Context, args []string) error {
 		return strings.ReplaceAll(dr, directCSIPartitionInfix, "")
 	}
 
-	for _, d := range filterStatus {
+	for _, d := range filteredDrives {
 		volumes := 0
 		for _, v := range volList.Items {
 			if v.Status.Drive == d.Name {
@@ -298,8 +217,14 @@ func listDrives(ctx context.Context, args []string) error {
 			emptyOrBytes(d.Status.AllocatedCapacity), //ALLOCATED
 			emptyOrVal(volumes),                      //VOLUMES
 			d.Status.NodeName,                        //SERVER
-			utils.Bold(drStatus),                     //STATUS
-			msg,                                      //MESSAGE
+			func(drive directcsi.DirectCSIDrive) string {
+				if drive.Status.AccessTier == directcsi.AccessTierUnknown {
+					return "-"
+				}
+				return strings.ToLower(string(drive.Status.AccessTier))
+			}(d), //ACCESS-TIER
+			utils.Bold(drStatus), //STATUS
+			msg,                  //MESSAGE
 		})
 	}
 
