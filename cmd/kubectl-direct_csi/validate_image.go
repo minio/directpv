@@ -49,6 +49,9 @@ func parseImage1(r rune) (interface{}, bool, error) {
 	if r == ':' {
 		return parseTag1, true, nil
 	}
+	if r == '@' {
+		return parseSha1, true, nil
+	}
 
 	return parseImage, false, ErrInvalid("[a-zA-Z-:._0-9]", r)
 }
@@ -158,6 +161,770 @@ func parseUnderscore2(r rune) (interface{}, bool, error) {
 	return parseImage, false, ErrInvalid("[a-zA-Z0-9]", r)
 }
 
+func parseSha1(r rune) (interface{}, bool, error) {
+	if r == 's' {
+		return parseSha2, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("s", r)
+}
+
+func parseSha2(r rune) (interface{}, bool, error) {
+	if r == 'h' {
+		return parseSha3, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("h", r)
+}
+
+func parseSha3(r rune) (interface{}, bool, error) {
+	if r == 'a' {
+		return parseSha4, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("a", r)
+}
+
+func parseSha4(r rune) (interface{}, bool, error) {
+	if r == '2' {
+		return parseSha5, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("2", r)
+}
+
+func parseSha5(r rune) (interface{}, bool, error) {
+	if r == '5' {
+		return parseSha6, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("5", r)
+}
+
+func parseSha6(r rune) (interface{}, bool, error) {
+	if r == '6' {
+		return parseSha7, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("6", r)
+}
+
+func parseSha7(r rune) (interface{}, bool, error) {
+	if r == ':' {
+		return parseSha8, true, nil
+	}
+
+	return parseImage, false, ErrInvalid(":", r)
+}
+
+func parseSha8(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha9, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha9, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha9(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha10, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha10, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha10(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha11, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha11, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha11(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha12, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha12, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha12(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha13, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha13, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha13(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha14, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha14, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha14(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha15, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha15, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha15(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha16, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha16, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha16(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha17, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha17, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha17(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha18, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha18, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha18(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha19, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha19, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha19(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha20, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha20, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha20(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha21, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha21, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha21(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha22, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha22, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha22(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha23, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha23, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha23(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha24, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha24, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha24(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha25, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha25, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha25(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha26, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha26, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha26(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha27, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha27, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha27(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha28, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha28, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha28(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha29, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha29, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha29(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha30, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha30, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha30(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha31, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha31, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha31(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha32, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha32, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha32(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha33, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha33, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha33(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha34, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha34, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha34(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha35, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha35, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha35(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha36, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha36, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha36(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha37, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha37, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha37(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha38, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha38, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha38(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha39, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha39, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha39(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha40, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha40, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha40(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha41, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha41, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha41(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha42, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha42, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha42(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha43, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha43, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha43(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha44, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha44, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha44(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha45, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha45, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha45(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha46, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha46, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha46(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha47, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha47, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha47(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha48, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha48, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha48(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha49, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha49, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha49(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha50, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha50, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha50(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha51, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha51, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha51(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha52, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha52, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha52(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha53, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha53, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha53(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha54, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha54, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha54(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha55, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha55, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha55(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha56, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha56, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha56(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha57, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha57, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha57(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha58, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha58, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha58(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha59, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha59, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha59(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha60, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha60, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha60(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha61, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha61, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha61(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha62, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha62, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha62(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha63, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha63, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha63(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha64, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha64, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha64(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha65, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha65, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha65(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha66, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha66, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha66(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha67, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha67, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha67(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha68, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha68, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha68(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha69, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha69, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha69(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha70, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha70, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha70(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha71, true, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha71, true, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha71(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseSha72, false, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseSha72, false, nil
+	}
+
+	return parseImage, false, ErrInvalid("[a-z0-9]", r)
+}
+
+func parseSha72(r rune) (interface{}, bool, error) {
+	return parseImage, false, ErrEndExpected
+}
+
 func parseTag1(r rune) (interface{}, bool, error) {
 	if r >= 'a' && r <= 'z' {
 		return parseTag2, false, nil
@@ -179,6 +946,7 @@ func parseTag1(r rune) (interface{}, bool, error) {
 	}
 	return parseImage, false, ErrInvalid("[a-zA-Z_0-9]", r)
 }
+
 func parseTag2(r rune) (interface{}, bool, error) {
 	if r >= 'a' && r <= 'z' {
 		return parseTag3, false, nil
@@ -2827,23 +3595,5 @@ func parseTag127(r rune) (interface{}, bool, error) {
 }
 
 func parseTag128(r rune) (interface{}, bool, error) {
-	if r >= 'a' && r <= 'z' {
-		return parseImage, false, ErrEndExpected
-	}
-	if r >= 'A' && r <= 'Z' {
-		return parseImage, false, ErrEndExpected
-	}
-	if r >= '0' && r <= '9' {
-		return parseImage, false, ErrEndExpected
-	}
-	if r == '_' {
-		return parseImage, false, ErrEndExpected
-	}
-	if r == '.' {
-		return parseImage, false, ErrEndExpected
-	}
-	if r == '-' {
-		return parseImage, false, ErrEndExpected
-	}
-	return parseImage, false, ErrInvalid("[a-zA-Z_-.0-9]", r)
+	return parseImage, false, ErrEndExpected
 }
