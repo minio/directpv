@@ -63,7 +63,7 @@ func unmountDrive(drivePath string) error {
 
 // formatDrive - Idempotent function to format a DirectCSIDrive
 func formatDrive(ctx context.Context, path string, force bool) error {
-	output, err := sys.Format(ctx, path, string(sys.FSTypeXFS), force)
+	output, err := sys.Format(ctx, path, string(sys.FSTypeXFS), []string{"-i", "maxpct=50"}, force)
 	if err != nil {
 		glog.Errorf("failed to format drive: %s", output)
 		return fmt.Errorf("%s", output)
