@@ -24,10 +24,10 @@ import (
 	"os/exec"
 )
 
-func Format(ctx context.Context, path, fs string, force bool) (string, error) {
+func Format(ctx context.Context, path, fs string, options []string, force bool) (string, error) {
 	bin := "mkfs." + fs
 	args := func() []string {
-		args := []string{}
+		args := options
 		if force {
 			args = append(args, "-f")
 		}
