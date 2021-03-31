@@ -64,16 +64,17 @@ const (
 
 	directCSISelector = "selector.direct.csi.min.io"
 
-	csiProvisionerContainerName  = "csi-provisioner"
-	csiProvisionerContainerImage = "csi-provisioner:v2.1.0"
+	directCSIContainerName           = "direct-csi"
+	livenessProbeContainerName       = "liveness-probe"
+	nodeDriverRegistrarContainerName = "node-driver-registrar"
+	csiProvisionerContainerName      = "csi-provisioner"
 
-	directCSIContainerName = "direct-csi"
-
-	livenessProbeContainerName  = "liveness-probe"
-	livenessProbeContainerImage = "livenessprobe:v2.1.0"
-
-	nodeDriverRegistrarContainerName  = "node-driver-registrar"
-	nodeDriverRegistrarContainerImage = "csi-node-driver-registrar:v2.1.0"
+	// "csi-provisioner:v2.1.0"
+	csiProvisionerContainerImage = "csi-provisioner@sha256:4ca2ce98430ca0b87d5bc1a6d116ecdf1619cfe6db693d8d5aa438f6821e0e80"
+	// "livenessprobe:v2.1.0"
+	livenessProbeContainerImage = "livenessprobe@sha256:6f056a175ff4ead772edc9bf99aef74c275a83c51868dd26090dcb623425a742"
+	// "csi-node-driver-registrar:v2.1.0"
+	nodeDriverRegistrarContainerImage = "csi-node-driver-registrar@sha256:9f9ce5c98e44d66b8ad34351616fdf78765b9f24c3c3b496cee784dadf63f528"
 
 	healthZContainerPort         = 9898
 	healthZContainerPortName     = "healthz"
