@@ -267,10 +267,22 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 					conditions[i].Status = utils.BoolToCondition(mounted)
 					conditions[i].Reason = string(directcsi.DirectCSIDriveReasonAdded)
 					conditions[i].LastTransitionTime = metav1.Now()
+					conditions[i].Message = func() string {
+						if conditions[i].Status == metav1.ConditionTrue {
+							return "mounted"
+						}
+						return "not mounted"
+					}()
 				case string(directcsi.DirectCSIDriveConditionFormatted):
 					conditions[i].Status = utils.BoolToCondition(formatted)
 					conditions[i].Reason = string(directcsi.DirectCSIDriveReasonAdded)
 					conditions[i].LastTransitionTime = metav1.Now()
+					conditions[i].Message = func() string {
+						if conditions[i].Status == metav1.ConditionTrue {
+							return "formatted to xfs"
+						}
+						return "not formatted"
+					}()
 				}
 			}
 			if updateErr == nil {
