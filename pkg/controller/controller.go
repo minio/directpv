@@ -70,27 +70,25 @@ import (
  *
  */
 
-func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region, crdVersion string) (*ControllerServer, error) {
+func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
 	// Start admission webhook server
 	go serveAdmissionController(ctx)
 
 	return &ControllerServer{
-		NodeID:     nodeID,
-		Identity:   identity,
-		Rack:       rack,
-		Zone:       zone,
-		Region:     region,
-		CRDVersion: crdVersion,
+		NodeID:   nodeID,
+		Identity: identity,
+		Rack:     rack,
+		Zone:     zone,
+		Region:   region,
 	}, nil
 }
 
 type ControllerServer struct {
-	NodeID     string
-	Identity   string
-	Rack       string
-	Zone       string
-	Region     string
-	CRDVersion string
+	NodeID   string
+	Identity string
+	Rack     string
+	Zone     string
+	Region   string
 }
 
 func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
@@ -170,7 +168,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	matchDrive := func() (*directcsi.DirectCSIDrive, error) {
 		driveList, err := dclient.List(ctx, metav1.ListOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(c.CRDVersion),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 		})
 		if err != nil {
 			return nil, status.Errorf(codes.NotFound, "could not retreive directcsidrives: %v", err)
@@ -235,7 +233,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			drive.SetFinalizers(finalizers)
 
 			if _, err := dclient.Update(ctx, drive, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(c.CRDVersion),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 			}); err != nil {
 				return status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
 			}
@@ -299,7 +297,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, status.Errorf(codes.Internal, "could not create volume [%s]: %v", name, err)
 		}
 		existingVol, gErr := vclient.Get(ctx, vol.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(c.CRDVersion),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(utils.CurrentCRDVersion()),
 		})
 		if gErr != nil {
 			return nil, status.Error(codes.NotFound, gErr.Error())
@@ -307,7 +305,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		existingVol.ObjectMeta.Finalizers = vol.ObjectMeta.Finalizers
 		existingVol.Status = vol.Status
 		if _, cErr := vclient.Update(ctx, existingVol, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(c.CRDVersion),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(utils.CurrentCRDVersion()),
 		}); cErr != nil {
 			return nil, cErr
 		}
@@ -343,7 +341,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(c.CRDVersion),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(utils.CurrentCRDVersion()),
 	})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -363,7 +361,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	vol.SetFinalizers(updatedFinalizers)
 
 	_, err = vclient.Update(ctx, vol, metav1.UpdateOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(c.CRDVersion),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(utils.CurrentCRDVersion()),
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove finalizer for volume [%s]: %v", vID, err)

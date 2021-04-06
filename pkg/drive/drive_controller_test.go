@@ -19,6 +19,7 @@ package drive
 import (
 	"context"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/minio/direct-csi/pkg/sys"
@@ -46,7 +47,6 @@ func createFakeDriveListener() *DirectCSIDriveListener {
 		kubeClient:      fakeKubeClnt,
 		directcsiClient: fakeDirectCSIClnt,
 		nodeID:          testNodeID,
-		CRDVersion:      "direct.csi.min.io/v1beta1",
 		mounter:         mounter,
 		formatter:       formatter,
 		statter:         statter,
@@ -56,7 +56,7 @@ func createFakeDriveListener() *DirectCSIDriveListener {
 func TestAddAndDeleteDriveNoOp(t *testing.T) {
 	dl := createFakeDriveListener()
 	b := directcsi.DirectCSIDrive{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(dl.CRDVersion),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test_drive",
 		},
@@ -81,7 +81,7 @@ func TestDriveFormat(t *testing.T) {
 
 	testDriveObjs := []directcsi.DirectCSIDrive{
 		{
-			TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test_drive_umounted",
 			},
@@ -124,7 +124,7 @@ func TestDriveFormat(t *testing.T) {
 			},
 		},
 		{
-			TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test_drive_mounted",
 			},
@@ -179,8 +179,11 @@ func TestDriveFormat(t *testing.T) {
 	for i, tObj := range testDriveObjs {
 		// Step 2: Get the object
 		newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, tObj.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 		})
+		if dErr != nil {
+			t.Fatalf("Error while getting the drive object: %+v", dErr)
+		}
 
 		// Step 3: Set RequestedFormat to enable formatting
 		newObj.Spec.DirectCSIOwned = true
@@ -196,7 +199,7 @@ func TestDriveFormat(t *testing.T) {
 
 		// Step 5: Get the latest version of the object
 		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, newObj.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 		})
 		if dErr != nil {
 			t.Errorf("Test case [%d]: Error while fetching the drive object: %+v", i, dErr)
@@ -223,5 +226,99 @@ func TestDriveFormat(t *testing.T) {
 		if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionFormatted), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "formatted to xfs") {
 			t.Errorf("Test case [%d]: unexpected status.condition for %s = %v", i, string(directcsi.DirectCSIDriveConditionFormatted), csiDrive.Status.Conditions)
 		}
+	}
+}
+
+func TestUpdateDriveDelete(t *testing.T) {
+	testCases := []struct {
+		name               string
+		expectErr          bool
+		driveObject        directcsi.DirectCSIDrive
+		expectedFinalizers []string
+	}{
+		{
+			name: "testDeletionLifecycleSuccessCase",
+			driveObject: directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test_drive_1",
+					Finalizers: []string{
+						string(directcsi.DirectCSIDriveFinalizerDataProtection),
+					},
+				},
+				Spec: directcsi.DirectCSIDriveSpec{
+					DirectCSIOwned: false,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					NodeName:    testNodeID,
+					DriveStatus: directcsi.DriveStatusReady,
+					Path:        "/drive/path",
+				},
+			},
+			expectErr:          false,
+			expectedFinalizers: []string{},
+		},
+		{
+			name: "testDeletionLifecycleFailureCase",
+			driveObject: directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test_drive_2",
+					Finalizers: []string{
+						directcsi.DirectCSIDriveFinalizerPrefix + "vol_id",
+						string(directcsi.DirectCSIDriveFinalizerDataProtection),
+					},
+				},
+				Spec: directcsi.DirectCSIDriveSpec{
+					DirectCSIOwned: false,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					NodeName:    testNodeID,
+					DriveStatus: directcsi.DriveStatusInUse,
+					Path:        "/drive/path",
+				},
+			},
+			expectErr: true,
+			expectedFinalizers: []string{
+				directcsi.DirectCSIDriveFinalizerPrefix + "vol_id",
+				string(directcsi.DirectCSIDriveFinalizerDataProtection),
+			},
+		},
+	}
+	ctx := context.TODO()
+	dl := createFakeDriveListener()
+	dl.directcsiClient = fakedirect.NewSimpleClientset(&testCases[0].driveObject, &testCases[1].driveObject)
+	directCSIClient := dl.directcsiClient.DirectV1beta1()
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, tt.driveObject.Name, metav1.GetOptions{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
+			})
+			if dErr != nil {
+				t.Fatalf("Error while getting the drive object: %+v", dErr)
+			}
+
+			now := metav1.Now()
+			newObj.ObjectMeta.DeletionTimestamp = &now
+			if err := dl.Update(ctx, &tt.driveObject, newObj); err != nil && !tt.expectErr {
+				t.Errorf("Error while invoking the update listener: %+v", err)
+			}
+
+			csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, newObj.Name, metav1.GetOptions{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
+			})
+			if dErr != nil {
+				t.Fatalf("Error while fetching the drive object: %+v", dErr)
+			}
+
+			if csiDrive.Status.DriveStatus != directcsi.DriveStatusTerminating {
+				t.Errorf("Drive is not in 'terminating' state after deletion. Current status: %s", csiDrive.Status.DriveStatus)
+			}
+
+			if !reflect.DeepEqual(csiDrive.ObjectMeta.GetFinalizers(), tt.expectedFinalizers) {
+				t.Errorf("Expected Finalizers: %v but got: %v", tt.expectedFinalizers, csiDrive.ObjectMeta.GetFinalizers())
+			}
+		})
 	}
 }

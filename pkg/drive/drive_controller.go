@@ -49,7 +49,6 @@ type DirectCSIDriveListener struct {
 	kubeClient      kubeclientset.Interface
 	directcsiClient clientset.Interface
 	nodeID          string
-	CRDVersion      string
 	mounter         DriveMounter
 	formatter       DriveFormatter
 	statter         DriveStatter
@@ -153,7 +152,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		if new.Status.DriveStatus != directcsi.DriveStatusTerminating {
 			new.Status.DriveStatus = directcsi.DriveStatusTerminating
 			if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(d.CRDVersion),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 			}); err != nil {
 				return err
 			}
@@ -175,7 +174,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 
 		new.Finalizers = []string{}
 		if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(d.CRDVersion),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 		}); err != nil {
 			return err
 		}
@@ -297,7 +296,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 			}
 
 			if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(d.CRDVersion),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 			}); err != nil {
 				return err
 			}
@@ -320,7 +319,7 @@ func (b *DirectCSIDriveListener) Delete(ctx context.Context, obj *directcsi.Dire
 	return nil
 }
 
-func StartDriveController(ctx context.Context, nodeID, crdVersion string) error {
+func StartDriveController(ctx context.Context, nodeID string) error {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
@@ -334,9 +333,8 @@ func StartDriveController(ctx context.Context, nodeID, crdVersion string) error 
 	formatter := GetDriveFormatter()
 	statter := GetDriveStatter()
 	ctrl.AddDirectCSIDriveListener(&DirectCSIDriveListener{nodeID: nodeID,
-		CRDVersion: crdVersion,
-		mounter:    mounter,
-		formatter:  formatter,
-		statter:    statter})
+		mounter:   mounter,
+		formatter: formatter,
+		statter:   statter})
 	return ctrl.Run(ctx)
 }

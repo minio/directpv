@@ -36,7 +36,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string, crdVersion string, loopBackOnly bool) (*NodeServer, error) {
+func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string, loopBackOnly bool) (*NodeServer, error) {
 
 	drives, err := findDrives(ctx, nodeID, procfs, loopBackOnly)
 	if err != nil {
@@ -59,13 +59,13 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 		driveUpdate := func() error {
 			existingDrive, err := driveClient.Get(ctx, drive.Name, metav1.GetOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 			})
 			if err != nil {
 				return err
 			}
 			updateOpts := metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 			}
 			_, err = driveClient.Update(ctx, existingDrive, updateOpts)
 			return err
@@ -83,28 +83,26 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	}
 
 	// Start background tasks
-	go drive.StartDriveController(ctx, nodeID, crdVersion)
-	go volume.StartVolumeController(ctx, nodeID, crdVersion)
+	go drive.StartDriveController(ctx, nodeID)
+	go volume.StartVolumeController(ctx, nodeID)
 	// Check if the volume objects are migrated and CRDs versions are in-sync
-	go volume.SyncVolumeCRDVersions(ctx, nodeID, crdVersion)
+	go volume.SyncVolumeCRDVersions(ctx, nodeID)
 
 	return &NodeServer{
-		NodeID:     nodeID,
-		Identity:   identity,
-		Rack:       rack,
-		Zone:       zone,
-		Region:     region,
-		CRDVersion: crdVersion,
+		NodeID:   nodeID,
+		Identity: identity,
+		Rack:     rack,
+		Zone:     zone,
+		Region:   region,
 	}, nil
 }
 
 type NodeServer struct {
-	NodeID     string
-	Identity   string
-	Rack       string
-	Zone       string
-	Region     string
-	CRDVersion string
+	NodeID   string
+	Identity string
+	Rack     string
+	Zone     string
+	Region   string
 }
 
 func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
