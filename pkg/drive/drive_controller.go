@@ -50,6 +50,9 @@ type DirectCSIDriveListener struct {
 	directcsiClient clientset.Interface
 	nodeID          string
 	CRDVersion      string
+	mounter         DriveMounter
+	formatter       DriveFormatter
+	statter         DriveStatter
 }
 
 func (b *DirectCSIDriveListener) InitializeKubeClient(k kubeclientset.Interface) {
@@ -207,7 +210,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		case directcsi.DriveStatusAvailable:
 			if !formatted || force {
 				if mounted {
-					if err := unmountDrive(source); err != nil {
+					if err := d.mounter.UnmountDrive(source); err != nil {
 						err = fmt.Errorf("failed to unmount drive: %s %v", new.Name, err)
 						glog.Error(err)
 						updateErr = err
@@ -218,7 +221,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 				}
 
 				if updateErr == nil {
-					if err := formatDrive(ctx, source, force); err != nil {
+					if err := d.formatter.FormatDrive(ctx, source, force); err != nil {
 						err = fmt.Errorf("failed to format drive: %s %v", new.Name, err)
 						glog.Error(err)
 						updateErr = err
@@ -231,14 +234,14 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 			}
 
 			if updateErr == nil && !mounted {
-				if err := mountDrive(source, target, mountOpts); err != nil {
+				if err := d.mounter.MountDrive(source, target, mountOpts); err != nil {
 					err = fmt.Errorf("failed to mount drive: %s %v", new.Name, err)
 					glog.Error(err)
 					updateErr = err
 				} else {
 					new.Status.Mountpoint = target
 					new.Status.MountOptions = mountOpts
-					freeCapacity, sErr := getFreeCapacityFromStatfs(new.Status.Mountpoint)
+					freeCapacity, sErr := d.statter.GetFreeCapacityFromStatfs(new.Status.Mountpoint)
 					if sErr != nil {
 						glog.Error(sErr)
 						updateErr = sErr
@@ -327,6 +330,13 @@ func StartDriveController(ctx context.Context, nodeID, crdVersion string) error 
 		glog.Error(err)
 		return err
 	}
-	ctrl.AddDirectCSIDriveListener(&DirectCSIDriveListener{nodeID: nodeID, CRDVersion: crdVersion})
+	mounter := GetDriveMounter()
+	formatter := GetDriveFormatter()
+	statter := GetDriveStatter()
+	ctrl.AddDirectCSIDriveListener(&DirectCSIDriveListener{nodeID: nodeID,
+		CRDVersion: crdVersion,
+		mounter:    mounter,
+		formatter:  formatter,
+		statter:    statter})
 	return ctrl.Run(ctx)
 }

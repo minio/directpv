@@ -18,12 +18,10 @@ package drive
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/sys/loopback"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
@@ -40,12 +38,18 @@ func createFakeDriveListener() *DirectCSIDriveListener {
 
 	fakeKubeClnt := utils.GetKubeClient()
 	fakeDirectCSIClnt := utils.GetDirectClientset()
+	mounter := GetDriveMounter()
+	formatter := GetDriveFormatter()
+	statter := GetDriveStatter()
 
 	return &DirectCSIDriveListener{
 		kubeClient:      fakeKubeClnt,
 		directcsiClient: fakeDirectCSIClnt,
 		nodeID:          testNodeID,
 		CRDVersion:      "direct.csi.min.io/v1beta1",
+		mounter:         mounter,
+		formatter:       formatter,
+		statter:         statter,
 	}
 }
 
@@ -79,33 +83,6 @@ func TestDriveFormat(t *testing.T) {
 	driveName := "test_drive"
 	mountPath := filepath.Join(sys.MountRoot, driveName)
 
-	loopPath, bErr := loopback.CreateLoopbackDevice()
-	if bErr != nil {
-		t.Errorf("Cannot create fake loop device: %v", bErr)
-	}
-
-	// Tear the loop device setup after testing
-	defer func() {
-		umountLoopDev := func(devPath string) error {
-			if err := sys.SafeUnmountAll(devPath, []sys.UnmountOption{
-				sys.UnmountOptionDetach,
-				sys.UnmountOptionForce,
-			}); err != nil {
-				return err
-			}
-			return nil
-		}
-		if uErr := umountLoopDev(loopPath); uErr != nil {
-			t.Errorf("Cannot umount fake loop device: %v", uErr)
-		}
-		if err := loopback.RemoveLoopDevice(loopPath); err != nil {
-			t.Errorf("Cannot remove fake loop device: %v", err)
-		}
-		if err := os.Remove(mountPath); err != nil && !os.IsNotExist(err) {
-			t.Errorf("Cannot remove mountpath: %v", err)
-		}
-	}()
-
 	oldObj := directcsi.DirectCSIDrive{
 		TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
 		ObjectMeta: metav1.ObjectMeta{
@@ -117,7 +94,7 @@ func TestDriveFormat(t *testing.T) {
 		Status: directcsi.DirectCSIDriveStatus{
 			NodeName:    testNodeID,
 			DriveStatus: directcsi.DriveStatusAvailable,
-			Path:        loopPath,
+			Path:        "/drive/path",
 			Conditions: []metav1.Condition{
 				{
 					Type:               string(directcsi.DirectCSIDriveConditionOwned),
@@ -184,7 +161,7 @@ func TestDriveFormat(t *testing.T) {
 
 	// Step 6: Check if the Status fields are updated
 	if csiDrive.Status.DriveStatus != directcsi.DriveStatusReady {
-		t.Errorf("Drive (%s) is not in 'ready' state after formatting", loopPath)
+		t.Errorf("Drive is not in 'ready' state after formatting. Current status: %s", csiDrive.Status.DriveStatus)
 	}
 	if csiDrive.Status.Mountpoint != mountPath {
 		t.Errorf("Drive mountpath invalid: %s", csiDrive.Status.Mountpoint)
