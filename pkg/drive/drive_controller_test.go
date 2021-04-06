@@ -76,52 +76,94 @@ func TestAddAndDeleteDriveNoOp(t *testing.T) {
 
 }
 
-// Creates a loop back device and tears it down after testing
 // Sets the requested format in the Spec and checks if desired results are seen.
 func TestDriveFormat(t *testing.T) {
 
-	driveName := "test_drive"
-	mountPath := filepath.Join(sys.MountRoot, driveName)
-
-	oldObj := directcsi.DirectCSIDrive{
-		TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
-		ObjectMeta: metav1.ObjectMeta{
-			Name: driveName,
+	testDriveObjs := []directcsi.DirectCSIDrive{
+		{
+			TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test_drive_umounted",
+			},
+			Spec: directcsi.DirectCSIDriveSpec{
+				DirectCSIOwned: false,
+			},
+			Status: directcsi.DirectCSIDriveStatus{
+				NodeName:    testNodeID,
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Path:        "/drive/path",
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionOwned),
+						Status:             metav1.ConditionFalse,
+						Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionMounted),
+						Status:             metav1.ConditionFalse,
+						Message:            "not mounted",
+						Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionFormatted),
+						Status:             metav1.ConditionFalse,
+						Message:            "xfs",
+						Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionInitialized),
+						Status:             metav1.ConditionTrue,
+						Message:            "initialized",
+						Reason:             string(directcsi.DirectCSIDriveReasonInitialized),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
-		Spec: directcsi.DirectCSIDriveSpec{
-			DirectCSIOwned: false,
-		},
-		Status: directcsi.DirectCSIDriveStatus{
-			NodeName:    testNodeID,
-			DriveStatus: directcsi.DriveStatusAvailable,
-			Path:        "/drive/path",
-			Conditions: []metav1.Condition{
-				{
-					Type:               string(directcsi.DirectCSIDriveConditionOwned),
-					Status:             metav1.ConditionFalse,
-					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
-					LastTransitionTime: metav1.Now(),
-				},
-				{
-					Type:               string(directcsi.DirectCSIDriveConditionMounted),
-					Status:             metav1.ConditionFalse,
-					Message:            "not mounted",
-					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
-					LastTransitionTime: metav1.Now(),
-				},
-				{
-					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
-					Status:             metav1.ConditionFalse,
-					Message:            "xfs",
-					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
-					LastTransitionTime: metav1.Now(),
-				},
-				{
-					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
-					Status:             metav1.ConditionFalse,
-					Message:            "initialized",
-					Reason:             string(directcsi.DirectCSIDriveReasonInitialized),
-					LastTransitionTime: metav1.Now(),
+		{
+			TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test_drive_mounted",
+			},
+			Spec: directcsi.DirectCSIDriveSpec{
+				DirectCSIOwned: false,
+			},
+			Status: directcsi.DirectCSIDriveStatus{
+				NodeName:    testNodeID,
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Path:        "/drive/path",
+				Mountpoint:  "/mnt/mp",
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionOwned),
+						Status:             metav1.ConditionFalse,
+						Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionMounted),
+						Status:             metav1.ConditionTrue,
+						Message:            "/mnt/mp",
+						Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionFormatted),
+						Status:             metav1.ConditionFalse,
+						Message:            "xfs",
+						Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionInitialized),
+						Status:             metav1.ConditionTrue,
+						Message:            "initialized",
+						Reason:             string(directcsi.DirectCSIDriveReasonInitialized),
+						LastTransitionTime: metav1.Now(),
+					},
 				},
 			},
 		},
@@ -131,53 +173,55 @@ func TestDriveFormat(t *testing.T) {
 
 	// Step 1: Construct fake drive listener
 	dl := createFakeDriveListener()
-	dl.directcsiClient = fakedirect.NewSimpleClientset(&oldObj)
-
-	// Step 2: Get the object
+	dl.directcsiClient = fakedirect.NewSimpleClientset(&testDriveObjs[0], &testDriveObjs[1])
 	directCSIClient := dl.directcsiClient.DirectV1beta1()
-	newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, oldObj.Name, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
-	})
 
-	// Step 3: Set RequestedFormat to enable formatting
-	newObj.Spec.DirectCSIOwned = true
-	newObj.Spec.RequestedFormat = &directcsi.RequestedFormat{
-		Force:      true,
-		Filesystem: string(sys.FSTypeXFS),
-	}
+	for i, tObj := range testDriveObjs {
+		// Step 2: Get the object
+		newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, tObj.Name, metav1.GetOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
+		})
 
-	// Step 4: Execute the Update hook
-	if err := dl.Update(ctx, &oldObj, newObj); err != nil {
-		t.Errorf("Error while update: %+v", err)
-	}
+		// Step 3: Set RequestedFormat to enable formatting
+		newObj.Spec.DirectCSIOwned = true
+		newObj.Spec.RequestedFormat = &directcsi.RequestedFormat{
+			Force:      true,
+			Filesystem: string(sys.FSTypeXFS),
+		}
 
-	// Step 5: Get the latest version of the object
-	csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, newObj.Name, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
-	})
-	if dErr != nil {
-		t.Errorf("Error while update: %+v", dErr)
-	}
+		// Step 4: Execute the Update hook
+		if err := dl.Update(ctx, &tObj, newObj); err != nil {
+			t.Errorf("Test case [%d]: Error while invoking the update listener: %+v", i, err)
+		}
 
-	// Step 6: Check if the Status fields are updated
-	if csiDrive.Status.DriveStatus != directcsi.DriveStatusReady {
-		t.Errorf("Drive is not in 'ready' state after formatting. Current status: %s", csiDrive.Status.DriveStatus)
-	}
-	if csiDrive.Status.Mountpoint != mountPath {
-		t.Errorf("Drive mountpath invalid: %s", csiDrive.Status.Mountpoint)
-	}
-	if csiDrive.Status.Filesystem != string(sys.FSTypeXFS) {
-		t.Errorf("Invalid filesystem after formatting: %s", string(csiDrive.Status.Filesystem))
-	}
+		// Step 5: Get the latest version of the object
+		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, newObj.Name, metav1.GetOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta("direct.csi.min.io/v1beta1"),
+		})
+		if dErr != nil {
+			t.Errorf("Test case [%d]: Error while fetching the drive object: %+v", i, dErr)
+		}
 
-	// Step 7: Check if the expected conditions are set
-	if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionOwned), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "") {
-		t.Errorf("unexpected status.condition for %s = %v", string(directcsi.DirectCSIDriveConditionOwned), csiDrive.Status.Conditions)
-	}
-	if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionMounted), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "mounted") {
-		t.Errorf("unexpected status.condition for %s = %v", string(directcsi.DirectCSIDriveConditionMounted), csiDrive.Status.Conditions)
-	}
-	if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionFormatted), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "formatted to xfs") {
-		t.Errorf("unexpected status.condition for %s = %v", string(directcsi.DirectCSIDriveConditionFormatted), csiDrive.Status.Conditions)
+		// Step 6: Check if the Status fields are updated
+		if csiDrive.Status.DriveStatus != directcsi.DriveStatusReady {
+			t.Errorf("Test case [%d]: Drive is not in 'ready' state after formatting. Current status: %s", i, csiDrive.Status.DriveStatus)
+		}
+		if csiDrive.Status.Mountpoint != filepath.Join(sys.MountRoot, newObj.Name) {
+			t.Errorf("Test case [%d]: Drive mountpoint invalid: %s", i, csiDrive.Status.Mountpoint)
+		}
+		if csiDrive.Status.Filesystem != string(sys.FSTypeXFS) {
+			t.Errorf("Test case [%d]: Invalid filesystem after formatting: %s", i, string(csiDrive.Status.Filesystem))
+		}
+
+		// Step 7: Check if the expected conditions are set
+		if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionOwned), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "") {
+			t.Errorf("Test case [%d]: unexpected status.condition for %s = %v", i, string(directcsi.DirectCSIDriveConditionOwned), csiDrive.Status.Conditions)
+		}
+		if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionMounted), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "mounted") {
+			t.Errorf("Test case [%d]: unexpected status.condition for %s = %v", i, string(directcsi.DirectCSIDriveConditionMounted), csiDrive.Status.Conditions)
+		}
+		if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionFormatted), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "formatted to xfs") {
+			t.Errorf("Test case [%d]: unexpected status.condition for %s = %v", i, string(directcsi.DirectCSIDriveConditionFormatted), csiDrive.Status.Conditions)
+		}
 	}
 }
