@@ -122,10 +122,9 @@ func run(ctx context.Context, args []string) error {
 	}
 
 	var nodeSrv csi.NodeServer
-	currentCRDVersion := utils.CurrentCRDVersion()
 
 	if driver {
-		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths, procfs, currentCRDVersion, loopBackOnly)
+		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths, procfs, loopBackOnly)
 		if err != nil {
 			return err
 		}
@@ -134,7 +133,7 @@ func run(ctx context.Context, args []string) error {
 
 	var ctrlServer csi.ControllerServer
 	if controller {
-		ctrlServer, err = ctrl.NewControllerServer(ctx, identity, nodeID, rack, zone, region, currentCRDVersion)
+		ctrlServer, err = ctrl.NewControllerServer(ctx, identity, nodeID, rack, zone, region)
 		if err != nil {
 			return err
 		}
