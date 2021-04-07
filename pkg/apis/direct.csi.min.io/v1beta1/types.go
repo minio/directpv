@@ -122,6 +122,15 @@ const (
 	DirectCSIDriveReasonInitialized                      = "Initialized"
 )
 
+type DirectCSIDriveMessage string
+
+const (
+	DirectCSIDriveMessageMounted      DirectCSIDriveMessage = "Mounted"
+	DirectCSIDriveMessageNotMounted                         = "NotMounted"
+	DirectCSIDriveMessageFormatted                          = "Formatted"
+	DirectCSIDriveMessageNotFormatted                       = "NotFormatted"
+)
+
 type RequestedFormat struct {
 	// +optional
 	Force bool `json:"force,omitempty"`

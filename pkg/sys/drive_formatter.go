@@ -14,32 +14,31 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package drive
+package sys
 
 import (
 	"context"
-	"github.com/minio/direct-csi/pkg/utils"
+	"fmt"
+
+	"github.com/golang/glog"
 )
+
+// formatDrive - Idempotent function to format a DirectCSIDrive
+func formatDrive(ctx context.Context, path string, force bool) error {
+	output, err := Format(ctx, path, string(FSTypeXFS), []string{"-i", "maxpct=50"}, force)
+	if err != nil {
+		glog.Errorf("failed to format drive: %s", output)
+		return fmt.Errorf("%s", output)
+	}
+	return nil
+}
 
 type DriveFormatter interface {
 	FormatDrive(ctx context.Context, path string, force bool) error
 }
 
-type driveFormatter struct{}
+type DefaultDriveFormatter struct{}
 
-func (c *driveFormatter) FormatDrive(ctx context.Context, path string, force bool) error {
+func (c *DefaultDriveFormatter) FormatDrive(ctx context.Context, path string, force bool) error {
 	return formatDrive(ctx, path, force)
-}
-
-type fakeDriveFormatter struct{}
-
-func (c *fakeDriveFormatter) FormatDrive(ctx context.Context, path string, force bool) error {
-	return nil
-}
-
-func GetDriveFormatter() DriveFormatter {
-	if utils.GetFake() {
-		return &fakeDriveFormatter{}
-	}
-	return &driveFormatter{}
 }

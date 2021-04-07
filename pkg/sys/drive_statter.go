@@ -14,40 +14,28 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package drive
+package sys
 
 import (
-	"github.com/minio/direct-csi/pkg/utils"
+	"syscall"
 )
 
-type DriveMounter interface {
-	MountDrive(source, target string, mountOpts []string) error
-	UnmountDrive(source string) error
-}
-
-type driveMounter struct{}
-
-func (c *driveMounter) MountDrive(source, target string, mountOpts []string) error {
-	return mountDrive(source, target, mountOpts)
-}
-
-func (c *driveMounter) UnmountDrive(source string) error {
-	return unmountDrive(source)
-}
-
-type fakeDriveMounter struct{}
-
-func (c *fakeDriveMounter) MountDrive(source, target string, mountOpts []string) error {
-	return nil
-}
-
-func (c *fakeDriveMounter) UnmountDrive(source string) error {
-	return nil
-}
-
-func GetDriveMounter() DriveMounter {
-	if utils.GetFake() {
-		return &fakeDriveMounter{}
+func getFreeCapacityFromStatfs(path string) (freeCapacity int64, err error) {
+	stat := &syscall.Statfs_t{}
+	err = syscall.Statfs(path, stat)
+	if err != nil {
+		return
 	}
-	return &driveMounter{}
+	freeCapacity = int64(stat.Frsize) * int64(stat.Bavail)
+	return
+}
+
+type DriveStatter interface {
+	GetFreeCapacityFromStatfs(path string) (freeCapacity int64, err error)
+}
+
+type DefaultDriveStatter struct{}
+
+func (c *DefaultDriveStatter) GetFreeCapacityFromStatfs(path string) (int64, error) {
+	return getFreeCapacityFromStatfs(path)
 }
