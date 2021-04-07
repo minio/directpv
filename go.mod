@@ -14,7 +14,6 @@ require (
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.0.5
-	github.com/jteeuwen/go-bindata v3.0.7+incompatible // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/mb0/glob v0.0.0-20160210091149-1eb79d2de6c4
 	github.com/minio/minio v0.0.0-20210110213705-828602d672f7
@@ -23,7 +22,6 @@ require (
 	github.com/onsi/ginkgo v1.14.1 // indirect
 	github.com/onsi/gomega v1.10.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/pkg/errors v0.9.1
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/viper v1.7.0
@@ -35,9 +33,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v0.20.2
-	k8s.io/code-generator v0.20.5 // indirect
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
-	sigs.k8s.io/controller-tools v0.5.0 // indirect
 	sigs.k8s.io/yaml v1.2.0
 )
