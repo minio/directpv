@@ -62,7 +62,7 @@ func (b *DirectCSIVolumeListener) Add(ctx context.Context, obj *directcsi.Direct
 }
 
 func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directcsi.DirectCSIVolume) error {
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := b.directcsiClient.DirectV1beta1()
 	dclient := directCSIClient.DirectCSIDrives()
 	vclient := directCSIClient.DirectCSIVolumes()
 
