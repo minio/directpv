@@ -34,22 +34,66 @@ const (
 	testNodeID = "test-node"
 )
 
+type fakeDriveStatter struct {
+	args struct {
+		path string
+	}
+}
+
+func (c *fakeDriveStatter) GetFreeCapacityFromStatfs(path string) (int64, error) {
+	c.args.path = path
+	return 0, nil
+}
+
+type fakeDriveFormatter struct {
+	args struct {
+		path  string
+		force bool
+	}
+}
+
+func (c *fakeDriveFormatter) FormatDrive(ctx context.Context, path string, force bool) error {
+	c.args.path = path
+	c.args.force = force
+	return nil
+}
+
+type fakeDriveMounter struct {
+	mountArgs struct {
+		source    string
+		target    string
+		mountOpts []string
+	}
+	unmountArgs struct {
+		source string
+	}
+}
+
+func (c *fakeDriveMounter) MountDrive(source, target string, mountOpts []string) error {
+	c.mountArgs.source = source
+	c.mountArgs.target = target
+	c.mountArgs.mountOpts = mountOpts
+	return nil
+}
+
+func (c *fakeDriveMounter) UnmountDrive(source string) error {
+	c.unmountArgs.source = source
+	return nil
+}
+
 func createFakeDriveListener() *DirectCSIDriveListener {
 	utils.SetFake()
 
 	fakeKubeClnt := utils.GetKubeClient()
 	fakeDirectCSIClnt := utils.GetDirectClientset()
-	mounter := GetDriveMounter()
-	formatter := GetDriveFormatter()
-	statter := GetDriveStatter()
 
 	return &DirectCSIDriveListener{
 		kubeClient:      fakeKubeClnt,
 		directcsiClient: fakeDirectCSIClnt,
 		nodeID:          testNodeID,
-		mounter:         mounter,
-		formatter:       formatter,
-		statter:         statter,
+		mounter:         &fakeDriveMounter{},
+		formatter:       &fakeDriveFormatter{},
+		statter:         &fakeDriveStatter{},
 	}
 }
 
@@ -187,14 +231,45 @@ func TestDriveFormat(t *testing.T) {
 
 		// Step 3: Set RequestedFormat to enable formatting
 		newObj.Spec.DirectCSIOwned = true
+		force := true
 		newObj.Spec.RequestedFormat = &directcsi.RequestedFormat{
-			Force:      true,
+			Force:      force,
 			Filesystem: string(sys.FSTypeXFS),
 		}
 
 		// Step 4: Execute the Update hook
 		if err := dl.Update(ctx, &tObj, newObj); err != nil {
 			t.Errorf("Test case [%d]: Error while invoking the update listener: %+v", i, err)
+		}
+
+		// Step 4.1: Check if the format arguments passed are correct
+		if dl.formatter.(*fakeDriveFormatter).args.path != tObj.Status.Path {
+			t.Errorf("Test case [%d]: Invalid path provided for formatting. Expected: %s, Found: %s", i, tObj.Status.Path, dl.formatter.(*fakeDriveFormatter).args.path)
+		}
+		if dl.formatter.(*fakeDriveFormatter).args.force != force {
+			t.Errorf("Test case [%d]: Wrong force option provided for formatting. Expected: %v, Found: %v", i, force, dl.formatter.(*fakeDriveFormatter).args.force)
+		}
+
+		// Step 4.2: Check if mount arguments passed are correct
+		if dl.mounter.(*fakeDriveMounter).mountArgs.source != tObj.Status.Path {
+			t.Errorf("Test case [%d]: Invalid source provided for mounting. Expected: %s, Found: %s", i, tObj.Status.Path, dl.mounter.(*fakeDriveMounter).mountArgs.source)
+		}
+		if dl.mounter.(*fakeDriveMounter).mountArgs.target != filepath.Join(sys.MountRoot, tObj.Name) {
+			t.Errorf("Test case [%d]: Wrong target provided for mounting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, tObj.Name), dl.mounter.(*fakeDriveMounter).mountArgs.target)
+		}
+		umountSource := func() string {
+			if tObj.Status.Mountpoint != "" {
+				return tObj.Status.Path
+			}
+			return ""
+		}()
+		if dl.mounter.(*fakeDriveMounter).unmountArgs.source != umountSource {
+			t.Errorf("Test case [%d]: Invalid source provided for unmounting. Expected: %s, Found: %s", i, umountSource, dl.mounter.(*fakeDriveMounter).unmountArgs.source)
+		}
+
+		// Step 4.3: Check if stat arguments passed are correct
+		if dl.statter.(*fakeDriveStatter).args.path != filepath.Join(sys.MountRoot, tObj.Name) {
+			t.Errorf("Test case [%d]: Wrong path provided for statting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, tObj.Name), dl.statter.(*fakeDriveStatter).args.path)
 		}
 
 		// Step 5: Get the latest version of the object
@@ -217,13 +292,26 @@ func TestDriveFormat(t *testing.T) {
 		}
 
 		// Step 7: Check if the expected conditions are set
-		if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionOwned), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "") {
+		if !utils.IsCondition(csiDrive.Status.Conditions,
+			string(directcsi.DirectCSIDriveConditionOwned),
+			metav1.ConditionTrue,
+			string(directcsi.DirectCSIDriveReasonAdded),
+			"") {
 			t.Errorf("Test case [%d]: unexpected status.condition for %s = %v", i, string(directcsi.DirectCSIDriveConditionOwned), csiDrive.Status.Conditions)
 		}
-		if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionMounted), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "mounted") {
+		if !utils.IsCondition(
+			csiDrive.Status.Conditions,
+			string(directcsi.DirectCSIDriveConditionMounted),
+			metav1.ConditionTrue,
+			string(directcsi.DirectCSIDriveReasonAdded),
+			string(directcsi.DirectCSIDriveMessageMounted)) {
 			t.Errorf("Test case [%d]: unexpected status.condition for %s = %v", i, string(directcsi.DirectCSIDriveConditionMounted), csiDrive.Status.Conditions)
 		}
-		if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionFormatted), metav1.ConditionTrue, string(directcsi.DirectCSIDriveReasonAdded), "formatted to xfs") {
+		if !utils.IsCondition(csiDrive.Status.Conditions,
+			string(directcsi.DirectCSIDriveConditionFormatted),
+			metav1.ConditionTrue,
+			string(directcsi.DirectCSIDriveReasonAdded),
+			string(directcsi.DirectCSIDriveMessageFormatted)) {
 			t.Errorf("Test case [%d]: unexpected status.condition for %s = %v", i, string(directcsi.DirectCSIDriveConditionFormatted), csiDrive.Status.Conditions)
 		}
 	}

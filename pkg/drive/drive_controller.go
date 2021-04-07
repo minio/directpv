@@ -49,9 +49,9 @@ type DirectCSIDriveListener struct {
 	kubeClient      kubeclientset.Interface
 	directcsiClient clientset.Interface
 	nodeID          string
-	mounter         DriveMounter
-	formatter       DriveFormatter
-	statter         DriveStatter
+	mounter         sys.DriveMounter
+	formatter       sys.DriveFormatter
+	statter         sys.DriveStatter
 }
 
 func (b *DirectCSIDriveListener) InitializeKubeClient(k kubeclientset.Interface) {
@@ -271,9 +271,9 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 					conditions[i].LastTransitionTime = metav1.Now()
 					conditions[i].Message = func() string {
 						if conditions[i].Status == metav1.ConditionTrue {
-							return "mounted"
+							return string(directcsi.DirectCSIDriveMessageMounted)
 						}
-						return "not mounted"
+						return string(directcsi.DirectCSIDriveMessageNotMounted)
 					}()
 				case string(directcsi.DirectCSIDriveConditionFormatted):
 					conditions[i].Status = utils.BoolToCondition(formatted)
@@ -281,9 +281,9 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 					conditions[i].LastTransitionTime = metav1.Now()
 					conditions[i].Message = func() string {
 						if conditions[i].Status == metav1.ConditionTrue {
-							return "formatted to xfs"
+							return string(directcsi.DirectCSIDriveMessageFormatted)
 						}
-						return "not formatted"
+						return string(directcsi.DirectCSIDriveMessageNotFormatted)
 					}()
 				}
 			}
@@ -329,12 +329,11 @@ func StartDriveController(ctx context.Context, nodeID string) error {
 		glog.Error(err)
 		return err
 	}
-	mounter := GetDriveMounter()
-	formatter := GetDriveFormatter()
-	statter := GetDriveStatter()
-	ctrl.AddDirectCSIDriveListener(&DirectCSIDriveListener{nodeID: nodeID,
-		mounter:   mounter,
-		formatter: formatter,
-		statter:   statter})
+	ctrl.AddDirectCSIDriveListener(&DirectCSIDriveListener{
+		nodeID:    nodeID,
+		mounter:   &sys.DefaultDriveMounter{},
+		formatter: &sys.DefaultDriveFormatter{},
+		statter:   &sys.DefaultDriveStatter{},
+	})
 	return ctrl.Run(ctx)
 }

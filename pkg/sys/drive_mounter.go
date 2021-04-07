@@ -14,17 +14,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package drive
+package sys
 
 import (
-	"context"
-	"fmt"
 	"os"
-	"syscall"
-
-	"github.com/minio/direct-csi/pkg/sys"
 
 	"github.com/golang/glog"
+)
+
+const (
+	quotaOption = "prjquota"
 )
 
 // mountDrive - Idempotent function to mount a DirectCSIDrive
@@ -35,14 +34,14 @@ func mountDrive(source, target string, mountOpts []string) error {
 	}
 
 	glog.V(3).Infof("mounting drive %s at %s", source, target)
-	return sys.SafeMount(source, target, string(sys.FSTypeXFS), func(opts []string) []sys.MountOption {
-		newOpts := []sys.MountOption{}
+	return SafeMount(source, target, string(FSTypeXFS), func(opts []string) []MountOption {
+		newOpts := []MountOption{}
 		for _, opt := range opts {
-			newOpts = append(newOpts, sys.MountOption(opt))
+			newOpts = append(newOpts, MountOption(opt))
 		}
 		return newOpts
 	}(mountOpts), []string{
-		"prjquota",
+		quotaOption,
 	})
 
 	return nil
@@ -51,9 +50,9 @@ func mountDrive(source, target string, mountOpts []string) error {
 // unmountDrive - Idempotent function to unmount a DirectCSIDrive
 func unmountDrive(drivePath string) error {
 	glog.V(3).Infof("unmounting drive %s", drivePath)
-	if err := sys.SafeUnmountAll(drivePath, []sys.UnmountOption{
-		sys.UnmountOptionDetach,
-		sys.UnmountOptionForce,
+	if err := SafeUnmountAll(drivePath, []UnmountOption{
+		UnmountOptionDetach,
+		UnmountOptionForce,
 	}); err != nil {
 		return err
 	}
@@ -61,22 +60,17 @@ func unmountDrive(drivePath string) error {
 	return nil
 }
 
-// formatDrive - Idempotent function to format a DirectCSIDrive
-func formatDrive(ctx context.Context, path string, force bool) error {
-	output, err := sys.Format(ctx, path, string(sys.FSTypeXFS), []string{"-i", "maxpct=50"}, force)
-	if err != nil {
-		glog.Errorf("failed to format drive: %s", output)
-		return fmt.Errorf("%s", output)
-	}
-	return nil
+type DriveMounter interface {
+	MountDrive(source, target string, mountOpts []string) error
+	UnmountDrive(source string) error
 }
 
-func getFreeCapacityFromStatfs(path string) (freeCapacity int64, err error) {
-	stat := &syscall.Statfs_t{}
-	err = syscall.Statfs(path, stat)
-	if err != nil {
-		return
-	}
-	freeCapacity = int64(stat.Frsize) * int64(stat.Bavail)
-	return
+type DefaultDriveMounter struct{}
+
+func (c *DefaultDriveMounter) MountDrive(source, target string, mountOpts []string) error {
+	return mountDrive(source, target, mountOpts)
+}
+
+func (c *DefaultDriveMounter) UnmountDrive(source string) error {
+	return unmountDrive(source)
 }
