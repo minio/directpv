@@ -28,6 +28,7 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -123,8 +124,8 @@ func TestAddAndDeleteDriveNoOp(t *testing.T) {
 // Sets the requested format in the Spec and checks if desired results are seen.
 func TestDriveFormat(t *testing.T) {
 
-	testDriveObjs := []directcsi.DirectCSIDrive{
-		{
+	testDriveObjs := []runtime.Object{
+		&directcsi.DirectCSIDrive{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test_drive_umounted",
@@ -167,7 +168,7 @@ func TestDriveFormat(t *testing.T) {
 				},
 			},
 		},
-		{
+		&directcsi.DirectCSIDrive{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test_drive_mounted",
@@ -217,12 +218,13 @@ func TestDriveFormat(t *testing.T) {
 
 	// Step 1: Construct fake drive listener
 	dl := createFakeDriveListener()
-	dl.directcsiClient = fakedirect.NewSimpleClientset(&testDriveObjs[0], &testDriveObjs[1])
+	dl.directcsiClient = fakedirect.NewSimpleClientset(testDriveObjs...)
 	directCSIClient := dl.directcsiClient.DirectV1beta1()
 
 	for i, tObj := range testDriveObjs {
+		dObj := tObj.(*directcsi.DirectCSIDrive)
 		// Step 2: Get the object
-		newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, tObj.Name, metav1.GetOptions{
+		newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, dObj.Name, metav1.GetOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
 		})
 		if dErr != nil {
@@ -238,28 +240,28 @@ func TestDriveFormat(t *testing.T) {
 		}
 
 		// Step 4: Execute the Update hook
-		if err := dl.Update(ctx, &tObj, newObj); err != nil {
+		if err := dl.Update(ctx, dObj, newObj); err != nil {
 			t.Errorf("Test case [%d]: Error while invoking the update listener: %+v", i, err)
 		}
 
 		// Step 4.1: Check if the format arguments passed are correct
-		if dl.formatter.(*fakeDriveFormatter).args.path != tObj.Status.Path {
-			t.Errorf("Test case [%d]: Invalid path provided for formatting. Expected: %s, Found: %s", i, tObj.Status.Path, dl.formatter.(*fakeDriveFormatter).args.path)
+		if dl.formatter.(*fakeDriveFormatter).args.path != dObj.Status.Path {
+			t.Errorf("Test case [%d]: Invalid path provided for formatting. Expected: %s, Found: %s", i, dObj.Status.Path, dl.formatter.(*fakeDriveFormatter).args.path)
 		}
 		if dl.formatter.(*fakeDriveFormatter).args.force != force {
 			t.Errorf("Test case [%d]: Wrong force option provided for formatting. Expected: %v, Found: %v", i, force, dl.formatter.(*fakeDriveFormatter).args.force)
 		}
 
 		// Step 4.2: Check if mount arguments passed are correct
-		if dl.mounter.(*fakeDriveMounter).mountArgs.source != tObj.Status.Path {
-			t.Errorf("Test case [%d]: Invalid source provided for mounting. Expected: %s, Found: %s", i, tObj.Status.Path, dl.mounter.(*fakeDriveMounter).mountArgs.source)
+		if dl.mounter.(*fakeDriveMounter).mountArgs.source != dObj.Status.Path {
+			t.Errorf("Test case [%d]: Invalid source provided for mounting. Expected: %s, Found: %s", i, dObj.Status.Path, dl.mounter.(*fakeDriveMounter).mountArgs.source)
 		}
-		if dl.mounter.(*fakeDriveMounter).mountArgs.target != filepath.Join(sys.MountRoot, tObj.Name) {
-			t.Errorf("Test case [%d]: Wrong target provided for mounting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, tObj.Name), dl.mounter.(*fakeDriveMounter).mountArgs.target)
+		if dl.mounter.(*fakeDriveMounter).mountArgs.target != filepath.Join(sys.MountRoot, dObj.Name) {
+			t.Errorf("Test case [%d]: Wrong target provided for mounting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, dObj.Name), dl.mounter.(*fakeDriveMounter).mountArgs.target)
 		}
 		umountSource := func() string {
-			if tObj.Status.Mountpoint != "" {
-				return tObj.Status.Path
+			if dObj.Status.Mountpoint != "" {
+				return dObj.Status.Path
 			}
 			return ""
 		}()
@@ -268,8 +270,8 @@ func TestDriveFormat(t *testing.T) {
 		}
 
 		// Step 4.3: Check if stat arguments passed are correct
-		if dl.statter.(*fakeDriveStatter).args.path != filepath.Join(sys.MountRoot, tObj.Name) {
-			t.Errorf("Test case [%d]: Wrong path provided for statting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, tObj.Name), dl.statter.(*fakeDriveStatter).args.path)
+		if dl.statter.(*fakeDriveStatter).args.path != filepath.Join(sys.MountRoot, dObj.Name) {
+			t.Errorf("Test case [%d]: Wrong path provided for statting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, dObj.Name), dl.statter.(*fakeDriveStatter).args.path)
 		}
 
 		// Step 5: Get the latest version of the object
