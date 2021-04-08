@@ -18,6 +18,7 @@ package node
 
 import (
 	"context"
+	"strings"
 
 	"github.com/minio/direct-csi/pkg/drive"
 	"github.com/minio/direct-csi/pkg/sys/xfs"
@@ -59,13 +60,13 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 		driveUpdate := func() error {
 			existingDrive, err := driveClient.Get(ctx, drive.Name, metav1.GetOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 			})
 			if err != nil {
 				return err
 			}
 			updateOpts := metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 			}
 			_, err = driveClient.Update(ctx, existingDrive, updateOpts)
 			return err
