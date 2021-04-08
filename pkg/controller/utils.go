@@ -46,7 +46,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	filDrNames := []string{}
 	for _, f := range filteredDrivesByFormat {
-		filDrNames = append(filDrNames, f.Status.NodeName+"-"+f.Name[0:8])
+		filDrNames = append(filDrNames, f.Status.NodeName+"-"+f.Name[:])
 	}
 	glog.Infof("filteredDrivesByFormat: %s", strings.Join(filDrNames, ","))
 
@@ -57,7 +57,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	cFilDrNames := []string{}
 	for _, f := range capFilteredDrives {
-		cFilDrNames = append(cFilDrNames, f.Status.NodeName+"-"+f.Name[0:8])
+		cFilDrNames = append(cFilDrNames, f.Status.NodeName+"-"+f.Name[:])
 	}
 	glog.Infof("capacityFilteredDrives: %s", strings.Join(cFilDrNames, ","))
 
@@ -68,7 +68,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	fsFilDrNames := []string{}
 	for _, f := range fsFilteredDrives {
-		fsFilDrNames = append(fsFilDrNames, f.Status.NodeName+"-"+f.Name[0:8])
+		fsFilDrNames = append(fsFilDrNames, f.Status.NodeName+"-"+f.Name[:])
 	}
 	glog.Infof("fsFilteredDrives: %s", strings.Join(fsFilDrNames, ","))
 
@@ -82,7 +82,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	paramFilDrNames := []string{}
 	for _, f := range paramFilteredDrives {
-		paramFilDrNames = append(paramFilDrNames, f.Status.NodeName+"-"+f.Name[0:8])
+		paramFilDrNames = append(paramFilDrNames, f.Status.NodeName+"-"+f.Name[:])
 	}
 	glog.Infof("paramFilteredDrives: %s", strings.Join(paramFilDrNames, ","))
 
