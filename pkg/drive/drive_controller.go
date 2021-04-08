@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/clientset"
@@ -152,7 +153,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		if new.Status.DriveStatus != directcsi.DriveStatusTerminating {
 			new.Status.DriveStatus = directcsi.DriveStatusTerminating
 			if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 			}); err != nil {
 				return err
 			}
@@ -174,7 +175,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 
 		new.Finalizers = []string{}
 		if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 		}); err != nil {
 			return err
 		}
@@ -296,7 +297,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 			}
 
 			if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(utils.CurrentCRDVersion()),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 			}); err != nil {
 				return err
 			}

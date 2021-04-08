@@ -82,7 +82,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(utils.CurrentCRDVersion()),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
@@ -152,7 +152,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	vol.Status.ContainerPath = containerPath
 
 	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(utils.CurrentCRDVersion()),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 	}); err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	directCSIClient := utils.GetDirectCSIClient()
 	vclient := directCSIClient.DirectCSIVolumes()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(utils.CurrentCRDVersion()),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 	})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -203,7 +203,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	vol.Status.ContainerPath = ""
 
 	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(utils.CurrentCRDVersion()),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 	}); err != nil {
 		return nil, err
 	}

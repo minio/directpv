@@ -17,9 +17,6 @@
 package utils
 
 import (
-	"strings"
-
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -126,8 +123,4 @@ func DirectCSIVolumeTypeMeta(version string) metav1.TypeMeta {
 		Kind:       directCSIVolumeKind,
 		APIVersion: version,
 	}
-}
-
-func CurrentCRDVersion() string {
-	return strings.Join([]string{directcsi.Group, directcsi.Version}, "/")
 }
