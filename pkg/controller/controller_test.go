@@ -19,10 +19,28 @@ package controller
 import (
 	"reflect"
 	"testing"
+	// "fmt"
+	"context"
+	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/minio/direct-csi/pkg/sys"
+	"github.com/minio/direct-csi/pkg/utils"
+
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
+)
+
+const (
+	KB = 1 << 10
+	MB = KB << 10
+
+	mb50  = 50*MB 
+	mb100 = 100*MB
+	mb20  = 20*MB
+	mb30  = 30*MB
 )
 
 func TestSelectDriveByTopology(t1 *testing.T) {
@@ -726,5 +744,177 @@ func TestFilterDrivesByParameters(t1 *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func createFakeController() *ControllerServer {
+	utils.SetFake()
+	return &ControllerServer{
+		NodeID:          "test-node-1",
+		Identity:        "test-identity-1",
+		Rack:            "test-rack-1",
+		Zone:            "test-zone-1",
+		Region:          "test-region-1",
+		directcsiClient: utils.GetDirectClientset(),
+	}
+}
+
+func TestCreateVolume(t *testing.T) {
+
+	getTopologySegmentsForNode := func(node string) map[string]string {
+		switch node {
+		case "N1":
+			return map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"}
+		case "N2":
+			return map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"}
+		default:
+			return map[string]string{}
+		}
+	}
+
+	createTestDrive100MB := func(node, drive string) *directcsi.DirectCSIDrive {
+		return &directcsi.DirectCSIDrive{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: drive,
+				Finalizers: []string{
+					string(directcsi.DirectCSIDriveFinalizerDataProtection),
+				},
+			},
+			Status: directcsi.DirectCSIDriveStatus{
+				NodeName:          node,
+				Filesystem:        string(sys.FSTypeXFS),
+				DriveStatus:       directcsi.DriveStatusReady,
+				FreeCapacity:      mb100,
+				AllocatedCapacity: int64(0),
+				TotalCapacity:     mb100,
+				Topology:          getTopologySegmentsForNode(node),
+			},
+		}
+	}
+
+	create20MBVolumeRequest := func(volName string, requestedNode string) csi.CreateVolumeRequest {
+		return csi.CreateVolumeRequest{
+			Name: volName,
+			CapacityRange: &csi.CapacityRange{
+				RequiredBytes: mb20,
+			},
+			VolumeCapabilities: []*csi.VolumeCapability{
+				{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{
+							FsType: "xfs",
+						},
+					},
+					AccessMode: &csi.VolumeCapability_AccessMode{
+						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+					},
+				},
+			},
+			AccessibilityRequirements: &csi.TopologyRequirement{
+				Preferred: []*csi.Topology{
+					{
+						Segments: getTopologySegmentsForNode(requestedNode),
+					},
+				},
+				Requisite: []*csi.Topology{
+					{
+						Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+					},
+					{
+						Segments: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
+					},
+				},
+			},
+		}
+	}
+
+	testDriveObjects := []runtime.Object{
+		// Drives from Node N1
+		createTestDrive100MB("N1", "D1"),
+		createTestDrive100MB("N1", "D2"),
+		// Drives from Node N2
+		createTestDrive100MB("N2", "D3"),
+		createTestDrive100MB("N2", "D4"),
+	}
+
+	createVolumeRequests := []csi.CreateVolumeRequest{
+		// Volume requests for drives in Node N1
+		create20MBVolumeRequest("volume-1", "N1"),
+		create20MBVolumeRequest("volume-2", "N1"),
+		// Volume requests for drives in Node N2
+		create20MBVolumeRequest("volume-3", "N2"),
+		create20MBVolumeRequest("volume-4", "N2"),
+	}
+
+	ctx := context.TODO()
+	cl := createFakeController()
+	cl.directcsiClient = fakedirect.NewSimpleClientset(testDriveObjects...)
+	directCSIClient := cl.directcsiClient.DirectV1beta1()
+
+	for _, cvReq := range createVolumeRequests {
+		volName := cvReq.GetName()
+		// Step 1: Call CreateVolume RPC
+		cvRes, err := cl.CreateVolume(ctx, &cvReq)
+		if err != nil {
+			t.Errorf("[%s] Create volume failed: %v", volName, err)
+		}
+		// Step 2: Check if the response has the corresponding volume ID
+		vol := cvRes.GetVolume()
+		volumeID := vol.GetVolumeId()
+		if volumeID != volName {
+			t.Errorf("[%s] Wrong volumeID found in the response. Expected: %v, Got: %v", volName, volName, volumeID)
+		}
+		// Step 3: Check the the accessible topology in the response is matching with the request
+		if !reflect.DeepEqual(vol.GetAccessibleTopology(),
+			cvReq.GetAccessibilityRequirements().GetPreferred()) {
+			t.Errorf("[%s] Accessible topology not matching with preferred topology in the request. Expected: %v, Got: %v", volName, cvReq.GetAccessibilityRequirements().GetPreferred(), vol.GetAccessibleTopology())
+		}
+		// Step 4: Fetch the created volume object by volumeID
+		volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, volumeID, metav1.GetOptions{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		})
+		if gErr != nil {
+			t.Fatalf("[%s] Volume (%s) not found. Error: %v", volName, volumeID, gErr)
+		}
+		// Step 5: Check if the finalizers were set correctly
+		volFinalizers := volObj.GetFinalizers()
+		for _, f := range volFinalizers {
+			switch f {
+			case directcsi.DirectCSIVolumeFinalizerPVProtection:
+			case directcsi.DirectCSIVolumeFinalizerPurgeProtection:
+			default:
+				t.Errorf("[%s] Unknown finalizer found: %v", volName, f)
+			}
+		}
+		// Step 6: Check if the total capacity is set correctly
+		if volObj.Status.TotalCapacity != cvReq.CapacityRange.RequiredBytes {
+			t.Errorf("[%s] Expected total capacity of the volume to be %d but got %d", volName, cvReq.CapacityRange.RequiredBytes, volObj.Status.TotalCapacity)
+		}
+	}
+
+	// Fetch the drive objects
+	driveList, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+	})
+	if err != nil {
+		t.Errorf("Listing drives failed: %v", err)
+	}
+
+	// Checks to ensure if the volumes were equally distributed among drives
+	// And also check if the drive status were updated properly
+	for _, drive := range driveList.Items {
+		if len(drive.GetFinalizers()) > 2 {
+			t.Errorf("Volumes were not equally distributed among drives. Drive name: %v Finaliers: %v", drive.Name, drive.GetFinalizers())
+		}
+		if drive.Status.DriveStatus != directcsi.DriveStatusInUse {
+			t.Errorf("Expected drive(%s) status: %s, But got: %v", drive.Name, string(directcsi.DriveStatusInUse), string(drive.Status.DriveStatus))
+		}
+		if drive.Status.FreeCapacity != (mb100 - mb20) {
+			t.Errorf("Expected drive(%s) FreeCapacity: %d, But got: %d", drive.Name, (mb100 - mb20), drive.Status.FreeCapacity)
+		}
+		if drive.Status.AllocatedCapacity != mb20 {
+			t.Errorf("Expected drive(%s) AllocatedCapacity: %d, But got: %d", drive.Name, mb20, drive.Status.AllocatedCapacity)
+		}
 	}
 }

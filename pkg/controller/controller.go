@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -76,20 +77,22 @@ func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, regi
 	go serveAdmissionController(ctx)
 
 	return &ControllerServer{
-		NodeID:   nodeID,
-		Identity: identity,
-		Rack:     rack,
-		Zone:     zone,
-		Region:   region,
+		NodeID:          nodeID,
+		Identity:        identity,
+		Rack:            rack,
+		Zone:            zone,
+		Region:          region,
+		directcsiClient: utils.GetDirectClientset(),
 	}, nil
 }
 
 type ControllerServer struct {
-	NodeID   string
-	Identity string
-	Rack     string
-	Zone     string
-	Region   string
+	NodeID          string
+	Identity        string
+	Rack            string
+	Zone            string
+	Region          string
+	directcsiClient clientset.Interface
 }
 
 func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
@@ -149,7 +152,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
 	}
 
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := c.directcsiClient.DirectV1beta1()
 	dclient := directCSIClient.DirectCSIDrives()
 	vclient := directCSIClient.DirectCSIVolumes()
 
