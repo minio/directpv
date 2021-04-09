@@ -17,11 +17,10 @@
 package controller
 
 import (
-	"reflect"
-	"testing"
-	// "fmt"
 	"context"
+	"reflect"
 	"strings"
+	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/direct-csi/pkg/sys"
@@ -37,10 +36,10 @@ const (
 	KB = 1 << 10
 	MB = KB << 10
 
-	mb50  = 50*MB 
-	mb100 = 100*MB
-	mb20  = 20*MB
-	mb30  = 30*MB
+	mb50  = 50 * MB
+	mb100 = 100 * MB
+	mb20  = 20 * MB
+	mb30  = 30 * MB
 )
 
 func TestSelectDriveByTopology(t1 *testing.T) {
@@ -748,14 +747,13 @@ func TestFilterDrivesByParameters(t1 *testing.T) {
 }
 
 func createFakeController() *ControllerServer {
-	utils.SetFake()
 	return &ControllerServer{
 		NodeID:          "test-node-1",
 		Identity:        "test-identity-1",
 		Rack:            "test-rack-1",
 		Zone:            "test-zone-1",
 		Region:          "test-region-1",
-		directcsiClient: utils.GetDirectClientset(),
+		directcsiClient: fakedirect.NewSimpleClientset(),
 	}
 }
 

@@ -25,6 +25,9 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -76,13 +79,27 @@ func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, regi
 	// Start admission webhook server
 	go serveAdmissionController(ctx)
 
+	kubeConfig := utils.GetKubeConfig()
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	if err != nil {
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			return &ControllerServer{}, err
+		}
+	}
+
+	directClientset, err := clientset.NewForConfig(config)
+	if err != nil {
+		return &ControllerServer{}, err
+	}
+
 	return &ControllerServer{
 		NodeID:          nodeID,
 		Identity:        identity,
 		Rack:            rack,
 		Zone:            zone,
 		Region:          region,
-		directcsiClient: utils.GetDirectClientset(),
+		directcsiClient: directClientset,
 	}, nil
 }
 

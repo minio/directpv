@@ -44,9 +44,15 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 		return []directcsi.DirectCSIDrive{}, status.Error(codes.FailedPrecondition, "No csi drives are been added. Please use `add drives` plugin command to add the drives")
 	}
 
+	getSeperator := func(node, drive string) string {
+		if node == "" || drive == "" {
+			return ""
+		}
+		return "-"
+	}
 	filDrNames := []string{}
 	for _, f := range filteredDrivesByFormat {
-		filDrNames = append(filDrNames, f.Status.NodeName+"-"+f.Name[:])
+		filDrNames = append(filDrNames, strings.Join([]string{f.Status.NodeName, f.Name}, getSeperator(f.Status.NodeName, f.Name)))
 	}
 	glog.Infof("filteredDrivesByFormat: %s", strings.Join(filDrNames, ","))
 
@@ -57,7 +63,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	cFilDrNames := []string{}
 	for _, f := range capFilteredDrives {
-		cFilDrNames = append(cFilDrNames, f.Status.NodeName+"-"+f.Name[:])
+		cFilDrNames = append(cFilDrNames, strings.Join([]string{f.Status.NodeName, f.Name}, getSeperator(f.Status.NodeName, f.Name)))
 	}
 	glog.Infof("capacityFilteredDrives: %s", strings.Join(cFilDrNames, ","))
 
@@ -68,7 +74,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	fsFilDrNames := []string{}
 	for _, f := range fsFilteredDrives {
-		fsFilDrNames = append(fsFilDrNames, f.Status.NodeName+"-"+f.Name[:])
+		fsFilDrNames = append(fsFilDrNames, strings.Join([]string{f.Status.NodeName, f.Name}, getSeperator(f.Status.NodeName, f.Name)))
 	}
 	glog.Infof("fsFilteredDrives: %s", strings.Join(fsFilDrNames, ","))
 
@@ -82,7 +88,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	paramFilDrNames := []string{}
 	for _, f := range paramFilteredDrives {
-		paramFilDrNames = append(paramFilDrNames, f.Status.NodeName+"-"+f.Name[:])
+		paramFilDrNames = append(paramFilDrNames, strings.Join([]string{f.Status.NodeName, f.Name}, getSeperator(f.Status.NodeName, f.Name)))
 	}
 	glog.Infof("paramFilteredDrives: %s", strings.Join(paramFilDrNames, ","))
 
