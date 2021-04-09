@@ -30,12 +30,15 @@ import (
 )
 
 const (
-	testNodeName = "test-node"
+	KB = 1 << 10
+	MB = KB << 10
 
-	mb50  = 52428800  // 50 MB
-	mb100 = 104857600 // 100 MB
-	mb20  = 20971520  // 20 MB
-	mb30  = 31457280  // 30 MB
+	mb50  = 50 * MB
+	mb100 = 100 * MB
+	mb20  = 20 * MB
+	mb30  = 30 * MB
+
+	testNodeName = "test-node"
 )
 
 func createFakeVolumeListener() *DirectCSIVolumeListener {
