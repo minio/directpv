@@ -1,0 +1,187 @@
+// This file is part of MinIO Direct CSI
+// Copyright (c) 2021 MinIO, Inc.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+package node
+
+import (
+	"context"
+	"io/ioutil"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/minio/direct-csi/pkg/utils"
+
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+func TestPublishUnpublishVolume(t *testing.T) {
+	testVolumeName50MB := "test_volume_50MB"
+
+	createTestDir := func(prefix string) (string, error) {
+		tDir, err := ioutil.TempDir("", prefix)
+		if err != nil {
+			return "", err
+		}
+		return tDir, nil
+	}
+
+	testStagingPath, tErr := createTestDir("test_staging_")
+	if tErr != nil {
+		t.Fatalf("Could not create test dirs: %v", tErr)
+	}
+	defer os.RemoveAll(testStagingPath)
+
+	testContainerPath, tErr := createTestDir("test_container_")
+	if tErr != nil {
+		t.Fatalf("Could not create test dirs: %v", tErr)
+	}
+	defer os.RemoveAll(testContainerPath)
+
+	testVol := &directcsi.DirectCSIVolume{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testVolumeName50MB,
+			Finalizers: []string{
+				string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
+			},
+		},
+		Status: directcsi.DirectCSIVolumeStatus{
+			NodeName:      testNodeName,
+			StagingPath:   testStagingPath,
+			TotalCapacity: mb20,
+			Conditions: []metav1.Condition{
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+					Status:             metav1.ConditionTrue,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+					Status:             metav1.ConditionFalse,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionReady),
+					Status:             metav1.ConditionTrue,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		},
+	}
+
+	publishVolumeRequest := csi.NodePublishVolumeRequest{
+		VolumeId:          testVolumeName50MB,
+		StagingTargetPath: testStagingPath,
+		TargetPath:        testContainerPath,
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Mount{
+				Mount: &csi.VolumeCapability_MountVolume{
+					FsType: "xfs",
+				},
+			},
+			AccessMode: &csi.VolumeCapability_AccessMode{
+				Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+			},
+		},
+		Readonly: false,
+	}
+
+	unpublishVolumeRequest := csi.NodeUnpublishVolumeRequest{
+		VolumeId:   testVolumeName50MB,
+		TargetPath: testContainerPath,
+	}
+
+	ctx := context.TODO()
+	ns := createFakeNodeServer()
+	ns.directcsiClient = fakedirect.NewSimpleClientset(testVol)
+	directCSIClient := ns.directcsiClient.DirectV1beta1()
+
+	// Publish volume test
+	if _, err := ns.NodePublishVolume(ctx, &publishVolumeRequest); err != nil {
+		t.Fatalf("[%s] PublishVolume failed. Error: %v", publishVolumeRequest.VolumeId, err)
+	}
+
+	volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, publishVolumeRequest.GetVolumeId(), metav1.GetOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+	})
+	if gErr != nil {
+		t.Fatalf("Volume (%s) not found. Error: %v", publishVolumeRequest.GetVolumeId(), gErr)
+	}
+
+	// Check if mount args were set correctly
+	if ns.mounter.(*fakeVolumeMounter).mountArgs.source != testStagingPath {
+		t.Errorf("Wrong source argument passed for mounting. Expected: %v, Got: %v", testStagingPath, ns.mounter.(*fakeVolumeMounter).mountArgs.source)
+	}
+	if ns.mounter.(*fakeVolumeMounter).mountArgs.destination != testContainerPath {
+		t.Errorf("Wrong destination argument passed for mounting. Expected: %v, Got: %v", testContainerPath, ns.mounter.(*fakeVolumeMounter).mountArgs.destination)
+	}
+	if ns.mounter.(*fakeVolumeMounter).mountArgs.volumeID != publishVolumeRequest.GetVolumeId() {
+		t.Errorf("Wrong volumeID argument passed for mounting. Expected: %v, Got: %v", publishVolumeRequest.GetVolumeId(), ns.mounter.(*fakeVolumeMounter).mountArgs.volumeID)
+	}
+	if ns.mounter.(*fakeVolumeMounter).mountArgs.size != int64(0) {
+		t.Errorf("Wrong size argument passed for mounting. Expected: 0, Got: %v", ns.mounter.(*fakeVolumeMounter).mountArgs.size)
+	}
+	if ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly != publishVolumeRequest.GetReadonly() {
+		t.Errorf("Wrong readOnly argument passed for mounting. Expected: %v, Got: %v", publishVolumeRequest.GetReadonly(), ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly)
+	}
+
+	// Check if status fields were set correctly
+	if volObj.Status.ContainerPath != testContainerPath {
+		t.Errorf("Wrong ContainerPath set in the volume object. Expected %v, Got: %v", testContainerPath, volObj.Status.ContainerPath)
+	}
+
+	// Check if conditions were toggled correctly
+	if !utils.IsCondition(volObj.Status.Conditions, string(directcsi.DirectCSIVolumeConditionPublished), metav1.ConditionTrue, string(directcsi.DirectCSIVolumeReasonInUse), "") {
+		t.Errorf("unexpected status.conditions after publishing = %v", volObj.Status.Conditions)
+	}
+
+	// Unpublish volume test
+	if _, err := ns.NodeUnpublishVolume(ctx, &unpublishVolumeRequest); err != nil {
+		t.Fatalf("[%s] PublishVolume failed. Error: %v", unpublishVolumeRequest.VolumeId, err)
+	}
+
+	volObj, gErr = directCSIClient.DirectCSIVolumes().Get(ctx, unpublishVolumeRequest.GetVolumeId(), metav1.GetOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+	})
+	if gErr != nil {
+		t.Fatalf("Volume (%s) not found. Error: %v", unpublishVolumeRequest.GetVolumeId(), gErr)
+	}
+
+	// Check if unmount args were set correctly
+	if ns.mounter.(*fakeVolumeMounter).unmountArgs.target != unpublishVolumeRequest.GetTargetPath() {
+		t.Errorf("Wrong target argument passed for unmounting. Expected: %v, Got: %v", unpublishVolumeRequest.GetTargetPath(), ns.mounter.(*fakeVolumeMounter).unmountArgs.target)
+	}
+
+	// Check if the status fields were unset
+	if volObj.Status.ContainerPath != "" {
+		t.Errorf("StagingPath was not set to empty. Got: %v", volObj.Status.ContainerPath)
+	}
+
+	// Check if the conditions were toggled correctly
+	if !utils.IsCondition(volObj.Status.Conditions, string(directcsi.DirectCSIVolumeConditionPublished), metav1.ConditionFalse, string(directcsi.DirectCSIVolumeReasonNotInUse), "") {
+		t.Errorf("unexpected status.conditions after unstaging = %v", volObj.Status.Conditions)
+	}
+}

@@ -24,10 +24,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,48 +40,7 @@ const (
 	mb50  = 50 * MB
 	mb100 = 100 * MB
 	mb20  = 20 * MB
-
-	testNodeName = "test-node"
 )
-
-type fakeVolumeMounter struct {
-	mountArgs struct {
-		source      string
-		destination string
-		volumeID    string
-		size        int64
-		readOnly    bool
-	}
-	unmountArgs struct {
-		target string
-	}
-}
-
-func (f *fakeVolumeMounter) MountVolume(_ context.Context, src, dest, vID string, size int64, readOnly bool) error {
-	f.mountArgs.source = src
-	f.mountArgs.destination = dest
-	f.mountArgs.volumeID = vID
-	f.mountArgs.size = size
-	f.mountArgs.readOnly = readOnly
-	return nil
-}
-
-func (f *fakeVolumeMounter) UnmountVolume(targetPath string) error {
-	f.unmountArgs.target = targetPath
-	return nil
-}
-
-func createFakeNodeServer() *NodeServer {
-	return &NodeServer{
-		NodeID:          testNodeName,
-		Identity:        "test-identity",
-		Rack:            "test-rack",
-		Zone:            "test-zone",
-		Region:          "test-region",
-		directcsiClient: fakedirect.NewSimpleClientset(),
-		mounter:         &fakeVolumeMounter{},
-	}
-}
 
 func TestStageUnstageVolume(t *testing.T) {
 	testDriveName := "test_drive"
@@ -177,6 +136,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	directCSIClient := ns.directcsiClient.DirectV1beta1()
 	hostPath := filepath.Join(testMountPointDir, testVolumeName50MB)
 
+	// Stage Volume test
 	if _, err := ns.NodeStageVolume(ctx, &stageVolumeRequest); err != nil {
 		t.Fatalf("[%s] StageVolume failed. Error: %v", stageVolumeRequest.VolumeId, err)
 	}
@@ -188,61 +148,62 @@ func TestStageUnstageVolume(t *testing.T) {
 		t.Fatalf("Volume (%s) not found. Error: %v", stageVolumeRequest.GetVolumeId(), gErr)
 	}
 
+	// Check if mount arguments were passed correctly
 	if ns.mounter.(*fakeVolumeMounter).mountArgs.source != hostPath {
 		t.Errorf("Wrong source argument passed for mounting. Expected: %v, Got: %v", filepath.Join(testMountPointDir, testVolumeName50MB), ns.mounter.(*fakeVolumeMounter).mountArgs.source)
 	}
-
 	if ns.mounter.(*fakeVolumeMounter).mountArgs.destination != stageVolumeRequest.GetStagingTargetPath() {
 		t.Errorf("Wrong destination argument passed for mounting. Expected: %v, Got: %v", stageVolumeRequest.GetStagingTargetPath(), ns.mounter.(*fakeVolumeMounter).mountArgs.destination)
 	}
-
 	if ns.mounter.(*fakeVolumeMounter).mountArgs.volumeID != stageVolumeRequest.GetVolumeId() {
 		t.Errorf("Wrong volumeID argument passed for mounting. Expected: %v, Got: %v", stageVolumeRequest.GetVolumeId(), ns.mounter.(*fakeVolumeMounter).mountArgs.volumeID)
 	}
-
 	if ns.mounter.(*fakeVolumeMounter).mountArgs.size != volObj.Status.TotalCapacity {
 		t.Errorf("Wrong size argument passed for mounting. Expected: %v, Got: %v", volObj.Status.TotalCapacity, ns.mounter.(*fakeVolumeMounter).mountArgs.size)
 	}
-
 	if ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly {
 		t.Errorf("Wrong readOnly argument passed for mounting. Expected: False, Got: %v", ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly)
 	}
 
+	// Check if status fields were set correctly
 	if volObj.Status.HostPath != hostPath {
 		t.Errorf("Wrong HostPath set in the volume object. Expected %v, Got: %v", hostPath, volObj.Status.HostPath)
 	}
-
 	if volObj.Status.StagingPath != stageVolumeRequest.GetStagingTargetPath() {
 		t.Errorf("Wrong StagingPath set in the volume object. Expected %v, Got: %v", stageVolumeRequest.GetStagingTargetPath(), volObj.Status.StagingPath)
 	}
 
+	// Check if conditions were toggled correctly
 	if !utils.IsCondition(volObj.Status.Conditions, string(directcsi.DirectCSIVolumeConditionStaged), metav1.ConditionTrue, string(directcsi.DirectCSIVolumeReasonInUse), "") {
 		t.Errorf("unexpected status.conditions after staging = %v", volObj.Status.Conditions)
 	}
 
+	// Unstage Volume test
 	if _, err := ns.NodeUnstageVolume(ctx, &unstageVolumeRequest); err != nil {
 		t.Fatalf("[%s] UnstageVolume failed. Error: %v", unstageVolumeRequest.VolumeId, err)
 	}
 
-	volObj, gErr = directCSIClient.DirectCSIVolumes().Get(ctx, stageVolumeRequest.GetVolumeId(), metav1.GetOptions{
+	volObj, gErr = directCSIClient.DirectCSIVolumes().Get(ctx, unstageVolumeRequest.GetVolumeId(), metav1.GetOptions{
 		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 	})
 	if gErr != nil {
-		t.Fatalf("Volume (%s) not found. Error: %v", stageVolumeRequest.GetVolumeId(), gErr)
+		t.Fatalf("Volume (%s) not found. Error: %v", unstageVolumeRequest.GetVolumeId(), gErr)
 	}
 
+	// Check if unmount arguments were set correctly
 	if ns.mounter.(*fakeVolumeMounter).unmountArgs.target != unstageVolumeRequest.GetStagingTargetPath() {
 		t.Errorf("Wrong target argument passed for unmounting. Expected: %v, Got: %v", unstageVolumeRequest.GetStagingTargetPath(), ns.mounter.(*fakeVolumeMounter).unmountArgs.target)
 	}
 
+	// Check if status fields were set correctly
 	if volObj.Status.HostPath != "" {
 		t.Errorf("Hostpath was not set to empty. Got: %v", volObj.Status.HostPath)
 	}
-
 	if volObj.Status.StagingPath != "" {
 		t.Errorf("StagingPath was not set to empty. Got: %v", volObj.Status.StagingPath)
 	}
 
+	// Check if conditions were toggled correctly
 	if !utils.IsCondition(volObj.Status.Conditions, string(directcsi.DirectCSIVolumeConditionStaged), metav1.ConditionFalse, string(directcsi.DirectCSIVolumeReasonNotInUse), "") {
 		t.Errorf("unexpected status.conditions after unstaging = %v", volObj.Status.Conditions)
 	}
