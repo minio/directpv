@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
-	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -78,7 +77,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	}
 
 	readOnly := req.GetReadonly()
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := n.directcsiClient.DirectV1beta1()
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
@@ -135,7 +134,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, err
 	}
 
-	if err := mountVolume(ctx, stagingTargetPath, containerPath, vID, 0, readOnly); err != nil {
+	if err := n.mounter.MountVolume(ctx, stagingTargetPath, containerPath, vID, 0, readOnly); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed volume publish: %v", err)
 	}
 
@@ -170,7 +169,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return nil, status.Error(codes.InvalidArgument, "containerPath missing in request")
 	}
 
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := n.directcsiClient.DirectV1beta1()
 	vclient := directCSIClient.DirectCSIVolumes()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
@@ -186,7 +185,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	if err := sys.SafeUnmount(containerPath, nil); err != nil {
+	if err := n.mounter.UnmountVolume(containerPath); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

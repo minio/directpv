@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
-	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,7 +43,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
 	}
 
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := n.directcsiClient.DirectV1beta1()
 	dclient := directCSIClient.DirectCSIDrives()
 	vclient := directCSIClient.DirectCSIVolumes()
 
@@ -73,7 +72,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	size := vol.Status.TotalCapacity
-	if err := mountVolume(ctx, path, stagingTargetPath, vID, size, false); err != nil {
+	if err := n.mounter.MountVolume(ctx, path, stagingTargetPath, vID, size, false); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed stage volume: %v", err)
 	}
 
@@ -112,7 +111,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
 	}
 
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := n.directcsiClient.DirectV1beta1()
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
@@ -127,8 +126,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	if vol.Status.StagingPath == "" {
 		return &csi.NodeUnstageVolumeResponse{}, nil
 	}
-
-	if err := sys.SafeUnmount(stagingTargetPath, nil); err != nil {
+	if err := n.mounter.UnmountVolume(stagingTargetPath); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

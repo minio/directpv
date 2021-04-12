@@ -21,8 +21,6 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/sys/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,8 +29,6 @@ import (
 	"k8s.io/utils/mount"
 
 	"github.com/golang/glog"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // GetLatestStatus gets the latest condition by time
@@ -113,33 +109,4 @@ func CheckStatusEquality(existingConditions, newConditions []metav1.Condition) b
 	}
 
 	return reflect.DeepEqual(extractStatuses(existingConditions), extractStatuses(newConditions))
-}
-
-// Idempotent function to bind mount a xfs filesystem with limits
-func mountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error {
-	glog.V(5).Infof("[mountVolume] source: %v destination: %v", src, dest)
-	if err := sys.SafeMount(src, dest, string(sys.FSTypeXFS),
-		func() []sys.MountOption {
-			mOpts := []sys.MountOption{
-				sys.MountOptionMSBind,
-			}
-			if readOnly {
-				mOpts = append(mOpts, sys.MountOptionMSReadOnly)
-			}
-			return mOpts
-		}(), []string{"prjquota"}); err != nil {
-		return err
-	}
-
-	if size > 0 {
-		xfsQuota := &xfs.XFSQuota{
-			Path:      dest,
-			ProjectID: vID,
-		}
-		if err := xfsQuota.SetQuota(ctx, size); err != nil {
-			return status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
-		}
-	}
-
-	return nil
 }

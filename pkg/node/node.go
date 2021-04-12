@@ -20,7 +20,9 @@ import (
 	"context"
 	"strings"
 
+	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/drive"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/sys/xfs"
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -28,6 +30,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -43,7 +47,21 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	if err != nil {
 		return nil, err
 	}
-	directCSIClient := utils.GetDirectCSIClient()
+
+	kubeConfig := utils.GetKubeConfig()
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	if err != nil {
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			return &NodeServer{}, err
+		}
+	}
+
+	directClientset, err := clientset.NewForConfig(config)
+	if err != nil {
+		return &NodeServer{}, err
+	}
+	directCSIClient := directClientset.DirectV1beta1()
 
 	topologies := map[string]string{}
 	topologies[topology.TopologyDriverIdentity] = identity
@@ -90,20 +108,24 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	go volume.SyncVolumeCRDVersions(ctx, nodeID)
 
 	return &NodeServer{
-		NodeID:   nodeID,
-		Identity: identity,
-		Rack:     rack,
-		Zone:     zone,
-		Region:   region,
+		NodeID:          nodeID,
+		Identity:        identity,
+		Rack:            rack,
+		Zone:            zone,
+		Region:          region,
+		directcsiClient: directClientset,
+		mounter:         &sys.DefaultVolumeMounter{},
 	}, nil
 }
 
 type NodeServer struct {
-	NodeID   string
-	Identity string
-	Rack     string
-	Zone     string
-	Region   string
+	NodeID          string
+	Identity        string
+	Rack            string
+	Zone            string
+	Region          string
+	directcsiClient clientset.Interface
+	mounter         sys.VolumeMounter
 }
 
 func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
