@@ -31,6 +31,7 @@ spec:
         app: minio
         direct.csi.min.io/organization: minio
         direct.csi.min.io/app: minio-example
+        direct.csi.min.io/tenant: tenant-1
     spec:
       containers:
       - name: minio
