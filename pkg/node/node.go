@@ -22,6 +22,7 @@ import (
 
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/drive"
+	"github.com/minio/direct-csi/pkg/metrics"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/sys/xfs"
 	"github.com/minio/direct-csi/pkg/topology"
@@ -106,6 +107,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	go volume.StartVolumeController(ctx, nodeID)
 	// Check if the volume objects are migrated and CRDs versions are in-sync
 	go volume.SyncVolumeCRDVersions(ctx, nodeID)
+	go metrics.ServeMetrics(ctx, nodeID)
 
 	return &NodeServer{
 		NodeID:          nodeID,

@@ -225,7 +225,7 @@ func SyncVolumeCRDVersions(ctx context.Context, nodeID string) {
 	volumes := volumeList.Items
 	for _, volume := range volumes {
 		// Skip volumes from other nodes
-		if volume.Status.NodeName == nodeID {
+		if volume.Status.NodeName != nodeID {
 			continue
 		}
 		updateFunc := func() error {
