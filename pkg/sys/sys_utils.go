@@ -131,16 +131,16 @@ func FlushLoopBackReservations() error {
 	flushLoopDevice := func(loopDevName string) error {
 		// umount
 		blockFile := getBlockFile(loopDevName)
-		if err := umountLoopDev(blockFile); err != nil {
+		if err := umountLoopDev(blockFile); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		// Remove loop device
 		loopFilePath := getRootBlockFile(loopDevName)
-		if err := loopback.RemoveLoopDevice(loopFilePath); err != nil {
+		if err := loopback.RemoveLoopDevice(loopFilePath); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		// Remove direct-csi (loop)device file
-		if err := os.Remove(blockFile); err != nil {
+		if err := os.Remove(blockFile); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		return nil
