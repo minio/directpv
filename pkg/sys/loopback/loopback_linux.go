@@ -184,7 +184,7 @@ func getInfo(fd uintptr) (LoopInfo, error) {
 func RemoveLoopDevice(loopPath string) error {
 	loopFile, err := os.OpenFile(loopPath, os.O_RDONLY, 0660)
 	if err != nil {
-		return fmt.Errorf("could not open loop device")
+		return err
 	}
 	defer loopFile.Close()
 
