@@ -48,7 +48,7 @@ func createServiceAccount(ctx context.Context, identity string, dryRun bool) err
 			Kind:       "ServiceAccount",
 			APIVersion: "v1",
 		},
-		ObjectMeta:                   objMeta(identity),
+		ObjectMeta:                   newObjMeta(identity, identity),
 		Secrets:                      []corev1.ObjectReference{},
 		ImagePullSecrets:             []corev1.LocalObjectReference{},
 		AutomountServiceAccountToken: nil,
@@ -70,7 +70,7 @@ func createClusterRoleBinding(ctx context.Context, identity string, dryRun bool)
 			Kind:       "ClusterRoleBinding",
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
-		ObjectMeta: objMeta(identity),
+		ObjectMeta: newObjMeta(identity, identity),
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
@@ -103,7 +103,7 @@ func createClusterRole(ctx context.Context, identity string, dryRun bool) error 
 			Kind:       "ClusterRole",
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
-		ObjectMeta: objMeta(identity),
+		ObjectMeta: newObjMeta(identity, identity),
 		Rules: []rbacv1.PolicyRule{
 			{
 				Verbs: []string{

@@ -27,6 +27,10 @@ import (
 	"time"
 )
 
+func GetCerts(dnsName []string) ([]byte, []byte, []byte, error) {
+	return getCerts(dnsName)
+}
+
 func getCerts(dnsNames []string) (caCertBytes, publicCertBytes, privateKeyBytes []byte, err error) {
 	// set up our CA certificate
 	ca := &x509.Certificate{

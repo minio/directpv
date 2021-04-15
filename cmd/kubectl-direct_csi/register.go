@@ -41,7 +41,7 @@ const (
 	volumeCRDName            = "directcsivolumes.direct.csi.min.io"
 )
 
-func registerCRDs(ctx context.Context, identity string) error {
+func registerCRDs(ctx context.Context, identity string, caBundle []byte) error {
 	crdObjs := []runtime.Object{}
 	for _, asset := range AssetNames() {
 		crdBytes, err := Asset(asset)
@@ -73,7 +73,7 @@ func registerCRDs(ctx context.Context, identity string) error {
 			if !errors.IsNotFound(err) {
 				return err
 			}
-			if err := setConversionWebhook(&crdObj, identity); err != nil {
+			if err := setConversionWebhook(&crdObj, caBundle, identity); err != nil {
 				return err
 			}
 			if _, err := crdClient.Create(ctx, &crdObj, metav1.CreateOptions{}); err != nil {
@@ -81,14 +81,20 @@ func registerCRDs(ctx context.Context, identity string) error {
 			}
 			continue
 		}
-		if err := syncCRD(ctx, existingCRD, crdObj, identity); err != nil {
+		if err := syncCRD(ctx, existingCRD, crdObj, identity, caBundle); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefinition, newCRD apiextensions.CustomResourceDefinition, identity string) error {
+func syncCRD(
+	ctx context.Context,
+	existingCRD *apiextensions.CustomResourceDefinition,
+	newCRD apiextensions.CustomResourceDefinition,
+	identity string,
+	caBundle []byte) error {
+
 	existingCRDStorageVersion, err := apihelpers.GetCRDStorageVersion(existingCRD)
 	if err != nil {
 		return err
@@ -112,7 +118,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 
 	existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 
-	if err := setConversionWebhook(existingCRD, identity); err != nil {
+	if err := setConversionWebhook(existingCRD, caBundle, identity); err != nil {
 		return err
 	}
 
@@ -126,7 +132,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 	return nil
 }
 
-func setConversionWebhook(crdObj *apiextensions.CustomResourceDefinition, identity string) error {
+func setConversionWebhook(crdObj *apiextensions.CustomResourceDefinition, caBundle []byte, identity string) error {
 
 	name := installer.SanitizeName(identity)
 	getServiceRef := func() *apiextensions.ServiceReference {
@@ -143,19 +149,15 @@ func setConversionWebhook(crdObj *apiextensions.CustomResourceDefinition, identi
 
 		return &apiextensions.ServiceReference{
 			Namespace: name,
-			Name:      installer.GetConversionServiceName(),
+			Name:      installer.GetConversionWebhookServiceName(),
 			Path:      &path,
 		}
 	}
 
 	getWebhookClientConfig := func() (*apiextensions.WebhookClientConfig, error) {
-		caBundle, err := installer.GetConversionCABundle()
-		if err != nil {
-			return nil, err
-		}
 		return &apiextensions.WebhookClientConfig{
 			Service:  getServiceRef(),
-			CABundle: []byte(caBundle),
+			CABundle: caBundle,
 		}, nil
 	}
 
