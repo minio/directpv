@@ -32,7 +32,6 @@ const (
 
 func ServeMetrics(ctx context.Context, nodeId string) {
 
-	// Create a secure http server
 	server := &http.Server{
 		Handler: metricsHandler(nodeId),
 	}
@@ -45,10 +44,9 @@ func ServeMetrics(ctx context.Context, nodeId string) {
 
 	glog.Infof("Starting metrics exporter in port: %s", port)
 	if err := server.Serve(listener); err != nil {
-		glog.Errorf("Failed to listen and serve admission webhook server: %v", err)
-		panic(err)
+		glog.Errorf("Failed to listen and serve metrics server: %v", err)
+		if err != http.ErrServerClosed {
+			panic(err)
+		}
 	}
-
-	// http.Handle(metricsPath, metricsHandler(nodeId))
-	// log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
 }

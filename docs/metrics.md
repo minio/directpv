@@ -1,3 +1,22 @@
+---
+title: Metrics
+---
+
+Monitoring guidelines
+----------------------
+
+DirectCSI nodes export Prometheus compatible metrics data by exposing a metrics endpoint at /direct-csi/metrics. Users looking to monitor their tenants can point Prometheus configuration to scrape data from this endpoint.
+
+DirectCSI node server exports the following metrics
+
+- directcsi_stats_bytes_used
+- directcsi_stats_bytes_total
+
+These metrics are categorized by labels ['tenant', 'volumeID', 'node']. These metrics will be representing the volume stats of the published volumes.
+
+Please apply the following Prometheus config to scrape the metrics exposed. 
+
+```
 global:
   scrape_interval: 15s
   external_labels:
@@ -47,4 +66,18 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_service_name]
     action: replace
     target_label: kubernetes_name
-    
+```
+
+For example, use the following promQL to query the volume stats.
+
+- To filter out the volumes scheduled in `node-3` node :-
+
+```
+directcsi_stats_bytes_total{node="node-3"}
+```
+
+- To filter out the volumes of tenant `tenant-1` scheduled in `node-5` node :-
+
+```
+directcsi_stats_bytes_used{tenant="tenant-1", node="node-5"}
+```

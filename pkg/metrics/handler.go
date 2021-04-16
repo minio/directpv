@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/golang/glog"
@@ -29,20 +30,38 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
-func newMetricsCollector(nodeID string) *metricsCollector {
+func newMetricsCollector(nodeID string) (*metricsCollector, error) {
+	kubeConfig := utils.GetKubeConfig()
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	if err != nil {
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			return &metricsCollector{}, err
+		}
+	}
+
+	directClientset, err := clientset.NewForConfig(config)
+	if err != nil {
+		return &metricsCollector{}, err
+	}
+
 	mc := &metricsCollector{
-		desc:   prometheus.NewDesc("directcsi_stats", "Statistics exposed by DirectCSI", nil, nil),
-		nodeID: nodeID,
+		desc:            prometheus.NewDesc("directcsi_stats", "Statistics exposed by DirectCSI", nil, nil),
+		nodeID:          nodeID,
+		directcsiClient: directClientset,
 	}
 	prometheus.MustRegister(mc)
-	return mc
+	return mc, nil
 }
 
 type metricsCollector struct {
-	desc   *prometheus.Desc
-	nodeID string
+	desc            *prometheus.Desc
+	nodeID          string
+	directcsiClient clientset.Interface
 }
 
 // Describe sends the super-set of all possible descriptors of metrics
@@ -52,14 +71,20 @@ func (c *metricsCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect is called by the Prometheus registry when collecting metrics.
 func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
-	volumeStatsEmitter(c.nodeID, ch)
+	c.volumeStatsEmitter(context.Background(), ch, getXFSVolumeStats)
 }
 
-func volumeStatsEmitter(nodeID string, ch chan<- prometheus.Metric) {
-	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
-	volumeList, err := volumeClient.List(context.Background(), metav1.ListOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
-	})
+func (c *metricsCollector) volumeStatsEmitter(
+	ctx context.Context,
+	ch chan<- prometheus.Metric,
+	volumeStatsGetter xfsVolumeStatsGetter) {
+	volumeClient := c.directcsiClient.DirectV1beta1().DirectCSIVolumes()
+	volumeList, err := volumeClient.List(
+		context.Background(),
+		metav1.ListOptions{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		},
+	)
 	if err != nil {
 		glog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
 		return
@@ -73,10 +98,10 @@ func volumeStatsEmitter(nodeID string, ch chan<- prometheus.Metric) {
 			return false
 		}
 		// Skip volumes from other nodes
-		if volume.Status.NodeName != nodeID || !isVolumePublished() {
+		if volume.Status.NodeName != c.nodeID || !isVolumePublished() {
 			continue
 		}
-		publishVolumeStats(&volume, ch)
+		publishVolumeStats(ctx, &volume, ch, volumeStatsGetter)
 	}
 }
 
@@ -84,12 +109,16 @@ func metricsHandler(nodeID string) http.Handler {
 
 	registry := prometheus.NewRegistry()
 
-	if err := registry.Register(newMetricsCollector(nodeID)); err != nil {
+	mc, err := newMetricsCollector(nodeID)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := registry.Register(mc); err != nil {
 		panic(err)
 	}
 
 	gatherers := prometheus.Gatherers{
-		// prometheus.DefaultGatherer,
 		registry,
 	}
 
