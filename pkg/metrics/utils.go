@@ -31,12 +31,22 @@ const (
 	tenantLabel = "direct.csi.min.io/tenant"
 )
 
-func publishVolumeStats(vol *directcsi.DirectCSIVolume, ch chan<- prometheus.Metric) {
+type xfsVolumeStatsGetter func(context.Context, *directcsi.DirectCSIVolume) (xfs.XFSVolumeStats, error)
+
+func getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfs.XFSVolumeStats, error) {
 	xfsQuota := &xfs.XFSQuota{
 		Path:      vol.Status.StagingPath,
 		ProjectID: vol.Name,
 	}
-	volStats, err := xfsQuota.GetVolumeStats(context.Background())
+	volStats, err := xfsQuota.GetVolumeStats(ctx)
+	if err != nil {
+		return xfs.XFSVolumeStats{}, err
+	}
+	return volStats, nil
+}
+
+func publishVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume, ch chan<- prometheus.Metric, xfsStatsFn xfsVolumeStatsGetter) {
+	volStats, err := xfsStatsFn(ctx, vol)
 	if err != nil {
 		glog.V(3).Infof("Error while getting xfs volume stats: %v", err)
 		return
@@ -56,7 +66,7 @@ func publishVolumeStats(vol *directcsi.DirectCSIVolume, ch chan<- prometheus.Met
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(
 			prometheus.BuildFQName("directcsi", "stats", "bytes_used"),
-			"Total number of bytes used",
+			"Total number of bytes used by the volume",
 			[]string{"tenant", "volumeID", "node"}, nil),
 		prometheus.GaugeValue,
 		float64(volStats.UsedBytes), string(tenantName), vol.Name, vol.Status.NodeName,
@@ -65,18 +75,9 @@ func publishVolumeStats(vol *directcsi.DirectCSIVolume, ch chan<- prometheus.Met
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(
 			prometheus.BuildFQName("directcsi", "stats", "bytes_total"),
-			"Total number of bytes allocated",
+			"Total number of bytes allocated to the volume",
 			[]string{"tenant", "volumeID", "node"}, nil),
 		prometheus.GaugeValue,
 		float64(volStats.TotalBytes), string(tenantName), vol.Name, vol.Status.NodeName,
 	)
-
-	// ch <- prometheus.MustNewConstMetric(
-	// 	prometheus.NewDesc(
-	// 		prometheus.BuildFQName("directcsi", "stats", "bytes_available"),
-	// 		"Total number of bytes available",
-	// 		[]string{"tenant", "volumeID", "node"}, nil),
-	// 	prometheus.GaugeValue,
-	// 	float64(volStats.AvailableBytes), string(tenantName), volume.Name, volume.Status.NodeName,
-	// )
 }

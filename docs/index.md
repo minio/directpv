@@ -14,6 +14,7 @@ Documentation
  - [Architecture](./architecture.md)
  - [Security](./security.md)
  - [CSI Specification](./specification.md)
+ - [Metrics](./metrics.md)
 
 <!--- 
  - [Usage Guide](./usage-guide.md)

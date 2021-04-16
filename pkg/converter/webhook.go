@@ -65,7 +65,7 @@ func ServeConversionWebhook(ctx context.Context) error {
 
 	glog.Infof("Starting conversion webhook server in port: %s", port)
 	if err := server.ServeTLS(listener, "", ""); err != nil {
-		glog.Errorf("Failed to listen and serve admission webhook server: %v", err)
+		glog.Errorf("Failed to listen and serve conversion webhook server: %v", err)
 		return err
 	}
 
