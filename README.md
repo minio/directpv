@@ -53,6 +53,7 @@ The high consistency and performance benefits of DirectCSI come with the limitat
 
  - [Installation](./docs/installation.md)
  - [CLI reference](./docs/cli.md)
+ - [Development and Testing](./docs/development-and-testing.md)
 <!-- - [Usage Guide](./docs/usage-guide.md) -->
 <!-- - [Troubleshooting](./docs/troubleshooting.md) -->
 
