@@ -217,6 +217,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if err != nil {
 			return nil, err
 		}
+		glog.Infof("Selected DirectCSI drive: (Name: %s, NodeName: %s)", selectedDrive.Name, selectedDrive.Status.NodeName)
+
 		return &selectedDrive, nil
 	}
 

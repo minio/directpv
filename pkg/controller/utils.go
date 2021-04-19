@@ -18,7 +18,6 @@ package controller
 
 import (
 	"sort"
-	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -26,8 +25,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/golang/glog"
 )
 
 // FilterDrivesByVolumeRequest - Filters the CSI drives by create volume request
@@ -44,39 +41,15 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 		return []directcsi.DirectCSIDrive{}, status.Error(codes.FailedPrecondition, "No csi drives are been added. Please use `add drives` plugin command to add the drives")
 	}
 
-	getSeperator := func(node, drive string) string {
-		if node == "" || drive == "" {
-			return ""
-		}
-		return "-"
-	}
-	filDrNames := []string{}
-	for _, f := range filteredDrivesByFormat {
-		filDrNames = append(filDrNames, strings.Join([]string{f.Status.NodeName, f.Name}, getSeperator(f.Status.NodeName, f.Name)))
-	}
-	glog.Infof("filteredDrivesByFormat: %s", strings.Join(filDrNames, ","))
-
 	capFilteredDrives := FilterDrivesByCapacityRange(capacityRange, filteredDrivesByFormat)
 	if len(capFilteredDrives) == 0 {
 		return []directcsi.DirectCSIDrive{}, status.Error(codes.OutOfRange, "Invalid capacity range")
 	}
 
-	cFilDrNames := []string{}
-	for _, f := range capFilteredDrives {
-		cFilDrNames = append(cFilDrNames, strings.Join([]string{f.Status.NodeName, f.Name}, getSeperator(f.Status.NodeName, f.Name)))
-	}
-	glog.Infof("capacityFilteredDrives: %s", strings.Join(cFilDrNames, ","))
-
 	fsFilteredDrives := FilterDrivesByFsType(fsType, capFilteredDrives)
 	if len(fsFilteredDrives) == 0 {
 		return []directcsi.DirectCSIDrive{}, status.Errorf(codes.InvalidArgument, "Cannot find any drives by the fstype: %s", fsType)
 	}
-
-	fsFilDrNames := []string{}
-	for _, f := range fsFilteredDrives {
-		fsFilDrNames = append(fsFilDrNames, strings.Join([]string{f.Status.NodeName, f.Name}, getSeperator(f.Status.NodeName, f.Name)))
-	}
-	glog.Infof("fsFilteredDrives: %s", strings.Join(fsFilDrNames, ","))
 
 	paramFilteredDrives, pErr := FilterDrivesByParameters(volReq.GetParameters(), fsFilteredDrives)
 	if pErr != nil {
@@ -85,12 +58,6 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 	if len(paramFilteredDrives) == 0 {
 		return []directcsi.DirectCSIDrive{}, status.Errorf(codes.InvalidArgument, "Cannot match any drives by the provided storage class parameters: %s", volReq.GetParameters())
 	}
-
-	paramFilDrNames := []string{}
-	for _, f := range paramFilteredDrives {
-		paramFilDrNames = append(paramFilDrNames, strings.Join([]string{f.Status.NodeName, f.Name}, getSeperator(f.Status.NodeName, f.Name)))
-	}
-	glog.Infof("paramFilteredDrives: %s", strings.Join(paramFilDrNames, ","))
 
 	return paramFilteredDrives, nil
 }
