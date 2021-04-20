@@ -9,6 +9,7 @@ Documentation
  - [Installation](./installation.md)
  - [CLI reference](./cli.md)
  - [Scheduling](./scheduling.md)
+ - [Version upgrade](./upgrade.md)
 
 ### Advanced
  - [Architecture](./architecture.md)

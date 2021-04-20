@@ -9,8 +9,8 @@ Installation
 
 | Name         | Version  |
 | -------------|----------|
-| kubectl      | v1.12+   |
-| kubernetes   | v1.13+   |
+| kubectl      | v1.19+   |
+| kubernetes   | v1.19+   |
 
 `ValidatingAdmissionWebhook` should be enabled in the kube-apiserver
 
