@@ -255,6 +255,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			finalizers = append(finalizers, finalizer)
 			drive.SetFinalizers(finalizers)
 
+			glog.Infof("Reserving DirectCSI drive: (Name: %s, NodeName: %s)", drive.Name, drive.Status.NodeName)
 			if _, err := dclient.Update(ctx, drive, metav1.UpdateOptions{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 			}); err != nil {
