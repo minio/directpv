@@ -17,6 +17,8 @@
 package controller
 
 import (
+	"crypto/rand"
+	"math/big"
 	"sort"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
@@ -136,41 +138,75 @@ func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDriv
 	preferredXs := tReq.GetPreferred()
 	requisiteXs := tReq.GetRequisite()
 
-	// Sort the drives by free capacity [Descending]
-	sort.SliceStable(csiDrives, func(i, j int) bool {
-		return csiDrives[i].Status.FreeCapacity > csiDrives[j].Status.FreeCapacity
-	})
-
 	// Try to fullfill the preferred topology request, If not, fallback to requisite list.
 	// Ref: https://godoc.org/github.com/container-storage-interface/spec/lib/go/csi#TopologyRequirement
 	for _, preferredTop := range preferredXs {
-		if selectedDrive, err := selectDriveByTopology(preferredTop, csiDrives); err == nil {
-			return selectedDrive, nil
+		if selectedDrives, err := selectDrivesByTopology(preferredTop, csiDrives); err == nil {
+			return selectDriveByFreeCapacity(selectedDrives)
 		}
 	}
 
 	for _, requisiteTop := range requisiteXs {
-		if selectedDrive, err := selectDriveByTopology(requisiteTop, csiDrives); err == nil {
-			return selectedDrive, nil
+		if selectedDrives, err := selectDrivesByTopology(requisiteTop, csiDrives); err == nil {
+			return selectDriveByFreeCapacity(selectedDrives)
 		}
 	}
 
 	if len(preferredXs) == 0 && len(requisiteXs) == 0 {
-		return csiDrives[0], nil
+		return selectDriveByFreeCapacity(csiDrives)
 	}
 
 	return directcsi.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
 }
 
-func selectDriveByTopology(top *csi.Topology, csiDrives []directcsi.DirectCSIDrive) (directcsi.DirectCSIDrive, error) {
+func selectDriveByFreeCapacity(csiDrives []directcsi.DirectCSIDrive) (directcsi.DirectCSIDrive, error) {
+	// Sort the drives by free capacity [Descending]
+	sort.SliceStable(csiDrives, func(i, j int) bool {
+		return csiDrives[i].Status.FreeCapacity > csiDrives[j].Status.FreeCapacity
+	})
+
+	groupByFreeCapacity := func() []directcsi.DirectCSIDrive {
+		maxFreeCapacity := csiDrives[0].Status.FreeCapacity
+		groupedDrives := []directcsi.DirectCSIDrive{}
+		for _, csiDrive := range csiDrives {
+			if csiDrive.Status.FreeCapacity == maxFreeCapacity {
+				groupedDrives = append(groupedDrives, csiDrive)
+			}
+		}
+		return groupedDrives
+	}
+
+	pickRandomIndex := func(max int) (int, error) {
+		rInt, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+		if err != nil {
+			return int(0), err
+		}
+		return int(rInt.Int64()), nil
+	}
+
+	selectedDrives := groupByFreeCapacity()
+	rIndex, err := pickRandomIndex(len(selectedDrives))
+	if err != nil {
+		return selectedDrives[rIndex], status.Errorf(codes.Internal, "Error while selecting (random) drive: %v", err)
+	}
+	return selectedDrives[rIndex], nil
+}
+
+func selectDrivesByTopology(top *csi.Topology, csiDrives []directcsi.DirectCSIDrive) ([]directcsi.DirectCSIDrive, error) {
+	matchingDriveList := []directcsi.DirectCSIDrive{}
 	topSegments := top.GetSegments()
 	for _, csiDrive := range csiDrives {
 		driveSegments := csiDrive.Status.Topology
 		if matchSegments(topSegments, driveSegments) {
-			return csiDrive, nil
+			matchingDriveList = append(matchingDriveList, csiDrive)
 		}
 	}
-	return directcsi.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
+	return matchingDriveList, func() error {
+		if len(matchingDriveList) == 0 {
+			return status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
+		}
+		return nil
+	}()
 }
 
 func matchSegments(topSegments, driveSegments map[string]string) bool {

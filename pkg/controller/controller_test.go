@@ -42,7 +42,15 @@ const (
 	mb30  = 30 * MB
 )
 
-func TestSelectDriveByTopology(t1 *testing.T) {
+func TestSelectDrivesByTopology(t1 *testing.T) {
+
+	getDriveNameSet := func(drives []directcsi.DirectCSIDrive) []string {
+		driveNames := []string{}
+		for _, drive := range drives {
+			driveNames = append(driveNames, drive.Name)
+		}
+		return driveNames
+	}
 
 	testDriveSet := []directcsi.DirectCSIDrive{
 		{
@@ -55,7 +63,23 @@ func TestSelectDriveByTopology(t1 *testing.T) {
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive11",
+			},
+			Status: directcsi.DirectCSIDriveStatus{
+				Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
 				Name: "drive2",
+			},
+			Status: directcsi.DirectCSIDriveStatus{
+				Topology: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive22",
 			},
 			Status: directcsi.DirectCSIDriveStatus{
 				Topology: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
@@ -72,56 +96,56 @@ func TestSelectDriveByTopology(t1 *testing.T) {
 	}
 
 	testCases := []struct {
-		name              string
-		topologyRequest   *csi.Topology
-		errExpected       bool
-		selectedDriveName string
+		name               string
+		topologyRequest    *csi.Topology
+		errExpected        bool
+		selectedDriveNames []string
 	}{
 		{
-			name:              "test1",
-			topologyRequest:   &csi.Topology{Segments: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"}},
-			errExpected:       false,
-			selectedDriveName: "drive2",
+			name:               "test1",
+			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"}},
+			errExpected:        false,
+			selectedDriveNames: []string{"drive2", "drive22"},
 		},
 		{
-			name:              "test2",
-			topologyRequest:   &csi.Topology{Segments: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"}},
-			errExpected:       false,
-			selectedDriveName: "drive3",
+			name:               "test2",
+			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"}},
+			errExpected:        false,
+			selectedDriveNames: []string{"drive3"},
 		},
 		{
-			name:              "test3",
-			topologyRequest:   &csi.Topology{Segments: map[string]string{"node": "N4", "rack": "RK2", "zone": "Z4", "region": "R2"}},
-			errExpected:       true,
-			selectedDriveName: "",
+			name:               "test3",
+			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N4", "rack": "RK2", "zone": "Z4", "region": "R2"}},
+			errExpected:        true,
+			selectedDriveNames: []string{},
 		},
 		{
-			name:              "test4",
-			topologyRequest:   &csi.Topology{Segments: map[string]string{"node": "N3", "rack": "RK3"}},
-			errExpected:       false,
-			selectedDriveName: "drive3",
+			name:               "test4",
+			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N3", "rack": "RK3"}},
+			errExpected:        false,
+			selectedDriveNames: []string{"drive3"},
 		},
 		{
-			name:              "test5",
-			topologyRequest:   &csi.Topology{Segments: map[string]string{"node": "N1", "rack": "RK5"}},
-			errExpected:       true,
-			selectedDriveName: "",
+			name:               "test5",
+			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N1", "rack": "RK5"}},
+			errExpected:        true,
+			selectedDriveNames: []string{},
 		},
 		{
-			name:              "test5",
-			topologyRequest:   &csi.Topology{Segments: map[string]string{"node": "N1"}},
-			errExpected:       false,
-			selectedDriveName: "drive1",
+			name:               "test5",
+			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N1"}},
+			errExpected:        false,
+			selectedDriveNames: []string{"drive1", "drive11"},
 		},
 	}
 
 	for _, tt := range testCases {
 		t1.Run(tt.name, func(t1 *testing.T) {
-			selectedDrive, err := selectDriveByTopology(tt.topologyRequest, testDriveSet)
+			selectedDrives, err := selectDrivesByTopology(tt.topologyRequest, testDriveSet)
 			if tt.errExpected && err == nil {
 				t1.Fatalf("Test case name %s: Expected error but succeeded", tt.name)
-			} else if selectedDrive.Name != tt.selectedDriveName {
-				t1.Errorf("Test case name %s: Expected drive name = %s, got %v", tt.name, tt.selectedDriveName, selectedDrive.Name)
+			} else if !reflect.DeepEqual(getDriveNameSet(selectedDrives), tt.selectedDriveNames) {
+				t1.Errorf("Test case name %s: Expected drive names = %s, got %v", tt.name, tt.selectedDriveNames, getDriveNameSet(selectedDrives))
 			}
 		})
 	}
@@ -914,5 +938,95 @@ func TestCreateVolume(t *testing.T) {
 		if drive.Status.AllocatedCapacity != mb20 {
 			t.Errorf("Expected drive(%s) AllocatedCapacity: %d, But got: %d", drive.Name, mb20, drive.Status.AllocatedCapacity)
 		}
+	}
+}
+
+func TestSelectDriveByFreeCapacity(t1 *testing.T) {
+	testCases := []struct {
+		name               string
+		driveList          []directcsi.DirectCSIDrive
+		expectedDriveNames []string
+	}{
+		{
+			name: "test1",
+			driveList: []directcsi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FreeCapacity: 1000,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FreeCapacity: 2000,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FreeCapacity: 3000,
+					},
+				},
+			},
+			expectedDriveNames: []string{"drive3"},
+		},
+		{
+			name: "test2",
+			driveList: []directcsi.DirectCSIDrive{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive1",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FreeCapacity: 4000,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive2",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FreeCapacity: 4000,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "drive3",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FreeCapacity: 3000,
+					},
+				},
+			},
+			expectedDriveNames: []string{"drive1", "drive2"},
+		},
+	}
+
+	checkDriveName := func(expectedDriveNames []string, driveName string) bool {
+		for _, edName := range expectedDriveNames {
+			if edName == driveName {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, tt := range testCases {
+		t1.Run(tt.name, func(t1 *testing.T) {
+			selectedDrive, err := selectDriveByFreeCapacity(tt.driveList)
+			if err != nil {
+				t1.Fatalf("Text case name: %s: Error: %v", tt.name, err)
+			}
+			if !checkDriveName(tt.expectedDriveNames, selectedDrive.Name) {
+				t1.Errorf("Test case name %s: Unexpected drive selected. Expected one among %v but got %s", tt.name, tt.expectedDriveNames, selectedDrive.Name)
+			}
+		})
 	}
 }
