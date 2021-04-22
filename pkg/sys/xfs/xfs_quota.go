@@ -19,12 +19,19 @@ package xfs
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
-	simd "github.com/minio/sha256-simd"
 	"math"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/golang/glog"
+	simd "github.com/minio/sha256-simd"
+)
+
+var (
+	ErrProjNotFound = errors.New("xfs project not found")
 )
 
 type XFSQuota struct {
@@ -47,20 +54,35 @@ func getProjectIDHash(id string) string {
 // SetQuota creates a projectID and sets the hardlimit for the path
 func (xfsq *XFSQuota) SetQuota(ctx context.Context, limit int64) error {
 
+	_, err := xfsq.GetVolumeStats(ctx)
+	// error getting quota value
+	if err != nil && err != ErrProjNotFound {
+		return err
+	}
+	// this means quota has already been set
+	if err == nil {
+		return nil
+	}
+
 	limitInStr := strconv.FormatInt(limit, 10)
 	pid := getProjectIDHash(xfsq.ProjectID)
 
-	cmd := exec.CommandContext(ctx, "xfs_quota", "-x", "-c", fmt.Sprintf("project -s -p %s %s", xfsq.Path, pid))
+	glog.V(3).Infof("setting prjquota proj_id=%s path=%s", pid, xfsq.Path)
+
+	cmd := exec.CommandContext(ctx, "xfs_quota", "-x", "-c", fmt.Sprintf("project -d 0 -s -p %s %s", xfsq.Path, pid))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		glog.Errorf("could not set prjquota proj_id=%s path=%s err=%v", pid, xfsq.Path, err)
 		return fmt.Errorf("SetQuota failed for %s with error: (%v), output: (%s)", xfsq.ProjectID, err, out)
 	}
 
 	cmd = exec.CommandContext(ctx, "xfs_quota", "-x", "-c", fmt.Sprintf("limit -p bhard=%s %s", limitInStr, pid), xfsq.Path)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
+		glog.Errorf("could not set prjquota proj_id=%s path=%s err=%v", pid, xfsq.Path, err)
 		return fmt.Errorf("xfs_quota failed with error: %v, output: %s", err, out)
 	}
+	glog.V(3).Infof("prjquota set successfully proj_id=%s path=%s", pid, xfsq.Path)
 
 	return nil
 }
@@ -112,12 +134,18 @@ func ParseQuotaList(output, projectID string) (XFSVolumeStats, error) {
 	var pErr error
 	var f float64
 	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	prjFound := false
+	for _, l := range lines {
+		line := strings.TrimSpace(l)
 		if len(line) == 0 {
 			continue
 		}
-		cleanLine := strings.TrimSpace(line)
-		splits := strings.Split(cleanLine, " ")
+		if !strings.HasPrefix(line, "#"+projectID) {
+			continue
+		}
+		prjFound = true
+
+		splits := strings.Split(line, " ")
 		var values []string
 		for _, split := range splits {
 			tSplit := strings.TrimSpace(split)
@@ -140,6 +168,11 @@ func ParseQuotaList(output, projectID string) (XFSVolumeStats, error) {
 			totalInBytes = int64(f)
 			break
 		}
+		break
+	}
+
+	if !prjFound {
+		return XFSVolumeStats{}, ErrProjNotFound
 	}
 	return XFSVolumeStats{
 		AvailableBytes: totalInBytes - usedInBytes,
