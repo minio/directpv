@@ -21,8 +21,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"sort"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
@@ -31,10 +29,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/dustin/go-humanize"
 	"github.com/golang/glog"
-	"github.com/jedib0t/go-pretty/table"
-	"github.com/jedib0t/go-pretty/text"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -62,6 +57,9 @@ $ kubectl direct-csi drives format --nodes=directcsi-1
 # Format all drives based on the access-tier set [hot|cold|warm]
 $ kubectl direct-csi drives format --access-tier=hot
 
+# Format all 'released' drives
+$ kubectl direct-csi drives format --status=released
+
 # Combine multiple parameters using multi-arg
 $ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=available
 
@@ -77,6 +75,7 @@ $ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=avai
 func init() {
 	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glog selector for drive paths")
 	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob selector for node names")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "glob prefix match for drive status")
 	formatDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "format all available drives")
 
 	formatDrivesCmd.PersistentFlags().BoolVarP(&force, "force", "f", force, "force format a drive even if a FS is already present")
@@ -92,6 +91,20 @@ func formatDrives(ctx context.Context, args []string) error {
 			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"))
 		}
 	}
+
+	validateStatus := func(status []string) error {
+		for _, s := range status {
+			if strings.ToLower(s) != strings.ToLower(directcsi.DriveStatusReleased) {
+				return fmt.Errorf("only 'released' drives are allowed to be formatted")
+			}
+		}
+		return nil
+	}
+
+	if err := validateStatus(status); err != nil {
+		return err
+	}
+
 	utils.Init()
 
 	directClient := utils.GetDirectCSIClient()
@@ -103,11 +116,6 @@ func formatDrives(ctx context.Context, args []string) error {
 	if len(driveList.Items) == 0 {
 		glog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
-	}
-
-	volList, err := directClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
 	}
 
 	accessTierSet, aErr := getAccessTierSet(accessTiers)
@@ -129,7 +137,6 @@ func formatDrives(ctx context.Context, args []string) error {
 		return strings.ReplaceAll(dr, "-part-", "")
 	}
 
-	updatedFilterDrives := []*directcsi.DirectCSIDrive{}
 	for _, d := range filterDrives {
 		if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
 			continue
@@ -152,6 +159,15 @@ func formatDrives(ctx context.Context, args []string) error {
 			continue
 		}
 
+		if d.Status.DriveStatus == directcsi.DriveStatusReleased {
+			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
+			if !force {
+				glog.Errorf("%s is in 'released' state. Use %s to overwrite and make it 'ready'", utils.Bold(driveAddr), utils.Bold("--force"))
+				continue
+			}
+			d.Status.DriveStatus = directcsi.DriveStatusAvailable
+		}
+
 		d.Spec.DirectCSIOwned = true
 		d.Spec.RequestedFormat = &directcsi.RequestedFormat{
 			Filesystem: XFS,
@@ -163,102 +179,10 @@ func formatDrives(ctx context.Context, args []string) error {
 			}
 			continue
 		}
-		updated, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{})
-		if err != nil {
+		if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
-		updatedFilterDrives = append(updatedFilterDrives, updated)
 	}
 
-	if dryRun {
-		return nil
-	}
-
-	sort.SliceStable(updatedFilterDrives, func(i, j int) bool {
-		d1 := updatedFilterDrives[i]
-		d2 := updatedFilterDrives[j]
-
-		if v := strings.Compare(d1.Status.NodeName, d2.Status.NodeName); v != 0 {
-			return v < 0
-		}
-
-		if v := strings.Compare(d1.Status.Path, d2.Status.Path); v != 0 {
-			return v < 0
-		}
-
-		return strings.Compare(string(d1.Status.DriveStatus), string(d2.Status.DriveStatus)) < 0
-	})
-
-	text.DisableColors()
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{
-		"DRIVE",
-		"CAPACITY",
-		"ALLOCATED",
-		"VOLUMES",
-		"NODE",
-		"STATUS",
-		"",
-	})
-
-	style := table.StyleColoredDark
-	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
-	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
-	t.SetStyle(style)
-
-	for _, d := range updatedFilterDrives {
-		volumes := 0
-		for _, v := range volList.Items {
-			if v.Status.Drive == d.Name {
-				volumes++
-			}
-		}
-
-		msg := ""
-		dr := func(val string) string {
-			dr := driveName(val)
-			col := red(dot)
-			for _, c := range d.Status.Conditions {
-				if c.Type == string(directcsi.DirectCSIDriveConditionOwned) {
-					if c.Status == metav1.ConditionTrue {
-						col = green(dot)
-					}
-					c.Message = msg
-				}
-			}
-			return strings.ReplaceAll(col+" "+dr, "-part-", "")
-		}(d.Status.Path)
-		drStatus := d.Status.DriveStatus
-		if msg != "" {
-			drStatus = drStatus + "*"
-			msg = strings.ReplaceAll(msg, d.Name, "")
-			msg = strings.ReplaceAll(msg, "/var/lib/direct-csi/devices", "/dev")
-			msg = strings.Split(msg, "\n")[0]
-		}
-		emptyOrVal := func(val int) string {
-			if val == 0 {
-				return "-"
-			}
-			return fmt.Sprintf("%d", val)
-		}
-		emptyOrBytes := func(val int64) string {
-			if val == 0 {
-				return "-"
-			}
-			return humanize.IBytes(uint64(val))
-		}
-		t.AppendRow([]interface{}{
-			dr,                                       //DRIVE
-			emptyOrBytes(d.Status.TotalCapacity),     //CAPACITY
-			emptyOrBytes(d.Status.AllocatedCapacity), //ALLOCATED
-			emptyOrVal(volumes),                      //VOLUMES
-			d.Status.NodeName,                        //SERVER
-			utils.Bold(drStatus),                     //STATUS
-			msg,                                      //MESSSAGE
-		})
-	}
-
-	//t.Render()
 	return nil
 }

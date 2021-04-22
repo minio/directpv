@@ -153,6 +153,7 @@ const (
 	DriveStatusUnavailable             = "Unavailable"
 	DriveStatusReady                   = "Ready"
 	DriveStatusTerminating             = "Terminating"
+	DriveStatusReleased                = "Released"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
