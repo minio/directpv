@@ -195,6 +195,9 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		mountOpts := new.Spec.RequestedFormat.MountOptions
 
 		switch new.Status.DriveStatus {
+		case directcsi.DriveStatusReleased:
+			glog.V(2).Infof("rejected request to format a released drive %s", new.Name)
+			return nil
 		case directcsi.DriveStatusInUse:
 			glog.V(2).Infof("rejected request to format a drive currently in use %s", new.Name)
 			return nil
