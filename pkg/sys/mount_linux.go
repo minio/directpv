@@ -238,14 +238,19 @@ func SafeUnmount(target string, opts []UnmountOption) error {
 
 }
 
-func SafeUnmountAll(drivePath string, opts []UnmountOption) error {
+func SafeUnmountAll(path string, opts []UnmountOption) error {
 	mounts, err := ProbeMountInfo()
 	if err != nil {
 		return err
 	}
 
+	major, minor, err := GetMajorMinor(path)
+	if err != nil {
+		return err
+	}
+
 	for _, m := range mounts {
-		if getBlockFile(m.MountSource) == getBlockFile(drivePath) {
+		if m.Major == major && m.Minor == minor {
 			if err := SafeUnmount(m.Mountpoint, opts); err != nil {
 				return err
 			}

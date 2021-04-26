@@ -49,14 +49,16 @@ func (c *fakeDriveStatter) GetFreeCapacityFromStatfs(path string) (int64, error)
 
 type fakeDriveFormatter struct {
 	args struct {
+		uuid  string
 		path  string
 		force bool
 	}
 }
 
-func (c *fakeDriveFormatter) FormatDrive(ctx context.Context, path string, force bool) error {
+func (c *fakeDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
 	c.args.path = path
 	c.args.force = force
+	c.args.uuid = uuid
 	return nil
 }
 
@@ -78,8 +80,8 @@ func (c *fakeDriveMounter) MountDrive(source, target string, mountOpts []string)
 	return nil
 }
 
-func (c *fakeDriveMounter) UnmountDrive(source string) error {
-	c.unmountArgs.source = source
+func (c *fakeDriveMounter) UnmountDrive(path string) error {
+	c.unmountArgs.source = path
 	return nil
 }
 
@@ -129,7 +131,7 @@ func TestDriveFormat(t *testing.T) {
 		&directcsi.DirectCSIDrive{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "test_drive_umounted",
+				Name: "test_drive_umounted_uuid",
 			},
 			Spec: directcsi.DirectCSIDriveSpec{
 				DirectCSIOwned: false,
@@ -172,7 +174,7 @@ func TestDriveFormat(t *testing.T) {
 		&directcsi.DirectCSIDrive{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "test_drive_mounted",
+				Name: "test_drive_mounted_uuid",
 			},
 			Spec: directcsi.DirectCSIDriveSpec{
 				DirectCSIOwned: false,
@@ -246,23 +248,26 @@ func TestDriveFormat(t *testing.T) {
 		}
 
 		// Step 4.1: Check if the format arguments passed are correct
-		if dl.formatter.(*fakeDriveFormatter).args.path != dObj.Status.Path {
-			t.Errorf("Test case [%d]: Invalid path provided for formatting. Expected: %s, Found: %s", i, dObj.Status.Path, dl.formatter.(*fakeDriveFormatter).args.path)
+		if dl.formatter.(*fakeDriveFormatter).args.uuid != dObj.Name {
+			t.Errorf("Test case [%d]: Invalid uuid provided for formatting. Expected: %s, Found: %s", i, dObj.Name, dl.formatter.(*fakeDriveFormatter).args.uuid)
+		}
+		if dl.formatter.(*fakeDriveFormatter).args.path != sys.GetDirectCSIPath(dObj.Name) {
+			t.Errorf("Test case [%d]: Invalid path provided for formatting. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Name), dl.formatter.(*fakeDriveFormatter).args.path)
 		}
 		if dl.formatter.(*fakeDriveFormatter).args.force != force {
 			t.Errorf("Test case [%d]: Wrong force option provided for formatting. Expected: %v, Found: %v", i, force, dl.formatter.(*fakeDriveFormatter).args.force)
 		}
 
 		// Step 4.2: Check if mount arguments passed are correct
-		if dl.mounter.(*fakeDriveMounter).mountArgs.source != dObj.Status.Path {
-			t.Errorf("Test case [%d]: Invalid source provided for mounting. Expected: %s, Found: %s", i, dObj.Status.Path, dl.mounter.(*fakeDriveMounter).mountArgs.source)
+		if dl.mounter.(*fakeDriveMounter).mountArgs.source != sys.GetDirectCSIPath(dObj.Name) {
+			t.Errorf("Test case [%d]: Invalid source provided for mounting. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Name), dl.mounter.(*fakeDriveMounter).mountArgs.source)
 		}
 		if dl.mounter.(*fakeDriveMounter).mountArgs.target != filepath.Join(sys.MountRoot, dObj.Name) {
 			t.Errorf("Test case [%d]: Wrong target provided for mounting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, dObj.Name), dl.mounter.(*fakeDriveMounter).mountArgs.target)
 		}
 		umountSource := func() string {
 			if dObj.Status.Mountpoint != "" {
-				return dObj.Status.Path
+				return sys.GetDirectCSIPath(dObj.Name)
 			}
 			return ""
 		}()

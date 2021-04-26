@@ -52,8 +52,10 @@ type DriveInfo struct {
 	LogicalBlockSize  uint64 `json:"logicalBlockSize,omitempty"`
 	PhysicalBlockSize uint64 `json:"physicalBlockSize,omitempty"`
 	Path              string `json:"path,omitempty"`
+	CurrentPath       string `json:"currentPath,omitempty"`
 	Major             uint32 `json:"major,omitempty"`
 	Minor             uint32 `json:"minor",omitempty`
+	SerialNumber      string `json:"serialNumber",omitempty`
 
 	*FSInfo `json:"fsInfo,omitempty"`
 }
@@ -79,8 +81,6 @@ type MountInfo struct {
 	OptionalFields    []string `json:"optionalFields,omitempty"`
 	Major             uint32   `json:"major,omitempty"`
 	Minor             uint32   `json:"minor,omitempty"`
-	DevName           string   `json:"devName,omitempty"`
-	PartitionNum      uint     `json:"partitionNum,omitempty"`
 }
 
 type SuperBlock interface {

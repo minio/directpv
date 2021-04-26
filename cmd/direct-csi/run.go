@@ -21,20 +21,20 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 
 	ctrl "github.com/minio/direct-csi/pkg/controller"
 	"github.com/minio/direct-csi/pkg/converter"
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
+	"github.com/minio/direct-csi/pkg/node/discovery"
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/utils/grpc"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/pkg/ellipses"
 	"k8s.io/klog"
 )
 
@@ -99,32 +99,26 @@ func run(ctx context.Context, args []string) error {
 	}
 
 	utils.Init()
+
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err
 	}
 	klog.V(5).Infof("identity server started")
 
-	basePaths := []string{}
-	for _, a := range args {
-		if ellipses.HasEllipses(a) {
-			p, err := ellipses.FindEllipsesPatterns(a)
-			if err != nil {
-				return err
-			}
-			patterns := p.Expand()
-			for _, outer := range patterns {
-				basePaths = append(basePaths, strings.Join(outer, ""))
-			}
-		} else {
-			basePaths = append(basePaths, a)
-		}
-	}
-
 	var nodeSrv csi.NodeServer
-
 	if driver {
-		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, basePaths, procfs, loopBackOnly)
+		discovery, err := discovery.NewDiscovery(ctx, identity, nodeID, rack, zone, region)
+		if err != nil {
+			return err
+		}
+		if err := discovery.Init(ctx, loopBackOnly); err != nil {
+			return fmt.Errorf("Error while initializing drive discovery: %v", err)
+		}
+
+		klog.V(5).Infof("Drive discovery finished")
+
+		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region)
 		if err != nil {
 			return err
 		}

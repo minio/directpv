@@ -24,21 +24,28 @@ import (
 )
 
 // formatDrive - Idempotent function to format a DirectCSIDrive
-func formatDrive(ctx context.Context, path string, force bool) error {
+func formatDrive(ctx context.Context, uuid, path string, force bool) error {
 	output, err := Format(ctx, path, string(FSTypeXFS), []string{"-i", "maxpct=50"}, force)
 	if err != nil {
 		klog.Errorf("failed to format drive: %s", output)
-		return fmt.Errorf("%s", output)
+		return fmt.Errorf("error while formatting: %v output: %s", err, output)
+	}
+	if uuid != "" {
+		output, err = SetXFSUUID(ctx, uuid, path)
+		if err != nil {
+			klog.Errorf("failed to set uuid after formatting: %s", output)
+			return fmt.Errorf("error while setting uuid: %v output: %s", err, output)
+		}
 	}
 	return nil
 }
 
 type DriveFormatter interface {
-	FormatDrive(ctx context.Context, path string, force bool) error
+	FormatDrive(ctx context.Context, uuid, path string, force bool) error
 }
 
 type DefaultDriveFormatter struct{}
 
-func (c *DefaultDriveFormatter) FormatDrive(ctx context.Context, path string, force bool) error {
-	return formatDrive(ctx, path, force)
+func (c *DefaultDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
+	return formatDrive(ctx, uuid, path, force)
 }

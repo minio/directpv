@@ -161,12 +161,13 @@ type RequestedFormat struct {
 type DriveStatus string
 
 const (
-	DriveStatusInUse       DriveStatus = "InUse"
-	DriveStatusAvailable   DriveStatus = "Available"
-	DriveStatusUnavailable DriveStatus = "Unavailable"
-	DriveStatusReady       DriveStatus = "Ready"
-	DriveStatusTerminating DriveStatus = "Terminating"
-	DriveStatusReleased    DriveStatus = "Released"
+	DriveStatusInUse        DriveStatus = "InUse"
+	DriveStatusAvailable    DriveStatus = "Available"
+	DriveStatusUnavailable  DriveStatus = "Unavailable"
+	DriveStatusReady        DriveStatus = "Ready"
+	DriveStatusTerminating  DriveStatus = "Terminating"
+	DriveStatusReleased     DriveStatus = "Released"
+	DriveStatusUnidentified DriveStatus = "unidentified"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

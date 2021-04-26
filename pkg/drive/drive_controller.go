@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientset "k8s.io/client-go/kubernetes"
 
+	"github.com/google/uuid"
 	"k8s.io/klog"
 )
 
@@ -190,10 +191,6 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		mounted := new.Status.Mountpoint != ""
 		formatted := new.Status.Filesystem != ""
 
-		source := new.Status.Path
-		target := filepath.Join(sys.MountRoot, new.Name)
-		mountOpts := new.Spec.RequestedFormat.MountOptions
-
 		switch new.Status.DriveStatus {
 		case directcsi.DriveStatusReleased:
 			klog.V(3).Infof("rejected request to format a released drive %s", new.Name)
@@ -210,28 +207,51 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		case directcsi.DriveStatusTerminating:
 			klog.V(3).Infof("rejected request to format a terminating drive %s", new.Name)
 			return nil
+		case directcsi.DriveStatusUnidentified:
+			klog.V(3).Infof("rejected request to format a unidentified drive %s", new.Name)
+			return nil
 		case directcsi.DriveStatusAvailable:
-			if !formatted || force {
-				if mounted {
-					if err := d.mounter.UnmountDrive(source); err != nil {
-						err = fmt.Errorf("failed to unmount drive: %s %v", new.Name, err)
-						klog.Error(err)
-						updateErr = err
-					} else {
-						new.Status.Mountpoint = ""
-						mounted = false
-					}
-				}
+			UUID := new.Status.FilesystemUUID
+			if UUID == "" {
+				UUID = uuid.New().String()
+				new.Status.FilesystemUUID = UUID
+			}
 
-				if updateErr == nil {
-					if err := d.formatter.FormatDrive(ctx, source, force); err != nil {
-						err = fmt.Errorf("failed to format drive: %s %v", new.Name, err)
-						klog.Error(err)
-						updateErr = err
-					} else {
-						new.Status.Filesystem = string(sys.FSTypeXFS)
-						new.Status.AllocatedCapacity = int64(0)
-						formatted = true
+			directCSIPath := sys.GetDirectCSIPath(new.Status.FilesystemUUID)
+			directCSIMount := filepath.Join(sys.MountRoot, new.Status.FilesystemUUID)
+			if err := sys.MakeBlockFile(directCSIPath, new.Status.MajorNumber, new.Status.MinorNumber); err != nil {
+				klog.Error(err)
+				updateErr = err
+			}
+
+			// source := sys.GetDirectCSIPath(new.Name)
+			// target := filepath.Join(sys.MountRoot, new.Name)
+			source := directCSIPath
+			target := directCSIMount
+			mountOpts := new.Spec.RequestedFormat.MountOptions
+			if updateErr == nil {
+				if !formatted || force {
+					if mounted {
+						if err := d.mounter.UnmountDrive(source); err != nil {
+							err = fmt.Errorf("failed to unmount drive: %s %v", new.Name, err)
+							klog.Error(err)
+							updateErr = err
+						} else {
+							new.Status.Mountpoint = ""
+							mounted = false
+						}
+					}
+
+					if updateErr == nil {
+						if err := d.formatter.FormatDrive(ctx, new.Status.FilesystemUUID, source, force); err != nil {
+							err = fmt.Errorf("failed to format drive: %s %v", new.Name, err)
+							klog.Error(err)
+							updateErr = err
+						} else {
+							new.Status.Filesystem = string(sys.FSTypeXFS)
+							new.Status.AllocatedCapacity = int64(0)
+							formatted = true
+						}
 					}
 				}
 			}

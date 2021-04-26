@@ -23,11 +23,11 @@ import (
 )
 
 type DriveFormatter interface {
-	FormatDrive(ctx context.Context, path string, force bool) error
+	FormatDrive(ctx context.Context, uuid, path string, force bool) error
 }
 
 type DefaultDriveFormatter struct{}
 
-func (c *DefaultDriveFormatter) FormatDrive(ctx context.Context, path string, force bool) error {
+func (c *DefaultDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
 	return nil
 }
