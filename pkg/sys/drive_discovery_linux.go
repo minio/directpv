@@ -26,11 +26,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 	"k8s.io/klog"
 
 	"github.com/minio/direct-csi/pkg/sys/loopback"
+	"github.com/minio/direct-csi/pkg/sys/smart"
 )
 
 func readFirstLine(filename string, ignoreNotExist bool) (string, error) {
@@ -310,6 +312,12 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 		}
 	}()
 
+	devPath := b.DirectCSIDrivePath()
+	hostPath := b.HostDrivePath()
+
+	b.Path = devPath
+	b.CurrentPath = hostPath
+
 	err = os.MkdirAll(DirectCSIDevRoot, 0755)
 	if err != nil {
 		return err
@@ -319,13 +327,6 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 		return fmt.Errorf("Invalid drive info for %s", b.Devname)
 	}
 
-	devPath := b.DirectCSIDrivePath()
-	err = makeBlockFile(devPath, b.DriveInfo.Major, b.DriveInfo.Minor)
-	if err != nil {
-		return err
-	}
-
-	b.Path = devPath
 	var logicalBlockSize, physicalBlockSize uint64
 	logicalBlockSize, physicalBlockSize, err = b.getBlockSizes()
 	if err != nil {
@@ -368,6 +369,9 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 		}
 	}
 
+	// Get the block device serial number
+	serialNumber := b.getSerialNumber()
+
 	if len(parts) == 0 {
 		offsetBlocks := uint64(0)
 		var fsInfo *FSInfo
@@ -383,6 +387,12 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 				FSBlockSize:   b.LogicalBlockSize,
 			}
 		}
+		if fsInfo.UUID != "" {
+			directCSIPath := GetDirectCSIPath(fsInfo.UUID)
+			if err := MakeBlockFile(directCSIPath, b.DriveInfo.Major, b.DriveInfo.Minor); err != nil {
+				return err
+			}
+		}
 		var mounts []MountInfo
 		mounts, err = b.probeMountInfo(b.DriveInfo.Major, b.DriveInfo.Minor, driveMap)
 		if err != nil {
@@ -390,6 +400,7 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 		}
 		fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
 		b.FSInfo = fsInfo
+		b.SerialNumber = serialNumber
 		return nil
 	}
 	for _, p := range parts {
@@ -409,6 +420,13 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 			}
 		}
 
+		if fsInfo.UUID != "" {
+			directCSIPath := GetDirectCSIPath(fsInfo.UUID)
+			if err := MakeBlockFile(directCSIPath, p.DriveInfo.Major, p.DriveInfo.Minor); err != nil {
+				return err
+			}
+		}
+
 		var mounts []MountInfo
 		mounts, err = b.probeMountInfo(p.DriveInfo.Major, p.DriveInfo.Minor, driveMap)
 		if err != nil {
@@ -416,6 +434,7 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 		}
 		fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
 		p.FSInfo = fsInfo
+		p.SerialNumber = serialNumber
 		b.Partitions = append(b.Partitions, p)
 	}
 	return nil
@@ -490,7 +509,7 @@ func parseUevent(path string) (*BlockDevice, error) {
 }
 
 func (b *BlockDevice) getBlockSizes() (uint64, uint64, error) {
-	devFile, err := os.OpenFile(b.DirectCSIDrivePath(), os.O_RDONLY, os.ModeDevice)
+	devFile, err := os.OpenFile(b.HostDrivePath(), os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -510,8 +529,17 @@ func (b *BlockDevice) getBlockSizes() (uint64, uint64, error) {
 	return uint64(logicalBlockSize), uint64(physicalBlockSize), nil
 }
 
+func (b *BlockDevice) getSerialNumber() string {
+	sn, err := smart.GetSerialNumber(b.HostDrivePath())
+	if err != nil {
+		klog.V(4).Infof("Cannot read serial number for device: %v. Error: %v", b.HostDrivePath(), err)
+		return ""
+	}
+	return sn
+}
+
 func (b *BlockDevice) getTotalCapacity() (uint64, error) {
-	devFile, err := os.OpenFile(b.DirectCSIDrivePath(), os.O_RDONLY, os.ModeDevice)
+	devFile, err := os.OpenFile(b.HostDrivePath(), os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return 0, err
 	}
@@ -522,4 +550,13 @@ func (b *BlockDevice) getTotalCapacity() (uint64, error) {
 		return 0, err
 	}
 	return uint64(driveSize), nil
+}
+
+func GetMajorMinor(devicePath string) (uint32, uint32, error) {
+	stat := syscall.Stat_t{}
+	if err := syscall.Stat(devicePath, &stat); err != nil {
+		return uint32(0), uint32(0), err
+	}
+	dev := stat.Rdev
+	return uint32(unix.Major(dev)), uint32(unix.Minor(dev)), nil
 }

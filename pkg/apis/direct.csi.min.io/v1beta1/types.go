@@ -31,7 +31,6 @@ const (
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -178,7 +177,6 @@ type DirectCSIVolumeList struct {
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

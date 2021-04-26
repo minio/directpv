@@ -114,8 +114,10 @@ func listDrives(ctx context.Context, args []string) error {
 	}
 	filteredDrives := []directcsi.DirectCSIDrive{}
 	for _, d := range driveList.Items {
-		if !all && (d.Status.DriveStatus == directcsi.DriveStatusUnavailable) {
-			continue
+		if !all {
+			if d.Status.DriveStatus == directcsi.DriveStatusUnavailable || d.Status.DriveStatus == directcsi.DriveStatusUnidentified {
+				continue
+			}
 		}
 		if d.MatchGlob(nodes, drives, status) {
 			if d.MatchAccessTier(accessTierSet) {

@@ -38,3 +38,15 @@ func Format(ctx context.Context, path, fs string, options []string, force bool) 
 	outputBytes, err := cmd.CombinedOutput()
 	return string(outputBytes), err
 }
+
+func SetXFSUUID(ctx context.Context, uuid, path string) (string, error) {
+	bin := "xfs_admin"
+	args := func() []string {
+		args := []string{"-U", uuid}
+		return append(args, path)
+	}()
+
+	cmd := exec.CommandContext(ctx, bin, args...)
+	outputBytes, err := cmd.CombinedOutput()
+	return string(outputBytes), err
+}

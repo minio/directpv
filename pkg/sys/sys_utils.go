@@ -37,6 +37,16 @@ func (b *BlockDevice) HostDrivePath() string {
 	return getRootBlockFile(b.Devname)
 }
 
+func GetDirectCSIPath(driveName string) string {
+	if strings.Contains(driveName, DirectCSIDevRoot) {
+		return driveName
+	}
+	if strings.HasPrefix(driveName, HostDevRoot) {
+		return GetDirectCSIPath(filepath.Base(driveName))
+	}
+	return filepath.Join(DirectCSIDevRoot, driveName)
+}
+
 func getBlockFile(devName string) string {
 	if strings.Contains(devName, DirectCSIDevRoot) {
 		return devName
@@ -75,7 +85,8 @@ func getRootBlockFile(devName string) string {
 }
 
 func makeRootDeviceName(devName string) string {
-	return strings.ReplaceAll(devName, DirectCSIPartitionInfix, "")
+	cleanPrefix := strings.Replace(devName, DirectCSIPartitionInfix, "", 1)
+	return strings.ReplaceAll(cleanPrefix, DirectCSIPartitionInfix, HostPartitionInfix)
 }
 
 func splitDevAndPartNum(s string) (string, int) {

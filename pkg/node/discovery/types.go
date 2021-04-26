@@ -1,5 +1,3 @@
-// +build !linux
-
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.
 //
@@ -16,19 +14,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package discovery
 
-type DriveMounter interface {
-	MountDrive(source, target string, mountOpts []string) error
-	UnmountDrive(path string) error
+import (
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	"github.com/minio/direct-csi/pkg/clientset"
+	"github.com/minio/direct-csi/pkg/sys"
+)
+
+type remoteDrive struct {
+	matched bool
+	directcsi.DirectCSIDrive
 }
 
-type DefaultDriveMounter struct{}
-
-func (c *DefaultDriveMounter) MountDrive(source, target string, mountOpts []string) error {
-	return nil
-}
-
-func (c *DefaultDriveMounter) UnmountDrive(path string) error {
-	return nil
+type Discovery struct {
+	NodeID          string
+	directcsiClient clientset.Interface
+	remoteDrives    []*remoteDrive
+	driveTopology   map[string]string
+	mounts          []sys.MountInfo
 }

@@ -33,7 +33,7 @@ func (b *BlockDevice) probeSuperBlocks(offsetBlocks uint64) (fs.Filesystem, erro
 	}
 
 	for _, fs := range filesystems {
-		is, err := fs.ProbeFS(b.DirectCSIDrivePath(), int64(b.LogicalBlockSize*offsetBlocks))
+		is, err := fs.ProbeFS(b.HostDrivePath(), int64(b.LogicalBlockSize*offsetBlocks))
 		if err != nil {
 			return nil, err
 		}

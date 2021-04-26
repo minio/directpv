@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"strings"
 
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/drive"
@@ -29,25 +28,16 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/volume"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/retry"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 )
 
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string, loopBackOnly bool) (*NodeServer, error) {
-
-	drives, err := findDrives(ctx, nodeID, procfs, loopBackOnly)
-	if err != nil {
-		return nil, err
-	}
+func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*NodeServer, error) {
 
 	kubeConfig := utils.GetKubeConfig()
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
@@ -62,54 +52,15 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	if err != nil {
 		return &NodeServer{}, err
 	}
-	directCSIClient := directClientset.DirectV1beta2()
 
-	topologies := map[string]string{}
-	topologies[topology.TopologyDriverIdentity] = identity
-	topologies[topology.TopologyDriverRack] = rack
-	topologies[topology.TopologyDriverZone] = zone
-	topologies[topology.TopologyDriverRegion] = region
-	topologies[topology.TopologyDriverNode] = nodeID
-	driveTopology := topologies
-
-	mounts, err := sys.ProbeMountInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, drive := range drives {
-		drive.Status.Topology = driveTopology
-		drive.Status.AccessTier = directcsi.AccessTierUnknown
-		driveClient := directCSIClient.DirectCSIDrives()
-
-		driveUpdate := func() error {
-			existingDrive, err := driveClient.Get(ctx, drive.Name, metav1.GetOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
-			})
-			if err != nil {
-				return err
-			}
-
-			if err := verifyDriveMount(existingDrive, mounts); err != nil {
-				return err
-			}
-
-			updateOpts := metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
-			}
-			_, err = driveClient.Update(ctx, existingDrive, updateOpts)
-			return err
-		}
-
-		// Do a dummy update to ensure the drive object is migrated to the latest CRD version
-		if err := retry.RetryOnConflict(retry.DefaultRetry, driveUpdate); err != nil {
-			if !errors.IsNotFound(err) {
-				return nil, err
-			}
-			if _, err := driveClient.Create(ctx, &drive, metav1.CreateOptions{}); err != nil {
-				return nil, err
-			}
-		}
+	nodeServer := &NodeServer{
+		NodeID:          nodeID,
+		Identity:        identity,
+		Rack:            rack,
+		Zone:            zone,
+		Region:          region,
+		directcsiClient: directClientset,
+		mounter:         &sys.DefaultVolumeMounter{},
 	}
 
 	// Start background tasks
@@ -120,15 +71,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	go metrics.ServeMetrics(ctx, nodeID)
 
-	return &NodeServer{
-		NodeID:          nodeID,
-		Identity:        identity,
-		Rack:            rack,
-		Zone:            zone,
-		Region:          region,
-		directcsiClient: directClientset,
-		mounter:         &sys.DefaultVolumeMounter{},
-	}, nil
+	return nodeServer, nil
 }
 
 type NodeServer struct {
