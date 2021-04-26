@@ -37,7 +37,8 @@ import (
 const XFS = "xfs"
 
 var (
-	force = false
+	force     = false
+	unrelease = false
 )
 
 var formatDrivesCmd = &cobra.Command{
@@ -57,8 +58,8 @@ $ kubectl direct-csi drives format --nodes=directcsi-1
 # Format all drives based on the access-tier set [hot|cold|warm]
 $ kubectl direct-csi drives format --access-tier=hot
 
-# Format all 'released' drives
-$ kubectl direct-csi drives format --status=released
+# Format and unrelease all 'released' drives
+$ kubectl direct-csi drives format --unrelease --all
 
 # Combine multiple parameters using multi-arg
 $ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=available
@@ -75,7 +76,7 @@ $ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=avai
 func init() {
 	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glog selector for drive paths")
 	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob selector for node names")
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "glob prefix match for drive status")
+	formatDrivesCmd.PersistentFlags().BoolVarP(&unrelease, "unrelease", "u", unrelease, "unrelease drives")
 	formatDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "format all available drives")
 
 	formatDrivesCmd.PersistentFlags().BoolVarP(&force, "force", "f", force, "force format a drive even if a FS is already present")
@@ -90,19 +91,6 @@ func formatDrives(ctx context.Context, args []string) error {
 		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 {
 			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"))
 		}
-	}
-
-	validateStatus := func(status []string) error {
-		for _, s := range status {
-			if strings.ToLower(s) != strings.ToLower(directcsi.DriveStatusReleased) {
-				return fmt.Errorf("only 'released' drives are allowed to be formatted")
-			}
-		}
-		return nil
-	}
-
-	if err := validateStatus(status); err != nil {
-		return err
 	}
 
 	utils.Init()
@@ -160,9 +148,9 @@ func formatDrives(ctx context.Context, args []string) error {
 		}
 
 		if d.Status.DriveStatus == directcsi.DriveStatusReleased {
-			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			if !force {
-				glog.Errorf("%s is in 'released' state. Use %s to overwrite and make it 'ready'", utils.Bold(driveAddr), utils.Bold("--force"))
+			if !unrelease {
+				driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
+				glog.Errorf("%s is in 'released' state. Use %s to overwrite and make it 'ready'", utils.Bold(driveAddr), utils.Bold("--unrelease"))
 				continue
 			}
 			d.Status.DriveStatus = directcsi.DriveStatusAvailable
