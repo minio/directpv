@@ -107,6 +107,7 @@ func (b *BlockDevice) probeFSXFS(offsetBlocks uint64) (*FSInfo, error) {
 	}
 
 	fsInfo := &FSInfo{
+		UUID:          string(xfs.UUID[:]),
 		FSType:        x.FSTypeXFS,
 		FSBlockSize:   uint64(xfs.BlockSize),
 		TotalCapacity: uint64(xfs.TotalBlocks) * uint64(xfs.BlockSize),

@@ -49,14 +49,16 @@ func (c *fakeDriveStatter) GetFreeCapacityFromStatfs(path string) (int64, error)
 
 type fakeDriveFormatter struct {
 	args struct {
+		uuid  string
 		path  string
 		force bool
 	}
 }
 
-func (c *fakeDriveFormatter) FormatDrive(ctx context.Context, path string, force bool) error {
+func (c *fakeDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
 	c.args.path = path
 	c.args.force = force
+	c.args.uuid = uuid
 	return nil
 }
 
@@ -246,6 +248,9 @@ func TestDriveFormat(t *testing.T) {
 		}
 
 		// Step 4.1: Check if the format arguments passed are correct
+		if dl.formatter.(*fakeDriveFormatter).args.uuid != dObj.Name {
+			t.Errorf("Test case [%d]: Invalid uuid provided for formatting. Expected: %s, Found: %s", i, dObj.Name, dl.formatter.(*fakeDriveFormatter).args.uuid)
+		}
 		if dl.formatter.(*fakeDriveFormatter).args.path != dObj.Status.Path {
 			t.Errorf("Test case [%d]: Invalid path provided for formatting. Expected: %s, Found: %s", i, dObj.Status.Path, dl.formatter.(*fakeDriveFormatter).args.path)
 		}

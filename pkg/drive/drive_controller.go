@@ -224,7 +224,8 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 				}
 
 				if updateErr == nil {
-					if err := d.formatter.FormatDrive(ctx, source, force); err != nil {
+					uuid := new.Name
+					if err := d.formatter.FormatDrive(ctx, uuid, source, force); err != nil {
 						err = fmt.Errorf("failed to format drive: %s %v", new.Name, err)
 						glog.Error(err)
 						updateErr = err

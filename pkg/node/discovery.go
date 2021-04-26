@@ -24,6 +24,7 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/sys/gpt"
+	x "github.com/minio/direct-csi/pkg/sys/xfs"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -130,7 +131,7 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: makeName(nodeID, partition.Path),
+			Name: makeName(partition.FSInfo, nodeID, partition.Path),
 		},
 		Status: directcsi.DirectCSIDriveStatus{
 			DriveStatus:       driveStatus,
@@ -235,7 +236,7 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directcsi.Direc
 
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: makeName(nodeID, blockDevice.Path),
+			Name: makeName(blockDevice.FSInfo, nodeID, blockDevice.Path),
 		},
 		Status: directcsi.DirectCSIDriveStatus{
 			DriveStatus:       driveStatus,
@@ -286,7 +287,10 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directcsi.Direc
 	}, nil
 }
 
-func makeName(nodeID, path string) string {
+func makeName(fsInfo *sys.FSInfo, nodeID, path string) string {
+	if fsInfo.FSType == x.FSTypeXFS {
+		return string(fsInfo.UUID)
+	}
 	driveName := strings.Join([]string{nodeID, path}, "-")
 	return fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
 }

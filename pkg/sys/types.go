@@ -50,6 +50,7 @@ type DriveInfo struct {
 }
 
 type FSInfo struct {
+	UUID          string      `json:"uuid,omitempty"`
 	FSType        string      `json:"fsType,omitempty"`
 	TotalCapacity uint64      `json:"totalCapacity,omitempty"`
 	FreeCapacity  uint64      `json:"freeCapacity,omitempty"`
