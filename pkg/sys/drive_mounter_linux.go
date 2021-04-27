@@ -48,9 +48,9 @@ func mountDrive(source, target string, mountOpts []string) error {
 }
 
 // unmountDrive - Idempotent function to unmount a DirectCSIDrive
-func unmountDrive(drivePath string) error {
-	glog.V(3).Infof("unmounting drive %s", drivePath)
-	if err := SafeUnmountAll(drivePath, []UnmountOption{
+func unmountDrive(oldPath, newPath string) error {
+	glog.V(1).Infof("unmounting drive %s, %s", oldPath, newPath)
+	if err := SafeUnmountAll(oldPath, newPath, []UnmountOption{
 		UnmountOptionDetach,
 		UnmountOptionForce,
 	}); err != nil {
@@ -62,7 +62,7 @@ func unmountDrive(drivePath string) error {
 
 type DriveMounter interface {
 	MountDrive(source, target string, mountOpts []string) error
-	UnmountDrive(source string) error
+	UnmountDrive(oldPath, newPath string) error
 }
 
 type DefaultDriveMounter struct{}
@@ -71,6 +71,6 @@ func (c *DefaultDriveMounter) MountDrive(source, target string, mountOpts []stri
 	return mountDrive(source, target, mountOpts)
 }
 
-func (c *DefaultDriveMounter) UnmountDrive(source string) error {
-	return unmountDrive(source)
+func (c *DefaultDriveMounter) UnmountDrive(oldPath, newPath string) error {
+	return unmountDrive(oldPath, newPath)
 }

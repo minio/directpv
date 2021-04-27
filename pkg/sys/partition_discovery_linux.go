@@ -71,7 +71,7 @@ func (b *BlockDevice) probePartitions(ctx context.Context) ([]Partition, error) 
 }
 
 func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
-	devPath := b.DirectCSIDrivePath()
+	devPath := b.HostDrivePath()
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
@@ -95,9 +95,6 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 		}
 		partNum := uint32(i+1) + b.Minor
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
-		if err := makeBlockFile(partitionPath, b.DriveInfo.Major, uint32(partNum)); err != nil {
-			return nil, err
-		}
 
 		part := Partition{
 			DriveInfo: &DriveInfo{
@@ -123,7 +120,7 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 }
 
 func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) {
-	devPath := b.DirectCSIDrivePath()
+	devPath := b.HostDrivePath()
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
@@ -147,9 +144,6 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 		}
 		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
-		if err := makeBlockFile(partitionPath, b.DriveInfo.Major, uint32(partNum)); err != nil {
-			return nil, err
-		}
 
 		part := Partition{
 			DriveInfo: &DriveInfo{
@@ -175,7 +169,7 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 }
 
 func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, error) {
-	devPath := b.DirectCSIDrivePath()
+	devPath := b.HostDrivePath()
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
@@ -199,9 +193,6 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 		}
 		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
-		if err := makeBlockFile(partitionPath, b.DriveInfo.Major, uint32(partNum)); err != nil {
-			return nil, err
-		}
 
 		part := Partition{
 			DriveInfo: &DriveInfo{
@@ -227,7 +218,7 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 }
 
 func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
-	devPath := b.DirectCSIDrivePath()
+	devPath := b.HostDrivePath()
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
@@ -285,9 +276,6 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 
 		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
-		if err := makeBlockFile(partitionPath, b.DriveInfo.Major, uint32(partNum)); err != nil {
-			return nil, err
-		}
 
 		part := Partition{
 			DriveInfo: &DriveInfo{
@@ -352,7 +340,7 @@ func curr(f *os.File) int64 {
 	return 0
 }
 
-func makeBlockFile(path string, major, minor uint32) error {
+func MakeBlockFile(path string, major, minor uint32) error {
 	mkdevResp := unix.Mkdev(major, minor)
 	if err := unix.Mknod(path, unix.S_IFBLK|uint32(os.FileMode(0666)), int(mkdevResp)); err != nil && !os.IsExist(err) {
 		return err

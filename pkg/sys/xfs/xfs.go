@@ -16,6 +16,11 @@
 
 package xfs
 
+import (
+	"encoding/hex"
+	"github.com/google/uuid"
+)
+
 type XFSSuperBlock struct {
 	MagicNumber         uint32
 	BlockSize           uint32
@@ -54,4 +59,12 @@ type XFSSuperBlock struct {
 
 func (x XFSSuperBlock) Is() bool {
 	return x.MagicNumber == XFSMagicNum
+}
+
+func (x XFSSuperBlock) FSUUID() (string, error) {
+	uid, err := uuid.Parse(hex.EncodeToString(x.UUID[:]))
+	if err != nil {
+		return "", err
+	}
+	return uid.String(), nil
 }

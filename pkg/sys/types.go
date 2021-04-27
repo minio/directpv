@@ -70,6 +70,4 @@ type MountInfo struct {
 	OptionalFields    []string `json:"optionalFields,omitempty"`
 	Major             uint32   `json:"major,omitempty"`
 	Minor             uint32   `json:"minor,omitempty"`
-	DevName           string   `json:"devName,omitempty"`
-	PartitionNum      uint     `json:"partitionNum,omitempty"`
 }

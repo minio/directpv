@@ -125,10 +125,6 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 	}
 
 	devPath := b.DirectCSIDrivePath()
-	err = makeBlockFile(devPath, b.DriveInfo.Major, b.DriveInfo.Minor)
-	if err != nil {
-		return err
-	}
 
 	b.Path = devPath
 	var logicalBlockSize, physicalBlockSize uint64
@@ -280,7 +276,7 @@ func parseUevent(path string) (*BlockDevice, error) {
 }
 
 func (b *BlockDevice) getBlockSizes() (uint64, uint64, error) {
-	devFile, err := os.OpenFile(b.DirectCSIDrivePath(), os.O_RDONLY, os.ModeDevice)
+	devFile, err := os.OpenFile(b.HostDrivePath(), os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -301,7 +297,7 @@ func (b *BlockDevice) getBlockSizes() (uint64, uint64, error) {
 }
 
 func (b *BlockDevice) getTotalCapacity() (uint64, error) {
-	devFile, err := os.OpenFile(b.DirectCSIDrivePath(), os.O_RDONLY, os.ModeDevice)
+	devFile, err := os.OpenFile(b.HostDrivePath(), os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return 0, err
 	}

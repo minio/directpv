@@ -20,7 +20,7 @@ package sys
 
 type DriveMounter interface {
 	MountDrive(source, target string, mountOpts []string) error
-	UnmountDrive(source string) error
+	UnmountDrive(oldPath, newPath string) error
 }
 
 type DefaultDriveMounter struct{}
@@ -29,6 +29,6 @@ func (c *DefaultDriveMounter) MountDrive(source, target string, mountOpts []stri
 	return nil
 }
 
-func (c *DefaultDriveMounter) UnmountDrive(source string) error {
+func (c *DefaultDriveMounter) UnmountDrive(oldPath, newPath string) error {
 	return nil
 }

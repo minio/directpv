@@ -108,8 +108,6 @@ func ProbeMountInfo() ([]MountInfo, error) {
 		mountSource := secondParts[1]
 		superblockOptions := strings.Split(secondParts[2], ",")
 
-		devName, partNum := splitDevAndPartNum(mountSource)
-
 		mounts = append(mounts, MountInfo{
 			Mountpoint:        mountPoint,
 			MountFlags:        mountFlags,
@@ -122,8 +120,6 @@ func ProbeMountInfo() ([]MountInfo, error) {
 			OptionalFields:    optionalFields,
 			Major:             uint32(majorNumber),
 			Minor:             uint32(minorNumber),
-			DevName:           devName,
-			PartitionNum:      uint(partNum),
 		})
 	}
 	return mounts, nil

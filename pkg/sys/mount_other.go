@@ -20,6 +20,6 @@
 
 package sys
 
-func SafeUnmountAll(drivePath string, opts []UnmountOption) error {
+func SafeUnmountAll(drivePath, directCSIPath string, opts []UnmountOption) error {
 	return nil
 }

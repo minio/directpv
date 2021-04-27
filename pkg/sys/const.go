@@ -172,4 +172,5 @@ const (
 
 const (
 	DirectCSIPartitionInfix = "-part-"
+	HostPartitionInfix      = "p"
 )

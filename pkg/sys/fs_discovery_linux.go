@@ -50,7 +50,7 @@ func (b *BlockDevice) probeFS(offsetBlocks uint64) (*FSInfo, error) {
 }
 
 func (b *BlockDevice) probeFSEXT4(offsetBlocks uint64) (*FSInfo, error) {
-	devPath := b.DirectCSIDrivePath()
+	devPath := b.HostDrivePath()
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (b *BlockDevice) probeFSEXT4(offsetBlocks uint64) (*FSInfo, error) {
 }
 
 func (b *BlockDevice) probeFSXFS(offsetBlocks uint64) (*FSInfo, error) {
-	devPath := b.DirectCSIDrivePath()
+	devPath := b.HostDrivePath()
 	devFile, err := os.OpenFile(devPath, os.O_RDONLY, os.ModeDevice)
 	if err != nil {
 		return nil, err
@@ -106,8 +106,13 @@ func (b *BlockDevice) probeFSXFS(offsetBlocks uint64) (*FSInfo, error) {
 		return nil, x.ErrNotXFS
 	}
 
+	uuid, err := xfs.FSUUID()
+	if err != nil {
+		return nil, err
+	}
+
 	fsInfo := &FSInfo{
-		UUID:          string(xfs.UUID[:]),
+		UUID:          uuid,
 		FSType:        x.FSTypeXFS,
 		FSBlockSize:   uint64(xfs.BlockSize),
 		TotalCapacity: uint64(xfs.TotalBlocks) * uint64(xfs.BlockSize),

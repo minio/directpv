@@ -190,7 +190,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		mounted := new.Status.Mountpoint != ""
 		formatted := new.Status.Filesystem != ""
 
-		source := new.Status.Path
+		source := sys.GetDirectCSIPath(new.Name)
 		target := filepath.Join(sys.MountRoot, new.Name)
 		mountOpts := new.Spec.RequestedFormat.MountOptions
 
@@ -213,7 +213,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		case directcsi.DriveStatusAvailable:
 			if !formatted || force {
 				if mounted {
-					if err := d.mounter.UnmountDrive(source); err != nil {
+					if err := d.mounter.UnmountDrive(new.Status.Path, source); err != nil {
 						err = fmt.Errorf("failed to unmount drive: %s %v", new.Name, err)
 						glog.Error(err)
 						updateErr = err

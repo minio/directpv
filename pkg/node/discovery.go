@@ -129,9 +129,15 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 		mounted = metav1.ConditionTrue
 	}
 
+	driveName := makeName(partition.FSInfo, nodeID, partition.Path)
+	directCSIPath := sys.GetDirectCSIPath(driveName)
+	if err := sys.MakeBlockFile(directCSIPath, partition.Major, partition.Minor); err != nil {
+		return nil, err
+	}
+
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: makeName(partition.FSInfo, nodeID, partition.Path),
+			Name: driveName,
 		},
 		Status: directcsi.DirectCSIDriveStatus{
 			DriveStatus:       driveStatus,
@@ -234,9 +240,15 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directcsi.Direc
 		mounted = metav1.ConditionTrue
 	}
 
+	driveName := makeName(blockDevice.FSInfo, nodeID, blockDevice.Path)
+	directCSIPath := sys.GetDirectCSIPath(driveName)
+	if err := sys.MakeBlockFile(directCSIPath, blockDevice.Major, blockDevice.Minor); err != nil {
+		return nil, err
+	}
+
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: makeName(blockDevice.FSInfo, nodeID, blockDevice.Path),
+			Name: driveName,
 		},
 		Status: directcsi.DirectCSIDriveStatus{
 			DriveStatus:       driveStatus,

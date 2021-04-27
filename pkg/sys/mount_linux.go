@@ -238,14 +238,15 @@ func SafeUnmount(target string, opts []UnmountOption) error {
 
 }
 
-func SafeUnmountAll(drivePath string, opts []UnmountOption) error {
+func SafeUnmountAll(drivePath, directCSIPath string, opts []UnmountOption) error {
 	mounts, err := ProbeMountInfo()
 	if err != nil {
 		return err
 	}
 
 	for _, m := range mounts {
-		if getBlockFile(m.MountSource) == getBlockFile(drivePath) {
+		if getRootBlockFile(m.MountSource) == getRootBlockFile(drivePath) ||
+			GetDirectCSIPath(m.MountSource) == GetDirectCSIPath(directCSIPath) {
 			if err := SafeUnmount(m.Mountpoint, opts); err != nil {
 				return err
 			}
