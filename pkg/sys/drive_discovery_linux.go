@@ -120,6 +120,11 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 		return err
 	}
 
+	err = os.MkdirAll(DirectCSILinksDir, 0755)
+	if err != nil {
+		return err
+	}
+
 	if b.DriveInfo == nil {
 		return fmt.Errorf("Invalid drive info for %s", b.Devname)
 	}

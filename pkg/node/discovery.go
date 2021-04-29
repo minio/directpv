@@ -18,22 +18,35 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"golang.org/x/sys/unix"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/sys/gpt"
 	x "github.com/minio/direct-csi/pkg/sys/xfs"
+	"github.com/minio/direct-csi/pkg/utils"
+	kerr "k8s.io/apimachinery/pkg/api/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/golang/glog"
+	"github.com/google/uuid"
 	simd "github.com/minio/sha256-simd"
 )
 
 const (
 	loopBackDeviceCount = 4
+)
+
+var (
+	ErrNoLinkFound = errors.New("No link found for the device")
 )
 
 func findDrives(ctx context.Context, nodeID string, procfs string, loopBackOnly bool) ([]directcsi.DirectCSIDrive, error) {
@@ -59,7 +72,7 @@ func findDrives(ctx context.Context, nodeID string, procfs string, loopBackOnly 
 		partitions := d.GetPartitions()
 		if len(partitions) > 0 {
 			for _, partition := range partitions {
-				drive, err := makePartitionDrive(nodeID, partition, d.Devname, d.DeviceError)
+				drive, err := makePartitionDrive(ctx, nodeID, partition, d.Devname, d.DeviceError)
 				if err != nil {
 					glog.Errorf("Error discovering parition %s: %v", d.Devname, err)
 					continue
@@ -69,7 +82,7 @@ func findDrives(ctx context.Context, nodeID string, procfs string, loopBackOnly 
 			continue
 		}
 
-		drive, err := makeRootDrive(nodeID, d)
+		drive, err := makeRootDrive(ctx, nodeID, d)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +92,7 @@ func findDrives(ctx context.Context, nodeID string, procfs string, loopBackOnly 
 	return drives, nil
 }
 
-func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition string, blockErr error) (*directcsi.DirectCSIDrive, error) {
+func makePartitionDrive(ctx context.Context, nodeID string, partition sys.Partition, rootPartition string, blockErr error) (*directcsi.DirectCSIDrive, error) {
 	var fs string
 	if partition.FSInfo != nil {
 		fs = string(partition.FSInfo.FSType)
@@ -129,11 +142,24 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 		mounted = metav1.ConditionTrue
 	}
 
-	driveName := makeName(partition.FSInfo, nodeID, partition.Path)
-	directCSIPath := sys.GetDirectCSIPath(driveName)
-	if err := sys.MakeBlockFile(directCSIPath, partition.Major, partition.Minor); err != nil {
+	driveName, err := getDeviceName(ctx, partition.DriveInfo)
+	if err == nil || err == ErrNoLinkFound || os.IsNotExist(err) {
+		directCSIPath := sys.GetDirectCSIPath(driveName)
+		if err := sys.MakeBlockFile(directCSIPath, partition.Major, partition.Minor); err != nil {
+			return nil, err
+		}
+		if err := sys.MakeLinkFile(partition.Path, filepath.Join(sys.DirectCSILinksDir, driveName)); err != nil {
+			return nil, err
+		}
+	} else {
 		return nil, err
 	}
+
+	// driveName := makeName(partition.FSInfo, nodeID, partition.Path)
+	// directCSIPath := sys.GetDirectCSIPath(driveName)
+	// if err := sys.MakeBlockFile(directCSIPath, partition.Major, partition.Minor); err != nil {
+	// 	return nil, err
+	// }
 
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
@@ -193,7 +219,7 @@ func makePartitionDrive(nodeID string, partition sys.Partition, rootPartition st
 	}, nil
 }
 
-func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directcsi.DirectCSIDrive, error) {
+func makeRootDrive(ctx context.Context, nodeID string, blockDevice sys.BlockDevice) (*directcsi.DirectCSIDrive, error) {
 	var fs string
 	if blockDevice.FSInfo != nil {
 		fs = string(blockDevice.FSInfo.FSType)
@@ -240,11 +266,24 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directcsi.Direc
 		mounted = metav1.ConditionTrue
 	}
 
-	driveName := makeName(blockDevice.FSInfo, nodeID, blockDevice.Path)
-	directCSIPath := sys.GetDirectCSIPath(driveName)
-	if err := sys.MakeBlockFile(directCSIPath, blockDevice.Major, blockDevice.Minor); err != nil {
+	driveName, err := getDeviceName(ctx, blockDevice.DriveInfo)
+	if err == nil || err == ErrNoLinkFound || os.IsNotExist(err) {
+		directCSIPath := sys.GetDirectCSIPath(driveName)
+		if err := sys.MakeBlockFile(directCSIPath, blockDevice.Major, blockDevice.Minor); err != nil {
+			return nil, err
+		}
+		if err := sys.MakeLinkFile(blockDevice.Path, filepath.Join(sys.DirectCSILinksDir, driveName)); err != nil {
+			return nil, err
+		}
+	} else {
 		return nil, err
 	}
+
+	// driveName := makeName(blockDevice.FSInfo, nodeID, blockDevice.Path)
+	// directCSIPath := sys.GetDirectCSIPath(driveName)
+	// if err := sys.MakeBlockFile(directCSIPath, blockDevice.Major, blockDevice.Minor); err != nil {
+	// 	return nil, err
+	// }
 
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
@@ -297,6 +336,107 @@ func makeRootDrive(nodeID string, blockDevice sys.BlockDevice) (*directcsi.Direc
 			},
 		},
 	}, nil
+}
+
+func getMajorMinor(devicePath string) (uint32, uint32, error) {
+	stat := syscall.Stat_t{}
+	if err := syscall.Stat(devicePath, &stat); err != nil {
+		return uint32(0), uint32(0), err
+	}
+	dev := stat.Rdev
+	return uint32(unix.Major(dev)), uint32(unix.Minor(dev)), nil
+}
+
+func getBlockDevicePath(major, minor uint32) (string, error) {
+	fis, err := ioutil.ReadDir(sys.DirectCSILinksDir)
+	if err != nil {
+		return "", err
+	}
+	for _, fi := range fis {
+		if fi.Mode()&os.ModeSymlink != 0 {
+			lnMajor, lnMinor, mErr := getMajorMinor(filepath.Join(sys.DirectCSILinksDir, fi.Name()))
+			if mErr != nil {
+				return "", mErr
+			}
+			if major == lnMajor && minor == lnMinor {
+				return filepath.Join(sys.DirectCSIDevRoot, fi.Name()), nil
+			}
+		}
+	}
+	return "", ErrNoLinkFound
+}
+
+func cleanUpLinkEntries(driveName string) error {
+	directCSIBlockDevicePath := sys.GetDirectCSIPath(driveName)
+	if err := os.Remove(directCSIBlockDevicePath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	directCSIBlockDeviceLinkPath := filepath.Join(sys.DirectCSILinksDir, driveName)
+	if err := os.Remove(directCSIBlockDeviceLinkPath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func deleteNonXFSDrive(ctx context.Context, driveName string) error {
+	directClient := utils.GetDirectCSIClient()
+	dClient := directClient.DirectCSIDrives()
+
+	driveObj, dErr := dClient.Get(ctx, driveName, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+	})
+	if dErr != nil {
+		return dErr
+	}
+
+	if driveObj.Status.Filesystem != string(sys.FSTypeXFS) {
+		if err := dClient.Delete(ctx, driveName, metav1.DeleteOptions{}); err != nil {
+			if !kerr.IsNotFound(err) {
+				return err
+			}
+		}
+		if err := cleanUpLinkEntries(driveName); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getDeviceName(ctx context.Context, driveInfo *sys.DriveInfo) (string, error) {
+	fsInfo := driveInfo.FSInfo
+
+	getDriveName := func(fsInfo *sys.FSInfo) string {
+		switch fsInfo.FSType {
+		case x.FSTypeXFS:
+			return string(fsInfo.UUID)
+		default:
+			return uuid.New().String()
+		}
+	}
+
+	blkDevicePath, err := getBlockDevicePath(driveInfo.Major, driveInfo.Minor)
+	if err != nil {
+		return getDriveName(fsInfo), err
+	}
+
+	blkMajor, blkMinor, err := getMajorMinor(blkDevicePath)
+	if err != nil {
+		if err := cleanUpLinkEntries(filepath.Base(blkDevicePath)); err != nil {
+			return "", err
+		}
+		return getDriveName(fsInfo), err
+	}
+
+	if blkMajor == driveInfo.Major && blkMinor == driveInfo.Minor {
+		return filepath.Base(blkDevicePath), nil
+	}
+
+	if err := deleteNonXFSDrive(ctx, filepath.Base(blkDevicePath)); err != nil {
+		return getDriveName(fsInfo), err
+	}
+
+	return getDriveName(fsInfo), nil
 }
 
 func makeName(fsInfo *sys.FSInfo, nodeID, path string) string {

@@ -21,11 +21,12 @@ import (
 )
 
 const (
-	HostDevRoot      = "/dev"
-	DefaultProcFS    = "/proc"
-	DirectCSIRoot    = "/var/lib/direct-csi"
-	MountRoot        = "/var/lib/direct-csi/mnt"
-	DirectCSIDevRoot = "/var/lib/direct-csi/devices"
+	HostDevRoot       = "/dev"
+	DefaultProcFS     = "/proc"
+	DirectCSIRoot     = "/var/lib/direct-csi"
+	MountRoot         = "/var/lib/direct-csi/mnt"
+	DirectCSIDevRoot  = "/var/lib/direct-csi/devices"
+	DirectCSILinksDir = "/var/lib/direct-csi/links"
 )
 
 type FSType string
