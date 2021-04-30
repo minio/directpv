@@ -348,8 +348,8 @@ func MakeBlockFile(path string, major, minor uint32) error {
 	return nil
 }
 
-func MakeLinkFile(directCSIPath, linkPath string) error {
-	if err := os.Symlink(getRootBlockFile(directCSIPath), linkPath); err != nil && !os.IsExist(err) {
+func MakeLinkFile(directCSIDevicePath, linkPath string) error {
+	if err := os.Symlink(directCSIDevicePath, linkPath); err != nil && !os.IsExist(err) {
 		return err
 	}
 	return nil
