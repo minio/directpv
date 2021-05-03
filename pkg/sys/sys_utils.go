@@ -25,8 +25,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/minio/direct-csi/pkg/sys/loopback"
+	"golang.org/x/sys/unix"
 )
 
 func (b *BlockDevice) DirectCSIDrivePath() string {
@@ -180,6 +182,52 @@ func ReserveLoopbackDevices(devCount int) error {
 			return err
 		}
 		glog.V(2).Infof("Successfully created loopback device %v", dev)
+	}
+	return nil
+}
+
+func GetMajorMinor(devicePath string) (uint32, uint32, error) {
+	stat := syscall.Stat_t{}
+	if err := syscall.Stat(devicePath, &stat); err != nil {
+		return uint32(0), uint32(0), err
+	}
+	dev := stat.Rdev
+	return uint32(unix.Major(dev)), uint32(unix.Minor(dev)), nil
+}
+
+func updateBlockFileForDevice(directCSIDevicePath string, major, minor uint32) error {
+	majorN, minorN, err := GetMajorMinor(directCSIDevicePath)
+	if err != nil {
+		return err
+	}
+	if majorN == major && minorN == minor {
+		// No change in (major, minor) pair
+		return nil
+	}
+
+	// remove and a create a new device with correct (major, minor) pair
+	if err := os.Remove(directCSIDevicePath); err != nil {
+		return err
+	}
+	if err := createBlockFile(directCSIDevicePath, major, major); err != nil {
+		return err
+	}
+	return nil
+}
+
+func updateDeviceLink(directCSIDevicePath, linkPath string) error {
+	lnk, lErr := os.Readlink(linkPath)
+	if lErr != nil {
+		return lErr
+	}
+	if lnk == directCSIDevicePath {
+		return nil
+	}
+	if err := os.Remove(linkPath); err != nil {
+		return err
+	}
+	if err := createLinkFile(directCSIDevicePath, linkPath); err != nil {
+		return err
 	}
 	return nil
 }

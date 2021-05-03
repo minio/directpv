@@ -341,15 +341,39 @@ func curr(f *os.File) int64 {
 }
 
 func MakeBlockFile(path string, major, minor uint32) error {
+	if err := createBlockFile(path, major, minor); err != nil {
+		if !os.IsExist(err) {
+			return err
+		}
+		if err := updateBlockFileForDevice(path, major, minor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createBlockFile(path string, major, minor uint32) error {
 	mkdevResp := unix.Mkdev(major, minor)
-	if err := unix.Mknod(path, unix.S_IFBLK|uint32(os.FileMode(0666)), int(mkdevResp)); err != nil && !os.IsExist(err) {
+	if err := unix.Mknod(path, unix.S_IFBLK|uint32(os.FileMode(0666)), int(mkdevResp)); err != nil {
 		return err
 	}
 	return nil
 }
 
 func MakeLinkFile(directCSIDevicePath, linkPath string) error {
-	if err := os.Symlink(directCSIDevicePath, linkPath); err != nil && !os.IsExist(err) {
+	if err := createLinkFile(directCSIDevicePath, linkPath); err != nil {
+		if !os.IsExist(err) {
+			return err
+		}
+		if err := updateDeviceLink(directCSIDevicePath, linkPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createLinkFile(directCSIDevicePath, linkPath string) error {
+	if err := os.Symlink(directCSIDevicePath, linkPath); err != nil {
 		return err
 	}
 	return nil
