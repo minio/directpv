@@ -1093,11 +1093,11 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 	}
 
 	if dryRun {
-		return utils.LogYAML(deployment)
-	}
-
-	if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
-		return err
+		utils.LogYAML(deployment)
+	} else {
+		if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+			return err
+		}
 	}
 
 	if err := CreateConversionService(ctx, generatedSelectorValue, identity, dryRun); err != nil {

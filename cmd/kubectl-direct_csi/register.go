@@ -57,12 +57,6 @@ func registerCRDs(ctx context.Context, identity string) error {
 
 	crdClient := utils.GetCRDClient()
 	for _, crd := range crdObjs {
-		if dryRun {
-			if err := utils.LogYAML(crd); err != nil {
-				return err
-			}
-			continue
-		}
 		var crdObj apiextensions.CustomResourceDefinition
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(crd.(*unstructured.Unstructured).Object, &crdObj); err != nil {
 			return err
@@ -75,6 +69,12 @@ func registerCRDs(ctx context.Context, identity string) error {
 			}
 			if err := setConversionWebhook(&crdObj, identity); err != nil {
 				return err
+			}
+			if dryRun {
+				if err := utils.LogYAML(crdObj); err != nil {
+					return err
+				}
+				continue
 			}
 			if _, err := crdClient.Create(ctx, &crdObj, metav1.CreateOptions{}); err != nil {
 				return err
@@ -114,6 +114,13 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 
 	if err := setConversionWebhook(existingCRD, identity); err != nil {
 		return err
+	}
+
+	if dryRun {
+		if err := utils.LogYAML(existingCRD); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	crdClient := utils.GetCRDClient()
