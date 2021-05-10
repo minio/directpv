@@ -74,9 +74,8 @@ func install(ctx context.Context, args []string) error {
 	}
 
 	dryRun := viper.GetBool(dryRunFlagName)
-	if !dryRun {
-		utils.Init()
-	}
+
+	utils.Init()
 
 	if err := installer.CreateNamespace(ctx, identity, dryRun); err != nil {
 		if !errors.IsAlreadyExists(err) {
