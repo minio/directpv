@@ -122,6 +122,8 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 			}
 		}
 
+		volumeLabels[directcsi.Group+"/pod.name"] = podName
+		volumeLabels[directcsi.Group+"/pod.namespace"] = podNs
 		return volumeLabels
 	}
 

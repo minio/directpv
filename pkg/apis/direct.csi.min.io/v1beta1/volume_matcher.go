@@ -19,6 +19,7 @@ package v1beta1
 import (
 	"strings"
 
+	"github.com/mb0/glob"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -46,4 +47,29 @@ func (volume *DirectCSIVolume) MatchStatus(statusList []string) bool {
 		}
 	}
 	return statusMatches == len(statusXs)
+}
+
+func matchGlob(name string, patterns []string) bool {
+	if len(patterns) == 0 {
+		return true
+	}
+
+	for _, pattern := range patterns {
+		if matched, _ := glob.Match(pattern, name); matched {
+			return true
+		}
+	}
+	return false
+}
+
+// MatchPodName matches pod name of this volume with atleast of the patterns.
+func (volume *DirectCSIVolume) MatchPodName(patterns []string) bool {
+	podName := volume.ObjectMeta.Labels[Group+"/pod.name"]
+	return matchGlob(podName, patterns)
+}
+
+// MatchPodNamespace matches pod namespace of this volume with atleast of the patterns.
+func (volume *DirectCSIVolume) MatchPodNamespace(patterns []string) bool {
+	podNs := volume.ObjectMeta.Labels[Group+"/pod.namespace"]
+	return matchGlob(podNs, patterns)
 }
