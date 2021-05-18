@@ -35,6 +35,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	podNames = []string{}
+	podNss   = []string{}
+)
+
 var listVolumesCmd = &cobra.Command{
 	Use:   "list",
 	Short: "list volumes in the DirectCSI cluster",
@@ -51,6 +56,12 @@ $ kubectl direct-csi volumes ls --nodes=directcsi-1
 
 # Combine multiple filters using csv
 $ kubectl direct-csi vol ls --nodes=directcsi-1,directcsi-2 --status=staged --drives=/dev/nvme0n1
+
+# List all published volumes by pod name
+$ kubectl direct-csi volumes ls --status=published --pod-name=my-minio*
+
+# List all published volumes by pod namespace
+$ kubectl direct-csi volumes ls --status=published --pod-namespace=my-minio-ns*
 `,
 	RunE: func(c *cobra.Command, args []string) error {
 		return listVolumes(c.Context(), args)
@@ -65,6 +76,15 @@ func init() {
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob prefix match for node names")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&volumeStatus, "status", "s", volumeStatus, "filters based on volume status. The possible values are [staged,published]")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "filter based on access-tier")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNames, "pod-name", "", podNames, "glob prefix match for pod names")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNss, "pod-namespace", "", podNss, "glob prefix match for pod namespace")
+}
+
+func printableString(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
 }
 
 func listVolumes(ctx context.Context, args []string) error {
@@ -115,7 +135,7 @@ func listVolumes(ctx context.Context, args []string) error {
 				if err != nil {
 					return err
 				}
-				if vol.MatchStatus(volumeStatus) {
+				if vol.MatchStatus(volumeStatus) && vol.MatchPodName(podNames) && vol.MatchPodNamespace(podNss) {
 					vols = append(vols, vol)
 				}
 			}
@@ -130,6 +150,8 @@ func listVolumes(ctx context.Context, args []string) error {
 		"CAPACITY",
 		"NODE",
 		"DRIVE",
+		"PODNAME",
+		"PODNAMESPACE",
 		"",
 	})
 
@@ -150,6 +172,8 @@ func listVolumes(ctx context.Context, args []string) error {
 			emptyOrBytes(v.Status.TotalCapacity),  //CAPACITY
 			v.Status.NodeName,                     //SERVER
 			driveName(drivePaths[v.Status.Drive]), //DRIVE
+			printableString(v.ObjectMeta.Labels[directcsi.Group+"/pod.name"]),
+			printableString(v.ObjectMeta.Labels[directcsi.Group+"/pod.namespace"]),
 		})
 	}
 
