@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package v1beta1
+package v1beta2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,6 +97,20 @@ type DirectCSIDriveStatus struct {
 	// +optional
 	AccessTier AccessTier `json:"accessTier,omitempty"`
 	// +optional
+	// +k8s:conversion-gen=false
+	HostPath string `json:"hostPath,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	FilesystemUUID string `json:"filesystemUUID,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	PartitionUUID string `json:"partitionUUID,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	MajorNumber uint32 `json:"majorNumber,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	MinorNumber uint32 `json:"minorNumber,omitempty"`
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +listType=map

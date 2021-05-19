@@ -22,7 +22,7 @@ import (
 	"os"
 	"strings"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -79,7 +79,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	}
 
 	readOnly := req.GetReadonly()
-	directCSIClient := n.directcsiClient.DirectV1beta1()
+	directCSIClient := n.directcsiClient.DirectV1beta2()
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
@@ -169,7 +169,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return nil, status.Error(codes.InvalidArgument, "containerPath missing in request")
 	}
 
-	directCSIClient := n.directcsiClient.DirectV1beta1()
+	directCSIClient := n.directcsiClient.DirectV1beta2()
 	vclient := directCSIClient.DirectCSIVolumes()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),

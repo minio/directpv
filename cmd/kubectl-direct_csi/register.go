@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	currentCRDStorageVersion = "v1beta1"
+	currentCRDStorageVersion = "v1beta2"
 	driveCRDName             = "directcsidrives.direct.csi.min.io"
 	volumeCRDName            = "directcsivolumes.direct.csi.min.io"
 )

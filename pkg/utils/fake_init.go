@@ -19,8 +19,8 @@ package utils
 import (
 	direct "github.com/minio/direct-csi/pkg/clientset"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
-	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta1"
-	fakedirectcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta1/fake"
+	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
+	fakedirectcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2/fake"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,12 +42,12 @@ var fakeCRDClient apiextensions.CustomResourceDefinitionInterface
 var fakeAPIExtenstionsClient apiextensions.ApiextensionsV1Interface
 var fakeDiscoveryClient discovery.DiscoveryInterface
 var fakeMetadataClient metadata.Interface
-var fakeDirectCSIClient directcsi.DirectV1beta1Interface
+var fakeDirectCSIClient directcsi.DirectV1beta2Interface
 
 func InitFake() {
 	fakeKubeClient = fakekube.NewSimpleClientset()
 	fakeDirectClientset = fakedirect.NewSimpleClientset()
-	fakeDirectCSIClient = &fakedirectcsi.FakeDirectV1beta1{}
+	fakeDirectCSIClient = &fakedirectcsi.FakeDirectV1beta2{}
 	fakeCRDClientSet := &fakeapiextensions.FakeApiextensionsV1{}
 	fakeAPIExtenstionsClient = fakeCRDClientSet
 	fakeCRDClient = fakeCRDClientSet.CustomResourceDefinitions()

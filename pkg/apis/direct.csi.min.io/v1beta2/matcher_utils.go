@@ -14,8 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// +k8s:deepcopy-gen=package,register
-// +k8s:openapi-gen=true
-// +groupName=direct.csi.min.io
+package v1beta2
 
-package v1alpha1
+type transformFunc func(src string) string
+
+func fmap(vs []string, f func(string) string) []string {
+	vsm := make([]string, len(vs))
+	for i, v := range vs {
+		vsm[i] = f(v)
+	}
+	return vsm
+}
+
+func checkWildcards(globElems []string) []string {
+	isStarPattern := func() bool { return len(globElems) == 1 && globElems[0] == "*" }
+	if len(globElems) == 0 || isStarPattern() {
+		globElems = []string{"**"}
+	}
+	return globElems
+}

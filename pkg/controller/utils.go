@@ -21,7 +21,7 @@ import (
 	"math/big"
 	"sort"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"

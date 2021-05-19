@@ -36,7 +36,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
@@ -62,7 +62,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	if err != nil {
 		return &NodeServer{}, err
 	}
-	directCSIClient := directClientset.DirectV1beta1()
+	directCSIClient := directClientset.DirectV1beta2()
 
 	topologies := map[string]string{}
 	topologies[topology.TopologyDriverIdentity] = identity

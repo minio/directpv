@@ -22,7 +22,7 @@ import (
 	"context"
 	"fmt"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

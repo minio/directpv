@@ -22,7 +22,7 @@ import (
 	"os"
 	"strings"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -62,7 +62,7 @@ func (b *DirectCSIVolumeListener) Add(ctx context.Context, obj *directcsi.Direct
 }
 
 func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directcsi.DirectCSIVolume) error {
-	directCSIClient := b.directcsiClient.DirectV1beta1()
+	directCSIClient := b.directcsiClient.DirectV1beta2()
 	dclient := directCSIClient.DirectCSIDrives()
 	vclient := directCSIClient.DirectCSIVolumes()
 

@@ -26,7 +26,7 @@ import (
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -220,7 +220,7 @@ func TestDriveFormat(t *testing.T) {
 	// Step 1: Construct fake drive listener
 	dl := createFakeDriveListener()
 	dl.directcsiClient = fakedirect.NewSimpleClientset(testDriveObjs...)
-	directCSIClient := dl.directcsiClient.DirectV1beta1()
+	directCSIClient := dl.directcsiClient.DirectV1beta2()
 
 	for i, tObj := range testDriveObjs {
 		dObj := tObj.(*directcsi.DirectCSIDrive)
@@ -379,7 +379,7 @@ func TestUpdateDriveDelete(t *testing.T) {
 	ctx := context.TODO()
 	dl := createFakeDriveListener()
 	dl.directcsiClient = fakedirect.NewSimpleClientset(&testCases[0].driveObject, &testCases[1].driveObject)
-	directCSIClient := dl.directcsiClient.DirectV1beta1()
+	directCSIClient := dl.directcsiClient.DirectV1beta2()
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {

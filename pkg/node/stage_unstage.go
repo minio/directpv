@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,7 +45,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
 	}
 
-	directCSIClient := n.directcsiClient.DirectV1beta1()
+	directCSIClient := n.directcsiClient.DirectV1beta2()
 	dclient := directCSIClient.DirectCSIDrives()
 	vclient := directCSIClient.DirectCSIVolumes()
 
@@ -109,7 +109,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
 	}
 
-	directCSIClient := n.directcsiClient.DirectV1beta1()
+	directCSIClient := n.directcsiClient.DirectV1beta2()
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{

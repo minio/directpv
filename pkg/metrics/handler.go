@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"strings"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -78,7 +78,7 @@ func (c *metricsCollector) volumeStatsEmitter(
 	ctx context.Context,
 	ch chan<- prometheus.Metric,
 	volumeStatsGetter xfsVolumeStatsGetter) {
-	volumeClient := c.directcsiClient.DirectV1beta1().DirectCSIVolumes()
+	volumeClient := c.directcsiClient.DirectV1beta2().DirectCSIVolumes()
 	volumeList, err := volumeClient.List(
 		context.Background(),
 		metav1.ListOptions{

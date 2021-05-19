@@ -20,7 +20,7 @@ import (
 	"context"
 	"strings"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -170,7 +170,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
 	}
 
-	directCSIClient := c.directcsiClient.DirectV1beta1()
+	directCSIClient := c.directcsiClient.DirectV1beta2()
 	dclient := directCSIClient.DirectCSIDrives()
 	vclient := directCSIClient.DirectCSIVolumes()
 
