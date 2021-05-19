@@ -347,7 +347,7 @@ func getConversionWebhookURL(identity string) (conversionWebhookURL string) {
 	return
 }
 
-func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, loopBackOnly bool) error {
+func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, loopBackOnly bool, nodeSelector map[string]string, tolerations []corev1.Toleration) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookURL := getConversionWebhookURL(identity)
@@ -474,6 +474,8 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 				},
 			},
 		},
+		NodeSelector: nodeSelector,
+		Tolerations:  tolerations,
 	}
 
 	daemonset := &appsv1.DaemonSet{
