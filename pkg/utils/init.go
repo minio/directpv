@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 
 	direct "github.com/minio/direct-csi/pkg/clientset"
-	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -36,7 +36,7 @@ import (
 	"k8s.io/klog"
 )
 
-var directCSIClient directcsi.DirectV1beta1Interface
+var directCSIClient directcsi.DirectV1beta2Interface
 var directClientset direct.Interface
 var kubeClient kubernetes.Interface
 var crdClient apiextensions.CustomResourceDefinitionInterface

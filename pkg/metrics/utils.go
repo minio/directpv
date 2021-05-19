@@ -19,7 +19,7 @@ package metrics
 import (
 	"context"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/sys/xfs"
 
 	"k8s.io/klog"

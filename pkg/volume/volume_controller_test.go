@@ -24,7 +24,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -155,7 +155,7 @@ func TestUpdateVolumeDelete(t *testing.T) {
 	ctx := context.TODO()
 	vl := createFakeVolumeListener()
 	vl.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
-	directCSIClient := vl.directcsiClient.DirectV1beta1()
+	directCSIClient := vl.directcsiClient.DirectV1beta2()
 
 	for _, testObj := range testObjects {
 		vObj, ok := testObj.(*directcsi.DirectCSIVolume)

@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	"github.com/minio/direct-csi/pkg/sys/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -120,7 +120,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	fmc := createFakeMetricsCollector()
 	fmc.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
-	directCSIClient := fmc.directcsiClient.DirectV1beta1()
+	directCSIClient := fmc.directcsiClient.DirectV1beta2()
 
 	metricChan := make(chan prometheus.Metric)
 	noOfMetricsExposedPerVolume := 2

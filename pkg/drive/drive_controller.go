@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/sys"
@@ -69,7 +69,7 @@ func (b *DirectCSIDriveListener) Add(ctx context.Context, obj *directcsi.DirectC
 
 func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi.DirectCSIDrive) error {
 	var err error
-	directCSIClient := d.directcsiClient.DirectV1beta1()
+	directCSIClient := d.directcsiClient.DirectV1beta2()
 
 	// TODO: configure client to filter based on nodename
 	if d.nodeID != new.Status.NodeName {

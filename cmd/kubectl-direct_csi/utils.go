@@ -21,7 +21,7 @@ import (
 
 	"github.com/fatih/color"
 
-	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
 )
 
@@ -36,7 +36,7 @@ var (
 )
 
 // ListVolumesInDrive returns a slice of all the DirectCSIVolumes created on a given DirectCSIDrive
-func ListVolumesInDrive(drive directv1beta1.DirectCSIDrive, volumes *directv1beta1.DirectCSIVolumeList, vols []directv1beta1.DirectCSIVolume) []directv1beta1.DirectCSIVolume {
+func ListVolumesInDrive(drive directcsi.DirectCSIDrive, volumes *directcsi.DirectCSIVolumeList, vols []directcsi.DirectCSIVolume) []directcsi.DirectCSIVolume {
 	for _, volume := range volumes.Items {
 		if volume.Status.Drive == drive.ObjectMeta.Name {
 			vols = append(vols, volume)
@@ -45,13 +45,13 @@ func ListVolumesInDrive(drive directv1beta1.DirectCSIDrive, volumes *directv1bet
 	return vols
 }
 
-func getAccessTierSet(accessTiers []string) ([]directv1beta1.AccessTier, error) {
-	var atSet []directv1beta1.AccessTier
+func getAccessTierSet(accessTiers []string) ([]directcsi.AccessTier, error) {
+	var atSet []directcsi.AccessTier
 	for i := range accessTiers {
 		if accessTiers[i] == "*" {
-			return []directv1beta1.AccessTier{directv1beta1.AccessTierHot,
-				directv1beta1.AccessTierWarm,
-				directv1beta1.AccessTierCold}, nil
+			return []directcsi.AccessTier{directcsi.AccessTierHot,
+				directcsi.AccessTierWarm,
+				directcsi.AccessTierCold}, nil
 		}
 		at, err := utils.ValidateAccessTier(strings.TrimSpace(accessTiers[i]))
 		if err != nil {

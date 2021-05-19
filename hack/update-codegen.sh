@@ -34,7 +34,7 @@ REPOSITORY=github.com/minio/direct-csi
 rm -rf "${PROJECT_ROOT}/config/crd"
 rm -rf "${PROJECT_ROOT}/pkg/clientset"
 
-versions="v1alpha1 v1beta1"
+versions="v1alpha1 v1beta1 v1beta2"
 for version in $versions; do
     repo="${REPOSITORY}/pkg/apis/direct.csi.min.io/${version}"
 
@@ -69,6 +69,6 @@ controller-gen \
     paths=./...
 
 conversion-gen \
-        --input-dirs "${REPOSITORY}/pkg/apis/direct.csi.min.io/v1beta1,${REPOSITORY}/pkg/apis/direct.csi.min.io/v1alpha1 " \
+        --input-dirs "${REPOSITORY}/pkg/apis/direct.csi.min.io/v1beta2,${REPOSITORY}/pkg/apis/direct.csi.min.io/v1beta1,${REPOSITORY}/pkg/apis/direct.csi.min.io/v1alpha1 " \
         --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
         --output-package "${REPOSITORY}/pkg/" 

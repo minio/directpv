@@ -18,7 +18,7 @@ package utils
 
 import (
 	direct "github.com/minio/direct-csi/pkg/clientset"
-	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -51,7 +51,7 @@ func GetKubeClient() kubernetes.Interface {
 	return kubeClient
 }
 
-func GetDirectCSIClient() directcsi.DirectV1beta1Interface {
+func GetDirectCSIClient() directcsi.DirectV1beta2Interface {
 	if fakeMode {
 		return fakeDirectCSIClient
 	}
