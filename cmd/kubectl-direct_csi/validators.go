@@ -21,8 +21,10 @@ import (
 	"net"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/docker/distribution/reference"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type parseFunc func(r rune) (interface{}, bool, error)
@@ -118,4 +120,74 @@ func ErrInvalid(expected string, r rune) error {
 		return fmt.Errorf("expected %s, found EOF", expected)
 	}
 	return fmt.Errorf("expected %s, found %q", expected, r)
+}
+
+func parseNodeSelector(values []string) (map[string]string, error) {
+	nodeSelector := map[string]string{}
+	for _, value := range values {
+		tokens := strings.Split(value, "=")
+		if len(tokens) != 2 {
+			return nil, fmt.Errorf("invalid node selector value %v", value)
+		}
+		if tokens[0] == "" {
+			return nil, fmt.Errorf("invalid key in node selector value %v", value)
+		}
+		nodeSelector[tokens[0]] = tokens[1]
+	}
+	return nodeSelector, nil
+}
+
+func parseTolerations(values []string) ([]corev1.Toleration, error) {
+	tolerations := []corev1.Toleration{}
+	for _, value := range values {
+		var k, v, e string
+		tokens := strings.SplitN(value, "=", 2)
+		switch len(tokens) {
+		case 1:
+			k = tokens[0]
+			tokens = strings.Split(k, ":")
+			switch len(tokens) {
+			case 1:
+			case 2:
+				k, e = tokens[0], tokens[1]
+			default:
+				if len(tokens) != 2 {
+					return nil, fmt.Errorf("invalid toleration %v", value)
+				}
+			}
+		case 2:
+			k, v = tokens[0], tokens[1]
+		default:
+			if len(tokens) != 2 {
+				return nil, fmt.Errorf("invalid toleration %v", value)
+			}
+		}
+		if k == "" {
+			return nil, fmt.Errorf("invalid key in toleration %v", value)
+		}
+		if v != "" {
+			if tokens = strings.Split(v, ":"); len(tokens) != 2 {
+				return nil, fmt.Errorf("invalid value in toleration %v", value)
+			}
+			v, e = tokens[0], tokens[1]
+		}
+		effect := corev1.TaintEffect(e)
+		switch effect {
+		case corev1.TaintEffectNoSchedule, corev1.TaintEffectPreferNoSchedule, corev1.TaintEffectNoExecute:
+		default:
+			return nil, fmt.Errorf("invalid toleration effect in toleration %v", value)
+		}
+		operator := corev1.TolerationOpExists
+		if v != "" {
+			operator = corev1.TolerationOpEqual
+		}
+		tolerations = append(tolerations, corev1.Toleration{
+			Key:      k,
+			Operator: operator,
+			Value:    v,
+			Effect:   effect,
+		})
+	}
+
+	return tolerations, nil
 }

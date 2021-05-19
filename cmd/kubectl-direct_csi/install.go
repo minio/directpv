@@ -40,13 +40,15 @@ var installCmd = &cobra.Command{
 }
 
 var (
-	installCRD       = false
-	overwriteCRD     = false
-	admissionControl = false
-	image            = "direct-csi:" + Version
-	registry         = "quay.io"
-	org              = "minio"
-	loopBackOnly     = false
+	installCRD         = false
+	overwriteCRD       = false
+	admissionControl   = false
+	image              = "direct-csi:" + Version
+	registry           = "quay.io"
+	org                = "minio"
+	loopBackOnly       = false
+	nodeSelectorValues = []string{}
+	tolerationValues   = []string{}
 )
 
 func init() {
@@ -57,6 +59,8 @@ func init() {
 	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "organization name where direct-csi images are available")
 	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on direct-csi admission controller")
 	installCmd.PersistentFlags().MarkDeprecated("crd", "Will be removed in version 1.5 or greater")
+	installCmd.PersistentFlags().StringSliceVarP(&nodeSelectorValues, "node-selector", "n", nodeSelectorValues, "node selector parameters")
+	installCmd.PersistentFlags().StringSliceVarP(&tolerationValues, "tolerations", "t", tolerationValues, "tolerations parameters")
 
 	installCmd.PersistentFlags().BoolVarP(&loopBackOnly, "loopback-only", "", loopBackOnly, "Uses 4 free loopback devices per node and treat them as DirectCSIDrive resources. This is recommended only for testing/development purposes")
 	installCmd.PersistentFlags().MarkHidden("loopback-only")
@@ -71,6 +75,14 @@ func install(ctx context.Context, args []string) error {
 	}
 	if err := validRegistry(registry); err != nil {
 		return fmt.Errorf("invalid registry. format of '--registry' must be [host:port?]")
+	}
+	nodeSelector, err := parseNodeSelector(nodeSelectorValues)
+	if err != nil {
+		return fmt.Errorf("invalid node selector. format of '--node-selector' must be [<key>=<value>]")
+	}
+	tolerations, err := parseTolerations(tolerationValues)
+	if err != nil {
+		return fmt.Errorf("invalid tolerations. format of '--tolerations' must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>")
 	}
 
 	dryRun := viper.GetBool(dryRunFlagName)
@@ -150,7 +162,7 @@ crdInstall:
 		glog.Infof("'%s' rbac roles created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly); err != nil {
+	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
