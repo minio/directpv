@@ -80,13 +80,6 @@ func init() {
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNss, "pod-namespace", "", podNss, "glob prefix match for pod namespace")
 }
 
-func printableString(s string) string {
-	if s == "" {
-		return "-"
-	}
-	return s
-}
-
 func listVolumes(ctx context.Context, args []string) error {
 	utils.Init()
 	dclient := utils.GetDirectCSIClient().DirectCSIDrives()

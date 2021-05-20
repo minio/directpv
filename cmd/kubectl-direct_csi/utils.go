@@ -61,3 +61,10 @@ func getAccessTierSet(accessTiers []string) ([]directv1beta1.AccessTier, error) 
 	}
 	return atSet, nil
 }
+
+func printableString(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}

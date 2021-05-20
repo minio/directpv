@@ -145,6 +145,7 @@ func listDrives(ctx context.Context, args []string) error {
 		"DRIVE",
 		"CAPACITY",
 		"ALLOCATED",
+		"FILESYSTEM",
 		"VOLUMES",
 		"NODE",
 		"ACCESS-TIER",
@@ -215,8 +216,9 @@ func listDrives(ctx context.Context, args []string) error {
 			dr,                                       //DRIVE
 			emptyOrBytes(d.Status.TotalCapacity),     //CAPACITY
 			emptyOrBytes(d.Status.AllocatedCapacity), //ALLOCATED
-			emptyOrVal(volumes),                      //VOLUMES
-			d.Status.NodeName,                        //SERVER
+			printableString(d.Status.Filesystem),
+			emptyOrVal(volumes), //VOLUMES
+			d.Status.NodeName,   //SERVER
 			func(drive directcsi.DirectCSIDrive) string {
 				if drive.Status.AccessTier == directcsi.AccessTierUnknown {
 					return "-"
