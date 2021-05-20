@@ -195,6 +195,11 @@ func uninstall(ctx context.Context, args []string) error {
 				return err
 			}
 		}
+		if err := installer.DeleteConversionWebhookCertsSecret(ctx, identity); err != nil {
+			if !errors.IsNotFound(err) {
+				return err
+			}
+		}
 		glog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
 	}
 

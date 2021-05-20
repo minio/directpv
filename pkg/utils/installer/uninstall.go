@@ -172,3 +172,10 @@ func DeleteConversionSecret(ctx context.Context, identity string) error {
 	}
 	return nil
 }
+
+func DeleteConversionWebhookCertsSecret(ctx context.Context, identity string) error {
+	if err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Delete(ctx, conversionWebhookCertsSecret, metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}

@@ -1036,13 +1036,13 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 	if certErr != nil {
 		return certErr
 	}
-	conversionWebhookCaBundle = caCertBytes
 
 	if err := CreateConversionSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
 		if !kerr.IsAlreadyExists(err) {
 			return err
 		}
 	}
+	conversionWebhookCaBundle = caCertBytes
 
 	if err := CreateConversionCASecret(ctx, identity, caCertBytes, dryRun); err != nil {
 		if !kerr.IsAlreadyExists(err) {
@@ -1107,11 +1107,27 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 	return nil
 }
 
-func GetConversionCABundle() ([]byte, error) {
-	if len(conversionWebhookCaBundle) == 0 {
-		return []byte{}, ErrEmptyCABundle
+func GetConversionCABundle(ctx context.Context, identity string, dryRun bool) ([]byte, error) {
+
+	if dryRun {
+		if len(conversionWebhookCaBundle) == 0 {
+			return []byte{}, ErrEmptyCABundle
+		}
+		return conversionWebhookCaBundle, nil
 	}
-	return conversionWebhookCaBundle, nil
+
+	secret, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Get(ctx, conversionWebhookCertsSecret, metav1.GetOptions{})
+	if err != nil {
+		return []byte{}, err
+	}
+
+	for key, value := range secret.Data {
+		if key == caCertFileName {
+			return value, nil
+		}
+	}
+
+	return []byte{}, ErrEmptyCABundle
 }
 
 func GetConversionServiceName() string {

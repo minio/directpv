@@ -67,7 +67,7 @@ func registerCRDs(ctx context.Context, identity string) error {
 			if !errors.IsNotFound(err) {
 				return err
 			}
-			if err := setConversionWebhook(&crdObj, identity); err != nil {
+			if err := setConversionWebhook(ctx, &crdObj, identity); err != nil {
 				return err
 			}
 			if dryRun {
@@ -112,11 +112,12 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 
 	existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 
-	if err := setConversionWebhook(existingCRD, identity); err != nil {
+	if err := setConversionWebhook(ctx, existingCRD, identity); err != nil {
 		return err
 	}
 
 	if dryRun {
+		existingCRD.TypeMeta = newCRD.TypeMeta
 		if err := utils.LogYAML(existingCRD); err != nil {
 			return err
 		}
@@ -133,7 +134,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 	return nil
 }
 
-func setConversionWebhook(crdObj *apiextensions.CustomResourceDefinition, identity string) error {
+func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, identity string) error {
 
 	name := installer.SanitizeName(identity)
 	getServiceRef := func() *apiextensions.ServiceReference {
@@ -156,7 +157,7 @@ func setConversionWebhook(crdObj *apiextensions.CustomResourceDefinition, identi
 	}
 
 	getWebhookClientConfig := func() (*apiextensions.WebhookClientConfig, error) {
-		caBundle, err := installer.GetConversionCABundle()
+		caBundle, err := installer.GetConversionCABundle(ctx, identity, dryRun)
 		if err != nil {
 			return nil, err
 		}
