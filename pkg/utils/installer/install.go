@@ -168,14 +168,11 @@ func CreateCSIDriver(ctx context.Context, identity string, dryRun bool) error {
 	podInfoOnMount := true
 	attachRequired := false
 
-	version := "v1"
-	if !dryRun {
-		gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
-		if err != nil {
-			return err
-		}
-		version = gvk.Version
+	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	if err != nil {
+		return err
 	}
+	version := gvk.Version
 
 	switch version {
 	case "v1":
@@ -239,14 +236,11 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error
 	allowedTopologies := []corev1.TopologySelectorTerm{}
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
-	version := "v1"
-	if !dryRun {
-		gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
-		if err != nil {
-			return err
-		}
-		version = gvk.Version
+	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	if err != nil {
+		return err
 	}
+	version := gvk.Version
 
 	switch version {
 	case "v1":
@@ -577,7 +571,9 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 	return nil
 }
 
-func CreateConversionCASecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool) error {
+func CreateOrUpdateConversionCASecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool) error {
+
+	secretsClient := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity))
 
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
@@ -601,9 +597,22 @@ func CreateConversionCASecret(ctx context.Context, identity string, caCertBytes 
 		return utils.LogYAML(secret)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+	existingSecret, err := secretsClient.Get(ctx, conversionWebhookCertsSecret, metav1.GetOptions{})
+	if err != nil {
+		if !kerr.IsNotFound(err) {
+			return err
+		}
+		if _, err := secretsClient.Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	existingSecret.Data = secret.Data
+	if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -916,7 +925,9 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 	return nil
 }
 
-func CreateConversionSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool) error {
+func CreateOrUpdateConversionSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool) error {
+
+	secretsClient := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity))
 
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
@@ -941,13 +952,28 @@ func CreateConversionSecret(ctx context.Context, identity string, publicCertByte
 		return utils.LogYAML(secret)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+	existingSecret, err := secretsClient.Get(ctx, ConversionWebhookSecretName, metav1.GetOptions{})
+	if err != nil {
+		if !kerr.IsNotFound(err) {
+			return err
+		}
+		if _, err := secretsClient.Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	existingSecret.Data = secret.Data
+	if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func CreateConversionService(ctx context.Context, generatedSelectorValue, identity string, dryRun bool) error {
+func CreateOrUpdateConversionService(ctx context.Context, generatedSelectorValue, identity string, dryRun bool) error {
+
+	servicesClient := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity))
 	webhookPort := corev1.ServicePort{
 		Port: conversionWebhookPort,
 		TargetPort: intstr.IntOrString{
@@ -976,9 +1002,22 @@ func CreateConversionService(ctx context.Context, generatedSelectorValue, identi
 		return utils.LogYAML(svc)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+	existingService, err := servicesClient.Get(ctx, conversionWebhookName, metav1.GetOptions{})
+	if err != nil {
+		if !kerr.IsNotFound(err) {
+			return err
+		}
+		if _, err := servicesClient.Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	existingService.Spec.Selector = svc.Spec.Selector
+	if _, err := servicesClient.Update(ctx, existingService, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -1038,16 +1077,12 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 	}
 	conversionWebhookCaBundle = caCertBytes
 
-	if err := CreateConversionSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
-		if !kerr.IsAlreadyExists(err) {
-			return err
-		}
+	if err := CreateOrUpdateConversionSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
+		return err
 	}
 
-	if err := CreateConversionCASecret(ctx, identity, caCertBytes, dryRun); err != nil {
-		if !kerr.IsAlreadyExists(err) {
-			return err
-		}
+	if err := CreateOrUpdateConversionCASecret(ctx, identity, caCertBytes, dryRun); err != nil {
+		return err
 	}
 
 	getObjMeta := func() metav1.ObjectMeta {
@@ -1092,6 +1127,10 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 		sanitizeName(identity) + DirectCSIFinalizerDeleteProtection,
 	}
 
+	if err := CreateOrUpdateConversionService(ctx, generatedSelectorValue, identity, dryRun); err != nil {
+		return err
+	}
+
 	if dryRun {
 		utils.LogYAML(deployment)
 	} else {
@@ -1100,20 +1139,63 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 		}
 	}
 
-	if err := CreateConversionService(ctx, generatedSelectorValue, identity, dryRun); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func GetConversionCABundle() ([]byte, error) {
-	if len(conversionWebhookCaBundle) == 0 {
-		return []byte{}, ErrEmptyCABundle
+func GetConversionCABundle(ctx context.Context, identity string, dryRun bool) ([]byte, error) {
+	getCABundlerFromGlobal := func() ([]byte, error) {
+		if len(conversionWebhookCaBundle) == 0 {
+			return []byte{}, ErrEmptyCABundle
+		}
+		return conversionWebhookCaBundle, nil
 	}
-	return conversionWebhookCaBundle, nil
+
+	secret, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Get(ctx, conversionWebhookCertsSecret, metav1.GetOptions{})
+	if err != nil {
+		if kerr.IsNotFound(err) && dryRun {
+			return getCABundlerFromGlobal()
+		}
+		return []byte{}, err
+	}
+
+	for key, value := range secret.Data {
+		if key == caCertFileName {
+			return value, nil
+		}
+	}
+
+	return []byte{}, ErrEmptyCABundle
 }
 
 func GetConversionServiceName() string {
 	return conversionWebhookName
+}
+
+func CreateOrUpdateConversionDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
+	deploymentsClient := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity))
+	deployment, getErr := deploymentsClient.Get(ctx, conversionWebhookName, metav1.GetOptions{})
+	if getErr != nil {
+		if !kerr.IsNotFound(getErr) {
+			return getErr
+		}
+		if err := CreateConversionDeployment(ctx, identity, directCSIContainerImage, dryRun, registry, org); err != nil {
+			return err
+		}
+		return nil
+	}
+	// Conversion deployment is already present. Just update the container version.
+	deploymentImage := filepath.Join(registry, org, directCSIContainerImage)
+	if deployment.Spec.Template.Spec.Containers[0].Image != deploymentImage {
+		deployment.Spec.Template.Spec.Containers[0].Image = deploymentImage
+		if dryRun {
+			deployment.TypeMeta.Kind = "Deployment"
+			deployment.TypeMeta.APIVersion = "apps/v1"
+			utils.LogYAML(deployment)
+		} else {
+			if _, err := deploymentsClient.Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

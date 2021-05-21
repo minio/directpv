@@ -86,10 +86,8 @@ func install(ctx context.Context, args []string) error {
 		glog.Infof("'%s' namespace created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return err
-		}
+	if err := installer.CreateOrUpdateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
+		return err
 	}
 	if !dryRun {
 		glog.Infof("'%s' conversion deployment created", utils.Bold(identity))
