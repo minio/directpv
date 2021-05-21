@@ -117,6 +117,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 	}
 
 	if dryRun {
+		existingCRD.TypeMeta = newCRD.TypeMeta
 		if err := utils.LogYAML(existingCRD); err != nil {
 			return err
 		}
