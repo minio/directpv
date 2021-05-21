@@ -37,8 +37,8 @@ Inside the container, DirectCSI execs the following utilities for formatting dri
 ## Security Enforcement
 ------------------------
 
- - [SECCOMP profile](./seccomp.json) below can be used to tightly restrict the access DirectCSI has over the host OS.
- - [AppArmor Profile](./apparmor.profile) is coming soon!
+ - [SECCOMP profile](./seccomp.json) can be used to tightly restrict the access DirectCSI has over the host OS.
+ - [AppArmor Profile](./apparmor.profile) can be used to restrict the files and directories that are available to direct-csi.
  - [SELinux Policy](./selinux.policy) is coming soon!
 
 
