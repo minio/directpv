@@ -72,7 +72,30 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	topologies[topology.TopologyDriverNode] = nodeID
 	driveTopology := topologies
 
+	mounts, err := sys.ProbeMountInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	driveMounter := &sys.DefaultDriveMounter{}
+
 	for _, drive := range drives {
+		isMounted := false
+		for _, mount := range mounts {
+			if drive.Status.Path == mount.MountSource {
+				isMounted = true
+				break
+			}
+		}
+
+		if !isMounted {
+			if drive.Status.Filesystem != "" && strings.HasPrefix(drive.Status.Mountpoint, sys.MountRoot) {
+				if err := driveMounter.MountDrive(drive.Status.Path, drive.Status.Mountpoint, drive.Status.MountOptions); err != nil {
+					return nil, err
+				}
+			}
+		}
+
 		drive.Status.Topology = driveTopology
 		drive.Status.AccessTier = directcsi.AccessTierUnknown
 		driveClient := directCSIClient.DirectCSIDrives()
