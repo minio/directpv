@@ -35,6 +35,11 @@ func (b *BlockDevice) probeMountInfo(major, minor uint32) ([]MountInfo, error) {
 	for _, m := range mounts {
 		if major == m.Major && minor == m.Minor {
 			toRet = append(toRet, m)
+			continue
+		}
+		if b.HostDrivePath() == m.MountRoot {
+			toRet = append(toRet, m)
+			continue
 		}
 	}
 	return toRet, nil

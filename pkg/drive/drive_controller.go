@@ -307,13 +307,10 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 			return nil
 		}
 	case DriveUpdateTypeStorageSpace:
-		glog.V(3).Infof("drive update storage space: //no-op")
 		// no-op
 	case DriveUpdateTypeDriveParams:
-		glog.V(3).Infof("drive update drive params: //no-op")
 		// no-op
 	default:
-		glog.V(3).Infof("unknown update type: %s", new.Name)
 		return updateErr
 	}
 	return nil
