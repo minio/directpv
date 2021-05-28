@@ -46,7 +46,7 @@ var listVolumesCmd = &cobra.Command{
 	Long:  "",
 	Example: `
 # List all volumes provisioned on nvme drives across all nodes 
-$ kubectl direct-csi volumes ls --drives=/dev/nvme*
+$ kubectl direct-csi volumes ls --drives '/dev/nvme*'
 
 # List all staged and published volumes
 $ kubectl direct-csi volumes ls --status=staged,published

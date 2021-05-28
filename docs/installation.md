@@ -76,7 +76,7 @@ This will format selected drives and mark them `Ready` to be used by direct-csi.
  - `Unavailable` drives cannot be formatted
  - `--drives` is a string list flag, i.e. a comma separated list of drives can be specified using this flag
  - `--nodes` is a string list flag, i.e. a comma separated list of nodes can be specified using this flag
- - both  `--drives` and `--nodes` understand glob format. i.e. the above command can be shortened to `kubectl direct-csi drives format --drives /dev/xvd* --nodes directcsi-*`. Using this can lead to unintended data loss. Use at your own risk. 
+ - both  `--drives` and `--nodes` understand glob format. i.e. the above command can be shortened to `kubectl direct-csi drives format --drives '/dev/xvd*' --nodes directcsi-*`. Using this can lead to unintended data loss. Use at your own risk. 
 
 #### 4. Verify installation
 

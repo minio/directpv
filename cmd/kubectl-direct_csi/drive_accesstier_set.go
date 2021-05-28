@@ -41,7 +41,7 @@ var accessTierSet = &cobra.Command{
 $ kubectl direct-csi drives access-tier set cold --all
 
 # Sets the 'access-tier:warm' tag to all nvme drives in all nodes 
-$ kubectl direct-csi drives access-tier set warm --drives=/dev/nvme*
+$ kubectl direct-csi drives access-tier set warm --drives '/dev/nvme*'
 
 # Sets the 'access-tier:hot' tag to all drives from a particular node
 $ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1
