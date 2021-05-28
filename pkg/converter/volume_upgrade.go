@@ -22,6 +22,7 @@ import (
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -38,6 +39,15 @@ func upgradeVolumeObject(fromVersion, toVersion string, convertedObject *unstruc
 	case versionV1Beta1:
 		if toVersion == versionV1Beta1 {
 			klog.V(2).Info("Successfully migrated")
+			break
+		}
+		if err := volumeUpgradeV1Beta1ToV1Beta2(convertedObject); err != nil {
+			return err
+		}
+		fallthrough
+	case versionV1Beta2:
+		if toVersion == versionV1Beta2 {
+			glog.V(2).Info("Successfully migrated")
 			break
 		}
 	}
@@ -95,6 +105,36 @@ func volumeUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) err
 	v1beta1DirectCSIVolume.TypeMeta = v1alpha1DirectCSIVolume.TypeMeta
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta1DirectCSIVolume)
+	if err != nil {
+		return err
+	}
+
+	unstructured.Object = convertedObj
+	return nil
+}
+
+func volumeUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error {
+
+	unstructuredObject := unstructured.Object
+
+	var v1beta1DirectCSIVolume directv1beta1.DirectCSIVolume
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObject, &v1beta1DirectCSIVolume)
+	if err != nil {
+		fmt.Println("err here")
+		return err
+	}
+
+	fmt.Println()
+	fmt.Printf("Converting %v volume to v1beta2", v1beta1DirectCSIVolume.Name)
+
+	var v1beta2DirectCSIVolume directv1beta2.DirectCSIVolume
+	if err := directv1beta2.Convert_v1beta1_DirectCSIVolume_To_v1beta2_DirectCSIVolume(&v1beta1DirectCSIVolume, &v1beta2DirectCSIVolume, nil); err != nil {
+		return err
+	}
+
+	v1beta2DirectCSIVolume.TypeMeta = v1beta1DirectCSIVolume.TypeMeta
+
+	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta2DirectCSIVolume)
 	if err != nil {
 		return err
 	}

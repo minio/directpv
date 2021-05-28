@@ -22,6 +22,7 @@ import (
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,6 +38,15 @@ func upgradeDriveObject(fromVersion, toVersion string, convertedObject *unstruct
 	case versionV1Beta1:
 		if toVersion == versionV1Beta1 {
 			klog.V(2).Info("Successfully migrated")
+			break
+		}
+		if err := driveUpgradeV1Beta1ToV1Beta2(convertedObject); err != nil {
+			return err
+		}
+		fallthrough
+	case versionV1Beta2:
+		if toVersion == versionV1Beta2 {
+			glog.V(2).Info("Successfully migrated")
 			break
 		}
 	}
@@ -64,6 +74,35 @@ func driveUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) erro
 	v1beta1DirectCSIDrive.TypeMeta = v1alpha1DirectCSIDrive.TypeMeta
 	v1beta1DirectCSIDrive.Status.AccessTier = directv1beta1.AccessTierUnknown
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta1DirectCSIDrive)
+	if err != nil {
+		return err
+	}
+
+	unstructured.Object = convertedObj
+	return nil
+}
+
+func driveUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error {
+
+	unstructuredObject := unstructured.Object
+
+	var v1beta1DirectCSIDrive directv1beta1.DirectCSIDrive
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObject, &v1beta1DirectCSIDrive)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println()
+	fmt.Printf("Converting %v to v1beta2", v1beta1DirectCSIDrive.Name)
+
+	var v1beta2DirectCSIDrive directv1beta2.DirectCSIDrive
+	if err := directv1beta2.Convert_v1beta1_DirectCSIDrive_To_v1beta2_DirectCSIDrive(&v1beta1DirectCSIDrive, &v1beta2DirectCSIDrive, nil); err != nil {
+		return err
+	}
+
+	v1beta2DirectCSIDrive.TypeMeta = v1beta1DirectCSIDrive.TypeMeta
+
+	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta2DirectCSIDrive)
 	if err != nil {
 		return err
 	}

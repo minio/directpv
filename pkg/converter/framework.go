@@ -36,11 +36,13 @@ import (
 const (
 	versionV1Alpha1 = "direct.csi.min.io/v1alpha1"
 	versionV1Beta1  = "direct.csi.min.io/v1beta1"
+	versionV1Beta2  = "direct.csi.min.io/v1beta2"
 )
 
 var (
 	supportedVersions = []string{versionV1Alpha1,
-		versionV1Beta1} //ordered
+		versionV1Beta1,
+		versionV1Beta2} //ordered
 )
 
 type CRDKind string
