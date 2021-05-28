@@ -17,7 +17,9 @@
 package sys
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -31,7 +33,200 @@ import (
 	"github.com/minio/direct-csi/pkg/sys/loopback"
 )
 
+func readFirstLine(filename string, ignoreNotExist bool) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		if ignoreNotExist && errors.Is(err, os.ErrNotExist) {
+			err = nil
+		}
+		return "", err
+	}
+	defer file.Close()
+	s, err := bufio.NewReader(file).ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(s), nil
+}
+
+type drive struct {
+	name      string // from "/sys/class/block"
+	major     int    // from "/sys/class/block/${name}/dev"
+	minor     int    // from "/sys/class/block/${name}/dev"
+	partition int    // from "/sys/class/block/${name}/partition"
+	dmName    string // from "/sys/class/block/${name}/dm/name"
+	dmUUID    string // from "/sys/class/block/${name}/dm/uuid"
+	parent    string // computed
+	master    string // computed
+}
+
+func getDevMajorMinor(name string) (major int, minor int, err error) {
+	var dev string
+	if dev, err = readFirstLine("/sys/class/block/"+name+"/dev", false); err != nil {
+		return
+	}
+
+	tokens := strings.SplitN(dev, ":", 2)
+	if len(tokens) != 2 {
+		err = fmt.Errorf("unknown format of %v", dev)
+		return
+	}
+
+	if major, err = strconv.Atoi(tokens[0]); err != nil {
+		return
+	}
+	minor, err = strconv.Atoi(tokens[1])
+	return
+}
+
+func getPartition(name string) (int, error) {
+	s, err := readFirstLine("/sys/class/block/"+name+"/partition", true)
+	if err != nil {
+		return 0, err
+	}
+	if s == "" {
+		return 0, nil
+	}
+	return strconv.Atoi(s)
+}
+
+func getDMName(name string) (string, error) {
+	return readFirstLine("/sys/class/block/"+name+"/dm/name", true)
+}
+
+func getDMUUID(name string) (string, error) {
+	return readFirstLine("/sys/class/block/"+name+"/dm/uuid", true)
+}
+
+func getDrive(name string) (*drive, error) {
+	major, minor, err := getDevMajorMinor(name)
+	if err != nil {
+		return nil, err
+	}
+	partition, err := getPartition(name)
+	if err != nil {
+		return nil, err
+	}
+	dmName, err := getDMName(name)
+	if err != nil {
+		return nil, err
+	}
+	dmUUID, err := getDMUUID(name)
+	if err != nil {
+		return nil, err
+	}
+	return &drive{
+		name:      name,
+		major:     major,
+		minor:     minor,
+		partition: partition,
+		dmName:    dmName,
+		dmUUID:    dmUUID,
+	}, nil
+}
+
+func getParttiions(name string) ([]string, error) {
+	file, err := os.Open("/sys/block/" + name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	names, err := file.Readdirnames(-1)
+	if err != nil {
+		return nil, err
+	}
+
+	partitions := []string{}
+	for _, n := range names {
+		if strings.HasPrefix(n, name) {
+			partitions = append(partitions, n)
+		}
+	}
+
+	return partitions, nil
+}
+
+func getSlaves(name string) ([]string, error) {
+	file, err := os.Open("/sys/block/" + name + "/slaves")
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			err = nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+	return file.Readdirnames(-1)
+}
+
+func readSysBlock() ([]string, error) {
+	file, err := os.Open("/sys/block")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return file.Readdirnames(-1)
+}
+
+func readSysClassBlock() ([]string, error) {
+	file, err := os.Open("/sys/class/block")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return file.Readdirnames(-1)
+}
+
+func probeDrives() (map[string]*drive, error) {
+	names, err := readSysClassBlock()
+	if err != nil {
+		return nil, err
+	}
+
+	driveMap := map[string]*drive{}
+	for _, name := range names {
+		drive, err := getDrive(name)
+		if err != nil {
+			return nil, err
+		}
+		driveMap[name] = drive
+	}
+
+	if names, err = readSysBlock(); err != nil {
+		return nil, err
+	}
+
+	for _, name := range names {
+		partitions, err := getParttiions(name)
+		if err != nil {
+			return nil, err
+		}
+		for _, partition := range partitions {
+			if _, found := driveMap[partition]; found {
+				driveMap[partition].parent = name
+			}
+		}
+
+		slaves, err := getSlaves(name)
+		if err != nil {
+			return nil, err
+		}
+		for _, slave := range slaves {
+			if _, found := driveMap[slave]; found {
+				driveMap[slave].master = name
+			}
+		}
+	}
+
+	return driveMap, nil
+}
+
 func FindDevices(ctx context.Context, loopBackOnly bool) ([]BlockDevice, error) {
+	driveMap, err := probeDrives()
+	if err != nil {
+		return nil, err
+	}
+
 	var head = func() string {
 		var deviceHead = "/sys/devices"
 		if loopBackOnly {
@@ -95,7 +290,7 @@ func FindDevices(ctx context.Context, loopBackOnly bool) ([]BlockDevice, error) 
 		if subsystem != "block" {
 			return nil
 		}
-		if err := drive.probeBlockDev(ctx); err != nil {
+		if err := drive.probeBlockDev(ctx, driveMap); err != nil {
 			klog.Errorf("Error while probing block device: %v", err)
 		}
 
@@ -108,7 +303,7 @@ func (b *BlockDevice) GetPartitions() []Partition {
 	return b.Partitions
 }
 
-func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
+func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*drive) (err error) {
 	defer func() {
 		if err != nil {
 			b.TagError(err)
@@ -158,6 +353,21 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 		}
 	}
 
+	b.DMName = driveMap[b.Devname].dmName
+	b.DMUUID = driveMap[b.Devname].dmUUID
+	b.Parent = driveMap[b.Devname].parent
+	b.Master = driveMap[b.Devname].master
+	for i := range parts {
+		for name, drive := range driveMap {
+			if strings.HasPrefix(name, b.Devname) && drive.parent == b.Devname && drive.partition == int(parts[i].PartitionNum) {
+				parts[i].DMName = drive.dmName
+				parts[i].DMUUID = drive.dmUUID
+				parts[i].Parent = drive.parent
+				parts[i].Master = drive.master
+			}
+		}
+	}
+
 	if len(parts) == 0 {
 		offsetBlocks := uint64(0)
 		var fsInfo *FSInfo
@@ -174,7 +384,7 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 			}
 		}
 		var mounts []MountInfo
-		mounts, err = b.probeMountInfo(b.DriveInfo.Major, b.DriveInfo.Minor)
+		mounts, err = b.probeMountInfo(b.DriveInfo.Major, b.DriveInfo.Minor, driveMap)
 		if err != nil {
 			return err
 		}
@@ -200,7 +410,7 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context) (err error) {
 		}
 
 		var mounts []MountInfo
-		mounts, err = b.probeMountInfo(p.DriveInfo.Major, p.DriveInfo.Minor)
+		mounts, err = b.probeMountInfo(p.DriveInfo.Major, p.DriveInfo.Minor, driveMap)
 		if err != nil {
 			return err
 		}

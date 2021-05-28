@@ -16,12 +16,20 @@
 
 package sys
 
+type MasterInfo struct {
+	DMName string `json:"dmName,omitempty"`
+	DMUUID string `json:"dmUUID,omitempty"`
+	Parent string `json:"parent,omitempty"`
+	Master string `json:"master,omitempty"`
+}
+
 type BlockDevice struct {
 	Devname     string      `json:"devName,omitempty"`
 	Devtype     string      `json:"devType,omitempty"`
 	Partitions  []Partition `json:"partitions,omitempty"`
 	DeviceError error       `json:"error, omitempty"`
 
+	MasterInfo
 	*DriveInfo `json:"driveInfo,omitempty"`
 }
 
@@ -32,6 +40,7 @@ type Partition struct {
 	PartitionGUID string `json:"partitionGUID,omitempty"`
 	DiskGUID      string `json:"diskGUID,omitempty"`
 
+	MasterInfo
 	*DriveInfo `json:"driveInfo,omitempty"`
 }
 
