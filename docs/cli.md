@@ -55,7 +55,7 @@ Flags:
 Examples:
 
 # Filter all nvme drives in all nodes 
-$ kubectl direct-csi drives list --drives=/dev/nvme*
+$ kubectl direct-csi drives list --drives='/dev/nvme*'
 
 # Filter all available drives 
 $ kubectl direct-csi drives list --status=available
@@ -100,7 +100,7 @@ Examples:
 $ kubectl direct-csi drives format --all
 
 # Add all nvme drives in all nodes 
-$ kubectl direct-csi drives format --drives=/dev/nvme*
+$ kubectl direct-csi drives format --drives='/dev/nvme*'
 
 # Add all drives from a particular node
 $ kubectl direct-csi drives format --nodes=directcsi-1
@@ -156,7 +156,7 @@ Aliases:
 Examples:
 
 # List all volumes provisioned on nvme drives across all nodes 
-$ kubectl direct-csi volumes ls --drives=/dev/nvme*
+$ kubectl direct-csi volumes ls --drives='/dev/nvme*'
 
 # List all staged and published volumes
 $ kubectl direct-csi volumes ls --status=staged,published

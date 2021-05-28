@@ -50,7 +50,7 @@ var formatDrivesCmd = &cobra.Command{
 $ kubectl direct-csi drives format --all
 
 # Format all nvme drives in all nodes 
-$ kubectl direct-csi drives format --drives=/dev/nvme*
+$ kubectl direct-csi drives format --drives '/dev/nvme*'
 
 # Format all drives from a particular node
 $ kubectl direct-csi drives format --nodes=directcsi-1

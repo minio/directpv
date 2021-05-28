@@ -43,7 +43,7 @@ var releaseDrivesCmd = &cobra.Command{
  $ kubectl direct-csi drives release --all
  
  # Release all nvme drives in all nodes 
- $ kubectl direct-csi drives release --drives=/dev/nvme*
+ $ kubectl direct-csi drives release --drives '/dev/nvme*'
  
  # Release all drives from a particular node
  $ kubectl direct-csi drives release --nodes=directcsi-1

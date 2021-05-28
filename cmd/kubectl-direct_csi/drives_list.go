@@ -42,7 +42,7 @@ var listDrivesCmd = &cobra.Command{
 	Long:  "",
 	Example: `
 # Filter all nvme drives in all nodes 
-$ kubectl direct-csi drives ls --drives=/sys.nvme
+$ kubectl direct-csi drives ls --drives='/dev/nvme*'
 
 # Filter all ready drives 
 $ kubectl direct-csi drives ls --status=ready
