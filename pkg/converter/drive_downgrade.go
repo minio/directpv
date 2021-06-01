@@ -18,7 +18,8 @@ package converter
 
 import (
 	"fmt"
-	"github.com/golang/glog"
+
+	"k8s.io/klog"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
@@ -36,7 +37,7 @@ func downgradeDriveObject(fromVersion, toVersion string, convertedObject *unstru
 		fallthrough
 	case versionV1Alpha1:
 		if toVersion == versionV1Alpha1 {
-			glog.V(2).Info("Successfully migrated")
+			klog.V(2).Info("Successfully migrated")
 			break
 		}
 	}

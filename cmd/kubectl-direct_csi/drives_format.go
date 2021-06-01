@@ -29,9 +29,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"k8s.io/klog"
 )
 
 const XFS = "xfs"
@@ -102,7 +102,7 @@ func formatDrives(ctx context.Context, args []string) error {
 	}
 
 	if len(driveList.Items) == 0 {
-		glog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
+		klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 
@@ -132,25 +132,25 @@ func formatDrives(ctx context.Context, args []string) error {
 
 		if d.Status.DriveStatus == directcsi.DriveStatusInUse {
 			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			glog.Errorf("%s in use. Cannot be formatted", utils.Bold(driveAddr))
+			klog.Errorf("%s in use. Cannot be formatted", utils.Bold(driveAddr))
 			continue
 		}
 
 		if d.Status.DriveStatus == directcsi.DriveStatusReady {
 			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			glog.Errorf("%s already owned and managed. Use %s to overwrite", utils.Bold(driveAddr), utils.Bold("--force"))
+			klog.Errorf("%s already owned and managed. Use %s to overwrite", utils.Bold(driveAddr), utils.Bold("--force"))
 			continue
 		}
 		if d.Status.Filesystem != "" && !force {
 			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			glog.Errorf("%s already has a fs. Use %s to overwrite", utils.Bold(driveAddr), utils.Bold("--force"))
+			klog.Errorf("%s already has a fs. Use %s to overwrite", utils.Bold(driveAddr), utils.Bold("--force"))
 			continue
 		}
 
 		if d.Status.DriveStatus == directcsi.DriveStatusReleased {
 			if !unrelease {
 				driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-				glog.Errorf("%s is in 'released' state. Use %s to overwrite and make it 'ready'", utils.Bold(driveAddr), utils.Bold("--unrelease"))
+				klog.Errorf("%s is in 'released' state. Use %s to overwrite and make it 'ready'", utils.Bold(driveAddr), utils.Bold("--unrelease"))
 				continue
 			}
 			d.Status.DriveStatus = directcsi.DriveStatusAvailable

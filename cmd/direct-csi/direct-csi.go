@@ -23,7 +23,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 func main() {
@@ -33,7 +33,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		s := <-sigs
-		glog.Infof("Exiting on signal %s %#v", s.String(), s)
+		klog.V(1).Infof("Exiting on signal %s %#v", s.String(), s)
 		cancel()
 		<-time.After(1 * time.Second)
 		os.Exit(1)

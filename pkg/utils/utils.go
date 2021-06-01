@@ -25,7 +25,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"fmt"
 )
@@ -35,7 +35,7 @@ func JSONifyAndLog(val interface{}) {
 	if err != nil {
 		return
 	}
-	glog.V(3).Infof(string(jsonBytes))
+	klog.V(3).Infof(string(jsonBytes))
 }
 
 func BoolToCondition(val bool) metav1.ConditionStatus {

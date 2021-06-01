@@ -27,8 +27,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
+	"k8s.io/klog"
 )
 
 var accessTierUnset = &cobra.Command{
@@ -67,7 +67,7 @@ func init() {
 
 func unsetAccessTier(ctx context.Context, args []string) error {
 	if dryRun {
-		glog.Infof("'%s' flag is not supported for access-tier subcommand", bold(dryRunFlagName))
+		klog.V(1).Infof("'%s' flag is not supported for access-tier subcommand", bold(dryRunFlagName))
 		return nil
 	}
 
@@ -86,7 +86,7 @@ func unsetAccessTier(ctx context.Context, args []string) error {
 	}
 
 	if len(driveList.Items) == 0 {
-		glog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
+		klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 

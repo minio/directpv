@@ -22,7 +22,7 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"github.com/minio/direct-csi/pkg/sys/xfs"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -48,7 +48,7 @@ func getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfs
 func publishVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume, ch chan<- prometheus.Metric, xfsStatsFn xfsVolumeStatsGetter) {
 	volStats, err := xfsStatsFn(ctx, vol)
 	if err != nil {
-		glog.V(3).Infof("Error while getting xfs volume stats: %v", err)
+		klog.V(3).Infof("Error while getting xfs volume stats: %v", err)
 		return
 	}
 

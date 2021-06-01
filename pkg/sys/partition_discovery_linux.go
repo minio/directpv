@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/golang/glog"
 	"golang.org/x/sys/unix"
+	"k8s.io/klog"
 
 	"github.com/minio/direct-csi/pkg/sys/gpt"
 	"github.com/minio/direct-csi/pkg/sys/mbr"
@@ -247,7 +247,7 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 	// Skip 420 bytes of reserved space
 	_, err = devFile.Seek(int64(420), os.SEEK_CUR)
 	if err != nil {
-		glog.Errorf("GPT header is corrupt")
+		klog.Errorf("GPT header is corrupt")
 		return nil, err
 	}
 
@@ -268,7 +268,7 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 
 		_, err := devFile.Seek(offset, os.SEEK_CUR)
 		if err != nil {
-			glog.Errorf("LBA data is corrupt")
+			klog.Errorf("LBA data is corrupt")
 			return nil, err
 		}
 

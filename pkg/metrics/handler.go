@@ -25,8 +25,8 @@ import (
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -86,7 +86,7 @@ func (c *metricsCollector) volumeStatsEmitter(
 		},
 	)
 	if err != nil {
-		glog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
+		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
 		return
 	}
 	volumes := volumeList.Items

@@ -23,7 +23,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 const (
@@ -38,7 +38,7 @@ const (
 func ServeConversionWebhook(ctx context.Context) error {
 	certs, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		glog.Errorf("Filed to load key pair: %v", err)
+		klog.Errorf("Filed to load key pair: %v", err)
 		return err
 	}
 
@@ -63,9 +63,9 @@ func ServeConversionWebhook(ctx context.Context) error {
 		return lErr
 	}
 
-	glog.Infof("Starting conversion webhook server in port: %s", port)
+	klog.V(2).Infof("Starting conversion webhook server in port: %s", port)
 	if err := server.ServeTLS(listener, "", ""); err != nil {
-		glog.Errorf("Failed to listen and serve conversion webhook server: %v", err)
+		klog.Errorf("Failed to listen and serve conversion webhook server: %v", err)
 		return err
 	}
 
@@ -74,7 +74,7 @@ func ServeConversionWebhook(ctx context.Context) error {
 
 // LivenessCheckHandler - Checks if the process is up. Always returns success.
 func LivenessCheckHandler(w http.ResponseWriter, r *http.Request) {
-	glog.Infof("Liveness check request: %v", r)
+	klog.V(5).Infof("Liveness check request: %v", r)
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

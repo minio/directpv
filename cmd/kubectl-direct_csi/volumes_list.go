@@ -29,10 +29,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/dustin/go-humanize"
-	"github.com/golang/glog"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
+	"k8s.io/klog"
 )
 
 var (
@@ -91,7 +91,7 @@ func listVolumes(ctx context.Context, args []string) error {
 	}
 
 	if len(driveList.Items) == 0 {
-		glog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
+		klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 

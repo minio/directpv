@@ -26,8 +26,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/glog"
 	simd "github.com/minio/sha256-simd"
+	"k8s.io/klog"
 )
 
 var (
@@ -67,22 +67,22 @@ func (xfsq *XFSQuota) SetQuota(ctx context.Context, limit int64) error {
 	limitInStr := strconv.FormatInt(limit, 10)
 	pid := getProjectIDHash(xfsq.ProjectID)
 
-	glog.V(3).Infof("setting prjquota proj_id=%s path=%s", pid, xfsq.Path)
+	klog.V(3).Infof("setting prjquota proj_id=%s path=%s", pid, xfsq.Path)
 
 	cmd := exec.CommandContext(ctx, "xfs_quota", "-x", "-c", fmt.Sprintf("project -d 0 -s -p %s %s", xfsq.Path, pid))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("could not set prjquota proj_id=%s path=%s err=%v", pid, xfsq.Path, err)
+		klog.Errorf("could not set prjquota proj_id=%s path=%s err=%v", pid, xfsq.Path, err)
 		return fmt.Errorf("SetQuota failed for %s with error: (%v), output: (%s)", xfsq.ProjectID, err, out)
 	}
 
 	cmd = exec.CommandContext(ctx, "xfs_quota", "-x", "-c", fmt.Sprintf("limit -p bhard=%s %s", limitInStr, pid), xfsq.Path)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("could not set prjquota proj_id=%s path=%s err=%v", pid, xfsq.Path, err)
+		klog.Errorf("could not set prjquota proj_id=%s path=%s err=%v", pid, xfsq.Path, err)
 		return fmt.Errorf("xfs_quota failed with error: %v, output: %s", err, out)
 	}
-	glog.V(3).Infof("prjquota set successfully proj_id=%s path=%s", pid, xfsq.Path)
+	klog.V(3).Infof("prjquota set successfully proj_id=%s path=%s", pid, xfsq.Path)
 
 	return nil
 }

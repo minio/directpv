@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/glog"
 	"golang.org/x/sys/unix"
+	"k8s.io/klog"
 
 	"github.com/minio/direct-csi/pkg/sys/loopback"
 )
@@ -67,7 +67,7 @@ func FindDevices(ctx context.Context, loopBackOnly bool) ([]BlockDevice, error) 
 		}
 		drive, err := parseUevent(path)
 		if err != nil {
-			glog.V(5).Info(err)
+			klog.V(5).Info(err)
 			return nil
 		}
 
@@ -89,14 +89,14 @@ func FindDevices(ctx context.Context, loopBackOnly bool) ([]BlockDevice, error) 
 		}
 		subsystem, err := subsystem(path)
 		if err != nil {
-			glog.V(5).Info(err)
+			klog.V(5).Info(err)
 			return nil
 		}
 		if subsystem != "block" {
 			return nil
 		}
 		if err := drive.probeBlockDev(ctx); err != nil {
-			glog.Errorf("Error while probing block device: %v", err)
+			klog.Errorf("Error while probing block device: %v", err)
 		}
 
 		drives = append(drives, *drive)
@@ -289,12 +289,12 @@ func (b *BlockDevice) getBlockSizes() (uint64, uint64, error) {
 	fd := devFile.Fd()
 	logicalBlockSize, err := unix.IoctlGetInt(int(fd), unix.BLKSSZGET)
 	if err != nil {
-		glog.Errorf("could not obtain logical block size for device: %s", b.Devname)
+		klog.Errorf("could not obtain logical block size for device: %s", b.Devname)
 		return 0, 0, err
 	}
 	physicalBlockSize, err := unix.IoctlGetInt(int(fd), unix.BLKBSZGET)
 	if err != nil {
-		glog.Errorf("could not obtain physical block size for device: %s", b.Devname)
+		klog.Errorf("could not obtain physical block size for device: %s", b.Devname)
 		return 0, 0, err
 	}
 	return uint64(logicalBlockSize), uint64(physicalBlockSize), nil

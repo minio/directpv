@@ -19,7 +19,7 @@ package sys
 import (
 	"os"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 const (
@@ -33,7 +33,7 @@ func mountDrive(source, target string, mountOpts []string) error {
 		return err
 	}
 
-	glog.V(3).Infof("mounting drive %s at %s", source, target)
+	klog.V(3).Infof("mounting drive %s at %s", source, target)
 	return SafeMount(source, target, string(FSTypeXFS), func(opts []string) []MountOption {
 		newOpts := []MountOption{}
 		for _, opt := range opts {
@@ -49,7 +49,7 @@ func mountDrive(source, target string, mountOpts []string) error {
 
 // unmountDrive - Idempotent function to unmount a DirectCSIDrive
 func unmountDrive(drivePath string) error {
-	glog.V(3).Infof("unmounting drive %s", drivePath)
+	klog.V(3).Infof("unmounting drive %s", drivePath)
 	if err := SafeUnmountAll(drivePath, []UnmountOption{
 		UnmountOptionDetach,
 		UnmountOptionForce,

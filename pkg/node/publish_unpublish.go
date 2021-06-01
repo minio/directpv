@@ -29,9 +29,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 )
 
 const (
@@ -105,13 +105,13 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 		podName, podNs, parseErr := parseVolumeContext(volumeContext)
 		if parseErr != nil {
-			glog.V(5).Infof("Failed to parse the volume context: %v", parseErr)
+			klog.V(5).Infof("Failed to parse the volume context: %v", parseErr)
 			return nil
 		}
 
 		pod, err := utils.GetKubeClient().CoreV1().Pods(podNs).Get(ctx, podName, metav1.GetOptions{})
 		if err != nil {
-			glog.V(5).Infof("Failed to extract pod labels: %v", err)
+			klog.V(5).Infof("Failed to extract pod labels: %v", err)
 			return nil
 		}
 

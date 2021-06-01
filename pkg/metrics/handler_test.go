@@ -31,9 +31,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
+	"k8s.io/klog"
 )
 
 type metricType string
@@ -132,7 +132,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 		for {
 			select {
 			case <-ctx.Done():
-				glog.Infof("Forcefully exiting due to interrupt")
+				klog.V(1).Infof("Forcefully exiting due to interrupt")
 				return
 			case metric, ok := <-metricChan:
 				if !ok {

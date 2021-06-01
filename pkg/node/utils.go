@@ -28,7 +28,7 @@ import (
 	kexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 // GetLatestStatus gets the latest condition by time
@@ -46,7 +46,7 @@ func GetDiskFS(devicePath string) (string, error) {
 	// Internally uses 'blkid' to see if the given disk is unformatted
 	fs, err := diskMounter.GetDiskFormat(devicePath)
 	if err != nil {
-		glog.V(5).Infof("Error while reading the disk format: (%s)", err.Error())
+		klog.V(5).Infof("Error while reading the disk format: (%s)", err.Error())
 	}
 	return fs, err
 }
@@ -70,7 +70,7 @@ func AddDriveFinalizersWithConflictRetry(ctx context.Context, csiDriveName strin
 		})
 		return err
 	}); err != nil {
-		glog.V(5).Infof("Error while adding finalizers to csidrive: (%s)", err.Error())
+		klog.V(5).Infof("Error while adding finalizers to csidrive: (%s)", err.Error())
 		return err
 	}
 	return nil
@@ -93,7 +93,7 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 		})
 		return err
 	}); err != nil {
-		glog.V(5).Infof("Error while adding finalizers to csidrive: (%s)", err.Error())
+		klog.V(5).Infof("Error while adding finalizers to csidrive: (%s)", err.Error())
 		return err
 	}
 	return nil

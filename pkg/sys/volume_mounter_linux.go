@@ -19,16 +19,16 @@ package sys
 import (
 	"context"
 
-	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 
 	"github.com/minio/direct-csi/pkg/sys/xfs"
 )
 
 // Idempotent function to bind mount a xfs filesystem with limits
 func mountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error {
-	glog.V(5).Infof("[mountVolume] source: %v destination: %v", src, dest)
+	klog.V(5).Infof("[mountVolume] source: %v destination: %v", src, dest)
 	if err := SafeMount(src, dest, string(FSTypeXFS),
 		func() []MountOption {
 			mOpts := []MountOption{

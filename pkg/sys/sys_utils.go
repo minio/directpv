@@ -19,8 +19,8 @@ package sys
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 	"io/ioutil"
+	"k8s.io/klog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -168,7 +168,7 @@ func ReserveLoopbackDevices(devCount int) error {
 		if err != nil {
 			return err
 		}
-		glog.V(2).Infof("Successfully created loopback device %v", dev)
+		klog.V(2).Infof("Successfully created loopback device %v", dev)
 	}
 	return nil
 }

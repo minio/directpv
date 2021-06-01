@@ -23,7 +23,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 func SafeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
@@ -54,7 +54,7 @@ func SafeMount(source, target, fsType string, mountOpts []MountOption, superbloc
 				}
 			}
 			if allMFlagsFound {
-				glog.V(3).Infof("drive already mounted: %s", target)
+				klog.V(3).Infof("drive already mounted: %s", target)
 				// if already mounted at the same position with same flags
 				return nil
 			}
@@ -210,7 +210,7 @@ func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpt
 		}
 	}
 
-	glog.V(5).Infof("mounting %s at %s", source, target)
+	klog.V(5).Infof("mounting %s at %s", source, target)
 	return syscall.Mount(source, target, fsType, flags, strings.Join(superblockOpts, ","))
 }
 
@@ -231,7 +231,7 @@ func SafeUnmount(target string, opts []UnmountOption) error {
 
 	// if no mounts were found at the given path
 	if !targetMountFound {
-		glog.V(3).Infof("drive already unmounted: %s", target)
+		klog.V(3).Infof("drive already unmounted: %s", target)
 		return nil
 	}
 	return Unmount(target, opts)
@@ -269,6 +269,6 @@ func Unmount(target string, opts []UnmountOption) error {
 			return fmt.Errorf("Unsupport unmount flag: %s", opt)
 		}
 	}
-	glog.V(5).Infof("unmounting %s", target)
+	klog.V(5).Infof("unmounting %s", target)
 	return syscall.Unmount(target, flags)
 }

@@ -27,8 +27,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/golang/glog"
 	simd "github.com/minio/sha256-simd"
+	"k8s.io/klog"
 )
 
 const (
@@ -60,7 +60,7 @@ func findDrives(ctx context.Context, nodeID string, procfs string, loopBackOnly 
 			for _, partition := range partitions {
 				drive, err := makePartitionDrive(nodeID, partition, d.Devname, d.DeviceError)
 				if err != nil {
-					glog.Errorf("Error discovering parition %s: %v", d.Devname, err)
+					klog.Errorf("Error discovering parition %s: %v", d.Devname, err)
 					continue
 				}
 				drives = append(drives, *drive)

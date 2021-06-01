@@ -29,9 +29,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"k8s.io/klog"
 )
 
 var releaseDrivesCmd = &cobra.Command{
@@ -88,7 +88,7 @@ func releaseDrives(ctx context.Context, args []string) error {
 	}
 
 	if len(driveList.Items) == 0 {
-		glog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
+		klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 
@@ -118,13 +118,13 @@ func releaseDrives(ctx context.Context, args []string) error {
 
 		if d.Status.DriveStatus == directcsi.DriveStatusInUse {
 			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			glog.Errorf("%s in use. Cannot be released", utils.Bold(driveAddr))
+			klog.Errorf("%s in use. Cannot be released", utils.Bold(driveAddr))
 			continue
 		}
 
 		if d.Status.DriveStatus == directcsi.DriveStatusReleased {
 			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			glog.Errorf("%s already in 'released' state", utils.Bold(driveAddr))
+			klog.Errorf("%s already in 'released' state", utils.Bold(driveAddr))
 			continue
 		}
 

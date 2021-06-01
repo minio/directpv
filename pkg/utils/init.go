@@ -32,8 +32,8 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/golang/glog"
 	"github.com/spf13/viper"
+	"k8s.io/klog"
 )
 
 var directCSIClient directcsi.DirectV1beta1Interface
@@ -51,41 +51,41 @@ func Init() {
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			glog.Fatalf("could not find client configuration: %v", err)
+			klog.Fatalf("could not find client configuration: %v", err)
 		}
-		glog.Infof("obtained client config successfully")
+		klog.V(1).Infof("obtained client config successfully")
 	}
 
 	kubeClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
-		glog.Fatalf("could not initialize kubeclient: %v", err)
+		klog.Fatalf("could not initialize kubeclient: %v", err)
 	}
 
 	directClientset, err = direct.NewForConfig(config)
 	if err != nil {
-		glog.Fatalf("could not initialize direct clientset: %v", err)
+		klog.Fatalf("could not initialize direct clientset: %v", err)
 	}
 
 	directCSIClient, err = directcsi.NewForConfig(config)
 	if err != nil {
-		glog.Fatalf("could not initialize direct-csi client: %v", err)
+		klog.Fatalf("could not initialize direct-csi client: %v", err)
 	}
 
 	crdClientset, err := apiextensions.NewForConfig(config)
 	if err != nil {
-		glog.Fatalf("could not initialize crd client: %v", err)
+		klog.Fatalf("could not initialize crd client: %v", err)
 	}
 	apiextensionsClient = crdClientset
 	crdClient = crdClientset.CustomResourceDefinitions()
 
 	discoveryClient, err = discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		glog.Fatalf("could not initialize discovery client: %v", err)
+		klog.Fatalf("could not initialize discovery client: %v", err)
 	}
 
 	metadataClient, err = metadata.NewForConfig(config)
 	if err != nil {
-		glog.Fatalf("could not initialize metadata client: %v", err)
+		klog.Fatalf("could not initialize metadata client: %v", err)
 	}
 
 	// Initialize fake sets
@@ -98,7 +98,7 @@ func GetKubeConfig() string {
 	if kubeConfig == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			glog.Infof("could not find home dir: %v", err)
+			klog.Infof("could not find home dir: %v", err)
 			return ""
 		}
 		return filepath.Join(home, ".kube", "config")
@@ -113,7 +113,7 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 	discoveryClient := GetDiscoveryClient()
 	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {
-		glog.Errorf("could not obtain API group resources: %v", err)
+		klog.Errorf("could not obtain API group resources: %v", err)
 		return nil, err
 	}
 	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
@@ -123,7 +123,7 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 	}
 	mapper, err := restMapper.RESTMapping(gk, versions...)
 	if err != nil {
-		glog.Errorf("could not find valid restmapping: %v", err)
+		klog.Errorf("could not find valid restmapping: %v", err)
 		return nil, err
 	}
 

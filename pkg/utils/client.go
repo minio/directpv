@@ -29,7 +29,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 var (
@@ -108,9 +108,9 @@ func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			glog.Fatalf("could not find client configuration: %v", err)
+			klog.Fatalf("could not find client configuration: %v", err)
 		}
-		glog.Infof("obtained client config successfully")
+		klog.V(1).Infof("obtained client config successfully")
 	}
 	config.GroupVersion = gv
 	config.APIPath = "/apis"
