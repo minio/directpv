@@ -35,7 +35,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
-	"github.com/minio/minio/pkg/ellipses"
+	"github.com/minio/pkg/ellipses"
 )
 
 const (
