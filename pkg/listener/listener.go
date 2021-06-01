@@ -51,7 +51,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	// logging
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 type addFunc func(ctx context.Context, obj interface{}) error
@@ -212,14 +212,14 @@ func (c *DirectCSIController) Run(ctx context.Context) error {
 		RetryPeriod:   c.RetryPeriod,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(ctx context.Context) {
-				glog.V(2).Info("became leader, starting")
+				klog.V(2).Info("became leader, starting")
 				c.runController(ctx)
 			},
 			OnStoppedLeading: func() {
-				glog.Fatal("stopped leading")
+				klog.Fatal("stopped leading")
 			},
 			OnNewLeader: func(identity string) {
-				glog.V(3).Infof("new leader detected, current leader: %s", identity)
+				klog.V(3).Infof("new leader detected, current leader: %s", identity)
 			},
 		},
 	}
@@ -274,7 +274,7 @@ func (c *DirectCSIController) processNextItem(ctx context.Context) bool {
 		panic("unknown item in queue")
 	}
 	if err != nil {
-		glog.Errorf("op: %s key: %s err: %v", opKind, key, err)
+		klog.Errorf("op: %s key: %s err: %v", opKind, key, err)
 	}
 	return true
 }
@@ -343,7 +343,7 @@ func (c *DirectCSIController) handleErr(err error, op interface{}) {
 	utilruntime.HandleError(err)
 	klog.Infof("Dropping op %+v out of the queue: %v", op, err)
 	*/
-	glog.V(5).Infof("Error executing operation %+v: %+v", op, err)
+	klog.V(5).Infof("Error executing operation %+v: %+v", op, err)
 	c.queue.AddRateLimited(op)
 }
 
@@ -414,7 +414,7 @@ func (c *DirectCSIController) runController(ctx context.Context) {
 		defer utilruntime.HandleCrash()
 		defer c.queue.ShutDown()
 
-		glog.V(3).Infof("Starting %s controller", name)
+		klog.V(3).Infof("Starting %s controller", name)
 		go ctrlr.Run(ctx.Done())
 
 		if !cache.WaitForCacheSync(ctx.Done(), ctrlr.HasSynced) {
@@ -427,7 +427,7 @@ func (c *DirectCSIController) runController(ctx context.Context) {
 		}
 
 		<-ctx.Done()
-		glog.V(3).Infof("Stopping %s controller", name)
+		klog.V(3).Infof("Stopping %s controller", name)
 	}
 
 	if c.DirectCSIVolumeListener != nil {

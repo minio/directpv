@@ -34,8 +34,8 @@ import (
 	"github.com/minio/direct-csi/pkg/utils/grpc"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/glog"
 	"github.com/minio/pkg/ellipses"
+	"k8s.io/klog"
 )
 
 const (
@@ -54,7 +54,7 @@ func waitForConversionWebhook() error {
 
 	caCert, err := ioutil.ReadFile(caFile)
 	if err != nil {
-		glog.V(2).Infof("Error while reading cacert %v", err)
+		klog.V(2).Infof("Error while reading cacert %v", err)
 		return err
 	}
 	caCertPool := x509.NewCertPool()
@@ -72,11 +72,11 @@ func waitForConversionWebhook() error {
 	for {
 		_, err := client.Get(conversionWebhookURL)
 		if err == nil {
-			glog.V(2).Info("The conversion webhook is live!")
+			klog.V(2).Info("The conversion webhook is live!")
 			// The conversion webhook is live
 			break
 		}
-		glog.V(2).Infof("Waiting for conversion webhook: %v", err)
+		klog.V(2).Infof("Waiting for conversion webhook: %v", err)
 		time.Sleep(conversionHookURLPollInterval)
 	}
 
@@ -103,7 +103,7 @@ func run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	glog.V(5).Infof("identity server started")
+	klog.V(5).Infof("identity server started")
 
 	basePaths := []string{}
 	for _, a := range args {
@@ -128,7 +128,7 @@ func run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		glog.V(5).Infof("node server started")
+		klog.V(5).Infof("node server started")
 	}
 
 	var ctrlServer csi.ControllerServer
@@ -137,7 +137,7 @@ func run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		glog.V(5).Infof("controller manager started")
+		klog.V(5).Infof("controller manager started")
 	}
 
 	return grpc.Run(ctx, endpoint, idServer, ctrlServer, nodeSrv)

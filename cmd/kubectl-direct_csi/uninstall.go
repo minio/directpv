@@ -20,9 +20,9 @@ import (
 	"context"
 
 	"github.com/fatih/color"
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"k8s.io/klog"
 
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/utils/installer"
@@ -54,7 +54,7 @@ func uninstall(ctx context.Context, args []string) error {
 
 	dryRun := viper.GetBool(dryRunFlagName)
 	if dryRun {
-		glog.Infof("'%s' flag is not supported for uninstall", bold(dryRunFlagName))
+		klog.V(1).Infof("'%s' flag is not supported for uninstall", bold(dryRunFlagName))
 		return nil
 	}
 
@@ -71,7 +71,7 @@ func uninstall(ctx context.Context, args []string) error {
 		}
 
 		if len(volumes.Items) > 0 && !forceRemove {
-			glog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
+			klog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
 			return nil
 		}
 
@@ -94,7 +94,7 @@ func uninstall(ctx context.Context, args []string) error {
 		}
 
 		if len(drives.Items) > 0 && !forceRemove {
-			glog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
+			klog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
 			return nil
 		}
 
@@ -110,7 +110,7 @@ func uninstall(ctx context.Context, args []string) error {
 			}
 		}
 		if forceRemove {
-			glog.Infof("'%s' CRD resources deleted", bold(identity))
+			klog.V(1).Infof("'%s' CRD resources deleted", bold(identity))
 		}
 
 		if err := unregisterCRDs(ctx); err != nil {
@@ -118,14 +118,14 @@ func uninstall(ctx context.Context, args []string) error {
 				return err
 			}
 		}
-		glog.Infof("'%s' crds deleted", bold(identity))
+		klog.V(1).Infof("'%s' crds deleted", bold(identity))
 
 		if err := installer.DeleteNamespace(ctx, identity); err != nil {
 			if !errors.IsNotFound(err) {
 				return err
 			}
 		}
-		glog.Infof("'%s' namespace deleted", bold(identity))
+		klog.V(1).Infof("'%s' namespace deleted", bold(identity))
 	}
 
 	if err := installer.DeleteCSIDriver(ctx, identity); err != nil {
@@ -133,35 +133,35 @@ func uninstall(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	glog.Infof("'%s' csidriver deleted", bold(identity))
+	klog.V(1).Infof("'%s' csidriver deleted", bold(identity))
 
 	if err := installer.DeleteStorageClass(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' storageclass deleted", bold(identity))
+	klog.V(1).Infof("'%s' storageclass deleted", bold(identity))
 
 	if err := installer.DeleteService(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' service deleted", bold(identity))
+	klog.V(1).Infof("'%s' service deleted", bold(identity))
 
 	if err := installer.RemoveRBACRoles(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' rbac roles deleted", utils.Bold(identity))
+	klog.V(1).Infof("'%s' rbac roles deleted", utils.Bold(identity))
 
 	if err := installer.DeleteDaemonSet(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' daemonset deleted", utils.Bold(identity))
+	klog.V(1).Infof("'%s' daemonset deleted", utils.Bold(identity))
 
 	if err := installer.DeleteDriveValidationRules(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
@@ -174,14 +174,14 @@ func uninstall(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	glog.Infof("'%s' drive validation rules removed", utils.Bold(identity))
+	klog.V(1).Infof("'%s' drive validation rules removed", utils.Bold(identity))
 
 	if err := installer.DeleteControllerDeployment(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	glog.Infof("'%s' controller deployment deleted", utils.Bold(identity))
+	klog.V(1).Infof("'%s' controller deployment deleted", utils.Bold(identity))
 
 	if uninstallCRD {
 		if err := installer.DeleteConversionDeployment(ctx, identity); err != nil {
@@ -202,7 +202,7 @@ func uninstall(ctx context.Context, args []string) error {
 			}
 		}
 
-		glog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
+		klog.V(1).Infof("'%s' conversion deployment deleted", utils.Bold(identity))
 	}
 
 	return nil

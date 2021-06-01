@@ -23,7 +23,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 const (
@@ -37,7 +37,7 @@ const (
 func serveAdmissionController(ctx context.Context) {
 	certs, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		glog.Errorf("Filed to load key pair: %v", err)
+		klog.Errorf("Filed to load key pair: %v", err)
 	}
 
 	// Create a secure http server
@@ -61,9 +61,9 @@ func serveAdmissionController(ctx context.Context) {
 		panic(lErr)
 	}
 
-	glog.Infof("Starting admission webhook server in port: %s", port)
+	klog.V(2).Infof("Starting admission webhook server in port: %s", port)
 	if err := server.ServeTLS(listener, "", ""); err != nil {
-		glog.Errorf("Failed to listen and serve admission webhook server: %v", err)
+		klog.Errorf("Failed to listen and serve admission webhook server: %v", err)
 		panic(err)
 	}
 }

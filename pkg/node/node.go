@@ -36,10 +36,10 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/glog"
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 )
 
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, basePaths []string, procfs string, loopBackOnly bool) (*NodeServer, error) {
@@ -173,7 +173,7 @@ func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 
 func (n *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	nodeCap := func(cap csi.NodeServiceCapability_RPC_Type) *csi.NodeServiceCapability {
-		glog.Infof("Using node capability %v", cap)
+		klog.V(2).Infof("Using node capability %v", cap)
 
 		return &csi.NodeServiceCapability{
 			Type: &csi.NodeServiceCapability_Rpc{

@@ -31,7 +31,7 @@ import (
 	kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 type VolumeUpdateType int
@@ -206,7 +206,7 @@ func StartVolumeController(ctx context.Context, nodeID string) error {
 	}
 	ctrl, err := listener.NewDefaultDirectCSIController("volume-controller", hostname, 40)
 	if err != nil {
-		glog.Error(err)
+		klog.Error(err)
 		return err
 	}
 	ctrl.AddDirectCSIVolumeListener(&DirectCSIVolumeListener{nodeID: nodeID})
@@ -219,7 +219,7 @@ func SyncVolumeCRDVersions(ctx context.Context, nodeID string) {
 		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 	})
 	if err != nil {
-		glog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
+		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
 		return
 	}
 	volumes := volumeList.Items
@@ -241,7 +241,7 @@ func SyncVolumeCRDVersions(ctx context.Context, nodeID string) {
 			return err
 		}
 		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			glog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
+			klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
 		}
 	}
 }

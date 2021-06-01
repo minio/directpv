@@ -22,7 +22,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 const (
@@ -42,9 +42,9 @@ func ServeMetrics(ctx context.Context, nodeId string) {
 		panic(lErr)
 	}
 
-	glog.Infof("Starting metrics exporter in port: %s", port)
+	klog.V(2).Infof("Starting metrics exporter in port: %s", port)
 	if err := server.Serve(listener); err != nil {
-		glog.Errorf("Failed to listen and serve metrics server: %v", err)
+		klog.Errorf("Failed to listen and serve metrics server: %v", err)
 		if err != http.ErrServerClosed {
 			panic(err)
 		}

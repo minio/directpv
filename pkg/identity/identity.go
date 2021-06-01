@@ -20,9 +20,9 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 )
 
 func NewIdentityServer(ident, version string, manifest map[string]string) (csi.IdentityServer, error) {
@@ -60,7 +60,7 @@ func (i *IdentityServer) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi
 
 func (i *IdentityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	serviceCap := func(cap csi.PluginCapability_Service_Type) *csi.PluginCapability {
-		glog.V(5).Infof("Using plugin capability %v", cap)
+		klog.V(5).Infof("Using plugin capability %v", cap)
 
 		return &csi.PluginCapability{
 			Type: &csi.PluginCapability_Service_{

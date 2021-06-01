@@ -28,11 +28,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/golang/glog"
 	"github.com/minio/direct-csi/pkg/converter"
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/utils/installer"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog"
 )
 
 const (
@@ -129,7 +129,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		return err
 	}
 
-	glog.Infof("'%s' CRD succesfully updated to '%s'", existingCRD.Name, utils.Bold(currentCRDStorageVersion))
+	klog.V(1).Infof("'%s' CRD succesfully updated to '%s'", existingCRD.Name, utils.Bold(currentCRDStorageVersion))
 
 	return nil
 }

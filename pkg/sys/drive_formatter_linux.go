@@ -20,14 +20,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 // formatDrive - Idempotent function to format a DirectCSIDrive
 func formatDrive(ctx context.Context, path string, force bool) error {
 	output, err := Format(ctx, path, string(FSTypeXFS), []string{"-i", "maxpct=50"}, force)
 	if err != nil {
-		glog.Errorf("failed to format drive: %s", output)
+		klog.Errorf("failed to format drive: %s", output)
 		return fmt.Errorf("%s", output)
 	}
 	return nil

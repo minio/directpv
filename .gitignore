@@ -4,4 +4,6 @@ dist/
 *.zip
 *.minisig
 direct-csi
+!direct-csi/
 kubectl-direct_csi
+!kubectl-direct_csi/

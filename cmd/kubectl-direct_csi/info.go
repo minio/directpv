@@ -32,10 +32,10 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/dustin/go-humanize"
-	"github.com/golang/glog"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
 	"github.com/spf13/cobra"
+	"k8s.io/klog"
 )
 
 var infoCmd = &cobra.Command{
@@ -55,7 +55,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 
 	if crds, err := crdclient.List(ctx, metav1.ListOptions{}); err != nil {
 		if !quiet {
-			glog.Errorf("error listing crds: %v", err)
+			klog.Errorf("error listing crds: %v", err)
 		}
 		return err
 	} else {
@@ -71,7 +71,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		}
 		if !(drivesFound && volumesFound) {
 			if !quiet {
-				glog.Errorf("directcsi crds not found")
+				klog.Errorf("directcsi crds not found")
 			}
 			return fmt.Errorf("directcsi crds not found")
 		}
@@ -93,7 +93,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 			Do(ctx).
 			Into(result); err != nil {
 			if !quiet {
-				glog.Errorf("error getting csinodes: %v", err)
+				klog.Errorf("error getting csinodes: %v", err)
 			}
 			return err
 		}
@@ -115,7 +115,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 			Do(ctx).
 			Into(result); err != nil {
 			if !quiet {
-				glog.Errorf("error getting storagev1beta1/csinodes: %v", err)
+				klog.Errorf("error getting storagev1beta1/csinodes: %v", err)
 			}
 			return err
 		}
@@ -146,7 +146,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	drives, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if !quiet {
-			glog.Errorf("error getting drive list: %v", err)
+			klog.Errorf("error getting drive list: %v", err)
 		}
 		return err
 	}
@@ -154,7 +154,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	volumes, err := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if !quiet {
-			glog.Errorf("error getting volume list: %v", err)
+			klog.Errorf("error getting volume list: %v", err)
 		}
 		return err
 	}

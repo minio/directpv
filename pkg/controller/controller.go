@@ -31,9 +31,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 )
 
 /*  Volume Lifecycle
@@ -114,7 +114,7 @@ type ControllerServer struct {
 
 func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	controllerCap := func(cap csi.ControllerServiceCapability_RPC_Type) *csi.ControllerServiceCapability {
-		glog.Infof("Using controller capability %v", cap)
+		klog.V(4).Infof("Using controller capability %v", cap)
 
 		return &csi.ControllerServiceCapability{
 			Type: &csi.ControllerServiceCapability_Rpc{
@@ -217,7 +217,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if err != nil {
 			return nil, err
 		}
-		glog.Infof("Selected DirectCSI drive: (Name: %s, NodeName: %s)", selectedDrive.Name, selectedDrive.Status.NodeName)
+		klog.V(4).Infof("Selected DirectCSI drive: (Name: %s, NodeName: %s)", selectedDrive.Name, selectedDrive.Status.NodeName)
 
 		return &selectedDrive, nil
 	}
@@ -255,7 +255,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			finalizers = append(finalizers, finalizer)
 			drive.SetFinalizers(finalizers)
 
-			glog.Infof("Reserving DirectCSI drive: (Name: %s, NodeName: %s)", drive.Name, drive.Status.NodeName)
+			klog.V(4).Infof("Reserving DirectCSI drive: (Name: %s, NodeName: %s)", drive.Name, drive.Status.NodeName)
 			if _, err := dclient.Update(ctx, drive, metav1.UpdateOptions{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 			}); err != nil {

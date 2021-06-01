@@ -32,7 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientset "k8s.io/client-go/kubernetes"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 type DriveUpdateType int
@@ -75,7 +75,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 	if d.nodeID != new.Status.NodeName {
 		return nil
 	}
-	glog.V(3).Infof("drive update called on %s", new.Name)
+	klog.V(3).Infof("drive update called on %s", new.Name)
 
 	// Determine the type of update
 	// - Own drive & Format
@@ -180,7 +180,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 			return err
 		}
 	case DriveUpdateTypeOwnAndFormat:
-		glog.V(3).Infof("owning and formatting drive %s", new.Name)
+		klog.V(3).Infof("owning and formatting drive %s", new.Name)
 		force := func() bool {
 			if new.Spec.RequestedFormat != nil {
 				return new.Spec.RequestedFormat.Force
@@ -196,26 +196,26 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 
 		switch new.Status.DriveStatus {
 		case directcsi.DriveStatusReleased:
-			glog.V(2).Infof("rejected request to format a released drive %s", new.Name)
+			klog.V(3).Infof("rejected request to format a released drive %s", new.Name)
 			return nil
 		case directcsi.DriveStatusInUse:
-			glog.V(2).Infof("rejected request to format a drive currently in use %s", new.Name)
+			klog.V(3).Infof("rejected request to format a drive currently in use %s", new.Name)
 			return nil
 		case directcsi.DriveStatusUnavailable:
-			glog.V(2).Infof("rejected request to format an unavailable drive %s", new.Name)
+			klog.V(3).Infof("rejected request to format an unavailable drive %s", new.Name)
 			return nil
 		case directcsi.DriveStatusReady:
-			glog.V(2).Infof("rejected request to format a ready drive %s", new.Name)
+			klog.V(3).Infof("rejected request to format a ready drive %s", new.Name)
 			return nil
 		case directcsi.DriveStatusTerminating:
-			glog.V(2).Infof("rejected request to format a terminating drive %s", new.Name)
+			klog.V(3).Infof("rejected request to format a terminating drive %s", new.Name)
 			return nil
 		case directcsi.DriveStatusAvailable:
 			if !formatted || force {
 				if mounted {
 					if err := d.mounter.UnmountDrive(source); err != nil {
 						err = fmt.Errorf("failed to unmount drive: %s %v", new.Name, err)
-						glog.Error(err)
+						klog.Error(err)
 						updateErr = err
 					} else {
 						new.Status.Mountpoint = ""
@@ -226,7 +226,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 				if updateErr == nil {
 					if err := d.formatter.FormatDrive(ctx, source, force); err != nil {
 						err = fmt.Errorf("failed to format drive: %s %v", new.Name, err)
-						glog.Error(err)
+						klog.Error(err)
 						updateErr = err
 					} else {
 						new.Status.Filesystem = string(sys.FSTypeXFS)
@@ -239,14 +239,14 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 			if updateErr == nil && !mounted {
 				if err := d.mounter.MountDrive(source, target, mountOpts); err != nil {
 					err = fmt.Errorf("failed to mount drive: %s %v", new.Name, err)
-					glog.Error(err)
+					klog.Error(err)
 					updateErr = err
 				} else {
 					new.Status.Mountpoint = target
 					new.Status.MountOptions = mountOpts
 					freeCapacity, sErr := d.statter.GetFreeCapacityFromStatfs(new.Status.Mountpoint)
 					if sErr != nil {
-						glog.Error(sErr)
+						klog.Error(sErr)
 						updateErr = sErr
 					} else {
 						mounted = true
@@ -327,7 +327,7 @@ func StartDriveController(ctx context.Context, nodeID string) error {
 	}
 	ctrl, err := listener.NewDefaultDirectCSIController("drive-controller", hostname, 40)
 	if err != nil {
-		glog.Error(err)
+		klog.Error(err)
 		return err
 	}
 	ctrl.AddDirectCSIDriveListener(&DirectCSIDriveListener{

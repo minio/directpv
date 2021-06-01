@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	_ "github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 var Version string
@@ -74,6 +74,11 @@ func init() {
 	}
 
 	viper.AutomaticEnv()
+
+	flag.Set("alsologtostderr", "true")
+	kflags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(kflags)
+
 	// parse the go default flagset to get flags for glog and other packages in future
 	driverCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	// defaulting this to true so that logs are printed to console
