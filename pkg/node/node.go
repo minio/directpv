@@ -77,25 +77,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		return nil, err
 	}
 
-	driveMounter := &sys.DefaultDriveMounter{}
-
 	for _, drive := range drives {
-		isMounted := false
-		for _, mount := range mounts {
-			if drive.Status.Path == mount.MountSource {
-				isMounted = true
-				break
-			}
-		}
-
-		if !isMounted {
-			if drive.Status.Filesystem != "" && strings.HasPrefix(drive.Status.Mountpoint, sys.MountRoot) {
-				if err := driveMounter.MountDrive(drive.Status.Path, drive.Status.Mountpoint, drive.Status.MountOptions); err != nil {
-					return nil, err
-				}
-			}
-		}
-
 		drive.Status.Topology = driveTopology
 		drive.Status.AccessTier = directcsi.AccessTierUnknown
 		driveClient := directCSIClient.DirectCSIDrives()
@@ -107,6 +89,11 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 			if err != nil {
 				return err
 			}
+
+			if err := verifyDriveMount(existingDrive, mounts); err != nil {
+				return err
+			}
+
 			updateOpts := metav1.UpdateOptions{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 			}
@@ -130,6 +117,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	go volume.StartVolumeController(ctx, nodeID)
 	// Check if the volume objects are migrated and CRDs versions are in-sync
 	go volume.SyncVolumeCRDVersions(ctx, nodeID)
+
 	go metrics.ServeMetrics(ctx, nodeID)
 
 	return &NodeServer{
@@ -206,7 +194,7 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	}
 	volStats, err := xfsQuota.GetVolumeStats(ctx)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Error while getting xfs volume stats: %v", err)
+		return nil, status.Errorf(codes.NotFound, "Error while getting xfs volume stats: %v", err)
 	}
 
 	volUsage := &csi.VolumeUsage{

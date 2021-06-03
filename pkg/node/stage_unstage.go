@@ -54,11 +54,6 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	// If already staged
-	if vol.Status.StagingPath == stagingTargetPath {
-		return &csi.NodeStageVolumeResponse{}, nil
-	}
-
 	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 	})
@@ -123,9 +118,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if vol.Status.StagingPath == "" {
-		return &csi.NodeUnstageVolumeResponse{}, nil
-	}
+
 	if err := n.mounter.UnmountVolume(stagingTargetPath); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
