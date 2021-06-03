@@ -95,14 +95,14 @@ func install(ctx context.Context, args []string) error {
 		}
 	}
 	if !dryRun {
-		klog.V(1).Infof("'%s' namespace created", utils.Bold(identity))
+		klog.Infof("'%s' namespace created", utils.Bold(identity))
 	}
 
 	if err := installer.CreateOrUpdateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
 		return err
 	}
 	if !dryRun {
-		klog.V(1).Infof("'%s' conversion deployment created", utils.Bold(identity))
+		klog.Infof("'%s' conversion deployment created", utils.Bold(identity))
 	}
 
 crdInstall:
@@ -123,7 +123,7 @@ crdInstall:
 		}
 	}
 	if !dryRun {
-		klog.V(1).Infof("crds successfully registered")
+		klog.Infof("crds successfully registered")
 	}
 
 	if err := installer.CreateCSIDriver(ctx, identity, dryRun); err != nil {
@@ -132,7 +132,7 @@ crdInstall:
 		}
 	}
 	if !dryRun {
-		klog.V(1).Infof("'%s' csidriver created", utils.Bold(identity))
+		klog.Infof("'%s' csidriver created", utils.Bold(identity))
 	}
 
 	if err := installer.CreateStorageClass(ctx, identity, dryRun); err != nil {
@@ -141,7 +141,7 @@ crdInstall:
 		}
 	}
 	if !dryRun {
-		klog.V(1).Infof("'%s' storageclass created", utils.Bold(identity))
+		klog.Infof("'%s' storageclass created", utils.Bold(identity))
 	}
 
 	if err := installer.CreateService(ctx, identity, dryRun); err != nil {
@@ -150,7 +150,7 @@ crdInstall:
 		}
 	}
 	if !dryRun {
-		klog.V(1).Infof("'%s' service created", utils.Bold(identity))
+		klog.Infof("'%s' service created", utils.Bold(identity))
 	}
 
 	if err := installer.CreateRBACRoles(ctx, identity, dryRun); err != nil {
@@ -159,7 +159,7 @@ crdInstall:
 		}
 	}
 	if !dryRun {
-		klog.V(1).Infof("'%s' rbac roles created", utils.Bold(identity))
+		klog.Infof("'%s' rbac roles created", utils.Bold(identity))
 	}
 
 	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations); err != nil {
@@ -168,7 +168,7 @@ crdInstall:
 		}
 	}
 	if !dryRun {
-		klog.V(1).Infof("'%s' daemonset created", utils.Bold(identity))
+		klog.Infof("'%s' daemonset created", utils.Bold(identity))
 	}
 
 	if err := installer.CreateDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
@@ -177,7 +177,7 @@ crdInstall:
 		}
 	}
 	if !dryRun {
-		klog.V(1).Infof("'%s' deployment created", utils.Bold(identity))
+		klog.Infof("'%s' deployment created", utils.Bold(identity))
 	}
 
 	if admissionControl {
@@ -187,7 +187,7 @@ crdInstall:
 			}
 		}
 		if !dryRun {
-			klog.V(1).Infof("'%s' drive validation rules registered", utils.Bold(identity))
+			klog.Infof("'%s' drive validation rules registered", utils.Bold(identity))
 		}
 	}
 

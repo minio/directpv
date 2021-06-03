@@ -67,7 +67,7 @@ func init() {
 
 func unsetAccessTier(ctx context.Context, args []string) error {
 	if dryRun {
-		klog.V(1).Infof("'%s' flag is not supported for access-tier subcommand", bold(dryRunFlagName))
+		klog.Infof("'%s' flag is not supported for access-tier subcommand", bold(dryRunFlagName))
 		return nil
 	}
 
