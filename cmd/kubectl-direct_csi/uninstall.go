@@ -54,7 +54,7 @@ func uninstall(ctx context.Context, args []string) error {
 
 	dryRun := viper.GetBool(dryRunFlagName)
 	if dryRun {
-		klog.V(1).Infof("'%s' flag is not supported for uninstall", bold(dryRunFlagName))
+		klog.Infof("'%s' flag is not supported for uninstall", bold(dryRunFlagName))
 		return nil
 	}
 
@@ -110,7 +110,7 @@ func uninstall(ctx context.Context, args []string) error {
 			}
 		}
 		if forceRemove {
-			klog.V(1).Infof("'%s' CRD resources deleted", bold(identity))
+			klog.Infof("'%s' CRD resources deleted", bold(identity))
 		}
 
 		if err := unregisterCRDs(ctx); err != nil {
@@ -118,14 +118,14 @@ func uninstall(ctx context.Context, args []string) error {
 				return err
 			}
 		}
-		klog.V(1).Infof("'%s' crds deleted", bold(identity))
+		klog.Infof("'%s' crds deleted", bold(identity))
 
 		if err := installer.DeleteNamespace(ctx, identity); err != nil {
 			if !errors.IsNotFound(err) {
 				return err
 			}
 		}
-		klog.V(1).Infof("'%s' namespace deleted", bold(identity))
+		klog.Infof("'%s' namespace deleted", bold(identity))
 	}
 
 	if err := installer.DeleteCSIDriver(ctx, identity); err != nil {
@@ -133,35 +133,35 @@ func uninstall(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	klog.V(1).Infof("'%s' csidriver deleted", bold(identity))
+	klog.Infof("'%s' csidriver deleted", bold(identity))
 
 	if err := installer.DeleteStorageClass(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	klog.V(1).Infof("'%s' storageclass deleted", bold(identity))
+	klog.Infof("'%s' storageclass deleted", bold(identity))
 
 	if err := installer.DeleteService(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	klog.V(1).Infof("'%s' service deleted", bold(identity))
+	klog.Infof("'%s' service deleted", bold(identity))
 
 	if err := installer.RemoveRBACRoles(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	klog.V(1).Infof("'%s' rbac roles deleted", utils.Bold(identity))
+	klog.Infof("'%s' rbac roles deleted", utils.Bold(identity))
 
 	if err := installer.DeleteDaemonSet(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	klog.V(1).Infof("'%s' daemonset deleted", utils.Bold(identity))
+	klog.Infof("'%s' daemonset deleted", utils.Bold(identity))
 
 	if err := installer.DeleteDriveValidationRules(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
@@ -174,14 +174,14 @@ func uninstall(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	klog.V(1).Infof("'%s' drive validation rules removed", utils.Bold(identity))
+	klog.Infof("'%s' drive validation rules removed", utils.Bold(identity))
 
 	if err := installer.DeleteControllerDeployment(ctx, identity); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
 	}
-	klog.V(1).Infof("'%s' controller deployment deleted", utils.Bold(identity))
+	klog.Infof("'%s' controller deployment deleted", utils.Bold(identity))
 
 	if uninstallCRD {
 		if err := installer.DeleteConversionDeployment(ctx, identity); err != nil {
@@ -202,7 +202,7 @@ func uninstall(ctx context.Context, args []string) error {
 			}
 		}
 
-		klog.V(1).Infof("'%s' conversion deployment deleted", utils.Bold(identity))
+		klog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
 	}
 
 	return nil
