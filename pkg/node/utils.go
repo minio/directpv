@@ -21,8 +21,10 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	kexec "k8s.io/utils/exec"
@@ -109,4 +111,29 @@ func CheckStatusEquality(existingConditions, newConditions []metav1.Condition) b
 	}
 
 	return reflect.DeepEqual(extractStatuses(existingConditions), extractStatuses(newConditions))
+}
+
+func verifyDriveMount(drive *directcsi.DirectCSIDrive, mounts []sys.MountInfo) error {
+
+	isMounted := func(sourcePath string) bool {
+		isMounted := false
+		for _, mount := range mounts {
+			if sourcePath == mount.MountSource {
+				isMounted = true
+				break
+			}
+		}
+		return isMounted
+	}
+
+	driveMounter := &sys.DefaultDriveMounter{}
+	switch drive.Status.DriveStatus {
+	case directcsi.DriveStatusInUse, directcsi.DriveStatusReady:
+		if !isMounted(drive.Status.Path) {
+			if err := driveMounter.MountDrive(drive.Status.Path, drive.Status.Mountpoint, drive.Status.MountOptions); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

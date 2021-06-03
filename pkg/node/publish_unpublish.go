@@ -71,6 +71,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	if stagingTargetPath == "" {
 		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
 	}
+
 	containerPath := req.GetTargetPath()
 	if containerPath == "" {
 		return nil, status.Error(codes.InvalidArgument, "containerPath missing in request")
@@ -90,11 +91,6 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	// If not staged
 	if vol.Status.StagingPath != stagingTargetPath {
 		return nil, status.Error(codes.Internal, "cannot publish volume that hasn't been staged")
-	}
-
-	// If published
-	if vol.Status.ContainerPath == containerPath {
-		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	extractPodLabels := func() map[string]string {
@@ -181,10 +177,6 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		return nil, status.Error(codes.NotFound, err.Error())
-	}
-	// If not published
-	if vol.Status.ContainerPath == "" {
-		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
 	if err := n.mounter.UnmountVolume(containerPath); err != nil {
