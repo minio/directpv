@@ -37,7 +37,7 @@ func downgradeVolumeObject(fromVersion, toVersion string, convertedObject *unstr
 		fallthrough
 	case versionV1Beta1:
 		if toVersion == versionV1Beta1 {
-			glog.V(2).Info("Successfully migrated")
+			klog.V(2).Info("Successfully migrated")
 			break
 		}
 		if err := volumeDowngradeV1Beta1ToV1alpha1(convertedObject); err != nil {

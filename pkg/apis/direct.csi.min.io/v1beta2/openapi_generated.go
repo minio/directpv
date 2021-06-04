@@ -311,7 +311,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveStatus(ref common.Refe
 							Format: "",
 						},
 					},
-					"hostPath": {
+					"currentPath": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",

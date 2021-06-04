@@ -98,7 +98,7 @@ type DirectCSIDriveStatus struct {
 	AccessTier AccessTier `json:"accessTier,omitempty"`
 	// +optional
 	// +k8s:conversion-gen=false
-	HostPath string `json:"hostPath,omitempty"`
+	CurrentPath string `json:"currentPath,omitempty"`
 	// +optional
 	// +k8s:conversion-gen=false
 	FilesystemUUID string `json:"filesystemUUID,omitempty"`
