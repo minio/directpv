@@ -366,6 +366,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 				Name:  nodeDriverRegistrarContainerName,
 				Image: filepath.Join(registry, org, nodeDriverRegistrarContainerImage),
 				Args: []string{
+					fmt.Sprintf("--v=%d", logLevel),
 					"--csi-address=unix:///csi/csi.sock",
 					fmt.Sprintf("--kubelet-registration-path=%s",
 						newDirectCSIPluginsSocketDir(kubeletDirPath, name)+"/csi.sock"),
@@ -394,6 +395,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 				Args: func() []string {
 					args := []string{
 						fmt.Sprintf("--identity=%s", name),
+						fmt.Sprintf("-v=%d", logLevel),
 						fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 						fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
 						fmt.Sprintf("--conversion-webhook-url=%s", conversionWebhookURL),
@@ -635,6 +637,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 				Name:  csiProvisionerContainerName,
 				Image: filepath.Join(registry, org, csiProvisionerContainerImage),
 				Args: []string{
+					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
 					fmt.Sprintf("--csi-address=$(%s)", endpointEnvVarCSI),
 					"--leader-election",
@@ -673,6 +676,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 				Name:  directCSIContainerName,
 				Image: filepath.Join(registry, org, directCSIContainerImage),
 				Args: []string{
+					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", name),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					fmt.Sprintf("--conversion-webhook-url=%s", conversionWebhookURL),

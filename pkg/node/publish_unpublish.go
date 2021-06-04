@@ -63,6 +63,7 @@ func parseVolumeContext(volumeContext map[string]string) (name, ns string, err e
 }
 
 func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	klog.V(3).Infof("NodePublishVolumeRequest: %v", req)
 	vID := req.GetVolumeId()
 	if vID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
@@ -158,6 +159,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 }
 
 func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	klog.V(3).Infof("NodeUnPublishVolumeRequest: %v", req)
 	vID := req.GetVolumeId()
 	if vID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
