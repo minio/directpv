@@ -38,7 +38,7 @@ func downgradeDriveObject(fromVersion, toVersion string, convertedObject *unstru
 		fallthrough
 	case versionV1Beta1:
 		if toVersion == versionV1Beta1 {
-			glog.V(2).Info("Successfully migrated")
+			klog.V(2).Info("Successfully migrated")
 			break
 		}
 		if err := driveDowngradeV1Beta1ToV1alpha1(convertedObject); err != nil {

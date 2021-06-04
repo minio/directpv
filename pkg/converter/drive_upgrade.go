@@ -46,7 +46,7 @@ func upgradeDriveObject(fromVersion, toVersion string, convertedObject *unstruct
 		fallthrough
 	case versionV1Beta2:
 		if toVersion == versionV1Beta2 {
-			glog.V(2).Info("Successfully migrated")
+			klog.V(2).Info("Successfully migrated")
 			break
 		}
 	}

@@ -47,7 +47,7 @@ func upgradeVolumeObject(fromVersion, toVersion string, convertedObject *unstruc
 		fallthrough
 	case versionV1Beta2:
 		if toVersion == versionV1Beta2 {
-			glog.V(2).Info("Successfully migrated")
+			klog.V(2).Info("Successfully migrated")
 			break
 		}
 	}
