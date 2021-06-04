@@ -34,6 +34,7 @@ var (
 	identity       = "direct.csi.min.io"
 	dryRun         = false
 	dryRunFlagName = "dry-run"
+	showVersion    = false
 )
 
 var pluginCmd = &cobra.Command{
@@ -41,12 +42,11 @@ var pluginCmd = &cobra.Command{
 	Short:         "Plugin for managing Direct CSI drives and volumes",
 	SilenceUsage:  true,
 	SilenceErrors: false,
-	Version:       Version,
 }
 
 func init() {
-	if pluginCmd.Version == "" {
-		pluginCmd.Version = "dev"
+	if Version == "" {
+		Version = "dev"
 	}
 
 	viper.AutomaticEnv()
@@ -57,6 +57,7 @@ func init() {
 
 	// parse the go default flagset to get flags for glog and other packages in future
 	pluginCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
+	pluginCmd.PersistentFlags().AddGoFlagSet(kflags)
 	// defaulting this to true so that logs are printed to console
 	flag.Set("logtostderr", "true")
 
@@ -84,5 +85,6 @@ func init() {
 }
 
 func Execute(ctx context.Context) error {
+
 	return pluginCmd.ExecuteContext(ctx)
 }

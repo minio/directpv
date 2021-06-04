@@ -164,6 +164,7 @@ func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 
 // CreateVolume - Creates a DirectCSI Volume
 func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	klog.V(4).Infof("CreateVolumeRequest: %v", req)
 	name := req.GetName()
 	if name == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")

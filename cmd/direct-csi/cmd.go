@@ -45,6 +45,7 @@ var (
 	conversionWebhook    = false
 	conversionWebhookURL = ""
 	loopBackOnly         = false
+	showVersion          = false
 )
 
 var driverCmd = &cobra.Command{
@@ -59,18 +60,20 @@ For more information, use '%s man [sched | examples | ...]'
 `, os.Args[0]),
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
+		if showVersion {
+			fmt.Println(Version)
+			return nil
+		}
 		if !controller && !driver && !conversionWebhook {
 			return fmt.Errorf("one among [--controller, --driver, --conversion-webhook] should be set")
 		}
-
 		return run(c.Context(), args)
 	},
-	Version: Version,
 }
 
 func init() {
-	if driverCmd.Version == "" {
-		driverCmd.Version = "dev"
+	if Version == "" {
+		Version = "dev"
 	}
 
 	viper.AutomaticEnv()
@@ -81,11 +84,13 @@ func init() {
 
 	// parse the go default flagset to get flags for glog and other packages in future
 	driverCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
+	driverCmd.PersistentFlags().AddGoFlagSet(kflags)
 	// defaulting this to true so that logs are printed to console
 	flag.Set("logtostderr", "true")
 
 	driverCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "path to kubeconfig")
 	driverCmd.Flags().StringVarP(&identity, "identity", "i", identity, "identity of this direct-csi")
+	driverCmd.Flags().BoolVarP(&showVersion, "version", "", showVersion, "version of direct-csi")
 	driverCmd.Flags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi is listening")
 	driverCmd.Flags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi is running")
 	driverCmd.Flags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this direct-csi is running")

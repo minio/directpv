@@ -31,9 +31,11 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 )
 
 func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	klog.V(3).Infof("NodeStageVolumeRequest: %v", req)
 	vID := req.GetVolumeId()
 	if vID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
@@ -97,6 +99,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 }
 
 func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	klog.V(3).Infof("NodeUnStageVolumeRequest: %v", req)
 	vID := req.GetVolumeId()
 	if vID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
