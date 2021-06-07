@@ -68,6 +68,10 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, err
 	}
 
+	if err := os.MkdirAll(stagingTargetPath, 0755); err != nil {
+		return nil, err
+	}
+
 	size := vol.Status.TotalCapacity
 	if err := n.mounter.MountVolume(ctx, path, stagingTargetPath, vID, size, false); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed stage volume: %v", err)

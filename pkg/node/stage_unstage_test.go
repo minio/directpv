@@ -112,7 +112,7 @@ func TestStageUnstageVolume(t *testing.T) {
 
 	stageVolumeRequest := csi.NodeStageVolumeRequest{
 		VolumeId:          testVolumeName50MB,
-		StagingTargetPath: "/path/to/target",
+		StagingTargetPath: "/tmp/path/to/target",
 		VolumeCapability: &csi.VolumeCapability{
 			AccessType: &csi.VolumeCapability_Mount{
 				Mount: &csi.VolumeCapability_MountVolume{
@@ -127,7 +127,7 @@ func TestStageUnstageVolume(t *testing.T) {
 
 	unstageVolumeRequest := csi.NodeUnstageVolumeRequest{
 		VolumeId:          testVolumeName50MB,
-		StagingTargetPath: "/path/to/target",
+		StagingTargetPath: "/tmp/path/to/target",
 	}
 
 	ctx := context.TODO()
