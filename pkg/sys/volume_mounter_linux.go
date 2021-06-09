@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 
-	"github.com/minio/direct-csi/pkg/sys/xfs"
+	"github.com/minio/direct-csi/pkg/sys/fs/xfs"
 )
 
 // Idempotent function to bind mount a xfs filesystem with limits

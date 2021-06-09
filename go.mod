@@ -11,6 +11,7 @@ require (
 	github.com/go-openapi/spec v0.19.5
 	github.com/go-openapi/strfmt v0.19.3 // indirect
 	github.com/google/addlicense v0.0.0-20210428195630-6d92264d7170 // indirect
+	github.com/google/uuid v1.1.2
 	github.com/gopherjs/gopherjs v0.0.0-20190328170749-bb2674552d8f // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible

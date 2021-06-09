@@ -20,7 +20,7 @@ import (
 	"context"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	"github.com/minio/direct-csi/pkg/sys/xfs"
+	"github.com/minio/direct-csi/pkg/sys/fs/xfs"
 
 	"k8s.io/klog"
 

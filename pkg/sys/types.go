@@ -59,6 +59,7 @@ type DriveInfo struct {
 }
 
 type FSInfo struct {
+	UUID          string      `json:"uuid,omitempty"`
 	FSType        string      `json:"fsType,omitempty"`
 	TotalCapacity uint64      `json:"totalCapacity,omitempty"`
 	FreeCapacity  uint64      `json:"freeCapacity,omitempty"`
@@ -80,4 +81,8 @@ type MountInfo struct {
 	Minor             uint32   `json:"minor,omitempty"`
 	DevName           string   `json:"devName,omitempty"`
 	PartitionNum      uint     `json:"partitionNum,omitempty"`
+}
+
+type SuperBlock interface {
+	Is() bool
 }
