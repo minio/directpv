@@ -25,7 +25,7 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
-	"github.com/minio/direct-csi/pkg/sys/xfs"
+	"github.com/minio/direct-csi/pkg/sys/fs/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -16,6 +16,21 @@
 
 package xfs
 
+import (
+	"encoding/binary"
+	"encoding/hex"
+	"github.com/google/uuid"
+	"os"
+)
+
+type XFS struct {
+	SuperBlock *XFSSuperBlock
+}
+
+func NewXFS() *XFS {
+	return &XFS{}
+}
+
 type XFSSuperBlock struct {
 	MagicNumber         uint32
 	BlockSize           uint32
@@ -54,4 +69,52 @@ type XFSSuperBlock struct {
 
 func (x XFSSuperBlock) Is() bool {
 	return x.MagicNumber == XFSMagicNum
+}
+
+func (xfs *XFS) Type() string {
+	return FSTypeXFS
+}
+
+func (xfs *XFS) FSBlockSize() uint64 {
+	return uint64(xfs.SuperBlock.BlockSize)
+}
+
+func (xfs *XFS) TotalCapacity() uint64 {
+	return uint64(xfs.SuperBlock.TotalBlocks) * uint64(xfs.SuperBlock.BlockSize)
+}
+
+func (xfs *XFS) FreeCapacity() uint64 {
+	return uint64(xfs.SuperBlock.FreeBlocks) * uint64(xfs.SuperBlock.BlockSize)
+}
+
+func (xfs *XFS) UUID() (string, error) {
+	uid, err := uuid.Parse(hex.EncodeToString(xfs.SuperBlock.UUID[:]))
+	if err != nil {
+		return "", err
+	}
+	return uid.String(), nil
+}
+
+func (xfs *XFS) ByteOrder() binary.ByteOrder {
+	return binary.BigEndian
+}
+
+func (xfs *XFS) ProbeFS(devicePath string, startOffset int64) (bool, error) {
+	devFile, err := os.OpenFile(devicePath, os.O_RDONLY, os.ModeDevice)
+	if err != nil {
+		return false, err
+	}
+	defer devFile.Close()
+
+	if _, err = devFile.Seek(startOffset, os.SEEK_SET); err != nil {
+		return false, err
+	}
+
+	xfsSuperBlock := &XFSSuperBlock{}
+	if err := binary.Read(devFile, xfs.ByteOrder(), xfsSuperBlock); err != nil {
+		return false, err
+	}
+	xfs.SuperBlock = xfsSuperBlock
+
+	return xfs.SuperBlock.Is(), nil
 }
