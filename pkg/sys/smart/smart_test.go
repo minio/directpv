@@ -1,4 +1,4 @@
-// +build !skip
+//go:build !skip
 
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.

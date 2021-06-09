@@ -51,10 +51,10 @@ const (
 	selectorValueEnabled  = "enabled"
 
 	volumeNameSocketDir       = "socket-dir"
-	volumeNameDevDir          = "dev-dir"
-	volumePathDevDir          = "/dev"
 	volumeNameSysDir          = "sys-fs"
 	volumePathSysDir          = "/sys"
+	volumeNameRunUdevData     = "run-udev-data"
+	volumePathRunUdevData     = "/run/udev/data"
 	volumeNameCSIRootDir      = "direct-csi-common-root"
 	volumeNameMountpointDir   = "mountpoint-dir"
 	volumeNameRegistrationDir = "registration-dir"

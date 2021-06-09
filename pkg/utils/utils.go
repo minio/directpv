@@ -18,10 +18,12 @@ package utils
 
 import (
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	"github.com/minio/direct-csi/pkg/sys"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -77,4 +79,24 @@ func DefaultIfZeroFloat(left, right float32) float32 {
 
 func DefaultIfZeroFloat64(left, right float64) float64 {
 	return defaultIfZero(left, right).(float64)
+}
+
+func getRootBlockFile(devName string) string {
+	switch {
+	case strings.HasPrefix(devName, sys.HostDevRoot):
+		return devName
+	case strings.Contains(devName, sys.DirectCSIDevRoot):
+		return getRootBlockFile(filepath.Base(devName))
+	default:
+		name := strings.ReplaceAll(
+			strings.Replace(devName, sys.DirectCSIPartitionInfix, "", 1),
+			sys.DirectCSIPartitionInfix,
+			sys.HostPartitionInfix,
+		)
+		return filepath.Join(sys.HostDevRoot, name)
+	}
+}
+
+func GetDrivePath(drive *directcsi.DirectCSIDrive) string {
+	return getRootBlockFile(drive.Status.Path)
 }

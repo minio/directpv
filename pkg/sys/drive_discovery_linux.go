@@ -1,3 +1,5 @@
+//go:build linux
+
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.
 //
@@ -18,59 +20,145 @@ package sys
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/minio/direct-csi/pkg/blockdev"
+	"github.com/minio/direct-csi/pkg/blockdev/parttable"
+	"github.com/minio/direct-csi/pkg/sys/fs"
+	"github.com/minio/direct-csi/pkg/sys/smart"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
-
-	"github.com/minio/direct-csi/pkg/sys/loopback"
-	"github.com/minio/direct-csi/pkg/sys/smart"
 )
 
-func readFirstLine(filename string, ignoreNotExist bool) (string, error) {
+const (
+	defaultBlockSize = 512
+	runUdevData      = "/run/udev/data"
+)
+
+func isUdevDataReadable() bool {
+	dir, err := os.Open(runUdevData)
+	if err != nil {
+		klog.V(5).Infof("%v", err)
+		return false
+	}
+
+	defer dir.Close()
+	if _, err = dir.Readdirnames(1); err != nil {
+		klog.V(5).Infof("%v", err)
+		return false
+	}
+
+	return true
+}
+
+func getDeviceMajorMinor(device string) (major, minor uint32, err error) {
+	stat := syscall.Stat_t{}
+	if err = syscall.Stat(device, &stat); err == nil {
+		major, minor = uint32(unix.Major(stat.Rdev)), uint32(unix.Minor(stat.Rdev))
+	}
+	return
+}
+
+func normalizeUUID(uuid string) string {
+	if u := strings.ReplaceAll(strings.ReplaceAll(uuid, ":", ""), "-", ""); len(u) > 20 {
+		uuid = fmt.Sprintf("%v-%v-%v-%v-%v", u[:8], u[8:12], u[12:16], u[16:20], u[20:])
+	}
+	return uuid
+}
+
+func parseRunUdevDataFile(r io.Reader) (map[string]string, error) {
+	reader := bufio.NewReader(r)
+	event := map[string]string{}
+	for {
+		s, err := reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		if !strings.HasPrefix(s, "E:") {
+			continue
+		}
+
+		tokens := strings.SplitN(s, "=", 2)
+		key := strings.TrimPrefix(tokens[0], "E:")
+		switch len(tokens) {
+		case 1:
+			event[key] = ""
+		case 2:
+			event[key] = strings.TrimSpace(tokens[1])
+		}
+	}
+	return event, nil
+}
+
+func readRunUdevData(major, minor int) (map[string]string, error) {
+	file, err := os.Open(fmt.Sprintf("%v/b%v:%v", runUdevData, major, minor))
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return parseRunUdevDataFile(file)
+}
+
+func readFirstLine(filename string, errorIfNotExist bool) (string, error) {
+	getError := func(err error) error {
+		if errorIfNotExist {
+			return err
+		}
+		switch {
+		case errors.Is(err, os.ErrNotExist), errors.Is(err, os.ErrInvalid):
+			return nil
+		case strings.Contains(strings.ToLower(err.Error()), "no such device"):
+			return nil
+		case strings.Contains(strings.ToLower(err.Error()), "invalid argument"):
+			return nil
+		}
+		return err
+	}
+
 	file, err := os.Open(filename)
 	if err != nil {
-		if ignoreNotExist && errors.Is(err, os.ErrNotExist) {
-			err = nil
-		}
-		return "", err
+		return "", getError(err)
 	}
 	defer file.Close()
 	s, err := bufio.NewReader(file).ReadString('\n')
-	if err != nil {
-		return "", err
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", getError(err)
 	}
 	return strings.TrimSpace(s), nil
 }
 
-type drive struct {
-	name      string // from "/sys/class/block"
-	major     int    // from "/sys/class/block/${name}/dev"
-	minor     int    // from "/sys/class/block/${name}/dev"
-	partition int    // from "/sys/class/block/${name}/partition"
-	dmName    string // from "/sys/class/block/${name}/dm/name"
-	dmUUID    string // from "/sys/class/block/${name}/dm/uuid"
-	parent    string // computed
-	master    string // computed
+func readdirnames(dirname string, errorIfNotExist bool) ([]string, error) {
+	dir, err := os.Open(dirname)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) && !errorIfNotExist {
+			err = nil
+		}
+		return nil, err
+	}
+	defer dir.Close()
+	return dir.Readdirnames(-1)
 }
 
-func getDevMajorMinor(name string) (major int, minor int, err error) {
-	var dev string
-	if dev, err = readFirstLine("/sys/class/block/"+name+"/dev", false); err != nil {
+func getMajorMinor(name string) (major int, minor int, err error) {
+	var majorMinor string
+	if majorMinor, err = readFirstLine("/sys/class/block/"+name+"/dev", true); err != nil {
 		return
 	}
 
-	tokens := strings.SplitN(dev, ":", 2)
+	tokens := strings.SplitN(majorMinor, ":", 2)
 	if len(tokens) != 2 {
-		err = fmt.Errorf("unknown format of %v", dev)
+		err = fmt.Errorf("unknown format of %v", majorMinor)
 		return
 	}
 
@@ -81,60 +169,82 @@ func getDevMajorMinor(name string) (major int, minor int, err error) {
 	return
 }
 
-func getPartition(name string) (int, error) {
-	s, err := readFirstLine("/sys/class/block/"+name+"/partition", true)
+func getSize(name string) (uint64, error) {
+	s, err := readFirstLine("/sys/class/block/"+name+"/size", true)
 	if err != nil {
 		return 0, err
 	}
-	if s == "" {
-		return 0, nil
+	ui64, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, err
 	}
-	return strconv.Atoi(s)
+	return ui64 * defaultBlockSize, nil
+}
+
+func getPartition(name string) (int, error) {
+	s, err := readFirstLine("/sys/class/block/"+name+"/partition", false)
+	if err != nil {
+		return 0, err
+	}
+	if s != "" {
+		return strconv.Atoi(s)
+	}
+	return 0, nil
+}
+
+func getRemovable(name string) (bool, error) {
+	s, err := readFirstLine("/sys/class/block/"+name+"/removable", false)
+	return s != "" && s != "0", err
+}
+
+func getReadOnly(name string) (bool, error) {
+	s, err := readFirstLine("/sys/class/block/"+name+"/ro", false)
+	return s != "" && s != "0", err
+}
+
+func getWWID(name string) (wwid string, err error) {
+	if wwid, err = readFirstLine("/sys/class/block/"+name+"/wwid", false); err == nil && wwid == "" {
+		wwid, err = readFirstLine("/sys/class/block/"+name+"/device/wwid", false)
+	}
+	return wwid, err
+}
+
+func getModel(name string) (string, error) {
+	return readFirstLine("/sys/class/block/"+name+"/device/model", false)
+}
+
+func getSerial(name string) (string, error) {
+	serial, _ := smart.GetSerialNumber("/dev/" + name)
+	return serial, nil
+}
+
+func getVendor(name string) (string, error) {
+	return readFirstLine("/sys/class/block/"+name+"/device/vendor", false)
 }
 
 func getDMName(name string) (string, error) {
-	return readFirstLine("/sys/class/block/"+name+"/dm/name", true)
+	return readFirstLine("/sys/class/block/"+name+"/dm/name", false)
 }
 
 func getDMUUID(name string) (string, error) {
-	return readFirstLine("/sys/class/block/"+name+"/dm/uuid", true)
+	return readFirstLine("/sys/class/block/"+name+"/dm/uuid", false)
 }
 
-func getDrive(name string) (*drive, error) {
-	major, minor, err := getDevMajorMinor(name)
-	if err != nil {
-		return nil, err
-	}
-	partition, err := getPartition(name)
-	if err != nil {
-		return nil, err
-	}
-	dmName, err := getDMName(name)
-	if err != nil {
-		return nil, err
-	}
-	dmUUID, err := getDMUUID(name)
-	if err != nil {
-		return nil, err
-	}
-	return &drive{
-		name:      name,
-		major:     major,
-		minor:     minor,
-		partition: partition,
-		dmName:    dmName,
-		dmUUID:    dmUUID,
-	}, nil
+func getMDUUID(name string) (string, error) {
+	uuid, err := readFirstLine("/sys/class/block/"+name+"/md/uuid", false)
+	return normalizeUUID(uuid), err
 }
 
-func getParttiions(name string) ([]string, error) {
-	file, err := os.Open("/sys/block/" + name)
+func getVirtual(name string) (bool, error) {
+	absPath, err := filepath.EvalSymlinks("/sys/class/block/" + name)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	defer file.Close()
+	return strings.HasPrefix(absPath, "/sys/devices/virtual/block/"), nil
+}
 
-	names, err := file.Readdirnames(-1)
+func getPartitions(name string) ([]string, error) {
+	names, err := readdirnames("/sys/block/"+name, false)
 	if err != nil {
 		return nil, err
 	}
@@ -150,395 +260,446 @@ func getParttiions(name string) ([]string, error) {
 }
 
 func getSlaves(name string) ([]string, error) {
-	file, err := os.Open("/sys/block/" + name + "/slaves")
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			err = nil
-		}
-		return nil, err
-	}
-	defer file.Close()
-	return file.Readdirnames(-1)
+	return readdirnames("/sys/block/"+name+"/slaves", false)
 }
 
 func readSysBlock() ([]string, error) {
-	file, err := os.Open("/sys/block")
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	return file.Readdirnames(-1)
+	return readdirnames("/sys/block", true)
 }
 
 func readSysClassBlock() ([]string, error) {
-	file, err := os.Open("/sys/class/block")
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	return file.Readdirnames(-1)
+	return readdirnames("/sys/class/block", true)
 }
 
-func probeDrives() (map[string]*drive, error) {
-	names, err := readSysClassBlock()
+func probeDevice(name string) (device *Device, err error) {
+	device = &Device{Name: name}
+	if device.Major, device.Minor, err = getMajorMinor(name); err != nil {
+		return nil, err
+	}
+	if device.Size, err = getSize(name); err != nil {
+		return nil, err
+	}
+	if device.Partition, err = getPartition(name); err != nil {
+		return nil, err
+	}
+	if device.Removable, err = getRemovable(name); err != nil {
+		return nil, err
+	}
+	if device.ReadOnly, err = getReadOnly(name); err != nil {
+		return nil, err
+	}
+	if device.WWID, err = getWWID(name); err != nil {
+		return nil, err
+	}
+	if device.Model, err = getModel(name); err != nil {
+		return nil, err
+	}
+	if device.Serial, err = getSerial(name); err != nil {
+		return nil, err
+	}
+	if device.Vendor, err = getVendor(name); err != nil {
+		return nil, err
+	}
+	if device.DMName, err = getDMName(name); err != nil {
+		return nil, err
+	}
+	if device.DMUUID, err = getDMUUID(name); err != nil {
+		return nil, err
+	}
+	if device.MDUUID, err = getMDUUID(name); err != nil {
+		return nil, err
+	}
+	if device.Virtual, err = getVirtual(name); err != nil {
+		return nil, err
+	}
+	return device, nil
+}
+
+func getAllDevices() (devices map[string]*Device, err error) {
+	var names []string
+	if names, err = readSysClassBlock(); err != nil {
+		return nil, err
+	}
+
+	var device *Device
+	devices = map[string]*Device{}
+	for _, name := range names {
+		if device, err = probeDevice(name); err != nil {
+			return nil, err
+		}
+		devices[name] = device
+	}
+
+	return devices, nil
+}
+
+func updatePartTableInfo(devices map[string]*Device) error {
+	names, err := readSysBlock()
 	if err != nil {
-		return nil, err
-	}
-
-	driveMap := map[string]*drive{}
-	for _, name := range names {
-		drive, err := getDrive(name)
-		if err != nil {
-			return nil, err
-		}
-		driveMap[name] = drive
-	}
-
-	if names, err = readSysBlock(); err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, name := range names {
-		partitions, err := getParttiions(name)
-		if err != nil {
-			return nil, err
+		partTable, err := blockdev.Probe("/dev/" + name)
+		if devices[name].Size > 0 && err != nil {
+			switch {
+			case errors.Is(err, parttable.ErrPartTableNotFound):
+			case strings.Contains(strings.ToLower(err.Error()), "no medium found"):
+			default:
+				return err
+			}
 		}
+
+		var partitionMap map[int]*parttable.Partition
+		if partTable != nil {
+			devices[name].PTUUID = partTable.UUID()
+			devices[name].PTType = partTable.Type()
+			partitionMap = partTable.Partitions()
+		}
+
+		partitions, err := getPartitions(name)
+		if err != nil {
+			return err
+		}
+		devices[name].Partitioned = len(partitions) > 0
 		for _, partition := range partitions {
-			if _, found := driveMap[partition]; found {
-				driveMap[partition].parent = name
+			devices[partition].Parent = name
+
+			partNumber := devices[partition].Partition
+			if partitionMap != nil {
+				if _, found := partitionMap[partNumber]; found {
+					devices[name].PartUUID = partitionMap[partNumber].UUID
+				}
 			}
 		}
 
 		slaves, err := getSlaves(name)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for _, slave := range slaves {
-			if _, found := driveMap[slave]; found {
-				driveMap[slave].master = name
-			}
+			devices[slave].Master = name
 		}
 	}
 
-	return driveMap, nil
+	return nil
 }
 
-func FindDevices(ctx context.Context, loopBackOnly bool) ([]BlockDevice, error) {
-	driveMap, err := probeDrives()
-	if err != nil {
+func probeDevicesFromSysfs() (devices map[string]*Device, err error) {
+	if devices, err = getAllDevices(); err != nil {
 		return nil, err
 	}
 
-	var head = func() string {
-		var deviceHead = "/sys/devices"
-		if loopBackOnly {
-			return filepath.Join(deviceHead, "virtual", "block")
-		}
-		return deviceHead
-	}()
+	if err = updatePartTableInfo(devices); err != nil {
+		return nil, err
+	}
 
-	drives := []BlockDevice{}
-	var attachedLoopDeviceNames []string
-	if loopBackOnly {
+	return devices, nil
+}
+
+func newDevice(event map[string]string, name string, major, minor int, virtual bool) (device *Device, err error) {
+	device = &Device{
+		Name:    name,
+		Major:   major,
+		Minor:   minor,
+		Virtual: virtual,
+	}
+
+	if value, found := event["ID_PART_ENTRY_SIZE"]; found {
+		if device.Size, err = strconv.ParseUint(value, 10, 64); err != nil {
+			return nil, err
+		}
+		device.Size *= defaultBlockSize
+	}
+
+	if value, found := event["ID_PART_ENTRY_NUMBER"]; found {
+		if device.Partition, err = strconv.Atoi(value); err != nil {
+			return nil, err
+		}
+	}
+
+	device.WWID = event["ID_WWN"]
+	device.Model = event["ID_MODEL"]
+	device.Serial = event["ID_SERIAL_SHORT"]
+	device.Vendor = event["ID_VENDOR"]
+	device.DMName = event["DM_NAME"]
+	device.DMUUID = event["DM_UUID"]
+	device.MDUUID = normalizeUUID(event["MD_UUID"])
+	device.PTUUID = event["ID_PART_TABLE_UUID"]
+	device.PTType = event["ID_PART_TABLE_TYPE"]
+	device.PartUUID = event["ID_PART_ENTRY_UUID"]
+	device.FSUUID = event["ID_FS_UUID"]
+	device.FSType = event["ID_FS_TYPE"]
+
+	return device, nil
+}
+
+func updateRelationship(devices map[string]*Device) error {
+	names, err := readSysBlock()
+	if err != nil {
+		return err
+	}
+
+	for _, name := range names {
+		partitions, err := getPartitions(name)
+		if err != nil {
+			return err
+		}
+
+		devices[name].Partitioned = len(partitions) > 0
+		for _, partition := range partitions {
+			devices[partition].Parent = name
+		}
+
+		slaves, err := getSlaves(name)
+		if err != nil {
+			return err
+		}
+		for _, slave := range slaves {
+			devices[slave].Master = name
+		}
+	}
+
+	return nil
+}
+
+func probeDevicesFromUdev() (devices map[string]*Device, err error) {
+	var names []string
+	if names, err = readSysClassBlock(); err != nil {
+		return nil, err
+	}
+
+	devices = map[string]*Device{}
+	for _, name := range names {
+		major, minor, err := getMajorMinor(name)
+		if err != nil {
+			return nil, err
+		}
+
+		virtual, err := getVirtual(name)
+		if err != nil {
+			return nil, err
+		}
+
+		event, err := readRunUdevData(major, minor)
+		if err != nil {
+			return nil, err
+		}
+
+		device, err := newDevice(event, name, major, minor, virtual)
+		if err != nil {
+			return nil, err
+		}
+
+		if device.Partition <= 0 {
+			if device.Size, err = getSize(name); err != nil {
+				return nil, err
+			}
+		}
+		if device.Removable, err = getRemovable(name); err != nil {
+			return nil, err
+		}
+		if device.ReadOnly, err = getReadOnly(name); err != nil {
+			return nil, err
+		}
+
+		devices[name] = device
+	}
+
+	if err = updateRelationship(devices); err != nil {
+		return nil, err
+	}
+
+	return devices, nil
+}
+
+func getBlockSizes(device string) (physicalBlockSize, logicalBlockSize uint64, err error) {
+	devFile, err := os.OpenFile(device, os.O_RDONLY, os.ModeDevice)
+	if err != nil {
+		return
+	}
+	defer devFile.Close()
+	fd := devFile.Fd()
+
+	var blockSize int
+	if blockSize, err = unix.IoctlGetInt(int(fd), unix.BLKBSZGET); err != nil {
+		klog.Errorf("could not obtain physical block size for device: %s", device)
+		return
+	}
+	physicalBlockSize = uint64(blockSize)
+
+	if blockSize, err = unix.IoctlGetInt(int(fd), unix.BLKSSZGET); err != nil {
+		klog.Errorf("could not obtain logical block size for device: %s", device)
+		return
+	}
+	logicalBlockSize = uint64(blockSize)
+
+	return
+}
+
+func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos map[string][]MountInfo, mountPointsMap map[string][]string) error {
+	if _, found := CDROMs[device.Name]; found {
+		device.ReadOnly = true
+		device.Removable = true
+		return nil
+	}
+
+	majorMinor := fmt.Sprintf("%v:%v", device.Major, device.Minor)
+	if _, found := swaps[majorMinor]; !found {
+		device.MountPoints = mountPointsMap[majorMinor]
+		if len(device.MountPoints) > 0 {
+			device.FirstMountPoint = mountInfos[majorMinor][0].MountPoint
+			device.FirstMountOptions = mountInfos[majorMinor][0].mountOptions
+		}
+
 		var err error
-		attachedLoopDeviceNames, err = loopback.GetAttachedDeviceNames()
-		if err != nil {
-			return drives, err
-		}
-		if len(attachedLoopDeviceNames) == 0 {
-			return drives, fmt.Errorf("No loop devices attached")
-		}
-	}
-
-	return drives, filepath.Walk(head, func(path string, info os.FileInfo, err error) error {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-
-		if !loopBackOnly && strings.HasPrefix(info.Name(), "loop") {
-			return filepath.SkipDir
-		}
-
-		if info.Name() != "uevent" {
-			return nil
-		}
-		drive, err := parseUevent(path)
-		if err != nil {
-			klog.V(5).Info(err)
-			return nil
-		}
-
-		if loopBackOnly {
-			if isAttachedDev := func() bool {
-				for _, ldName := range attachedLoopDeviceNames {
-					if ldName == drive.Devname {
-						return true
-					}
-				}
-				return false
-			}(); isAttachedDev == false {
-				return nil
-			}
-		}
-
-		if drive.Devtype != "disk" {
-			return nil
-		}
-		subsystem, err := subsystem(path)
-		if err != nil {
-			klog.V(5).Info(err)
-			return nil
-		}
-		if subsystem != "block" {
-			return nil
-		}
-		if err := drive.probeBlockDev(ctx, driveMap); err != nil {
-			klog.Errorf("Error while probing block device: %v", err)
-		}
-
-		drives = append(drives, *drive)
-		return nil
-	})
-}
-
-func (b *BlockDevice) GetPartitions() []Partition {
-	return b.Partitions
-}
-
-func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*drive) (err error) {
-	defer func() {
-		if err != nil {
-			b.TagError(err)
-		}
-	}()
-
-	b.Path = b.DirectCSIDrivePath()
-
-	err = os.MkdirAll(DirectCSIDevRoot, 0755)
-	if err != nil {
-		return err
-	}
-
-	if b.DriveInfo == nil {
-		return fmt.Errorf("Invalid drive info for %s", b.Devname)
-	}
-
-	var logicalBlockSize, physicalBlockSize uint64
-	logicalBlockSize, physicalBlockSize, err = b.getBlockSizes()
-	if err != nil {
-		return err
-	}
-	b.LogicalBlockSize = logicalBlockSize
-	b.PhysicalBlockSize = physicalBlockSize
-
-	var driveSize uint64
-	driveSize, err = b.getTotalCapacity()
-	if err != nil {
-		return err
-	}
-	b.TotalCapacity = driveSize
-
-	numBlocks := driveSize / logicalBlockSize
-	b.NumBlocks = numBlocks
-	b.EndBlock = numBlocks
-
-	var parts []Partition
-	parts, err = b.probePartitions(ctx)
-	if err != nil {
-		if err != ErrNotPartition {
+		if device.PhysicalBlockSize, device.LogicalBlockSize, err = getBlockSizes("/dev/" + device.Name); device.Size > 0 && err != nil {
 			return err
 		}
+	} else {
+		device.SwapOn = true
 	}
 
-	b.DMName = driveMap[b.Devname].dmName
-	b.DMUUID = driveMap[b.Devname].dmUUID
-	b.Parent = driveMap[b.Devname].parent
-	b.Master = driveMap[b.Devname].master
-	for i := range parts {
-		for name, drive := range driveMap {
-			if strings.HasPrefix(name, b.Devname) && drive.parent == b.Devname && drive.partition == int(parts[i].PartitionNum) {
-				parts[i].DMName = drive.dmName
-				parts[i].DMUUID = drive.dmUUID
-				parts[i].Parent = drive.parent
-				parts[i].Master = drive.master
-			}
-		}
-	}
-
-	// Get the block device serial number
-	serialNumber := b.getSerialNumber()
-
-	if len(parts) == 0 {
-		offsetBlocks := uint64(0)
-		var fsInfo *FSInfo
-		fsInfo, err = b.probeFS(offsetBlocks)
-		if err != nil {
-			if err != ErrNoFS {
-				return err
-			}
-		}
-		if fsInfo == nil {
-			fsInfo = &FSInfo{
-				TotalCapacity: b.TotalCapacity,
-				FSBlockSize:   b.LogicalBlockSize,
-			}
-		}
-		var mounts []MountInfo
-		mounts, err = b.probeMountInfo(b.DriveInfo.Major, b.DriveInfo.Minor, driveMap)
-		if err != nil {
+	if device.FSType == "" {
+		filesystem, err := fs.Probe("/dev/" + device.Name)
+		if device.Size > 0 && err != nil && !errors.Is(err, fs.ErrFSNotFound) {
 			return err
 		}
-		fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
-		b.FSInfo = fsInfo
-		b.SerialNumber = serialNumber
-		return nil
-	}
-	for _, p := range parts {
-		offsetBlocks := p.StartBlock
-		var fsInfo *FSInfo
-		fsInfo, err = b.probeFS(offsetBlocks)
-		if err != nil {
-			if err != ErrNoFS {
-				return err
-			}
+		if filesystem != nil {
+			uuid, _ := filesystem.UUID()
+			device.FSUUID = uuid
+			device.FSType = filesystem.Type()
+			device.TotalCapacity = filesystem.TotalCapacity()
+			device.FreeCapacity = filesystem.FreeCapacity()
 		}
-
-		if fsInfo == nil {
-			fsInfo = &FSInfo{
-				TotalCapacity: p.TotalCapacity,
-				FSBlockSize:   p.LogicalBlockSize,
-			}
-		}
-		var mounts []MountInfo
-		mounts, err = b.probeMountInfo(p.DriveInfo.Major, p.DriveInfo.Minor, driveMap)
-		if err != nil {
-			return err
-		}
-		fsInfo.Mounts = append(fsInfo.Mounts, mounts...)
-		p.FSInfo = fsInfo
-		p.SerialNumber = serialNumber
-		b.Partitions = append(b.Partitions, p)
+	} else {
+		device.TotalCapacity, device.FreeCapacity, _ = fs.GetCapacity("/dev/"+device.Name, device.FSType)
 	}
 	return nil
 }
 
-func subsystem(path string) (string, error) {
-	dir := filepath.Dir(path)
-	link, err := os.Readlink(filepath.Join(dir, "subsystem"))
-	if err != nil {
-		return "", err
+func parseCDROMs(r io.Reader) (map[string]struct{}, error) {
+	reader := bufio.NewReader(r)
+	names := map[string]struct{}{}
+	for {
+		s, err := reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		if tokens := strings.SplitAfterN(s, "drive name:", 2); len(tokens) == 2 {
+			for _, token := range strings.Fields(tokens[1]) {
+				if token != "" {
+					names[token] = struct{}{}
+				}
+			}
+			break
+		}
 	}
-	return filepath.Base(link), nil
+	return names, nil
 }
 
-func parseUevent(path string) (*BlockDevice, error) {
-	if filepath.Base(path) != "uevent" {
-		return nil, fmt.Errorf("not a uevent file")
+func getCDROMs() (map[string]struct{}, error) {
+	file, err := os.Open("/proc/sys/dev/cdrom/info")
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return map[string]struct{}{}, nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+	return parseCDROMs(file)
+}
+
+func getSwaps() (map[string]struct{}, error) {
+	file, err := os.Open("/proc/swaps")
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return map[string]struct{}{}, nil
+		}
+		return nil, err
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+
+	filenames := []string{}
+	for {
+		s, err := reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		filenames = append(filenames, strings.Fields(s)[0])
 	}
 
-	uevent, err := ioutil.ReadFile(path)
+	devices := map[string]struct{}{}
+	for _, filename := range filenames[1:] {
+		major, minor, err := getDeviceMajorMinor(filename)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, err
+		}
+
+		devices[fmt.Sprintf("%v:%v", major, minor)] = struct{}{}
+	}
+	return devices, nil
+}
+
+func getMountPoints(mountInfos map[string][]MountInfo) (map[string][]string, error) {
+	mountPointsMap := map[string][]string{}
+	for _, mounts := range mountInfos {
+		for _, mount := range mounts {
+			mountPointsMap[mount.majorMinor] = append(mountPointsMap[mount.majorMinor], mount.MountPoint)
+		}
+	}
+
+	return mountPointsMap, nil
+}
+
+func probeDevices() (devices map[string]*Device, err error) {
+	if isUdevDataReadable() {
+		devices, err = probeDevicesFromUdev()
+	} else {
+		devices, err = probeDevicesFromSysfs()
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	uev := string(uevent)
-	var major, minor, devname, devtype string
+	CDROMs, err := getCDROMs()
+	if err != nil {
+		return nil, err
+	}
 
-	lines := strings.Split(uev, "\n")
-	for _, line := range lines {
-		if len(line) == 0 {
-			continue
-		}
-		cleanLine := strings.TrimSpace(line)
-		parts := strings.Split(cleanLine, "=")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("uevent file format not supported: %s", path)
-		}
-		key := parts[0]
-		value := parts[1]
-		switch key {
-		case "MAJOR":
-			major = value
-		case "MINOR":
-			minor = value
-		case "DEVNAME":
-			devname = value
-		case "DEVTYPE":
-			devtype = value
-		default:
-			return nil, fmt.Errorf("uevent file format not supported: %s", path)
+	swaps, err := getSwaps()
+	if err != nil {
+		return nil, err
+	}
+
+	mountInfos, err := ProbeMounts()
+	if err != nil {
+		return nil, err
+	}
+
+	mountPointsMap, err := getMountPoints(mountInfos)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, device := range devices {
+		if err = updateFSInfo(device, CDROMs, swaps, mountInfos, mountPointsMap); err != nil {
+			return nil, err
 		}
 	}
-	majorNum64, err := strconv.ParseUint(major, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("invalid major num: %s", major)
-	}
-	minorNum64, err := strconv.ParseUint(minor, 10, 32)
-	if err != nil {
-		return nil, fmt.Errorf("invalid minor num: %s", minor)
-	}
-	majorNum := uint32(majorNum64)
-	minorNum := uint32(minorNum64)
 
-	return &BlockDevice{
-		Devname: devname,
-		Devtype: devtype,
-		DriveInfo: &DriveInfo{
-			Major: majorNum,
-			Minor: minorNum,
-		},
-	}, nil
-}
-
-func (b *BlockDevice) getBlockSizes() (uint64, uint64, error) {
-	devFile, err := os.OpenFile(b.HostDrivePath(), os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer devFile.Close()
-
-	fd := devFile.Fd()
-	logicalBlockSize, err := unix.IoctlGetInt(int(fd), unix.BLKSSZGET)
-	if err != nil {
-		klog.Errorf("could not obtain logical block size for device: %s", b.Devname)
-		return 0, 0, err
-	}
-	physicalBlockSize, err := unix.IoctlGetInt(int(fd), unix.BLKBSZGET)
-	if err != nil {
-		klog.Errorf("could not obtain physical block size for device: %s", b.Devname)
-		return 0, 0, err
-	}
-	return uint64(logicalBlockSize), uint64(physicalBlockSize), nil
-}
-
-func (b *BlockDevice) getSerialNumber() string {
-	sn, err := smart.GetSerialNumber(b.HostDrivePath())
-	if err != nil {
-		klog.V(4).Infof("Cannot read serial number for device: %v. Error: %v", b.HostDrivePath(), err)
-		return ""
-	}
-	return sn
-}
-
-func (b *BlockDevice) getTotalCapacity() (uint64, error) {
-	devFile, err := os.OpenFile(b.HostDrivePath(), os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return 0, err
-	}
-	defer devFile.Close()
-
-	driveSize, err := devFile.Seek(0, os.SEEK_END)
-	if err != nil {
-		return 0, err
-	}
-	return uint64(driveSize), nil
-}
-
-func GetMajorMinor(devicePath string) (uint32, uint32, error) {
-	stat := syscall.Stat_t{}
-	if err := syscall.Stat(devicePath, &stat); err != nil {
-		return uint32(0), uint32(0), err
-	}
-	dev := stat.Rdev
-	return uint32(unix.Major(dev)), uint32(unix.Minor(dev)), nil
+	return devices, nil
 }

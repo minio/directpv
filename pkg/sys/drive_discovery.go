@@ -1,5 +1,3 @@
-//go:build !linux
-
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.
 //
@@ -16,17 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package quota
+package sys
 
-import (
-	"context"
-	"runtime"
-)
-
-func GetQuota(blockFile, volumeID string) (FSQuota, error) {
-	return FSQuota{}, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+func GetMajorMinor(device string) (major, minor uint32, err error) {
+	return getDeviceMajorMinor(device)
 }
 
-func SetQuota(ctx context.Context, path, volumeID, blockFile string, quota FSQuota) error {
-	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+func ProbeDevices() (devices map[string]*Device, err error) {
+	return probeDevices()
 }

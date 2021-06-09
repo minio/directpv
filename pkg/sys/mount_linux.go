@@ -27,23 +27,25 @@ import (
 )
 
 func SafeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
-	mounts, err := ProbeMountInfo()
+	mountInfos, err := ProbeMounts()
 	if err != nil {
 		return err
 	}
 
-	for _, m := range mounts {
-		if m.Mountpoint == target && m.MountRoot == source {
-			// if source is already mounted at target
-			// then do nothing
-			// NOTE:
-			// We ignore the case where a given source is
-			// mounted at the same target multiple times
-			// since that use case is not relevant to
-			// direct-csi
-			return nil
+	major, minor, err := GetMajorMinor(source)
+	if err != nil {
+		return err
+	}
+
+	if mounts, found := mountInfos[fmt.Sprintf("%v:%v", major, minor)]; found {
+		for _, mount := range mounts {
+			if mount.MountPoint == target {
+				klog.V(3).Infof("drive already mounted: %s", target)
+				return nil
+			}
 		}
 	}
+
 	return Mount(source, target, fsType, mountOpts, superblockOpts)
 }
 
@@ -99,15 +101,8 @@ func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpt
 		mountPropagation := false
 		for _, opt := range mountOpts {
 			switch opt {
-			case MountOptionMSShared:
-				fallthrough
-			case MountOptionMSSlave:
-				fallthrough
-			case MountOptionMSPrivate:
-				fallthrough
-			case MountOptionMSUnBindable:
+			case MountOptionMSShared, MountOptionMSSlave, MountOptionMSPrivate, MountOptionMSUnBindable:
 				mountPropagation = true
-				break
 			}
 		}
 		if !mountPropagation {
@@ -189,7 +184,7 @@ func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpt
 		case MountOptionMSSynchronous:
 			flags = flags | syscall.MS_SYNCHRONOUS
 		default:
-			return fmt.Errorf("Unsupported mount flag: %s", opt)
+			return fmt.Errorf("unsupported mount flag: %s", opt)
 		}
 	}
 
@@ -198,31 +193,31 @@ func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpt
 }
 
 func SafeUnmount(target string, opts []UnmountOption) error {
-	mounts, err := ProbeMountInfo()
+	mountInfos, err := ProbeMounts()
 	if err != nil {
 		return err
 	}
 
-	targetMountFound := false
-	for _, m := range mounts {
-		// idempotency check
-		if m.Mountpoint == target {
-			targetMountFound = true
-			break
+	mounted := false
+	for _, mounts := range mountInfos {
+		for _, mount := range mounts {
+			if mount.MountPoint == target {
+				mounted = true
+				break
+			}
 		}
 	}
 
-	// if no mounts were found at the given path
-	if !targetMountFound {
+	if !mounted {
 		klog.V(3).Infof("drive already unmounted: %s", target)
 		return nil
 	}
-	return Unmount(target, opts)
 
+	return Unmount(target, opts)
 }
 
 func SafeUnmountAll(path string, opts []UnmountOption) error {
-	mounts, err := ProbeMountInfo()
+	mountInfos, err := ProbeMounts()
 	if err != nil {
 		return err
 	}
@@ -232,9 +227,9 @@ func SafeUnmountAll(path string, opts []UnmountOption) error {
 		return err
 	}
 
-	for _, m := range mounts {
-		if m.Major == major && m.Minor == minor {
-			if err := SafeUnmount(m.Mountpoint, opts); err != nil {
+	if mounts, found := mountInfos[fmt.Sprintf("%v:%v", major, minor)]; found {
+		for _, mount := range mounts {
+			if err := SafeUnmount(mount.MountPoint, opts); err != nil {
 				return err
 			}
 		}

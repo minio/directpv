@@ -32,5 +32,5 @@ type Discovery struct {
 	directcsiClient clientset.Interface
 	remoteDrives    []*remoteDrive
 	driveTopology   map[string]string
-	mounts          []sys.MountInfo
+	mounts          map[string][]sys.MountInfo
 }

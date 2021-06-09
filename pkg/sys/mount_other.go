@@ -1,4 +1,4 @@
-// +build !linux
+//go:build !linux
 
 /*
  * This file is part of MinIO Direct CSI
