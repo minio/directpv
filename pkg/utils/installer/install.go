@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -231,9 +232,27 @@ func CreateCSIDriver(ctx context.Context, identity string, dryRun bool) error {
 	return nil
 }
 
+func getTopologySelectorTerm(identity string) corev1.TopologySelectorTerm {
+
+	getIdentityLabelRequirement := func() corev1.TopologySelectorLabelRequirement {
+		return corev1.TopologySelectorLabelRequirement{
+			Key:    topology.TopologyDriverIdentity,
+			Values: []string{sanitizeName(identity)},
+		}
+	}
+
+	return corev1.TopologySelectorTerm{
+		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
+			getIdentityLabelRequirement(),
+		},
+	}
+}
+
 func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error {
 	allowExpansion := false
-	allowedTopologies := []corev1.TopologySelectorTerm{}
+	allowedTopologies := []corev1.TopologySelectorTerm{
+		getTopologySelectorTerm(identity),
+	}
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
 	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
