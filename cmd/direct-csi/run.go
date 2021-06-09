@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
 	"time"
 
 	ctrl "github.com/minio/direct-csi/pkg/controller"
@@ -31,6 +33,7 @@ import (
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
 	"github.com/minio/direct-csi/pkg/node/discovery"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils/grpc"
 	"github.com/minio/direct-csi/pkg/volume"
 
@@ -95,6 +98,27 @@ func waitForConversionWebhook() error {
 	return nil
 }
 
+func mkdir(dir string) (err error) {
+	if err = os.Mkdir(sys.DirectCSIDevRoot, os.ModePerm); err == nil {
+		return nil
+	}
+
+	if !errors.Is(err, os.ErrExist) {
+		klog.Errorf("Unable to create directory %v; %v", dir, err)
+		return err
+	}
+
+	checkFile := path.Join(sys.DirectCSIDevRoot, ".writecheck")
+	if err = os.WriteFile(checkFile, []byte{}, os.ModePerm); err == nil {
+		err = os.Remove(checkFile)
+	}
+	if err != nil {
+		klog.Errorf("Unable to do write check on %v; %v", dir, err)
+	}
+
+	return err
+}
+
 func run(ctx context.Context, args []string) error {
 
 	// Start conversion webserver
@@ -115,6 +139,12 @@ func run(ctx context.Context, args []string) error {
 
 	var nodeSrv csi.NodeServer
 	if driver {
+		if err := mkdir(sys.DirectCSIDevRoot); err != nil {
+			return err
+		}
+		if err := mkdir(sys.MountRoot); err != nil {
+			return err
+		}
 		discovery, err := discovery.NewDiscovery(ctx, identity, nodeID, rack, zone, region)
 		if err != nil {
 			return err

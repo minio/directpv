@@ -43,8 +43,6 @@ func mountDrive(source, target string, mountOpts []string) error {
 	}(mountOpts), []string{
 		quotaOption,
 	})
-
-	return nil
 }
 
 // unmountDrive - Idempotent function to unmount a DirectCSIDrive

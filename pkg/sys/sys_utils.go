@@ -20,22 +20,15 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/klog/v2"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"k8s.io/klog/v2"
+
 	"github.com/minio/direct-csi/pkg/sys/loopback"
 )
-
-func (b *BlockDevice) DirectCSIDrivePath() string {
-	return getBlockFile(b.Devname)
-}
-
-func (b *BlockDevice) HostDrivePath() string {
-	return getRootBlockFile(b.Devname)
-}
 
 func GetDirectCSIPath(driveName string) string {
 	if strings.Contains(driveName, DirectCSIDevRoot) {
@@ -116,19 +109,7 @@ func splitDevAndPartNum(s string) (string, int) {
 	return str, 0
 }
 
-func (b *BlockDevice) TagError(err error) {
-	b.DeviceError = err
-}
-
-func (b *BlockDevice) Error() string {
-	if b.DeviceError == nil {
-		return ""
-	}
-	return b.DeviceError.Error()
-}
-
 func FlushLoopBackReservations() error {
-
 	umountLoopDev := func(devPath string) error {
 		if err := SafeUnmountAll(devPath, []UnmountOption{
 			UnmountOptionDetach,

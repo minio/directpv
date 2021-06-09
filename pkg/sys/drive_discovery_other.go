@@ -16,39 +16,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package loopback
+package sys
 
-import "errors"
+import (
+	"fmt"
+	"runtime"
+)
 
-// dummy stubs kept for compilation purposes
-
-var errNotALoopDevice = errors.New("Not a loop device")
-var backFileSize = 100 * oneMB
-
-type LoopInfo struct {
-	Device         uint64
-	INode          uint64
-	RDevice        uint64
-	Offset         uint64
-	SizeLimit      uint64
-	Number         uint32
-	EncryptType    uint32
-	EncryptKeySize uint32
-	Flags          uint32
-	FileName       [NameSize]byte
-	CryptName      [NameSize]byte
-	EncryptKey     [KeySize]byte
-	Init           [2]uint64
+func getDeviceMajorMinor(device string) (major, minor uint32, err error) {
+	return 0, 0, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func getInfo(fd uintptr) (LoopInfo, error) {
-	return LoopInfo{}, errNotALoopDevice
-}
-
-func RemoveLoopDevice(loopPath string) error {
-	return errNotALoopDevice
-}
-
-func CreateLoopbackDevice() (string, error) {
-	return "", errNotALoopDevice
+func probeDevices() (devices map[string]*Device, err error) {
+	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

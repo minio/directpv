@@ -218,8 +218,8 @@ func EventsCh(ctx context.Context, c *Conn, maxRetriesOnError int) <-chan Uevent
 }
 
 // WatchBlockDevices - Watches for hotplugs and devices and returns a channel which emits block devices.
-func WatchBlockDevices(ctx context.Context) (<-chan BlockDevice, error) {
-	blockDeviceCh := make(chan BlockDevice)
+func WatchBlockDevices(ctx context.Context) (<-chan Device, error) {
+	blockDeviceCh := make(chan Device)
 
 	c, err := NewConn()
 	if err != nil {
@@ -239,7 +239,7 @@ func WatchBlockDevices(ctx context.Context) (<-chan BlockDevice, error) {
 				// Filter subsystem
 				if evt.Subsystem == "block" {
 					// To-Do: Construct block device data
-					blockDeviceCh <- BlockDevice{}
+					blockDeviceCh <- Device{}
 				}
 			case <-ctx.Done():
 				if err := c.Close(); err != nil {

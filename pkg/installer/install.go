@@ -336,6 +336,7 @@ func CreateDaemonSet(ctx context.Context,
 			newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
 			newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
 			newHostPathVolume(volumeNameSysDir, volumePathSysDir),
+			newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData),
 			newSecretVolume(conversionCACert, conversionCACert),
 			newSecretVolume(conversionKeyPair, conversionKeyPair),
 		},
@@ -361,8 +362,8 @@ func CreateDaemonSet(ctx context.Context,
 					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", false),
-					newVolumeMount(volumeNameRegistrationDir, "/registration", false),
+					newVolumeMount(volumeNameSocketDir, "/csi", false, false),
+					newVolumeMount(volumeNameRegistrationDir, "/registration", false, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
@@ -403,13 +404,14 @@ func CreateDaemonSet(ctx context.Context,
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-termination-log",
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", false),
-					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", true),
-					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true),
-					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true),
-					newVolumeMount(volumeNameSysDir, "/sys", true),
-					newVolumeMount(conversionCACert, conversionCADir, false),
-					newVolumeMount(conversionKeyPair, conversionCertsDir, false),
+					newVolumeMount(volumeNameSocketDir, "/csi", false, false),
+					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", true, false),
+					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true, false),
+					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true, false),
+					newVolumeMount(volumeNameSysDir, "/sys", true, true),
+					newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, true, true),
+					newVolumeMount(conversionCACert, conversionCADir, false, false),
+					newVolumeMount(conversionKeyPair, conversionCertsDir, false, false),
 				},
 				Ports: []corev1.ContainerPort{
 					{
@@ -449,7 +451,7 @@ func CreateDaemonSet(ctx context.Context,
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-liveness-termination-log",
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", false),
+					newVolumeMount(volumeNameSocketDir, "/csi", false, false),
 				},
 			},
 		},
@@ -598,7 +600,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", false),
+					newVolumeMount(volumeNameSocketDir, "/csi", false, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/controller-provisioner-termination-log",
@@ -668,10 +670,10 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", false),
-					newVolumeMount(admissionControllerCertsDir, admissionCertsDir, false),
-					newVolumeMount(conversionCACert, conversionCADir, false),
-					newVolumeMount(conversionKeyPair, conversionCertsDir, false),
+					newVolumeMount(volumeNameSocketDir, "/csi", false, false),
+					newVolumeMount(admissionControllerCertsDir, admissionCertsDir, false, false),
+					newVolumeMount(conversionCACert, conversionCADir, false, false),
+					newVolumeMount(conversionKeyPair, conversionCertsDir, false, false),
 				},
 			},
 		},
@@ -781,13 +783,14 @@ func newDirectCSIPluginsSocketDir(kubeletDir, name string) string {
 	return filepath.Join(kubeletDir, "plugins", utils.SanitizeKubeResourceName(name))
 }
 
-func newVolumeMount(name, path string, bidirectional bool) corev1.VolumeMount {
+func newVolumeMount(name, path string, bidirectional, readOnly bool) corev1.VolumeMount {
 	mountProp := corev1.MountPropagationNone
 	if bidirectional {
 		mountProp = corev1.MountPropagationBidirectional
 	}
 	return corev1.VolumeMount{
 		Name:             name,
+		ReadOnly:         readOnly,
 		MountPath:        path,
 		MountPropagation: &mountProp,
 	}

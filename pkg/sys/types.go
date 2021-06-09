@@ -16,72 +16,53 @@
 
 package sys
 
-type MasterInfo struct {
-	DMName string `json:"dmName,omitempty"`
-	DMUUID string `json:"dmUUID,omitempty"`
-	Parent string `json:"parent,omitempty"`
-	Master string `json:"master,omitempty"`
-}
+type Device struct {
+	// Populated from /sys
+	Name      string
+	Major     int
+	Minor     int
+	Removable bool
+	ReadOnly  bool
+	Virtual   bool
 
-type BlockDevice struct {
-	Devname     string      `json:"devName,omitempty"`
-	Devtype     string      `json:"devType,omitempty"`
-	Partitions  []Partition `json:"partitions,omitempty"`
-	DeviceError error       `json:"error, omitempty"`
+	// Populated from /run/udev/data/b<Major>:<Minor>
+	Size      uint64
+	Partition int
+	WWID      string
+	Model     string
+	Serial    string
+	Vendor    string
+	DMName    string
+	DMUUID    string
+	MDUUID    string
+	PTUUID    string
+	PTType    string
+	PartUUID  string
+	FSUUID    string
+	FSType    string
 
-	MasterInfo
-	*DriveInfo `json:"driveInfo,omitempty"`
-}
+	// Computed
+	Parent      string
+	Master      string
+	Partitioned bool
 
-type Partition struct {
-	PartitionNum  uint32 `json:"partitionNum,omitempty"`
-	Type          string `json:"partitionType,omitempty"`
-	TypeUUID      string `json:"partitionTypeUUID,omitempty"`
-	PartitionGUID string `json:"partitionGUID,omitempty"`
-	DiskGUID      string `json:"diskGUID,omitempty"`
+	// Populated by reading device
+	TotalCapacity     uint64
+	FreeCapacity      uint64
+	LogicalBlockSize  uint64
+	PhysicalBlockSize uint64
+	SwapOn            bool
 
-	MasterInfo
-	*DriveInfo `json:"driveInfo,omitempty"`
-}
-
-type DriveInfo struct {
-	NumBlocks         uint64 `json:"numBlocks,omitempty"`
-	StartBlock        uint64 `json:"startBlock,omitempty"`
-	EndBlock          uint64 `json:"endBlock,omitempty"`
-	TotalCapacity     uint64 `json:"totalCapacity,omitempty"`
-	LogicalBlockSize  uint64 `json:"logicalBlockSize,omitempty"`
-	PhysicalBlockSize uint64 `json:"physicalBlockSize,omitempty"`
-	Path              string `json:"path,omitempty"`
-	Major             uint32 `json:"major,omitempty"`
-	Minor             uint32 `json:"minor",omitempty`
-	SerialNumber      string `json:"serialNumber",omitempty`
-
-	*FSInfo `json:"fsInfo,omitempty"`
-}
-
-type FSInfo struct {
-	UUID          string      `json:"uuid,omitempty"`
-	FSType        string      `json:"fsType,omitempty"`
-	TotalCapacity uint64      `json:"totalCapacity,omitempty"`
-	FreeCapacity  uint64      `json:"freeCapacity,omitempty"`
-	FSBlockSize   uint64      `json:"fsBlockSize,omitempty"`
-	Mounts        []MountInfo `json:"mounts,omitempty"`
+	// Populated from /proc/1/mountinfo
+	MountPoints       []string
+	FirstMountPoint   string
+	FirstMountOptions []string
 }
 
 type MountInfo struct {
-	Mountpoint        string   `json:"mountPoint,omitempty"`
-	MountFlags        []string `json:"mountFlags,omitempty"`
-	MountRoot         string   `json:"mountRoot,omitempty"`
-	MountID           uint32   `json:"mountID,omitempty"`
-	ParentID          uint32   `json:"parentID,omitempty"`
-	MountSource       string   `json:"mountSource,omitempty"`
-	SuperblockOptions []string `json:"superblockOptions,omitempty"`
-	FSType            string   `json:"fsType,omitempty"`
-	OptionalFields    []string `json:"optionalFields,omitempty"`
-	Major             uint32   `json:"major,omitempty"`
-	Minor             uint32   `json:"minor,omitempty"`
-}
-
-type SuperBlock interface {
-	Is() bool
+	majorMinor   string
+	MountPoint   string
+	mountOptions []string
+	fsType       string
+	fsSubType    string
 }

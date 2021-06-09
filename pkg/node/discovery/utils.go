@@ -18,6 +18,7 @@ package discovery
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
@@ -31,28 +32,36 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func (d *Discovery) getMountInfo(major, minor uint32) []sys.MountInfo {
+	return d.mounts[fmt.Sprintf("%v:%v", major, minor)]
+}
+
 func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) error {
 	driveMounter := &sys.DefaultDriveMounter{}
 	switch existingDrive.Status.DriveStatus {
 	case directcsi.DriveStatusInUse, directcsi.DriveStatusReady:
-		directCSIDevice := sys.GetDirectCSIPath(existingDrive.Status.FilesystemUUID)
+		mountSource := sys.GetDirectCSIPath(existingDrive.Status.FilesystemUUID)
 		// verify and fix the (major, minor) if it has changed
-		if err := sys.MakeBlockFile(directCSIDevice, existingDrive.Status.MajorNumber, existingDrive.Status.MinorNumber); err != nil {
+		if err := sys.MakeBlockFile(mountSource, existingDrive.Status.MajorNumber, existingDrive.Status.MinorNumber); err != nil {
+			return err
+		}
+		mountTarget := filepath.Join(sys.MountRoot, existingDrive.Status.FilesystemUUID)
+
+		major, minor, err := sys.GetMajorMinor(mountSource)
+		if err != nil {
 			return err
 		}
 
-		mountTarget := filepath.Join(sys.MountRoot, existingDrive.Status.FilesystemUUID)
-		// Check if the drive is mounted
-		isMounted := false
-		for _, mount := range d.mounts {
-			if mount.MountSource == directCSIDevice {
-				isMounted = true
+		mounted := false
+		for _, mount := range d.getMountInfo(major, minor) {
+			if mounted = (mount.MountPoint == mountTarget); mounted {
 				break
 			}
 		}
+
 		// Mount if umounted
-		if !isMounted {
-			if err := driveMounter.MountDrive(directCSIDevice, mountTarget, []string{}); err != nil {
+		if !mounted {
+			if err := driveMounter.MountDrive(mountSource, mountTarget, []string{}); err != nil {
 				return err
 			}
 			existingDrive.Status.Mountpoint = mountTarget

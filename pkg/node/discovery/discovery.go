@@ -19,14 +19,13 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"k8s.io/klog/v2"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/sys/gpt"
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -40,7 +39,92 @@ const (
 	loopBackDeviceCount = 4
 )
 
+var loopRegexp = regexp.MustCompile("loop[0-9].*")
+
 var unknownDriveCounter int32
+
+func isDirectCSIMount(mountPoints []string) bool {
+	if len(mountPoints) == 0 {
+		return true
+	}
+
+	for _, mountPoint := range mountPoints {
+		if strings.HasPrefix(mountPoint, "/var/lib/direct-csi/") {
+			return true
+		}
+	}
+	return false
+}
+
+func toDirectCSIDriveStatus(nodeID string, topology map[string]string, device *sys.Device) directcsi.DirectCSIDriveStatus {
+	driveStatus := directcsi.DriveStatusAvailable
+	if device.ReadOnly || device.Partitioned || device.SwapOn || device.Master != "" || !isDirectCSIMount(device.MountPoints) {
+		driveStatus = directcsi.DriveStatusUnavailable
+	}
+
+	mounted := metav1.ConditionFalse
+	if device.FirstMountPoint != "" {
+		mounted = metav1.ConditionTrue
+	}
+
+	formatted := metav1.ConditionFalse
+	if device.FSType != "" {
+		formatted = metav1.ConditionTrue
+	}
+
+	return directcsi.DirectCSIDriveStatus{
+		AccessTier:        directcsi.AccessTierUnknown,
+		DriveStatus:       driveStatus,
+		Filesystem:        device.FSType,
+		FreeCapacity:      int64(device.FreeCapacity),
+		AllocatedCapacity: int64(device.Size - device.FreeCapacity),
+		LogicalBlockSize:  int64(device.LogicalBlockSize),
+		ModelNumber:       device.Model,
+		MountOptions:      device.FirstMountOptions,
+		Mountpoint:        device.FirstMountPoint,
+		NodeName:          nodeID,
+		PartitionNum:      device.Partition,
+		Path:              "/dev/" + device.Name,
+		PhysicalBlockSize: int64(device.PhysicalBlockSize),
+		RootPartition:     device.Name,
+		SerialNumber:      device.Serial,
+		TotalCapacity:     int64(device.Size),
+		FilesystemUUID:    device.FSUUID,
+		PartitionUUID:     device.PartUUID,
+		MajorNumber:       uint32(device.Major),
+		MinorNumber:       uint32(device.Minor),
+		Topology:          topology,
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(directcsi.DirectCSIDriveConditionOwned),
+				Status:             metav1.ConditionFalse,
+				Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+				LastTransitionTime: metav1.Now(),
+			},
+			{
+				Type:               string(directcsi.DirectCSIDriveConditionMounted),
+				Status:             mounted,
+				Message:            device.FirstMountPoint,
+				Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+				LastTransitionTime: metav1.Now(),
+			},
+			{
+				Type:               string(directcsi.DirectCSIDriveConditionFormatted),
+				Status:             formatted,
+				Message:            "xfs",
+				Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+				LastTransitionTime: metav1.Now(),
+			},
+			{
+				Type:               string(directcsi.DirectCSIDriveConditionInitialized),
+				Status:             metav1.ConditionTrue,
+				Message:            "",
+				Reason:             string(directcsi.DirectCSIDriveReasonInitialized),
+				LastTransitionTime: metav1.Now(),
+			},
+		},
+	}
+}
 
 func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region string) (*Discovery, error) {
 	config, err := utils.GetKubeConfig()
@@ -76,13 +160,9 @@ func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region stri
 	return d, nil
 }
 
-func (d *Discovery) readMounts() error {
-	mounts, err := sys.ProbeMountInfo()
-	if err != nil {
-		return err
-	}
-	d.mounts = mounts
-	return nil
+func (d *Discovery) readMounts() (err error) {
+	d.mounts, err = sys.ProbeMounts()
+	return
 }
 
 func (d *Discovery) readRemoteDrives(ctx context.Context) error {
@@ -101,6 +181,8 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 		if result.Err != nil {
 			return result.Err
 		}
+		// Assign decoded drive path in case this drive information converted from v1alpha1/v1beta1
+		result.Drive.Status.Path = utils.GetDrivePath(&result.Drive)
 		remoteDriveList = append(remoteDriveList, &remoteDrive{DirectCSIDrive: result.Drive})
 	}
 	d.remoteDrives = remoteDriveList
@@ -196,264 +278,38 @@ func makeDirectCSIDrive(driveStatus directcsi.DirectCSIDriveStatus, driveName st
 	}
 }
 
-func (d *Discovery) findLocalDrives(ctx context.Context, loopBackOnly bool) ([]sys.BlockDevice, error) {
+func (d *Discovery) findLocalDrives(ctx context.Context, loopBackOnly bool) (map[string]*sys.Device, error) {
 	if loopBackOnly {
 		// Flush the existing loopback setups
 		if err := sys.FlushLoopBackReservations(); err != nil {
-			return []sys.BlockDevice{}, err
+			return nil, err
 		}
 		// Reserve loopbacks
 		if err := sys.ReserveLoopbackDevices(loopBackDeviceCount); err != nil {
-			return []sys.BlockDevice{}, err
+			return nil, err
 		}
 	}
 
-	devs, err := sys.FindDevices(ctx, loopBackOnly)
+	devices, err := sys.ProbeDevices()
 	if err != nil {
-		return []sys.BlockDevice{}, err
+		return nil, err
 	}
 
-	return devs, nil
+	for name := range devices {
+		if (loopRegexp.MatchString(name) && !loopBackOnly) || devices[name].Size == 0 {
+			delete(devices, name)
+		}
+	}
+
+	return devices, nil
 }
 
-func (d *Discovery) toDirectCSIDriveStatus(localDrives []sys.BlockDevice) []directcsi.DirectCSIDriveStatus {
-	driveStatusList := []directcsi.DirectCSIDriveStatus{}
-	nodeID := d.NodeID
-	for _, localDrive := range localDrives {
-		partitions := localDrive.GetPartitions()
-		if len(partitions) > 0 {
-			for _, partition := range partitions {
-				driveStatus := d.directCSIDriveStatusFromPartition(nodeID, partition, localDrive.Devname, localDrive.DeviceError)
-				driveStatusList = append(driveStatusList, driveStatus)
-			}
-			continue
-		}
-		driveStatus := d.directCSIDriveStatusFromRoot(nodeID, localDrive)
-		driveStatusList = append(driveStatusList, driveStatus)
+func (d *Discovery) toDirectCSIDriveStatus(devices map[string]*sys.Device) []directcsi.DirectCSIDriveStatus {
+	statusList := []directcsi.DirectCSIDriveStatus{}
+	for _, device := range devices {
+		statusList = append(statusList, toDirectCSIDriveStatus(d.NodeID, d.driveTopology, device))
 	}
-	return driveStatusList
-}
-
-func (d *Discovery) directCSIDriveStatusFromPartition(nodeID string, partition sys.Partition, rootPartition string, blockErr error) directcsi.DirectCSIDriveStatus {
-	var fs, UUID string
-	if partition.FSInfo != nil {
-		fs = string(partition.FSInfo.FSType)
-		UUID = string(partition.FSInfo.UUID)
-	}
-
-	var allocatedCapacity, freeCapacity, totalCapacity int64
-	if partition.FSInfo != nil {
-		freeCapacity = int64(partition.FSInfo.FreeCapacity)
-		totalCapacity = int64(partition.FSInfo.TotalCapacity)
-		allocatedCapacity = totalCapacity - freeCapacity
-	}
-
-	var mountOptions []string
-	var mountPoint string
-	var mounts []sys.MountInfo
-	var driveStatus directcsi.DriveStatus
-
-	driveStatus = directcsi.DriveStatusAvailable
-	if partition.Master != "" {
-		// Mark a slave as unavailable
-		klog.V(3).Infof("Tagging %s as Unavailable as it is controlled by %s", partition.Path, partition.Master)
-		driveStatus = directcsi.DriveStatusUnavailable
-	}
-	if partition.FSInfo != nil {
-		mounts = partition.FSInfo.Mounts
-		for _, m := range mounts {
-			if m.Mountpoint == "/" {
-				driveStatus = directcsi.DriveStatusUnavailable
-			}
-		}
-		if len(mounts) > 0 {
-			mountOptions = mounts[0].MountFlags
-			mountPoint = mounts[0].Mountpoint
-		}
-	}
-	_, ok := gpt.SystemPartitionTypes[partition.TypeUUID]
-	if ok || blockErr != nil {
-		driveStatus = directcsi.DriveStatusUnavailable
-	}
-
-	blockInitializationStatus := metav1.ConditionTrue
-	if blockErr != nil {
-		blockInitializationStatus = metav1.ConditionFalse
-	}
-
-	mounted := metav1.ConditionFalse
-	formatted := metav1.ConditionFalse
-	if fs != "" {
-		formatted = metav1.ConditionTrue
-	}
-	if mountPoint != "" {
-		mounted = metav1.ConditionTrue
-	}
-
-	return directcsi.DirectCSIDriveStatus{
-		AccessTier:        directcsi.AccessTierUnknown,
-		DriveStatus:       driveStatus,
-		Filesystem:        fs,
-		FreeCapacity:      freeCapacity,
-		AllocatedCapacity: allocatedCapacity,
-		LogicalBlockSize:  int64(partition.LogicalBlockSize),
-		ModelNumber:       "", // Fix Me
-		MountOptions:      mountOptions,
-		Mountpoint:        mountPoint,
-		NodeName:          nodeID,
-		PartitionNum:      int(partition.PartitionNum),
-		Path:              partition.Path,
-		PhysicalBlockSize: int64(partition.PhysicalBlockSize),
-		RootPartition:     rootPartition,
-		SerialNumber:      partition.SerialNumber,
-		TotalCapacity:     totalCapacity,
-		FilesystemUUID:    UUID,
-		PartitionUUID:     partition.PartitionGUID,
-		MajorNumber:       partition.Major,
-		MinorNumber:       partition.Minor,
-		Conditions: []metav1.Condition{
-			{
-				Type:               string(directcsi.DirectCSIDriveConditionOwned),
-				Status:             metav1.ConditionFalse,
-				Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
-				LastTransitionTime: metav1.Now(),
-			},
-			{
-				Type:               string(directcsi.DirectCSIDriveConditionMounted),
-				Status:             mounted,
-				Message:            mountPoint,
-				Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
-				LastTransitionTime: metav1.Now(),
-			},
-			{
-				Type:               string(directcsi.DirectCSIDriveConditionFormatted),
-				Status:             formatted,
-				Message:            "xfs",
-				Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
-				LastTransitionTime: metav1.Now(),
-			},
-			{
-				Type:   string(directcsi.DirectCSIDriveConditionInitialized),
-				Status: blockInitializationStatus,
-				Message: func() string {
-					if blockErr == nil {
-						return ""
-					}
-					return blockErr.Error()
-				}(),
-				Reason:             string(directcsi.DirectCSIDriveReasonInitialized),
-				LastTransitionTime: metav1.Now(),
-			},
-		},
-		Topology: d.driveTopology,
-	}
-}
-
-func (d *Discovery) directCSIDriveStatusFromRoot(nodeID string, blockDevice sys.BlockDevice) directcsi.DirectCSIDriveStatus {
-	var fs, UUID string
-	if blockDevice.FSInfo != nil {
-		fs = string(blockDevice.FSInfo.FSType)
-		UUID = string(blockDevice.FSInfo.UUID)
-	}
-
-	var freeCapacity, totalCapacity, allocatedCapacity int64
-	if blockDevice.FSInfo != nil {
-		freeCapacity = int64(blockDevice.FSInfo.FreeCapacity)
-		totalCapacity = int64(blockDevice.FSInfo.TotalCapacity)
-		allocatedCapacity = totalCapacity - freeCapacity
-	}
-
-	var mountOptions []string
-	var mountPoint string
-	var mounts []sys.MountInfo
-	var driveStatus directcsi.DriveStatus
-
-	driveStatus = directcsi.DriveStatusAvailable
-	if blockDevice.Master != "" {
-		// Mark a slave as unavailable
-		klog.V(3).Infof("Tagging %s as Unavailable as it is controlled by %s", blockDevice.Path, blockDevice.Master)
-		driveStatus = directcsi.DriveStatusUnavailable
-	}
-	if blockDevice.FSInfo != nil {
-		mounts = blockDevice.FSInfo.Mounts
-		for _, m := range mounts {
-			if m.Mountpoint == "/" {
-				driveStatus = directcsi.DriveStatusUnavailable
-			}
-		}
-		if len(mounts) > 0 {
-			mountOptions = mounts[0].MountFlags
-			mountPoint = mounts[0].Mountpoint
-		}
-	}
-
-	blockInitializationStatus := metav1.ConditionTrue
-	if blockDevice.DeviceError != nil {
-		driveStatus = directcsi.DriveStatusUnavailable
-		blockInitializationStatus = metav1.ConditionFalse
-	}
-
-	mounted := metav1.ConditionFalse
-	formatted := metav1.ConditionFalse
-	if fs != "" {
-		formatted = metav1.ConditionTrue
-	}
-	if mountPoint != "" {
-		mounted = metav1.ConditionTrue
-	}
-
-	return directcsi.DirectCSIDriveStatus{
-		AccessTier:        directcsi.AccessTierUnknown,
-		DriveStatus:       driveStatus,
-		Filesystem:        fs,
-		FreeCapacity:      freeCapacity,
-		AllocatedCapacity: allocatedCapacity,
-		LogicalBlockSize:  int64(blockDevice.LogicalBlockSize),
-		ModelNumber:       "", // Fix Me
-		MountOptions:      mountOptions,
-		Mountpoint:        mountPoint,
-		NodeName:          nodeID,
-		PartitionNum:      int(0),
-		Path:              blockDevice.Path,
-		PhysicalBlockSize: int64(blockDevice.PhysicalBlockSize),
-		RootPartition:     blockDevice.Devname,
-		SerialNumber:      blockDevice.SerialNumber,
-		TotalCapacity:     totalCapacity,
-		FilesystemUUID:    UUID,
-		PartitionUUID:     "",
-		MajorNumber:       blockDevice.Major,
-		MinorNumber:       blockDevice.Minor,
-		Conditions: []metav1.Condition{
-			{
-				Type:               string(directcsi.DirectCSIDriveConditionOwned),
-				Status:             metav1.ConditionFalse,
-				Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
-				LastTransitionTime: metav1.Now(),
-			},
-			{
-				Type:               string(directcsi.DirectCSIDriveConditionMounted),
-				Status:             mounted,
-				Message:            mountPoint,
-				Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
-				LastTransitionTime: metav1.Now(),
-			},
-			{
-				Type:               string(directcsi.DirectCSIDriveConditionFormatted),
-				Status:             formatted,
-				Message:            "xfs",
-				Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
-				LastTransitionTime: metav1.Now(),
-			},
-			{
-				Type:               string(directcsi.DirectCSIDriveConditionInitialized),
-				Status:             blockInitializationStatus,
-				Message:            blockDevice.Error(),
-				Reason:             string(directcsi.DirectCSIDriveReasonInitialized),
-				LastTransitionTime: metav1.Now(),
-			},
-		},
-		Topology: d.driveTopology,
-	}
+	return statusList
 }
 
 func makeV1beta1DriveName(nodeID, path string) string {
