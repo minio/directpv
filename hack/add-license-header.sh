@@ -16,21 +16,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set -ex
-
 SCRIPT_ROOT="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-REPOSITORY=github.com/minio/direct-csi
-CSI_VERSION=$(git describe --tags --always --dirty)
 
-export CGO_ENABLED=0
+# install addlicense
+GO111MODULE=off 
+go get -u github.com/google/addlicense
 
-"${SCRIPT_ROOT}/update-codegen.sh"
-
-go get -u github.com/jteeuwen/go-bindata/...
-go-bindata -o ${SCRIPT_ROOT}/../cmd/kubectl-direct_csi/crd_bindata.go ${SCRIPT_ROOT}/../config/crd/...
-gofmt -s -w cmd/kubectl-direct_csi/crd_bindata.go
-
-"${SCRIPT_ROOT}/add-license-header.sh"
-
-go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${CSI_VERSION} -extldflags=-static" ${REPOSITORY}/cmd/direct-csi
-go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${CSI_VERSION} -extldflags=-static" ${REPOSITORY}/cmd/kubectl-direct_csi
+# apply license to all go files
+find . | grep .go$ | xargs addlicense -f ${SCRIPT_ROOT}/boilerplate.go.txt
