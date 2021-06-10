@@ -158,12 +158,8 @@ func (f32 *FAT32) ProbeFS(devicePath string, startOffset int64) (bool, error) {
 	sectorSize := f32.FSBlockSize()
 	fsisBytes := make([]byte, 512, 512)
 	infoSectorBlock := int64(f32.SuperBlock.FsinfoSector) * int64(sectorSize)
-	read, err := devFile.ReadAt(fsisBytes, startOffset+infoSectorBlock)
-	if err != nil {
+	if _, err := devFile.ReadAt(fsisBytes, startOffset+infoSectorBlock); err != nil {
 		return false, fmt.Errorf("Unable to read bytes for FSInformationSector: %v", err)
-	}
-	if read != 512 {
-		return false, fmt.Errorf("Read %d bytes instead of expected %d for FS Information Sector", read, 512)
 	}
 	fsis, err := f32.fsInformationSectorFromBytes(fsisBytes)
 	if err != nil {
