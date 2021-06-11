@@ -157,3 +157,38 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 
 	return nil
 }
+
+func (d *Discovery) tagUnmatchedDrives(ctx context.Context) error {
+	directCSIClient := d.directcsiClient.DirectV1beta2()
+	driveClient := directCSIClient.DirectCSIDrives()
+
+	for _, remoteDrive := range d.remoteDrives {
+		if remoteDrive.matched {
+			continue
+		}
+
+		driveUpdate := func() error {
+			existingDrive, err := driveClient.Get(ctx, remoteDrive.Name, metav1.GetOptions{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			})
+			if err != nil {
+				return err
+			}
+			existingDrive.Status.DriveStatus = directcsi.DriveStatusUnidentified
+			existingDrive.Status.CurrentPath = "" // As it could not match a local drive
+			updateOpts := metav1.UpdateOptions{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			}
+			_, err = driveClient.Update(ctx, existingDrive, updateOpts)
+			return err
+		}
+
+		if err := retry.RetryOnConflict(retry.DefaultRetry, driveUpdate); err != nil {
+			if !errors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

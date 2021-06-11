@@ -31,3 +31,7 @@ type DefaultDriveFormatter struct{}
 func (c *DefaultDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
 	return nil
 }
+
+func (c *DefaultDriveFormatter) MakeBlockFile(path string, major, minor uint32) error {
+	return nil
+}

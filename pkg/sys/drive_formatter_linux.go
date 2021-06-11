@@ -42,10 +42,15 @@ func formatDrive(ctx context.Context, uuid, path string, force bool) error {
 
 type DriveFormatter interface {
 	FormatDrive(ctx context.Context, uuid, path string, force bool) error
+	MakeBlockFile(path string, major, minor uint32) error
 }
 
 type DefaultDriveFormatter struct{}
 
 func (c *DefaultDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
 	return formatDrive(ctx, uuid, path, force)
+}
+
+func (c *DefaultDriveFormatter) MakeBlockFile(path string, major, minor uint32) error {
+	return MakeBlockFile(path, major, minor)
 }
