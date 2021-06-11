@@ -93,6 +93,7 @@ func (d *Discovery) identifyDriveByLegacyName(localDriveState directcsi.DirectCS
 
 	for i, remoteDrive := range d.remoteDrives {
 		if !remoteDrive.matched && remoteDrive.Name == v1beta1DriveName {
+			d.remoteDrives[i].matched = true
 			return d.remoteDrives[i], nil
 		}
 	}

@@ -48,17 +48,29 @@ func (c *fakeDriveStatter) GetFreeCapacityFromStatfs(path string) (int64, error)
 }
 
 type fakeDriveFormatter struct {
-	args struct {
+	formatArgs struct {
 		uuid  string
 		path  string
 		force bool
 	}
+	makeBlockFileArgs struct {
+		path  string
+		major uint32
+		minor uint32
+	}
 }
 
 func (c *fakeDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
-	c.args.path = path
-	c.args.force = force
-	c.args.uuid = uuid
+	c.formatArgs.path = path
+	c.formatArgs.force = force
+	c.formatArgs.uuid = uuid
+	return nil
+}
+
+func (c *fakeDriveFormatter) MakeBlockFile(path string, major, minor uint32) error {
+	c.makeBlockFileArgs.path = path
+	c.makeBlockFileArgs.major = major
+	c.makeBlockFileArgs.minor = minor
 	return nil
 }
 
@@ -137,9 +149,12 @@ func TestDriveFormat(t *testing.T) {
 				DirectCSIOwned: false,
 			},
 			Status: directcsi.DirectCSIDriveStatus{
-				NodeName:    testNodeID,
-				DriveStatus: directcsi.DriveStatusAvailable,
-				Path:        "/drive/path",
+				NodeName:       testNodeID,
+				DriveStatus:    directcsi.DriveStatusAvailable,
+				Path:           "/drive/path",
+				FilesystemUUID: "test_drive_umounted_uuid",
+				MajorNumber:    202,
+				MinorNumber:    1,
 				Conditions: []metav1.Condition{
 					{
 						Type:               string(directcsi.DirectCSIDriveConditionOwned),
@@ -180,10 +195,13 @@ func TestDriveFormat(t *testing.T) {
 				DirectCSIOwned: false,
 			},
 			Status: directcsi.DirectCSIDriveStatus{
-				NodeName:    testNodeID,
-				DriveStatus: directcsi.DriveStatusAvailable,
-				Path:        "/drive/path",
-				Mountpoint:  "/mnt/mp",
+				NodeName:       testNodeID,
+				DriveStatus:    directcsi.DriveStatusAvailable,
+				Path:           "/drive/path",
+				Mountpoint:     "/mnt/mp",
+				FilesystemUUID: "test_drive_mounted_uuid",
+				MajorNumber:    202,
+				MinorNumber:    2,
 				Conditions: []metav1.Condition{
 					{
 						Type:               string(directcsi.DirectCSIDriveConditionOwned),
@@ -247,27 +265,38 @@ func TestDriveFormat(t *testing.T) {
 			t.Errorf("Test case [%d]: Error while invoking the update listener: %+v", i, err)
 		}
 
+		// Step 4.1: Check if MakeBlockFile arguments passed are correct
+		if dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.path != sys.GetDirectCSIPath(dObj.Status.FilesystemUUID) {
+			t.Errorf("Test case [%d]: Invalid path provided for makeBlockFile call. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Status.FilesystemUUID), dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.path)
+		}
+		if dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.major != dObj.Status.MajorNumber {
+			t.Errorf("Test case [%d]: Invalid major number provided for makeBlockFile call. Expected: %v, Found: %v", i, dObj.Status.MajorNumber, dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.major)
+		}
+		if dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.minor != dObj.Status.MinorNumber {
+			t.Errorf("Test case [%d]: Invalid minor number provided for makeBlockFile call. Expected: %v, Found: %v", i, dObj.Status.MinorNumber, dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.minor)
+		}
+
 		// Step 4.1: Check if the format arguments passed are correct
-		if dl.formatter.(*fakeDriveFormatter).args.uuid != dObj.Name {
-			t.Errorf("Test case [%d]: Invalid uuid provided for formatting. Expected: %s, Found: %s", i, dObj.Name, dl.formatter.(*fakeDriveFormatter).args.uuid)
+		if dl.formatter.(*fakeDriveFormatter).formatArgs.uuid != dObj.Status.FilesystemUUID {
+			t.Errorf("Test case [%d]: Invalid uuid provided for formatting. Expected: %s, Found: %s", i, dObj.Status.FilesystemUUID, dl.formatter.(*fakeDriveFormatter).formatArgs.uuid)
 		}
-		if dl.formatter.(*fakeDriveFormatter).args.path != sys.GetDirectCSIPath(dObj.Name) {
-			t.Errorf("Test case [%d]: Invalid path provided for formatting. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Name), dl.formatter.(*fakeDriveFormatter).args.path)
+		if dl.formatter.(*fakeDriveFormatter).formatArgs.path != sys.GetDirectCSIPath(dObj.Status.FilesystemUUID) {
+			t.Errorf("Test case [%d]: Invalid path provided for formatting. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Status.FilesystemUUID), dl.formatter.(*fakeDriveFormatter).formatArgs.path)
 		}
-		if dl.formatter.(*fakeDriveFormatter).args.force != force {
-			t.Errorf("Test case [%d]: Wrong force option provided for formatting. Expected: %v, Found: %v", i, force, dl.formatter.(*fakeDriveFormatter).args.force)
+		if dl.formatter.(*fakeDriveFormatter).formatArgs.force != force {
+			t.Errorf("Test case [%d]: Wrong force option provided for formatting. Expected: %v, Found: %v", i, force, dl.formatter.(*fakeDriveFormatter).formatArgs.force)
 		}
 
 		// Step 4.2: Check if mount arguments passed are correct
-		if dl.mounter.(*fakeDriveMounter).mountArgs.source != sys.GetDirectCSIPath(dObj.Name) {
-			t.Errorf("Test case [%d]: Invalid source provided for mounting. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Name), dl.mounter.(*fakeDriveMounter).mountArgs.source)
+		if dl.mounter.(*fakeDriveMounter).mountArgs.source != sys.GetDirectCSIPath(dObj.Status.FilesystemUUID) {
+			t.Errorf("Test case [%d]: Invalid source provided for mounting. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Status.FilesystemUUID), dl.mounter.(*fakeDriveMounter).mountArgs.source)
 		}
-		if dl.mounter.(*fakeDriveMounter).mountArgs.target != filepath.Join(sys.MountRoot, dObj.Name) {
-			t.Errorf("Test case [%d]: Wrong target provided for mounting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, dObj.Name), dl.mounter.(*fakeDriveMounter).mountArgs.target)
+		if dl.mounter.(*fakeDriveMounter).mountArgs.target != filepath.Join(sys.MountRoot, dObj.Status.FilesystemUUID) {
+			t.Errorf("Test case [%d]: Wrong target provided for mounting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, dObj.Status.FilesystemUUID), dl.mounter.(*fakeDriveMounter).mountArgs.target)
 		}
 		umountSource := func() string {
 			if dObj.Status.Mountpoint != "" {
-				return sys.GetDirectCSIPath(dObj.Name)
+				return sys.GetDirectCSIPath(dObj.Status.FilesystemUUID)
 			}
 			return ""
 		}()
@@ -276,7 +305,7 @@ func TestDriveFormat(t *testing.T) {
 		}
 
 		// Step 4.3: Check if stat arguments passed are correct
-		if dl.statter.(*fakeDriveStatter).args.path != filepath.Join(sys.MountRoot, dObj.Name) {
+		if dl.statter.(*fakeDriveStatter).args.path != filepath.Join(sys.MountRoot, dObj.Status.FilesystemUUID) {
 			t.Errorf("Test case [%d]: Wrong path provided for statting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, dObj.Name), dl.statter.(*fakeDriveStatter).args.path)
 		}
 
@@ -292,7 +321,7 @@ func TestDriveFormat(t *testing.T) {
 		if csiDrive.Status.DriveStatus != directcsi.DriveStatusReady {
 			t.Errorf("Test case [%d]: Drive is not in 'ready' state after formatting. Current status: %s", i, csiDrive.Status.DriveStatus)
 		}
-		if csiDrive.Status.Mountpoint != filepath.Join(sys.MountRoot, newObj.Name) {
+		if csiDrive.Status.Mountpoint != filepath.Join(sys.MountRoot, newObj.Status.FilesystemUUID) {
 			t.Errorf("Test case [%d]: Drive mountpoint invalid: %s", i, csiDrive.Status.Mountpoint)
 		}
 		if csiDrive.Status.Filesystem != string(sys.FSTypeXFS) {

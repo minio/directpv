@@ -219,13 +219,11 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 
 			directCSIPath := sys.GetDirectCSIPath(new.Status.FilesystemUUID)
 			directCSIMount := filepath.Join(sys.MountRoot, new.Status.FilesystemUUID)
-			if err := sys.MakeBlockFile(directCSIPath, new.Status.MajorNumber, new.Status.MinorNumber); err != nil {
+			if err := d.formatter.MakeBlockFile(directCSIPath, new.Status.MajorNumber, new.Status.MinorNumber); err != nil {
 				klog.Error(err)
 				updateErr = err
 			}
 
-			// source := sys.GetDirectCSIPath(new.Name)
-			// target := filepath.Join(sys.MountRoot, new.Name)
 			source := directCSIPath
 			target := directCSIMount
 			mountOpts := new.Spec.RequestedFormat.MountOptions

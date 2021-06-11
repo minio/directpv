@@ -130,7 +130,7 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 	var unidentifedDriveStates []directcsi.DirectCSIDriveStatus
 	if len(d.remoteDrives) == 0 {
 		for _, localDriveState := range localDriveStates {
-			newDrive := makeDirectCSIDrive(localDriveState, "")
+			newDrive := d.makeDirectCSIDrive(localDriveState, "")
 			if _, err := driveClient.Create(ctx, newDrive, metav1.CreateOptions{}); err != nil {
 				return err
 			}
@@ -139,7 +139,7 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 		for _, localDriveState := range localDriveStates {
 			remoteDrive, err := d.Identify(localDriveState)
 			if err == nil {
-				identifiedLocalDrive := makeDirectCSIDrive(localDriveState, remoteDrive.Name)
+				identifiedLocalDrive := d.makeDirectCSIDrive(localDriveState, remoteDrive.Name)
 				if err := d.syncDrive(ctx, identifiedLocalDrive, noOpSyncFn); err != nil {
 					return err
 				}
@@ -151,13 +151,14 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 		for _, localDriveState := range unidentifedDriveStates {
 			remoteDrive, err := d.identifyDriveByLegacyName(localDriveState)
 			if err == nil {
-				identifiedLegacyDrive := makeDirectCSIDrive(localDriveState, remoteDrive.Name)
+				identifiedLegacyDrive := d.makeDirectCSIDrive(localDriveState, remoteDrive.Name)
 				if err := d.syncDrive(ctx, identifiedLegacyDrive, onSyncLegacyFn()); err != nil {
 					return err
 				}
 				continue
 			}
-			unidentifedDrive := makeDirectCSIDrive(localDriveState, "")
+			// unindentified or newly added drives
+			unidentifedDrive := d.makeDirectCSIDrive(localDriveState, "")
 			if _, err := driveClient.Create(ctx, unidentifedDrive, metav1.CreateOptions{}); err != nil {
 				if !errors.IsAlreadyExists(err) {
 					return err
@@ -169,12 +170,17 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 		}
 	}
 
+	// Set the remaining unmatched(lost) drives as "unidentified"
+	if err := d.tagUnmatchedDrives(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func makeDirectCSIDrive(driveStatus directcsi.DirectCSIDriveStatus, driveName string) *directcsi.DirectCSIDrive {
+func (d *Discovery) makeDirectCSIDrive(driveStatus directcsi.DirectCSIDriveStatus, driveName string) *directcsi.DirectCSIDrive {
 	if driveName == "" {
-		driveName = makeDriveName(driveStatus)
+		driveName = d.makeDriveName(driveStatus)
 	}
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
@@ -437,18 +443,43 @@ func makeV1beta1DriveName(nodeID, path string) string {
 	return fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
 }
 
-func makeDriveName(driveStatus directcsi.DirectCSIDriveStatus) string {
+func getDriveHash(driveName string) string {
+	return fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
+}
 
-	driveHash := func(driveName string) string {
-		return fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
-	}
-
+func (d *Discovery) makeDriveName(driveStatus directcsi.DirectCSIDriveStatus) string {
 	if driveStatus.FilesystemUUID != "" && driveStatus.Filesystem != "" {
-		return driveHash(strings.Join([]string{driveStatus.NodeName, driveStatus.FilesystemUUID}, "-"))
+		return getDriveHash(strings.Join([]string{driveStatus.NodeName, driveStatus.FilesystemUUID}, "-"))
 	}
-	dc := unknownDriveCounter
-	unknownDriveCounter = dc + 1
-	// Get the simd hash of the name
-	driveName := strings.Join([]string{driveStatus.NodeName, strconv.Itoa(int(dc))}, "-")
-	return driveHash(driveName)
+	return d.selectDriveName(driveStatus)
+}
+
+func (d *Discovery) selectDriveName(driveStatus directcsi.DirectCSIDriveStatus) string {
+	selectName := func() string {
+		dc := unknownDriveCounter
+		unknownDriveCounter = dc + 1
+		driveName := strings.Join([]string{driveStatus.NodeName, strconv.Itoa(int(dc))}, "-")
+		return getDriveHash(driveName)
+	}
+
+	var driveName string
+	for {
+		var nameReserved bool
+		driveName = selectName()
+		for i, remoteDrive := range d.remoteDrives {
+			if remoteDrive.Name != driveName {
+				continue
+			}
+			nameReserved = true
+			if !remoteDrive.matched && driveStatus.CurrentPath == remoteDrive.Status.CurrentPath {
+				d.remoteDrives[i].matched = true
+				return driveName
+			}
+		}
+		if !nameReserved {
+			break
+		}
+	}
+
+	return driveName
 }
