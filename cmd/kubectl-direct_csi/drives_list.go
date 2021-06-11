@@ -33,7 +33,8 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+
+	"k8s.io/klog/v2"
 )
 
 var listDrivesCmd = &cobra.Command{
@@ -138,20 +139,50 @@ func listDrives(ctx context.Context, args []string) error {
 		return strings.Compare(string(d1.Status.DriveStatus), string(d2.Status.DriveStatus)) < 0
 	})
 
+	wrappedDriveList := directcsi.DirectCSIDriveList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "List",
+			APIVersion: strings.Join([]string{directcsi.Group, directcsi.Version}, "/"),
+		},
+		Items: filteredDrives,
+	}
+	if yaml {
+		if err := printYAML(wrappedDriveList); err != nil {
+			klog.ErrorS(err, "error marshaling drives", "format", outputMode)
+			return err
+		}
+		return nil
+	}
+	if json {
+		if err := printJSON(wrappedDriveList); err != nil {
+			klog.ErrorS(err, "error marshaling drives", "format", outputMode)
+			return err
+		}
+		return nil
+	}
+
+	headers := func() []interface{} {
+		header := []interface{}{
+			"DRIVE",
+			"CAPACITY",
+			"ALLOCATED",
+			"FILESYSTEM",
+			"VOLUMES",
+			"NODE",
+			"ACCESS-TIER",
+			"STATUS",
+			"",
+		}
+		if wide {
+			header = append(header, "DRIVE ID")
+		}
+		return header
+	}()
+
 	text.DisableColors()
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{
-		"DRIVE",
-		"CAPACITY",
-		"ALLOCATED",
-		"FILESYSTEM",
-		"VOLUMES",
-		"NODE",
-		"ACCESS-TIER",
-		"STATUS",
-		"",
-	})
+	t.AppendHeader(table.Row(headers))
 
 	style := table.StyleColoredDark
 	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
@@ -227,6 +258,12 @@ func listDrives(ctx context.Context, args []string) error {
 			}(d), //ACCESS-TIER
 			utils.Bold(drStatus), //STATUS
 			msg,                  //MESSAGE
+			func() string {
+				if wide {
+					return d.Name
+				}
+				return ""
+			}(),
 		})
 	}
 

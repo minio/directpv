@@ -17,12 +17,17 @@
 package main
 
 import (
+	jsonFormatter "encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
+
+	"k8s.io/klog/v2"
+	yamlFormatter "sigs.k8s.io/yaml"
 )
 
 // pretty printing utils
@@ -67,4 +72,23 @@ func printableString(s string) string {
 		return "-"
 	}
 	return s
+}
+
+func printYAML(obj interface{}) error {
+	formattedObj, err := yamlFormatter.Marshal(obj)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(formattedObj))
+	return nil
+}
+
+func printJSON(obj interface{}) error {
+	formattedObj, err := jsonFormatter.MarshalIndent(obj, "", "  ")
+	if err != nil {
+		klog.ErrorS(err, "error marshaling to JSON", "ouput", outputMode)
+		return err
+	}
+	fmt.Println(string(formattedObj))
+	return nil
 }
