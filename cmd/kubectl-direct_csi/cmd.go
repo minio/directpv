@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 
 	"github.com/spf13/cobra"
@@ -35,6 +36,12 @@ var (
 	dryRun         = false
 	dryRunFlagName = "dry-run"
 	showVersion    = false
+
+	//output modes
+	outputMode = ""
+	wide       = false
+	json       = false
+	yaml       = false
 )
 
 var pluginCmd = &cobra.Command{
@@ -42,6 +49,20 @@ var pluginCmd = &cobra.Command{
 	Short:         "Plugin for managing Direct CSI drives and volumes",
 	SilenceUsage:  true,
 	SilenceErrors: false,
+	PersistentPreRunE: func(c *cobra.Command, args []string) error {
+		switch outputMode {
+		case "":
+		case "wide":
+			wide = true
+		case "yaml":
+			yaml = true
+		case "json":
+			json = true
+		default:
+			return errors.New("output should be one of wide|json|yaml or empty")
+		}
+		return nil
+	},
 }
 
 func init() {
@@ -62,6 +83,8 @@ func init() {
 	flag.Set("logtostderr", "true")
 
 	pluginCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "path to kubeconfig")
+	pluginCmd.PersistentFlags().StringVarP(&outputMode, "output", "o", outputMode,
+		"output format should be one of wide|json|yaml or empty")
 	pluginCmd.PersistentFlags().BoolVarP(&dryRun, dryRunFlagName, "", dryRun, "prints the installation yaml")
 
 	pluginCmd.PersistentFlags().MarkHidden("alsologtostderr")
@@ -85,6 +108,5 @@ func init() {
 }
 
 func Execute(ctx context.Context) error {
-
 	return pluginCmd.ExecuteContext(ctx)
 }

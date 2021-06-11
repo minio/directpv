@@ -108,7 +108,7 @@ func listVolumes(ctx context.Context, args []string) error {
 		}
 	}
 
-	vols := []*directcsi.DirectCSIVolume{}
+	vols := []directcsi.DirectCSIVolume{}
 
 	drivePaths := map[string]string{}
 	driveName := func(val string) string {
@@ -129,10 +129,31 @@ func listVolumes(ctx context.Context, args []string) error {
 					return err
 				}
 				if vol.MatchStatus(volumeStatus) && vol.MatchPodName(podNames) && vol.MatchPodNamespace(podNss) {
-					vols = append(vols, vol)
+					vols = append(vols, *vol)
 				}
 			}
 		}
+	}
+
+	wrappedVolumeList := directcsi.DirectCSIVolumeList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "List",
+			APIVersion: strings.Join([]string{directcsi.Group, directcsi.Version}, "/"),
+		},
+		Items: vols,
+	}
+
+	if yaml {
+		if err := printYAML(wrappedVolumeList); err != nil {
+			return err
+		}
+		return nil
+	}
+	if json {
+		if err := printJSON(wrappedVolumeList); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	text.DisableColors()
