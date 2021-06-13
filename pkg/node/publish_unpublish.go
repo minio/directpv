@@ -142,7 +142,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		switch c.Type {
 		case string(directcsi.DirectCSIVolumeConditionPublished):
 			conditions[i].Status = utils.BoolToCondition(true)
-			conditions[i].Reason = directcsi.DirectCSIVolumeReasonInUse
+			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonInUse)
 		case string(directcsi.DirectCSIVolumeConditionStaged):
 		case string(directcsi.DirectCSIVolumeConditionReady):
 		}
