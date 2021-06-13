@@ -56,9 +56,9 @@ type AccessTier string
 
 const (
 	AccessTierWarm    AccessTier = "Warm"
-	AccessTierHot                = "Hot"
-	AccessTierCold               = "Cold"
-	AccessTierUnknown            = "Unknown"
+	AccessTierHot     AccessTier = "Hot"
+	AccessTierCold    AccessTier = "Cold"
+	AccessTierUnknown AccessTier = "Unknown"
 )
 
 type DirectCSIDriveStatus struct {
@@ -122,26 +122,26 @@ type DirectCSIDriveCondition string
 
 const (
 	DirectCSIDriveConditionOwned       DirectCSIDriveCondition = "Owned"
-	DirectCSIDriveConditionMounted                             = "Mounted"
-	DirectCSIDriveConditionFormatted                           = "Formatted"
-	DirectCSIDriveConditionInitialized                         = "Initialized"
+	DirectCSIDriveConditionMounted     DirectCSIDriveCondition = "Mounted"
+	DirectCSIDriveConditionFormatted   DirectCSIDriveCondition = "Formatted"
+	DirectCSIDriveConditionInitialized DirectCSIDriveCondition = "Initialized"
 )
 
 type DirectCSIDriveReason string
 
 const (
 	DirectCSIDriveReasonNotAdded    DirectCSIDriveReason = "NotAdded"
-	DirectCSIDriveReasonAdded                            = "Added"
-	DirectCSIDriveReasonInitialized                      = "Initialized"
+	DirectCSIDriveReasonAdded       DirectCSIDriveReason = "Added"
+	DirectCSIDriveReasonInitialized DirectCSIDriveReason = "Initialized"
 )
 
 type DirectCSIDriveMessage string
 
 const (
 	DirectCSIDriveMessageMounted      DirectCSIDriveMessage = "Mounted"
-	DirectCSIDriveMessageNotMounted                         = "NotMounted"
-	DirectCSIDriveMessageFormatted                          = "Formatted"
-	DirectCSIDriveMessageNotFormatted                       = "NotFormatted"
+	DirectCSIDriveMessageNotMounted   DirectCSIDriveMessage = "NotMounted"
+	DirectCSIDriveMessageFormatted    DirectCSIDriveMessage = "Formatted"
+	DirectCSIDriveMessageNotFormatted DirectCSIDriveMessage = "NotFormatted"
 )
 
 type RequestedFormat struct {
@@ -162,11 +162,11 @@ type DriveStatus string
 
 const (
 	DriveStatusInUse       DriveStatus = "InUse"
-	DriveStatusAvailable               = "Available"
-	DriveStatusUnavailable             = "Unavailable"
-	DriveStatusReady                   = "Ready"
-	DriveStatusTerminating             = "Terminating"
-	DriveStatusReleased                = "Released"
+	DriveStatusAvailable   DriveStatus = "Available"
+	DriveStatusUnavailable DriveStatus = "Unavailable"
+	DriveStatusReady       DriveStatus = "Ready"
+	DriveStatusTerminating DriveStatus = "Terminating"
+	DriveStatusReleased    DriveStatus = "Released"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -207,17 +207,17 @@ type DirectCSIVolumeCondition string
 
 const (
 	DirectCSIVolumeConditionPublished DirectCSIVolumeCondition = "Published"
-	DirectCSIVolumeConditionStaged                             = "Staged"
-	DirectCSIVolumeConditionReady                              = "Ready"
+	DirectCSIVolumeConditionStaged    DirectCSIVolumeCondition = "Staged"
+	DirectCSIVolumeConditionReady     DirectCSIVolumeCondition = "Ready"
 )
 
 type DirectCSIVolumeReason string
 
 const (
 	DirectCSIVolumeReasonNotInUse DirectCSIVolumeReason = "NotInUse"
-	DirectCSIVolumeReasonInUse                          = "InUse"
-	DirectCSIVolumeReasonReady                          = "Ready"
-	DirectCSIVolumeReasonNotReady                       = "NotReady"
+	DirectCSIVolumeReasonInUse    DirectCSIVolumeReason = "InUse"
+	DirectCSIVolumeReasonReady    DirectCSIVolumeReason = "Ready"
+	DirectCSIVolumeReasonNotReady DirectCSIVolumeReason = "NotReady"
 )
 
 type DirectCSIVolumeStatus struct {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+#
 # This file is part of MinIO Direct CSI
 # Copyright (c) 2021 MinIO, Inc.
 #
@@ -20,55 +20,82 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-PATH="$PATH:$GOPATH/bin"
-SCRIPT_ROOT="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-PROJECT_ROOT="${SCRIPT_ROOT}/.."
+export PATH="$PATH:$GOPATH/bin"
 
-GO111MODULE=off
-go get k8s.io/code-generator/...
-go get sigs.k8s.io/controller-tools/cmd/controller-gen
+function install_code_generator() {
+    if [ ! -x "$GOPATH/bin/deepcopy-gen" ]; then
+        go install -v k8s.io/code-generator/cmd/deepcopy-gen@latest
+    fi
+
+    if [ ! -x "$GOPATH/bin/openapi-gen" ]; then
+        go install -v k8s.io/code-generator/cmd/openapi-gen@latest
+    fi
+
+    if [ ! -x "$GOPATH/bin/client-gen" ]; then
+        go install -v k8s.io/code-generator/cmd/client-gen@latest
+    fi
+
+    if [ ! -x "$GOPATH/bin/conversion-gen" ]; then
+        go install -v k8s.io/code-generator/cmd/conversion-gen@latest
+    fi
+}
+
+function install_controller_tools() {
+    if [ ! -x "$GOPATH/bin/controller-gen" ]; then
+        go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+    fi
+}
+
+install_code_generator
+install_controller_tools
 
 REPOSITORY=github.com/minio/direct-csi
+SCRIPT_ROOT=$(cd "$(dirname "$0")"; pwd -P)
+PROJECT_ROOT=$(cd "${SCRIPT_ROOT}/.."; pwd -P)
 
 # Remove old generated code
-rm -rf "${PROJECT_ROOT}/config/crd"
-rm -rf "${PROJECT_ROOT}/pkg/clientset"
+rm -rf "${PROJECT_ROOT}/config/crd" "${PROJECT_ROOT}/pkg/clientset"
 
-versions="v1alpha1 v1beta1 v1beta2"
-for version in $versions; do
+versions=(v1alpha1 v1beta1 v1beta2)
+
+# Prefix ${REPOSITORY}/pkg/apis/direct.csi.min.io/ to each versions.
+arr=("${versions[@]/#/$REPOSITORY/pkg/apis/direct.csi.min.io/}")
+
+# Join array elements with ",".
+input_dirs=$(IFS=,; echo "${arr[*]}")
+
+# deepcopy
+deepcopy-gen \
+    --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
+    --input-dirs "${input_dirs}" \
+    --output-package "${REPOSITORY}/pkg/"
+
+for version in "${versions[@]}"; do
     repo="${REPOSITORY}/pkg/apis/direct.csi.min.io/${version}"
-
-    # deepcopy
-    deepcopy-gen \
-        --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
-        --output-package "${REPOSITORY}/pkg/" \
-        --input-dirs "${repo}"
 
     # openapi
     openapi-gen \
         --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
-        --output-package "${repo}" \
-        --input-dirs "${repo}"
+        --input-dirs "${repo}" \
+        --output-package "${repo}"
 
     # client
-    inputDir="direct.csi.min.io/${version}"
     client-gen \
-        --fake-clientset \
-        --go-header-file  "${SCRIPT_ROOT}/boilerplate.go.txt" \
-        --clientset-name clientset \
-        --output-package "${REPOSITORY}/pkg/" \
+        --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
         --input-dirs "${repo}" \
-        --input "${inputDir}" \
+        --output-package "${REPOSITORY}/pkg/" \
+        --fake-clientset \
+        --clientset-name clientset \
+        --input "direct.csi.min.io/${version}" \
         --input-base "${REPOSITORY}/pkg/apis"
 
 done
 
 # crd
-controller-gen \
-    crd:crdVersions=v1 \
-    paths=./...
+controller-gen crd:crdVersions=v1 paths=./...
 
+# conversion
 conversion-gen \
-        --input-dirs "${REPOSITORY}/pkg/apis/direct.csi.min.io/v1beta2,${REPOSITORY}/pkg/apis/direct.csi.min.io/v1beta1,${REPOSITORY}/pkg/apis/direct.csi.min.io/v1alpha1 " \
-        --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
-        --output-package "${REPOSITORY}/pkg/" 
+    --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
+    --input-dirs "${input_dirs}" \
+    --output-package "${REPOSITORY}/pkg/" 

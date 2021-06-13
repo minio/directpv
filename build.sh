@@ -27,12 +27,12 @@ if [ -t 1 ]; then
            -e HOME=/go/home \
            -v "${SCRIPT_ROOT}:/go/src/github.com/minio/direct-csi" \
            -w /go/src/github.com/minio/direct-csi \
-           --entrypoint hack/build-without-docker.sh golang:1.14
+           --entrypoint hack/build-without-docker.sh golang:1.16
 else
     docker run \
            -u $(id -u ${USER}):$(id -g ${USER}) \
            -e HOME=/go/home \
            -v "${SCRIPT_ROOT}:/go/src/github.com/minio/direct-csi" \
            -w /go/src/github.com/minio/direct-csi \
-           --entrypoint hack/build-without-docker.sh golang:1.14
+           --entrypoint hack/build-without-docker.sh golang:1.16
 fi
