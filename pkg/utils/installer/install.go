@@ -1052,6 +1052,15 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 	conversionWebhookDNSName := getConversionWebhookDNSName(identity)
 	var replicas int32 = 3
 	privileged := true
+
+	healthZHandler := corev1.Handler{
+		HTTPGet: &corev1.HTTPGetAction{
+			Path:   healthZContainerPortPath,
+			Port:   intstr.FromString(conversionWebhookPortName),
+			Scheme: corev1.URISchemeHTTPS,
+		},
+	}
+
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
 		Volumes: []corev1.Volume{
@@ -1074,21 +1083,12 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
-				// // Enable after investigating the CrashLoopBackOff on pods
-				// LivenessProbe: &corev1.Probe{
-				// 	FailureThreshold:    5,
-				// 	InitialDelaySeconds: 10,
-				// 	TimeoutSeconds:      3,
-				// 	PeriodSeconds:       2,
-				// 	Handler: corev1.Handler{
-				// 		HTTPGet: &corev1.HTTPGetAction{
-				// 			Path:   healthZContainerPortPath,
-				// 			Port:   intstr.FromString(conversionWebhookPortName),
-				// 			Host:   conversionWebhookDNSName,
-				// 			Scheme: corev1.URISchemeHTTPS,
-				// 		},
-				// 	},
-				// },
+				LivenessProbe: &corev1.Probe{
+					Handler: healthZHandler,
+				},
+				ReadinessProbe: &corev1.Probe{
+					Handler: healthZHandler,
+				},
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(conversionWebhookName, certsDir, false),
 				},
@@ -1241,6 +1241,7 @@ func isConversionDeploymentReady(ctx context.Context, identity string) bool {
 	deploymentsClient := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity))
 	deployment, getErr := deploymentsClient.Get(ctx, conversionWebhookName, metav1.GetOptions{})
 	if getErr != nil {
+		klog.V(5).Info(getErr)
 		return false
 	}
 	return deployment.Status.ReadyReplicas >= conversionDeploymentReadinessThreshold
