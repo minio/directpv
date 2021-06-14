@@ -136,8 +136,10 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 
 func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, identity string) error {
 
-	// Wait for conversion deployment to be live
-	installer.WaitForConversionDeployment(ctx, identity)
+	if !dryRun {
+		// Wait for conversion deployment to be live
+		installer.WaitForConversionDeployment(ctx, identity)
+	}
 
 	name := installer.SanitizeName(identity)
 	getServiceRef := func() *apiextensions.ServiceReference {
