@@ -20,9 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"k8s.io/klog"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -107,10 +109,12 @@ const (
 	DirectCSIFinalizerDeleteProtection = "/delete-protection"
 
 	// Conversion webhook
-	conversionWebhookName       = "directcsi-conversion-webhook"
-	ConversionWebhookSecretName = "conversionwebhookcerts"
-	conversionWebhookPortName   = "convwebhook"
-	conversionWebhookPort       = 443
+	conversionWebhookName                  = "directcsi-conversion-webhook"
+	ConversionWebhookSecretName            = "conversionwebhookcerts"
+	conversionWebhookPortName              = "convwebhook"
+	conversionWebhookPort                  = 443
+	conversionDeploymentReadinessThreshold = 2
+	conversionDeploymentRetryInterval      = 3 * time.Second
 
 	conversionWebhookCertVolume  = "conversion-webhook-certs"
 	conversionWebhookCertsSecret = "converionwebhookcertsecret"
@@ -1216,7 +1220,28 @@ func CreateOrUpdateConversionDeployment(ctx context.Context, identity string, di
 			if _, err := deploymentsClient.Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
 				return err
 			}
+			klog.V(5).Infof("Updated the conversion deployment image to: %v", deployment.Spec.Template.Spec.Containers[0].Image)
 		}
 	}
 	return nil
+}
+
+func WaitForConversionDeployment(ctx context.Context, identity string) {
+	for {
+		if isConversionDeploymentReady(ctx, identity) {
+			klog.V(5).Info("Conversion deployment is live")
+			return
+		}
+		klog.V(5).Info("Waiting for conversion deployment to be Ready")
+		time.Sleep(conversionDeploymentRetryInterval)
+	}
+}
+
+func isConversionDeploymentReady(ctx context.Context, identity string) bool {
+	deploymentsClient := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity))
+	deployment, getErr := deploymentsClient.Get(ctx, conversionWebhookName, metav1.GetOptions{})
+	if getErr != nil {
+		return false
+	}
+	return deployment.Status.ReadyReplicas >= conversionDeploymentReadinessThreshold
 }

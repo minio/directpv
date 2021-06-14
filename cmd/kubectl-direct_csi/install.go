@@ -98,6 +98,15 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' namespace created", utils.Bold(identity))
 	}
 
+	if err := installer.CreateRBACRoles(ctx, identity, dryRun); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+	if !dryRun {
+		klog.Infof("'%s' rbac roles created", utils.Bold(identity))
+	}
+
 	if err := installer.CreateOrUpdateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
 		return err
 	}
@@ -151,15 +160,6 @@ crdInstall:
 	}
 	if !dryRun {
 		klog.Infof("'%s' service created", utils.Bold(identity))
-	}
-
-	if err := installer.CreateRBACRoles(ctx, identity, dryRun); err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("'%s' rbac roles created", utils.Bold(identity))
 	}
 
 	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations); err != nil {
