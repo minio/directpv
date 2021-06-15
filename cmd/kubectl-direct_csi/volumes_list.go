@@ -111,6 +111,7 @@ func listVolumes(ctx context.Context, args []string) error {
 	vols := []directcsi.DirectCSIVolume{}
 
 	drivePaths := map[string]string{}
+	driveUUIDs := map[string]string{}
 	driveName := func(val string) string {
 		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
 		return strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
@@ -121,6 +122,7 @@ func listVolumes(ctx context.Context, args []string) error {
 			continue
 		}
 		drivePaths[d.Name] = driveName(d.Status.Path)
+		driveUUIDs[d.Name] = d.Status.FilesystemUUID
 		for _, f := range d.GetFinalizers() {
 			if strings.HasPrefix(f, directcsi.DirectCSIDriveFinalizerPrefix) {
 				name := strings.ReplaceAll(f, directcsi.DirectCSIDriveFinalizerPrefix, "")
@@ -156,18 +158,24 @@ func listVolumes(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	text.DisableColors()
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{
+	defaultHeaders := table.Row{
 		"VOLUME",
 		"CAPACITY",
 		"NODE",
 		"DRIVE",
 		"PODNAME",
 		"PODNAMESPACE",
-		"",
-	})
+	}
+
+	if wide {
+		defaultHeaders = append(defaultHeaders,
+			"DRIVEUUID")
+	}
+
+	text.DisableColors()
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(defaultHeaders)
 
 	style := table.StyleColoredDark
 	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
@@ -181,14 +189,18 @@ func listVolumes(ctx context.Context, args []string) error {
 			}
 			return humanize.IBytes(uint64(val))
 		}
-		t.AppendRow([]interface{}{
+		row := []interface{}{
 			v.Name,                                //VOLUME
 			emptyOrBytes(v.Status.TotalCapacity),  //CAPACITY
 			v.Status.NodeName,                     //SERVER
 			driveName(drivePaths[v.Status.Drive]), //DRIVE
 			printableString(v.ObjectMeta.Labels[directcsi.Group+"/pod.name"]),
 			printableString(v.ObjectMeta.Labels[directcsi.Group+"/pod.namespace"]),
-		})
+		}
+		if wide {
+			row = append(row, driveUUIDs[v.Status.Drive])
+		}
+		t.AppendRow(row)
 	}
 
 	t.Render()
