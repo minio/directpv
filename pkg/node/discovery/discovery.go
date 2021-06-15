@@ -213,22 +213,22 @@ func (d *Discovery) findLocalDrives(ctx context.Context, loopBackOnly bool) ([]s
 func (d *Discovery) toDirectCSIDriveStatus(localDrives []sys.BlockDevice) []directcsi.DirectCSIDriveStatus {
 	driveStatusList := []directcsi.DirectCSIDriveStatus{}
 	nodeID := d.NodeID
-	for _, d := range localDrives {
-		partitions := d.GetPartitions()
+	for _, localDrive := range localDrives {
+		partitions := localDrive.GetPartitions()
 		if len(partitions) > 0 {
 			for _, partition := range partitions {
-				driveStatus := directCSIDriveStatusFromPartition(nodeID, partition, d.Devname, d.DeviceError)
+				driveStatus := d.directCSIDriveStatusFromPartition(nodeID, partition, localDrive.Devname, localDrive.DeviceError)
 				driveStatusList = append(driveStatusList, driveStatus)
 			}
 			continue
 		}
-		driveStatus := directCSIDriveStatusFromRoot(nodeID, d)
+		driveStatus := d.directCSIDriveStatusFromRoot(nodeID, localDrive)
 		driveStatusList = append(driveStatusList, driveStatus)
 	}
 	return driveStatusList
 }
 
-func directCSIDriveStatusFromPartition(nodeID string, partition sys.Partition, rootPartition string, blockErr error) directcsi.DirectCSIDriveStatus {
+func (d *Discovery) directCSIDriveStatusFromPartition(nodeID string, partition sys.Partition, rootPartition string, blockErr error) directcsi.DirectCSIDriveStatus {
 	var fs, UUID string
 	if partition.FSInfo != nil {
 		fs = string(partition.FSInfo.FSType)
@@ -334,10 +334,11 @@ func directCSIDriveStatusFromPartition(nodeID string, partition sys.Partition, r
 				LastTransitionTime: metav1.Now(),
 			},
 		},
+		Topology: d.driveTopology,
 	}
 }
 
-func directCSIDriveStatusFromRoot(nodeID string, blockDevice sys.BlockDevice) directcsi.DirectCSIDriveStatus {
+func (d *Discovery) directCSIDriveStatusFromRoot(nodeID string, blockDevice sys.BlockDevice) directcsi.DirectCSIDriveStatus {
 	var fs, UUID string
 	if blockDevice.FSInfo != nil {
 		fs = string(blockDevice.FSInfo.FSType)
@@ -435,6 +436,7 @@ func directCSIDriveStatusFromRoot(nodeID string, blockDevice sys.BlockDevice) di
 				LastTransitionTime: metav1.Now(),
 			},
 		},
+		Topology: d.driveTopology,
 	}
 }
 
