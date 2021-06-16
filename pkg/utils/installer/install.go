@@ -466,9 +466,9 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 				},
 				LivenessProbe: &corev1.Probe{
 					FailureThreshold:    5,
-					InitialDelaySeconds: 10,
-					TimeoutSeconds:      3,
-					PeriodSeconds:       2,
+					InitialDelaySeconds: 300,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       5,
 					Handler: corev1.Handler{
 						HTTPGet: &corev1.HTTPGetAction{
 							Path: healthZContainerPortPath,
