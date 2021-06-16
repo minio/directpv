@@ -32,12 +32,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type onSyncFn func(existingObj *directcsi.DirectCSIDrive, localDrive *directcsi.DirectCSIDrive)
-
-var (
-	noOpSyncFn = func(_ *directcsi.DirectCSIDrive, _ *directcsi.DirectCSIDrive) {}
-)
-
 func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) error {
 	driveMounter := &sys.DefaultDriveMounter{}
 	switch existingDrive.Status.DriveStatus {
@@ -63,34 +57,7 @@ func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) er
 	return nil
 }
 
-func onSyncLegacyFn() onSyncFn {
-	return func(existingObj *directcsi.DirectCSIDrive, _ *directcsi.DirectCSIDrive) {
-		isv1beta2Upgrade := func() bool {
-			if makeV1beta1DriveName(existingObj.Status.NodeName, existingObj.Status.Path) == existingObj.Name {
-				return existingObj.Status.SerialNumber == "" &&
-					existingObj.Status.FilesystemUUID == "" &&
-					existingObj.Status.PartitionUUID == "" &&
-					existingObj.Status.MajorNumber == uint32(0) &&
-					existingObj.Status.MinorNumber == uint32(0)
-			}
-			return false
-		}()
-		if !isv1beta2Upgrade {
-			existingObj.Status.DriveStatus = directcsi.DriveStatusUnidentified
-		}
-	}
-}
-
-func onSyncUnidentifiedFn() onSyncFn {
-	return func(existingObj *directcsi.DirectCSIDrive, localDrive *directcsi.DirectCSIDrive) {
-		existingObj.Status.DriveStatus = directcsi.DriveStatusUnidentified
-		existingObj.Status.Conditions = localDrive.Status.Conditions
-	}
-}
-
-func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDrive *directcsi.DirectCSIDrive, onSync onSyncFn) {
-	// call onSync function
-	onSync(existingObj, localDrive)
+func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDrive *directcsi.DirectCSIDrive) {
 	// Sync the possible states
 	existingObj.Status.RootPartition = localDrive.Status.RootPartition
 	existingObj.Status.PartitionNum = localDrive.Status.PartitionNum
@@ -101,6 +68,7 @@ func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDriv
 	existingObj.Status.PhysicalBlockSize = localDrive.Status.PhysicalBlockSize
 	existingObj.Status.LogicalBlockSize = localDrive.Status.LogicalBlockSize
 	existingObj.Status.CurrentPath = localDrive.Status.CurrentPath
+	existingObj.Status.Path = localDrive.Status.Path
 	existingObj.Status.FilesystemUUID = localDrive.Status.FilesystemUUID
 	existingObj.Status.SerialNumber = localDrive.Status.SerialNumber
 	existingObj.Status.PartitionUUID = localDrive.Status.PartitionUUID
@@ -117,7 +85,7 @@ func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDriv
 	existingObj.Status.AllocatedCapacity = allocatedCapacity
 }
 
-func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectCSIDrive, onSync onSyncFn) error {
+func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectCSIDrive) error {
 	directCSIClient := d.directcsiClient.DirectV1beta2()
 	driveClient := directCSIClient.DirectCSIDrives()
 
@@ -130,7 +98,7 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 		}
 
 		// Sync remote drive states
-		syncDriveStatesOnDiscovery(existingDrive, localDrive, onSync)
+		syncDriveStatesOnDiscovery(existingDrive, localDrive)
 
 		// Verify mounts
 		if err := d.verifyDriveMount(existingDrive); err != nil {
@@ -158,7 +126,7 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 	return nil
 }
 
-func (d *Discovery) tagUnmatchedDrives(ctx context.Context) error {
+func (d *Discovery) deleteUnmatchedRemoteDrives(ctx context.Context) error {
 	directCSIClient := d.directcsiClient.DirectV1beta2()
 	driveClient := directCSIClient.DirectCSIDrives()
 
@@ -166,27 +134,8 @@ func (d *Discovery) tagUnmatchedDrives(ctx context.Context) error {
 		if remoteDrive.matched {
 			continue
 		}
-
-		driveUpdate := func() error {
-			existingDrive, err := driveClient.Get(ctx, remoteDrive.Name, metav1.GetOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
-			})
-			if err != nil {
-				return err
-			}
-			existingDrive.Status.DriveStatus = directcsi.DriveStatusUnidentified
-			existingDrive.Status.CurrentPath = "" // As it could not match a local drive
-			updateOpts := metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
-			}
-			_, err = driveClient.Update(ctx, existingDrive, updateOpts)
+		if err := driveClient.Delete(ctx, remoteDrive.Name, metav1.DeleteOptions{}); err != nil {
 			return err
-		}
-
-		if err := retry.RetryOnConflict(retry.DefaultRetry, driveUpdate); err != nil {
-			if !errors.IsNotFound(err) {
-				return err
-			}
 		}
 	}
 

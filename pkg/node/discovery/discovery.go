@@ -19,7 +19,6 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
@@ -28,12 +27,12 @@ import (
 	"github.com/minio/direct-csi/pkg/sys/gpt"
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
 	rest "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/google/uuid"
 	simd "github.com/minio/sha256-simd"
 )
 
@@ -118,9 +117,6 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 }
 
 func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
-	directCSIClient := d.directcsiClient.DirectV1beta2()
-	driveClient := directCSIClient.DirectCSIDrives()
-
 	localDrives, err := d.findLocalDrives(ctx, loopBackOnly)
 	if err != nil {
 		return err
@@ -130,8 +126,7 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 	var unidentifedDriveStates []directcsi.DirectCSIDriveStatus
 	if len(d.remoteDrives) == 0 {
 		for _, localDriveState := range localDriveStates {
-			newDrive := d.makeDirectCSIDrive(localDriveState, "")
-			if _, err := driveClient.Create(ctx, newDrive, metav1.CreateOptions{}); err != nil {
+			if err := d.createNewDrive(ctx, localDriveState); err != nil {
 				return err
 			}
 		}
@@ -139,8 +134,7 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 		for _, localDriveState := range localDriveStates {
 			remoteDrive, err := d.Identify(localDriveState)
 			if err == nil {
-				identifiedLocalDrive := d.makeDirectCSIDrive(localDriveState, remoteDrive.Name)
-				if err := d.syncDrive(ctx, identifiedLocalDrive, noOpSyncFn); err != nil {
+				if err := d.syncRemoteDrive(ctx, localDriveState, remoteDrive); err != nil {
 					return err
 				}
 				continue
@@ -149,38 +143,52 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 		}
 
 		for _, localDriveState := range unidentifedDriveStates {
-			remoteDrive, err := d.identifyDriveByLegacyName(localDriveState)
+			remoteDrive, isNotSynced, err := d.identifyDriveByLegacyName(localDriveState)
 			if err == nil {
-				identifiedLegacyDrive := d.makeDirectCSIDrive(localDriveState, remoteDrive.Name)
-				if err := d.syncDrive(ctx, identifiedLegacyDrive, onSyncLegacyFn()); err != nil {
-					return err
+				if isNotSynced {
+					if err := d.syncRemoteDrive(ctx, localDriveState, remoteDrive); err != nil {
+						return err
+					}
+					continue
 				}
-				continue
 			}
-			// unindentified or newly added drives
-			unidentifedDrive := d.makeDirectCSIDrive(localDriveState, "")
-			if _, err := driveClient.Create(ctx, unidentifedDrive, metav1.CreateOptions{}); err != nil {
-				if !errors.IsAlreadyExists(err) {
-					return err
-				}
-				if err := d.syncDrive(ctx, unidentifedDrive, onSyncUnidentifiedFn()); err != nil {
-					return err
-				}
+			if err := d.createNewDrive(ctx, localDriveState); err != nil {
+				return err
 			}
 		}
 	}
 
-	// Set the remaining unmatched(lost) drives as "unidentified"
-	if err := d.tagUnmatchedDrives(ctx); err != nil {
+	// Delete the unmapped remote drives
+	if err := d.deleteUnmatchedRemoteDrives(ctx); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (d *Discovery) makeDirectCSIDrive(driveStatus directcsi.DirectCSIDriveStatus, driveName string) *directcsi.DirectCSIDrive {
+func (d *Discovery) createNewDrive(ctx context.Context, localDriveState directcsi.DirectCSIDriveStatus) error {
+	directCSIClient := d.directcsiClient.DirectV1beta2()
+	driveClient := directCSIClient.DirectCSIDrives()
+
+	newDrive := makeDirectCSIDrive(localDriveState, "")
+	if _, err := driveClient.Create(ctx, newDrive, metav1.CreateOptions{}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *Discovery) syncRemoteDrive(ctx context.Context, localDriveState directcsi.DirectCSIDriveStatus, remoteDrive *remoteDrive) error {
+	identifiedLegacyDrive := makeDirectCSIDrive(localDriveState, remoteDrive.Name)
+	if err := d.syncDrive(ctx, identifiedLegacyDrive); err != nil {
+		return err
+	}
+	return nil
+}
+
+func makeDirectCSIDrive(driveStatus directcsi.DirectCSIDriveStatus, driveName string) *directcsi.DirectCSIDrive {
 	if driveName == "" {
-		driveName = d.makeDriveName(driveStatus)
+		driveName = uuid.New().String()
 	}
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
@@ -443,45 +451,4 @@ func (d *Discovery) directCSIDriveStatusFromRoot(nodeID string, blockDevice sys.
 func makeV1beta1DriveName(nodeID, path string) string {
 	driveName := strings.Join([]string{nodeID, path}, "-")
 	return fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
-}
-
-func getDriveHash(driveName string) string {
-	return fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
-}
-
-func (d *Discovery) makeDriveName(driveStatus directcsi.DirectCSIDriveStatus) string {
-	if driveStatus.FilesystemUUID != "" && driveStatus.Filesystem != "" {
-		return getDriveHash(strings.Join([]string{driveStatus.NodeName, driveStatus.FilesystemUUID}, "-"))
-	}
-	return d.selectDriveName(driveStatus)
-}
-
-func (d *Discovery) selectDriveName(driveStatus directcsi.DirectCSIDriveStatus) string {
-	selectName := func() string {
-		dc := unknownDriveCounter
-		unknownDriveCounter = dc + 1
-		driveName := strings.Join([]string{driveStatus.NodeName, strconv.Itoa(int(dc))}, "-")
-		return getDriveHash(driveName)
-	}
-
-	var driveName string
-	for {
-		var nameReserved bool
-		driveName = selectName()
-		for i, remoteDrive := range d.remoteDrives {
-			if remoteDrive.Name != driveName {
-				continue
-			}
-			nameReserved = true
-			if !remoteDrive.matched && driveStatus.CurrentPath == remoteDrive.Status.CurrentPath {
-				d.remoteDrives[i].matched = true
-				return driveName
-			}
-		}
-		if !nameReserved {
-			break
-		}
-	}
-
-	return driveName
 }
