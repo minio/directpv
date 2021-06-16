@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
@@ -32,7 +33,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientset "k8s.io/client-go/kubernetes"
 
-	"github.com/google/uuid"
 	"k8s.io/klog"
 )
 
@@ -147,6 +147,27 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		return DriveUpdateTypeUnknown
 	}
 
+	isDuplicateUUID := func(ctx context.Context, driveName, fsUUID string) (bool, error) {
+		driveList, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		})
+		if err != nil {
+			return false, err
+		}
+		drives := driveList.Items
+
+		for _, drive := range drives {
+			if drive.Status.NodeName != d.nodeID || drive.Name == driveName {
+				continue
+			}
+			if drive.Status.FilesystemUUID == fsUUID {
+				return true, nil
+			}
+		}
+
+		return false, nil
+	}
+
 	//TODO: volume purge logic
 	var updateErr error
 	switch driveUpdateType(ctx, old, new) {
@@ -161,6 +182,10 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		}
 
 		finalizers := new.GetFinalizers()
+		if len(finalizers) == 0 {
+			return nil
+		}
+
 		if len(finalizers) > 1 {
 			return fmt.Errorf("cannot delete drive in use")
 		}
@@ -207,15 +232,21 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		case directcsi.DriveStatusTerminating:
 			klog.V(3).Infof("rejected request to format a terminating drive %s", new.Name)
 			return nil
-		case directcsi.DriveStatusUnidentified:
-			klog.V(3).Infof("rejected request to format a unidentified drive %s", new.Name)
-			return nil
 		case directcsi.DriveStatusAvailable:
 			UUID := new.Status.FilesystemUUID
 			if UUID == "" {
 				UUID = uuid.New().String()
-				new.Status.FilesystemUUID = UUID
+			} else {
+				// Check if the FilesystemUUID is already taken by other drives in the same node
+				isDup, err := isDuplicateUUID(ctx, new.Name, UUID)
+				if err != nil {
+					return err
+				}
+				if isDup {
+					UUID = uuid.New().String()
+				}
 			}
+			new.Status.FilesystemUUID = UUID
 
 			directCSIPath := sys.GetDirectCSIPath(new.Status.FilesystemUUID)
 			directCSIMount := filepath.Join(sys.MountRoot, new.Status.FilesystemUUID)

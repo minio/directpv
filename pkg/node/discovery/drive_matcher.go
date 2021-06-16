@@ -88,14 +88,25 @@ func (d *Discovery) selectBySerialNumber(serialNumber string, partitionNum int) 
 	return nil, ErrNoMatchFound
 }
 
-func (d *Discovery) identifyDriveByLegacyName(localDriveState directcsi.DirectCSIDriveStatus) (*remoteDrive, error) {
+func (d *Discovery) identifyDriveByLegacyName(localDriveState directcsi.DirectCSIDriveStatus) (*remoteDrive, bool, error) {
 	v1beta1DriveName := makeV1beta1DriveName(d.NodeID, localDriveState.Path)
+
+	isNotUpgraded := func(driveObj directcsi.DirectCSIDrive) bool {
+		return driveObj.Status.SerialNumber == "" &&
+			driveObj.Status.FilesystemUUID == "" &&
+			driveObj.Status.PartitionUUID == "" &&
+			driveObj.Status.MajorNumber == uint32(0) &&
+			driveObj.Status.MinorNumber == uint32(0)
+	}
 
 	for i, remoteDrive := range d.remoteDrives {
 		if !remoteDrive.matched && remoteDrive.Name == v1beta1DriveName {
-			d.remoteDrives[i].matched = true
-			return d.remoteDrives[i], nil
+			notUpgraded := isNotUpgraded(remoteDrive.DirectCSIDrive)
+			if notUpgraded {
+				d.remoteDrives[i].matched = true
+			}
+			return d.remoteDrives[i], notUpgraded, nil
 		}
 	}
-	return nil, ErrNoMatchFound
+	return nil, false, ErrNoMatchFound
 }

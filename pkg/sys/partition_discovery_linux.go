@@ -364,7 +364,7 @@ func MakeBlockFile(path string, major, minor uint32) error {
 		if err := os.Remove(directCSIDevicePath); err != nil {
 			return err
 		}
-		if err := createBlockFile(directCSIDevicePath, major, major); err != nil {
+		if err := createBlockFile(directCSIDevicePath, major, minor); err != nil {
 			return err
 		}
 		return nil
