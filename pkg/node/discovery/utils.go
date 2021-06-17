@@ -135,7 +135,7 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 		// Verify mounts
 		if err := d.verifyDriveMount(existingDrive); err != nil {
 			utils.UpdateCondition(existingDrive.Status.Conditions,
-				string(directcsi.DirectCSIDriveConditionMounted),
+				string(directcsi.DirectCSIDriveConditionInitialized),
 				metav1.ConditionFalse,
 				string(directcsi.DirectCSIDriveReasonInitialized),
 				err.Error())
