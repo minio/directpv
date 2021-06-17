@@ -35,7 +35,6 @@ var (
 	identity       = "direct.csi.min.io"
 	dryRun         = false
 	dryRunFlagName = "dry-run"
-	showVersion    = false
 
 	//output modes
 	outputMode = ""
@@ -49,6 +48,7 @@ var pluginCmd = &cobra.Command{
 	Short:         "Plugin for managing Direct CSI drives and volumes",
 	SilenceUsage:  true,
 	SilenceErrors: false,
+	Version:       Version,
 	PersistentPreRunE: func(c *cobra.Command, args []string) error {
 		switch outputMode {
 		case "":
@@ -66,8 +66,8 @@ var pluginCmd = &cobra.Command{
 }
 
 func init() {
-	if Version == "" {
-		Version = "dev"
+	if pluginCmd.Version == "" {
+		pluginCmd.Version = "dev"
 	}
 
 	viper.AutomaticEnv()
