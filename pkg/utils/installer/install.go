@@ -387,7 +387,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 		Containers: []corev1.Container{
 			{
 				Name:  nodeDriverRegistrarContainerName,
-				Image: filepath.Join(registry, org, nodeDriverRegistrarContainerImage),
+				Image: filepath.Join(registry, "minio", nodeDriverRegistrarContainerImage),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--csi-address=unix:///csi/csi.sock",
@@ -479,7 +479,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 			},
 			{
 				Name:  livenessProbeContainerName,
-				Image: filepath.Join(registry, org, livenessProbeContainerImage),
+				Image: filepath.Join(registry, "minio", livenessProbeContainerImage),
 				Args: []string{
 					"--csi-address=/csi/csi.sock",
 					"--health-port=9898",
@@ -658,7 +658,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		Containers: []corev1.Container{
 			{
 				Name:  csiProvisionerContainerName,
-				Image: filepath.Join(registry, org, csiProvisionerContainerImage),
+				Image: filepath.Join(registry, "minio", csiProvisionerContainerImage),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
