@@ -1,8 +1,34 @@
-Development and Testing
------------------------
-
-ToDo: Create docs for setting up DirectCSI development and testing environment
-
+## Development and Testing
+0. You would need to have `quay.io` account, running docker and kubernetes; and make sure `quay.io/<QUAY_USERNAME>/direct-csi` repository is `public`.
+1. Go to project root
+```bash
+$ cd $GOPATH/src/github.com/minio/direct-csi
+```
+2. Hack, hack, hack...
+3. Run go build
+```bash
+$ go build -v ./...
+```
+4. Run ./build.sh
+```bash
+$ ./build.sh
+```
+5. Docker login to your `quay.io` account
+```bash
+$ docker login --username <QUAY_USERNAME> https://quay.io
+```
+6. Run docker build to tag image
+```bash
+$ docker build -t quay.io/<QUAY_USERNAME>/direct-csi:<NEW_BUILD_TAG> .
+```
+7. Push newly created image to `quay.io`
+```bash
+$ docker push quay.io/<QUAY_USERNAME>/direct-csi:<NEW_BUILD_TAG>
+```
+8. Install direct-csi
+```bash
+$ ./kubectl-direct_csi --kubeconfig <PATH-TO-KUBECONFIG-FILE> install --image direct-csi:<NEW_BUILD_TAG> --org <QUAY_USERNAME>
+```
 
 ## Loopback Devices
 
