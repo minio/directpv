@@ -26,6 +26,7 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -66,6 +67,12 @@ $ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --sta
 
 # Combine multiple parameters using csv
 $ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=available
+
+# Format a drive by it's drive-id
+$ kubectl direct-csi drives format <drive_id>
+
+# Format more than one drive by their drive-ids
+$ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
 `,
 	RunE: func(c *cobra.Command, args []string) error {
 		return formatDrives(c.Context(), args)
@@ -88,33 +95,49 @@ func formatDrives(ctx context.Context, args []string) error {
 	dryRun := viper.GetBool(dryRunFlagName)
 
 	if !all {
-		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 {
+		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {
 			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"))
 		}
 	}
 
 	utils.Init()
-
 	directClient := utils.GetDirectCSIClient()
-	driveList, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
 
-	if len(driveList.Items) == 0 {
-		klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
-		return fmt.Errorf("No resources found")
-	}
-
-	accessTierSet, aErr := getAccessTierSet(accessTiers)
-	if aErr != nil {
-		return aErr
-	}
 	filterDrives := []directcsi.DirectCSIDrive{}
-	for _, d := range driveList.Items {
-		if d.MatchGlob(nodes, drives, status) {
-			if d.MatchAccessTier(accessTierSet) {
-				filterDrives = append(filterDrives, d)
+	if len(args) > 0 {
+		for _, driveNameArg := range args {
+			driveName := strings.TrimSpace(driveNameArg)
+			drive, err := directClient.DirectCSIDrives().Get(ctx, driveName, metav1.GetOptions{})
+			if err != nil {
+				if !errors.IsNotFound(err) {
+					return err
+				}
+				klog.Errorf("No resource of %s found by the name %s", bold("DirectCSIDrive"), driveName)
+				continue
+			}
+			filterDrives = append(filterDrives, *drive)
+		}
+	} else {
+		driveList, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		if len(driveList.Items) == 0 {
+			klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
+			return fmt.Errorf("No resources found")
+		}
+
+		accessTierSet, aErr := getAccessTierSet(accessTiers)
+		if aErr != nil {
+			return aErr
+		}
+
+		for _, d := range driveList.Items {
+			if d.MatchGlob(nodes, drives, status) {
+				if d.MatchAccessTier(accessTierSet) {
+					filterDrives = append(filterDrives, d)
+				}
 			}
 		}
 	}
