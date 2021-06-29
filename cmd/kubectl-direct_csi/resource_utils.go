@@ -37,17 +37,16 @@ func getDrives(ctx context.Context, nodes []string, drives []string, accessTiers
 
 		drivesSelector := ""
 		drivesKey := utils.DrivePathLabel
-
-		drivesValue := strings.Join(utils.FmapStringSlice(drives, utils.SanitizeDrivePath), ",")
 		if len(drives) > 0 {
+			drivesValue := strings.Join(utils.FmapStringSlice(drives, utils.SanitizeDrivePath), ",")
 			drivesSelector = fmt.Sprintf("%s in (%s)", drivesKey, drivesValue)
 			selector = drivesSelector
 		}
 
 		nodesSelector := ""
 		nodesKey := utils.NodeLabel
-		nodesValue := strings.Join(utils.FmapStringSlice(nodes, utils.SanitizeLabelV), ",")
 		if len(nodes) > 0 {
+			nodesValue := strings.Join(utils.FmapStringSlice(nodes, utils.SanitizeLabelV), ",")
 			nodesSelector = fmt.Sprintf("%s in (%s)", nodesKey, nodesValue)
 			if selector != "" {
 				selector = selector + ","
@@ -57,8 +56,8 @@ func getDrives(ctx context.Context, nodes []string, drives []string, accessTiers
 
 		accessTiersSelector := ""
 		accessTiersKey := utils.AccessTierLabel
-		accessTiersValue := strings.Join(utils.FmapStringSlice(accessTiers, utils.SanitizeLabelV), ",")
 		if len(accessTiers) > 0 {
+			accessTiersValue := strings.Join(utils.FmapStringSlice(accessTiers, utils.SanitizeLabelV), ",")
 			accessTiersSelector = fmt.Sprintf("%s in (%s)", accessTiersKey, accessTiersValue)
 			if selector != "" {
 				selector = selector + ","
@@ -122,4 +121,87 @@ func getDrivesByIds(ctx context.Context, ids []string) <-chan directcsi.DirectCS
 		}
 	}()
 	return driveCh
+}
+
+func getVolumes(ctx context.Context, nodes []string, drives []string, podNames []string, podNss []string) <-chan directcsi.DirectCSIVolume {
+	volumeCh := make(chan directcsi.DirectCSIVolume)
+
+	labelSelector := func() string {
+		selector := ""
+
+		drivesSelector := ""
+		drivesKey := utils.ReservedDrivePathLabel
+		if len(drives) > 0 {
+			drivesValue := strings.Join(utils.FmapStringSlice(drives, utils.SanitizeDrivePath), ",")
+			drivesSelector = fmt.Sprintf("%s in (%s)", drivesKey, drivesValue)
+			selector = drivesSelector
+		}
+
+		nodesSelector := ""
+		nodesKey := utils.NodeLabel
+		if len(nodes) > 0 {
+			nodesValue := strings.Join(utils.FmapStringSlice(nodes, utils.SanitizeLabelV), ",")
+			nodesSelector = fmt.Sprintf("%s in (%s)", nodesKey, nodesValue)
+			if selector != "" {
+				selector = selector + ","
+			}
+			selector = selector + nodesSelector
+		}
+
+		podNamesSelector := ""
+		podNamesKey := utils.PodNameLabel
+		if len(podNames) > 0 {
+			podNamesValue := strings.Join(utils.FmapStringSlice(podNames, utils.SanitizeLabelV), ",")
+			podNamesSelector = fmt.Sprintf("%s in (%s)", podNamesKey, podNamesValue)
+			if selector != "" {
+				selector = selector + ","
+			}
+			selector = selector + podNamesSelector
+		}
+
+		podNamespaceSelector := ""
+		podNamespaceKey := utils.PodNamespaceLabel
+		if len(podNss) > 0 {
+			podNamespaceValue := strings.Join(utils.FmapStringSlice(podNss, utils.SanitizeLabelV), ",")
+			podNamespaceSelector = fmt.Sprintf("%s in (%s)", podNamespaceKey, podNamespaceValue)
+			if selector != "" {
+				selector = selector + ","
+			}
+			selector = selector + podNamespaceSelector
+		}
+
+		return selector
+	}()
+	go func() {
+		defer close(volumeCh)
+		cont := ""
+		klog.V(5).InfoS("Listing DirectCSIDrives", "limit", utils.MaxThreadCount, "selectors", labelSelector)
+
+		directClient := utils.GetDirectCSIClient()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				volumes, err := directClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{
+					Limit:         int64(utils.MaxThreadCount),
+					LabelSelector: labelSelector,
+					Continue:      cont,
+				})
+				if err != nil {
+					klog.ErrorS(err, "could not list volumes", "selectors", labelSelector)
+					return
+				}
+				for _, v := range volumes.Items {
+					volumeCh <- v
+				}
+
+				if volumes.Continue == "" {
+					return
+				}
+				cont = volumes.Continue
+			}
+		}
+	}()
+	return volumeCh
 }

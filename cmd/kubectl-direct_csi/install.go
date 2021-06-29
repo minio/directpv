@@ -28,6 +28,7 @@ import (
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
 
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/klog/v2"
 )
 
@@ -43,7 +44,6 @@ var installCmd = &cobra.Command{
 
 var (
 	installCRD         = false
-	overwriteCRD       = false
 	admissionControl   = false
 	image              = "direct-csi:" + Version
 	registry           = "quay.io"
@@ -57,7 +57,6 @@ var (
 
 func init() {
 	installCmd.PersistentFlags().BoolVarP(&installCRD, "crd", "c", installCRD, "register crds along with installation")
-	installCmd.PersistentFlags().BoolVarP(&overwriteCRD, "force", "f", overwriteCRD, "delete and recreate CRDs")
 	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "direct-csi image")
 	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "registry where direct-csi images are available")
 	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "organization name where direct-csi images are available")
@@ -120,32 +119,35 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' rbac roles created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateOrUpdateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
-		return err
-	}
-	if !dryRun {
-		klog.Infof("'%s' conversion deployment created", utils.Bold(identity))
-	}
-
-crdInstall:
-	if err := registerCRDs(ctx, identity); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
+	if dryRun {
+		if err := installer.CreateOrUpdateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
 			return err
 		}
-		// if it exists
-		if !dryRun && overwriteCRD {
-			klog.V(4).Infof("overwriting CRDs")
-			if err := unregisterCRDs(ctx); err != nil {
-				if !k8serrors.IsNotFound(err) {
-					return err
-				}
+		if err := registerCRDs(ctx, identity, apiextensions.WebhookConverter); err != nil {
+			if !k8serrors.IsAlreadyExists(err) {
+				return err
 			}
-			klog.V(4).Infof("Writing CRDs again")
-			goto crdInstall
 		}
-	}
-	if !dryRun {
+	} else {
+		if err := registerCRDs(ctx, identity, apiextensions.NoneConverter); err != nil {
+			if !k8serrors.IsAlreadyExists(err) {
+				return err
+			}
+		}
 		klog.Infof("crds successfully registered")
+
+		if err := syncCRDObjects(ctx); err != nil {
+			return err
+		}
+
+		if err := installer.CreateOrUpdateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
+			return err
+		}
+		klog.Infof("'%s' conversion deployment created", utils.Bold(identity))
+
+		if err := updateConversionWebhookOnCRDs(ctx, identity); err != nil {
+			return err
+		}
 	}
 
 	if err := installer.CreateCSIDriver(ctx, identity, dryRun); err != nil {
