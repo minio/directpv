@@ -43,6 +43,13 @@ func LogYAML(obj interface{}) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(y))
+	PrintYaml(string(y))
 	return nil
+}
+
+func PrintYaml(data string) {
+	fmt.Print(data)
+	fmt.Println()
+	fmt.Println("---")
+	fmt.Println()
 }
