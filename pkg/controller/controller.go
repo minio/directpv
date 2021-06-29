@@ -362,7 +362,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
 
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := c.directcsiClient.DirectV1beta2()
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{

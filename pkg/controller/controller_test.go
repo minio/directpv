@@ -781,7 +781,7 @@ func createFakeController() *ControllerServer {
 	}
 }
 
-func TestCreateVolume(t *testing.T) {
+func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 
 	getTopologySegmentsForNode := func(node string) map[string]string {
 		switch node {
@@ -848,6 +848,12 @@ func TestCreateVolume(t *testing.T) {
 					},
 				},
 			},
+		}
+	}
+
+	createDeleteVolumeRequest := func(volName string) csi.DeleteVolumeRequest {
+		return csi.DeleteVolumeRequest{
+			VolumeId: volName,
 		}
 	}
 
@@ -937,6 +943,21 @@ func TestCreateVolume(t *testing.T) {
 		}
 		if drive.Status.AllocatedCapacity != mb20 {
 			t.Errorf("Expected drive(%s) AllocatedCapacity: %d, But got: %d", drive.Name, mb20, drive.Status.AllocatedCapacity)
+		}
+	}
+
+	deleteVolumeRequests := []csi.DeleteVolumeRequest{
+		// DeleteVolumeRequests for volumes in Node N1
+		createDeleteVolumeRequest("volume-1"),
+		createDeleteVolumeRequest("volume-2"),
+		// DeleteVolumeRequests for volumes in Node N2
+		createDeleteVolumeRequest("volume-3"),
+		createDeleteVolumeRequest("volume-4"),
+	}
+
+	for _, dvReq := range deleteVolumeRequests {
+		if _, err := cl.DeleteVolume(ctx, &dvReq); err != nil {
+			t.Errorf("[%s] DeleteVolume failed: %v", dvReq.VolumeId, err)
 		}
 	}
 }
