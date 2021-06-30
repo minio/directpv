@@ -46,6 +46,10 @@ var metadataClient metadata.Interface
 var gvk *schema.GroupVersionKind
 
 func Init() {
+	if GetFake() {
+		return
+	}
+
 	kubeConfig := GetKubeConfig()
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
@@ -87,9 +91,6 @@ func Init() {
 	if err != nil {
 		klog.Fatalf("could not initialize metadata client: %v", err)
 	}
-
-	// Initialize fake sets
-	InitFake()
 
 }
 

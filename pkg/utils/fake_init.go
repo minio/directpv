@@ -56,3 +56,7 @@ func InitFake() {
 	metav1.AddMetaToScheme(scheme)
 	fakeMetadataClient = fakemetadata.NewSimpleMetadataClient(scheme)
 }
+
+func SetFakeDirectCSIClient(fakeClient directcsi.DirectV1beta2Interface) {
+	fakeDirectCSIClient = fakeClient
+}
