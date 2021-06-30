@@ -95,7 +95,6 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 		}
 		partNum := uint32(i+1) + b.Minor
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
-		currentPath := getRootBlockFile(partitionPath)
 
 		part := Partition{
 			DriveInfo: &DriveInfo{
@@ -106,7 +105,6 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 				TotalCapacity:     b.LogicalBlockSize * uint64(p.NumSectors),
 				NumBlocks:         uint64(p.NumSectors),
 				Path:              partitionPath,
-				CurrentPath:       currentPath,
 				Major:             b.DriveInfo.Major,
 				Minor:             uint32(partNum),
 			},
@@ -146,7 +144,6 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 		}
 		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
-		currentPath := getRootBlockFile(partitionPath)
 
 		part := Partition{
 			DriveInfo: &DriveInfo{
@@ -157,7 +154,6 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 				TotalCapacity:     b.LogicalBlockSize * uint64(p.NumSectors),
 				NumBlocks:         uint64(p.NumSectors),
 				Path:              partitionPath,
-				CurrentPath:       currentPath,
 				Major:             b.DriveInfo.Major,
 				Minor:             uint32(partNum),
 			},
@@ -197,7 +193,6 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 		}
 		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
-		currentPath := getRootBlockFile(partitionPath)
 
 		part := Partition{
 			DriveInfo: &DriveInfo{
@@ -208,7 +203,6 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 				TotalCapacity:     b.LogicalBlockSize * uint64(p.NumSectors),
 				NumBlocks:         uint64(p.NumSectors),
 				Path:              partitionPath,
-				CurrentPath:       currentPath,
 				Major:             b.DriveInfo.Major,
 				Minor:             uint32(partNum),
 			},
@@ -282,7 +276,6 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 
 		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
-		currentPath := getRootBlockFile(partitionPath)
 
 		part := Partition{
 			DriveInfo: &DriveInfo{
@@ -293,7 +286,6 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 				TotalCapacity:     (lba.End - lba.Start) * b.LogicalBlockSize,
 				NumBlocks:         lba.End - lba.Start,
 				Path:              partitionPath,
-				CurrentPath:       currentPath,
 				Major:             b.DriveInfo.Major,
 				Minor:             uint32(partNum),
 			},

@@ -109,6 +109,13 @@ func unsetAccessTier(ctx context.Context, args []string) error {
 
 	for _, d := range filterDrives {
 		d.Status.AccessTier = directcsi.AccessTierUnknown
+		// update the label
+		labels := d.ObjectMeta.Labels
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		labels[directcsi.Group+"/access-tier"] = string(directcsi.AccessTierUnknown)
+		d.ObjectMeta.SetLabels(labels)
 		if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
 			return err
 		}

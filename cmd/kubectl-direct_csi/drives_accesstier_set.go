@@ -107,6 +107,13 @@ func setAccessTier(ctx context.Context, args []string) error {
 			continue
 		}
 		d.Status.AccessTier = accessT
+		// update the label
+		labels := d.ObjectMeta.Labels
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+		labels[directcsi.Group+"/access-tier"] = string(accessT)
+		d.ObjectMeta.SetLabels(labels)
 		if dryRun {
 			if err := utils.LogYAML(d); err != nil {
 				return err

@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
@@ -283,6 +284,13 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			Finalizers: []string{
 				string(directcsi.DirectCSIVolumeFinalizerPVProtection),
 				string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
+			},
+			Labels: map[string]string{
+				directcsi.Group + "/node":       drive.Status.NodeName,
+				directcsi.Group + "/drive-path": filepath.Base(drive.Status.Path),
+				directcsi.Group + "/drive":      utils.GetDriveNameForLabel(drive),
+				directcsi.Group + "/version":    directcsi.Version,
+				directcsi.Group + "/created-by": "directcsi-controller",
 			},
 		},
 		Status: directcsi.DirectCSIVolumeStatus{

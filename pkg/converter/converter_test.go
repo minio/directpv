@@ -344,10 +344,6 @@ request:
 		t.Errorf("expected status.minorNumber = %v, actual status.minorNumber = %v", uint32(0), directCSIDrive.Status.MinorNumber)
 	}
 
-	if directCSIDrive.Status.CurrentPath != "" {
-		t.Errorf("expected status.currentPath = \"\", actual status.currentPath = %v", directCSIDrive.Status.CurrentPath)
-	}
-
 	if directCSIDrive.Status.FilesystemUUID != "" {
 		t.Errorf("expected status.filesystemUUID = \"\", actual status.filesystemUUID = %v", directCSIDrive.Status.FilesystemUUID)
 	}

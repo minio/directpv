@@ -58,6 +58,11 @@ func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) er
 }
 
 func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDrive *directcsi.DirectCSIDrive) {
+	// Sync the labels
+	labels := localDrive.ObjectMeta.Labels
+	labels[directcsi.Group+"/access-tier"] = string(existingObj.Status.AccessTier)
+	labels[directcsi.Group+"/version"] = utils.GetVersionFromObjectMeta(existingObj.ObjectMeta)
+	existingObj.ObjectMeta.SetLabels(labels)
 	// Sync the possible states
 	existingObj.Status.RootPartition = localDrive.Status.RootPartition
 	existingObj.Status.PartitionNum = localDrive.Status.PartitionNum
@@ -67,7 +72,6 @@ func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDriv
 	existingObj.Status.ModelNumber = localDrive.Status.ModelNumber
 	existingObj.Status.PhysicalBlockSize = localDrive.Status.PhysicalBlockSize
 	existingObj.Status.LogicalBlockSize = localDrive.Status.LogicalBlockSize
-	existingObj.Status.CurrentPath = localDrive.Status.CurrentPath
 	existingObj.Status.Path = localDrive.Status.Path
 	existingObj.Status.FilesystemUUID = localDrive.Status.FilesystemUUID
 	existingObj.Status.SerialNumber = localDrive.Status.SerialNumber

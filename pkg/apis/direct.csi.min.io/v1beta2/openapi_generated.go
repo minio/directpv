@@ -311,12 +311,6 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveStatus(ref common.Refe
 							Format: "",
 						},
 					},
-					"currentPath": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 					"filesystemUUID": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
