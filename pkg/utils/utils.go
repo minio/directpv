@@ -75,3 +75,25 @@ func ValidateAccessTier(at string) (directcsi.AccessTier, error) {
 		return directcsi.AccessTierUnknown, fmt.Errorf("Invalid 'access-tier' value, Please set any one among ['hot','warm','cold']")
 	}
 }
+
+func GetVersionFromObjectMeta(objectMeta metav1.ObjectMeta) string {
+	labels := objectMeta.GetLabels()
+	if labels == nil {
+		return ""
+	}
+	val, found := labels[directcsi.Group+"/version"]
+	if found {
+		return val
+	}
+	return ""
+}
+
+func GetDriveNameForLabel(driveObj *directcsi.DirectCSIDrive) string {
+	name := driveObj.Name
+	version := GetVersionFromObjectMeta(driveObj.ObjectMeta)
+	if version == "v1alpha1" || version == "v1beta1" {
+		// The drive name will exceed the threshold limit for older versions
+		name = name[0:63]
+	}
+	return name
+}

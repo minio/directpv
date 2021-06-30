@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
@@ -213,7 +214,39 @@ func StartVolumeController(ctx context.Context, nodeID string) error {
 	return ctrl.Run(ctx)
 }
 
-func SyncVolumeCRDVersions(ctx context.Context, nodeID string) {
+func SyncVolumes(ctx context.Context, nodeID string) {
+
+	getVolumeLabels := func(ctx context.Context, vol *directcsi.DirectCSIVolume) map[string]string {
+		var reservedDrivePath, reservedDriveName string
+		driveClient := utils.GetDirectCSIClient().DirectCSIDrives()
+		existingDrive, err := driveClient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		})
+		if err == nil {
+			vFinalizer := directcsi.DirectCSIDriveFinalizerPrefix + vol.Name
+			dfinalizers := existingDrive.GetFinalizers()
+			for _, df := range dfinalizers {
+				if df == vFinalizer {
+					reservedDrivePath = existingDrive.Status.Path
+					reservedDriveName = utils.GetDriveNameForLabel(existingDrive)
+					break
+				}
+			}
+		}
+
+		volumeLabels := vol.ObjectMeta.GetLabels()
+		if volumeLabels == nil {
+			volumeLabels = make(map[string]string)
+		}
+
+		volumeLabels[directcsi.Group+"/node"] = vol.Status.NodeName
+		volumeLabels[directcsi.Group+"/drive-path"] = filepath.Base(reservedDrivePath)
+		volumeLabels[directcsi.Group+"/drive"] = reservedDriveName
+		volumeLabels[directcsi.Group+"/created-by"] = "directcsi-controller"
+
+		return volumeLabels
+	}
+
 	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
 	volumeList, err := volumeClient.List(ctx, metav1.ListOptions{
 		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
@@ -236,6 +269,9 @@ func SyncVolumeCRDVersions(ctx context.Context, nodeID string) {
 				updateOpts := metav1.UpdateOptions{
 					TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
 				}
+				// update the labels
+				volumeLabels := getVolumeLabels(ctx, vol)
+				vol.ObjectMeta.SetLabels(volumeLabels)
 				_, err = volumeClient.Update(ctx, vol, updateOpts)
 			}
 			return err

@@ -33,6 +33,7 @@ import (
 	"github.com/minio/direct-csi/pkg/node/discovery"
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/utils/grpc"
+	"github.com/minio/direct-csi/pkg/volume"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/klog"
@@ -115,8 +116,11 @@ func run(ctx context.Context, args []string) error {
 		if err := discovery.Init(ctx, loopBackOnly); err != nil {
 			return fmt.Errorf("Error while initializing drive discovery: %v", err)
 		}
-
 		klog.V(5).Infof("Drive discovery finished")
+
+		// Check if the volume objects are migrated and CRDs versions are in-sync
+		volume.SyncVolumes(ctx, nodeID)
+		klog.V(5).Infof("Volumes sync completed")
 
 		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region)
 		if err != nil {

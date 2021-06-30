@@ -19,8 +19,10 @@ package converter
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -60,6 +62,15 @@ func Migrate(convertedObject *unstructured.Unstructured, toVersion string) error
 	if err := migrateFn(fromVersion, toVersion, convertedObject); err != nil {
 		return err
 	}
+
+	labels := convertedObject.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	if _, ok := labels[directcsi.Group+"/version"]; !ok {
+		labels[directcsi.Group+"/version"] = filepath.Base(fromVersion)
+	}
+	convertedObject.SetLabels(labels)
 
 	return nil
 }
@@ -131,6 +142,7 @@ func upgradeObject(fromVersion, toVersion string, convertedObject *unstructured.
 	default:
 		return ErrCRDKindNotSupported
 	}
+
 	return nil
 }
 

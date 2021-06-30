@@ -312,11 +312,7 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 		}
 	}()
 
-	devPath := b.DirectCSIDrivePath()
-	hostPath := b.HostDrivePath()
-
-	b.Path = devPath
-	b.CurrentPath = hostPath
+	b.Path = b.DirectCSIDrivePath()
 
 	err = os.MkdirAll(DirectCSIDevRoot, 0755)
 	if err != nil {

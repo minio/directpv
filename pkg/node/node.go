@@ -66,9 +66,6 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	// Start background tasks
 	go drive.StartDriveController(ctx, nodeID)
 	go volume.StartVolumeController(ctx, nodeID)
-	// Check if the volume objects are migrated and CRDs versions are in-sync
-	go volume.SyncVolumeCRDVersions(ctx, nodeID)
-
 	go metrics.ServeMetrics(ctx, nodeID)
 
 	return nodeServer, nil

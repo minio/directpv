@@ -19,6 +19,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
@@ -193,6 +194,13 @@ func makeDirectCSIDrive(driveStatus directcsi.DirectCSIDriveStatus, driveName st
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: driveName,
+			Labels: map[string]string{
+				directcsi.Group + "/node":        driveStatus.NodeName,
+				directcsi.Group + "/path":        filepath.Base(driveStatus.Path),
+				directcsi.Group + "/version":     directcsi.Version,
+				directcsi.Group + "/created-by":  "directcsi-driver",
+				directcsi.Group + "/access-tier": string(driveStatus.AccessTier),
+			},
 		},
 		Status: driveStatus,
 	}
@@ -288,6 +296,7 @@ func (d *Discovery) directCSIDriveStatusFromPartition(nodeID string, partition s
 	}
 
 	return directcsi.DirectCSIDriveStatus{
+		AccessTier:        directcsi.AccessTierUnknown,
 		DriveStatus:       driveStatus,
 		Filesystem:        fs,
 		FreeCapacity:      freeCapacity,
@@ -299,7 +308,6 @@ func (d *Discovery) directCSIDriveStatusFromPartition(nodeID string, partition s
 		NodeName:          nodeID,
 		PartitionNum:      int(partition.PartitionNum),
 		Path:              partition.Path,
-		CurrentPath:       partition.CurrentPath,
 		PhysicalBlockSize: int64(partition.PhysicalBlockSize),
 		RootPartition:     rootPartition,
 		SerialNumber:      partition.SerialNumber,
@@ -395,6 +403,7 @@ func (d *Discovery) directCSIDriveStatusFromRoot(nodeID string, blockDevice sys.
 	}
 
 	return directcsi.DirectCSIDriveStatus{
+		AccessTier:        directcsi.AccessTierUnknown,
 		DriveStatus:       driveStatus,
 		Filesystem:        fs,
 		FreeCapacity:      freeCapacity,
@@ -406,7 +415,6 @@ func (d *Discovery) directCSIDriveStatusFromRoot(nodeID string, blockDevice sys.
 		NodeName:          nodeID,
 		PartitionNum:      int(0),
 		Path:              blockDevice.Path,
-		CurrentPath:       blockDevice.CurrentPath,
 		PhysicalBlockSize: int64(blockDevice.PhysicalBlockSize),
 		RootPartition:     blockDevice.Devname,
 		SerialNumber:      blockDevice.SerialNumber,

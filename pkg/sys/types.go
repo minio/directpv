@@ -52,7 +52,6 @@ type DriveInfo struct {
 	LogicalBlockSize  uint64 `json:"logicalBlockSize,omitempty"`
 	PhysicalBlockSize uint64 `json:"physicalBlockSize,omitempty"`
 	Path              string `json:"path,omitempty"`
-	CurrentPath       string `json:"currentPath,omitempty"`
 	Major             uint32 `json:"major,omitempty"`
 	Minor             uint32 `json:"minor",omitempty`
 	SerialNumber      string `json:"serialNumber",omitempty`

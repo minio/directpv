@@ -235,7 +235,6 @@ func autoConvert_v1beta2_DirectCSIDriveStatus_To_v1beta1_DirectCSIDriveStatus(in
 	out.LogicalBlockSize = in.LogicalBlockSize
 	out.Topology = *(*map[string]string)(unsafe.Pointer(&in.Topology))
 	out.AccessTier = v1beta1.AccessTier(in.AccessTier)
-	// INFO: in.CurrentPath opted out of conversion generation
 	// INFO: in.FilesystemUUID opted out of conversion generation
 	// INFO: in.PartitionUUID opted out of conversion generation
 	// INFO: in.MajorNumber opted out of conversion generation
