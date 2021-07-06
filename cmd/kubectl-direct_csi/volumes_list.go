@@ -81,7 +81,6 @@ func init() {
 }
 
 func listVolumes(ctx context.Context, args []string) error {
-	utils.Init()
 	dclient := utils.GetDirectCSIClient().DirectCSIDrives()
 	vclient := utils.GetDirectCSIClient().DirectCSIVolumes()
 
@@ -140,7 +139,7 @@ func listVolumes(ctx context.Context, args []string) error {
 	wrappedVolumeList := directcsi.DirectCSIVolumeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
-			APIVersion: strings.Join([]string{directcsi.Group, directcsi.Version}, "/"),
+			APIVersion: utils.DirectCSIGroupVersion,
 		},
 		Items: vols,
 	}

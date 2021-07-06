@@ -20,8 +20,8 @@ package main
 
 import (
 	"context"
+	"os"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/minio/direct-csi/pkg/sys"
@@ -39,6 +39,11 @@ const (
 	mb100 = 100 * MB
 )
 
+func TestMain(m *testing.M) {
+	utils.SetFake()
+	os.Exit(m.Run())
+}
+
 func TestFormatDrivesByAttributes(t1 *testing.T) {
 	getTopologySegmentsForNode := func(node string) map[string]string {
 		switch node {
@@ -52,14 +57,24 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	}
 
 	createTestDrive := func(node, drive, path string, driveStatus directcsi.DriveStatus, accessTier directcsi.AccessTier) *directcsi.DirectCSIDrive {
-		return &directcsi.DirectCSIDrive{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: drive,
-				Finalizers: []string{
-					string(directcsi.DirectCSIDriveFinalizerDataProtection),
-				},
+		objM := utils.NewObjectMeta(
+			drive,
+			metav1.NamespaceNone,
+			map[string]string{
+				utils.NodeLabel:      utils.SanitizeLabelV(node),
+				utils.DrivePathLabel: utils.SanitizeDrivePath(path),
 			},
+			map[string]string{},
+			[]string{
+				string(directcsi.DirectCSIDriveFinalizerDataProtection),
+			},
+			nil,
+		)
+
+		utils.SetAccessTierLabel(&objM, accessTier)
+		return &directcsi.DirectCSIDrive{
+			TypeMeta:   utils.DirectCSIDriveTypeMeta(),
+			ObjectMeta: objM,
 			Status: directcsi.DirectCSIDriveStatus{
 				Path:              path,
 				NodeName:          node,
@@ -75,26 +90,26 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	}
 
 	testDriveObjects := []runtime.Object{
-		// Drives from Node N1
-		createTestDrive("N1", "D1", "/var/lib/direct-csi/devices/xvdb", directcsi.DriveStatusAvailable, directcsi.AccessTierUnknown),
-		createTestDrive("N1", "D2", "/var/lib/direct-csi/devices/xvdc", directcsi.DriveStatusAvailable, directcsi.AccessTierCold),
-		createTestDrive("N1", "D3", "/var/lib/direct-csi/devices/xvda", directcsi.DriveStatusUnavailable, directcsi.AccessTierUnknown),
-		// Drives from Node N2
-		createTestDrive("N2", "D4", "/var/lib/direct-csi/devices/xvdb", directcsi.DriveStatusAvailable, directcsi.AccessTierUnknown),
-		createTestDrive("N2", "D5", "/var/lib/direct-csi/devices/xvdc", directcsi.DriveStatusAvailable, directcsi.AccessTierCold),
-		createTestDrive("N2", "D6", "/var/lib/direct-csi/devices/xvda", directcsi.DriveStatusUnavailable, directcsi.AccessTierUnknown),
-		createTestDrive("N2", "D7", "/var/lib/direct-csi/devices/xvdh", directcsi.DriveStatusReleased, directcsi.AccessTierUnknown),
+		// Drives from Node n1
+		createTestDrive("n1", "d1", "/var/lib/direct-csi/devices/xvdb", directcsi.DriveStatusAvailable, directcsi.AccessTierUnknown),
+		createTestDrive("n1", "d2", "/var/lib/direct-csi/devices/xvdc", directcsi.DriveStatusAvailable, directcsi.AccessTierCold),
+		createTestDrive("n1", "d3", "/var/lib/direct-csi/devices/xvda", directcsi.DriveStatusUnavailable, directcsi.AccessTierUnknown),
+
+		// Drives from Node n2
+		createTestDrive("n2", "d4", "/var/lib/direct-csi/devices/xvdb", directcsi.DriveStatusAvailable, directcsi.AccessTierUnknown),
+		createTestDrive("n2", "d5", "/var/lib/direct-csi/devices/xvdc", directcsi.DriveStatusAvailable, directcsi.AccessTierCold),
+		createTestDrive("n2", "d6", "/var/lib/direct-csi/devices/xvda", directcsi.DriveStatusUnavailable, directcsi.AccessTierUnknown),
+		createTestDrive("n2", "d7", "/var/lib/direct-csi/devices/xvdh", directcsi.DriveStatusAvailable, directcsi.AccessTierUnknown),
 	}
 
-	utils.SetFake()
-	ctx := context.TODO()
+	ctx, _ := context.WithCancel(context.Background())
 	testClientSet := fakedirect.NewSimpleClientset(testDriveObjects...)
 	testClient := testClientSet.DirectV1beta2()
 	utils.SetFakeDirectCSIClient(testClient)
 
 	resetDrives := func() error {
 		driveList, err := testClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if err != nil {
 			return err
@@ -103,7 +118,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 		for _, drive := range driveList.Items {
 			drive.Spec.RequestedFormat = nil
 			if _, err := testClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			}); err != nil {
 				return err
 			}
@@ -112,9 +127,9 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 		return nil
 	}
 
-	getDrivesWithRequestedFormat := func() ([]string, error) {
+	getFormattedDrives := func() ([]string, error) {
 		driveList, err := testClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if err != nil {
 			return []string{}, err
@@ -137,7 +152,6 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 		accessTiers    []string
 		all            bool
 		force          bool
-		unrelease      bool
 		expectedDrives []string
 	}{
 		{
@@ -147,38 +161,34 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 			accessTiers:    []string{},
 			all:            false,
 			force:          true,
-			unrelease:      false,
-			expectedDrives: []string{"D2", "D5"},
+			expectedDrives: []string{"d2", "d5"},
 		},
 		{
 			name:           "test-format-by-nodes",
 			drives:         []string{},
-			nodes:          []string{"N1"},
+			nodes:          []string{"n1"},
 			accessTiers:    []string{},
 			all:            false,
 			force:          true,
-			unrelease:      false,
-			expectedDrives: []string{"D1", "D2"},
+			expectedDrives: []string{"d1", "d2"},
 		},
 		{
 			name:           "test-format-by-accesstiers",
 			drives:         []string{},
 			nodes:          []string{},
-			accessTiers:    []string{"cold"},
+			accessTiers:    []string{string(directcsi.AccessTierCold)},
 			all:            false,
 			force:          true,
-			unrelease:      false,
-			expectedDrives: []string{"D2", "D5"},
+			expectedDrives: []string{"d2", "d5"},
 		},
 		{
 			name:           "test-format-by-multiple-params",
 			drives:         []string{"/dev/xvdc"},
-			nodes:          []string{"N2"},
-			accessTiers:    []string{"cold"},
+			nodes:          []string{"n2"},
+			accessTiers:    []string{string(directcsi.AccessTierCold)},
 			all:            false,
 			force:          true,
-			unrelease:      false,
-			expectedDrives: []string{"D5"},
+			expectedDrives: []string{"d5"},
 		},
 		{
 			name:           "test-format-all-drives",
@@ -187,8 +197,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 			accessTiers:    []string{},
 			all:            true,
 			force:          true,
-			unrelease:      true,
-			expectedDrives: []string{"D1", "D2", "D4", "D5", "D7"},
+			expectedDrives: []string{"d1", "d2", "d4", "d5", "d7"},
 		},
 	}
 
@@ -199,13 +208,12 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 			accessTiers = tt.accessTiers
 			all = tt.all
 			force = tt.force
-			unrelease = tt.unrelease
 
 			if err := formatDrives(ctx, []string{}); err != nil {
 				t1.Errorf("Test case name %s: Failed with %v", tt.name, err)
 			}
 
-			driveList, err := getDrivesWithRequestedFormat()
+			driveList, err := getFormattedDrives()
 			if err != nil {
 				t1.Errorf("Test case name %s: Failed while fetching the drives %v", tt.name, err)
 			}
@@ -219,5 +227,4 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 			}
 		})
 	}
-
 }

@@ -18,7 +18,6 @@ package volume
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/minio/direct-csi/pkg/utils"
@@ -57,7 +56,7 @@ func TestUpdateVolumeDelete(t *testing.T) {
 	testVolumeName30MB := "test_volume_30MB"
 	testObjects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: testDriveName,
 				Finalizers: []string{
@@ -75,7 +74,7 @@ func TestUpdateVolumeDelete(t *testing.T) {
 			},
 		},
 		&directcsi.DirectCSIVolume{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: testVolumeName20MB,
 				Finalizers: []string{
@@ -113,7 +112,7 @@ func TestUpdateVolumeDelete(t *testing.T) {
 			},
 		},
 		&directcsi.DirectCSIVolume{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: testVolumeName30MB,
 				Finalizers: []string{
@@ -163,7 +162,7 @@ func TestUpdateVolumeDelete(t *testing.T) {
 			continue
 		}
 		newObj, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vObj.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		})
 		if vErr != nil {
 			t.Fatalf("Error while getting the drive object: %+v", vErr)
@@ -181,7 +180,7 @@ func TestUpdateVolumeDelete(t *testing.T) {
 	}
 
 	driveObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, testDriveName, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})
 	if dErr != nil {
 		t.Fatalf("Error while getting the drive object: %+v", dErr)
@@ -205,7 +204,7 @@ func TestUpdateVolumeDelete(t *testing.T) {
 func TestAddAndDeleteVolumeNoOp(t *testing.T) {
 	vl := createFakeVolumeListener()
 	b := directcsi.DirectCSIVolume{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test_volume",
 		},

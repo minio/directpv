@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,27 +70,17 @@ $ kubectl direct-csi drives drives ls --access-tier="*"
 	},
 }
 
-var (
-	all = false
-)
-
-const (
-	directCSIPartitionInfix = "-part-"
-)
+var all bool
 
 func init() {
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glob prefix match for drive paths")
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob prefix match for node names")
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "glob prefix match for drive status")
-
 	listDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all drives (including unavailable)")
-
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "filter based on access-tier")
 }
 
 func listDrives(ctx context.Context, args []string) error {
-	utils.Init()
-
 	directClient := utils.GetDirectCSIClient()
 	driveList, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -144,19 +133,12 @@ func listDrives(ctx context.Context, args []string) error {
 	wrappedDriveList := directcsi.DirectCSIDriveList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
-			APIVersion: strings.Join([]string{directcsi.Group, directcsi.Version}, "/"),
+			APIVersion: utils.DirectCSIGroupVersion,
 		},
 		Items: filteredDrives,
 	}
-	if yaml {
-		if err := printYAML(wrappedDriveList); err != nil {
-			klog.ErrorS(err, "error marshaling drives", "format", outputMode)
-			return err
-		}
-		return nil
-	}
-	if json {
-		if err := printJSON(wrappedDriveList); err != nil {
+	if yaml || json {
+		if err := printer(wrappedDriveList); err != nil {
 			klog.ErrorS(err, "error marshaling drives", "format", outputMode)
 			return err
 		}
@@ -191,12 +173,6 @@ func listDrives(ctx context.Context, args []string) error {
 	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	t.SetStyle(style)
 
-	driveName := func(val string) string {
-		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
-		dr = strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
-		return strings.ReplaceAll(dr, directCSIPartitionInfix, "")
-	}
-
 	for _, d := range filteredDrives {
 		volumes := 0
 		for _, v := range volList.Items {
@@ -207,7 +183,7 @@ func listDrives(ctx context.Context, args []string) error {
 
 		msg := ""
 		dr := func(val string) string {
-			dr := driveName(val)
+			dr := canonicalNameFromPath(val)
 			for _, c := range d.Status.Conditions {
 				if c.Type == string(directcsi.DirectCSIDriveConditionInitialized) {
 					if c.Status != metav1.ConditionTrue {

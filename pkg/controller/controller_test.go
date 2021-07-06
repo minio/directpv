@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -796,7 +795,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 
 	createTestDrive100MB := func(node, drive string) *directcsi.DirectCSIDrive {
 		return &directcsi.DirectCSIDrive{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: drive,
 				Finalizers: []string{
@@ -900,7 +899,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		}
 		// Step 4: Fetch the created volume object by volumeID
 		volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, volumeID, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		})
 		if gErr != nil {
 			t.Fatalf("[%s] Volume (%s) not found. Error: %v", volName, volumeID, gErr)
@@ -923,7 +922,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 
 	// Fetch the drive objects
 	driveList, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})
 	if err != nil {
 		t.Errorf("Listing drives failed: %v", err)

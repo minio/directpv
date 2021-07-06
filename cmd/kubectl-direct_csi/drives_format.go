@@ -21,25 +21,22 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
+	"sync"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"k8s.io/klog"
+
+	"k8s.io/klog/v2"
 )
 
 const XFS = "xfs"
 
 var (
-	force     = false
-	unrelease = false
+	force = false
 )
 
 var formatDrivesCmd = &cobra.Command{
@@ -58,9 +55,6 @@ $ kubectl direct-csi drives format --nodes=directcsi-1
 
 # Format all drives based on the access-tier set [hot|cold|warm]
 $ kubectl direct-csi drives format --access-tier=hot
-
-# Format and unrelease all 'released' drives
-$ kubectl direct-csi drives format --unrelease --all
 
 # Combine multiple parameters using multi-arg
 $ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=available
@@ -83,100 +77,73 @@ $ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
 func init() {
 	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glog selector for drive paths")
 	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob selector for node names")
-	formatDrivesCmd.PersistentFlags().BoolVarP(&unrelease, "unrelease", "u", unrelease, "unrelease drives")
 	formatDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "format all available drives")
-
 	formatDrivesCmd.PersistentFlags().BoolVarP(&force, "force", "f", force, "force format a drive even if a FS is already present")
-
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "format based on access-tier set. The possible values are [hot,cold,warm] ")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers,
+		"format based on access-tier set. The possible values are hot|cold|warm")
 }
 
 func formatDrives(ctx context.Context, args []string) error {
-	dryRun := viper.GetBool(dryRunFlagName)
-
 	if !all {
 		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {
-			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"))
+			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified",
+				utils.Bold("--all"),
+				utils.Bold("--drives"),
+				utils.Bold("--nodes"))
 		}
 	}
 
-	utils.Init()
 	directClient := utils.GetDirectCSIClient()
 
-	filterDrives := []directcsi.DirectCSIDrive{}
+	var driveCh <-chan directcsi.DirectCSIDrive
 	if len(args) > 0 {
-		for _, driveNameArg := range args {
-			driveName := strings.TrimSpace(driveNameArg)
-			drive, err := directClient.DirectCSIDrives().Get(ctx, driveName, metav1.GetOptions{})
-			if err != nil {
-				if !errors.IsNotFound(err) {
-					return err
-				}
-				klog.Errorf("No resource of %s found by the name %s", bold("DirectCSIDrive"), driveName)
-				continue
-			}
-			filterDrives = append(filterDrives, *drive)
-		}
+		driveCh = getDrivesByIds(ctx, args)
 	} else {
-		driveList, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
-		if err != nil {
-			return err
-		}
-
-		if len(driveList.Items) == 0 {
-			klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
-			return fmt.Errorf("No resources found")
-		}
-
-		accessTierSet, aErr := getAccessTierSet(accessTiers)
-		if aErr != nil {
-			return aErr
-		}
-
-		for _, d := range driveList.Items {
-			if d.MatchGlob(nodes, drives, status) {
-				if d.MatchAccessTier(accessTierSet) {
-					filterDrives = append(filterDrives, d)
-				}
-			}
-		}
+		driveCh = getDrives(ctx, nodes, drives, accessTiers)
 	}
 
-	driveName := func(val string) string {
-		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
-		dr = strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
-		return strings.ReplaceAll(dr, "-part-", "")
+	wg := sync.WaitGroup{}
+	accessTierSet, aErr := getAccessTierSet(accessTiers)
+	if aErr != nil {
+		return aErr
 	}
+	for d := range driveCh {
+		if !d.MatchGlob(nodes, drives, status) {
+			continue
+		}
 
-	for _, d := range filterDrives {
+		if !d.MatchAccessTier(accessTierSet) {
+			continue
+		}
+
 		if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
 			continue
 		}
 
+		path := canonicalNameFromPath(d.Status.Path)
+		nodeName := d.Status.NodeName
+		driveAddr := fmt.Sprintf("%s:/dev/%s", nodeName, path)
+
 		if d.Status.DriveStatus == directcsi.DriveStatusInUse {
-			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			klog.Errorf("%s in use. Cannot be formatted", utils.Bold(driveAddr))
+			klog.Errorf("%s is in use. Cannot be formatted",
+				utils.Bold(driveAddr))
 			continue
 		}
 
 		if d.Status.DriveStatus == directcsi.DriveStatusReady {
-			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			klog.Errorf("%s already owned and managed. Use %s to overwrite", utils.Bold(driveAddr), utils.Bold("--force"))
+			klog.Errorf("%s is already owned and managed",
+				utils.Bold(driveAddr))
 			continue
 		}
 		if d.Status.Filesystem != "" && !force {
-			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			klog.Errorf("%s already has a fs. Use %s to overwrite", utils.Bold(driveAddr), utils.Bold("--force"))
+			klog.Errorf("%s already has a fs. Use %s to overwrite",
+				utils.Bold(driveAddr), utils.Bold("--force"))
 			continue
 		}
-
 		if d.Status.DriveStatus == directcsi.DriveStatusReleased {
-			if !unrelease {
-				driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-				klog.Errorf("%s is in 'released' state. Use %s to overwrite and make it 'ready'", utils.Bold(driveAddr), utils.Bold("--unrelease"))
-				continue
-			}
-			d.Status.DriveStatus = directcsi.DriveStatusAvailable
+			klog.Errorf("%s is in 'released' state. Use 'kubectl direct-csi drives unrelease --drive %s --nodes %s' before formatting",
+				utils.Bold(driveAddr), path, nodeName)
+			continue
 		}
 
 		d.Spec.DirectCSIOwned = true
@@ -185,15 +152,25 @@ func formatDrives(ctx context.Context, args []string) error {
 			Force:      force,
 		}
 		if dryRun {
-			if err := utils.LogYAML(d); err != nil {
-				return err
+			if err := printer(d); err != nil {
+				klog.ErrorS(err, "error marshaling drives", "format", outputMode)
 			}
-			continue
-		}
-		if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
-			return err
+		} else {
+			threadiness <- struct{}{}
+			wg.Add(1)
+			go func(d directcsi.DirectCSIDrive) {
+				defer func() {
+					wg.Done()
+					<-threadiness
+				}()
+
+				if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
+					klog.ErrorS(err, "failed to format drive", "drive", driveAddr)
+				}
+			}(d)
 		}
 	}
+	wg.Wait()
 
 	return nil
 }

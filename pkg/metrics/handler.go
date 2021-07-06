@@ -19,9 +19,7 @@ package metrics
 import (
 	"context"
 	"net/http"
-	"strings"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -82,7 +80,7 @@ func (c *metricsCollector) volumeStatsEmitter(
 	volumeList, err := volumeClient.List(
 		context.Background(),
 		metav1.ListOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		},
 	)
 	if err != nil {

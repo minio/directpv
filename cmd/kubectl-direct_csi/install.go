@@ -22,19 +22,20 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"k8s.io/klog"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
+	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
-	"github.com/minio/direct-csi/pkg/utils/installer"
+
+	"k8s.io/klog/v2"
 )
 
 var installCmd = &cobra.Command{
-	Use:          "install",
-	Short:        "Install direct-csi in k8s cluster",
-	SilenceUsage: true,
+	Use:           "install",
+	Short:         "Install direct-csi in k8s cluster",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
 		return install(c.Context(), args)
 	},
@@ -89,10 +90,6 @@ func install(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("invalid tolerations. format of '--tolerations' must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>")
 	}
-
-	dryRun := viper.GetBool(dryRunFlagName)
-
-	utils.Init()
 
 	if err := installer.CreateNamespace(ctx, identity, dryRun); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {

@@ -30,8 +30,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"k8s.io/klog"
+
+	"k8s.io/klog/v2"
 )
 
 var releaseDrivesCmd = &cobra.Command{
@@ -72,14 +72,11 @@ func init() {
 }
 
 func releaseDrives(ctx context.Context, args []string) error {
-	dryRun := viper.GetBool(dryRunFlagName)
-
 	if !all {
 		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 {
 			return fmt.Errorf("atleast one among ['%s','%s','%s','%s'] should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"), utils.Bold("--access-tier"))
 		}
 	}
-	utils.Init()
 
 	directClient := utils.GetDirectCSIClient()
 	driveList, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})

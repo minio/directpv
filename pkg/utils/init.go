@@ -17,6 +17,7 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -33,7 +34,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/spf13/viper"
-	"k8s.io/klog"
+
+	"k8s.io/klog/v2"
 )
 
 var directCSIClient directcsi.DirectV1beta2Interface
@@ -45,8 +47,12 @@ var discoveryClient discovery.DiscoveryInterface
 var metadataClient metadata.Interface
 var gvk *schema.GroupVersionKind
 
+var (
+	initialized = false
+)
+
 func Init() {
-	if GetFake() {
+	if initialized {
 		return
 	}
 
@@ -55,19 +61,22 @@ func Init() {
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			klog.Fatalf("could not find client configuration: %v", err)
+			fmt.Printf("%s: Could not connect to kubernetes. %s=%s\n", Bold("Error"), "KUBECONFIG", kubeConfig)
+			os.Exit(1)
 		}
 		klog.V(1).Infof("obtained client config successfully")
 	}
 
 	kubeClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
-		klog.Fatalf("could not initialize kubeclient: %v", err)
+		fmt.Printf("%s: could not initialize kube client: err=%v\n", Bold("Error"), err)
+		os.Exit(1)
 	}
 
 	directClientset, err = direct.NewForConfig(config)
 	if err != nil {
-		klog.Fatalf("could not initialize direct clientset: %v", err)
+		fmt.Printf("%s: could not initialize direct-csi client: err=%v\n", Bold("Error"), err)
+		os.Exit(1)
 	}
 
 	directCSIClient, err = directcsi.NewForConfig(config)
@@ -77,21 +86,25 @@ func Init() {
 
 	crdClientset, err := apiextensions.NewForConfig(config)
 	if err != nil {
-		klog.Fatalf("could not initialize crd client: %v", err)
+		fmt.Printf("%s: could not initialize crd client: err=%v\n", Bold("Error"), err)
+		os.Exit(1)
 	}
 	apiextensionsClient = crdClientset
 	crdClient = crdClientset.CustomResourceDefinitions()
 
 	discoveryClient, err = discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		klog.Fatalf("could not initialize discovery client: %v", err)
+		fmt.Printf("%s: could not initialize discovery client: err=%v\n", Bold("Error"), err)
+		os.Exit(1)
 	}
 
 	metadataClient, err = metadata.NewForConfig(config)
 	if err != nil {
-		klog.Fatalf("could not initialize metadata client: %v", err)
+		fmt.Printf("%s: could not initialize metadata client: err=%v\n", Bold("Error"), err)
+		os.Exit(1)
 	}
 
+	initialized = true
 }
 
 func GetKubeConfig() string {

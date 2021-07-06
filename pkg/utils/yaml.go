@@ -14,25 +14,35 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package v1beta2
+package utils
 
-type transformFunc func(src string) string
+import (
+	"fmt"
 
-func fmap(vs []string, f func(string) string) []string {
-	vsm := make([]string, len(vs))
-	for i, v := range vs {
-		vsm[i] = f(v)
+	yamlFormatter "sigs.k8s.io/yaml"
+)
+
+func MustYAML(obj interface{}) string {
+	y, err := ToYAML(obj)
+	if err != nil {
+		panic(err)
 	}
-	return vsm
+	return y
 }
 
-func checkWildcards(globElems []string) []string {
-	isStarPattern := func() bool {
-		return len(globElems) == 1 && globElems[0] == "*"
+func ToYAML(obj interface{}) (string, error) {
+	formattedObj, err := yamlFormatter.Marshal(obj)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling to YAML: %v", err)
 	}
+	return string(formattedObj), nil
+}
 
-	if len(globElems) == 0 || isStarPattern() {
-		globElems = []string{"**"}
+func LogYAML(obj interface{}) error {
+	y, err := ToYAML(obj)
+	if err != nil {
+		return err
 	}
-	return globElems
+	fmt.Println(string(y))
+	return nil
 }

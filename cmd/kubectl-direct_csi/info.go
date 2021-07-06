@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
-	"github.com/minio/direct-csi/pkg/utils/installer"
 
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
@@ -49,8 +49,6 @@ var infoCmd = &cobra.Command{
 }
 
 func getInfo(ctx context.Context, args []string, quiet bool) error {
-	utils.Init()
-
 	crdclient := utils.GetCRDClient()
 
 	if crds, err := crdclient.List(ctx, metav1.ListOptions{}); err != nil {
@@ -71,9 +69,9 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		}
 		if !(drivesFound && volumesFound) {
 			if !quiet {
-				klog.Errorf("directcsi crds not found")
+				return fmt.Errorf("%s: DirectCSI installation not found", bold("Error"))
 			}
-			return fmt.Errorf("directcsi crds not found")
+			return fmt.Errorf("%s: DirectCSI installation not found", bold("Error"))
 		}
 	}
 

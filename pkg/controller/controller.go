@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"path/filepath"
-	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
@@ -34,7 +33,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+
+	"k8s.io/klog/v2"
 )
 
 /*  Volume Lifecycle
@@ -191,7 +191,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	matchDrive := func() (*directcsi.DirectCSIDrive, error) {
 		driveList, err := dclient.List(ctx, metav1.ListOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if err != nil {
 			return nil, status.Errorf(codes.NotFound, "could not retreive directcsidrives: %v", err)
@@ -212,8 +212,6 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if err != nil {
 			return nil, err
 		}
-
-		utils.JSONifyAndLog(req.GetAccessibilityRequirements())
 
 		selectedDrive, err := FilterDrivesByTopologyRequirements(req, filteredDrives)
 		if err != nil {
@@ -259,7 +257,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 			klog.V(4).Infof("Reserving DirectCSI drive: (Name: %s, NodeName: %s)", drive.Name, drive.Status.NodeName)
 			if _, err := dclient.Update(ctx, drive, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			}); err != nil {
 				return status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
 			}
@@ -288,7 +286,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			Labels: map[string]string{
 				directcsi.Group + "/node":       drive.Status.NodeName,
 				directcsi.Group + "/drive-path": filepath.Base(drive.Status.Path),
-				directcsi.Group + "/drive":      utils.GetDriveNameForLabel(drive),
+				directcsi.Group + "/drive":      utils.SanitizeLabelV(drive.Name),
 				directcsi.Group + "/version":    directcsi.Version,
 				directcsi.Group + "/created-by": "directcsi-controller",
 			},
@@ -330,7 +328,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, status.Errorf(codes.Internal, "could not create volume [%s]: %v", name, err)
 		}
 		existingVol, gErr := vclient.Get(ctx, vol.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		})
 		if gErr != nil {
 			return nil, status.Error(codes.NotFound, gErr.Error())
@@ -338,7 +336,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		existingVol.ObjectMeta.Finalizers = vol.ObjectMeta.Finalizers
 		existingVol.Status = vol.Status
 		if _, cErr := vclient.Update(ctx, existingVol, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		}); cErr != nil {
 			return nil, cErr
 		}
@@ -374,7 +372,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -394,7 +392,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	vol.SetFinalizers(updatedFinalizers)
 
 	_, err = vclient.Update(ctx, vol, metav1.UpdateOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove finalizer for volume [%s]: %v", vID, err)

@@ -25,6 +25,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/minio/direct-csi/pkg/utils"
+
 	"k8s.io/klog"
 )
 
@@ -59,6 +61,9 @@ This driver is rack, region and zone aware i.e., a workload requesting volumes w
 For more information, use '%s man [sched | examples | ...]'
 `, os.Args[0]),
 	SilenceUsage: true,
+	PersistentPreRun: func(c *cobra.Command, args []string) {
+		utils.Init()
+	},
 	RunE: func(c *cobra.Command, args []string) error {
 		if showVersion {
 			fmt.Println(Version)

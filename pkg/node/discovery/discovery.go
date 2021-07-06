@@ -94,7 +94,7 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 	directCSIClient := d.directcsiClient.DirectV1beta2()
 	driveClient := directCSIClient.DirectCSIDrives()
 	driveList, err := driveClient.List(ctx, metav1.ListOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})
 	if err != nil {
 		return err

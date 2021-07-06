@@ -44,7 +44,12 @@ var fakeDiscoveryClient discovery.DiscoveryInterface
 var fakeMetadataClient metadata.Interface
 var fakeDirectCSIClient directcsi.DirectV1beta2Interface
 
+var fakeInitialized bool
+
 func InitFake() {
+	if fakeInitialized {
+		return
+	}
 	fakeKubeClient = fakekube.NewSimpleClientset()
 	fakeDirectClientset = fakedirect.NewSimpleClientset()
 	fakeDirectCSIClient = &fakedirectcsi.FakeDirectV1beta2{}
@@ -55,6 +60,8 @@ func InitFake() {
 	scheme := runtime.NewScheme()
 	metav1.AddMetaToScheme(scheme)
 	fakeMetadataClient = fakemetadata.NewSimpleMetadataClient(scheme)
+
+	fakeInitialized = true
 }
 
 func SetFakeDirectCSIClient(fakeClient directcsi.DirectV1beta2Interface) {

@@ -18,12 +18,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"k8s.io/klog"
+	"github.com/minio/direct-csi/pkg/utils"
+
+	"k8s.io/klog/v2"
 )
 
 func main() {
@@ -40,7 +43,7 @@ func main() {
 	}()
 
 	if err := Execute(ctx); err != nil {
-		klog.V(5).Info(err)
+		fmt.Println(utils.Bold(utils.Red("ERROR")), err)
 		os.Exit(1)
 	}
 }

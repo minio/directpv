@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/spf13/cobra"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 var accessTierUnset = &cobra.Command{
@@ -66,18 +66,16 @@ func init() {
 }
 
 func unsetAccessTier(ctx context.Context, args []string) error {
-	if dryRun {
-		klog.Infof("'%s' flag is not supported for access-tier subcommand", bold(dryRunFlagName))
-		return nil
-	}
-
 	if !all {
 		if len(drives) == 0 && len(nodes) == 0 && len(status) == 0 && len(accessTiers) == 0 {
-			return fmt.Errorf("atleast one of ['%s','%s','%s','%s','%s'] should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"), utils.Bold("--status"), utils.Bold("--access-tier"))
+			return fmt.Errorf("atleast one of '%s', '%s', '%s', '%s', or '%s' should be specified",
+				utils.Bold("--all"),
+				utils.Bold("--drives"),
+				utils.Bold("--nodes"),
+				utils.Bold("--status"),
+				utils.Bold("--access-tier"))
 		}
 	}
-
-	utils.Init()
 
 	directClient := utils.GetDirectCSIClient()
 	driveList, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
@@ -109,13 +107,15 @@ func unsetAccessTier(ctx context.Context, args []string) error {
 
 	for _, d := range filterDrives {
 		d.Status.AccessTier = directcsi.AccessTierUnknown
-		// update the label
-		labels := d.ObjectMeta.Labels
-		if labels == nil {
-			labels = make(map[string]string)
+		utils.SetAccessTierLabel(&d, directcsi.AccessTierUnknown)
+
+		if dryRun {
+			if err := printer(d); err != nil {
+				klog.ErrorS(err, "error marshaling drives", "format", outputMode)
+			}
+			continue
 		}
-		labels[directcsi.Group+"/access-tier"] = string(directcsi.AccessTierUnknown)
-		d.ObjectMeta.SetLabels(labels)
+
 		if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
 			return err
 		}

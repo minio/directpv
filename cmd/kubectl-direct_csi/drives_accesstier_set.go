@@ -28,8 +28,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"k8s.io/klog"
+
+	"k8s.io/klog/v2"
 )
 
 var accessTierSet = &cobra.Command{
@@ -66,10 +66,13 @@ func init() {
 }
 
 func setAccessTier(ctx context.Context, args []string) error {
-	dryRun := viper.GetBool(dryRunFlagName)
 	if !all {
 		if len(drives) == 0 && len(nodes) == 0 && len(status) == 0 {
-			return fmt.Errorf("atleast one of '%s', '%s', '%s' or '%s' should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"), utils.Bold("--status"))
+			return fmt.Errorf("atleast one of '%s', '%s', '%s' or '%s' should be specified",
+				utils.Bold("--all"),
+				utils.Bold("--drives"),
+				utils.Bold("--nodes"),
+				utils.Bold("--status"))
 		}
 	}
 
@@ -81,8 +84,6 @@ func setAccessTier(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	utils.Init()
 
 	directClient := utils.GetDirectCSIClient()
 	driveList, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
@@ -107,16 +108,11 @@ func setAccessTier(ctx context.Context, args []string) error {
 			continue
 		}
 		d.Status.AccessTier = accessT
-		// update the label
-		labels := d.ObjectMeta.Labels
-		if labels == nil {
-			labels = make(map[string]string)
-		}
-		labels[directcsi.Group+"/access-tier"] = string(accessT)
-		d.ObjectMeta.SetLabels(labels)
+		utils.SetAccessTierLabel(&d, accessT)
+
 		if dryRun {
-			if err := utils.LogYAML(d); err != nil {
-				return err
+			if err := printer(d); err != nil {
+				klog.ErrorS(err, "error marshaling drives", "format", outputMode)
 			}
 			continue
 		}

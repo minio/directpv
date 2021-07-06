@@ -17,10 +17,11 @@
 package v1beta2
 
 import (
-	"github.com/mb0/glob"
-	"github.com/minio/direct-csi/pkg/sys"
 	"path/filepath"
 	"strings"
+
+	"github.com/mb0/glob"
+	"github.com/minio/direct-csi/pkg/sys"
 )
 
 func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
@@ -45,18 +46,19 @@ func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 		return false
 	}
 
-	nodeList, driveList, statusesList := checkWildcards(nodes),
-		fmap(checkWildcards(drives), getBasePath),
-		fmap(checkWildcards(status), strings.ToLower)
-
-	var noOp transformFunc
-	noOp = func(a string) string {
+	noOp := func(a string) string {
 		return a
 	}
 
-	return matchGlob(nodeList, drive.Status.NodeName, noOp) &&
-		matchGlob(driveList, drive.Status.Path, getBasePath) &&
-		matchGlob(statusesList, string(drive.Status.DriveStatus), strings.ToLower)
+	nodeList := checkWildcards(nodes)
+	driveList := fmap(checkWildcards(drives), getBasePath)
+	statusesList := fmap(checkWildcards(status), strings.ToLower)
+
+	matchNodes := matchGlob(nodeList, drive.Status.NodeName, noOp)
+	matchDrives := matchGlob(driveList, drive.Status.Path, getBasePath)
+	matchStatuses := matchGlob(statusesList, string(drive.Status.DriveStatus), strings.ToLower)
+
+	return matchNodes && matchDrives && matchStatuses
 }
 
 func (drive *DirectCSIDrive) MatchAccessTier(accessTierList []AccessTier) bool {
