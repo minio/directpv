@@ -1,11 +1,16 @@
-FROM alpine:3.8
+FROM registry.access.redhat.com/ubi7/ubi-minimal:7.9
 
 WORKDIR /
-
-RUN apk add -U --no-cache ca-certificates xfsprogs=4.16.1-r1 xfsprogs-extra=4.16.1-r1
 
 COPY direct-csi /direct-csi
 COPY CREDITS /licenses/CREDITS
 COPY LICENSE /licenses/LICENSE
+
+COPY centos7.repo /etc/yum.repos.d/centos7.repo
+
+RUN \
+    curl https://www.centos.org/keys/RPM-GPG-KEY-CentOS-7 -o /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
+    microdnf install xfsprogs --nodocs && \
+    microdnf clean all
 
 ENTRYPOINT ["/direct-csi"]

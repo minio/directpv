@@ -10,6 +10,7 @@ COPY centos.repo /etc/yum.repos.d/centos.repo
 
 RUN \
     curl https://www.centos.org/keys/RPM-GPG-KEY-CentOS-Official -o /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official && \
+    mv /etc/yum.repos.d/ubi.repo /etc/yum.repos.d/ubi.repo.old && \
     microdnf install xfsprogs --nodocs && \
     microdnf clean all
 
