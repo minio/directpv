@@ -20,11 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	directCSIVolumeKind = "DirectCSIVolume"
-	directCSIDriveKind  = "DirectCSIDrive"
-)
-
 func AddFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
 	finalizers := objectMeta.GetFinalizers()
 	for _, f := range finalizers {
@@ -109,18 +104,4 @@ func GetCondition(statusConditions []metav1.Condition, condType string) metav1.C
 		}
 	}
 	return metav1.Condition{}
-}
-
-func DirectCSIDriveTypeMeta(version string) metav1.TypeMeta {
-	return metav1.TypeMeta{
-		Kind:       directCSIDriveKind,
-		APIVersion: version,
-	}
-}
-
-func DirectCSIVolumeTypeMeta(version string) metav1.TypeMeta {
-	return metav1.TypeMeta{
-		Kind:       directCSIVolumeKind,
-		APIVersion: version,
-	}
 }

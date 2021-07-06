@@ -21,9 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/google/uuid"
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
@@ -33,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientset "k8s.io/client-go/kubernetes"
 
+	"github.com/google/uuid"
 	"k8s.io/klog"
 )
 
@@ -149,7 +148,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 
 	isDuplicateUUID := func(ctx context.Context, driveName, fsUUID string) (bool, error) {
 		driveList, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if err != nil {
 			return false, err
@@ -175,7 +174,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 		if new.Status.DriveStatus != directcsi.DriveStatusTerminating {
 			new.Status.DriveStatus = directcsi.DriveStatusTerminating
 			if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			}); err != nil {
 				return err
 			}
@@ -201,7 +200,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 
 		new.Finalizers = []string{}
 		if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		}); err != nil {
 			return err
 		}
@@ -349,7 +348,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 			}
 
 			if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			}); err != nil {
 				return err
 			}

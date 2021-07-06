@@ -56,7 +56,7 @@ func AddDriveFinalizersWithConflictRetry(ctx context.Context, csiDriveName strin
 	directCSIClient := utils.GetDirectCSIClient()
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, csiDriveName, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+			TypeMeta: utils.NewTypeMeta(crdVersion, "DirectCSIDrive"),
 		})
 		if dErr != nil {
 			return dErr
@@ -66,7 +66,7 @@ func AddDriveFinalizersWithConflictRetry(ctx context.Context, csiDriveName strin
 			copiedDrive.ObjectMeta.SetFinalizers(utils.AddFinalizer(&copiedDrive.ObjectMeta, finalizer))
 		}
 		_, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+			TypeMeta: utils.NewTypeMeta(crdVersion, "DirectCSIDrive"),
 		})
 		return err
 	}); err != nil {
@@ -81,7 +81,7 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 	directCSIClient := utils.GetDirectCSIClient()
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, csiDriveName, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+			TypeMeta: utils.NewTypeMeta(crdVersion, "DirectCSIDrive"),
 		})
 		if dErr != nil {
 			return dErr
@@ -89,7 +89,7 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 		copiedDrive := csiDrive.DeepCopy()
 		copiedDrive.ObjectMeta.SetFinalizers(utils.RemoveFinalizer(&copiedDrive.ObjectMeta, finalizer))
 		_, err := directCSIClient.DirectCSIDrives().Update(ctx, copiedDrive, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(crdVersion),
+			TypeMeta: utils.NewTypeMeta(crdVersion, "DirectCSIDrive"),
 		})
 		return err
 	}); err != nil {

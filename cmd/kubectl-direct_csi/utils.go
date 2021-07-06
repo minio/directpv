@@ -17,21 +17,20 @@
 package main
 
 import (
-	jsonFormatter "encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
-
-	"k8s.io/klog/v2"
-	yamlFormatter "sigs.k8s.io/yaml"
 )
 
-// pretty printing utils
-const dot = "•"
+const (
+	dot                     = "•"
+	directCSIPartitionInfix = "-part-"
+)
 
 var (
 	bold   = color.New(color.Bold).SprintFunc()
@@ -54,9 +53,11 @@ func getAccessTierSet(accessTiers []string) ([]directcsi.AccessTier, error) {
 	var atSet []directcsi.AccessTier
 	for i := range accessTiers {
 		if accessTiers[i] == "*" {
-			return []directcsi.AccessTier{directcsi.AccessTierHot,
+			return []directcsi.AccessTier{
+				directcsi.AccessTierHot,
 				directcsi.AccessTierWarm,
-				directcsi.AccessTierCold}, nil
+				directcsi.AccessTierCold,
+			}, nil
 		}
 		at, err := utils.ValidateAccessTier(strings.TrimSpace(accessTiers[i]))
 		if err != nil {
@@ -75,20 +76,25 @@ func printableString(s string) string {
 }
 
 func printYAML(obj interface{}) error {
-	formattedObj, err := yamlFormatter.Marshal(obj)
+	y, err := utils.ToYAML(obj)
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(formattedObj))
+	fmt.Println(y)
 	return nil
 }
 
 func printJSON(obj interface{}) error {
-	formattedObj, err := jsonFormatter.MarshalIndent(obj, "", "  ")
+	j, err := utils.ToJSON(obj)
 	if err != nil {
-		klog.ErrorS(err, "error marshaling to JSON", "ouput", outputMode)
 		return err
 	}
-	fmt.Println(string(formattedObj))
+	fmt.Println(j)
 	return nil
+}
+
+func canonicalNameFromPath(val string) string {
+	dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
+	dr = strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
+	return strings.ReplaceAll(dr, directCSIPartitionInfix, "")
 }

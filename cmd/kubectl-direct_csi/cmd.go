@@ -24,24 +24,27 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
+
+	"github.com/minio/direct-csi/pkg/utils"
 )
 
 var Version string
 
 // flags
 var (
-	kubeconfig     = ""
-	identity       = "direct.csi.min.io"
-	dryRun         = false
-	dryRunFlagName = "dry-run"
-
+	kubeconfig = ""
+	identity   = "direct.csi.min.io"
+	dryRun     = false
 	//output modes
 	outputMode = ""
 	wide       = false
 	json       = false
 	yaml       = false
 )
+
+var printer func(interface{}) error
+var threadiness chan struct{}
 
 var pluginCmd = &cobra.Command{
 	Use:           "direct-csi",
@@ -50,6 +53,8 @@ var pluginCmd = &cobra.Command{
 	SilenceErrors: false,
 	Version:       Version,
 	PersistentPreRunE: func(c *cobra.Command, args []string) error {
+		utils.Init()
+
 		switch outputMode {
 		case "":
 		case "wide":
@@ -61,6 +66,12 @@ var pluginCmd = &cobra.Command{
 		default:
 			return errors.New("output should be one of wide|json|yaml or empty")
 		}
+
+		printer = printYAML
+		if json {
+			printer = printJSON
+		}
+
 		return nil
 	},
 }
@@ -72,20 +83,20 @@ func init() {
 
 	viper.AutomaticEnv()
 
-	flag.Set("alsologtostderr", "true")
 	kflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(kflags)
 
 	// parse the go default flagset to get flags for glog and other packages in future
 	pluginCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	pluginCmd.PersistentFlags().AddGoFlagSet(kflags)
-	// defaulting this to true so that logs are printed to console
+
 	flag.Set("logtostderr", "true")
+	flag.Set("alsologtostderr", "true")
 
 	pluginCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "path to kubeconfig")
 	pluginCmd.PersistentFlags().StringVarP(&outputMode, "output", "o", outputMode,
 		"output format should be one of wide|json|yaml or empty")
-	pluginCmd.PersistentFlags().BoolVarP(&dryRun, dryRunFlagName, "", dryRun, "prints the installation yaml")
+	pluginCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "", dryRun, "prints the installation yaml")
 
 	pluginCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	pluginCmd.PersistentFlags().MarkHidden("log_backtrace_at")
@@ -105,6 +116,8 @@ func init() {
 	pluginCmd.AddCommand(drivesCmd)
 	pluginCmd.AddCommand(volumesCmd)
 	//pluginCmd.AddCommand(newVolumesCmd())
+
+	threadiness = make(chan struct{}, 40)
 }
 
 func Execute(ctx context.Context) error {

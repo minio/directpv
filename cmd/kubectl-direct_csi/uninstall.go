@@ -21,14 +21,14 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"k8s.io/klog"
 
+	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
-	"github.com/minio/direct-csi/pkg/utils/installer"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"k8s.io/klog/v2"
 )
 
 var uninstallCmd = &cobra.Command{
@@ -51,14 +51,11 @@ func init() {
 }
 
 func uninstall(ctx context.Context, args []string) error {
-
-	dryRun := viper.GetBool(dryRunFlagName)
 	if dryRun {
-		klog.Infof("'%s' flag is not supported for uninstall", bold(dryRunFlagName))
+		klog.Errorf("'--dry-run' flag is not supported for uninstall")
 		return nil
 	}
 
-	utils.Init()
 	bold := color.New(color.Bold).SprintFunc()
 	directCSIClient := utils.GetDirectCSIClient()
 

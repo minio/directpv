@@ -17,48 +17,19 @@
 package utils
 
 import (
-	"encoding/json"
+	"fmt"
+	"reflect"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"sigs.k8s.io/yaml"
-
-	"k8s.io/klog"
-
-	"fmt"
 )
-
-func JSONifyAndLog(val interface{}) {
-	jsonBytes, err := json.MarshalIndent(val, "", " ")
-	if err != nil {
-		return
-	}
-	klog.V(3).Infof(string(jsonBytes))
-}
 
 func BoolToCondition(val bool) metav1.ConditionStatus {
 	if val {
 		return metav1.ConditionTrue
 	}
 	return metav1.ConditionFalse
-}
-
-func LogYAML(obj interface{}) error {
-	y, err := yaml.Marshal(obj)
-	if err != nil {
-		return err
-	}
-	PrintYaml(y)
-	return nil
-}
-
-func PrintYaml(data []byte) {
-	fmt.Print(string(data))
-	fmt.Println()
-	fmt.Println("---")
-	fmt.Println()
 }
 
 func ValidateAccessTier(at string) (directcsi.AccessTier, error) {
@@ -76,24 +47,34 @@ func ValidateAccessTier(at string) (directcsi.AccessTier, error) {
 	}
 }
 
-func GetVersionFromObjectMeta(objectMeta metav1.ObjectMeta) string {
-	labels := objectMeta.GetLabels()
-	if labels == nil {
-		return ""
+func defaultIfZero(left, right interface{}) interface{} {
+	lval := reflect.ValueOf(left)
+	if lval.IsZero() {
+		return right
 	}
-	val, found := labels[directcsi.Group+"/version"]
-	if found {
-		return val
-	}
-	return ""
+	return left
 }
 
-func GetDriveNameForLabel(driveObj *directcsi.DirectCSIDrive) string {
-	name := driveObj.Name
-	version := GetVersionFromObjectMeta(driveObj.ObjectMeta)
-	if version == "v1alpha1" || version == "v1beta1" {
-		// The drive name will exceed the threshold limit for older versions
-		name = name[0:63]
-	}
-	return name
+func DefaultIfZero(left, right interface{}) interface{} {
+	return defaultIfZero(left, right)
+}
+
+func DefaultIfZeroString(left, right string) string {
+	return defaultIfZero(left, right).(string)
+}
+
+func DefaultIfZeroInt(left, right int) int {
+	return defaultIfZero(left, right).(int)
+}
+
+func DefaultIfZeroInt64(left, right int64) int64 {
+	return defaultIfZero(left, right).(int64)
+}
+
+func DefaultIfZeroFloat(left, right float32) float32 {
+	return defaultIfZero(left, right).(float32)
+}
+
+func DefaultIfZeroFloat64(left, right float64) float64 {
+	return defaultIfZero(left, right).(float64)
 }

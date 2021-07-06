@@ -20,7 +20,6 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -55,7 +54,7 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	defer os.RemoveAll(testContainerPath)
 
 	testVol := &directcsi.DirectCSIVolume{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{
 			Name: testVolumeName50MB,
 			Finalizers: []string{
@@ -125,7 +124,7 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	}
 
 	volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, publishVolumeRequest.GetVolumeId(), metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", publishVolumeRequest.GetVolumeId(), gErr)
@@ -164,7 +163,7 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	}
 
 	volObj, gErr = directCSIClient.DirectCSIVolumes().Get(ctx, unpublishVolumeRequest.GetVolumeId(), metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", unpublishVolumeRequest.GetVolumeId(), gErr)

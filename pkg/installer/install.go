@@ -25,8 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/klog/v2"
-
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -39,95 +37,18 @@ import (
 
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
-)
-
-const (
-	CreatedByLabel      = "created-by"
-	DirectCSIPluginName = "kubectl-direct_csi"
-
-	CSIDriver = "CSIDriver"
-	DirectCSI = "direct.csi.min.io"
-
-	clusterRoleVerbList   = "list"
-	clusterRoleVerbGet    = "get"
-	clusterRoleVerbWatch  = "watch"
-	clusterRoleVerbCreate = "create"
-	clusterRoleVerbDelete = "delete"
-	clusterRoleVerbUpdate = "update"
-	clusterRoleVerbPatch  = "patch"
-
-	volumeNameSocketDir       = "socket-dir"
-	volumeNameDevDir          = "dev-dir"
-	volumePathDevDir          = "/dev"
-	volumeNameSysDir          = "sys-fs"
-	volumePathSysDir          = "/sys"
-	volumeNameCSIRootDir      = "direct-csi-common-root"
-	volumeNameMountpointDir   = "mountpoint-dir"
-	volumeNameRegistrationDir = "registration-dir"
-	volumeNamePluginDir       = "plugins-dir"
-
-	directCSISelector = "selector.direct.csi.min.io"
-
-	directCSIContainerName           = "direct-csi"
-	livenessProbeContainerName       = "liveness-probe"
-	nodeDriverRegistrarContainerName = "node-driver-registrar"
-	csiProvisionerContainerName      = "csi-provisioner"
-
-	// "csi-provisioner:v2.1.0"
-	csiProvisionerContainerImage = "csi-provisioner@sha256:4ca2ce98430ca0b87d5bc1a6d116ecdf1619cfe6db693d8d5aa438f6821e0e80"
-	// "livenessprobe:v2.1.0"
-	livenessProbeContainerImage = "livenessprobe@sha256:6f056a175ff4ead772edc9bf99aef74c275a83c51868dd26090dcb623425a742"
-	// "csi-node-driver-registrar:v2.1.0"
-	nodeDriverRegistrarContainerImage = "csi-node-driver-registrar@sha256:9f9ce5c98e44d66b8ad34351616fdf78765b9f24c3c3b496cee784dadf63f528"
-
-	healthZContainerPort         = 9898
-	healthZContainerPortName     = "healthz"
-	healthZContainerPortProtocol = "TCP"
-	healthZContainerPortPath     = "/healthz"
-
-	kubeNodeNameEnvVar = "KUBE_NODE_NAME"
-	endpointEnvVarCSI  = "CSI_ENDPOINT"
-
-	kubeletDirPath = "/var/lib/kubelet"
-	csiRootPath    = "/var/lib/direct-csi/"
-
-	// debug log level default
-	logLevel = 3
-
-	// Admission controller
-	admissionControllerCertsDir    = "admission-webhook-certs"
-	AdmissionWebhookSecretName     = "validationwebhookcerts"
-	validationControllerName       = "directcsi-validation-controller"
-	admissionControllerWebhookName = "validatinghook"
-	ValidationWebhookConfigName    = "drive.validation.controller"
-	admissionControllerWebhookPort = 443
-	certsDir                       = "/etc/certs"
-	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
-	privateKeyFileName             = "key.pem"
-	publicCertFileName             = "cert.pem"
-
-	// Finalizers
-	DirectCSIFinalizerDeleteProtection = "/delete-protection"
-
-	// Conversion webhook
-	conversionWebhookName                  = "directcsi-conversion-webhook"
-	ConversionWebhookSecretName            = "conversionwebhookcerts"
-	conversionWebhookPortName              = "convwebhook"
-	conversionWebhookPort                  = 443
-	conversionDeploymentReadinessThreshold = 2
-	conversionDeploymentRetryInterval      = 3 * time.Second
-
-	conversionWebhookCertVolume  = "conversion-webhook-certs"
-	conversionWebhookCertsSecret = "converionwebhookcertsecret"
-	caCertFileName               = "ca.pem"
-	caDir                        = "/etc/CAs"
+	"k8s.io/klog/v2"
 )
 
 var (
-	validationWebhookCaBundle  []byte
-	conversionWebhookCaBundle  []byte
+	validationWebhookCaBundle []byte
+	conversionWebhookCaBundle []byte
+
 	ErrKubeVersionNotSupported = errors.New(
-		fmt.Sprintf("%s: This version of kubernetes is not supported by direct-csi. Please upgrade your kubernetes installation and try again", utils.Red("ERR")))
+		utils.Red("Error") +
+			"This version of kubernetes is not supported by direct-csi" +
+			"Please upgrade your kubernetes installation and try again",
+	)
 	ErrEmptyCABundle = errors.New("CA bundle is empty")
 )
 
@@ -365,7 +286,16 @@ func getConversionWebhookURL(identity string) (conversionWebhookURL string) {
 	return
 }
 
-func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, loopBackOnly bool, nodeSelector map[string]string, tolerations []corev1.Toleration, seccompProfileName, apparmorProfileName string) error {
+func CreateDaemonSet(ctx context.Context,
+	identity string,
+	directCSIContainerImage string,
+	dryRun bool,
+	registry, org string,
+	loopBackOnly bool,
+	nodeSelector map[string]string,
+	tolerations []corev1.Toleration,
+	seccompProfileName, apparmorProfileName string) error {
+
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookURL := getConversionWebhookURL(identity)
@@ -503,7 +433,9 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 		Tolerations:  tolerations,
 	}
 
-	annotations := map[string]string{CreatedByLabel: DirectCSIPluginName}
+	annotations := map[string]string{
+		CreatedByLabel: DirectCSIPluginName,
+	}
 	if apparmorProfileName != "" {
 		annotations["container.apparmor.security.beta.kubernetes.io/direct-csi"] = apparmorProfileName
 	}
@@ -955,7 +887,11 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 		return utils.LogYAML(driveValidatingWebhookConfig)
 	}
 
-	if _, err := utils.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(ctx, &driveValidatingWebhookConfig, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().
+		AdmissionregistrationV1().
+		ValidatingWebhookConfigurations().
+		Create(ctx, &driveValidatingWebhookConfig, metav1.CreateOptions{}); err != nil {
+
 		return err
 	}
 	return nil
@@ -1170,7 +1106,10 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 	if dryRun {
 		utils.LogYAML(deployment)
 	} else {
-		if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+		if _, err := utils.GetKubeClient().
+			AppsV1().
+			Deployments(sanitizeName(identity)).
+			Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	}
@@ -1186,7 +1125,10 @@ func GetConversionCABundle(ctx context.Context, identity string, dryRun bool) ([
 		return conversionWebhookCaBundle, nil
 	}
 
-	secret, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Get(ctx, conversionWebhookCertsSecret, metav1.GetOptions{})
+	secret, err := utils.GetKubeClient().
+		CoreV1().
+		Secrets(sanitizeName(identity)).
+		Get(ctx, conversionWebhookCertsSecret, metav1.GetOptions{})
 	if err != nil {
 		if kerr.IsNotFound(err) && dryRun {
 			return getCABundlerFromGlobal()
@@ -1208,7 +1150,9 @@ func GetConversionServiceName() string {
 }
 
 func CreateOrUpdateConversionDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
-	deploymentsClient := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity))
+	deploymentsClient := utils.GetKubeClient().
+		AppsV1().Deployments(sanitizeName(identity))
+
 	deployment, getErr := deploymentsClient.Get(ctx, conversionWebhookName, metav1.GetOptions{})
 	if getErr != nil {
 		if !kerr.IsNotFound(getErr) {

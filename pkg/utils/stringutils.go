@@ -14,11 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package v1beta2
+package utils
 
-type transformFunc func(src string) string
-
-func fmap(vs []string, f func(string) string) []string {
+func FmapStringSlice(vs []string, f func(string) string) []string {
 	vsm := make([]string, len(vs))
 	for i, v := range vs {
 		vsm[i] = f(v)
@@ -26,13 +24,13 @@ func fmap(vs []string, f func(string) string) []string {
 	return vsm
 }
 
-func checkWildcards(globElems []string) []string {
-	isStarPattern := func() bool {
-		return len(globElems) == 1 && globElems[0] == "*"
+func FmapString(str string, f func(rune) rune) string {
+	retStr := []rune{}
+	for _, v := range str {
+		r := f(v)
+		if r != DEL {
+			retStr = append(retStr, r)
+		}
 	}
-
-	if len(globElems) == 0 || isStarPattern() {
-		globElems = []string{"**"}
-	}
-	return globElems
+	return string(retStr)
 }

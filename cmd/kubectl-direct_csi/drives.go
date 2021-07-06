@@ -44,4 +44,5 @@ func init() {
 	drivesCmd.AddCommand(formatDrivesCmd)
 	drivesCmd.AddCommand(drivesAccessTierCmd)
 	drivesCmd.AddCommand(releaseDrivesCmd)
+	drivesCmd.AddCommand(unreleaseDrivesCmd)
 }

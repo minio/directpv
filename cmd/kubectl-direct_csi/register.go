@@ -29,8 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/minio/direct-csi/pkg/converter"
+	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
-	"github.com/minio/direct-csi/pkg/utils/installer"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog"
 )

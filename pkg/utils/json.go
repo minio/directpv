@@ -14,25 +14,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package v1beta2
+package utils
 
-type transformFunc func(src string) string
+import (
+	"fmt"
 
-func fmap(vs []string, f func(string) string) []string {
-	vsm := make([]string, len(vs))
-	for i, v := range vs {
-		vsm[i] = f(v)
+	jsonFormatter "encoding/json"
+)
+
+func MustJSON(obj interface{}) string {
+	j, err := ToJSON(obj)
+	if err != nil {
+		panic(err)
 	}
-	return vsm
+	return j
 }
 
-func checkWildcards(globElems []string) []string {
-	isStarPattern := func() bool {
-		return len(globElems) == 1 && globElems[0] == "*"
+func ToJSON(obj interface{}) (string, error) {
+	formattedObj, err := jsonFormatter.MarshalIndent(obj, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("error marshaling to JSON: %v", err)
 	}
-
-	if len(globElems) == 0 || isStarPattern() {
-		globElems = []string{"**"}
-	}
-	return globElems
+	return string(formattedObj), nil
 }

@@ -31,7 +31,6 @@ import (
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
 	"github.com/minio/direct-csi/pkg/node/discovery"
-	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/utils/grpc"
 	"github.com/minio/direct-csi/pkg/volume"
 
@@ -98,8 +97,6 @@ func run(ctx context.Context, args []string) error {
 	if err := waitForConversionWebhook(); err != nil {
 		return err
 	}
-
-	utils.Init()
 
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {

@@ -38,6 +38,8 @@ var (
 
 func SetFake() {
 	fakeMode = true
+
+	InitFake()
 }
 
 func GetFake() bool {

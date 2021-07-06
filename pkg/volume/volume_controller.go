@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
@@ -74,7 +73,7 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directcs
 
 	rmVolFromDrive := func(driveName string, volumeName string, capacity int64) error {
 		drive, err := dclient.Get(ctx, driveName, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if err != nil {
 			return err
@@ -114,7 +113,7 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directcs
 		drive.Status.AllocatedCapacity = drive.Status.TotalCapacity - drive.Status.FreeCapacity
 
 		_, err = dclient.Update(ctx, drive, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if err != nil {
 			return err
@@ -185,7 +184,7 @@ func (b *DirectCSIVolumeListener) Update(ctx context.Context, old, new *directcs
 		new.SetFinalizers(updatedFinalizers)
 
 		_, err := vclient.Update(ctx, new, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		})
 		if err != nil {
 			return err
@@ -220,7 +219,7 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 		var reservedDrivePath, reservedDriveName string
 		driveClient := utils.GetDirectCSIClient().DirectCSIDrives()
 		existingDrive, err := driveClient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if err == nil {
 			vFinalizer := directcsi.DirectCSIDriveFinalizerPrefix + vol.Name
@@ -228,7 +227,7 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 			for _, df := range dfinalizers {
 				if df == vFinalizer {
 					reservedDrivePath = existingDrive.Status.Path
-					reservedDriveName = utils.GetDriveNameForLabel(existingDrive)
+					reservedDriveName = utils.SanitizeLabelV(existingDrive.Name)
 					break
 				}
 			}
@@ -249,7 +248,7 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 
 	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
 	volumeList, err := volumeClient.List(ctx, metav1.ListOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
@@ -263,11 +262,11 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 		}
 		updateFunc := func() error {
 			vol, err := volumeClient.Get(ctx, volume.Name, metav1.GetOptions{
-				TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+				TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 			})
 			if err == nil {
 				updateOpts := metav1.UpdateOptions{
-					TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+					TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 				}
 				// update the labels
 				volumeLabels := getVolumeLabels(ctx, vol)

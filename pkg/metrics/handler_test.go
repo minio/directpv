@@ -86,7 +86,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 
 	createTestVolume := func(volName string, totalCap, usedCap int64) *directcsi.DirectCSIVolume {
 		return &directcsi.DirectCSIVolume{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: volName,
 				Labels: map[string]string{
@@ -145,7 +145,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 				switch mt {
 				case metricStatsBytesUsed:
 					volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, volumeName, metav1.GetOptions{
-						TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 					})
 					if gErr != nil {
 						t.Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
@@ -155,7 +155,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 					}
 				case metricStatsBytesTotal:
 					volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, volumeName, metav1.GetOptions{
-						TypeMeta: utils.DirectCSIVolumeTypeMeta(strings.Join([]string{directcsi.Group, directcsi.Version}, "/")),
+						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 					})
 					if gErr != nil {
 						t.Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
