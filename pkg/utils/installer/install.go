@@ -20,11 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/klog"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -364,12 +365,21 @@ func getConversionWebhookURL(identity string) (conversionWebhookURL string) {
 	return
 }
 
-func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, loopBackOnly bool, nodeSelector map[string]string, tolerations []corev1.Toleration) error {
+func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, loopBackOnly bool, nodeSelector map[string]string, tolerations []corev1.Toleration, seccompProfileName, apparmorProfileName string) error {
 	name := sanitizeName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookURL := getConversionWebhookURL(identity)
 
 	privileged := true
+	securityContext := &corev1.SecurityContext{Privileged: &privileged}
+
+	if seccompProfileName != "" {
+		securityContext.SeccompProfile = &corev1.SeccompProfile{
+			Type:             corev1.SeccompProfileTypeLocalhost,
+			LocalhostProfile: &seccompProfileName,
+		}
+	}
+
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
 		HostNetwork:        false,
@@ -429,9 +439,7 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 					}
 					return args
 				}(),
-				SecurityContext: &corev1.SecurityContext{
-					Privileged: &privileged,
-				},
+				SecurityContext: securityContext,
 				Env: []corev1.EnvVar{
 					{
 						Name: kubeNodeNameEnvVar,
@@ -495,6 +503,11 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 		Tolerations:  tolerations,
 	}
 
+	annotations := map[string]string{CreatedByLabel: DirectCSIPluginName}
+	if apparmorProfileName != "" {
+		annotations["container.apparmor.security.beta.kubernetes.io/direct-csi"] = apparmorProfileName
+	}
+
 	daemonset := &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DaemonSet",
@@ -505,11 +518,9 @@ func CreateDaemonSet(ctx context.Context, identity string, directCSIContainerIma
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      sanitizeName(name),
-					Namespace: sanitizeName(name),
-					Annotations: map[string]string{
-						CreatedByLabel: DirectCSIPluginName,
-					},
+					Name:        sanitizeName(name),
+					Namespace:   sanitizeName(name),
+					Annotations: annotations,
 					Labels: map[string]string{
 						directCSISelector: generatedSelectorValue,
 					},
