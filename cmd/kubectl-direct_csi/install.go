@@ -18,13 +18,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/klog"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/utils/installer"
@@ -49,6 +50,8 @@ var (
 	loopBackOnly       = false
 	nodeSelectorValues = []string{}
 	tolerationValues   = []string{}
+	seccompProfile     = ""
+	apparmorProfile    = ""
 )
 
 func init() {
@@ -61,6 +64,8 @@ func init() {
 	installCmd.PersistentFlags().MarkDeprecated("crd", "Will be removed in version 1.5 or greater")
 	installCmd.PersistentFlags().StringSliceVarP(&nodeSelectorValues, "node-selector", "n", nodeSelectorValues, "node selector parameters")
 	installCmd.PersistentFlags().StringSliceVarP(&tolerationValues, "tolerations", "t", tolerationValues, "tolerations parameters")
+	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "set Seccomp profile")
+	installCmd.PersistentFlags().StringVarP(&apparmorProfile, "apparmor-profile", "", apparmorProfile, "set Apparmor profile")
 
 	installCmd.PersistentFlags().BoolVarP(&loopBackOnly, "loopback-only", "", loopBackOnly, "Uses 4 free loopback devices per node and treat them as DirectCSIDrive resources. This is recommended only for testing/development purposes")
 	installCmd.PersistentFlags().MarkHidden("loopback-only")
@@ -90,7 +95,7 @@ func install(ctx context.Context, args []string) error {
 	utils.Init()
 
 	if err := installer.CreateNamespace(ctx, identity, dryRun); err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -98,8 +103,19 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' namespace created", utils.Bold(identity))
 	}
 
+	if err := installer.CreatePodSecurityPolicy(ctx, identity, dryRun); err != nil {
+		switch {
+		case errors.Is(err, installer.ErrKubeVersionNotSupported):
+			klog.Infof("pod security policy is not supported in your kubernetes")
+		case !k8serrors.IsAlreadyExists(err):
+			return err
+		}
+	} else if !dryRun {
+		klog.Infof("'%s' pod security policy created", utils.Bold(identity))
+	}
+
 	if err := installer.CreateRBACRoles(ctx, identity, dryRun); err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -116,14 +132,14 @@ func install(ctx context.Context, args []string) error {
 
 crdInstall:
 	if err := registerCRDs(ctx, identity); err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 		// if it exists
 		if !dryRun && overwriteCRD {
 			klog.V(4).Infof("overwriting CRDs")
 			if err := unregisterCRDs(ctx); err != nil {
-				if !errors.IsNotFound(err) {
+				if !k8serrors.IsNotFound(err) {
 					return err
 				}
 			}
@@ -136,7 +152,7 @@ crdInstall:
 	}
 
 	if err := installer.CreateCSIDriver(ctx, identity, dryRun); err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -145,7 +161,7 @@ crdInstall:
 	}
 
 	if err := installer.CreateStorageClass(ctx, identity, dryRun); err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -154,7 +170,7 @@ crdInstall:
 	}
 
 	if err := installer.CreateService(ctx, identity, dryRun); err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -162,8 +178,8 @@ crdInstall:
 		klog.Infof("'%s' service created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations); err != nil {
-		if !errors.IsAlreadyExists(err) {
+	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations, seccompProfile, apparmorProfile); err != nil {
+		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -172,7 +188,7 @@ crdInstall:
 	}
 
 	if err := installer.CreateDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -182,7 +198,7 @@ crdInstall:
 
 	if admissionControl {
 		if err := installer.RegisterDriveValidationRules(ctx, identity, dryRun); err != nil {
-			if !errors.IsAlreadyExists(err) {
+			if !k8serrors.IsAlreadyExists(err) {
 				return err
 			}
 		}
