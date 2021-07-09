@@ -30,6 +30,8 @@ After running this installation:
 
 ### Driver Installation
 
+For installation in production grade environments, ensure that all criteria in the [Production Readiness Checklist](#production-readiness-checklist) are satisfied.
+
 #### 1. Install the driver
 
 ```sh
@@ -93,3 +95,59 @@ After running this installation:
  - example statefulset using direct-csi can be found [here](../minio.yaml#L61) 
  - optional: view the [driver specification](./specification.md)
 <!-- - view the [usage guide](./usage-guide.md) -->
+
+## Air-gapped Installation (Private Registry)
+
+Push the following images to your private registry
+ 
+ - quay.io/minio/csi-node-driver-registrar:v2.1.0
+ - quay.io/minio/csi-provisioner:v2.1.0
+ - quay.io/minio/livenessprobe:v2.1.0
+ - quay.io/minio/direct-csi:${latest_tag_name}
+
+Here is a shell script to Copy-Paste into your terminal to do the above steps:
+```sh
+/bin/bash -e
+
+# set this to private registry URL (the URL should NOT include http or https)
+if [ -z $PRIVATE_REGISTRY_URL ]; then "PRIVATE_REGISTRY_URL env var should be set"; fi
+
+image[0]=quay.io/minio/csi-node-driver-registrar:v2.1.0
+image[1]=quay.io/minio/csi-provisioner:v2.1.0
+image[2]=quay.io/minio/livenessprobe:v2.1.0
+image[3]=quay.io/minio/direct-csi:$(curl -s "https://api.github.com/repos/minio/direct-csi/releases/latest" | grep tag_name | sed -E 's/.*"([^"]+)".*/\1/')
+
+function privatize(){ echo $1 | sed "s#quay.io#${PRIVATE_REGISTRY_URL}#g"; }
+function pull_tag_push(){ docker pull $1 &&  docker tag $1 $2 && docker push $2; }
+for image in ${images[*]}; do pull_tag_push $image $(privatize $image); done
+```
+
+## Custom Installation
+
+If any other customization is desired,
+
+Step 1: Generate the specification for installing direct-csi
+```sh
+$ kubectl direct-csi install --dry-run > direct-csi-install.yaml
+```
+
+Step 2: Make appropriate changes to the resources
+```
+$ emacs direct-csi-install.yaml
+```
+
+Step 3: Install Direct-CSI
+```
+$ kubectl create -f direct-csi-install.yaml
+```
+
+Client-side upgrade functionality will not be available for custom installations.
+
+## Production Readiness Checklist
+
+Make sure the following check-boxes are ticked before production deployment
+
+ - [ ] If using a private registry, all the images listed in [air-gapped installation](#air-gapped-installation-private-registry) should be available in the private registry
+ - [ ] If seccomp is enabled in the system, direct-csi [seccomp policy](../seccomp.json) should be loaded on all nodes. Instructions available [here](https://kubernetes.io/docs/tutorials/clusters/seccomp/)
+ - [ ] If apparmor is enabled in the system, direct-csi [apparmor profile](../apparmor.profile) should be loaded on all nodes. Instructions available [here](https://kubernetes.io/docs/tutorials/clusters/apparmor/)
+ - [ ] Review and Sign-off the [Security Checklist](../security-checklist.md) for providing elevated privileges to direct-csi.

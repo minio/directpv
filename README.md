@@ -46,7 +46,7 @@ HostPath volumes cannot be provisioned and managed via PVC resources. It is alwa
 
 ### Limitations of DirectCSI
 
-The high consistency and performance benefits of DirectCSI come with the limitation that once provisioned, volumes cannot be moved to other nodes i.e. volumes are sticky to nodes. In case a node is lost, then the volume is also lost. 
+The high consistency and performance benefits of DirectCSI come with the limitation that once provisioned, volumes cannot be moved to other nodes i.e. volumes are sticky to nodes.
 
 
 ### References
@@ -55,8 +55,6 @@ The high consistency and performance benefits of DirectCSI come with the limitat
  - [Upgrade](./docs/upgrade.md)
  - [CLI reference](./docs/cli.md)
  - [Development and Testing](./docs/development-and-testing.md)
-<!-- - [Usage Guide](./docs/usage-guide.md) -->
-<!-- - [Troubleshooting](./docs/troubleshooting.md) -->
 
 ### LICENSE
 
