@@ -6,11 +6,14 @@ COPY direct-csi /direct-csi
 COPY CREDITS /licenses/CREDITS
 COPY LICENSE /licenses/LICENSE
 
-COPY centos.repo /etc/yum.repos.d/centos.repo
+RUN microdnf update --nodocs
+
+COPY centos.repo /etc/yum.repos.d/CentOS.repo
 
 RUN \
-    curl https://www.centos.org/keys/RPM-GPG-KEY-CentOS-Official -o /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official && \
+    curl -L https://www.centos.org/keys/RPM-GPG-KEY-CentOS-Official -o /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official && \
     microdnf install xfsprogs --nodocs && \
-    microdnf clean all
+    microdnf clean all && \
+    rm -f /etc/yum.repos.d/CentOS.repo
 
 ENTRYPOINT ["/direct-csi"]
