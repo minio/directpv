@@ -38,9 +38,6 @@ func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 			if ok, _ := glob.Match(p, name); ok {
 				return true
 			}
-			if ok, _ := glob.Match(p+"*", name); ok {
-				return true
-			}
 		}
 		return false
 	}
