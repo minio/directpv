@@ -43,7 +43,6 @@ var crdClient apiextensions.CustomResourceDefinitionInterface
 var apiextensionsClient apiextensions.ApiextensionsV1Interface
 var discoveryClient discovery.DiscoveryInterface
 var metadataClient metadata.Interface
-var gvk *schema.GroupVersionKind
 
 func Init() {
 	if GetFake() {
@@ -108,9 +107,6 @@ func GetKubeConfig() string {
 }
 
 func GetGroupKindVersions(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
-	if gvk != nil {
-		return gvk, nil
-	}
 	discoveryClient := GetDiscoveryClient()
 	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {
@@ -128,7 +124,7 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 		return nil, err
 	}
 
-	gvk = &schema.GroupVersionKind{
+	gvk := &schema.GroupVersionKind{
 		Group:   mapper.Resource.Group,
 		Version: mapper.Resource.Version,
 		Kind:    mapper.Resource.Resource,
