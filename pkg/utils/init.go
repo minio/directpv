@@ -51,6 +51,10 @@ var (
 	initialized = false
 )
 
+const (
+	MaxThreadCount = 40
+)
+
 func Init() {
 	if initialized {
 		return
@@ -66,6 +70,8 @@ func Init() {
 		}
 		klog.V(1).Infof("obtained client config successfully")
 	}
+	config.QPS = float32(MaxThreadCount / 2)
+	config.Burst = MaxThreadCount
 
 	kubeClient, err = kubernetes.NewForConfig(config)
 	if err != nil {

@@ -71,7 +71,7 @@ func getDrives(ctx context.Context, nodes []string, drives []string, accessTiers
 	go func() {
 		defer close(driveCh)
 		cont := ""
-		klog.V(5).InfoS("Listing DirectCSIDrives", "limit", 40, "selectors", labelSelector)
+		klog.V(5).InfoS("Listing DirectCSIDrives", "limit", utils.MaxThreadCount, "selectors", labelSelector)
 
 		directClient := utils.GetDirectCSIClient()
 		for {
@@ -80,7 +80,7 @@ func getDrives(ctx context.Context, nodes []string, drives []string, accessTiers
 				return
 			default:
 				drives, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
-					Limit:         40,
+					Limit:         int64(utils.MaxThreadCount),
 					LabelSelector: labelSelector,
 					Continue:      cont,
 				})
