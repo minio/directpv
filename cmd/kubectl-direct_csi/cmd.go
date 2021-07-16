@@ -117,7 +117,7 @@ func init() {
 	pluginCmd.AddCommand(volumesCmd)
 	//pluginCmd.AddCommand(newVolumesCmd())
 
-	threadiness = make(chan struct{}, 40)
+	threadiness = make(chan struct{}, utils.MaxThreadCount)
 }
 
 func Execute(ctx context.Context) error {
