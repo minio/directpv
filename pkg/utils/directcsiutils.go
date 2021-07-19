@@ -40,6 +40,8 @@ var (
 	VersionLabel   = NewDirectCSILabel("version")
 	CreatedByLabel = NewDirectCSILabel("created-by")
 
+	ReservedDrivePathLabel = NewDirectCSILabel("drive-path")
+
 	DirectCSIGroupVersion = SanitizeLabelK(directcsi.Group + "/" + directcsi.Version)
 )
 

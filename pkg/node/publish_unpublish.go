@@ -133,7 +133,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, err
 	}
 
-	if err := n.mounter.MountVolume(ctx, stagingTargetPath, containerPath, vID, 0, readOnly); err != nil {
+	if err := n.mounter.MountVolume(ctx, stagingTargetPath, containerPath, readOnly); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed volume publish: %v", err)
 	}
 

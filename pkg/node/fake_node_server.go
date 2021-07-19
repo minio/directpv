@@ -30,8 +30,6 @@ type fakeVolumeMounter struct {
 	mountArgs struct {
 		source      string
 		destination string
-		volumeID    string
-		size        int64
 		readOnly    bool
 	}
 	unmountArgs struct {
@@ -39,11 +37,9 @@ type fakeVolumeMounter struct {
 	}
 }
 
-func (f *fakeVolumeMounter) MountVolume(_ context.Context, src, dest, vID string, size int64, readOnly bool) error {
+func (f *fakeVolumeMounter) MountVolume(_ context.Context, src, dest string, readOnly bool) error {
 	f.mountArgs.source = src
 	f.mountArgs.destination = dest
-	f.mountArgs.volumeID = vID
-	f.mountArgs.size = size
 	f.mountArgs.readOnly = readOnly
 	return nil
 }

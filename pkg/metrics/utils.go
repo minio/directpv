@@ -20,7 +20,10 @@ import (
 	"context"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/sys/fs/xfs"
+	"github.com/minio/direct-csi/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/klog"
 
@@ -38,11 +41,25 @@ func getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfs
 		Path:      vol.Status.StagingPath,
 		ProjectID: vol.Name,
 	}
-	volStats, err := xfsQuota.GetVolumeStats(ctx)
+
+	directCSIClient := utils.GetDirectCSIClient()
+	drive, err := directCSIClient.DirectCSIDrives().Get(ctx, vol.Status.Drive, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+	})
 	if err != nil {
 		return xfs.XFSVolumeStats{}, err
 	}
-	return volStats, nil
+	xfsQuota.BlockFile = sys.GetDirectCSIPath(drive.Status.FilesystemUUID)
+
+	quotaInfo, err := xfsQuota.GetQuota()
+	if err != nil {
+		return xfs.XFSVolumeStats{}, err
+	}
+	return xfs.XFSVolumeStats{
+		AvailableBytes: vol.Status.TotalCapacity - int64(quotaInfo.DqbCurSpace),
+		TotalBytes:     vol.Status.TotalCapacity,
+		UsedBytes:      int64(quotaInfo.DqbCurSpace),
+	}, nil
 }
 
 func publishVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume, ch chan<- prometheus.Metric, xfsStatsFn xfsVolumeStatsGetter) {

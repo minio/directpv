@@ -20,7 +20,23 @@ import (
 	"errors"
 )
 
-const FSTypeXFS = "xfs"
-
 var XFSMagicNum = uint32(0x58465342)
 var ErrNotXFS = errors.New("Not a xfs partition")
+
+const (
+	FSTypeXFS = "xfs"
+
+	// Project Quota
+	// -------------------------------
+	// subCmdShift = 8
+	// subCmdMask  = 0x00ff
+	//
+	// func qCmd(subCmd, qType int) int {
+	//     return subCmd<<subCmdShift | qType&subCmdMask
+	// }
+	// -------------------------------
+	// qGetQuota = 0x800007
+	// prjQuota = 2
+	//
+	getPrjQuotaSubCmd = 0x80000702 // qCmd(qGetQuota, PrjQuota)
+)

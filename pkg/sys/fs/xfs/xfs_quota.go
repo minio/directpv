@@ -19,22 +19,19 @@ package xfs
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
-	"math"
+	"os"
 	"os/exec"
 	"strconv"
-	"strings"
+	"syscall"
+	"unsafe"
 
 	simd "github.com/minio/sha256-simd"
 	"k8s.io/klog"
 )
 
-var (
-	ErrProjNotFound = errors.New("xfs project not found")
-)
-
 type XFSQuota struct {
+	BlockFile string
 	Path      string
 	ProjectID string
 }
@@ -45,27 +42,35 @@ type XFSVolumeStats struct {
 	UsedBytes      int64
 }
 
-func getProjectIDHash(id string) string {
+type Dqblk struct {
+	// Definition since Linux 2.4.22
+	DqbBHardlimit uint64 // Absolute limit on disk quota blocks alloc
+	DqbBSoftlimit uint64 // Preferred limit on disk quota blocks
+	DqbCurSpace   uint64 // Current occupied space (in bytes)
+	DqbIHardlimit uint64 // Maximum number of allocated inodes
+	DqbISoftlimit uint64 // Preferred inode limit
+	DqbCurInodes  uint64 // Current number of allocated inodes
+	DqbBTime      uint64 // Time limit for excessive disk use
+	DqbITime      uint64 // Time limit for excessive files
+	DqbValid      uint32 // Bit mask of QIF_* constantss
+}
+
+func getProjectIDHash(id string) uint32 {
 	h := simd.Sum256([]byte(id))
-	b := binary.LittleEndian.Uint32(h[:8])
-	return strconv.FormatUint(uint64(b), 10)
+	return binary.LittleEndian.Uint32(h[:8])
 }
 
 // SetQuota creates a projectID and sets the hardlimit for the path
 func (xfsq *XFSQuota) SetQuota(ctx context.Context, limit int64) error {
-
-	_, err := xfsq.GetVolumeStats(ctx)
-	// error getting quota value
-	if err != nil && err != ErrProjNotFound {
-		return err
-	}
+	_, err := xfsq.GetQuota()
 	// this means quota has already been set
 	if err == nil {
 		return nil
 	}
 
 	limitInStr := strconv.FormatInt(limit, 10)
-	pid := getProjectIDHash(xfsq.ProjectID)
+	projID := getProjectIDHash(xfsq.ProjectID)
+	pid := strconv.FormatUint(uint64(projID), 10)
 
 	klog.V(3).Infof("setting prjquota proj_id=%s path=%s", pid, xfsq.Path)
 
@@ -87,96 +92,17 @@ func (xfsq *XFSQuota) SetQuota(ctx context.Context, limit int64) error {
 	return nil
 }
 
-func dehumanize(size string) (float64, error) {
-	if size == "0" {
-		return 0.0, nil
+func (xfsq *XFSQuota) GetQuota() (result *Dqblk, err error) {
+	result = &Dqblk{}
+	var deviceNamePtr *byte
+	if deviceNamePtr, err = syscall.BytePtrFromString(xfsq.BlockFile); err != nil {
+		return
 	}
-	f, unit := size[:len(size)-1], size[len(size)-1:]
-	num, err := strconv.ParseFloat(f, 64)
-	if err != nil {
-		return 0.0, err
-	}
+	projectID := int(getProjectIDHash(xfsq.ProjectID))
 
-	suffixes := map[string]int{"": 0, "K": 1, "M": 2, "G": 3, "T": 4, "P": 5, "E": 6, "Z": 7}
-	suffix := "B"
-	var prefix string
-
-	if strings.HasSuffix(unit, suffix) {
-		prefix = unit[:len(unit)-1]
-	} else {
-		prefix = unit
-	}
-	prefix = strings.ToUpper(prefix)
-
-	if s, ok := suffixes[prefix]; ok {
-		value := num * math.Pow(1024.0, float64(s))
-		return value, nil
-	} else {
-		return 0.0, fmt.Errorf("Unknown unit: '%s'", prefix)
-	}
-}
-
-// GetVolumeStats - Reads the xfs_quota report
-func (xfsq *XFSQuota) GetVolumeStats(ctx context.Context) (XFSVolumeStats, error) {
-	cmd := exec.CommandContext(ctx, "xfs_quota", "-x", "-c", fmt.Sprint("report -h"), xfsq.Path)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return XFSVolumeStats{}, fmt.Errorf("GetVolumeStats failed with error: %v, output: %s", err, out)
-	}
-	output := string(out)
-	pid := getProjectIDHash(xfsq.ProjectID)
-	return ParseQuotaList(output, pid)
-}
-
-// ParseQuotaList - Parses the quota output and extracts the volume stats
-func ParseQuotaList(output, projectID string) (XFSVolumeStats, error) {
-	var usedInBytes, totalInBytes int64
-	var pErr error
-	var f float64
-	lines := strings.Split(output, "\n")
-	prjFound := false
-	for _, l := range lines {
-		line := strings.TrimSpace(l)
-		if len(line) == 0 {
-			continue
-		}
-		if !strings.HasPrefix(line, "#"+projectID) {
-			continue
-		}
-		prjFound = true
-
-		splits := strings.Split(line, " ")
-		var values []string
-		for _, split := range splits {
-			tSplit := strings.TrimSpace(split)
-			if tSplit == "" {
-				continue
-			}
-			values = append(values, tSplit)
-		}
-
-		if values[0] == "#"+projectID {
-			f, pErr = dehumanize(values[1])
-			if pErr != nil {
-				return XFSVolumeStats{}, fmt.Errorf("Error while reading xfs limits: %v", pErr)
-			}
-			usedInBytes = int64(f)
-			f, pErr = dehumanize(values[3])
-			if pErr != nil {
-				return XFSVolumeStats{}, fmt.Errorf("Error while reading xfs limits: %v", pErr)
-			}
-			totalInBytes = int64(f)
-			break
-		}
-		break
+	if _, _, errno := syscall.RawSyscall6(syscall.SYS_QUOTACTL, uintptr(getPrjQuotaSubCmd), uintptr(unsafe.Pointer(deviceNamePtr)), uintptr(projectID), uintptr(unsafe.Pointer(result)), 0, 0); errno != 0 {
+		err = os.NewSyscallError("quotactl", errno)
 	}
 
-	if !prjFound {
-		return XFSVolumeStats{}, ErrProjNotFound
-	}
-	return XFSVolumeStats{
-		AvailableBytes: totalInBytes - usedInBytes,
-		TotalBytes:     totalInBytes,
-		UsedBytes:      usedInBytes,
-	}, nil
+	return
 }

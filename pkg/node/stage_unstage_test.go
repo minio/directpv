@@ -154,12 +154,6 @@ func TestStageUnstageVolume(t *testing.T) {
 	if ns.mounter.(*fakeVolumeMounter).mountArgs.destination != stageVolumeRequest.GetStagingTargetPath() {
 		t.Errorf("Wrong destination argument passed for mounting. Expected: %v, Got: %v", stageVolumeRequest.GetStagingTargetPath(), ns.mounter.(*fakeVolumeMounter).mountArgs.destination)
 	}
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.volumeID != stageVolumeRequest.GetVolumeId() {
-		t.Errorf("Wrong volumeID argument passed for mounting. Expected: %v, Got: %v", stageVolumeRequest.GetVolumeId(), ns.mounter.(*fakeVolumeMounter).mountArgs.volumeID)
-	}
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.size != volObj.Status.TotalCapacity {
-		t.Errorf("Wrong size argument passed for mounting. Expected: %v, Got: %v", volObj.Status.TotalCapacity, ns.mounter.(*fakeVolumeMounter).mountArgs.size)
-	}
 	if ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly {
 		t.Errorf("Wrong readOnly argument passed for mounting. Expected: False, Got: %v", ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly)
 	}
