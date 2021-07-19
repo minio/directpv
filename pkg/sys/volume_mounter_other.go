@@ -23,13 +23,13 @@ import (
 )
 
 type VolumeMounter interface {
-	MountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error
+	MountVolume(ctx context.Context, src, dest string, readOnly bool) error
 	UnmountVolume(targetPath string) error
 }
 
 type DefaultVolumeMounter struct{}
 
-func (c *DefaultVolumeMounter) MountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error {
+func (c *DefaultVolumeMounter) MountVolume(ctx context.Context, src, dest string, readOnly bool) error {
 	return nil
 }
 

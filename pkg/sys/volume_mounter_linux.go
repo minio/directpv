@@ -19,15 +19,11 @@ package sys
 import (
 	"context"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"k8s.io/klog"
-
-	"github.com/minio/direct-csi/pkg/sys/fs/xfs"
 )
 
 // Idempotent function to bind mount a xfs filesystem with limits
-func mountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error {
+func mountVolume(ctx context.Context, src, dest string, readOnly bool) error {
 	klog.V(5).Infof("[mountVolume] source: %v destination: %v", src, dest)
 	if err := SafeMount(src, dest, string(FSTypeXFS),
 		func() []MountOption {
@@ -42,16 +38,6 @@ func mountVolume(ctx context.Context, src, dest, vID string, size int64, readOnl
 		return err
 	}
 
-	if size > 0 {
-		xfsQuota := &xfs.XFSQuota{
-			Path:      dest,
-			ProjectID: vID,
-		}
-		if err := xfsQuota.SetQuota(ctx, size); err != nil {
-			return status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
-		}
-	}
-
 	return nil
 }
 
@@ -60,14 +46,14 @@ func unmountVolume(targetPath string) error {
 }
 
 type VolumeMounter interface {
-	MountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error
+	MountVolume(ctx context.Context, src, dest string, readOnly bool) error
 	UnmountVolume(targetPath string) error
 }
 
 type DefaultVolumeMounter struct{}
 
-func (c *DefaultVolumeMounter) MountVolume(ctx context.Context, src, dest, vID string, size int64, readOnly bool) error {
-	return mountVolume(ctx, src, dest, vID, size, readOnly)
+func (c *DefaultVolumeMounter) MountVolume(ctx context.Context, src, dest string, readOnly bool) error {
+	return mountVolume(ctx, src, dest, readOnly)
 }
 
 func (c *DefaultVolumeMounter) UnmountVolume(targetPath string) error {

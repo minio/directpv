@@ -276,6 +276,13 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	size := getSize(drive)
+	labels := map[string]string{
+		utils.NodeLabel:              drive.Status.NodeName,
+		utils.ReservedDrivePathLabel: filepath.Base(drive.Status.Path),
+		utils.DriveLabel:             utils.SanitizeLabelV(drive.Name),
+		utils.VersionLabel:           directcsi.Version,
+		utils.CreatedByLabel:         "directcsi-controller",
+	}
 	vol := &directcsi.DirectCSIVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
@@ -283,13 +290,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				string(directcsi.DirectCSIVolumeFinalizerPVProtection),
 				string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
 			},
-			Labels: map[string]string{
-				directcsi.Group + "/node":       drive.Status.NodeName,
-				directcsi.Group + "/drive-path": filepath.Base(drive.Status.Path),
-				directcsi.Group + "/drive":      utils.SanitizeLabelV(drive.Name),
-				directcsi.Group + "/version":    directcsi.Version,
-				directcsi.Group + "/created-by": "directcsi-controller",
-			},
+			Labels: labels,
 		},
 		Status: directcsi.DirectCSIVolumeStatus{
 			Drive:             drive.Name,
@@ -333,6 +334,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if gErr != nil {
 			return nil, status.Error(codes.NotFound, gErr.Error())
 		}
+
+		existingVol.ObjectMeta.SetLabels(labels)
 		existingVol.ObjectMeta.Finalizers = vol.ObjectMeta.Finalizers
 		existingVol.Status = vol.Status
 		if _, cErr := vclient.Update(ctx, existingVol, metav1.UpdateOptions{

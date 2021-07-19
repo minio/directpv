@@ -137,12 +137,6 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	if ns.mounter.(*fakeVolumeMounter).mountArgs.destination != testContainerPath {
 		t.Errorf("Wrong destination argument passed for mounting. Expected: %v, Got: %v", testContainerPath, ns.mounter.(*fakeVolumeMounter).mountArgs.destination)
 	}
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.volumeID != publishVolumeRequest.GetVolumeId() {
-		t.Errorf("Wrong volumeID argument passed for mounting. Expected: %v, Got: %v", publishVolumeRequest.GetVolumeId(), ns.mounter.(*fakeVolumeMounter).mountArgs.volumeID)
-	}
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.size != int64(0) {
-		t.Errorf("Wrong size argument passed for mounting. Expected: 0, Got: %v", ns.mounter.(*fakeVolumeMounter).mountArgs.size)
-	}
 	if ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly != publishVolumeRequest.GetReadonly() {
 		t.Errorf("Wrong readOnly argument passed for mounting. Expected: %v, Got: %v", publishVolumeRequest.GetReadonly(), ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly)
 	}

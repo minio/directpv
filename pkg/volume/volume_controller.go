@@ -227,7 +227,7 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 			for _, df := range dfinalizers {
 				if df == vFinalizer {
 					reservedDrivePath = existingDrive.Status.Path
-					reservedDriveName = utils.SanitizeLabelV(existingDrive.Name)
+					reservedDriveName = existingDrive.Name
 					break
 				}
 			}
@@ -238,10 +238,10 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 			volumeLabels = make(map[string]string)
 		}
 
-		volumeLabels[directcsi.Group+"/node"] = vol.Status.NodeName
-		volumeLabels[directcsi.Group+"/drive-path"] = filepath.Base(reservedDrivePath)
-		volumeLabels[directcsi.Group+"/drive"] = reservedDriveName
-		volumeLabels[directcsi.Group+"/created-by"] = "directcsi-controller"
+		volumeLabels[utils.NodeLabel] = vol.Status.NodeName
+		volumeLabels[utils.ReservedDrivePathLabel] = filepath.Base(reservedDrivePath)
+		volumeLabels[utils.DriveLabel] = utils.SanitizeLabelV(reservedDriveName)
+		volumeLabels[utils.CreatedByLabel] = "directcsi-controller"
 
 		return volumeLabels
 	}

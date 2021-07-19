@@ -28,6 +28,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/volume"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -132,15 +133,34 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		Path:      volumePath,
 		ProjectID: vID,
 	}
-	volStats, err := xfsQuota.GetVolumeStats(ctx)
+
+	directCSIClient := ns.directcsiClient.DirectV1beta2()
+	vclient := directCSIClient.DirectCSIVolumes()
+	dclient := directCSIClient.DirectCSIDrives()
+	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+	})
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+	})
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	xfsQuota.BlockFile = sys.GetDirectCSIPath(drive.Status.FilesystemUUID)
+
+	quotaInfo, err := xfsQuota.GetQuota()
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "Error while getting xfs volume stats: %v", err)
 	}
 
 	volUsage := &csi.VolumeUsage{
-		Available: volStats.AvailableBytes,
-		Total:     volStats.TotalBytes,
-		Used:      volStats.UsedBytes,
+		Available: vol.Status.TotalCapacity - int64(quotaInfo.DqbCurSpace),
+		Total:     vol.Status.TotalCapacity,
+		Used:      int64(quotaInfo.DqbCurSpace),
 		Unit:      csi.VolumeUsage_BYTES,
 	}
 
