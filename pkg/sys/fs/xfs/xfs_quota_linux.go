@@ -100,7 +100,13 @@ func (xfsq *XFSQuota) GetQuota() (result *Dqblk, err error) {
 	}
 	projectID := int(getProjectIDHash(xfsq.ProjectID))
 
-	if _, _, errno := syscall.RawSyscall6(syscall.SYS_QUOTACTL, uintptr(getPrjQuotaSubCmd), uintptr(unsafe.Pointer(deviceNamePtr)), uintptr(projectID), uintptr(unsafe.Pointer(result)), 0, 0); errno != 0 {
+	if _, _, errno := syscall.RawSyscall6(syscall.SYS_QUOTACTL,
+		uintptr(getPrjQuotaSubCmd),
+		uintptr(unsafe.Pointer(deviceNamePtr)),
+		uintptr(projectID),
+		uintptr(unsafe.Pointer(result)),
+		0,
+		0); errno != 0 {
 		err = os.NewSyscallError("quotactl", errno)
 	}
 
