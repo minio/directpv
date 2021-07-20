@@ -58,7 +58,7 @@ func createServiceAccount(ctx context.Context, identity string, dryRun bool) err
 		return utils.LogYAML(serviceAccount)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().ServiceAccounts(sanitizeName(identity)).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().CoreV1().ServiceAccounts(utils.SanitizeKubeResourceName(identity)).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -74,14 +74,14 @@ func createClusterRoleBinding(ctx context.Context, identity string, dryRun bool)
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
-				Name:      sanitizeName(identity),
-				Namespace: sanitizeName(identity),
+				Name:      utils.SanitizeKubeResourceName(identity),
+				Namespace: utils.SanitizeKubeResourceName(identity),
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     sanitizeName(identity),
+			Name:     utils.SanitizeKubeResourceName(identity),
 		},
 	}
 
@@ -353,13 +353,13 @@ func RemoveRBACRoles(ctx context.Context, identity string) error {
 }
 
 func removeServiceAccount(ctx context.Context, identity string) error {
-	return utils.GetKubeClient().CoreV1().ServiceAccounts(sanitizeName(identity)).Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{})
+	return utils.GetKubeClient().CoreV1().ServiceAccounts(utils.SanitizeKubeResourceName(identity)).Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
 }
 
 func removeClusterRoleBinding(ctx context.Context, identity string) error {
-	return utils.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{})
+	return utils.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
 }
 
 func removeClusterRole(ctx context.Context, identity string) error {
-	return utils.GetKubeClient().RbacV1().ClusterRoles().Delete(ctx, sanitizeName(identity), metav1.DeleteOptions{})
+	return utils.GetKubeClient().RbacV1().ClusterRoles().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
 }
