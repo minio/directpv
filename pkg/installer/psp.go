@@ -72,8 +72,8 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool) 
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sanitizeName("psp-" + identity),
-			Namespace: sanitizeName(identity),
+			Name:      utils.SanitizeKubeResourceName("psp-" + identity),
+			Namespace: utils.SanitizeKubeResourceName(identity),
 			Annotations: map[string]string{
 				CreatedByLabel: DirectCSIPluginName,
 			},
@@ -86,13 +86,13 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool) 
 			{
 				Kind:     "Group",
 				APIGroup: "rbac.authorization.k8s.io",
-				Name:     "system:serviceaccounts:" + sanitizeName(identity),
+				Name:     "system:serviceaccounts:" + utils.SanitizeKubeResourceName(identity),
 			},
 		},
 		RoleRef: rbac.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     sanitizeName(identity),
+			Name:     utils.SanitizeKubeResourceName(identity),
 		},
 	}
 

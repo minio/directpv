@@ -191,7 +191,7 @@ func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResou
 		installer.WaitForConversionDeployment(ctx, identity)
 	}
 
-	name := installer.SanitizeName(identity)
+	name := utils.SanitizeKubeResourceName(identity)
 	getServiceRef := func() *apiextensions.ServiceReference {
 		path := func() string {
 			switch crdObj.Name {

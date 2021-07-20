@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -54,8 +53,8 @@ var (
 
 func objMeta(name string) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
-		Name:      sanitizeName(name),
-		Namespace: sanitizeName(name),
+		Name:      utils.SanitizeKubeResourceName(name),
+		Namespace: utils.SanitizeKubeResourceName(name),
 		Annotations: map[string]string{
 			CreatedByLabel: DirectCSIPluginName,
 		},
@@ -163,7 +162,7 @@ func getTopologySelectorTerm(identity string) corev1.TopologySelectorTerm {
 	getIdentityLabelRequirement := func() corev1.TopologySelectorLabelRequirement {
 		return corev1.TopologySelectorLabelRequirement{
 			Key:    topology.TopologyDriverIdentity,
-			Values: []string{sanitizeName(identity)},
+			Values: []string{utils.SanitizeKubeResourceName(identity)},
 		}
 	}
 
@@ -197,7 +196,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error
 				APIVersion: "storage.k8s.io/v1",
 			},
 			ObjectMeta:           objMeta(identity),
-			Provisioner:          sanitizeName(identity),
+			Provisioner:          utils.SanitizeKubeResourceName(identity),
 			AllowVolumeExpansion: &allowExpansion,
 			VolumeBindingMode:    &bindingMode,
 			AllowedTopologies:    allowedTopologies,
@@ -223,7 +222,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error
 				APIVersion: "storage.k8s.io/v1beta1",
 			},
 			ObjectMeta:           objMeta(identity),
-			Provisioner:          sanitizeName(identity),
+			Provisioner:          utils.SanitizeKubeResourceName(identity),
 			AllowVolumeExpansion: &allowExpansion,
 			VolumeBindingMode:    &bindingMode,
 			AllowedTopologies:    allowedTopologies,
@@ -270,14 +269,14 @@ func CreateService(ctx context.Context, identity string, dryRun bool) error {
 		return utils.LogYAML(svc)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().CoreV1().Services(utils.SanitizeKubeResourceName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
 func getConversionWebhookDNSName(identity string) string {
-	return strings.Join([]string{conversionWebhookName, sanitizeName(identity), "svc"}, ".") // "directcsi-conversion-webhook.direct-csi-min-io.svc"
+	return strings.Join([]string{conversionWebhookName, utils.SanitizeKubeResourceName(identity), "svc"}, ".") // "directcsi-conversion-webhook.direct-csi-min-io.svc"
 }
 
 func getConversionWebhookURL(identity string) (conversionWebhookURL string) {
@@ -296,7 +295,7 @@ func CreateDaemonSet(ctx context.Context,
 	tolerations []corev1.Toleration,
 	seccompProfileName, apparmorProfileName string) error {
 
-	name := sanitizeName(identity)
+	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookURL := getConversionWebhookURL(identity)
 
@@ -450,8 +449,8 @@ func CreateDaemonSet(ctx context.Context,
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:        sanitizeName(name),
-					Namespace:   sanitizeName(name),
+					Name:        utils.SanitizeKubeResourceName(name),
+					Namespace:   utils.SanitizeKubeResourceName(name),
 					Annotations: annotations,
 					Labels: map[string]string{
 						directCSISelector: generatedSelectorValue,
@@ -467,7 +466,7 @@ func CreateDaemonSet(ctx context.Context,
 		return utils.LogYAML(daemonset)
 	}
 
-	if _, err := utils.GetKubeClient().AppsV1().DaemonSets(sanitizeName(identity)).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().AppsV1().DaemonSets(utils.SanitizeKubeResourceName(identity)).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -488,7 +487,7 @@ func CreateControllerService(ctx context.Context, generatedSelectorValue, identi
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      validationControllerName,
-			Namespace: sanitizeName(identity),
+			Namespace: utils.SanitizeKubeResourceName(identity),
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{admissionWebhookPort},
@@ -502,7 +501,7 @@ func CreateControllerService(ctx context.Context, generatedSelectorValue, identi
 		return utils.LogYAML(svc)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().CoreV1().Services(utils.SanitizeKubeResourceName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -524,7 +523,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      AdmissionWebhookSecretName,
-			Namespace: sanitizeName(identity),
+			Namespace: utils.SanitizeKubeResourceName(identity),
 		},
 		Data: getCertsDataMap(),
 	}
@@ -533,7 +532,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 		return utils.LogYAML(secret)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -541,7 +540,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 
 func CreateOrUpdateConversionCASecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool) error {
 
-	secretsClient := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity))
+	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
@@ -556,7 +555,7 @@ func CreateOrUpdateConversionCASecret(ctx context.Context, identity string, caCe
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      conversionWebhookCertsSecret,
-			Namespace: sanitizeName(identity),
+			Namespace: utils.SanitizeKubeResourceName(identity),
 		},
 		Data: getCertsDataMap(),
 	}
@@ -585,7 +584,7 @@ func CreateOrUpdateConversionCASecret(ctx context.Context, identity string, caCe
 }
 
 func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
-	name := sanitizeName(identity)
+	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookURL := getConversionWebhookURL(identity)
 
@@ -710,8 +709,8 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      sanitizeName(name),
-					Namespace: sanitizeName(name),
+					Name:      utils.SanitizeKubeResourceName(name),
+					Namespace: utils.SanitizeKubeResourceName(name),
 					Annotations: map[string]string{
 						CreatedByLabel: DirectCSIPluginName,
 					},
@@ -725,14 +724,14 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		Status: appsv1.DeploymentStatus{},
 	}
 	deployment.ObjectMeta.Finalizers = []string{
-		sanitizeName(identity) + DirectCSIFinalizerDeleteProtection,
+		utils.SanitizeKubeResourceName(identity) + DirectCSIFinalizerDeleteProtection,
 	}
 
 	if dryRun {
 		return utils.LogYAML(deployment)
 	}
 
-	if _, err := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+	if _, err := utils.GetKubeClient().AppsV1().Deployments(utils.SanitizeKubeResourceName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 
@@ -743,22 +742,8 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 	return nil
 }
 
-func sanitizeName(s string) string {
-	re := regexp.MustCompile("[^a-zA-Z0-9-]")
-	s = re.ReplaceAllString(s, "-")
-	if s[len(s)-1] == '-' {
-		s = s + "X"
-	}
-	return s
-}
-
-// Exported
-func SanitizeName(s string) string {
-	return sanitizeName(s)
-}
-
 func generateSanitizedUniqueNameFrom(name string) string {
-	sanitizedName := sanitizeName(name)
+	sanitizedName := utils.SanitizeKubeResourceName(name)
 	// Max length of name is 255. If needed, cut out last 6 bytes
 	// to make room for randomstring
 	if len(sanitizedName) >= 255 {
@@ -801,7 +786,7 @@ func newSecretVolume(name, secretName string) corev1.Volume {
 }
 
 func newDirectCSIPluginsSocketDir(kubeletDir, name string) string {
-	return filepath.Join(kubeletDir, "plugins", sanitizeName(name))
+	return filepath.Join(kubeletDir, "plugins", utils.SanitizeKubeResourceName(name))
 }
 
 func newVolumeMount(name, path string, bidirectional bool) corev1.VolumeMount {
@@ -818,7 +803,7 @@ func newVolumeMount(name, path string, bidirectional bool) corev1.VolumeMount {
 
 func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebhookConfiguration {
 
-	name := sanitizeName(identity)
+	name := utils.SanitizeKubeResourceName(identity)
 	getServiceRef := func() *admissionv1.ServiceReference {
 		path := "/validatedrive"
 		return &admissionv1.ServiceReference{
@@ -872,7 +857,7 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 			Name:      ValidationWebhookConfigName,
 			Namespace: name,
 			Finalizers: []string{
-				sanitizeName(identity) + DirectCSIFinalizerDeleteProtection,
+				utils.SanitizeKubeResourceName(identity) + DirectCSIFinalizerDeleteProtection,
 			},
 		},
 		Webhooks: getValidatingWebhooks(),
@@ -899,7 +884,7 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 
 func CreateOrUpdateConversionSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool) error {
 
-	secretsClient := utils.GetKubeClient().CoreV1().Secrets(sanitizeName(identity))
+	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
@@ -915,7 +900,7 @@ func CreateOrUpdateConversionSecret(ctx context.Context, identity string, public
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ConversionWebhookSecretName,
-			Namespace: sanitizeName(identity),
+			Namespace: utils.SanitizeKubeResourceName(identity),
 		},
 		Data: getCertsDataMap(),
 	}
@@ -945,7 +930,7 @@ func CreateOrUpdateConversionSecret(ctx context.Context, identity string, public
 
 func CreateOrUpdateConversionService(ctx context.Context, generatedSelectorValue, identity string, dryRun bool) error {
 
-	servicesClient := utils.GetKubeClient().CoreV1().Services(sanitizeName(identity))
+	servicesClient := utils.GetKubeClient().CoreV1().Services(utils.SanitizeKubeResourceName(identity))
 	webhookPort := corev1.ServicePort{
 		Port: conversionWebhookPort,
 		TargetPort: intstr.IntOrString{
@@ -960,7 +945,7 @@ func CreateOrUpdateConversionService(ctx context.Context, generatedSelectorValue
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      conversionWebhookName,
-			Namespace: sanitizeName(identity),
+			Namespace: utils.SanitizeKubeResourceName(identity),
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{webhookPort},
@@ -994,7 +979,7 @@ func CreateOrUpdateConversionService(ctx context.Context, generatedSelectorValue
 }
 
 func CreateConversionDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
-	name := sanitizeName(identity)
+	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionWebhookDNSName := getConversionWebhookDNSName(identity)
 	var replicas int32 = 3
@@ -1060,7 +1045,7 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 	getObjMeta := func() metav1.ObjectMeta {
 		return metav1.ObjectMeta{
 			Name:      conversionWebhookName,
-			Namespace: sanitizeName(name),
+			Namespace: utils.SanitizeKubeResourceName(name),
 			Annotations: map[string]string{
 				CreatedByLabel: DirectCSIPluginName,
 			},
@@ -1082,7 +1067,7 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      conversionWebhookName,
-					Namespace: sanitizeName(name),
+					Namespace: utils.SanitizeKubeResourceName(name),
 					Annotations: map[string]string{
 						CreatedByLabel: DirectCSIPluginName,
 					},
@@ -1096,7 +1081,7 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 		Status: appsv1.DeploymentStatus{},
 	}
 	deployment.ObjectMeta.Finalizers = []string{
-		sanitizeName(identity) + DirectCSIFinalizerDeleteProtection,
+		utils.SanitizeKubeResourceName(identity) + DirectCSIFinalizerDeleteProtection,
 	}
 
 	if err := CreateOrUpdateConversionService(ctx, generatedSelectorValue, identity, dryRun); err != nil {
@@ -1108,7 +1093,7 @@ func CreateConversionDeployment(ctx context.Context, identity string, directCSIC
 	} else {
 		if _, err := utils.GetKubeClient().
 			AppsV1().
-			Deployments(sanitizeName(identity)).
+			Deployments(utils.SanitizeKubeResourceName(identity)).
 			Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 			return err
 		}
@@ -1127,7 +1112,7 @@ func GetConversionCABundle(ctx context.Context, identity string, dryRun bool) ([
 
 	secret, err := utils.GetKubeClient().
 		CoreV1().
-		Secrets(sanitizeName(identity)).
+		Secrets(utils.SanitizeKubeResourceName(identity)).
 		Get(ctx, conversionWebhookCertsSecret, metav1.GetOptions{})
 	if err != nil {
 		if kerr.IsNotFound(err) && dryRun {
@@ -1151,7 +1136,7 @@ func GetConversionServiceName() string {
 
 func CreateOrUpdateConversionDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
 	deploymentsClient := utils.GetKubeClient().
-		AppsV1().Deployments(sanitizeName(identity))
+		AppsV1().Deployments(utils.SanitizeKubeResourceName(identity))
 
 	deployment, getErr := deploymentsClient.Get(ctx, conversionWebhookName, metav1.GetOptions{})
 	if getErr != nil {
@@ -1193,7 +1178,7 @@ func WaitForConversionDeployment(ctx context.Context, identity string) {
 }
 
 func isConversionDeploymentReady(ctx context.Context, identity string) bool {
-	deploymentsClient := utils.GetKubeClient().AppsV1().Deployments(sanitizeName(identity))
+	deploymentsClient := utils.GetKubeClient().AppsV1().Deployments(utils.SanitizeKubeResourceName(identity))
 	deployment, getErr := deploymentsClient.Get(ctx, conversionWebhookName, metav1.GetOptions{})
 	if getErr != nil {
 		klog.V(5).Info(getErr)
