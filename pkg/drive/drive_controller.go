@@ -32,7 +32,7 @@ import (
 	kubeclientset "k8s.io/client-go/kubernetes"
 
 	"github.com/google/uuid"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 type DriveUpdateType int
@@ -75,7 +75,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 	if d.nodeID != new.Status.NodeName {
 		return nil
 	}
-	klog.V(3).Infof("drive update called on %s", new.Name)
+	klog.V(5).Infof("drive update called on %s", new.Name)
 
 	// Determine the type of update
 	// - Own drive & Format
@@ -198,6 +198,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 			return err
 		}
 
+		klog.V(3).InfoS("deleting drive", "name", new.Name)
 		new.Finalizers = []string{}
 		if new, err = directCSIClient.DirectCSIDrives().Update(ctx, new, metav1.UpdateOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -205,7 +206,7 @@ func (d *DirectCSIDriveListener) Update(ctx context.Context, old, new *directcsi
 			return err
 		}
 	case DriveUpdateTypeOwnAndFormat:
-		klog.V(3).Infof("owning and formatting drive %s", new.Name)
+		klog.V(3).Infof("owning and formatting drive %s", "name", new.Name)
 		force := func() bool {
 			if new.Spec.RequestedFormat != nil {
 				return new.Spec.RequestedFormat.Force

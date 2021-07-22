@@ -19,7 +19,7 @@ package sys
 import (
 	"context"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // Idempotent function to bind mount a xfs filesystem with limits

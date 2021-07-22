@@ -35,7 +35,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*NodeServer, error) {
@@ -48,6 +48,8 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 			return &NodeServer{}, err
 		}
 	}
+	config.QPS = float32(utils.MaxThreadCount / 2)
+	config.Burst = utils.MaxThreadCount
 
 	directClientset, err := clientset.NewForConfig(config)
 	if err != nil {

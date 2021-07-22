@@ -88,6 +88,8 @@ func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, regi
 			return &ControllerServer{}, err
 		}
 	}
+	config.QPS = float32(utils.MaxThreadCount / 2)
+	config.Burst = utils.MaxThreadCount
 
 	directClientset, err := clientset.NewForConfig(config)
 	if err != nil {
@@ -165,7 +167,7 @@ func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 
 // CreateVolume - Creates a DirectCSI Volume
 func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	klog.V(4).Infof("CreateVolumeRequest: %v", req)
+	klog.V(3).InfoS("CreateVolumeRequest", "name", req.GetName())
 	name := req.GetName()
 	if name == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
@@ -217,7 +219,11 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if err != nil {
 			return nil, err
 		}
-		klog.V(4).Infof("Selected DirectCSI drive: (Name: %s, NodeName: %s)", selectedDrive.Name, selectedDrive.Status.NodeName)
+
+		klog.V(4).InfoS("Selected DirectCSI drive",
+			"drive-name", selectedDrive.Name,
+			"node", selectedDrive.Status.NodeName,
+			"volume", name)
 
 		return &selectedDrive, nil
 	}
@@ -255,7 +261,11 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			finalizers = append(finalizers, finalizer)
 			drive.SetFinalizers(finalizers)
 
-			klog.V(4).Infof("Reserving DirectCSI drive: (Name: %s, NodeName: %s)", drive.Name, drive.Status.NodeName)
+			klog.V(4).InfoS("Reserving DirectCSI drive",
+				"drive-name", drive.Name,
+				"node", drive.Status.NodeName,
+				"volume", name)
+
 			if _, err := dclient.Update(ctx, drive, metav1.UpdateOptions{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			}); err != nil {
@@ -366,6 +376,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 }
 
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	klog.V(3).InfoS("DeleteVolumeRequest", "name", req.GetVolumeId())
 	vID := req.GetVolumeId()
 	if vID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")

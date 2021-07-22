@@ -28,7 +28,7 @@ import (
 	kexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // GetLatestStatus gets the latest condition by time
