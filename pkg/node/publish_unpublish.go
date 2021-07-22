@@ -31,7 +31,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -63,7 +63,11 @@ func parseVolumeContext(volumeContext map[string]string) (name, ns string, err e
 }
 
 func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.V(3).Infof("NodePublishVolumeRequest: %v", req)
+	klog.V(3).InfoS("NodePublishVolumeRequest",
+		"volumeID", req.GetVolumeId(),
+		"stagingTargetPath", req.GetStagingTargetPath(),
+		"containerPath", req.GetTargetPath())
+
 	vID := req.GetVolumeId()
 	if vID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
@@ -159,7 +163,9 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 }
 
 func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	klog.V(3).Infof("NodeUnPublishVolumeRequest: %v", req)
+	klog.V(3).InfoS("NodeUnPublishVolumeRequest",
+		"volumeID", req.GetVolumeId(),
+		"ContainerPath", req.GetTargetPath())
 	vID := req.GetVolumeId()
 	if vID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")

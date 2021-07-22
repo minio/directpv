@@ -32,11 +32,14 @@ import (
 	xfs "github.com/minio/direct-csi/pkg/sys/fs/xfs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	klog.V(3).Infof("NodeStageVolumeRequest: %v", req)
+	klog.V(3).InfoS("NodeStageVolumeRequest",
+		"volumeID", req.GetVolumeId(),
+		"StagingTargetPath", req.GetStagingTargetPath())
+
 	vID := req.GetVolumeId()
 	if vID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
@@ -108,7 +111,9 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 }
 
 func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	klog.V(3).Infof("NodeUnStageVolumeRequest: %v", req)
+	klog.V(3).InfoS("NodeUnstageVolumeRequest",
+		"volumeID", req.GetVolumeId(),
+		"StagingTargetPath", req.GetStagingTargetPath())
 	vID := req.GetVolumeId()
 	if vID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")

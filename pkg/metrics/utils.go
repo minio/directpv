@@ -25,7 +25,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/prometheus/client_golang/prometheus"
 )

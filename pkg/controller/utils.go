@@ -27,6 +27,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 // FilterDrivesByVolumeRequest - Filters the CSI drives by create volume request
@@ -155,6 +156,12 @@ func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDriv
 	if len(preferredXs) == 0 && len(requisiteXs) == 0 {
 		return selectDriveByFreeCapacity(csiDrives)
 	}
+
+	klog.V(3).InfoS("Cannot satisfy the topology constraint",
+		"volume", volReq.GetName(),
+		"preferredTopology", preferredXs,
+		"requisiteTopology", requisiteXs,
+	)
 
 	return directcsi.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
 }

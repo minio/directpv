@@ -29,7 +29,7 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/unix"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/minio/direct-csi/pkg/sys/loopback"
 	"github.com/minio/direct-csi/pkg/sys/smart"

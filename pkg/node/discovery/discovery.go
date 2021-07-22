@@ -52,6 +52,8 @@ func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region stri
 			return nil, err
 		}
 	}
+	config.QPS = float32(utils.MaxThreadCount / 2)
+	config.Burst = utils.MaxThreadCount
 
 	topologies := map[string]string{}
 	topologies[topology.TopologyDriverIdentity] = identity

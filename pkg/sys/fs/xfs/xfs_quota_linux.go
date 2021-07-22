@@ -27,7 +27,7 @@ import (
 	"unsafe"
 
 	simd "github.com/minio/sha256-simd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 type XFSQuota struct {

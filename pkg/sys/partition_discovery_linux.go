@@ -23,7 +23,7 @@ import (
 	"os"
 
 	"golang.org/x/sys/unix"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/minio/direct-csi/pkg/sys/gpt"
 	"github.com/minio/direct-csi/pkg/sys/mbr"
