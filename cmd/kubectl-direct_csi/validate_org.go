@@ -46,7 +46,23 @@ func parseOrg1(r rune) (interface{}, bool, error) {
 	if r == '_' {
 		return parseOrgUnderscore1, true, nil
 	}
+	if r == '/' {
+		return parseOrgSlash1, true, nil
+	}
 
+	return parseOrg, false, ErrInvalid("[a-zA-Z-._0-9]", r)
+}
+
+func parseOrgSlash1(r rune) (interface{}, bool, error) {
+	if r >= 'a' && r <= 'z' {
+		return parseOrg1, false, nil
+	}
+	if r >= 'A' && r <= 'Z' {
+		return parseOrg1, false, nil
+	}
+	if r >= '0' && r <= '9' {
+		return parseOrg1, false, nil
+	}
 	return parseOrg, false, ErrInvalid("[a-zA-Z-._0-9]", r)
 }
 
