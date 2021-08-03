@@ -78,7 +78,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 
 	xfsQuota := &xfs.XFSQuota{
 		Path:      stagingTargetPath,
-		ProjectID: vID,
+		VolumeID:  vID,
 		BlockFile: sys.GetDirectCSIPath(drive.Status.FilesystemUUID),
 	}
 	if err := xfsQuota.SetQuota(ctx, vol.Status.TotalCapacity); err != nil {
