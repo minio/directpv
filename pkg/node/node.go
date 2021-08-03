@@ -132,8 +132,8 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	}
 
 	xfsQuota := &xfs.XFSQuota{
-		Path:      volumePath,
-		ProjectID: vID,
+		Path:     volumePath,
+		VolumeID: vID,
 	}
 
 	directCSIClient := ns.directcsiClient.DirectV1beta2()

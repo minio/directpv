@@ -36,7 +36,17 @@ const (
 	// }
 	// -------------------------------
 	// qGetQuota = 0x800007
+	// qSetQuota = 0x800008
 	// prjQuota = 2
 	//
 	getPrjQuotaSubCmd = 0x80000702 // qCmd(qGetQuota, PrjQuota)
+	setPrjQuotaSubCmd = 0x80000802 // qCmd(qSetQuota, PrjQuota)
+
+	// Get/Set FS attributes
+	FS_IOC_FSGETXATTR = 0x801c581f
+	FS_IOC_FSSETXATTR = 0x401c5820
+
+	BlockSize          = 1024
+	FlagBLimitsValid   = 1
+	FlagProjectInherit = 0x00000200
 )

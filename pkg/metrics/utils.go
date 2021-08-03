@@ -38,8 +38,8 @@ type xfsVolumeStatsGetter func(context.Context, *directcsi.DirectCSIVolume) (xfs
 
 func getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfs.XFSVolumeStats, error) {
 	xfsQuota := &xfs.XFSQuota{
-		Path:      vol.Status.StagingPath,
-		ProjectID: vol.Name,
+		Path:     vol.Status.StagingPath,
+		VolumeID: vol.Name,
 	}
 
 	directCSIClient := utils.GetDirectCSIClient()
