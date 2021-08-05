@@ -16,27 +16,6 @@
 
 package utils
 
-import (
-	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
-	directcsifake "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2/fake"
-
-	apiextensionsv1fake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1/fake"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
-	discoveryfake "k8s.io/client-go/discovery/fake"
-	kubernetesfake "k8s.io/client-go/kubernetes/fake"
-	metadatafake "k8s.io/client-go/metadata/fake"
-)
-
 func init() {
-	kubeClient = kubernetesfake.NewSimpleClientset()
-	directCSIClient = &directcsifake.FakeDirectV1beta2{}
-	directClientset = clientsetfake.NewSimpleClientset()
-	apiextensionsClient = &apiextensionsv1fake.FakeApiextensionsV1{}
-	crdClient = apiextensionsClient.CustomResourceDefinitions()
-	discoveryClient = &discoveryfake.FakeDiscovery{}
-
-	scheme := runtime.NewScheme()
-	metav1.AddMetaToScheme(scheme)
-	metadataClient = metadatafake.NewSimpleMetadataClient(scheme)
+	FakeInit()
 }

@@ -18,6 +18,7 @@ package controller
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"sort"
 
@@ -133,7 +134,7 @@ func FilterDrivesByAccessTier(accessTier directcsi.AccessTier, csiDrives []direc
 }
 
 // FilterDrivesByTopologyRequirements - selects the CSI drive by topology in the create volume request
-func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDrives []directcsi.DirectCSIDrive) (directcsi.DirectCSIDrive, error) {
+func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDrives []directcsi.DirectCSIDrive, nodeID string) (directcsi.DirectCSIDrive, error) {
 	tReq := volReq.GetAccessibilityRequirements()
 
 	preferredXs := tReq.GetPreferred()
@@ -163,7 +164,9 @@ func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDriv
 		"requisiteTopology", requisiteXs,
 	)
 
-	return directcsi.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
+	message := fmt.Sprintf("No suitable drive found on node %v for %v. ", nodeID, volReq.GetName()) +
+		"Use nodeSelector or affinity to restrict pods to run on node with enough capacity"
+	return directcsi.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, message)
 }
 
 func selectDriveByFreeCapacity(csiDrives []directcsi.DirectCSIDrive) (directcsi.DirectCSIDrive, error) {

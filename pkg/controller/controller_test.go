@@ -31,6 +31,10 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
+func init() {
+	utils.FakeInit()
+}
+
 const (
 	KB = 1 << 10
 	MB = KB << 10
@@ -781,7 +785,6 @@ func createFakeController() *ControllerServer {
 }
 
 func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
-
 	getTopologySegmentsForNode := func(node string) map[string]string {
 		switch node {
 		case "N1":
