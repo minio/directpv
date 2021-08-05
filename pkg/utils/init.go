@@ -122,6 +122,8 @@ func Init() {
 		fmt.Printf("%s: could not initialize metadata client: err=%v\n", Bold("Error"), err)
 		os.Exit(1)
 	}
+
+	initEvent(kubeClient)
 }
 
 func SetDirectCSIClient(fakeClient *directcsifake.FakeDirectV1beta2) {

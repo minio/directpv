@@ -24,15 +24,14 @@ import (
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"k8s.io/klog/v2"
 )
 
 /*  Volume Lifecycle
@@ -207,7 +206,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, err
 		}
 
-		selectedDrive, err := FilterDrivesByTopologyRequirements(req, filteredDrives)
+		selectedDrive, err := FilterDrivesByTopologyRequirements(req, filteredDrives, c.NodeID)
 		if err != nil {
 			return nil, err
 		}
@@ -350,6 +349,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err := reserveDrive(drive, size); err != nil {
 		return nil, err
 	}
+
+	utils.Eventf(vol, corev1.EventTypeNormal, "directcsi-controller", "volume %v created", vol.Name)
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
