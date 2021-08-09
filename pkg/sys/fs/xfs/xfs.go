@@ -67,6 +67,12 @@ type XFSSuperBlock struct {
 	// Ignoring the rest
 }
 
+type XFSVolumeStats struct {
+	AvailableBytes int64
+	TotalBytes     int64
+	UsedBytes      int64
+}
+
 func (x XFSSuperBlock) Is() bool {
 	return x.MagicNumber == XFSMagicNum
 }
