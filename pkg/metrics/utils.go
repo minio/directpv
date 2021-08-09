@@ -36,12 +36,7 @@ const (
 
 type xfsVolumeStatsGetter func(context.Context, *directcsi.DirectCSIVolume) (xfs.XFSVolumeStats, error)
 
-func getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfs.XFSVolumeStats, error) {
-	xfsQuota := &xfs.XFSQuota{
-		Path:     vol.Status.StagingPath,
-		VolumeID: vol.Name,
-	}
-
+func (c *metricsCollector) getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfs.XFSVolumeStats, error) {
 	directCSIClient := utils.GetDirectCSIClient()
 	drive, err := directCSIClient.DirectCSIDrives().Get(ctx, vol.Status.Drive, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -49,9 +44,8 @@ func getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfs
 	if err != nil {
 		return xfs.XFSVolumeStats{}, err
 	}
-	xfsQuota.BlockFile = sys.GetDirectCSIPath(drive.Status.FilesystemUUID)
-
-	quotaInfo, err := xfsQuota.GetQuota()
+	quotaer := c.getQuotaer(vol.Status.StagingPath, vol.Name, sys.GetDirectCSIPath(drive.Status.FilesystemUUID))
+	quotaInfo, err := quotaer.GetQuota()
 	if err != nil {
 		return xfs.XFSVolumeStats{}, err
 	}

@@ -23,7 +23,7 @@ import (
 	"github.com/minio/direct-csi/pkg/drive"
 	"github.com/minio/direct-csi/pkg/metrics"
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/sys/fs/xfs"
+	"github.com/minio/direct-csi/pkg/sys/fs"
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/volume"
@@ -55,6 +55,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		Region:          region,
 		directcsiClient: directClientset,
 		mounter:         &sys.DefaultVolumeMounter{},
+		getQuotaer:      fs.NewQuotaer,
 	}
 
 	// Start background tasks
@@ -73,6 +74,7 @@ type NodeServer struct {
 	Region          string
 	directcsiClient clientset.Interface
 	mounter         sys.VolumeMounter
+	getQuotaer      func(targetPath, volumeID, blockFile string) fs.Quotaer
 }
 
 func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
@@ -122,11 +124,6 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		return &csi.NodeGetVolumeStatsResponse{}, nil
 	}
 
-	xfsQuota := &xfs.XFSQuota{
-		Path:     volumePath,
-		VolumeID: vID,
-	}
-
 	directCSIClient := ns.directcsiClient.DirectV1beta2()
 	vclient := directCSIClient.DirectCSIVolumes()
 	dclient := directCSIClient.DirectCSIDrives()
@@ -143,9 +140,8 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	xfsQuota.BlockFile = sys.GetDirectCSIPath(drive.Status.FilesystemUUID)
-
-	quotaInfo, err := xfsQuota.GetQuota()
+	quotaer := ns.getQuotaer(volumePath, vID, sys.GetDirectCSIPath(drive.Status.FilesystemUUID))
+	quotaInfo, err := quotaer.GetQuota()
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "Error while getting xfs volume stats: %v", err)
 	}
