@@ -28,8 +28,6 @@ import (
 	"github.com/minio/direct-csi/pkg/sys/gpt"
 	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
-	rest "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -44,16 +42,10 @@ const (
 var unknownDriveCounter int32
 
 func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region string) (*Discovery, error) {
-	kubeConfig := utils.GetKubeConfig()
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	config, err := utils.GetKubeConfig()
 	if err != nil {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
-	config.QPS = float32(utils.MaxThreadCount / 2)
-	config.Burst = utils.MaxThreadCount
 
 	topologies := map[string]string{}
 	topologies[topology.TopologyDriverIdentity] = identity
