@@ -22,13 +22,14 @@ import (
 	"reflect"
 	"testing"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 )
 
 const (
@@ -97,14 +98,9 @@ func (c *fakeDriveMounter) UnmountDrive(path string) error {
 }
 
 func createFakeDriveEventListener() *DriveEventHandler {
-	utils.SetFake()
-
-	fakeKubeClnt := utils.GetKubeClient()
-	fakeDirectCSIClnt := utils.GetDirectClientset()
-
 	return &DriveEventHandler{
-		kubeClient:      fakeKubeClnt,
-		directCSIClient: fakeDirectCSIClnt,
+		kubeClient:      kubernetesfake.NewSimpleClientset(),
+		directCSIClient: clientsetfake.NewSimpleClientset(),
 		nodeID:          testNodeID,
 		mounter:         &fakeDriveMounter{},
 		formatter:       &fakeDriveFormatter{},
@@ -232,7 +228,7 @@ func TestDriveFormat(t *testing.T) {
 
 	// Step 1: Construct fake drive listener
 	dl := createFakeDriveEventListener()
-	dl.directCSIClient = fakedirect.NewSimpleClientset(testDriveObjs...)
+	dl.directCSIClient = clientsetfake.NewSimpleClientset(testDriveObjs...)
 	directCSIClient := dl.directCSIClient.DirectV1beta2()
 
 	for i, tObj := range testDriveObjs {
@@ -405,7 +401,7 @@ func TestDriveDelete(t *testing.T) {
 	}
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	dl.directCSIClient = fakedirect.NewSimpleClientset(&testCases[0].driveObject, &testCases[1].driveObject)
+	dl.directCSIClient = clientsetfake.NewSimpleClientset(&testCases[0].driveObject, &testCases[1].driveObject)
 	directCSIClient := dl.directCSIClient.DirectV1beta2()
 
 	for _, tt := range testCases {

@@ -17,82 +17,12 @@
 package utils
 
 import (
-	direct "github.com/minio/direct-csi/pkg/clientset"
-	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
-
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 
 	"k8s.io/klog/v2"
 )
-
-var (
-	fakeMode bool
-)
-
-func SetFake() {
-	fakeMode = true
-
-	InitFake()
-}
-
-func GetFake() bool {
-	return fakeMode
-}
-
-func GetKubeClient() kubernetes.Interface {
-	if fakeMode {
-		return fakeKubeClient
-	}
-	return kubeClient
-}
-
-func GetDirectCSIClient() directcsi.DirectV1beta2Interface {
-	if fakeMode {
-		return fakeDirectCSIClient
-	}
-	return directCSIClient
-}
-
-func GetDirectClientset() direct.Interface {
-	if fakeMode {
-		return fakeDirectClientset
-	}
-	return directClientset
-}
-
-func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
-	if fakeMode {
-		return fakeCRDClient
-	}
-	return crdClient
-}
-
-func GetAPIExtensionsClient() apiextensions.ApiextensionsV1Interface {
-	if fakeMode {
-		return fakeAPIExtenstionsClient
-	}
-	return apiextensionsClient
-}
-
-func GetDiscoveryClient() discovery.DiscoveryInterface {
-	if fakeMode {
-		return fakeDiscoveryClient
-	}
-	return discoveryClient
-}
-
-func GetMetadataClient() metadata.Interface {
-	if fakeMode {
-		return fakeMetadataClient
-	}
-	return metadataClient
-}
 
 func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
 	gvk, err := GetGroupKindVersions(group, kind, versions...)
