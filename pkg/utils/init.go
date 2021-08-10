@@ -54,23 +54,43 @@ const (
 	MaxThreadCount = 40
 )
 
+func getKubeConfig() (*rest.Config, string, error) {
+	kubeConfig := viper.GetString("kubeconfig")
+	if kubeConfig == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			klog.Infof("could not find home dir: %v", err)
+		}
+		kubeConfig = filepath.Join(home, ".kube", "config")
+	}
+
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	if err != nil {
+		if config, err = rest.InClusterConfig(); err != nil {
+			return nil, "", err
+		}
+	}
+	config.QPS = float32(MaxThreadCount / 2)
+	config.Burst = MaxThreadCount
+	return config, "", nil
+}
+
+func GetKubeConfig() (*rest.Config, error) {
+	config, _, err := getKubeConfig()
+	return config, err
+}
+
 func Init() {
 	if initialized {
 		return
 	}
 
-	kubeConfig := GetKubeConfig()
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	config, kubeConfig, err := getKubeConfig()
 	if err != nil {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			fmt.Printf("%s: Could not connect to kubernetes. %s=%s\n", Bold("Error"), "KUBECONFIG", kubeConfig)
-			os.Exit(1)
-		}
-		klog.V(1).Infof("obtained client config successfully")
+		fmt.Printf("%s: Could not connect to kubernetes. %s=%s\n", Bold("Error"), "KUBECONFIG", kubeConfig)
+		os.Exit(1)
 	}
-	config.QPS = float32(MaxThreadCount / 2)
-	config.Burst = MaxThreadCount
+	klog.V(1).Infof("obtained client config successfully")
 
 	kubeClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
@@ -110,19 +130,6 @@ func Init() {
 	}
 
 	initialized = true
-}
-
-func GetKubeConfig() string {
-	kubeConfig := viper.GetString("kubeconfig")
-	if kubeConfig == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			klog.Infof("could not find home dir: %v", err)
-			return ""
-		}
-		return filepath.Join(home, ".kube", "config")
-	}
-	return kubeConfig
 }
 
 func GetGroupKindVersions(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {

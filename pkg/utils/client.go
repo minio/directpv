@@ -27,7 +27,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"k8s.io/klog/v2"
 )
@@ -105,19 +104,16 @@ func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string
 		Group:   gvk.Group,
 		Version: gvk.Version,
 	}
-	kubeConfig := GetKubeConfig()
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+
+	config, err := GetKubeConfig()
 	if err != nil {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			klog.Fatalf("could not find client configuration: %v", err)
-		}
-		klog.V(1).Infof("obtained client config successfully")
+		klog.Fatalf("could not find client configuration: %v", err)
 	}
+	klog.V(1).Infof("obtained client config successfully")
+
 	config.GroupVersion = gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 	}

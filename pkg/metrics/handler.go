@@ -28,21 +28,13 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func newMetricsCollector(nodeID string) (*metricsCollector, error) {
-	kubeConfig := utils.GetKubeConfig()
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	config, err := utils.GetKubeConfig()
 	if err != nil {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return &metricsCollector{}, err
-		}
+		return &metricsCollector{}, err
 	}
-	config.QPS = float32(utils.MaxThreadCount / 2)
-	config.Burst = utils.MaxThreadCount
 
 	directClientset, err := clientset.NewForConfig(config)
 	if err != nil {
