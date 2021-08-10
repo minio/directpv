@@ -44,15 +44,14 @@ func (c *metricsCollector) getXFSVolumeStats(ctx context.Context, vol *directcsi
 	if err != nil {
 		return xfs.XFSVolumeStats{}, err
 	}
-	quotaer := c.getQuotaer(vol.Status.StagingPath, vol.Name, sys.GetDirectCSIPath(drive.Status.FilesystemUUID))
-	quotaInfo, err := quotaer.GetQuota()
+	quotaInfo, err := c.quotaer.GetQuota(sys.GetDirectCSIPath(drive.Status.FilesystemUUID), vol.Name)
 	if err != nil {
 		return xfs.XFSVolumeStats{}, err
 	}
 	return xfs.XFSVolumeStats{
-		AvailableBytes: vol.Status.TotalCapacity - int64(quotaInfo.DqbCurSpace),
+		AvailableBytes: vol.Status.TotalCapacity - int64(quotaInfo.CurrentSpace),
 		TotalBytes:     vol.Status.TotalCapacity,
-		UsedBytes:      int64(quotaInfo.DqbCurSpace),
+		UsedBytes:      int64(quotaInfo.CurrentSpace),
 	}, nil
 }
 

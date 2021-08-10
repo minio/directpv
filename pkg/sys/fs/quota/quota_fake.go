@@ -14,30 +14,25 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package fs
+package quota
 
-const (
-	// Project Quota
-	// -------------------------------
-	// subCmdShift = 8
-	// subCmdMask  = 0x00ff
-	//
-	// func qCmd(subCmd, qType int) int {
-	//     return subCmd<<subCmdShift | qType&subCmdMask
-	// }
-	// -------------------------------
-	// qGetQuota = 0x800007
-	// qSetQuota = 0x800008
-	// prjQuota = 2
-	//
-	getPrjQuotaSubCmd = 0x80000702 // qCmd(qGetQuota, PrjQuota)
-	setPrjQuotaSubCmd = 0x80000802 // qCmd(qSetQuota, PrjQuota)
-
-	// Get/Set FS attributes
-	FS_IOC_FSGETXATTR = 0x801c581f
-	FS_IOC_FSSETXATTR = 0x401c5820
-
-	BlockSize          = 1024
-	FlagBLimitsValid   = 1
-	FlagProjectInherit = 0x00000200
+import (
+	"context"
+	"fmt"
 )
+
+type FakeDriveQuotaer struct{}
+
+func (fq *FakeDriveQuotaer) SetQuota(ctx context.Context, path, volumeID, blockFile string, quota FSQuota) error {
+	if path == "" || volumeID == "" || blockFile == "" || quota.HardLimit <= int64(0) {
+		return fmt.Errorf("Invalid arguments passed for SetQuota (%v, %v, %v, %v) ", path, volumeID, blockFile, quota)
+	}
+	return nil
+}
+
+func (fq *FakeDriveQuotaer) GetQuota(blockFile, volumeID string) (FSQuota, error) {
+	if blockFile == "" || volumeID == "" {
+		return FSQuota{}, fmt.Errorf("Invalid arguments passed for GetQuota (%v, %v) ", blockFile, volumeID)
+	}
+	return FSQuota{}, nil
+}

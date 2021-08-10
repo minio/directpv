@@ -20,7 +20,7 @@ import (
 	"context"
 
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
-	"github.com/minio/direct-csi/pkg/sys/fs"
+	"github.com/minio/direct-csi/pkg/sys/fs/quota"
 )
 
 const (
@@ -59,6 +59,6 @@ func createFakeNodeServer() *NodeServer {
 		Region:          "test-region",
 		directcsiClient: fakedirect.NewSimpleClientset(),
 		mounter:         &fakeVolumeMounter{},
-		getQuotaer:      fs.NewFakeQuotaer,
+		quotaer:         &quota.FakeDriveQuotaer{},
 	}
 }
