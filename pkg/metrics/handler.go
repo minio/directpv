@@ -21,7 +21,7 @@ import (
 	"net/http"
 
 	"github.com/minio/direct-csi/pkg/clientset"
-	"github.com/minio/direct-csi/pkg/sys/fs"
+	"github.com/minio/direct-csi/pkg/sys/fs/quota"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +54,7 @@ func newMetricsCollector(nodeID string) (*metricsCollector, error) {
 		desc:            prometheus.NewDesc("directcsi_stats", "Statistics exposed by DirectCSI", nil, nil),
 		nodeID:          nodeID,
 		directcsiClient: directClientset,
-		getQuotaer:      fs.NewQuotaer,
+		quotaer:         &quota.DefaultDriveQuotaer{},
 	}
 	prometheus.MustRegister(mc)
 	return mc, nil
@@ -64,7 +64,7 @@ type metricsCollector struct {
 	desc            *prometheus.Desc
 	nodeID          string
 	directcsiClient clientset.Interface
-	getQuotaer      func(targetPath, volumeID, blockFile string) fs.Quotaer
+	quotaer         quota.Quotaer
 }
 
 // Describe sends the super-set of all possible descriptors of metrics

@@ -14,18 +14,30 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package fs
+package quota
 
-import (
-	"encoding/binary"
+const (
+	// Project Quota
+	// -------------------------------
+	// subCmdShift = 8
+	// subCmdMask  = 0x00ff
+	//
+	// func qCmd(subCmd, qType int) int {
+	//     return subCmd<<subCmdShift | qType&subCmdMask
+	// }
+	// -------------------------------
+	// qGetQuota = 0x800007
+	// qSetQuota = 0x800008
+	// prjQuota = 2
+	//
+	getPrjQuotaSubCmd = 0x80000702 // qCmd(qGetQuota, PrjQuota)
+	setPrjQuotaSubCmd = 0x80000802 // qCmd(qSetQuota, PrjQuota)
+
+	// Get/Set FS attributes
+	fsGetAttr = 0x801c581f // FS_IOC_FSGETXATTR
+	fsSetAttr = 0x401c5820 // FS_IOC_FSSETXATTR
+
+	blockSize          = 1024
+	flagBLimitsValid   = 1
+	flagProjectInherit = 0x00000200
 )
-
-type Filesystem interface {
-	Type() string
-	ProbeFS(devicePath string, startOffset int64) (bool, error)
-	UUID() (string, error)
-	FSBlockSize() uint64
-	TotalCapacity() uint64
-	FreeCapacity() uint64
-	ByteOrder() binary.ByteOrder
-}
