@@ -62,6 +62,9 @@ $ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --sta
 # Combine multiple parameters using csv
 $ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=available
 
+# Combine multiple parameters using globs
+$ kubectl direct-csi drives format --nodes "directcsi-[3-4]*" --drives "/dev/xvd[b-f]*"
+
 # Format a drive by it's drive-id
 $ kubectl direct-csi drives format <drive_id>
 
@@ -99,7 +102,7 @@ func formatDrives(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		driveCh = getDrivesByIds(ctx, args)
 	} else {
-		driveCh = getDrives(ctx, nodes, drives, accessTiers)
+		driveCh = getDrives(ctx, nil, nil, nil)
 	}
 
 	wg := sync.WaitGroup{}
