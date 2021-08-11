@@ -75,7 +75,7 @@ func GetMetadataClient() metadata.Interface {
 }
 
 func Init() {
-	if atomic.AddInt32(&initialized, 1) != 0 {
+	if atomic.AddInt32(&initialized, 1) != 1 {
 		return
 	}
 
