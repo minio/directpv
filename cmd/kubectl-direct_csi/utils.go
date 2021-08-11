@@ -26,6 +26,7 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/sys"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/minio/direct-csi/pkg/converter"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -120,23 +121,28 @@ func syncCRDObjects(ctx context.Context) error {
 		volumeCRDName,
 	}
 	for _, crdName := range supportedCRDs {
-		crd, err := crdClient.Get(ctx, crdName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
+		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			crd, err := crdClient.Get(ctx, crdName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
 
-		v := utils.GetLabelV(crd, utils.VersionLabel)
-		if v == string(directcsi.Version) {
-			// already upgraded to latest
-			continue
-		}
+			v := utils.GetLabelV(crd, utils.VersionLabel)
+			if v == string(directcsi.Version) {
+				// already upgraded to latest
+				return nil
+			}
 
-		if err := syncObjects(ctx, crd); err != nil {
-			return err
-		}
+			if err := syncObjects(ctx, crd); err != nil {
+				return err
+			}
 
-		utils.SetLabelKV(crd, utils.VersionLabel, directcsi.Version)
-		if _, err := crdClient.Update(ctx, crd, metav1.UpdateOptions{}); err != nil {
+			utils.SetLabelKV(crd, utils.VersionLabel, directcsi.Version)
+			if _, err := crdClient.Update(ctx, crd, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
+			return nil
+		}); err != nil {
 			return err
 		}
 	}
