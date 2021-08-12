@@ -95,7 +95,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	// If not staged
 	if vol.Status.StagingPath != stagingTargetPath {
-		return nil, status.Error(codes.Internal, "cannot publish volume that hasn't been staged")
+		return nil, status.Error(codes.FailedPrecondition, "cannot publish volume that hasn't been staged")
 	}
 
 	extractPodLabels := func() map[string]string {
