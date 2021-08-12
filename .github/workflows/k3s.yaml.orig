@@ -1,0 +1,44 @@
+name: k3s
+
+on:
+  push:
+    branches: [ master ]
+
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: debianmaster/actions-k3s@master
+        id: k3s
+        with:
+          version: 'latest'
+      - run: |
+          kubectl get nodes
+          kubectl get pods -A
+          sleep 20
+          kubectl get pods -A
+
+      - name: Install krew
+        run: |
+          set -euo pipefail
+          cd "$(mktemp -d)"
+          curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew.tar.gz"
+          tar zxvf krew.tar.gz
+          ./krew-linux_amd64 install krew
+          echo "$HOME/.krew/bin" >> $GITHUB_PATH
+
+      - name: Install direct-csi
+        run: |
+          kubectl krew install direct-csi
+          kubectl direct-csi install --image "direct-csi:v0.0.0-9921434" --org directcsighwf --registry docker.io
+          sleep 1m
+          kubectl get pods --all-namespaces -o wide
+
+      - name: Check direct-csi
+        run: |
+          kubectl describe pods -n direct-csi-min-io
+          kubectl direct-csi info
+          kubectl direct-csi drives list

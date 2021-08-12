@@ -1,0 +1,59 @@
+name: Single k3d cluster on default network
+
+on:
+  push:
+    branches: [ master ]
+
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: AbsaOSS/k3d-action@v1.5.0
+        name: "Create single k3d Cluster"
+        with:
+          cluster-name: "test-cluster-1"
+          args: >-
+            -p "80:80@agent[0]"
+            -p "443:443@agent[0]"
+            -p "5053:53/udp@agent[0]"
+            --agents 3
+            --no-lb
+            --k3s-server-arg "--no-deploy=traefik,servicelb,metrics-server"
+      - name: Cluster info
+        run: |
+          echo ${{ steps.single-cluster.outputs.network }} ${{ steps.single-cluster.outputs.subnet-CIDR }}
+          echo
+          kubectl cluster-info --context k3d-test-cluster-1
+      - name: Nodes
+        run: |
+          docker ps -a
+          kubectl config use-context k3d-test-cluster-1
+          kubectl get nodes -o wide
+      - name: Network
+        run: |
+          docker network inspect k3d-action-bridge-network
+
+      - name: Install krew
+        run: |
+          set -euo pipefail
+          cd "$(mktemp -d)"
+          curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew.tar.gz"
+          tar zxvf krew.tar.gz
+          ./krew-linux_amd64 install krew
+          echo "$HOME/.krew/bin" >> $GITHUB_PATH
+
+      - name: Install direct-csi
+        run: |
+          kubectl krew install direct-csi
+          kubectl direct-csi install --image "direct-csi:v0.0.0-9921434" --org directcsighwf --registry docker.io
+          sleep 1m
+          kubectl get pods --all-namespaces -o wide
+
+      - name: Check direct-csi
+        run: |
+          kubectl describe pods -n direct-csi-min-io
+          kubectl direct-csi info
+          kubectl direct-csi drives list

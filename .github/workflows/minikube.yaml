@@ -1,0 +1,71 @@
+name: minikube
+
+on:
+  push:
+    branches: [ master ]
+
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.x
+
+      - name: Set environment
+        run: |
+          echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
+          mkdir -p "$(go env GOPATH)/src/github.com/minio/"
+          ln -s "$PWD" "$(go env GOPATH)/src/github.com/minio/direct-csi"
+          echo "VERSION=$(git describe --tags --always --dirty)" >> $GITHUB_ENV
+
+      - name: Build binaries
+        env:
+          CGO_ENABLED: 0
+          GO111MODULE: on
+        run: |
+          go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/direct-csi/cmd/direct-csi
+          go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/direct-csi/cmd/kubectl-direct_csi
+
+      - name: Set build tag
+        run: |
+          echo "BUILD_TAG=v0.0.0-$(./direct-csi --version)" >> $GITHUB_ENV
+
+      - name: Push docker image
+        run: |
+          docker build -t "directcsighwf/direct-csi:${BUILD_TAG}" .
+          docker login --username directcsighwf --password 2e33b2b5-b6b9-458e-b05d-9be5e76dcd18
+          docker push "directcsighwf/direct-csi:${BUILD_TAG}"
+
+      - name: Setup Minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: 'v1.22.0'
+          kubernetes version: 'v1.21.4'
+          github token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check Minikube cluster
+        run: |
+          kubectl get nodes
+          kubectl get pods -A
+
+      - name: Install direct-csi in Minikube cluster
+        run: |
+          ./kubectl-direct_csi install --image "direct-csi:${BUILD_TAG}" --org directcsighwf --registry docker.io
+          sleep 1m
+          kubectl describe pods -n direct-csi-min-io
+
+      - name: Check direct-csi installation
+        run: |
+          ./kubectl-direct_csi info
+          ./kubectl-direct_csi drives list
+
+      - name: Run functional tests
+        run: |
+          ./kubectl-direct_csi drives format --all
+          sleep 10
+          ./kubectl-direct_csi drives list
