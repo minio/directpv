@@ -7,16 +7,16 @@ $ docker login --username <QUAY_USERNAME> https://quay.io
 3. Create `csi-provisioner`, `livenessprobe` and `csi-node-driver-registrar` repositories by pull/tag/push respective images to your `quay.io` account.
 ```bash
 $ docker pull quay.io/minio/csi-provisioner@sha256:4ca2ce98430ca0b87d5bc1a6d116ecdf1619cfe6db693d8d5aa438f6821e0e80 && \
-docker tag e0d187f105d6 quay.io/<QUAY_USERNAME>/csi-provisioner && \
+docker tag quay.io/minio/csi-provisioner@sha256:4ca2ce98430ca0b87d5bc1a6d116ecdf1619cfe6db693d8d5aa438f6821e0e80 quay.io/<QUAY_USERNAME>/csi-provisioner && \
 docker push quay.io/<QUAY_USERNAME>/csi-provisioner
 
 $ docker pull quay.io/minio/livenessprobe@sha256:6f056a175ff4ead772edc9bf99aef74c275a83c51868dd26090dcb623425a742 && \
-docker tag ef2b13b2a066 quay.io/<QUAY_USERNAME>/csi-node-driver-registrar && \
-docker push quay.io/<QUAY_USERNAME>/csi-node-driver-registrar
-   
-$ docker pull  quay.io/minio/csi-node-driver-registrar@sha256:9f9ce5c98e44d66b8ad34351616fdf78765b9f24c3c3b496cee784dadf63f528 && \
-docker tag de977053da40 quay.io/<QUAY_USERNAME>/livenessprobe && \
+docker tag quay.io/minio/livenessprobe@sha256:6f056a175ff4ead772edc9bf99aef74c275a83c51868dd26090dcb623425a742 quay.io/<QUAY_USERNAME>/livenessprobe && \
 docker push quay.io/<QUAY_USERNAME>/livenessprobe
+
+$ docker pull quay.io/minio/csi-node-driver-registrar@sha256:9f9ce5c98e44d66b8ad34351616fdf78765b9f24c3c3b496cee784dadf63f528 && \
+docker tag quay.io/minio/csi-node-driver-registrar@sha256:9f9ce5c98e44d66b8ad34351616fdf78765b9f24c3c3b496cee784dadf63f528 quay.io/<QUAY_USERNAME>/csi-node-driver-registrar && \
+docker push quay.io/<QUAY_USERNAME>/csi-node-driver-registrar
 ```
 4. Make sure `csi-provisioner`, `livenessprobe` and `csi-node-driver-registrar` repositories are `public` in your `quay.io` account.
 5. Go to your direct-csi project root.
@@ -48,9 +48,9 @@ $ ./kubectl-direct_csi --kubeconfig <PATH-TO-KUBECONFIG-FILE> install \
 ```
 13. Check running direct-csi
 ```bash
-$ ./kubectl-direct_csi  --kubeconfig <PATH-TO-KUBECONFIG-FILE> info
+$ ./kubectl-direct_csi --kubeconfig <PATH-TO-KUBECONFIG-FILE> info
 
-$ ./kubectl-direct_csi  --kubeconfig <PATH-TO-KUBECONFIG-FILE> drives list
+$ ./kubectl-direct_csi --kubeconfig <PATH-TO-KUBECONFIG-FILE> drives list
 ```
 
 ## Loopback Devices
