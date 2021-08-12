@@ -1,0 +1,59 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ master ]
+
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.x
+
+      - name: Set environment
+        run: |
+          echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
+          mkdir -p "$(go env GOPATH)/src/github.com/minio/"
+          ln -s "$PWD" "$(go env GOPATH)/src/github.com/minio/direct-csi"
+          echo "VERSION=$(git describe --tags --always --dirty)" >> $GITHUB_ENV
+
+      - name: Build binaries
+        env:
+          CGO_ENABLED: 0
+          GO111MODULE: on
+        run: |
+          go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/direct-csi/cmd/direct-csi
+          go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/direct-csi/cmd/kubectl-direct_csi
+          echo "BUILD_TAG=v0.0.0-$(./direct-csi --version)" >> $GITHUB_ENV
+
+      - name: Build docker image
+        run: |
+          docker build -t quay.io/minio/direct-csi:${BUILD_TAG} .
+
+      - name: Setup Minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: 'v1.22.0'
+          kubernetes version: 'v1.21.4'
+          github token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check Minikube
+        run: |
+          kubectl get nodes
+          kubectl get pods -A
+
+      - name: Install direct-csi
+        run: |
+          ./kubectl-direct_csi install --image "direct-csi:${BUILD_TAG}"
+          sleep 1m
+          kubectl describe pods -n direct-csi-min-io
+
+      - name: Check direct-csi
+        run: |
+          hack/ci/check.sh
