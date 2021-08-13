@@ -105,3 +105,14 @@ func GetCondition(statusConditions []metav1.Condition, condType string) metav1.C
 	}
 	return metav1.Condition{}
 }
+
+func ExcludeFinalizer(finalizers []string, finalizer string) (result []string, found bool) {
+	for _, f := range finalizers {
+		if f != finalizer {
+			result = append(result, f)
+		} else {
+			found = true
+		}
+	}
+	return
+}

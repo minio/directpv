@@ -961,6 +961,66 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	}
 }
 
+func TestAbnormalDeleteVolume(t1 *testing.T) {
+
+	testVolumeObjects := []runtime.Object{
+		&directcsi.DirectCSIVolume{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-volume-1",
+				Finalizers: []string{
+					string(directcsi.DirectCSIVolumeFinalizerPVProtection),
+					string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
+				},
+			},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      "node-1",
+				Drive:         "test-drive",
+				TotalCapacity: int64(100),
+				ContainerPath: "",
+				StagingPath:   "/path/stagingpath",
+				UsedCapacity:  int64(50),
+			},
+		},
+		&directcsi.DirectCSIVolume{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-volume-2",
+				Finalizers: []string{
+					string(directcsi.DirectCSIVolumeFinalizerPVProtection),
+					string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
+				},
+			},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      "node-1",
+				Drive:         "test-drive",
+				TotalCapacity: int64(100),
+				StagingPath:   "/path/stagingpath",
+				ContainerPath: "/path/containerpath",
+				UsedCapacity:  int64(50),
+			},
+		},
+	}
+
+	deleteVolumeRequests := []csi.DeleteVolumeRequest{
+		csi.DeleteVolumeRequest{
+			VolumeId: "test-volume-1",
+		},
+		csi.DeleteVolumeRequest{
+			VolumeId: "test-volume-2",
+		},
+	}
+
+	ctx := context.TODO()
+	cl := createFakeController()
+	cl.directcsiClient = fakedirect.NewSimpleClientset(testVolumeObjects...)
+	for _, dvReq := range deleteVolumeRequests {
+		if _, err := cl.DeleteVolume(ctx, &dvReq); err == nil {
+			t1.Errorf("[%s] DeleteVolume expected to fail but succeeded", dvReq.VolumeId)
+		}
+	}
+}
+
 func TestSelectDriveByFreeCapacity(t1 *testing.T) {
 	testCases := []struct {
 		name               string
