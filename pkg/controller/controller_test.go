@@ -1003,10 +1003,10 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 	}
 
 	deleteVolumeRequests := []csi.DeleteVolumeRequest{
-		csi.DeleteVolumeRequest{
+		{
 			VolumeId: "test-volume-1",
 		},
-		csi.DeleteVolumeRequest{
+		{
 			VolumeId: "test-volume-2",
 		},
 	}

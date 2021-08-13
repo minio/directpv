@@ -189,9 +189,6 @@ func TestStageUnstageVolume(t *testing.T) {
 	}
 
 	// Check if status fields were set correctly
-	if volObj.Status.HostPath != "" {
-		t.Errorf("Hostpath was not set to empty. Got: %v", volObj.Status.HostPath)
-	}
 	if volObj.Status.StagingPath != "" {
 		t.Errorf("StagingPath was not set to empty. Got: %v", volObj.Status.StagingPath)
 	}
