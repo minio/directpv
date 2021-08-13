@@ -154,7 +154,6 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		}
 	}
 
-	vol.Status.HostPath = ""
 	vol.Status.StagingPath = ""
 	if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, vol, metav1.UpdateOptions{
 		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
