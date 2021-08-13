@@ -198,3 +198,71 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		t.Errorf("Unexpected allocated capacity set. Expected: 0, Got: %d", driveObj.Status.AllocatedCapacity)
 	}
 }
+
+func TestAbnormalDeleteEventHandle(t *testing.T) {
+	testObjects := []runtime.Object{
+		&directcsi.DirectCSIVolume{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-volume",
+				Finalizers: []string{
+					string(directcsi.DirectCSIVolumeFinalizerPVProtection),
+					string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
+				},
+			},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      "node-1",
+				HostPath:      "hostpath",
+				Drive:         "test-drive",
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+						Status:             metav1.ConditionFalse,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+	}
+
+	vl := createFakeVolumeEventListener(testObjects...)
+	ctx := context.TODO()
+	directCSIClient := vl.directCSIClient.DirectV1beta2()
+
+	for _, testObj := range testObjects {
+		vObj, ok := testObj.(*directcsi.DirectCSIVolume)
+		if !ok {
+			continue
+		}
+		newObj, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vObj.Name, metav1.GetOptions{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		})
+		if vErr != nil {
+			t.Fatalf("Error while getting the drive object: %+v", vErr)
+		}
+
+		now := metav1.Now()
+		newObj.DeletionTimestamp = &now
+
+		if err := vl.Handle(ctx, listener.EventArgs{Event: listener.DeleteEvent, Object: newObj}); err == nil {
+			t.Errorf("[%s] DeleteVolume expected to fail but succeeded", vObj.Name)
+		}
+	}
+}

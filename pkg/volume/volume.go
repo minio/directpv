@@ -36,17 +36,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func excludeFinalizer(finalizers []string, finalizer string) (result []string, found bool) {
-	for _, f := range finalizers {
-		if f != finalizer {
-			result = append(result, f)
-		} else {
-			found = true
-		}
-	}
-	return
-}
-
 type VolumeEventHandler struct {
 	kubeClient      kubernetes.Interface
 	directCSIClient clientset.Interface
@@ -101,7 +90,7 @@ func (handler *VolumeEventHandler) releaseVolume(ctx context.Context, driveName,
 		return err
 	}
 
-	finalizers, found := excludeFinalizer(
+	finalizers, found := utils.ExcludeFinalizer(
 		drive.GetFinalizers(), directcsi.DirectCSIDriveFinalizerPrefix+volumeName,
 	)
 
@@ -127,11 +116,11 @@ func (handler *VolumeEventHandler) releaseVolume(ctx context.Context, driveName,
 }
 
 func (handler *VolumeEventHandler) delete(ctx context.Context, volume *directcsi.DirectCSIVolume) error {
-	// Error out if volume is still in published state.
-	for _, condition := range volume.Status.Conditions {
-		if directcsi.DirectCSIVolumeCondition(condition.Type) == directcsi.DirectCSIVolumeConditionPublished && condition.Status == metav1.ConditionTrue {
-			return fmt.Errorf("waiting for volume to be released before cleaning up")
-		}
+	finalizers, _ := utils.ExcludeFinalizer(
+		volume.GetFinalizers(), string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
+	)
+	if len(finalizers) > 0 {
+		return fmt.Errorf("Waiting for the volume to be released before cleaning up")
 	}
 
 	// Remove associated directory of the volume.
@@ -144,12 +133,7 @@ func (handler *VolumeEventHandler) delete(ctx context.Context, volume *directcsi
 		return err
 	}
 
-	// Update volume finalizer.
-	finalizers, _ := excludeFinalizer(
-		volume.GetFinalizers(), string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
-	)
 	volume.SetFinalizers(finalizers)
-
 	_, err := handler.directCSIClient.DirectV1beta2().DirectCSIVolumes().Update(
 		ctx, volume, metav1.UpdateOptions{
 			TypeMeta: utils.DirectCSIVolumeTypeMeta(),

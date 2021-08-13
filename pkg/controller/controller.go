@@ -387,6 +387,11 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Errorf(codes.NotFound, "could not retreive volume [%s]: %v", vID, err)
 	}
 
+	if vol.Status.StagingPath != "" || vol.Status.ContainerPath != "" {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"waiting for volume [%s] to be unstaged before deleting", vID)
+	}
+
 	finalizers := vol.GetFinalizers()
 	updatedFinalizers := []string{}
 	for _, f := range finalizers {
