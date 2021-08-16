@@ -980,6 +980,29 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 				ContainerPath: "",
 				StagingPath:   "/path/stagingpath",
 				UsedCapacity:  int64(50),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+						Status:             metav1.ConditionFalse,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
 			},
 		},
 		&directcsi.DirectCSIVolume{
@@ -998,6 +1021,29 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 				StagingPath:   "/path/stagingpath",
 				ContainerPath: "/path/containerpath",
 				UsedCapacity:  int64(50),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
 			},
 		},
 	}
