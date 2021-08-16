@@ -387,7 +387,13 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Errorf(codes.NotFound, "could not retreive volume [%s]: %v", vID, err)
 	}
 
-	if vol.Status.StagingPath != "" || vol.Status.ContainerPath != "" {
+	// Do not proceed if the volume hasn't been unpublished or unstaged
+	if utils.IsConditionStatus(vol.Status.Conditions,
+		string(directcsi.DirectCSIVolumeConditionStaged),
+		metav1.ConditionTrue) ||
+		utils.IsConditionStatus(vol.Status.Conditions,
+			string(directcsi.DirectCSIVolumeConditionPublished),
+			metav1.ConditionTrue) {
 		return nil, status.Errorf(codes.FailedPrecondition,
 			"waiting for volume [%s] to be unstaged before deleting", vID)
 	}
