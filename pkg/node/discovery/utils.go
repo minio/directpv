@@ -82,6 +82,9 @@ func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDriv
 	existingObj.Status.MajorNumber = localDrive.Status.MajorNumber
 	existingObj.Status.MinorNumber = localDrive.Status.MinorNumber
 	existingObj.Status.TotalCapacity = localDrive.Status.TotalCapacity
+	if localDrive.Status.DriveStatus == directcsi.DriveStatusUnavailable {
+		existingObj.Status.DriveStatus = directcsi.DriveStatusUnavailable
+	}
 	// Capacity sync
 	allocatedCapacity := localDrive.Status.AllocatedCapacity
 	if existingObj.Status.DriveStatus == directcsi.DriveStatusInUse {
