@@ -256,6 +256,10 @@ func (d *Discovery) directCSIDriveStatusFromPartition(nodeID string, partition s
 	var driveStatus directcsi.DriveStatus
 
 	driveStatus = directcsi.DriveStatusAvailable
+	if partition.Master != "" {
+		// Mark a slave as unavailable
+		driveStatus = directcsi.DriveStatusUnavailable
+	}
 	if partition.FSInfo != nil {
 		mounts = partition.FSInfo.Mounts
 		for _, m := range mounts {
@@ -366,6 +370,10 @@ func (d *Discovery) directCSIDriveStatusFromRoot(nodeID string, blockDevice sys.
 	var driveStatus directcsi.DriveStatus
 
 	driveStatus = directcsi.DriveStatusAvailable
+	if blockDevice.Master != "" {
+		// Mark a slave as unavailable
+		driveStatus = directcsi.DriveStatusUnavailable
+	}
 	if blockDevice.FSInfo != nil {
 		mounts = blockDevice.FSInfo.Mounts
 		for _, m := range mounts {
