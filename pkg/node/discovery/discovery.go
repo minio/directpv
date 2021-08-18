@@ -19,6 +19,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog/v2"
 	"path/filepath"
 	"strings"
 
@@ -258,6 +259,7 @@ func (d *Discovery) directCSIDriveStatusFromPartition(nodeID string, partition s
 	driveStatus = directcsi.DriveStatusAvailable
 	if partition.Master != "" {
 		// Mark a slave as unavailable
+		klog.V(3).Infof("Tagging %s as Unavailable as it is controlled by %s", partition.Path, partition.Master)
 		driveStatus = directcsi.DriveStatusUnavailable
 	}
 	if partition.FSInfo != nil {
@@ -372,6 +374,7 @@ func (d *Discovery) directCSIDriveStatusFromRoot(nodeID string, blockDevice sys.
 	driveStatus = directcsi.DriveStatusAvailable
 	if blockDevice.Master != "" {
 		// Mark a slave as unavailable
+		klog.V(3).Infof("Tagging %s as Unavailable as it is controlled by %s", blockDevice.Path, blockDevice.Master)
 		driveStatus = directcsi.DriveStatusUnavailable
 	}
 	if blockDevice.FSInfo != nil {

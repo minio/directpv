@@ -18,8 +18,37 @@
 
 set -ex
 
-./kubectl-direct_csi info
-./kubectl-direct_csi drives list --all
-./kubectl-direct_csi drives format --all
-sleep 5
-./kubectl-direct_csi drives list --all
+declare -a loops=("loop0" "loop1" "loop2" "loop3")
+for loop in "${loops[@]}"; do
+    truncate --size=1G /tmp/${loop}.img
+    losetup -f /tmp/${loop}.img
+done
+
+sleep 2
+
+losetup -a
+
+for loop in "${loops[@]}"; do
+    lp=$(losetup -n -O NAME -j /tmp/${loop}.img)
+    pvcreate ${lp}
+done
+
+sleep 2
+
+pvdisplay
+
+vgcreate vg0 $(sudo pvs --noheadings  --rows --separator ' ' -o NAME)
+vgdisplay vg0
+
+sleep 2
+
+declare -a lvs=("lv0" "lv1" "lv2" "lv3")
+for lv in "${lvs[@]}"; do
+  lvcreate -L 512MiB -n ${lv} vg0
+done
+
+sleep 3
+
+lvdisplay
+
+lsblk -a

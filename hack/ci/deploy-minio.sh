@@ -18,8 +18,13 @@
 
 set -ex
 
-./kubectl-direct_csi info
-./kubectl-direct_csi drives list --all
-./kubectl-direct_csi drives format --all
-sleep 5
-./kubectl-direct_csi drives list --all
+kubectl apply -f hack/ci/minio.yaml
+sleep 1m
+kubectl get pods
+
+runningpods=$(kubectl get pods --field-selector=status.phase=Running --no-headers | wc -l)
+if [[ $runningpods -ne 4 ]]
+then
+  echo "MinIO deployment failed"
+  exit 1
+fi
