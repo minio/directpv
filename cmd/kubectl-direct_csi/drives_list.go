@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -182,29 +183,30 @@ func listDrives(ctx context.Context, args []string) error {
 		}
 
 		msg := ""
-		dr := func(val string) string {
-			dr := canonicalNameFromPath(val)
-			for _, c := range d.Status.Conditions {
-				if c.Type == string(directcsi.DirectCSIDriveConditionInitialized) {
-					if c.Status != metav1.ConditionTrue {
-						msg = c.Message
-						continue
-					}
-				}
-				if c.Type == string(directcsi.DirectCSIDriveConditionOwned) {
-					if c.Status != metav1.ConditionTrue {
-						msg = c.Message
-						continue
-					}
+		for _, c := range d.Status.Conditions {
+			if c.Type == string(directcsi.DirectCSIDriveConditionInitialized) {
+				if c.Status != metav1.ConditionTrue {
+					msg = c.Message
+					continue
 				}
 			}
+			if c.Type == string(directcsi.DirectCSIDriveConditionOwned) {
+				if c.Status != metav1.ConditionTrue {
+					msg = c.Message
+					continue
+				}
+			}
+		}
+
+		dr := func(val string) string {
+			dr := canonicalNameFromPath(val)
 			return strings.ReplaceAll("/dev/"+dr, directCSIPartitionInfix, "")
 		}(d.Status.Path)
 		drStatus := d.Status.DriveStatus
 		if msg != "" {
 			drStatus = drStatus + "*"
 			msg = strings.ReplaceAll(msg, d.Name, "")
-			msg = strings.ReplaceAll(msg, "/var/lib/direct-csi/devices", "/dev")
+			msg = strings.ReplaceAll(msg, sys.GetDirectCSIPath(d.Status.FilesystemUUID), dr)
 			msg = strings.ReplaceAll(msg, directCSIPartitionInfix, "")
 			msg = strings.Split(msg, "\n")[0]
 		}
