@@ -195,17 +195,12 @@ func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[strin
 func SyncVolumes(ctx context.Context, nodeID string) {
 	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
 
-	volumeList, err := volumeClient.List(
-		ctx, metav1.ListOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-		},
-	)
+	volumes, err := utils.GetVolumeList(ctx, volumeClient, nil, nil, nil, nil)
 	if err != nil {
 		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
 		return
 	}
 
-	volumes := volumeList.Items
 	for _, volume := range volumes {
 		// Skip volumes from other nodes
 		if volume.Status.NodeName != nodeID {

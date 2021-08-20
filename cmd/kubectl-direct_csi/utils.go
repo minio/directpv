@@ -200,12 +200,20 @@ func toUnstructured(obj interface{}) (unstructured.Unstructured, error) {
 
 func migrateDriveObjects(ctx context.Context, fromVersion string) error {
 	driveClient := utils.GetDirectCSIClient().DirectCSIDrives()
-	var driveCh <-chan directcsi.DirectCSIDrive
+	resultCh, err := utils.ListDrives(ctx, driveClient, nil, nil, nil, utils.MaxThreadCount)
+	if err != nil {
+		return err
+	}
 
-	driveCh = getDrives(ctx, nil, nil, nil)
 	wg := sync.WaitGroup{}
 
-	for d := range driveCh {
+	for result := range resultCh {
+		if result.Err != nil {
+			return result.Err
+		}
+
+		d := result.Drive
+
 		threadiness <- struct{}{}
 		wg.Add(1)
 		go func(d directcsi.DirectCSIDrive) {
@@ -246,12 +254,20 @@ func migrateDriveObjects(ctx context.Context, fromVersion string) error {
 
 func migrateVolumeObjects(ctx context.Context, fromVersion string) error {
 	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
-	var volumeCh <-chan directcsi.DirectCSIVolume
+	resultCh, err := utils.ListVolumes(ctx, volumeClient, nil, nil, nil, nil, utils.MaxThreadCount)
+	if err != nil {
+		return err
+	}
 
-	volumeCh = getVolumes(ctx, nil, nil, nil, nil)
 	wg := sync.WaitGroup{}
 
-	for v := range volumeCh {
+	for result := range resultCh {
+		if result.Err != nil {
+			return result.Err
+		}
+
+		v := result.Volume
+
 		threadiness <- struct{}{}
 		wg.Add(1)
 		go func(v directcsi.DirectCSIVolume) {

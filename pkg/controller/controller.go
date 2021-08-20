@@ -183,13 +183,14 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	matchDrive := func() (*directcsi.DirectCSIDrive, error) {
-		driveList, err := dclient.List(ctx, metav1.ListOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-		})
+		drives, err := utils.GetDriveList(
+			ctx,
+			c.directcsiClient.DirectV1beta2().DirectCSIDrives(),
+			nil, nil, nil,
+		)
 		if err != nil {
 			return nil, status.Errorf(codes.NotFound, "could not retreive directcsidrives: %v", err)
 		}
-		drives := driveList.Items
 
 		volFinalizer := directcsi.DirectCSIDriveFinalizerPrefix + name
 		for _, drive := range drives {

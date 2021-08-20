@@ -24,7 +24,6 @@ import (
 	"github.com/minio/direct-csi/pkg/sys/fs/quota"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -73,18 +72,11 @@ func (c *metricsCollector) volumeStatsEmitter(
 	ctx context.Context,
 	ch chan<- prometheus.Metric,
 	volumeStatsGetter xfsVolumeStatsGetter) {
-	volumeClient := c.directcsiClient.DirectV1beta2().DirectCSIVolumes()
-	volumeList, err := volumeClient.List(
-		context.Background(),
-		metav1.ListOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-		},
-	)
+	volumes, err := utils.GetVolumeList(context.Background(), c.directcsiClient.DirectV1beta2().DirectCSIVolumes(), nil, nil, nil, nil)
 	if err != nil {
 		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
 		return
 	}
-	volumes := volumeList.Items
 	for _, volume := range volumes {
 		isVolumePublished := func() bool {
 			if volume.Status.ContainerPath != "" {

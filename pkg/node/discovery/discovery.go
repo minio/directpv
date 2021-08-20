@@ -85,15 +85,13 @@ func (d *Discovery) readMounts() error {
 }
 
 func (d *Discovery) readRemoteDrives(ctx context.Context) error {
-	directCSIClient := d.directcsiClient.DirectV1beta2()
-	driveClient := directCSIClient.DirectCSIDrives()
-	driveList, err := driveClient.List(ctx, metav1.ListOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(),
-	})
+	drives, err := utils.GetDriveList(
+		ctx, d.directcsiClient.DirectV1beta2().DirectCSIDrives(),
+		nil, nil, nil,
+	)
 	if err != nil {
 		return err
 	}
-	drives := driveList.Items
 
 	var remoteDriveList []*remoteDrive
 	for _, drive := range drives {

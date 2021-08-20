@@ -108,14 +108,12 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	utils.SetDirectCSIClient(testClient.(*directcsifake.FakeDirectV1beta2))
 
 	resetDrives := func() error {
-		driveList, err := testClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-		})
+		driveList, err := utils.GetDriveList(ctx, testClient.DirectCSIDrives(), nil, nil, nil)
 		if err != nil {
 			return err
 		}
 
-		for _, drive := range driveList.Items {
+		for _, drive := range driveList {
 			drive.Spec.RequestedFormat = nil
 			if _, err := testClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -128,15 +126,13 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	}
 
 	getFormattedDrives := func() ([]string, error) {
-		driveList, err := testClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-		})
+		driveList, err := utils.GetDriveList(ctx, testClient.DirectCSIDrives(), nil, nil, nil)
 		if err != nil {
 			return []string{}, err
 		}
 
 		formattedDriveNames := []string{}
-		for _, drive := range driveList.Items {
+		for _, drive := range driveList {
 			if drive.Spec.RequestedFormat != nil {
 				formattedDriveNames = append(formattedDriveNames, drive.Name)
 			}
