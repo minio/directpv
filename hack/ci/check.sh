@@ -18,58 +18,82 @@
 
 set -ex
 
-function check_installation()
-{
-    ./kubectl-direct_csi info
-    ./kubectl-direct_csi drives list --all
-    ./kubectl-direct_csi drives format --all
-    sleep 5
-    ./kubectl-direct_csi drives list --all
+IMAGE_TAG="$1"
+
+function setup_lvm() {
+    sudo truncate --size=1G disk-{1..4}.img
+    for disk in disk-{1..4}.img; do sudo losetup --find $disk; done
+    devices=( $(for disk in disk-{1..4}.img; do sudo losetup --noheadings --output NAME --associated $disk; done) )
+    sudo pvcreate "${devices[@]}"
+    vgname="test-vg-$RANDOM"
+    sudo vgcreate "$vgname" "${devices[@]}"
+    for i in {1..4}; do sudo lvcreate --size=800MiB "$vgname"; done
 }
 
-function deploy_minio()
-{
+function install_directcsi() {
+    ./kubectl-direct_csi install --image "direct-csi:${IMAGE_TAG}"
+    sleep 1m
+    kubectl describe pods -n direct-csi-min-io
+    ./kubectl-direct_csi info
+
+    if ! ./kubectl-direct_csi drives list | grep -q Available; then
+        ./kubectl-direct_csi drives list -o wide --all
+        echo "No available disks found in the list"
+        exit 1
+    fi
+    
+    ./kubectl-direct_csi drives format --all
+    sleep 5
+    ./kubectl-direct_csi drives list -o wide --all
+}
+
+function deploy_minio() {
     kubectl apply -f hack/ci/minio.yaml
     sleep 1m
-    kubectl get pods
+    kubectl get pods -o wide
 
     runningpods=$(kubectl get pods --field-selector=status.phase=Running --no-headers | wc -l)
-    if [[ $runningpods -ne 4 ]]
-    then
+    if [[ $runningpods -ne 4 ]]; then
         echo "MinIO deployment failed"
         exit 1
     fi
 }
 
-function uninstall_minio()
-{
+function uninstall_minio() {
     kubectl delete -f hack/ci/minio.yaml
-    sleep 1m
     kubectl delete pvc --all
-    sleep 1m
+    sleep 10s
     ./kubectl-direct_csi volumes ls
     ./kubectl-direct_csi drives ls --all
 
     directcsivolumes=$(./kubectl-direct_csi volumes ls | wc -l)
-    if [[ $directcsivolumes -gt 1 ]]
-    then
+    if [[ $directcsivolumes -gt 1 ]]; then
         echo "Volumes were not cleared upon deletion"
         exit 1
     fi
 
-    inusedrives=$(./kubectl-direct_csi drives ls | grep -q InUse | wc -l)
-    if [[ $inusedrives -gt 0 ]]
-    then
-        echo "Drives were not released upon volume deletion"
+    if ./kubectl-direct_csi drives ls | grep -q InUse; then
+        echo "disks are still inuse after clearing up volumes"
         exit 1
     fi
 }
 
-function main()
-{
-    check_installation
+function uninstall_directcsi() {   
+    ./kubectl-direct_csi uninstall --crd --force
+    sleep 1m
+    kubectl get pods -n direct-csi-min-io
+    if kubectl get ns | grep -q direct-csi-min-io; then
+        echo "namespace not cleared upon uninstallation"
+        exit 1
+    fi
+}
+
+function main() {
+    setup_lvm
+    install_directcsi
     deploy_minio
     uninstall_minio
+    uninstall_directcsi
 }
 
 main
