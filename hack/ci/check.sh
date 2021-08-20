@@ -32,6 +32,10 @@ set -ex
 IMAGE_TAG="$1"
 LV_DEVICE=""
 LUKS_DEVICE=""
+DRIVES_COUNT=0
+VOLUMES_COUNT=0
+FROM_VERSION="1.3.6"
+OLD_CLIENT="kubectl-direct_csi_${FROM_VERSION}_linux_amd64"
 
 function create_loop() {
     truncate --size="$2" "$1"
@@ -57,11 +61,13 @@ function setup_luks() {
 }
 
 function install_directcsi() {
-    ./kubectl-direct_csi install --image "direct-csi:${IMAGE_TAG}"
+    cmd="$1"
+    tag="$2"
+
+    "./$cmd" install --image "direct-csi:$tag"
     sleep 1m
     kubectl describe pods -n direct-csi-min-io
-    ./kubectl-direct_csi info
-    ./kubectl-direct_csi drives list -o wide --all
+    "./$cmd" info
 }
 
 function check_drives_state() {
@@ -77,6 +83,7 @@ function check_drives_state() {
 }
 
 function check_drives() {
+    ./kubectl-direct_csi drives list --all
     check_drives_state Available
     ./kubectl-direct_csi drives format --all
     sleep 5
@@ -125,14 +132,64 @@ function uninstall_directcsi() {
     fi
 }
 
-function main() {
-    setup_lvm
-    setup_luks
-    install_directcsi
+
+function install_directcsi_older() {
+    wget https://github.com/minio/direct-csi/releases/download/v${FROM_VERSION}/${OLD_CLIENT}
+    chmod +x ${OLD_CLIENT}
+    install_directcsi ${OLD_CLIENT} v${FROM_VERSION}
+    "./$OLD_CLIENT" drives format --all --force
+    sleep 5
+    "./$OLD_CLIENT" drives list --all
+}
+
+function uninstall_directcsi_older() {
+    "./$OLD_CLIENT" drives list --all
+    DRIVES_COUNT=$("./$OLD_CLIENT" drives list --all | wc -l)
+    "./$OLD_CLIENT" volumes list
+    VOLUMES_COUNT=$("./$OLD_CLIENT" volumes list | wc -l)
+    "./$OLD_CLIENT" uninstall
+    sleep 1m 
+    kubectl get pods -n direct-csi-min-io
+}
+
+function verify_upgraded_objects() {
+    ./kubectl-direct_csi drives list --all -o wide
+    if [[ $(./kubectl-direct_csi drives list --all | wc -l) -ne ${DRIVES_COUNT} ]]; then
+        echo "Incorrect drive list after upgrade"
+        return 1
+    fi
+    ./kubectl-direct_csi volumes list -o wide
+    if [[ $(./kubectl-direct_csi volumes list | wc -l) -ne ${VOLUMES_COUNT} ]]; then
+        echo "Incorrect volume list after upgrade"
+        return 1
+    fi
+}
+
+function check_fresh_installation() {
+    install_directcsi kubectl-direct_csi "${IMAGE_TAG}"
     check_drives
     deploy_minio
     uninstall_minio
     uninstall_directcsi
+}
+
+function check_upgrades() {
+    install_directcsi_older
+    deploy_minio
+    uninstall_directcsi_older
+    install_directcsi kubectl-direct_csi "${IMAGE_TAG}"
+    verify_upgraded_objects
+    uninstall_minio
+    uninstall_directcsi
+}
+ 
+function main() {
+    setup_lvm
+    setup_luks
+    
+    check_fresh_installation
+    mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl
+    check_upgrades
 }
 
 main
