@@ -18,37 +18,44 @@
 
 set -ex
 
-declare -a loops=("loop0" "loop1" "loop2" "loop3")
-for loop in "${loops[@]}"; do
-    truncate --size=1G /tmp/${loop}.img
-    losetup -f /tmp/${loop}.img
-done
+function setup_pvs()
+{
+  declare -a loops=("loop0" "loop1" "loop2" "loop3")
+  for loop in "${loops[@]}"; do
+      truncate --size=1G /tmp/${loop}.img
+      losetup -f /tmp/${loop}.img
+  done
+  losetup -a
 
-sleep 2
-
-losetup -a
-
-for loop in "${loops[@]}"; do
+  for loop in "${loops[@]}"; do
     lp=$(losetup -n -O NAME -j /tmp/${loop}.img)
     pvcreate ${lp}
-done
+  done
 
-sleep 2
+  pvdisplay
+}
 
-pvdisplay
+function create_vg()
+{
+  vgcreate vg0 $(sudo pvs --noheadings  --rows --separator ' ' -o NAME)
+  vgdisplay vg0
+}
 
-vgcreate vg0 $(sudo pvs --noheadings  --rows --separator ' ' -o NAME)
-vgdisplay vg0
+function create_lvs()
+{
+  declare -a lvs=("lv0" "lv1" "lv2" "lv3")
+  for lv in "${lvs[@]}"; do
+    lvcreate -L 512MiB -n ${lv} vg0
+  done
 
-sleep 2
+  lvdisplay
+}
 
-declare -a lvs=("lv0" "lv1" "lv2" "lv3")
-for lv in "${lvs[@]}"; do
-  lvcreate -L 512MiB -n ${lv} vg0
-done
+function main()
+{
+    setup_pvs
+    create_vg
+    create_lvs
+}
 
-sleep 3
-
-lvdisplay
-
-lsblk -a
+main
