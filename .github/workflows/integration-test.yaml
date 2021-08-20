@@ -48,6 +48,6 @@ jobs:
           kubectl get nodes
           kubectl get pods -A
 
-      - name: Check direct-csi
+      - name: Run integration and upgrade tests
         run: |
           hack/ci/check.sh ${BUILD_TAG}
