@@ -62,14 +62,6 @@ jobs:
         run: |
           hack/ci/check.sh
 
-      - name: Deploy MinIO
-        run: |
-          hack/ci/deploy-minio.sh
-
-      - name: Uninstall MinIO
-        run: |
-          hack/ci/uninstall-minio.sh
-
       - name: Uninstall direct-csi
         run: |
           ./kubectl-direct_csi uninstall --crd --force

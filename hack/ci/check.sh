@@ -18,8 +18,58 @@
 
 set -ex
 
-./kubectl-direct_csi info
-./kubectl-direct_csi drives list --all
-./kubectl-direct_csi drives format --all
-sleep 5
-./kubectl-direct_csi drives list --all
+function check_installation()
+{
+    ./kubectl-direct_csi info
+    ./kubectl-direct_csi drives list --all
+    ./kubectl-direct_csi drives format --all
+    sleep 5
+    ./kubectl-direct_csi drives list --all
+}
+
+function deploy_minio()
+{
+    kubectl apply -f hack/ci/minio.yaml
+    sleep 1m
+    kubectl get pods
+
+    runningpods=$(kubectl get pods --field-selector=status.phase=Running --no-headers | wc -l)
+    if [[ $runningpods -ne 4 ]]
+    then
+        echo "MinIO deployment failed"
+        exit 1
+    fi
+}
+
+function uninstall_minio()
+{
+    kubectl delete -f hack/ci/minio.yaml
+    sleep 1m
+    kubectl delete pvc --all
+    sleep 1m
+    ./kubectl-direct_csi volumes ls
+    ./kubectl-direct_csi drives ls --all
+
+    directcsivolumes=$(./kubectl-direct_csi volumes ls | wc -l)
+    if [[ $directcsivolumes -gt 1 ]]
+    then
+        echo "Volumes were not cleared upon deletion"
+        exit 1
+    fi
+
+    inusedrives=$(./kubectl-direct_csi drives ls | grep -q InUse | wc -l)
+    if [[ $inusedrives -gt 0 ]]
+    then
+        echo "Drives were not released upon volume deletion"
+        exit 1
+    fi
+}
+
+function main()
+{
+    check_installation
+    deploy_minio
+    uninstall_minio
+}
+
+main
