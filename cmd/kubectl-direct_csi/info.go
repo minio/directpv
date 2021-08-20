@@ -140,8 +140,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		return fmt.Errorf("DirectCSI installation not found")
 	}
 
-	directCSIClient := utils.GetDirectCSIClient()
-	drives, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
+	drives, err := utils.GetDriveList(ctx, utils.GetDirectCSIClient().DirectCSIDrives(), nil, nil, nil)
 	if err != nil {
 		if !quiet {
 			klog.Errorf("error getting drive list: %v", err)
@@ -149,7 +148,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		return err
 	}
 
-	volumes, err := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
+	volumes, err := utils.GetVolumeList(ctx, utils.GetDirectCSIClient().DirectCSIVolumes(), nil, nil, nil, nil)
 	if err != nil {
 		if !quiet {
 			klog.Errorf("error getting volume list: %v", err)
@@ -164,8 +163,8 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	var totalSize int64
 	var allocatedSize int64
 	totalOwnedDrives := 0
-	totalVolumes := len(volumes.Items)
-	for _, d := range drives.Items {
+	totalVolumes := len(volumes)
+	for _, d := range drives {
 		if d.Spec.DirectCSIOwned {
 			totalOwnedDrives++
 			totalSize = totalSize + d.Status.TotalCapacity
@@ -177,7 +176,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		var nodeVolSize int64
 		var nodeDriveSize int64
 		status := red(dot)
-		for _, d := range drives.Items {
+		for _, d := range drives {
 			if d.Status.NodeName == n {
 				numDrives++
 				if d.Spec.DirectCSIOwned {
@@ -188,7 +187,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 			}
 		}
 		numVols := 0
-		for _, v := range volumes.Items {
+		for _, v := range volumes {
 			if v.Status.NodeName == n {
 				numVols++
 				allocatedSize = allocatedSize + v.Status.TotalCapacity

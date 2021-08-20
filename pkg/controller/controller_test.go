@@ -26,7 +26,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
+	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -780,7 +780,7 @@ func createFakeController() *ControllerServer {
 		Rack:            "test-rack-1",
 		Zone:            "test-zone-1",
 		Region:          "test-region-1",
-		directcsiClient: fakedirect.NewSimpleClientset(),
+		directcsiClient: clientsetfake.NewSimpleClientset(),
 	}
 }
 
@@ -879,7 +879,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 
 	ctx := context.TODO()
 	cl := createFakeController()
-	cl.directcsiClient = fakedirect.NewSimpleClientset(testDriveObjects...)
+	cl.directcsiClient = clientsetfake.NewSimpleClientset(testDriveObjects...)
 	directCSIClient := cl.directcsiClient.DirectV1beta2()
 
 	for _, cvReq := range createVolumeRequests {
@@ -924,16 +924,14 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	}
 
 	// Fetch the drive objects
-	driveList, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(),
-	})
+	driveList, err := utils.GetDriveList(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil)
 	if err != nil {
 		t.Errorf("Listing drives failed: %v", err)
 	}
 
 	// Checks to ensure if the volumes were equally distributed among drives
 	// And also check if the drive status were updated properly
-	for _, drive := range driveList.Items {
+	for _, drive := range driveList {
 		if len(drive.GetFinalizers()) > 2 {
 			t.Errorf("Volumes were not equally distributed among drives. Drive name: %v Finaliers: %v", drive.Name, drive.GetFinalizers())
 		}
@@ -1062,7 +1060,7 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 
 	ctx := context.TODO()
 	cl := createFakeController()
-	cl.directcsiClient = fakedirect.NewSimpleClientset(testVolumeObjects...)
+	cl.directcsiClient = clientsetfake.NewSimpleClientset(testVolumeObjects...)
 	for _, dvReq := range deleteVolumeRequests {
 		if _, err := cl.DeleteVolume(ctx, &dvReq); err == nil {
 			t1.Errorf("[%s] DeleteVolume expected to fail but succeeded", dvReq.VolumeId)

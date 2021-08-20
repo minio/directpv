@@ -82,18 +82,17 @@ func init() {
 }
 
 func listDrives(ctx context.Context, args []string) error {
-	directClient := utils.GetDirectCSIClient()
-	driveList, err := directClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
+	driveList, err := utils.GetDriveList(ctx, utils.GetDirectCSIClient().DirectCSIDrives(), nil, nil, nil)
 	if err != nil {
 		return err
 	}
 
-	if len(driveList.Items) == 0 {
+	if len(driveList) == 0 {
 		klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
 		return fmt.Errorf("No resources found")
 	}
 
-	volList, err := directClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
+	volList, err := utils.GetVolumeList(ctx, utils.GetDirectCSIClient().DirectCSIVolumes(), nil, nil, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -103,7 +102,7 @@ func listDrives(ctx context.Context, args []string) error {
 		return aErr
 	}
 	filteredDrives := []directcsi.DirectCSIDrive{}
-	for _, d := range driveList.Items {
+	for _, d := range driveList {
 		if !all {
 			if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
 				continue
@@ -176,7 +175,7 @@ func listDrives(ctx context.Context, args []string) error {
 
 	for _, d := range filteredDrives {
 		volumes := 0
-		for _, v := range volList.Items {
+		for _, v := range volList {
 			if v.Status.Drive == d.Name {
 				volumes++
 			}

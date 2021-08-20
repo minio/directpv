@@ -23,7 +23,6 @@ import (
 
 	direct "github.com/minio/direct-csi/pkg/clientset"
 	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
-	directcsifake "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2/fake"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/client-go/discovery"
@@ -124,8 +123,4 @@ func Init() {
 	}
 
 	initEvent(kubeClient)
-}
-
-func SetDirectCSIClient(fakeClient *directcsifake.FakeDirectV1beta2) {
-	directCSIClient = fakeClient
 }

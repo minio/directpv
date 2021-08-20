@@ -60,20 +60,20 @@ func uninstall(ctx context.Context, args []string) error {
 	directCSIClient := utils.GetDirectCSIClient()
 
 	if uninstallCRD {
-		volumes, err := directCSIClient.DirectCSIVolumes().List(ctx, metav1.ListOptions{})
+		volumes, err := utils.GetVolumeList(ctx, directCSIClient.DirectCSIVolumes(), nil, nil, nil, nil)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				return err
 			}
 		}
 
-		if len(volumes.Items) > 0 && !forceRemove {
+		if len(volumes) > 0 && !forceRemove {
 			klog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
 			return nil
 		}
 
-		for _, v := range volumes.Items {
-			v.ObjectMeta.SetFinalizers([]string{})
+		for _, v := range volumes {
+			v.SetFinalizers([]string{})
 			if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, &v, metav1.UpdateOptions{}); err != nil {
 				return err
 			}
@@ -83,20 +83,20 @@ func uninstall(ctx context.Context, args []string) error {
 				}
 			}
 		}
-		drives, err := directCSIClient.DirectCSIDrives().List(ctx, metav1.ListOptions{})
+		drives, err := utils.GetDriveList(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				return err
 			}
 		}
 
-		if len(drives.Items) > 0 && !forceRemove {
+		if len(drives) > 0 && !forceRemove {
 			klog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
 			return nil
 		}
 
-		for _, d := range drives.Items {
-			d.ObjectMeta.SetFinalizers([]string{})
+		for _, d := range drives {
+			d.SetFinalizers([]string{})
 			if _, err := directCSIClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
 				return err
 			}

@@ -98,11 +98,14 @@ func formatDrives(ctx context.Context, args []string) error {
 
 	directClient := utils.GetDirectCSIClient()
 
-	var driveCh <-chan directcsi.DirectCSIDrive
+	var resultCh <-chan utils.ListDriveResult
 	if len(args) > 0 {
-		driveCh = getDrivesByIds(ctx, args)
+		resultCh = getDrivesByIds(ctx, args)
 	} else {
-		driveCh = getDrives(ctx, nil, nil, nil)
+		var err error
+		if resultCh, err = utils.ListDrives(ctx, directClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount); err != nil {
+			return err
+		}
 	}
 
 	wg := sync.WaitGroup{}
@@ -110,7 +113,13 @@ func formatDrives(ctx context.Context, args []string) error {
 	if aErr != nil {
 		return aErr
 	}
-	for d := range driveCh {
+	for result := range resultCh {
+		if result.Err != nil {
+			return result.Err
+		}
+
+		d := result.Drive
+
 		if !d.MatchGlob(nodes, drives, status) {
 			continue
 		}

@@ -30,8 +30,8 @@ import (
 
 func FakeInit() {
 	kubeClient = kubernetesfake.NewSimpleClientset()
-	directCSIClient = &directcsifake.FakeDirectV1beta2{}
 	directClientset = clientsetfake.NewSimpleClientset()
+	directCSIClient = directClientset.DirectV1beta2()
 	apiextensionsClient = &apiextensionsv1fake.FakeApiextensionsV1{}
 	crdClient = apiextensionsClient.CustomResourceDefinitions()
 	discoveryClient = &discoveryfake.FakeDiscovery{}
@@ -41,4 +41,8 @@ func FakeInit() {
 	metadataClient = metadatafake.NewSimpleMetadataClient(scheme)
 
 	initEvent(kubeClient)
+}
+
+func SetDirectCSIClient(fakeClient *directcsifake.FakeDirectV1beta2) {
+	directCSIClient = fakeClient
 }
