@@ -25,6 +25,7 @@ import (
 	"github.com/fatih/color"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/sys"
 	"k8s.io/client-go/util/retry"
 
@@ -304,4 +305,27 @@ func migrateVolumeObjects(ctx context.Context, fromVersion string) error {
 	wg.Wait()
 
 	return nil
+}
+
+func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, filterFunc func(directcsi.DirectCSIDrive) bool) ([]directcsi.DirectCSIDrive, error) {
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh, err := utils.ListDrives(ctx, driveInterface, nil, nil, nil, utils.MaxThreadCount)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredDrives := []directcsi.DirectCSIDrive{}
+	for result := range resultCh {
+		if result.Err != nil {
+			return nil, err
+		}
+
+		if filterFunc(result.Drive) {
+			filteredDrives = append(filteredDrives, result.Drive)
+		}
+	}
+
+	return filteredDrives, nil
 }

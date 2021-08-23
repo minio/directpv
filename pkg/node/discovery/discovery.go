@@ -86,27 +86,21 @@ func (d *Discovery) readMounts() error {
 }
 
 func (d *Discovery) readRemoteDrives(ctx context.Context) error {
-	drives, err := utils.GetDriveList(
-		ctx, d.directcsiClient.DirectV1beta2().DirectCSIDrives(),
-		nil, nil, nil,
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+	resultCh, err := utils.ListDrives(ctx,
+		d.directcsiClient.DirectV1beta2().DirectCSIDrives(),
+		[]string{d.NodeID}, nil, nil, utils.MaxThreadCount,
 	)
-	if err != nil {
-		return err
-	}
 
 	var remoteDriveList []*remoteDrive
-	for _, drive := range drives {
-		if drive.Status.NodeName == d.NodeID {
-			remoteDrive := &remoteDrive{
-				matched:        false,
-				DirectCSIDrive: drive,
-			}
-			remoteDriveList = append(remoteDriveList, remoteDrive)
+	for result := range resultCh {
+		if result.Err != nil {
+			return err
 		}
+		remoteDriveList = append(remoteDriveList, &remoteDrive{DirectCSIDrive: result.Drive})
 	}
-
 	d.remoteDrives = remoteDriveList
-
 	return nil
 }
 

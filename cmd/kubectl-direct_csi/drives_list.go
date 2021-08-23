@@ -82,37 +82,20 @@ func init() {
 }
 
 func listDrives(ctx context.Context, args []string) error {
-	driveList, err := utils.GetDriveList(ctx, utils.GetDirectCSIClient().DirectCSIDrives(), nil, nil, nil)
+	accessTierSet, err := getAccessTierSet(accessTiers)
 	if err != nil {
 		return err
 	}
 
-	if len(driveList) == 0 {
-		klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
-		return fmt.Errorf("No resources found")
-	}
-
-	volList, err := utils.GetVolumeList(ctx, utils.GetDirectCSIClient().DirectCSIVolumes(), nil, nil, nil, nil)
+	filteredDrives, err := getFilteredDriveList(
+		ctx,
+		utils.GetDirectCSIClient().DirectCSIDrives(),
+		func(drive directcsi.DirectCSIDrive) bool {
+			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet)
+		},
+	)
 	if err != nil {
 		return err
-	}
-
-	accessTierSet, aErr := getAccessTierSet(accessTiers)
-	if aErr != nil {
-		return aErr
-	}
-	filteredDrives := []directcsi.DirectCSIDrive{}
-	for _, d := range driveList {
-		if !all {
-			if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
-				continue
-			}
-		}
-		if d.MatchGlob(nodes, drives, status) {
-			if d.MatchAccessTier(accessTierSet) {
-				filteredDrives = append(filteredDrives, d)
-			}
-		}
 	}
 
 	sort.SliceStable(filteredDrives, func(i, j int) bool {
@@ -174,11 +157,9 @@ func listDrives(ctx context.Context, args []string) error {
 	t.SetStyle(style)
 
 	for _, d := range filteredDrives {
-		volumes := 0
-		for _, v := range volList {
-			if v.Status.Drive == d.Name {
-				volumes++
-			}
+		volumes := len(d.Finalizers)
+		if volumes > 0 {
+			volumes--
 		}
 
 		msg := ""

@@ -195,41 +195,44 @@ func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[strin
 func SyncVolumes(ctx context.Context, nodeID string) {
 	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
 
-	volumes, err := utils.GetVolumeList(ctx, volumeClient, nil, nil, nil, nil)
+	updateLabels := func(volume *directcsi.DirectCSIVolume) func() error {
+		return func() error {
+			volume, err := volumeClient.Get(
+				ctx, volume.Name, metav1.GetOptions{
+					TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+				},
+			)
+			if err != nil {
+				return err
+			}
+
+			// update labels
+			volume.SetLabels(getLabels(ctx, volume))
+			_, err = volumeClient.Update(
+				ctx, volume, metav1.UpdateOptions{
+					TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+				},
+			)
+			return err
+		}
+	}
+
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh, err := utils.ListVolumes(ctx, volumeClient, []string{nodeID}, nil, nil, nil, utils.MaxThreadCount)
 	if err != nil {
 		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
 		return
 	}
 
-	for _, volume := range volumes {
-		// Skip volumes from other nodes
-		if volume.Status.NodeName != nodeID {
-			continue
+	for result := range resultCh {
+		if result.Err != nil {
+			klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
+			return
 		}
 
-		updateLabels := func(volume *directcsi.DirectCSIVolume) func() error {
-			return func() error {
-				volume, err := volumeClient.Get(
-					ctx, volume.Name, metav1.GetOptions{
-						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-					},
-				)
-				if err != nil {
-					return err
-				}
-
-				// update labels
-				volume.SetLabels(getLabels(ctx, volume))
-				_, err = volumeClient.Update(
-					ctx, volume, metav1.UpdateOptions{
-						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-					},
-				)
-				return err
-			}
-		}
-
-		if err := retry.RetryOnConflict(retry.DefaultRetry, updateLabels(&volume)); err != nil {
+		if err := retry.RetryOnConflict(retry.DefaultRetry, updateLabels(&result.Volume)); err != nil {
 			klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
 		}
 	}
