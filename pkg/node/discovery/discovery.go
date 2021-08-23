@@ -182,11 +182,11 @@ func makeDirectCSIDrive(driveStatus directcsi.DirectCSIDriveStatus, driveName st
 		ObjectMeta: metav1.ObjectMeta{
 			Name: driveName,
 			Labels: map[string]string{
-				directcsi.Group + "/node":        driveStatus.NodeName,
-				directcsi.Group + "/path":        filepath.Base(driveStatus.Path),
-				directcsi.Group + "/version":     directcsi.Version,
-				directcsi.Group + "/created-by":  "directcsi-driver",
-				directcsi.Group + "/access-tier": string(driveStatus.AccessTier),
+				utils.NodeLabel:       driveStatus.NodeName,
+				utils.DrivePathLabel:  filepath.Base(driveStatus.Path),
+				utils.VersionLabel:    directcsi.Version,
+				utils.CreatedByLabel:  "directcsi-driver",
+				utils.AccessTierLabel: string(driveStatus.AccessTier),
 			},
 		},
 		Status: driveStatus,

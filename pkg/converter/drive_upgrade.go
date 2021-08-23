@@ -18,10 +18,12 @@ package converter
 
 import (
 	"k8s.io/klog/v2"
+	"path/filepath"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -98,6 +100,12 @@ func driveUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error
 	}
 
 	v1beta2DirectCSIDrive.TypeMeta = v1beta1DirectCSIDrive.TypeMeta
+	utils.UpdateLabels(&v1beta2DirectCSIDrive,
+		utils.NodeLabel, v1beta1DirectCSIDrive.Status.NodeName,
+		utils.DrivePathLabel, filepath.Base(v1beta1DirectCSIDrive.Status.Path),
+		utils.CreatedByLabel, "directcsi-driver",
+		utils.AccessTierLabel, string(v1beta1DirectCSIDrive.Status.AccessTier),
+	)
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta2DirectCSIDrive)
 	if err != nil {

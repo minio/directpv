@@ -22,6 +22,7 @@ import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -130,6 +131,10 @@ func volumeUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) erro
 	}
 
 	v1beta2DirectCSIVolume.TypeMeta = v1beta1DirectCSIVolume.TypeMeta
+	utils.UpdateLabels(&v1beta2DirectCSIVolume,
+		utils.NodeLabel, v1beta2DirectCSIVolume.Status.NodeName,
+		utils.CreatedByLabel, "directcsi-controller",
+	)
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta2DirectCSIVolume)
 	if err != nil {
