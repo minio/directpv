@@ -72,23 +72,25 @@ func (c *metricsCollector) volumeStatsEmitter(
 	ctx context.Context,
 	ch chan<- prometheus.Metric,
 	volumeStatsGetter xfsVolumeStatsGetter) {
-	volumes, err := utils.GetVolumeList(context.Background(), c.directcsiClient.DirectV1beta2().DirectCSIVolumes(), nil, nil, nil, nil)
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh, err := utils.ListVolumes(
+		ctx, c.directcsiClient.DirectV1beta2().DirectCSIVolumes(), []string{c.nodeID}, nil, nil, nil, utils.MaxThreadCount,
+	)
 	if err != nil {
 		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
 		return
 	}
-	for _, volume := range volumes {
-		isVolumePublished := func() bool {
-			if volume.Status.ContainerPath != "" {
-				return true
-			}
-			return false
+
+	for result := range resultCh {
+		if result.Err != nil {
+			return
 		}
-		// Skip volumes from other nodes
-		if volume.Status.NodeName != c.nodeID || !isVolumePublished() {
-			continue
+
+		if result.Volume.Status.ContainerPath != "" {
+			publishVolumeStats(ctx, &result.Volume, ch, volumeStatsGetter)
 		}
-		publishVolumeStats(ctx, &volume, ch, volumeStatsGetter)
 	}
 }
 

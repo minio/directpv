@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -140,7 +141,13 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		return fmt.Errorf("DirectCSI installation not found")
 	}
 
-	drives, err := utils.GetDriveList(ctx, utils.GetDirectCSIClient().DirectCSIDrives(), nil, nil, nil)
+	drives, err := getFilteredDriveList(
+		ctx,
+		utils.GetDirectCSIClient().DirectCSIDrives(),
+		func(drive directcsi.DirectCSIDrive) bool {
+			return drive.Spec.DirectCSIOwned
+		},
+	)
 	if err != nil {
 		if !quiet {
 			klog.Errorf("error getting drive list: %v", err)
@@ -160,57 +167,46 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"NODE", "CAPACITY", "ALLOCATED", "VOLUMES", "DRIVES"})
 
-	var totalSize int64
-	var allocatedSize int64
-	totalOwnedDrives := 0
-	totalVolumes := len(volumes)
-	for _, d := range drives {
-		if d.Spec.DirectCSIOwned {
-			totalOwnedDrives++
-			totalSize = totalSize + d.Status.TotalCapacity
-		}
-	}
+	var totalDriveSize uint64
+	var totalVolumeSize uint64
 	for _, n := range nodeList {
-		driveList := []string{}
-		numDrives := 0
-		var nodeVolSize int64
-		var nodeDriveSize int64
-		status := red(dot)
+		driveCount := 0
+		driveSize := uint64(0)
 		for _, d := range drives {
 			if d.Status.NodeName == n {
-				numDrives++
-				if d.Spec.DirectCSIOwned {
-					status = green(dot)
-					driveList = append(driveList, d.Name)
-					nodeDriveSize = nodeDriveSize + d.Status.TotalCapacity
-				}
+				driveCount++
+				driveSize += uint64(d.Status.TotalCapacity)
 			}
 		}
-		numVols := 0
+		totalDriveSize += driveSize
+
+		volumeCount := 0
+		volumeSize := uint64(0)
 		for _, v := range volumes {
 			if v.Status.NodeName == n {
-				numVols++
-				allocatedSize = allocatedSize + v.Status.TotalCapacity
-				nodeVolSize = nodeVolSize + v.Status.TotalCapacity
+				volumeCount++
+				volumeSize += uint64(v.Status.TotalCapacity)
 			}
 		}
-		if len(driveList) == 0 {
+		totalVolumeSize += volumeSize
+
+		if driveCount == 0 {
 			t.AppendRow([]interface{}{
-				fmt.Sprintf("%s %s", status, n),
+				fmt.Sprintf("%s %s", red(dot), n),
 				"-",
 				"-",
 				"-",
 				"-",
 			})
-			continue
+		} else {
+			t.AppendRow([]interface{}{
+				fmt.Sprintf("%s %s", green(dot), n),
+				humanize.IBytes(driveSize),
+				humanize.IBytes(volumeSize),
+				fmt.Sprintf("%d", volumeCount),
+				fmt.Sprintf("%d", driveCount),
+			})
 		}
-		t.AppendRow([]interface{}{
-			fmt.Sprintf("%s %s", status, n),
-			fmt.Sprintf("%s", humanize.IBytes(uint64(nodeDriveSize))),
-			fmt.Sprintf("%s", humanize.IBytes(uint64(nodeVolSize))),
-			fmt.Sprintf("%d", numVols),
-			fmt.Sprintf("%d", len(driveList)),
-		})
 	}
 
 	text.DisableColors()
@@ -221,13 +217,13 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	t.SetStyle(style)
 	if !quiet {
 		t.Render()
-		if totalOwnedDrives > 0 {
+		if len(drives) > 0 {
 			fmt.Println()
 			fmt.Printf("%s/%s used, %s volumes, %s drives\n",
-				bold(fmt.Sprintf("%s", humanize.IBytes(uint64(allocatedSize)))),
-				bold(fmt.Sprintf("%s", humanize.IBytes(uint64(totalSize)))),
-				bold(fmt.Sprintf("%d", totalVolumes)),
-				bold(fmt.Sprintf("%d", totalOwnedDrives)))
+				humanize.IBytes(totalVolumeSize),
+				humanize.IBytes(totalDriveSize),
+				bold(fmt.Sprintf("%d", len(volumes))),
+				bold(fmt.Sprintf("%d", len(drives))))
 		}
 	}
 

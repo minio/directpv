@@ -100,19 +100,23 @@ func (handler *DriveEventHandler) getFSUUID(ctx context.Context, drive *directcs
 		return uuid.New().String(), nil
 	}
 
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
 	// Use new UUID if it is aleady used in another drive.
-	driveList, err := utils.GetDriveList(
-		ctx,
-		handler.directCSIClient.DirectV1beta2().DirectCSIDrives(),
-		nil, nil, nil,
+	resultCh, err := utils.ListDrives(
+		ctx, handler.directCSIClient.DirectV1beta2().DirectCSIDrives(), []string{handler.nodeID}, nil, nil, utils.MaxThreadCount,
 	)
 	if err != nil {
 		return "", err
 	}
-	for _, item := range driveList {
-		if item.Status.NodeName == handler.nodeID &&
-			item.Name != drive.Name &&
-			item.Status.FilesystemUUID == drive.Status.FilesystemUUID {
+
+	for result := range resultCh {
+		if result.Err != nil {
+			return "", err
+		}
+
+		if result.Drive.Name != drive.Name && result.Drive.Status.FilesystemUUID == drive.Status.FilesystemUUID {
 			return uuid.New().String(), nil
 		}
 	}

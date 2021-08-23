@@ -78,27 +78,20 @@ func releaseDrives(ctx context.Context, args []string) error {
 		}
 	}
 
-	driveList, err := utils.GetDriveList(ctx, utils.GetDirectCSIClient().DirectCSIDrives(), nil, nil, nil)
+	accessTierSet, err := getAccessTierSet(accessTiers)
 	if err != nil {
 		return err
 	}
 
-	if len(driveList) == 0 {
-		klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
-		return fmt.Errorf("No resources found")
-	}
-
-	accessTierSet, aErr := getAccessTierSet(accessTiers)
-	if aErr != nil {
-		return aErr
-	}
-	filterDrives := []directcsi.DirectCSIDrive{}
-	for _, d := range driveList {
-		if d.MatchGlob(nodes, drives, status) {
-			if d.MatchAccessTier(accessTierSet) {
-				filterDrives = append(filterDrives, d)
-			}
-		}
+	filteredDrives, err := getFilteredDriveList(
+		ctx,
+		utils.GetDirectCSIClient().DirectCSIDrives(),
+		func(drive directcsi.DirectCSIDrive) bool {
+			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet)
+		},
+	)
+	if err != nil {
+		return err
 	}
 
 	driveName := func(val string) string {
@@ -107,7 +100,7 @@ func releaseDrives(ctx context.Context, args []string) error {
 		return strings.ReplaceAll(dr, "-part-", "")
 	}
 
-	for _, d := range filterDrives {
+	for _, d := range filteredDrives {
 		if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
 			continue
 		}

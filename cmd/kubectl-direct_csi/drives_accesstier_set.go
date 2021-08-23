@@ -86,21 +86,15 @@ func setAccessTier(ctx context.Context, args []string) error {
 	}
 
 	directClient := utils.GetDirectCSIClient()
-	driveList, err := utils.GetDriveList(ctx, directClient.DirectCSIDrives(), nil, nil, nil)
+	filterDrives, err := getFilteredDriveList(
+		ctx,
+		directClient.DirectCSIDrives(),
+		func(drive directcsi.DirectCSIDrive) bool {
+			return drive.MatchGlob(nodes, drives, status)
+		},
+	)
 	if err != nil {
 		return err
-	}
-
-	if len(driveList) == 0 {
-		klog.Errorf("No resource of %s found\n", bold("DirectCSIDrive"))
-		return fmt.Errorf("No resources found")
-	}
-
-	filterDrives := []directcsi.DirectCSIDrive{}
-	for _, d := range driveList {
-		if d.MatchGlob(nodes, drives, status) {
-			filterDrives = append(filterDrives, d)
-		}
 	}
 
 	for _, d := range filterDrives {
