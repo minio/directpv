@@ -241,6 +241,14 @@ request:
 		t.Errorf("Error while converting %v", err)
 	}
 
+	if nodeLabelV := utils.GetLabelV(&directCSIVolume, utils.NodeLabel); nodeLabelV != directCSIVolume.Status.NodeName {
+		t.Errorf("expected node label value = %s, got = %s", directCSIVolume.Status.NodeName, nodeLabelV)
+	}
+
+	if createdByLabelV := utils.GetLabelV(&directCSIVolume, utils.CreatedByLabel); createdByLabelV != "directcsi-controller" {
+		t.Errorf("expected created-by label value = directcsi-controller, got = %s", createdByLabelV)
+	}
+
 	if !utils.IsCondition(directCSIVolume.Status.Conditions, string(directv1beta2.DirectCSIVolumeConditionReady), metav1.ConditionTrue, string(directv1beta2.DirectCSIVolumeReasonReady), "") {
 		t.Errorf("unexpected status.conditions = %v", directCSIVolume.Status.Conditions)
 	}
@@ -350,5 +358,21 @@ request:
 
 	if directCSIDrive.Status.PartitionUUID != "" {
 		t.Errorf("expected status.partitionUUID = \"\", actual status.partitionUUID = %v", directCSIDrive.Status.PartitionUUID)
+	}
+
+	if versionLabelV := utils.GetLabelV(&directCSIDrive, utils.VersionLabel); versionLabelV != "v1beta1" {
+		t.Errorf("expected version label value = v1beta1, got = %s", versionLabelV)
+	}
+
+	if nodeLabelV := utils.GetLabelV(&directCSIDrive, utils.NodeLabel); nodeLabelV != directCSIDrive.Status.NodeName {
+		t.Errorf("expected node label value = %s, got = %s", directCSIDrive.Status.NodeName, nodeLabelV)
+	}
+
+	if createdByLabelV := utils.GetLabelV(&directCSIDrive, utils.CreatedByLabel); createdByLabelV != "directcsi-driver" {
+		t.Errorf("expected created-by label value = directcsi-driver, got = %s", createdByLabelV)
+	}
+
+	if accessTierLabelV := utils.GetLabelV(&directCSIDrive, utils.AccessTierLabel); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
+		t.Errorf("expected access-tier label value = %s, got = %s", string(directCSIDrive.Status.AccessTier), accessTierLabelV)
 	}
 }
