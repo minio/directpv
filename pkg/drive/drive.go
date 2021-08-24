@@ -222,11 +222,15 @@ func (handler *DriveEventHandler) format(ctx context.Context, drive *directcsi.D
 		drive.Spec.RequestedFormat = nil
 	}
 
-	_, err = handler.directCSIClient.DirectV1beta2().DirectCSIDrives().Update(
+	if _, uErr := handler.directCSIClient.DirectV1beta2().DirectCSIDrives().Update(
 		ctx, drive, metav1.UpdateOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		},
-	)
+	); uErr != nil {
+		if err == nil {
+			err = uErr
+		}
+	}
 
 	return err
 }
