@@ -45,7 +45,7 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 80Mi    
+          storage: 80Mi
       storageClassName: direct-csi-min-io # This field references the existing StorageClass
   - metadata:
       name: minio-data-2
@@ -53,7 +53,7 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 80Mi  
+          storage: 80Mi
       storageClassName: direct-csi-min-io # This field references the existing StorageClass
   - metadata:
       name: minio-data-3
@@ -69,5 +69,5 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 80Mi 
+          storage: 80Mi
       storageClassName: direct-csi-min-io # This field references the existing StorageClass
