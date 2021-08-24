@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -165,7 +166,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	totalOwnedDrives := 0
 	totalVolumes := len(volumes)
 	for _, d := range drives {
-		if d.Spec.DirectCSIOwned {
+		if d.Status.DriveStatus == directcsi.DriveStatusInUse || d.Status.DriveStatus == directcsi.DriveStatusReady {
 			totalOwnedDrives++
 			totalSize = totalSize + d.Status.TotalCapacity
 		}
