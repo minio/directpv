@@ -64,20 +64,24 @@ function install_directcsi() {
     ./kubectl-direct_csi drives list -o wide --all
 }
 
+function check_drives_state() {
+    if ! ./kubectl-direct_csi drives list --drives="$LV_DEVICE" | grep -q -e "$LV_DEVICE.*$1"; then
+        echo "LVM device $LV_DEVICE not found in $1 state"
+        return 1
+    fi
+
+    if ! ./kubectl-direct_csi drives list --drives="$LUKS_DEVICE" | grep -q -e "$LUKS_DEVICE.*$1"; then
+        echo "LUKS device $LUKS_DEVICE not found in $1 state"
+        return 1
+    fi
+}
+
 function check_drives() {
-    if ! ./kubectl-direct_csi drives list --drives="$LV_DEVICE" | grep -q -e "$LV_DEVICE.*Available"; then
-        echo "LVM device $LV_DEVICE not found in Available state"
-        return 1
-    fi
-
-    if ! ./kubectl-direct_csi drives list --drives="$LUKS_DEVICE" | grep -q -e "$LUKS_DEVICE.*Available"; then
-        echo "LUKS device $LUKS_DEVICE not found in Available state"
-        return 1
-    fi
-
+    check_drives_state Available
     ./kubectl-direct_csi drives format --all
     sleep 5
     ./kubectl-direct_csi drives list --all -o wide
+    check_drives_state Ready
 }
 
 function deploy_minio() {

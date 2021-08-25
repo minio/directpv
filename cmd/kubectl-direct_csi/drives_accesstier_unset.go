@@ -25,10 +25,7 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 )
 
 var accessTierUnset = &cobra.Command{
@@ -82,33 +79,26 @@ func unsetAccessTier(ctx context.Context, args []string) error {
 		return err
 	}
 
-	directClient := utils.GetDirectCSIClient()
-	filterDrives, err := getFilteredDriveList(
-		ctx,
-		directClient.DirectCSIDrives(),
-		func(drive directcsi.DirectCSIDrive) bool {
-			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet)
-		},
-	)
+	directCSIClient := utils.GetDirectCSIClient()
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh, err := utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount)
 	if err != nil {
 		return err
 	}
 
-	for _, d := range filterDrives {
-		d.Status.AccessTier = directcsi.AccessTierUnknown
-		utils.SetAccessTierLabel(&d, directcsi.AccessTierUnknown)
-
-		if dryRun {
-			if err := printer(d); err != nil {
-				klog.ErrorS(err, "error marshaling drives", "format", outputMode)
-			}
-			continue
-		}
-
-		if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return processDrives(
+		ctx,
+		resultCh,
+		func(drive *directcsi.DirectCSIDrive) bool {
+			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet)
+		},
+		func(drive *directcsi.DirectCSIDrive) error {
+			drive.Status.AccessTier = directcsi.AccessTierUnknown
+			utils.SetAccessTierLabel(drive, directcsi.AccessTierUnknown)
+			return nil
+		},
+		defaultDriveUpdateFunc(directCSIClient),
+	)
 }

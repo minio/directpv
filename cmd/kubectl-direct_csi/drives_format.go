@@ -21,12 +21,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/spf13/cobra"
 
@@ -96,93 +93,74 @@ func formatDrives(ctx context.Context, args []string) error {
 		}
 	}
 
-	directClient := utils.GetDirectCSIClient()
+	accessTierSet, err := getAccessTierSet(accessTiers)
+	if err != nil {
+		return err
+	}
 
+	directCSIClient := utils.GetDirectCSIClient()
 	var resultCh <-chan utils.ListDriveResult
 	if len(args) > 0 {
 		resultCh = getDrivesByIds(ctx, args)
 	} else {
+		ctx, cancelFunc := context.WithCancel(ctx)
+		defer cancelFunc()
 		var err error
-		if resultCh, err = utils.ListDrives(ctx, directClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount); err != nil {
+		if resultCh, err = utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount); err != nil {
 			return err
 		}
 	}
 
-	wg := sync.WaitGroup{}
-	accessTierSet, aErr := getAccessTierSet(accessTiers)
-	if aErr != nil {
-		return aErr
-	}
-	for result := range resultCh {
-		if result.Err != nil {
-			return result.Err
-		}
-
-		d := result.Drive
-
-		if !d.MatchGlob(nodes, drives, status) {
-			continue
-		}
-
-		if !d.MatchAccessTier(accessTierSet) {
-			continue
-		}
-
-		if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
-			continue
-		}
-
-		path := canonicalNameFromPath(d.Status.Path)
-		nodeName := d.Status.NodeName
-		driveAddr := fmt.Sprintf("%s:/dev/%s", nodeName, path)
-
-		if d.Status.DriveStatus == directcsi.DriveStatusInUse {
-			klog.Errorf("%s is in use. Cannot be formatted",
-				utils.Bold(driveAddr))
-			continue
-		}
-
-		if d.Status.DriveStatus == directcsi.DriveStatusReady {
-			klog.Errorf("%s is already owned and managed",
-				utils.Bold(driveAddr))
-			continue
-		}
-		if d.Status.Filesystem != "" && !force {
-			klog.Errorf("%s already has a fs. Use %s to overwrite",
-				utils.Bold(driveAddr), utils.Bold("--force"))
-			continue
-		}
-		if d.Status.DriveStatus == directcsi.DriveStatusReleased {
-			klog.Errorf("%s is in 'released' state. Use 'kubectl direct-csi drives unrelease --drive %s --nodes %s' before formatting",
-				utils.Bold(driveAddr), path, nodeName)
-			continue
-		}
-
-		d.Spec.DirectCSIOwned = true
-		d.Spec.RequestedFormat = &directcsi.RequestedFormat{
-			Filesystem: XFS,
-			Force:      force,
-		}
-		if dryRun {
-			if err := printer(d); err != nil {
-				klog.ErrorS(err, "error marshaling drives", "format", outputMode)
+	return processDrives(
+		ctx,
+		resultCh,
+		func(drive *directcsi.DirectCSIDrive) bool {
+			if !drive.MatchGlob(nodes, drives, status) {
+				return false
 			}
-		} else {
-			threadiness <- struct{}{}
-			wg.Add(1)
-			go func(d directcsi.DirectCSIDrive) {
-				defer func() {
-					wg.Done()
-					<-threadiness
-				}()
 
-				if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
-					klog.ErrorS(err, "failed to format drive", "drive", driveAddr)
-				}
-			}(d)
-		}
-	}
-	wg.Wait()
+			if !drive.MatchAccessTier(accessTierSet) {
+				return false
+			}
 
-	return nil
+			if drive.Status.DriveStatus == directcsi.DriveStatusUnavailable {
+				return false
+			}
+
+			path := canonicalNameFromPath(drive.Status.Path)
+			driveAddr := fmt.Sprintf("%s:/dev/%s", drive.Status.NodeName, path)
+
+			if drive.Status.DriveStatus == directcsi.DriveStatusInUse {
+				klog.Errorf("%s is in use. Cannot be formatted", utils.Bold(driveAddr))
+				return false
+			}
+
+			if drive.Status.DriveStatus == directcsi.DriveStatusReady {
+				klog.Errorf("%s is already owned and managed", utils.Bold(driveAddr))
+				return false
+			}
+
+			if drive.Status.Filesystem != "" && !force {
+				klog.Errorf("%s already has a fs. Use %s to overwrite", utils.Bold(driveAddr), utils.Bold("--force"))
+				return false
+			}
+
+			if drive.Status.DriveStatus == directcsi.DriveStatusReleased {
+				klog.Errorf("%s is in 'released' state. Use 'kubectl direct-csi drives unrelease --drive %s --nodes %s' before formatting",
+					utils.Bold(driveAddr), path, drive.Status.NodeName)
+				return false
+			}
+
+			return true
+		},
+		func(drive *directcsi.DirectCSIDrive) error {
+			drive.Spec.DirectCSIOwned = true
+			drive.Spec.RequestedFormat = &directcsi.RequestedFormat{
+				Filesystem: XFS,
+				Force:      force,
+			}
+			return nil
+		},
+		defaultDriveUpdateFunc(directCSIClient),
+	)
 }

@@ -21,12 +21,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/spf13/cobra"
 
@@ -86,71 +83,46 @@ func unreleaseDrives(ctx context.Context, args []string) error {
 		}
 	}
 
-	directClient := utils.GetDirectCSIClient()
+	accessTierSet, err := getAccessTierSet(accessTiers)
+	if err != nil {
+		return err
+	}
 
+	directCSIClient := utils.GetDirectCSIClient()
 	var resultCh <-chan utils.ListDriveResult
 	if len(args) > 0 {
 		resultCh = getDrivesByIds(ctx, args)
 	} else {
 		var err error
-		if resultCh, err = utils.ListDrives(ctx, directClient.DirectCSIDrives(), nodes, drives, accessTiers, utils.MaxThreadCount); err != nil {
+		if resultCh, err = utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nodes, drives, accessTiers, utils.MaxThreadCount); err != nil {
 			return err
 		}
 	}
 
-	wg := sync.WaitGroup{}
-	accessTierSet, aErr := getAccessTierSet(accessTiers)
-	if aErr != nil {
-		return aErr
-	}
-	for result := range resultCh {
-		if result.Err != nil {
-			return result.Err
-		}
-
-		d := result.Drive
-
-		if !d.MatchGlob(nodes, drives, status) {
-			continue
-		}
-
-		if !d.MatchAccessTier(accessTierSet) {
-			continue
-		}
-
-		path := canonicalNameFromPath(d.Status.Path)
-		nodeName := d.Status.NodeName
-		driveAddr := fmt.Sprintf("%s:/dev/%s", nodeName, path)
-
-		if d.Status.DriveStatus != directcsi.DriveStatusReleased {
-			klog.Errorf("%s is not in 'released' state",
-				utils.Bold(driveAddr))
-			continue
-		}
-
-		// Making the drive available
-		d.Status.DriveStatus = directcsi.DriveStatusAvailable
-
-		if dryRun {
-			if err := printer(d); err != nil {
-				klog.ErrorS(err, "error marshaling drives", "format", outputMode)
+	return processDrives(
+		ctx,
+		resultCh,
+		func(drive *directcsi.DirectCSIDrive) bool {
+			if !drive.MatchGlob(nodes, drives, status) {
+				return false
 			}
-		} else {
-			threadiness <- struct{}{}
-			wg.Add(1)
-			go func(d directcsi.DirectCSIDrive) {
-				defer func() {
-					wg.Done()
-					<-threadiness
-				}()
 
-				if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
-					klog.ErrorS(err, "failed to format drive", "drive", driveAddr)
-				}
-			}(d)
-		}
-	}
-	wg.Wait()
+			if !drive.MatchAccessTier(accessTierSet) {
+				return false
+			}
 
-	return nil
+			if drive.Status.DriveStatus != directcsi.DriveStatusReleased {
+				driveAddr := fmt.Sprintf("%s:/dev/%s", drive.Status.NodeName, canonicalNameFromPath(drive.Status.Path))
+				klog.Errorf("%s is not in 'released' state", utils.Bold(driveAddr))
+				return false
+			}
+
+			return true
+		},
+		func(drive *directcsi.DirectCSIDrive) error {
+			drive.Status.DriveStatus = directcsi.DriveStatusAvailable
+			return nil
+		},
+		defaultDriveUpdateFunc(directCSIClient),
+	)
 }

@@ -18,14 +18,20 @@ package main
 
 import (
 	"context"
+	"errors"
+	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/klog/v2"
@@ -45,9 +51,163 @@ var (
 	forceRemove  = false
 )
 
+var errForceRequired = errors.New("force option required")
+
 func init() {
 	uninstallCmd.PersistentFlags().BoolVarP(&uninstallCRD, "crd", "c", uninstallCRD, "unregister direct.csi.min.io group crds")
 	uninstallCmd.PersistentFlags().BoolVarP(&forceRemove, "force", "", forceRemove, "Removes the direct.csi.min.io resources [May cause data loss]")
+}
+
+func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta2Interface) error {
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh, err := utils.ListVolumes(ctx, directCSIClient.DirectCSIVolumes(), nil, nil, nil, nil, utils.MaxThreadCount)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	stopCh := make(chan struct{})
+	var stopChMu int32
+	closeStopCh := func() {
+		if atomic.AddInt32(&stopChMu, 1) == 1 {
+			close(stopCh)
+		}
+	}
+	defer closeStopCh()
+
+	volumeCh := make(chan *directcsi.DirectCSIVolume)
+	var wg sync.WaitGroup
+
+	// Start utils.MaxThreadCount workers.
+	var errs []error
+	for i := 0; i < utils.MaxThreadCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-stopCh:
+					return
+				case volume, ok := <-volumeCh:
+					if !ok {
+						return
+					}
+
+					var err error
+					if _, err = directCSIClient.DirectCSIVolumes().Update(ctx, volume, metav1.UpdateOptions{}); err == nil {
+						err = directCSIClient.DirectCSIVolumes().Delete(ctx, volume.Name, metav1.DeleteOptions{})
+					}
+					if err != nil && !apierrors.IsNotFound(err) {
+						errs = append(errs, err)
+						defer closeStopCh()
+						return
+					}
+				}
+			}
+		}()
+	}
+
+	for result := range resultCh {
+		if result.Err != nil {
+			err = result.Err
+			break
+		}
+
+		if !forceRemove {
+			klog.Errorf("Cannot unregister DirectCSIVolume CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
+			break
+		}
+
+		volume := result.Volume
+		volume.SetFinalizers([]string{})
+
+		if dryRun {
+			if err := utils.LogYAML(volume); err != nil {
+				klog.Errorf("Unable to convert DirectCSIVolume to YAML. %v", err)
+			}
+			continue
+		}
+
+		breakLoop := false
+		select {
+		case <-ctx.Done():
+			breakLoop = true
+		case <-stopCh:
+			breakLoop = true
+		case volumeCh <- &volume:
+		}
+
+		if breakLoop {
+			break
+		}
+	}
+
+	close(volumeCh)
+	wg.Wait()
+
+	if err != nil {
+		return err
+	}
+
+	msgs := []string{}
+	for _, err := range errs {
+		msgs = append(msgs, err.Error())
+	}
+	if msg := strings.Join(msgs, "; "); msg != "" {
+		return errors.New(msg)
+	}
+
+	return nil
+}
+
+func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta2Interface) error {
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh, err := utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	err = processDrives(
+		ctx,
+		resultCh,
+		func(drive *directcsi.DirectCSIDrive) bool {
+			return true
+		},
+		func(drive *directcsi.DirectCSIDrive) error {
+			if !forceRemove {
+				return errForceRequired
+			}
+			drive.SetFinalizers([]string{})
+			return nil
+		},
+		func(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+			if _, err := directCSIClient.DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
+			if err := directCSIClient.DirectCSIDrives().Delete(ctx, drive.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+				return err
+			}
+			return nil
+		},
+	)
+
+	if errors.Is(err, errForceRequired) {
+		klog.Errorf("Cannot unregister DirectCSIDrive CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
+		return nil
+	}
+
+	return err
 }
 
 func uninstall(ctx context.Context, args []string) error {
@@ -60,143 +220,79 @@ func uninstall(ctx context.Context, args []string) error {
 	directCSIClient := utils.GetDirectCSIClient()
 
 	if uninstallCRD {
-		volumes, err := utils.GetVolumeList(ctx, directCSIClient.DirectCSIVolumes(), nil, nil, nil, nil)
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				return err
-			}
+		if err := removeVolumes(ctx, directCSIClient); err != nil {
+			return err
 		}
 
-		if len(volumes) > 0 && !forceRemove {
-			klog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
-			return nil
+		if err := removeDrives(ctx, directCSIClient); err != nil {
+			return err
 		}
 
-		for _, v := range volumes {
-			v.SetFinalizers([]string{})
-			if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, &v, metav1.UpdateOptions{}); err != nil {
-				return err
-			}
-			if err := directCSIClient.DirectCSIVolumes().Delete(ctx, v.Name, metav1.DeleteOptions{}); err != nil {
-				if !errors.IsNotFound(err) {
-					return err
-				}
-			}
-		}
-		drives, err := utils.GetDriveList(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil)
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				return err
-			}
-		}
-
-		if len(drives) > 0 && !forceRemove {
-			klog.Errorf("Cannot unregister CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
-			return nil
-		}
-
-		for _, d := range drives {
-			d.SetFinalizers([]string{})
-			if _, err := directCSIClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
-				return err
-			}
-			if err := directCSIClient.DirectCSIDrives().Delete(ctx, d.Name, metav1.DeleteOptions{}); err != nil {
-				if !errors.IsNotFound(err) {
-					return err
-				}
-			}
-		}
 		if forceRemove {
 			klog.Infof("'%s' CRD resources deleted", bold(identity))
 		}
 
-		if err := unregisterCRDs(ctx); err != nil {
-			if !errors.IsNotFound(err) {
-				return err
-			}
+		if err := unregisterCRDs(ctx); err != nil && !apierrors.IsNotFound(err) {
+			return err
 		}
 		klog.Infof("'%s' crds deleted", bold(identity))
 	}
 
-	if err := installer.DeleteCSIDriver(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteCSIDriver(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 	klog.Infof("'%s' csidriver deleted", bold(identity))
 
-	if err := installer.DeleteStorageClass(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteStorageClass(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 	klog.Infof("'%s' storageclass deleted", bold(identity))
 
-	if err := installer.DeleteService(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteService(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 	klog.Infof("'%s' service deleted", bold(identity))
 
-	if err := installer.RemoveRBACRoles(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.RemoveRBACRoles(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 	klog.Infof("'%s' rbac roles deleted", utils.Bold(identity))
 
-	if err := installer.DeleteDaemonSet(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteDaemonSet(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 	klog.Infof("'%s' daemonset deleted", utils.Bold(identity))
 
-	if err := installer.DeleteDriveValidationRules(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteDriveValidationRules(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 
-	if err := installer.DeleteControllerSecret(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteControllerSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 	klog.Infof("'%s' drive validation rules removed", utils.Bold(identity))
 
-	if err := installer.DeleteControllerDeployment(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteControllerDeployment(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 	klog.Infof("'%s' controller deployment deleted", utils.Bold(identity))
 
-	if err := installer.DeleteConversionDeployment(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteConversionDeployment(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 
-	if err := installer.DeleteConversionSecret(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteConversionSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 
-	if err := installer.DeleteConversionWebhookCertsSecret(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteConversionWebhookCertsSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 
 	klog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
 
-	if err := installer.DeleteNamespace(ctx, identity); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
+	if err := installer.DeleteNamespace(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
 	klog.Infof("'%s' namespace deleted", bold(identity))
 

@@ -25,11 +25,7 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/spf13/cobra"
-
-	"k8s.io/klog/v2"
 )
 
 var accessTierSet = &cobra.Command{
@@ -80,40 +76,31 @@ func setAccessTier(ctx context.Context, args []string) error {
 		return fmt.Errorf("Invalid input arguments. Please use '%s' for examples to set access-tiers", utils.Bold("--help"))
 	}
 
-	accessT, err := utils.ValidateAccessTier(args[0])
+	accessTier, err := utils.ValidateAccessTier(args[0])
 	if err != nil {
 		return err
 	}
 
-	directClient := utils.GetDirectCSIClient()
-	filterDrives, err := getFilteredDriveList(
+	directCSIClient := utils.GetDirectCSIClient()
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh, err := utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount)
+	if err != nil {
+		return err
+	}
+
+	return processDrives(
 		ctx,
-		directClient.DirectCSIDrives(),
-		func(drive directcsi.DirectCSIDrive) bool {
-			return drive.MatchGlob(nodes, drives, status)
+		resultCh,
+		func(drive *directcsi.DirectCSIDrive) bool {
+			return drive.MatchGlob(nodes, drives, status) && drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
 		},
+		func(drive *directcsi.DirectCSIDrive) error {
+			drive.Status.AccessTier = accessTier
+			utils.SetAccessTierLabel(drive, accessTier)
+			return nil
+		},
+		defaultDriveUpdateFunc(directCSIClient),
 	)
-	if err != nil {
-		return err
-	}
-
-	for _, d := range filterDrives {
-		if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
-			continue
-		}
-		d.Status.AccessTier = accessT
-		utils.SetAccessTierLabel(&d, accessT)
-
-		if dryRun {
-			if err := printer(d); err != nil {
-				klog.ErrorS(err, "error marshaling drives", "format", outputMode)
-			}
-			continue
-		}
-		if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
