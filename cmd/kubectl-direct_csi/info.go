@@ -184,8 +184,8 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		volumeSize := uint64(0)
 		for _, v := range volumes {
 			if v.Status.NodeName == n {
-				volumeCount++
 				if utils.IsConditionStatus(v.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue) {
+					volumeCount++
 					volumeSize += uint64(v.Status.TotalCapacity)
 				}
 			}
