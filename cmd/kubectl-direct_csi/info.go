@@ -145,7 +145,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
-			return drive.Spec.DirectCSIOwned
+			return drive.Status.DriveStatus == directcsi.DriveStatusInUse || drive.Status.DriveStatus == directcsi.DriveStatusReady
 		},
 	)
 	if err != nil {
