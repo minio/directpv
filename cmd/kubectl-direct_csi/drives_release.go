@@ -27,8 +27,6 @@ import (
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/spf13/cobra"
 
 	"k8s.io/klog/v2"
@@ -83,55 +81,56 @@ func releaseDrives(ctx context.Context, args []string) error {
 		return err
 	}
 
-	filteredDrives, err := getFilteredDriveList(
-		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
-		func(drive directcsi.DirectCSIDrive) bool {
-			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet)
-		},
-	)
-	if err != nil {
-		return err
-	}
-
 	driveName := func(val string) string {
 		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
 		dr = strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
 		return strings.ReplaceAll(dr, "-part-", "")
 	}
 
-	for _, d := range filteredDrives {
-		if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
-			continue
-		}
+	directCSIClient := utils.GetDirectCSIClient()
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
 
-		if d.Status.DriveStatus == directcsi.DriveStatusInUse {
-			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			klog.Errorf("%s in use. Cannot be released", utils.Bold(driveAddr))
-			continue
-		}
-
-		if d.Status.DriveStatus == directcsi.DriveStatusReleased {
-			driveAddr := fmt.Sprintf("%s:/dev/%s", d.Status.NodeName, driveName(d.Status.Path))
-			klog.Errorf("%s already in 'released' state", utils.Bold(driveAddr))
-			continue
-		}
-
-		d.Status.DriveStatus = directcsi.DriveStatusReleased
-		d.Spec.DirectCSIOwned = false
-		d.Spec.RequestedFormat = nil
-		if dryRun {
-			if err := utils.LogYAML(d); err != nil {
-				return err
-			}
-			continue
-		}
-
-		directClient := utils.GetDirectCSIClient()
-		if _, err := directClient.DirectCSIDrives().Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
+	resultCh, err := utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return processDrives(
+		ctx,
+		resultCh,
+		func(drive *directcsi.DirectCSIDrive) bool {
+			if !drive.MatchGlob(nodes, drives, status) {
+				return false
+			}
+
+			if !drive.MatchAccessTier(accessTierSet) {
+				return false
+			}
+
+			if drive.Status.DriveStatus == directcsi.DriveStatusUnavailable {
+				return false
+			}
+
+			if drive.Status.DriveStatus == directcsi.DriveStatusInUse {
+				driveAddr := fmt.Sprintf("%s:/dev/%s", drive.Status.NodeName, driveName(drive.Status.Path))
+				klog.Errorf("%s in use. Cannot be released", utils.Bold(driveAddr))
+				return false
+			}
+
+			if drive.Status.DriveStatus == directcsi.DriveStatusReleased {
+				driveAddr := fmt.Sprintf("%s:/dev/%s", drive.Status.NodeName, driveName(drive.Status.Path))
+				klog.Errorf("%s already in 'released' state", utils.Bold(driveAddr))
+				return false
+			}
+			return true
+		},
+		func(drive *directcsi.DirectCSIDrive) error {
+			drive.Status.DriveStatus = directcsi.DriveStatusReleased
+			drive.Spec.DirectCSIOwned = false
+			drive.Spec.RequestedFormat = nil
+			return nil
+		},
+		defaultDriveUpdateFunc(directCSIClient),
+	)
 }
