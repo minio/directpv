@@ -19,9 +19,6 @@ package main
 import (
 	"context"
 	"errors"
-	"strings"
-	"sync"
-	"sync/atomic"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -70,100 +67,36 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta2I
 		return err
 	}
 
-	stopCh := make(chan struct{})
-	var stopChMu int32
-	closeStopCh := func() {
-		if atomic.AddInt32(&stopChMu, 1) == 1 {
-			close(stopCh)
-		}
-	}
-	defer closeStopCh()
-
-	volumeCh := make(chan *directcsi.DirectCSIVolume)
-	var wg sync.WaitGroup
-
-	// Start utils.MaxThreadCount workers.
-	var errs []error
-	for i := 0; i < utils.MaxThreadCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-stopCh:
-					return
-				case volume, ok := <-volumeCh:
-					if !ok {
-						return
-					}
-
-					var err error
-					if _, err = directCSIClient.DirectCSIVolumes().Update(ctx, volume, metav1.UpdateOptions{}); err == nil {
-						err = directCSIClient.DirectCSIVolumes().Delete(ctx, volume.Name, metav1.DeleteOptions{})
-					}
-					if err != nil && !apierrors.IsNotFound(err) {
-						errs = append(errs, err)
-						defer closeStopCh()
-						return
-					}
-				}
+	err = processVolumes(
+		ctx,
+		resultCh,
+		func(volume *directcsi.DirectCSIVolume) bool {
+			return true
+		},
+		func(volume *directcsi.DirectCSIVolume) error {
+			if !forceRemove {
+				return errForceRequired
 			}
-		}()
-	}
-
-	for result := range resultCh {
-		if result.Err != nil {
-			err = result.Err
-			break
-		}
-
-		if !forceRemove {
-			klog.Errorf("Cannot unregister DirectCSIVolume CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
-			break
-		}
-
-		volume := result.Volume
-		volume.SetFinalizers([]string{})
-
-		if dryRun {
-			if err := utils.LogYAML(volume); err != nil {
-				klog.Errorf("Unable to convert DirectCSIVolume to YAML. %v", err)
+			volume.SetFinalizers([]string{})
+			return nil
+		},
+		func(ctx context.Context, volume *directcsi.DirectCSIVolume) error {
+			if _, err := directCSIClient.DirectCSIVolumes().Update(ctx, volume, metav1.UpdateOptions{}); err != nil {
+				return err
 			}
-			continue
-		}
+			if err := directCSIClient.DirectCSIVolumes().Delete(ctx, volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+				return err
+			}
+			return nil
+		},
+	)
 
-		breakLoop := false
-		select {
-		case <-ctx.Done():
-			breakLoop = true
-		case <-stopCh:
-			breakLoop = true
-		case volumeCh <- &volume:
-		}
-
-		if breakLoop {
-			break
-		}
+	if errors.Is(err, errForceRequired) {
+		klog.Errorf("Cannot unregister DirectCSIVolume CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
+		return nil
 	}
 
-	close(volumeCh)
-	wg.Wait()
-
-	if err != nil {
-		return err
-	}
-
-	msgs := []string{}
-	for _, err := range errs {
-		msgs = append(msgs, err.Error())
-	}
-	if msg := strings.Join(msgs, "; "); msg != "" {
-		return errors.New(msg)
-	}
-
-	return nil
+	return err
 }
 
 func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta2Interface) error {
