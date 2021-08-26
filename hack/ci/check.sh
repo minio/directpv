@@ -115,7 +115,7 @@ function uninstall_minio() {
     fi
 }
 
-function uninstall_directcsi() {   
+function uninstall_directcsi() {
     ./kubectl-direct_csi uninstall --crd --force
     sleep 1m
     kubectl get pods -n direct-csi-min-io
@@ -123,6 +123,8 @@ function uninstall_directcsi() {
         echo "direct-csi-min-io namespace still exists"
         return 1
     fi
+    # Check uninstall succeeds even if direct-csi is completely gone.
+    ./kubectl-direct_csi uninstall --crd --force
 }
 
 function main() {

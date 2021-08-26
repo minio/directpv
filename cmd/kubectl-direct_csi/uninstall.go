@@ -193,6 +193,9 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta2In
 		},
 		func(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
 			if _, err := directCSIClient.DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{}); err != nil {
+				if apierrors.IsNotFound(err) {
+					return nil
+				}
 				return err
 			}
 			if err := directCSIClient.DirectCSIDrives().Delete(ctx, drive.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
@@ -220,11 +223,11 @@ func uninstall(ctx context.Context, args []string) error {
 	directCSIClient := utils.GetDirectCSIClient()
 
 	if uninstallCRD {
-		if err := removeVolumes(ctx, directCSIClient); err != nil {
+		if err := removeVolumes(ctx, directCSIClient); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 
-		if err := removeDrives(ctx, directCSIClient); err != nil {
+		if err := removeDrives(ctx, directCSIClient); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 
