@@ -249,57 +249,50 @@ func migrateDriveObjects(ctx context.Context, fromVersion string) error {
 }
 
 func migrateVolumeObjects(ctx context.Context, fromVersion string) error {
-	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
-	resultCh, err := utils.ListVolumes(ctx, volumeClient, nil, nil, nil, nil, utils.MaxThreadCount)
+	directCSIClient := utils.GetDirectCSIClient()
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh, err := utils.ListVolumes(ctx, directCSIClient.DirectCSIVolumes(), nil, nil, nil, nil, utils.MaxThreadCount)
 	if err != nil {
 		return err
 	}
 
-	wg := sync.WaitGroup{}
-
-	for result := range resultCh {
-		if result.Err != nil {
-			return result.Err
-		}
-
-		v := result.Volume
-
-		threadiness <- struct{}{}
-		wg.Add(1)
-		go func(v directcsi.DirectCSIVolume) {
-			defer func() {
-				wg.Done()
-				<-threadiness
-			}()
-
-			unstructured, err := toUnstructured(&v)
+	return processVolumes(
+		ctx,
+		resultCh,
+		func(volume *directcsi.DirectCSIVolume) bool {
+			return true
+		},
+		func(volume *directcsi.DirectCSIVolume) error {
+			return nil
+		},
+		func(ctx context.Context, volume *directcsi.DirectCSIVolume) error {
+			unstructured, err := toUnstructured(volume)
 			if err != nil {
 				klog.V(4).Infof("Error while syncing directcsivolume [%v]: %v", unstructured.GetName(), err)
-				return
+				return nil
 			}
 			unstructured.SetAPIVersion(strings.Join([]string{directcsi.Group, fromVersion}, "/"))
 			if err := converter.Migrate(&unstructured, strings.Join([]string{directcsi.Group, directcsi.Version}, "/")); err != nil {
 				klog.V(4).Infof("Error while syncing directcsivolume [%v]: %v", unstructured.GetName(), err)
-				return
+				return nil
 			}
-			var directCSIVolume directcsi.DirectCSIVolume
-			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &directCSIVolume); err != nil {
+			var updatedVolume directcsi.DirectCSIVolume
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &updatedVolume); err != nil {
 				klog.V(4).Infof("Error while syncing directcsivolume [%v]: %v", unstructured.GetName(), err)
-				return
+				return nil
 			}
-			updateOpts := metav1.UpdateOptions{
+
+			_, err = directCSIClient.DirectCSIVolumes().Update(ctx, &updatedVolume, metav1.UpdateOptions{
 				TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-			}
-			if _, err := volumeClient.Update(ctx, &directCSIVolume, updateOpts); err != nil {
+			})
+			if err != nil {
 				klog.V(4).Infof("Error while syncing directcsivolume [%v]: %v", unstructured.GetName(), err)
-				return
 			}
-		}(v)
-	}
-
-	wg.Wait()
-
-	return nil
+			return nil
+		},
+	)
 }
 
 func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, filterFunc func(directcsi.DirectCSIDrive) bool) ([]directcsi.DirectCSIDrive, error) {
@@ -332,12 +325,17 @@ func defaultDriveUpdateFunc(directCSIClient clientset.DirectV1beta2Interface) fu
 	}
 }
 
-func processDrives(
+type objectResult struct {
+	object runtime.Object
+	err    error
+}
+
+func processObjects(
 	ctx context.Context,
-	resultCh <-chan utils.ListDriveResult,
-	matchFunc func(*directcsi.DirectCSIDrive) bool,
-	applyFunc func(*directcsi.DirectCSIDrive) error,
-	processFunc func(context.Context, *directcsi.DirectCSIDrive) error,
+	resultCh <-chan objectResult,
+	matchFunc func(runtime.Object) bool,
+	applyFunc func(runtime.Object) error,
+	processFunc func(context.Context, runtime.Object) error,
 ) error {
 	stopCh := make(chan struct{})
 	var stopChMu int32
@@ -348,7 +346,7 @@ func processDrives(
 	}
 	defer closeStopCh()
 
-	driveCh := make(chan *directcsi.DirectCSIDrive)
+	objectCh := make(chan runtime.Object)
 	var wg sync.WaitGroup
 
 	// Start utils.MaxThreadCount workers.
@@ -363,11 +361,11 @@ func processDrives(
 					return
 				case <-stopCh:
 					return
-				case drive, ok := <-driveCh:
+				case object, ok := <-objectCh:
 					if !ok {
 						return
 					}
-					if err := processFunc(ctx, drive); err != nil {
+					if err := processFunc(ctx, object); err != nil {
 						errs = append(errs, err)
 						defer closeStopCh()
 						return
@@ -379,24 +377,22 @@ func processDrives(
 
 	var err error
 	for result := range resultCh {
-		if result.Err != nil {
-			err = result.Err
+		if result.err != nil {
+			err = result.err
 			break
 		}
 
-		drive := result.Drive
-
-		if !matchFunc(&drive) {
+		if !matchFunc(result.object) {
 			continue
 		}
 
-		if err = applyFunc(&drive); err != nil {
+		if err = applyFunc(result.object); err != nil {
 			break
 		}
 
 		if dryRun {
-			if err := utils.LogYAML(drive); err != nil {
-				klog.Errorf("Unable to convert DirectCSIDrive to YAML. %v", err)
+			if err := utils.LogYAML(result.object); err != nil {
+				klog.Errorf("Unable to convert to YAML. %v", err)
 			}
 			continue
 		}
@@ -407,7 +403,7 @@ func processDrives(
 			breakLoop = true
 		case <-stopCh:
 			breakLoop = true
-		case driveCh <- &drive:
+		case objectCh <- result.object:
 		}
 
 		if breakLoop {
@@ -415,7 +411,7 @@ func processDrives(
 		}
 	}
 
-	close(driveCh)
+	close(objectCh)
 	wg.Wait()
 
 	if err != nil {
@@ -431,4 +427,88 @@ func processDrives(
 	}
 
 	return nil
+}
+
+func processVolumes(
+	ctx context.Context,
+	resultCh <-chan utils.ListVolumeResult,
+	matchFunc func(*directcsi.DirectCSIVolume) bool,
+	applyFunc func(*directcsi.DirectCSIVolume) error,
+	processFunc func(context.Context, *directcsi.DirectCSIVolume) error,
+) error {
+	objectCh := make(chan objectResult)
+	go func() {
+		defer close(objectCh)
+		for result := range resultCh {
+			var oresult objectResult
+			if result.Err != nil {
+				oresult.err = result.Err
+			} else {
+				volume := result.Volume
+				oresult.object = &volume
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case objectCh <- oresult:
+			}
+		}
+	}()
+
+	return processObjects(
+		ctx,
+		objectCh,
+		func(object runtime.Object) bool {
+			return matchFunc(object.(*directcsi.DirectCSIVolume))
+		},
+		func(object runtime.Object) error {
+			return applyFunc(object.(*directcsi.DirectCSIVolume))
+		},
+		func(ctx context.Context, object runtime.Object) error {
+			return processFunc(ctx, object.(*directcsi.DirectCSIVolume))
+		},
+	)
+}
+
+func processDrives(
+	ctx context.Context,
+	resultCh <-chan utils.ListDriveResult,
+	matchFunc func(*directcsi.DirectCSIDrive) bool,
+	applyFunc func(*directcsi.DirectCSIDrive) error,
+	processFunc func(context.Context, *directcsi.DirectCSIDrive) error,
+) error {
+	objectCh := make(chan objectResult)
+	go func() {
+		defer close(objectCh)
+		for result := range resultCh {
+			var oresult objectResult
+			if result.Err != nil {
+				oresult.err = result.Err
+			} else {
+				drive := result.Drive
+				oresult.object = &drive
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case objectCh <- oresult:
+			}
+		}
+	}()
+
+	return processObjects(
+		ctx,
+		objectCh,
+		func(object runtime.Object) bool {
+			return matchFunc(object.(*directcsi.DirectCSIDrive))
+		},
+		func(object runtime.Object) error {
+			return applyFunc(object.(*directcsi.DirectCSIDrive))
+		},
+		func(ctx context.Context, object runtime.Object) error {
+			return processFunc(ctx, object.(*directcsi.DirectCSIDrive))
+		},
+	)
 }
