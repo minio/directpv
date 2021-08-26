@@ -114,14 +114,16 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 		syncDriveStatesOnDiscovery(existingDrive, localDrive)
 
 		// Verify mounts
+		message := ""
 		if err := d.verifyDriveMount(existingDrive); err != nil {
-			utils.UpdateCondition(existingDrive.Status.Conditions,
-				string(directcsi.DirectCSIDriveConditionInitialized),
-				metav1.ConditionFalse,
-				string(directcsi.DirectCSIDriveReasonInitialized),
-				err.Error())
+			message = err.Error()
 			klog.V(3).Infof("mounting failed with: %v", err)
 		}
+		utils.UpdateCondition(existingDrive.Status.Conditions,
+			string(directcsi.DirectCSIDriveConditionInitialized),
+			utils.BoolToCondition(message == ""),
+			string(directcsi.DirectCSIDriveReasonInitialized),
+			message)
 
 		updateOpts := metav1.UpdateOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(),
