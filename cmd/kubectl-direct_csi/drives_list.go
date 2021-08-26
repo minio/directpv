@@ -91,6 +91,9 @@ func listDrives(ctx context.Context, args []string) error {
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
+			if drive.Status.DriveStatus == directcsi.DriveStatusUnavailable && !all {
+				return false
+			}
 			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet)
 		},
 	)
