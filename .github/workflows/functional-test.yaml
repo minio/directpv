@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Functional Tests
 
 on:
   push:
@@ -48,6 +48,6 @@ jobs:
           kubectl get nodes
           kubectl get pods -A
 
-      - name: Run integration and upgrade tests
+      - name: Run tests
         run: |
-          hack/ci/check.sh ${BUILD_TAG}
+          functests/run.sh ${BUILD_TAG}
