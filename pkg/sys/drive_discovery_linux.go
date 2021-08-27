@@ -383,12 +383,6 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 				FSBlockSize:   b.LogicalBlockSize,
 			}
 		}
-		if fsInfo.UUID != "" {
-			directCSIPath := GetDirectCSIPath(fsInfo.UUID)
-			if err := MakeBlockFile(directCSIPath, b.DriveInfo.Major, b.DriveInfo.Minor); err != nil {
-				return err
-			}
-		}
 		var mounts []MountInfo
 		mounts, err = b.probeMountInfo(b.DriveInfo.Major, b.DriveInfo.Minor, driveMap)
 		if err != nil {
@@ -415,14 +409,6 @@ func (b *BlockDevice) probeBlockDev(ctx context.Context, driveMap map[string]*dr
 				FSBlockSize:   p.LogicalBlockSize,
 			}
 		}
-
-		if fsInfo.UUID != "" {
-			directCSIPath := GetDirectCSIPath(fsInfo.UUID)
-			if err := MakeBlockFile(directCSIPath, p.DriveInfo.Major, p.DriveInfo.Minor); err != nil {
-				return err
-			}
-		}
-
 		var mounts []MountInfo
 		mounts, err = b.probeMountInfo(p.DriveInfo.Major, p.DriveInfo.Minor, driveMap)
 		if err != nil {
