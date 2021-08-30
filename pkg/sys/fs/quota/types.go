@@ -20,17 +20,30 @@ import (
 	"context"
 )
 
-type dqblk struct {
-	// Definition since Linux 2.4.22
-	dqbBHardlimit uint64 // Absolute limit on disk quota blocks alloc
-	dqbBSoftlimit uint64 // Preferred limit on disk quota blocks
-	dqbCurSpace   uint64 // Current occupied space (in bytes)
-	dqbIHardlimit uint64 // Maximum number of allocated inodes
-	dqbISoftlimit uint64 // Preferred inode limit
-	dqbCurInodes  uint64 // Current number of allocated inodes
-	dqbBTime      uint64 // Time limit for excessive disk use
-	dqbITime      uint64 // Time limit for excessive files
-	dqbValid      uint32 // Bit mask of QIF_* constantss
+// Ref: https://man7.org/linux/man-pages/man2/quotactl.2.html
+type fsDiskQuota struct {
+	version         int8    // Version of this structure
+	flags           int8    // XFS_{USER,PROJ,GROUP}_QUOTA
+	fieldmask       uint16  // Field specifier
+	id              uint32  // User, project, or group ID
+	hardLimitBlocks uint64  // Absolute limit on disk blocks
+	softLimitBlocks uint64  // Preferred limit on disk blocks
+	hardLimitInodes uint64  // Maximum allocated inodes
+	softLimitInodes uint64  // Preferred inode limit
+	blocksCount     uint64  // disk blocks owned by the project/user/group
+	inodesCount     uint64  // inodes owned by the project/user/group
+	inodeTimer      int32   // Zero if within inode limits, If not, we refuse service */
+	blocksTimer     int32   // Similar to above; for disk blocks
+	inodeWarnings   uint16  // warnings issued with respect to number of inodes
+	blockWarnings   uint16  // warnings issued with respect to disk blocks
+	padding2        int32   // Padding - for future use
+	rtbHardLimit    uint64  // Absolute limit on realtime (RT) disk blocks
+	rtbSoftLimit    uint64  // Preferred limit on RT disk blocks
+	rtbCount        uint64  // realtime blocks owned
+	rtbTimer        int32   // Similar to above; for RT disk blocks
+	rtbWarnings     uint16  // warnings issued with respect to RT disk blocks
+	padding3        int16   // Padding - for future use
+	padding4        [8]byte // Yet more padding
 }
 
 type fsXAttr struct {

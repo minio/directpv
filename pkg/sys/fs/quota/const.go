@@ -17,6 +17,7 @@
 package quota
 
 const (
+	//
 	// Project Quota
 	// -------------------------------
 	// subCmdShift = 8
@@ -30,14 +31,20 @@ const (
 	// qSetQuota = 0x800008
 	// prjQuota = 2
 	//
-	getPrjQuotaSubCmd = 0x80000702 // qCmd(qGetQuota, PrjQuota)
-	setPrjQuotaSubCmd = 0x80000802 // qCmd(qSetQuota, PrjQuota)
+	// For more reference: https://man7.org/linux/man-pages/man2/quotactl.2.html
+	//
+
+	// Get/Set Quota
+	prjSetQuotaLimit    = 0x580402 // qCmd(Q_XSETQLIM, PrjQuota)
+	prjGetQuota         = 0x580302 // qCmd(Q_XGETQUOTA, PrjQuota)
+	fsDiskQuotaVersion  = 1
+	xfsProjectQuotaFlag = 2
+	fieldMaskBHard      = 8   // d_blk_hardlimit Field specifier
+	fieldMaskBSoft      = 4   // d_blk_softlimit Field specifier
+	blockSize           = 512 // All the blk units are in BBs (Basic Blocks) of 512 bytes
 
 	// Get/Set FS attributes
-	fsGetAttr = 0x801c581f // FS_IOC_FSGETXATTR
-	fsSetAttr = 0x401c5820 // FS_IOC_FSSETXATTR
-
-	blockSize          = 1024
-	flagBLimitsValid   = 1
+	fsGetAttr          = 0x801c581f // FS_IOC_FSGETXATTR
+	fsSetAttr          = 0x401c5820 // FS_IOC_FSSETXATTR
 	flagProjectInherit = 0x00000200
 )

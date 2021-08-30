@@ -66,10 +66,14 @@ func setProjectQuota(blockFile string, projectID uint32, quota FSQuota) error {
 
 	hardLimitBlocks := uint64(math.Ceil(float64(quota.HardLimit) / float64(blockSize)))
 	softLimitBlocks := uint64(math.Ceil(float64(quota.SoftLimit) / float64(blockSize)))
-	quotaBlock := &dqblk{
-		dqbBHardlimit: hardLimitBlocks,
-		dqbBSoftlimit: softLimitBlocks,
-		dqbValid:      flagBLimitsValid,
+
+	fsQuota := &fsDiskQuota{
+		version:         int8(fsDiskQuotaVersion),
+		flags:           int8(xfsProjectQuotaFlag),
+		fieldmask:       uint16(fieldMaskBHard | fieldMaskBSoft),
+		id:              uint32(projectID),
+		hardLimitBlocks: uint64(hardLimitBlocks),
+		softLimitBlocks: uint64(softLimitBlocks),
 	}
 
 	deviceNamePtr, err := syscall.BytePtrFromString(blockFile)
@@ -77,20 +81,20 @@ func setProjectQuota(blockFile string, projectID uint32, quota FSQuota) error {
 		return err
 	}
 	if _, _, errno := syscall.Syscall6(syscall.SYS_QUOTACTL,
-		uintptr(setPrjQuotaSubCmd),
+		uintptr(prjSetQuotaLimit),
 		uintptr(unsafe.Pointer(deviceNamePtr)),
 		uintptr(projectID),
-		uintptr(unsafe.Pointer(quotaBlock)),
+		uintptr(unsafe.Pointer(fsQuota)),
 		0,
 		0); errno != syscall.Errno(0) {
-		return fmt.Errorf("failed to set quota: %w", err)
+		return fmt.Errorf("failed to set quota for device: %s error: %v", blockFile, errno)
 	}
 
 	return nil
 }
 
 func GetQuota(blockFile, volumeID string) (FSQuota, error) {
-	result := &dqblk{}
+	result := &fsDiskQuota{}
 	deviceNamePtr, err := syscall.BytePtrFromString(blockFile)
 	if err != nil {
 		return FSQuota{}, err
@@ -98,7 +102,7 @@ func GetQuota(blockFile, volumeID string) (FSQuota, error) {
 	projectID := int(getProjectIDHash(volumeID))
 
 	if _, _, errno := syscall.RawSyscall6(syscall.SYS_QUOTACTL,
-		uintptr(getPrjQuotaSubCmd),
+		uintptr(prjGetQuota),
 		uintptr(unsafe.Pointer(deviceNamePtr)),
 		uintptr(projectID),
 		uintptr(unsafe.Pointer(result)),
@@ -108,9 +112,9 @@ func GetQuota(blockFile, volumeID string) (FSQuota, error) {
 	}
 
 	return FSQuota{
-		HardLimit:    int64(result.dqbBHardlimit) * int64(blockSize),
-		SoftLimit:    int64(result.dqbBSoftlimit) * int64(blockSize),
-		CurrentSpace: int64(result.dqbCurSpace),
+		HardLimit:    int64(result.hardLimitBlocks) * int64(blockSize),
+		SoftLimit:    int64(result.softLimitBlocks) * int64(blockSize),
+		CurrentSpace: int64(result.blocksCount) * int64(blockSize),
 	}, nil
 }
 
