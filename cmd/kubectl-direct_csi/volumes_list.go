@@ -25,7 +25,9 @@ import (
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -84,70 +86,49 @@ func listVolumes(ctx context.Context, args []string) error {
 		return err
 	}
 
-	filteredDrives, err := getFilteredDriveList(
+	drives, err := getFilteredDriveList(
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
-			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet)
+			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet) && drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
 		},
 	)
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	driveMap := map[string]*directcsi.DirectCSIDrive{}
+	for i := range drives {
+		driveMap[drives[i].Name] = &drives[i]
+	}
+
+	volumes, err := utils.GetVolumeList(ctx, utils.GetDirectCSIClient().DirectCSIVolumes(), nil, nil, nil, nil)
+	if err != nil && !apierrors.IsNotFound(err) {
+		klog.Errorf("error getting volume list: %v", err)
 		return err
 	}
 
-	vclient := utils.GetDirectCSIClient().DirectCSIVolumes()
-
-	vols := []directcsi.DirectCSIVolume{}
-
-	drivePaths := map[string]string{}
-	driveUUIDs := map[string]string{}
-	driveName := func(val string) string {
-		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
-		return strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
-	}
-
-	for _, d := range filteredDrives {
-		if d.Status.DriveStatus == directcsi.DriveStatusUnavailable {
-			continue
-		}
-		drivePaths[d.Name] = driveName(d.Status.Path)
-		driveUUIDs[d.Name] = d.Status.FilesystemUUID
-		for _, f := range d.GetFinalizers() {
-			if strings.HasPrefix(f, directcsi.DirectCSIDriveFinalizerPrefix) {
-				name := strings.ReplaceAll(f, directcsi.DirectCSIDriveFinalizerPrefix, "")
-				vol, err := vclient.Get(ctx, name, metav1.GetOptions{})
-				if err != nil {
-					return err
-				}
-				if vol.MatchStatus(volumeStatus) && vol.MatchPodName(podNames) && vol.MatchPodNamespace(podNss) {
-					vols = append(vols, *vol)
-				}
-			}
-		}
-	}
-
-	wrappedVolumeList := directcsi.DirectCSIVolumeList{
+	volumeList := directcsi.DirectCSIVolumeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
 			APIVersion: utils.DirectCSIGroupVersion,
 		},
-		Items: vols,
+	}
+	for _, volume := range volumes {
+		if volume.MatchStatus(volumeStatus) && volume.MatchPodName(podNames) && volume.MatchPodNamespace(podNss) {
+			if _, found := driveMap[volume.Status.Drive]; found {
+				volumeList.Items = append(volumeList.Items, volume)
+			}
+		}
 	}
 
 	if yaml {
-		if err := printYAML(wrappedVolumeList); err != nil {
-			return err
-		}
-		return nil
+		return printYAML(volumeList)
 	}
 	if json {
-		if err := printJSON(wrappedVolumeList); err != nil {
-			return err
-		}
-		return nil
+		return printJSON(volumeList)
 	}
 
-	defaultHeaders := table.Row{
+	headers := table.Row{
 		"VOLUME",
 		"CAPACITY",
 		"NODE",
@@ -155,39 +136,42 @@ func listVolumes(ctx context.Context, args []string) error {
 		"PODNAME",
 		"PODNAMESPACE",
 	}
-
 	if wide {
-		defaultHeaders = append(defaultHeaders,
-			"DRIVEUUID")
+		headers = append(headers, "DRIVEUUID")
 	}
 
 	text.DisableColors()
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(defaultHeaders)
+	t.AppendHeader(headers)
 
 	style := table.StyleColoredDark
 	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	t.SetStyle(style)
 
-	for _, v := range vols {
-		emptyOrBytes := func(val int64) string {
-			if val == 0 {
-				return "-"
-			}
-			return humanize.IBytes(uint64(val))
+	driveName := func(val string) string {
+		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
+		return strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
+	}
+	emptyOrBytes := func(val int64) string {
+		if val == 0 {
+			return "-"
 		}
+		return humanize.IBytes(uint64(val))
+	}
+	for _, volume := range volumeList.Items {
+		drive := driveMap[volume.Status.Drive]
 		row := []interface{}{
-			v.Name,                                //VOLUME
-			emptyOrBytes(v.Status.TotalCapacity),  //CAPACITY
-			v.Status.NodeName,                     //SERVER
-			driveName(drivePaths[v.Status.Drive]), //DRIVE
-			printableString(v.ObjectMeta.Labels[directcsi.Group+"/pod.name"]),
-			printableString(v.ObjectMeta.Labels[directcsi.Group+"/pod.namespace"]),
+			volume.Name, //VOLUME
+			emptyOrBytes(volume.Status.TotalCapacity), //CAPACITY
+			volume.Status.NodeName,                    //SERVER
+			driveName(drive.Status.Path),              //DRIVE
+			printableString(volume.Labels[directcsi.Group+"/pod.name"]),
+			printableString(volume.Labels[directcsi.Group+"/pod.namespace"]),
 		}
 		if wide {
-			row = append(row, driveUUIDs[v.Status.Drive])
+			row = append(row, drive.Status.FilesystemUUID)
 		}
 		t.AppendRow(row)
 	}
