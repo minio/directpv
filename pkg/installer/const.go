@@ -22,14 +22,14 @@ import (
 
 // CSI provisioner images
 const (
-	// quay.io/minio/csi-provisioner:v2.1.0
-	CSIImageCSIProvisioner = "csi-provisioner@sha256:4ca2ce98430ca0b87d5bc1a6d116ecdf1619cfe6db693d8d5aa438f6821e0e80"
+	// quay.io/minio/csi-provisioner:v2.2.2
+	CSIImageCSIProvisioner = "csi-provisioner@sha256:3b465cbcadf7d437fc70c3b6aa2c93603a7eef0a3f5f1e861d91f303e4aabdee"
 
-	// quay.io/minio/csi-node-driver-registrar:v2.1.0
-	CSIImageNodeDriverRegistrar = "csi-node-driver-registrar@sha256:9f9ce5c98e44d66b8ad34351616fdf78765b9f24c3c3b496cee784dadf63f528"
+	// quay.io/minio/csi-node-driver-registrar:v2.2.0
+	CSIImageNodeDriverRegistrar = "csi-node-driver-registrar@sha256:ba763bb01ddc09e312240c8abc310aa2e2dd6aee636d342f6dd9238a6bff179c"
 
-	// quay.io/minio/livenessprobe:v2.1.0
-	CSIImageLivenessProbe = "livenessprobe@sha256:6f056a175ff4ead772edc9bf99aef74c275a83c51868dd26090dcb623425a742"
+	// quay.io/minio/livenessprobe:v2.2.0
+	CSIImageLivenessProbe = "livenessprobe@sha256:072e29e350ed7e870e119cbba37324348e1d00f0ba06d4ea288413466d1aa8e8"
 )
 
 // Misc
@@ -70,12 +70,12 @@ const (
 	nodeDriverRegistrarContainerName = "node-driver-registrar"
 	csiProvisionerContainerName      = "csi-provisioner"
 
-	// "csi-provisioner:v2.1.0"
-	csiProvisionerContainerImage = "csi-provisioner@sha256:4ca2ce98430ca0b87d5bc1a6d116ecdf1619cfe6db693d8d5aa438f6821e0e80"
-	// "livenessprobe:v2.1.0"
-	livenessProbeContainerImage = "livenessprobe@sha256:6f056a175ff4ead772edc9bf99aef74c275a83c51868dd26090dcb623425a742"
-	// "csi-node-driver-registrar:v2.1.0"
-	nodeDriverRegistrarContainerImage = "csi-node-driver-registrar@sha256:9f9ce5c98e44d66b8ad34351616fdf78765b9f24c3c3b496cee784dadf63f528"
+	// "csi-provisioner:v2.2.0"
+	csiProvisionerContainerImage = "csi-provisioner@sha256:3b465cbcadf7d437fc70c3b6aa2c93603a7eef0a3f5f1e861d91f303e4aabdee"
+	// "livenessprobe:v2.2.0"
+	livenessProbeContainerImage = "livenessprobe@sha256:072e29e350ed7e870e119cbba37324348e1d00f0ba06d4ea288413466d1aa8e8"
+	// "csi-node-driver-registrar:v2.2.0"
+	nodeDriverRegistrarContainerImage = "csi-node-driver-registrar@sha256:ba763bb01ddc09e312240c8abc310aa2e2dd6aee636d342f6dd9238a6bff179c"
 
 	healthZContainerPort         = 9898
 	healthZContainerPortName     = "healthz"
