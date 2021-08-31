@@ -33,32 +33,15 @@ func SafeMount(source, target, fsType string, mountOpts []MountOption, superbloc
 	}
 
 	for _, m := range mounts {
-		// idempotency check
-		if m.Mountpoint == target {
-			if len(m.MountFlags) != len(mountOpts) {
-				break
-			}
-
-			allMFlagsFound := true
-			for _, opt := range mountOpts {
-				optFound := false
-				for _, mflag := range m.MountFlags {
-					if mflag == string(opt) {
-						optFound = true
-						break
-					}
-				}
-				if !optFound {
-					allMFlagsFound = false
-					break
-				}
-			}
-			if allMFlagsFound {
-				klog.V(3).Infof("drive already mounted: %s", target)
-				// if already mounted at the same position with same flags
-				return nil
-			}
-			break
+		if m.Mountpoint == target && m.MountRoot == source {
+			// if source is already mounted at target
+			// then do nothing
+			// NOTE:
+			// We ignore the case where a given source is
+			// mounted at the same target multiple times
+			// since that use case is not relevant to
+			// direct-csi
+			return nil
 		}
 	}
 	return Mount(source, target, fsType, mountOpts, superblockOpts)
