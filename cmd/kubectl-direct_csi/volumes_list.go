@@ -78,6 +78,7 @@ func init() {
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "filter based on access-tier")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNames, "pod-name", "", podNames, "glob prefix match for pod names")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNss, "pod-namespace", "", podNss, "glob prefix match for pod namespace")
+	listVolumesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all volumes (including non-provisioned)")
 }
 
 func listVolumes(ctx context.Context, args []string) error {
@@ -116,7 +117,7 @@ func listVolumes(ctx context.Context, args []string) error {
 	for _, volume := range volumes {
 		if volume.MatchStatus(volumeStatus) && volume.MatchPodName(podNames) && volume.MatchPodNamespace(podNss) {
 			if _, found := driveMap[volume.Status.Drive]; found {
-				if utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue) {
+				if all || utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue) {
 					volumeList.Items = append(volumeList.Items, volume)
 				}
 			}
