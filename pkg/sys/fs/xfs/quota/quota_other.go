@@ -20,22 +20,13 @@ package quota
 
 import (
 	"context"
+	"runtime"
 )
 
 func GetQuota(blockFile, volumeID string) (FSQuota, error) {
-	return FSQuota{}, nil
+	return FSQuota{}, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
 func SetQuota(ctx context.Context, path, volumeID, blockFile string, quota FSQuota) error {
-	return nil
-}
-
-type DefaultDriveQuotaer struct{}
-
-func (q *DefaultDriveQuotaer) SetQuota(ctx context.Context, path, volumeID, blockFile string, quota FSQuota) error {
-	return SetQuota(ctx, path, volumeID, blockFile, quota)
-}
-
-func (q *DefaultDriveQuotaer) GetQuota(blockFile, volumeID string) (FSQuota, error) {
-	return GetQuota(blockFile, volumeID)
+	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

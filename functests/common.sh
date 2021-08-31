@@ -152,8 +152,12 @@ function uninstall_minio() {
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" drives ls --all
 
-    if "${DIRECT_CSI_CLIENT}" drives ls | grep -q InUse; then
-        echo "$ME: error: drives are still in use state"
-        return 1
-    fi
+    while true; do
+        count=$("${DIRECT_CSI_CLIENT}" drives ls | grep InUse | wc -l)
+        if [[ $count -eq 0 ]]; then
+            break
+        fi
+        echo "$ME: waiting for ${count} drives to be released"
+        sleep 5
+    done
 }
