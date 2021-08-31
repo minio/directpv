@@ -64,16 +64,16 @@ func setProjectID(path string, projectID uint32) error {
 
 func setProjectQuota(blockFile string, projectID uint32, quota FSQuota) error {
 
-	hardLimitBlocks := uint64(math.Ceil(float64(quota.HardLimit) / float64(blockSize)))
-	softLimitBlocks := uint64(math.Ceil(float64(quota.SoftLimit) / float64(blockSize)))
+	hardLimitBlocks := uint64(math.Ceil(float64(quota.HardLimit) / blockSize))
+	softLimitBlocks := uint64(math.Ceil(float64(quota.SoftLimit) / blockSize))
 
 	fsQuota := &fsDiskQuota{
 		version:         int8(fsDiskQuotaVersion),
 		flags:           int8(xfsProjectQuotaFlag),
 		fieldmask:       uint16(fieldMaskBHard | fieldMaskBSoft),
 		id:              uint32(projectID),
-		hardLimitBlocks: uint64(hardLimitBlocks),
-		softLimitBlocks: uint64(softLimitBlocks),
+		hardLimitBlocks: hardLimitBlocks,
+		softLimitBlocks: softLimitBlocks,
 	}
 
 	deviceNamePtr, err := syscall.BytePtrFromString(blockFile)
@@ -81,7 +81,7 @@ func setProjectQuota(blockFile string, projectID uint32, quota FSQuota) error {
 		return err
 	}
 	if _, _, errno := syscall.Syscall6(syscall.SYS_QUOTACTL,
-		uintptr(prjSetQuotaLimit),
+		prjSetQuotaLimit,
 		uintptr(unsafe.Pointer(deviceNamePtr)),
 		uintptr(projectID),
 		uintptr(unsafe.Pointer(fsQuota)),
@@ -102,7 +102,7 @@ func GetQuota(blockFile, volumeID string) (FSQuota, error) {
 	projectID := int(getProjectIDHash(volumeID))
 
 	if _, _, errno := syscall.RawSyscall6(syscall.SYS_QUOTACTL,
-		uintptr(prjGetQuota),
+		prjGetQuota,
 		uintptr(unsafe.Pointer(deviceNamePtr)),
 		uintptr(projectID),
 		uintptr(unsafe.Pointer(result)),
@@ -112,9 +112,9 @@ func GetQuota(blockFile, volumeID string) (FSQuota, error) {
 	}
 
 	return FSQuota{
-		HardLimit:    int64(result.hardLimitBlocks) * int64(blockSize),
-		SoftLimit:    int64(result.softLimitBlocks) * int64(blockSize),
-		CurrentSpace: int64(result.blocksCount) * int64(blockSize),
+		HardLimit:    int64(result.hardLimitBlocks) * blockSize,
+		SoftLimit:    int64(result.softLimitBlocks) * blockSize,
+		CurrentSpace: int64(result.blocksCount) * blockSize,
 	}, nil
 }
 

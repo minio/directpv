@@ -21,7 +21,7 @@ import (
 	"net/http"
 
 	"github.com/minio/direct-csi/pkg/clientset"
-	"github.com/minio/direct-csi/pkg/sys/fs/quota"
+	"github.com/minio/direct-csi/pkg/sys/fs/xfs/quota"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/klog/v2"

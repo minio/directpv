@@ -20,7 +20,7 @@ import (
 	"context"
 
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
-	"github.com/minio/direct-csi/pkg/sys/fs/quota"
+	"github.com/minio/direct-csi/pkg/sys/fs/xfs/quota"
 )
 
 const (
