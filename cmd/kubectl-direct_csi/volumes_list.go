@@ -116,7 +116,9 @@ func listVolumes(ctx context.Context, args []string) error {
 	for _, volume := range volumes {
 		if volume.MatchStatus(volumeStatus) && volume.MatchPodName(podNames) && volume.MatchPodNamespace(podNss) {
 			if _, found := driveMap[volume.Status.Drive]; found {
-				volumeList.Items = append(volumeList.Items, volume)
+				if utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue) {
+					volumeList.Items = append(volumeList.Items, volume)
+				}
 			}
 		}
 	}
