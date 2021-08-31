@@ -16,27 +16,16 @@
 
 package quota
 
-const (
-	// For reference :-
-	// - https://man7.org/linux/man-pages/man2/quotactl.2.html
-	// - https://github.com/torvalds/linux/blob/master/include/uapi/linux/dqblk_xfs.h
-	prjQuotaType = 2
-	subCmdShift  = 8
-	subCmdMask   = 0x00ff
-
-	setQuotaLimit    = 0x5804
-	prjSetQuotaLimit = uintptr(setQuotaLimit<<subCmdShift | prjQuotaType&subCmdMask)
-
-	getQuota    = 0x5803
-	prjGetQuota = uintptr(getQuota<<subCmdShift | prjQuotaType&subCmdMask)
-
-	fsDiskQuotaVersion  = 1
-	xfsProjectQuotaFlag = 2
-	fieldMaskBHard      = 8
-	fieldMaskBSoft      = 4
-	blockSize           = 512
-
-	fsGetAttr          = 0x801c581f // FS_IOC_FSGETXATTR
-	fsSetAttr          = 0x401c5820 // FS_IOC_FSSETXATTR
-	flagProjectInherit = 0x00000200
+import (
+	"context"
 )
+
+type DefaultDriveQuotaer struct{}
+
+func (q *DefaultDriveQuotaer) SetQuota(ctx context.Context, path, volumeID, blockFile string, quota FSQuota) error {
+	return SetQuota(ctx, path, volumeID, blockFile, quota)
+}
+
+func (q *DefaultDriveQuotaer) GetQuota(blockFile, volumeID string) (FSQuota, error) {
+	return GetQuota(blockFile, volumeID)
+}
