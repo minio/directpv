@@ -129,8 +129,6 @@ function deploy_minio() {
 
 function uninstall_minio() {
     kubectl delete -f functests/minio.yaml
-    kubectl delete pvc --all
-
     pending=4
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} minio pods to go down"
@@ -138,6 +136,7 @@ function uninstall_minio() {
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep '^minio-' | wc -l)
     done
 
+    kubectl delete pvc --all
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" volumes ls
 

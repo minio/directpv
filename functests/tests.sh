@@ -51,6 +51,9 @@ function do_upgrade_test() {
         volumes["${volume}"]=
     done
 
+    # Show output for manual debugging.
+    "${DIRECT_CSI_CLIENT}" volumes list
+
     "${DIRECT_CSI_CLIENT}" uninstall
     pending=7
     while [[ $pending -gt 3 ]]; do # webhook uninstallation is not supported in v1.3.6

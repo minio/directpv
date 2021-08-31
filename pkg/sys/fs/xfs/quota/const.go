@@ -17,26 +17,20 @@
 package quota
 
 const (
-	//
-	// Project Quota
-	// -------------------------------
-	// subCmdShift = 8
-	// subCmdMask  = 0x00ff
-	//
-	// func qCmd(subCmd, qType int) int {
-	//     return subCmd<<subCmdShift | qType&subCmdMask
-	// }
-	// -------------------------------
-	// qGetQuota = 0x800007
-	// qSetQuota = 0x800008
-	// prjQuota = 2
-	//
-	// For more reference: https://man7.org/linux/man-pages/man2/quotactl.2.html
-	//
+	// For reference :-
+	// - https://man7.org/linux/man-pages/man2/quotactl.2.html
+	// - https://github.com/torvalds/linux/blob/master/include/uapi/linux/dqblk_xfs.h
+	prjQuotaType = 2
+	subCmdShift  = 8
+	subCmdMask   = 0x00ff
 
 	// Get/Set Quota
-	prjSetQuotaLimit    = 0x580402 // qCmd(Q_XSETQLIM, PrjQuota)
-	prjGetQuota         = 0x580302 // qCmd(Q_XGETQUOTA, PrjQuota)
+	setQuotaLimit    = 0x5804                                                        // Q_XSETQLIM
+	prjSetQuotaLimit = uintptr(setQuotaLimit<<subCmdShift | prjQuotaType&subCmdMask) // qCmd(Q_XSETQLIM, PrjQuota)
+
+	getQuota    = 0x5803                                                   // Q_XGETQUOTA
+	prjGetQuota = uintptr(getQuota<<subCmdShift | prjQuotaType&subCmdMask) // qCmd(Q_XGETQUOTA, PrjQuota)
+
 	fsDiskQuotaVersion  = 1
 	xfsProjectQuotaFlag = 2
 	fieldMaskBHard      = 8   // d_blk_hardlimit Field specifier
