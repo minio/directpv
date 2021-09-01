@@ -22,7 +22,7 @@ import (
 
 // CSI provisioner images
 const (
-	// quay.io/minio/csi-provisioner:v2.2.2-go1.17
+	// quay.io/minio/csi-provisioner:v2.2.0-go1.17
 	CSIImageCSIProvisioner = "csi-provisioner@sha256:d4f94539565cf62aea57062b6a42c5156337003133fd3f51b93df9a789e69840"
 
 	// quay.io/minio/csi-node-driver-registrar:v2.2.0-go1.17
