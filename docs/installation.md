@@ -100,9 +100,9 @@ After running this installation:
 
 Push the following images to your private registry
  
- - quay.io/minio/csi-node-driver-registrar:v2.1.0
- - quay.io/minio/csi-provisioner:v2.1.0
- - quay.io/minio/livenessprobe:v2.1.0
+ - quay.io/minio/csi-node-driver-registrar:v2.2.0-go1.17
+ - quay.io/minio/csi-provisioner:v2.2.0-go1.17
+ - quay.io/minio/livenessprobe:v2.2.0-go1.17
  - quay.io/minio/direct-csi:${latest_tag_name}
 
 Here is a shell script to Copy-Paste into your terminal to do the above steps:
@@ -112,9 +112,9 @@ Here is a shell script to Copy-Paste into your terminal to do the above steps:
 # set this to private registry URL (the URL should NOT include http or https)
 if [ -z $PRIVATE_REGISTRY_URL ]; then "PRIVATE_REGISTRY_URL env var should be set"; fi
 
-image[0]=quay.io/minio/csi-node-driver-registrar:v2.1.0
-image[1]=quay.io/minio/csi-provisioner:v2.1.0
-image[2]=quay.io/minio/livenessprobe:v2.1.0
+image[0]=quay.io/minio/csi-node-driver-registrar:v2.2.0-go1.17
+image[1]=quay.io/minio/csi-provisioner:v2.2.0-go1.17
+image[2]=quay.io/minio/livenessprobe:v2.2.0-go1.17
 image[3]=quay.io/minio/direct-csi:$(curl -s "https://api.github.com/repos/minio/direct-csi/releases/latest" | grep tag_name | sed -E 's/.*"([^"]+)".*/\1/')
 
 function privatize(){ echo $1 | sed "s#quay.io#${PRIVATE_REGISTRY_URL}#g"; }
