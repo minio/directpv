@@ -133,23 +133,21 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		return err
 	}
 
-	if existingCRDStorageVersion == currentCRDStorageVersion {
-		return nil // CRDs already updated and holds the latest version
-	}
+	if existingCRDStorageVersion != currentCRDStorageVersion {
+		// Set all the existing versions to false
+		func() {
+			for i := range existingCRD.Spec.Versions {
+				existingCRD.Spec.Versions[i].Storage = false
+			}
+		}()
 
-	// Set all the existing versions to false
-	func() {
-		for i := range existingCRD.Spec.Versions {
-			existingCRD.Spec.Versions[i].Storage = false
+		latestVersionObject, err := getLatestCRDVersionObject(newCRD)
+		if err != nil {
+			return err
 		}
-	}()
 
-	latestVersionObject, err := getLatestCRDVersionObject(newCRD)
-	if err != nil {
-		return err
+		existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 	}
-
-	existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 
 	if err := setConversionConfig(ctx, existingCRD, identity, conversionStrategy); err != nil {
 		return err
@@ -186,11 +184,6 @@ func setConversionNone(crdObj *apiextensions.CustomResourceDefinition) {
 
 func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, identity string) error {
 
-	if !dryRun {
-		// Wait for conversion deployment to be live
-		installer.WaitForConversionDeployment(ctx, identity)
-	}
-
 	name := utils.SanitizeKubeResourceName(identity)
 	getServiceRef := func() *apiextensions.ServiceReference {
 		path := func() string {
@@ -203,11 +196,13 @@ func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResou
 				panic("unknown crd name found")
 			}
 		}()
+		port := int32(30443)
 
 		return &apiextensions.ServiceReference{
 			Namespace: name,
-			Name:      installer.GetConversionServiceName(),
+			Name:      utils.SanitizeKubeResourceName(identity),
 			Path:      &path,
+			Port:      &port,
 		}
 	}
 
