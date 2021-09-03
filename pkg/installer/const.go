@@ -90,7 +90,7 @@ const (
 	validationControllerName       = "directcsi-validation-controller"
 	admissionControllerWebhookName = "validatinghook"
 	ValidationWebhookConfigName    = "drive.validation.controller"
-	admissionControllerWebhookPort = 443
+	admissionControllerWebhookPort = 30443
 	certsDir                       = "/etc/certs"
 	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
 	privateKeyFileName             = "key.pem"
@@ -103,7 +103,7 @@ const (
 	conversionWebhookName                  = "directcsi-conversion-webhook"
 	ConversionWebhookSecretName            = "conversionwebhookcerts"
 	conversionWebhookPortName              = "convwebhook"
-	conversionWebhookPort                  = 443
+	conversionWebhookPort                  = 30443
 	conversionDeploymentReadinessThreshold = 2
 	conversionDeploymentRetryInterval      = 3 * time.Second
 
@@ -111,4 +111,9 @@ const (
 	conversionWebhookCertsSecret = "converionwebhookcertsecret"
 	caCertFileName               = "ca.pem"
 	caDir                        = "/etc/CAs"
+
+	// conversion
+	conversionKeyPair           = "conversionkeypair"
+	conversionCACert            = "conversioncacert"
+	conversionKeyPairVolumeName = "conversionkeypair"
 )

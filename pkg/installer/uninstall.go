@@ -21,7 +21,9 @@ import (
 
 	"github.com/minio/direct-csi/pkg/utils"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 func DeleteNamespace(ctx context.Context, identity string) error {
@@ -132,7 +134,7 @@ func DeleteControllerDeployment(ctx context.Context, identity string) error {
 	return DeleteDeployment(ctx, identity, utils.SanitizeKubeResourceName(identity))
 }
 
-func DeleteConversionDeployment(ctx context.Context, identity string) error {
+func deleteConversionDeployment(ctx context.Context, identity string) error {
 	return DeleteDeployment(ctx, identity, conversionWebhookName)
 }
 
@@ -166,16 +168,54 @@ func DeleteDeployment(ctx context.Context, identity, name string) error {
 	return nil
 }
 
-func DeleteConversionSecret(ctx context.Context, identity string) error {
+func deleteLegacyConversionSecret(ctx context.Context, identity string) error {
 	if err := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, ConversionWebhookSecretName, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
-func DeleteConversionWebhookCertsSecret(ctx context.Context, identity string) error {
+func deleteLegacyConversionWebhookCertsSecret(ctx context.Context, identity string) error {
 	if err := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, conversionWebhookCertsSecret, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
+
+func DeleteConversionSecrets(ctx context.Context, identity string) error {
+	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
+	if err := secretsClient.Delete(ctx, conversionKeyPair, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := secretsClient.Delete(ctx, conversionCACert, metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteLegacyConversionDeployment(ctx context.Context, identity string) error {
+	if err := deleteConversionDeployment(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	if err := deleteLegacyConversionSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	if err := deleteLegacyConversionWebhookCertsSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	klog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
+	return nil
+}
+
+// if err := installer.DeleteConversionSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+// 	return err
+// }
+
+// if err := installer.DeleteConversionWebhookCertsSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+// 	return err
+// }
+
+// klog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))

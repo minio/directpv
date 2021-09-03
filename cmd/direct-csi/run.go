@@ -18,13 +18,7 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"time"
 
 	ctrl "github.com/minio/direct-csi/pkg/controller"
 	"github.com/minio/direct-csi/pkg/converter"
@@ -38,65 +32,14 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	caFile = "/etc/CAs/ca.pem"
-)
-
-var (
-	conversionHookURLPollInterval  = 3 * time.Second
-	errInvalidConversionWebhookURL = errors.New("The `--conversion-webhook-url` flag is unset/empty")
-)
-
-func waitForConversionWebhook() error {
-	if conversionWebhookURL == "" {
-		return errInvalidConversionWebhookURL
-	}
-
-	caCert, err := ioutil.ReadFile(caFile)
-	if err != nil {
-		klog.V(2).Infof("Error while reading cacert %v", err)
-		return err
-	}
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: caCertPool,
-			},
-		},
-	}
-	defer client.CloseIdleConnections()
-
-	for {
-		_, err := client.Get(conversionWebhookURL)
-		if err == nil {
-			klog.V(2).Info("The conversion webhook is live!")
-			// The conversion webhook is live
-			break
-		}
-		klog.V(2).Infof("Waiting for conversion webhook: %v", err)
-		time.Sleep(conversionHookURLPollInterval)
-	}
-
-	return nil
-}
-
 func run(ctx context.Context, args []string) error {
 
-	if conversionWebhook {
+	go func() {
 		// Start conversion webserver
 		if err := converter.ServeConversionWebhook(ctx); err != nil {
-			return err
+			klog.V(3).Infof("Stopped serving conversion webhook: %v", err)
 		}
-		// Do not start node server and central controller in conversion mode
-		return nil
-	}
-
-	if err := waitForConversionWebhook(); err != nil {
-		return err
-	}
+	}()
 
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
@@ -110,6 +53,7 @@ func run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
+		klog.Infof("running drive discovery")
 		if err := discovery.Init(ctx, loopBackOnly); err != nil {
 			return fmt.Errorf("Error while initializing drive discovery: %v", err)
 		}

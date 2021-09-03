@@ -92,14 +92,16 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 		d.directcsiClient.DirectV1beta2().DirectCSIDrives(),
 		[]string{d.NodeID}, nil, nil, utils.MaxThreadCount,
 	)
+	klog.Infof("Error: %v", err)
 
 	var remoteDriveList []*remoteDrive
 	for result := range resultCh {
 		if result.Err != nil {
-			return err
+			return result.Err
 		}
 		remoteDriveList = append(remoteDriveList, &remoteDrive{DirectCSIDrive: result.Drive})
 	}
+	klog.Infof("len(remotedrivelist): %v", len(remoteDriveList))
 	d.remoteDrives = remoteDriveList
 	return nil
 }
@@ -113,6 +115,7 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 	localDriveStates := d.toDirectCSIDriveStatus(localDrives)
 	var unidentifedDriveStates []directcsi.DirectCSIDriveStatus
 	if len(d.remoteDrives) == 0 {
+		klog.Infof("Creating new drives as remote drives are empty: %v", d.remoteDrives)
 		for _, localDriveState := range localDriveStates {
 			if err := d.createNewDrive(ctx, localDriveState); err != nil {
 				return err

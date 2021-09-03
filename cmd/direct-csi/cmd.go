@@ -34,20 +34,18 @@ var Version string
 
 // flags
 var (
-	identity             = "direct-csi-min-io"
-	nodeID               = ""
-	rack                 = "default"
-	zone                 = "default"
-	region               = "default"
-	endpoint             = "unix://csi/csi.sock"
-	kubeconfig           = ""
-	controller           = false
-	driver               = false
-	procfs               = "/proc"
-	conversionWebhook    = false
-	conversionWebhookURL = ""
-	loopBackOnly         = false
-	showVersion          = false
+	identity     = "direct-csi-min-io"
+	nodeID       = ""
+	rack         = "default"
+	zone         = "default"
+	region       = "default"
+	endpoint     = "unix://csi/csi.sock"
+	kubeconfig   = ""
+	controller   = false
+	driver       = false
+	procfs       = "/proc"
+	loopBackOnly = false
+	showVersion  = false
 )
 
 var driverCmd = &cobra.Command{
@@ -68,8 +66,8 @@ For more information, use '%s man [sched | examples | ...]'
 		}
 
 		utils.Init()
-		if !controller && !driver && !conversionWebhook {
-			return fmt.Errorf("one among [--controller, --driver, --conversion-webhook] should be set")
+		if !controller && !driver {
+			return fmt.Errorf("one among [--controller, --driver] should be set")
 		}
 		return run(c.Context(), args)
 	},
@@ -103,8 +101,6 @@ func init() {
 	driverCmd.Flags().StringVarP(&procfs, "procfs", "", procfs, "path to host /proc for accessing mount information")
 	driverCmd.Flags().BoolVarP(&controller, "controller", "", controller, "running in controller mode")
 	driverCmd.Flags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
-	driverCmd.Flags().BoolVarP(&conversionWebhook, "conversion-webhook", "", conversionWebhook, "start and serve conversion webhook")
-	driverCmd.Flags().StringVarP(&conversionWebhookURL, "conversion-webhook-url", "", conversionWebhookURL, "The URL of the conversion webhook")
 	driverCmd.Flags().BoolVarP(&loopBackOnly, "loopback-only", "", loopBackOnly, "Create and uses loopback devices only")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")

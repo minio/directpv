@@ -75,7 +75,7 @@ import (
 
 func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
 	// Start admission webhook server
-	go serveAdmissionController(ctx)
+	// go serveAdmissionController(ctx)
 
 	config, err := utils.GetKubeConfig()
 	if err != nil {

@@ -213,19 +213,20 @@ func uninstall(ctx context.Context, args []string) error {
 	}
 	klog.Infof("'%s' controller deployment deleted", utils.Bold(identity))
 
-	if err := installer.DeleteConversionDeployment(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+	if err := installer.DeleteConversionSecrets(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
+	klog.Infof("'%s' conversion secrets deleted", utils.Bold(identity))
 
-	if err := installer.DeleteConversionSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
+	// if err := installer.DeleteConversionSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+	// 	return err
+	// }
 
-	if err := installer.DeleteConversionWebhookCertsSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
+	// if err := installer.DeleteConversionWebhookCertsSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+	// 	return err
+	// }
 
-	klog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
+	// klog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
 
 	if err := installer.DeleteNamespace(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
 		return err

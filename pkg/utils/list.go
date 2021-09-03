@@ -54,7 +54,7 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 	resultCh := make(chan ListDriveResult)
 	go func() {
 		defer close(resultCh)
-		klog.V(5).InfoS("Listing DirectCSIDrives", "limit", maxObjects, "selectors", labelSelector)
+		klog.V(1).InfoS("Listing DirectCSIDrives", "limit", maxObjects, "selectors", labelSelector)
 
 		send := func(result ListDriveResult) bool {
 			select {
@@ -72,6 +72,7 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 		for {
 			result, err := driveInterface.List(ctx, options)
 			if err != nil {
+				klog.Infof("error while listing: %v", err)
 				send(ListDriveResult{Err: err})
 				return
 			}
