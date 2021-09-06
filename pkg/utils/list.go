@@ -54,7 +54,7 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 	resultCh := make(chan ListDriveResult)
 	go func() {
 		defer close(resultCh)
-		klog.V(1).InfoS("Listing DirectCSIDrives", "limit", maxObjects, "selectors", labelSelector)
+		klog.V(5).InfoS("Listing DirectCSIDrives", "limit", maxObjects, "selectors", labelSelector)
 
 		send := func(result ListDriveResult) bool {
 			select {
@@ -72,7 +72,6 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 		for {
 			result, err := driveInterface.List(ctx, options)
 			if err != nil {
-				klog.Infof("error while listing: %v", err)
 				send(ListDriveResult{Err: err})
 				return
 			}
@@ -103,7 +102,7 @@ func GetDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveIn
 	driveList := []directcsi.DirectCSIDrive{}
 	for result := range resultCh {
 		if result.Err != nil {
-			return driveList, err
+			return driveList, result.Err
 		}
 		driveList = append(driveList, result.Drive)
 	}
@@ -177,7 +176,7 @@ func GetVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolum
 	volumeList := []directcsi.DirectCSIVolume{}
 	for result := range resultCh {
 		if result.Err != nil {
-			return volumeList, err
+			return volumeList, result.Err
 		}
 		volumeList = append(volumeList, result.Volume)
 	}

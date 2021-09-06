@@ -143,37 +143,6 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("crds successfully registered")
 	}
 
-	// if dryRun {
-	// 	// if err := installer.CreateOrUpdateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
-	// 	// 	return err
-	// 	// }
-	// 	if err := registerCRDs(ctx, identity, apiextensions.WebhookConverter); err != nil {
-	// 		if !k8serrors.IsAlreadyExists(err) {
-	// 			return err
-	// 		}
-	// 	}
-	// } else {
-	// 	if err := registerCRDs(ctx, identity, apiextensions.NoneConverter); err != nil {
-	// 		if !k8serrors.IsAlreadyExists(err) {
-	// 			return err
-	// 		}
-	// 	}
-	// 	klog.Infof("crds successfully registered")
-
-	// 	if err := syncCRDObjects(ctx); err != nil {
-	// 		return err
-	// 	}
-
-	// 	if err := installer.CreateOrUpdateConversionDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
-	// 		return err
-	// 	}
-	// 	klog.Infof("'%s' conversion deployment created", utils.Bold(identity))
-
-	// 	if err := updateConversionWebhookOnCRDs(ctx, identity); err != nil {
-	// 		return err
-	// 	}
-	// }
-
 	if err := installer.CreateCSIDriver(ctx, identity, dryRun); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err

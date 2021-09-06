@@ -23,7 +23,6 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 )
 
 func DeleteNamespace(ctx context.Context, identity string) error {
@@ -135,7 +134,7 @@ func DeleteControllerDeployment(ctx context.Context, identity string) error {
 }
 
 func deleteConversionDeployment(ctx context.Context, identity string) error {
-	return DeleteDeployment(ctx, identity, conversionWebhookName)
+	return DeleteDeployment(ctx, identity, conversionWebhookDeploymentName)
 }
 
 func DeleteDeployment(ctx context.Context, identity, name string) error {
@@ -206,16 +205,5 @@ func DeleteLegacyConversionDeployment(ctx context.Context, identity string) erro
 		return err
 	}
 
-	klog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))
 	return nil
 }
-
-// if err := installer.DeleteConversionSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
-// 	return err
-// }
-
-// if err := installer.DeleteConversionWebhookCertsSecret(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
-// 	return err
-// }
-
-// klog.Infof("'%s' conversion deployment deleted", utils.Bold(identity))

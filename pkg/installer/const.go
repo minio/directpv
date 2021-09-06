@@ -16,10 +16,6 @@
 
 package installer
 
-import (
-	"time"
-)
-
 // CSI provisioner images
 const (
 	// quay.io/minio/csi-provisioner:v2.2.0-go1.17
@@ -90,7 +86,7 @@ const (
 	validationControllerName       = "directcsi-validation-controller"
 	admissionControllerWebhookName = "validatinghook"
 	ValidationWebhookConfigName    = "drive.validation.controller"
-	admissionControllerWebhookPort = 30443
+	admissionControllerWebhookPort = 20443
 	certsDir                       = "/etc/certs"
 	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
 	privateKeyFileName             = "key.pem"
@@ -99,21 +95,16 @@ const (
 	// Finalizers
 	DirectCSIFinalizerDeleteProtection = "/delete-protection"
 
-	// Conversion webhook
-	conversionWebhookName                  = "directcsi-conversion-webhook"
-	ConversionWebhookSecretName            = "conversionwebhookcerts"
-	conversionWebhookPortName              = "convwebhook"
-	conversionWebhookPort                  = 30443
-	conversionDeploymentReadinessThreshold = 2
-	conversionDeploymentRetryInterval      = 3 * time.Second
-
-	conversionWebhookCertVolume  = "conversion-webhook-certs"
-	conversionWebhookCertsSecret = "converionwebhookcertsecret"
-	caCertFileName               = "ca.pem"
-	caDir                        = "/etc/CAs"
+	// Conversion webhook (Legacy)
+	conversionWebhookDeploymentName = "directcsi-conversion-webhook"
+	ConversionWebhookSecretName     = "conversionwebhookcerts"
+	conversionWebhookCertsSecret    = "converionwebhookcertsecret"
 
 	// conversion
 	conversionKeyPair           = "conversionkeypair"
 	conversionCACert            = "conversioncacert"
 	conversionKeyPairVolumeName = "conversionkeypair"
+	conversionWebhookPortName   = "convwebhook"
+	ConversionWebhookPort       = 30443
+	caCertFileName              = "ca.pem"
 )

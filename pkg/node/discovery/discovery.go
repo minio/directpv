@@ -22,6 +22,7 @@ import (
 	"k8s.io/klog/v2"
 	"path/filepath"
 	"strings"
+	// "time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
@@ -65,6 +66,7 @@ func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region stri
 		driveTopology:   topologies,
 	}
 
+	// time.Sleep(15*time.Second)
 	if err := d.readRemoteDrives(ctx); err != nil {
 		return nil, err
 	}
@@ -92,7 +94,9 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 		d.directcsiClient.DirectV1beta2().DirectCSIDrives(),
 		[]string{d.NodeID}, nil, nil, utils.MaxThreadCount,
 	)
-	klog.Infof("Error: %v", err)
+	if err != nil {
+		return err
+	}
 
 	var remoteDriveList []*remoteDrive
 	for result := range resultCh {
@@ -101,7 +105,6 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 		}
 		remoteDriveList = append(remoteDriveList, &remoteDrive{DirectCSIDrive: result.Drive})
 	}
-	klog.Infof("len(remotedrivelist): %v", len(remoteDriveList))
 	d.remoteDrives = remoteDriveList
 	return nil
 }
@@ -115,7 +118,6 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 	localDriveStates := d.toDirectCSIDriveStatus(localDrives)
 	var unidentifedDriveStates []directcsi.DirectCSIDriveStatus
 	if len(d.remoteDrives) == 0 {
-		klog.Infof("Creating new drives as remote drives are empty: %v", d.remoteDrives)
 		for _, localDriveState := range localDriveStates {
 			if err := d.createNewDrive(ctx, localDriveState); err != nil {
 				return err
