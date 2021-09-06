@@ -63,18 +63,19 @@ func ServeConversionWebhook(ctx context.Context) error {
 		return lErr
 	}
 
-	klog.V(2).Infof("Starting conversion webhook server in port: %s", port)
-	if err := server.ServeTLS(listener, "", ""); err != nil {
-		klog.Errorf("Failed to listen and serve conversion webhook server: %v", err)
-		return err
-	}
+	go func() {
+		klog.V(2).Infof("Starting conversion webhook server in port: %s", port)
+		if err := server.ServeTLS(listener, "", ""); err != nil {
+			klog.Errorf("Failed to listen and serve conversion webhook server: %v", err)
+		}
+	}()
 
 	return nil
 }
 
 // LivenessCheckHandler - Checks if the process is up. Always returns success.
 func LivenessCheckHandler(w http.ResponseWriter, r *http.Request) {
-	klog.V(5).Infof("Liveness check request: %v", r)
+	klog.Infof("Liveness check request: %v", r)
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

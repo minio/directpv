@@ -113,7 +113,7 @@ func (handler *DriveEventHandler) getFSUUID(ctx context.Context, drive *directcs
 
 	for result := range resultCh {
 		if result.Err != nil {
-			return "", err
+			return "", result.Err
 		}
 
 		if result.Drive.Name != drive.Name && result.Drive.Status.FilesystemUUID == drive.Status.FilesystemUUID {

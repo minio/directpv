@@ -196,7 +196,7 @@ func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResou
 				panic("unknown crd name found")
 			}
 		}()
-		port := int32(30443)
+		port := int32(installer.ConversionWebhookPort)
 
 		return &apiextensions.ServiceReference{
 			Namespace: name,

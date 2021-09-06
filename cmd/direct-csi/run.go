@@ -34,18 +34,16 @@ import (
 
 func run(ctx context.Context, args []string) error {
 
-	go func() {
-		// Start conversion webserver
-		if err := converter.ServeConversionWebhook(ctx); err != nil {
-			klog.V(3).Infof("Stopped serving conversion webhook: %v", err)
-		}
-	}()
+	// Start conversion webserver
+	if err := converter.ServeConversionWebhook(ctx); err != nil {
+		klog.V(3).Infof("Stopped serving conversion webhook: %v", err)
+	}
 
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
 		return err
 	}
-	klog.V(5).Infof("identity server started")
+	klog.V(3).Infof("identity server started")
 
 	var nodeSrv csi.NodeServer
 	if driver {
