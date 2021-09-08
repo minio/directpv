@@ -32,7 +32,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const MaxThreadCount = 40
+const MaxThreadCount = 200
 
 var (
 	initialized         int32
