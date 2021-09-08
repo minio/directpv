@@ -18,7 +18,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"time"
 
 	ctrl "github.com/minio/direct-csi/pkg/controller"
 	"github.com/minio/direct-csi/pkg/converter"
@@ -29,15 +35,77 @@ import (
 	"github.com/minio/direct-csi/pkg/volume"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 )
+
+const (
+	conversionCAFile = "/etc/conversion/CAs/ca.pem"
+)
+
+var (
+	errInvalidConversionHealthzURL = errors.New("The `--conversion-webhook-healthz-url` flag is unset/empty")
+)
+
+func waitForConversionWebhook() error {
+	if conversionHealthzURL == "" {
+		return errInvalidConversionHealthzURL
+	}
+
+	caCert, err := ioutil.ReadFile(conversionCAFile)
+	if err != nil {
+		klog.V(2).Infof("Error while reading cacert %v", err)
+		return err
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: caCertPool,
+			},
+		},
+		Timeout: 2 * time.Second,
+	}
+	defer client.CloseIdleConnections()
+
+	if err := retry.OnError(
+		wait.Backoff{
+			Duration: 1 * time.Second,
+			Factor:   2.0,
+			Jitter:   0.1,
+			Steps:    5,
+			Cap:      1 * time.Minute,
+		},
+		func(err error) bool {
+			return err != nil
+		},
+		func() error {
+			_, err := client.Get(conversionHealthzURL)
+			if err != nil {
+				klog.V(2).Infof("Waiting for conversion webhook: %v", err)
+			}
+			return err
+		}); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func run(ctx context.Context, args []string) error {
 
 	// Start conversion webserver
 	if err := converter.ServeConversionWebhook(ctx); err != nil {
-		klog.V(3).Infof("Stopped serving conversion webhook: %v", err)
+		return err
 	}
+
+	if err := waitForConversionWebhook(); err != nil {
+		return err
+	}
+	klog.V(3).Info("The conversion webhook is live!")
 
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
@@ -51,21 +119,20 @@ func run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		klog.Infof("running drive discovery")
 		if err := discovery.Init(ctx, loopBackOnly); err != nil {
 			return fmt.Errorf("Error while initializing drive discovery: %v", err)
 		}
-		klog.V(5).Infof("Drive discovery finished")
+		klog.V(3).Infof("Drive discovery finished")
 
 		// Check if the volume objects are migrated and CRDs versions are in-sync
 		volume.SyncVolumes(ctx, nodeID)
-		klog.V(5).Infof("Volumes sync completed")
+		klog.V(3).Infof("Volumes sync completed")
 
 		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region)
 		if err != nil {
 			return err
 		}
-		klog.V(5).Infof("node server started")
+		klog.V(3).Infof("node server started")
 	}
 
 	var ctrlServer csi.ControllerServer
@@ -74,7 +141,7 @@ func run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		klog.V(5).Infof("controller manager started")
+		klog.V(3).Infof("controller manager started")
 	}
 
 	return grpc.Run(ctx, endpoint, idServer, ctrlServer, nodeSrv)

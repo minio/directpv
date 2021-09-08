@@ -28,8 +28,8 @@ import (
 
 const (
 	port              = "30443"
-	certPath          = "/etc/certs/cert.pem"
-	keyPath           = "/etc/certs/key.pem"
+	certPath          = "/etc/conversion/certs/cert.pem"
+	keyPath           = "/etc/conversion/certs/key.pem"
 	DriveHandlerPath  = "/convertdrive"
 	VolumeHandlerPath = "/convertvolume"
 	healthzPath       = "/healthz"
@@ -75,7 +75,7 @@ func ServeConversionWebhook(ctx context.Context) error {
 
 // LivenessCheckHandler - Checks if the process is up. Always returns success.
 func LivenessCheckHandler(w http.ResponseWriter, r *http.Request) {
-	klog.Infof("Liveness check request: %v", r)
+	klog.V(5).Infof("Liveness check request: %v", r)
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

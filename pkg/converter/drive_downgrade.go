@@ -36,7 +36,7 @@ func downgradeDriveObject(fromVersion, toVersion string, convertedObject *unstru
 		fallthrough
 	case versionV1Beta1:
 		if toVersion == versionV1Beta1 {
-			klog.V(2).Info("Successfully migrated")
+			klog.V(10).Info("Successfully migrated")
 			break
 		}
 		if err := driveDowngradeV1Beta1ToV1alpha1(convertedObject); err != nil {
@@ -45,7 +45,7 @@ func downgradeDriveObject(fromVersion, toVersion string, convertedObject *unstru
 		fallthrough
 	case versionV1Alpha1:
 		if toVersion == versionV1Alpha1 {
-			klog.V(2).Info("Successfully migrated")
+			klog.V(10).Info("Successfully migrated")
 			break
 		}
 	}
@@ -61,7 +61,7 @@ func driveDowngradeV1Beta1ToV1alpha1(unstructured *unstructured.Unstructured) er
 		return err
 	}
 
-	klog.V(4).Infof("Converting directcsidrive: %v to v1alpha1", v1beta1DirectCSIDrive.Name)
+	klog.V(10).Infof("Converting directcsidrive: %v to v1alpha1", v1beta1DirectCSIDrive.Name)
 
 	var v1alpha1DirectCSIDrive directv1alpha1.DirectCSIDrive
 	if err := directv1beta1.Convert_v1beta1_DirectCSIDrive_To_v1alpha1_DirectCSIDrive(&v1beta1DirectCSIDrive, &v1alpha1DirectCSIDrive, nil); err != nil {
@@ -87,7 +87,7 @@ func driveDowngradeV1Beta2ToV1Beta1(unstructured *unstructured.Unstructured) err
 		return err
 	}
 
-	klog.V(4).Infof("Converting directcsidrive: %v to v1beta1", v1beta2DirectCSIDrive.Name)
+	klog.V(10).Infof("Converting directcsidrive: %v to v1beta1", v1beta2DirectCSIDrive.Name)
 
 	var v1beta1DirectCSIDrive directv1beta1.DirectCSIDrive
 	if err := directv1beta2.Convert_v1beta2_DirectCSIDrive_To_v1beta1_DirectCSIDrive(&v1beta2DirectCSIDrive, &v1beta1DirectCSIDrive, nil); err != nil {

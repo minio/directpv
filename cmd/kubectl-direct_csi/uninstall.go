@@ -213,6 +213,10 @@ func uninstall(ctx context.Context, args []string) error {
 	}
 	klog.Infof("'%s' controller deployment deleted", utils.Bold(identity))
 
+	if err := installer.DeleteLegacyConversionDeployment(ctx, identity); err != nil {
+		return err
+	}
+
 	if err := installer.DeleteConversionSecrets(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}

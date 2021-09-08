@@ -265,7 +265,7 @@ func CreateService(ctx context.Context, identity string, dryRun bool) error {
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{csiPort, webhookPort},
 			Selector: map[string]string{
-				"webhook": "enabled",
+				webhookSelector: selectorValueEnabled,
 			},
 		},
 	}
@@ -294,6 +294,12 @@ func getConversionHealthzHandler() corev1.Handler {
 	}
 }
 
+func getConversionHealthzURL(identity string) (conversionWebhookURL string) {
+	conversionWebhookDNSName := getConversionWebhookDNSName(identity)
+	conversionWebhookURL = fmt.Sprintf("https://%s:%d%s", conversionWebhookDNSName, ConversionWebhookPort, healthZContainerPortPath) // https://direct-csi-min-io.direct-csi-min-io.svc:30443/healthz
+	return
+}
+
 func CreateDaemonSet(ctx context.Context,
 	identity string,
 	directCSIContainerImage string,
@@ -306,6 +312,7 @@ func CreateDaemonSet(ctx context.Context,
 
 	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
+	conversionHealthzURL := getConversionHealthzURL(identity)
 
 	privileged := true
 	securityContext := &corev1.SecurityContext{Privileged: &privileged}
@@ -329,7 +336,8 @@ func CreateDaemonSet(ctx context.Context,
 			newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
 			newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
 			newHostPathVolume(volumeNameSysDir, volumePathSysDir),
-			newSecretVolume(conversionKeyPairVolumeName, conversionKeyPair),
+			newSecretVolume(conversionCACert, conversionCACert),
+			newSecretVolume(conversionKeyPair, conversionKeyPair),
 		},
 		Containers: []corev1.Container{
 			{
@@ -368,6 +376,7 @@ func CreateDaemonSet(ctx context.Context,
 						fmt.Sprintf("-v=%d", logLevel),
 						fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 						fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
+						fmt.Sprintf("--conversion-healthz-url=%s", conversionHealthzURL),
 						"--driver",
 					}
 					if loopBackOnly {
@@ -399,7 +408,8 @@ func CreateDaemonSet(ctx context.Context,
 					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true),
 					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true),
 					newVolumeMount(volumeNameSysDir, "/sys", true),
-					newVolumeMount(conversionKeyPairVolumeName, certsDir, false),
+					newVolumeMount(conversionCACert, conversionCADir, false),
+					newVolumeMount(conversionKeyPair, conversionCertsDir, false),
 				},
 				Ports: []corev1.ContainerPort{
 					{
@@ -469,7 +479,7 @@ func CreateDaemonSet(ctx context.Context,
 					Annotations: annotations,
 					Labels: map[string]string{
 						directCSISelector: generatedSelectorValue,
-						"webhook":         "enabled",
+						webhookSelector:   selectorValueEnabled,
 					},
 				},
 				Spec: podSpec,
@@ -557,6 +567,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
 	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
+	conversionHealthzURL := getConversionHealthzURL(identity)
 
 	var replicas int32 = 3
 	privileged := true
@@ -564,8 +575,9 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		ServiceAccountName: name,
 		Volumes: []corev1.Volume{
 			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", name))),
-			// newSecretVolume(admissionControllerCertsDir, AdmissionWebhookSecretName),
-			newSecretVolume(conversionKeyPairVolumeName, conversionKeyPair),
+			newSecretVolume(admissionControllerCertsDir, AdmissionWebhookSecretName),
+			newSecretVolume(conversionCACert, conversionCACert),
+			newSecretVolume(conversionKeyPair, conversionKeyPair),
 		},
 		Containers: []corev1.Container{
 			{
@@ -614,6 +626,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", name),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
+					fmt.Sprintf("--conversion-healthz-url=%s", conversionHealthzURL),
 					"--controller",
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -656,8 +669,9 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(volumeNameSocketDir, "/csi", false),
-					// newVolumeMount(admissionControllerCertsDir, certsDir, false),
-					newVolumeMount(conversionKeyPairVolumeName, certsDir, false),
+					newVolumeMount(admissionControllerCertsDir, admissionCertsDir, false),
+					newVolumeMount(conversionCACert, conversionCADir, false),
+					newVolumeMount(conversionKeyPair, conversionCertsDir, false),
 				},
 			},
 		},
@@ -693,7 +707,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 					},
 					Labels: map[string]string{
 						directCSISelector: generatedSelectorValue,
-						"webhook":         "enabled",
+						webhookSelector:   selectorValueEnabled,
 					},
 				},
 				Spec: podSpec,

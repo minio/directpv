@@ -28,8 +28,8 @@ import (
 
 const (
 	port              = "20443"
-	certPath          = "/etc/certs/cert.pem"
-	keyPath           = "/etc/certs/key.pem"
+	certPath          = "/etc/admission/certs/cert.pem"
+	keyPath           = "/etc/admission/certs/key.pem"
 	driveHandlerPath  = "/validatedrive"
 	volumeHandlerPath = "/validatevolume"
 )
