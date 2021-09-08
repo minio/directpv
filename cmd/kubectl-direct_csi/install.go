@@ -28,7 +28,6 @@ import (
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/klog/v2"
 )
 
@@ -134,7 +133,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' conversion webhook secrets created", utils.Bold(identity))
 	}
 
-	if err := registerCRDs(ctx, identity, apiextensions.WebhookConverter); err != nil {
+	if err := registerCRDs(ctx, identity); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}

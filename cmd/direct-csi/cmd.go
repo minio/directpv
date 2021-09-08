@@ -34,18 +34,19 @@ var Version string
 
 // flags
 var (
-	identity     = "direct-csi-min-io"
-	nodeID       = ""
-	rack         = "default"
-	zone         = "default"
-	region       = "default"
-	endpoint     = "unix://csi/csi.sock"
-	kubeconfig   = ""
-	controller   = false
-	driver       = false
-	procfs       = "/proc"
-	loopBackOnly = false
-	showVersion  = false
+	identity             = "direct-csi-min-io"
+	nodeID               = ""
+	rack                 = "default"
+	zone                 = "default"
+	region               = "default"
+	endpoint             = "unix://csi/csi.sock"
+	kubeconfig           = ""
+	controller           = false
+	driver               = false
+	procfs               = "/proc"
+	loopBackOnly         = false
+	showVersion          = false
+	conversionHealthzURL = ""
 )
 
 var driverCmd = &cobra.Command{
@@ -102,6 +103,7 @@ func init() {
 	driverCmd.Flags().BoolVarP(&controller, "controller", "", controller, "running in controller mode")
 	driverCmd.Flags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
 	driverCmd.Flags().BoolVarP(&loopBackOnly, "loopback-only", "", loopBackOnly, "Create and uses loopback devices only")
+	driverCmd.Flags().StringVarP(&conversionHealthzURL, "conversion-healthz-url", "", conversionHealthzURL, "The URL of the conversion webhook healthz endpoint")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")

@@ -42,7 +42,7 @@ const (
 	volumeCRDName            = "directcsivolumes.direct.csi.min.io"
 )
 
-func registerCRDs(ctx context.Context, identity string, conversionStrategy apiextensions.ConversionStrategyType) error {
+func registerCRDs(ctx context.Context, identity string) error {
 	crdObjs := []runtime.Object{}
 	for _, asset := range AssetNames() {
 		crdBytes, err := Asset(asset)
@@ -69,7 +69,7 @@ func registerCRDs(ctx context.Context, identity string, conversionStrategy apiex
 				return err
 			}
 
-			if err := setConversionConfig(ctx, &crdObj, identity, conversionStrategy); err != nil {
+			if err := setConversionWebhook(ctx, &crdObj, identity); err != nil {
 				return err
 			}
 
@@ -85,49 +85,14 @@ func registerCRDs(ctx context.Context, identity string, conversionStrategy apiex
 			}
 			continue
 		}
-		if err := syncCRD(ctx, existingCRD, crdObj, identity, conversionStrategy); err != nil {
+		if err := syncCRD(ctx, existingCRD, crdObj, identity); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setConversionConfig(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, identity string, conversionStrategy apiextensions.ConversionStrategyType) error {
-	switch conversionStrategy {
-	case apiextensions.NoneConverter:
-		setConversionNone(crdObj)
-	case apiextensions.WebhookConverter:
-		if err := setConversionWebhook(ctx, crdObj, identity); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func updateConversionWebhookOnCRDs(ctx context.Context, identity string) error {
-	supportedCRDs := []string{
-		driveCRDName,
-		volumeCRDName,
-	}
-	crdClient := utils.GetCRDClient()
-	for _, crdName := range supportedCRDs {
-		existingCRD, err := crdClient.Get(ctx, crdName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		if err := setConversionWebhook(ctx, existingCRD, identity); err != nil {
-			return err
-		}
-		if _, err := crdClient.Update(ctx, existingCRD, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-		klog.Infof("successfully updated conversion webhook settings in '%s' CRD", utils.Bold(existingCRD.Name))
-	}
-
-	return nil
-}
-
-func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefinition, newCRD apiextensions.CustomResourceDefinition, identity string, conversionStrategy apiextensions.ConversionStrategyType) error {
+func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefinition, newCRD apiextensions.CustomResourceDefinition, identity string) error {
 	existingCRDStorageVersion, err := apihelpers.GetCRDStorageVersion(existingCRD)
 	if err != nil {
 		return err
@@ -149,7 +114,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 	}
 
-	if err := setConversionConfig(ctx, existingCRD, identity, conversionStrategy); err != nil {
+	if err := setConversionWebhook(ctx, existingCRD, identity); err != nil {
 		return err
 	}
 
@@ -167,7 +132,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		return err
 	}
 
-	klog.Infof("'%s' CRD succesfully updated to '%s'", existingCRD.Name, utils.Bold(currentCRDStorageVersion))
+	klog.V(5).Infof("'%s' CRD succesfully updated to '%s'", existingCRD.Name, utils.Bold(currentCRDStorageVersion))
 
 	return nil
 }

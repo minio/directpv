@@ -48,6 +48,7 @@ const (
 	clusterRoleVerbDelete = "delete"
 	clusterRoleVerbUpdate = "update"
 	clusterRoleVerbPatch  = "patch"
+	selectorValueEnabled  = "enabled"
 
 	volumeNameSocketDir       = "socket-dir"
 	volumeNameDevDir          = "dev-dir"
@@ -87,7 +88,7 @@ const (
 	admissionControllerWebhookName = "validatinghook"
 	ValidationWebhookConfigName    = "drive.validation.controller"
 	admissionControllerWebhookPort = 20443
-	certsDir                       = "/etc/certs"
+	admissionCertsDir              = "/etc/admission/certs"
 	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
 	privateKeyFileName             = "key.pem"
 	publicCertFileName             = "cert.pem"
@@ -101,10 +102,12 @@ const (
 	conversionWebhookCertsSecret    = "converionwebhookcertsecret"
 
 	// conversion
-	conversionKeyPair           = "conversionkeypair"
-	conversionCACert            = "conversioncacert"
-	conversionKeyPairVolumeName = "conversionkeypair"
-	conversionWebhookPortName   = "convwebhook"
-	ConversionWebhookPort       = 30443
-	caCertFileName              = "ca.pem"
+	conversionKeyPair         = "conversionkeypair"
+	conversionCACert          = "conversioncacert"
+	conversionWebhookPortName = "convwebhook"
+	ConversionWebhookPort     = 30443
+	caCertFileName            = "ca.pem"
+	conversionCADir           = "/etc/conversion/CAs"
+	conversionCertsDir        = "/etc/conversion/certs"
+	webhookSelector           = "selector.direct.csi.min.io.webhook"
 )
