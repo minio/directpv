@@ -186,10 +186,7 @@ func DeleteConversionSecrets(ctx context.Context, identity string) error {
 	if err := secretsClient.Delete(ctx, conversionKeyPair, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	if err := secretsClient.Delete(ctx, conversionCACert, metav1.DeleteOptions{}); err != nil {
-		return err
-	}
-	return nil
+	return secretsClient.Delete(ctx, conversionCACert, metav1.DeleteOptions{})
 }
 
 func DeleteLegacyConversionDeployment(ctx context.Context, identity string) error {

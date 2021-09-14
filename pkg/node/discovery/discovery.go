@@ -22,7 +22,6 @@ import (
 	"k8s.io/klog/v2"
 	"path/filepath"
 	"strings"
-	// "time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/clientset"
@@ -66,7 +65,6 @@ func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region stri
 		driveTopology:   topologies,
 	}
 
-	// time.Sleep(15*time.Second)
 	if err := d.readRemoteDrives(ctx); err != nil {
 		return nil, err
 	}

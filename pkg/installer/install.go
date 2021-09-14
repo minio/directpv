@@ -998,10 +998,8 @@ func checkConversionSecrets(ctx context.Context, identity string) error {
 	if _, err := secretsClient.Get(ctx, conversionKeyPair, metav1.GetOptions{}); err != nil {
 		return err
 	}
-	if _, err := secretsClient.Get(ctx, conversionCACert, metav1.GetOptions{}); err != nil {
-		return err
-	}
-	return nil
+	_, err := secretsClient.Get(ctx, conversionCACert, metav1.GetOptions{})
+	return err
 }
 
 func CreateConversionWebhookSecrets(ctx context.Context, identity string, dryRun bool) error {
@@ -1023,9 +1021,6 @@ func CreateConversionWebhookSecrets(ctx context.Context, identity string, dryRun
 	if err := CreateOrUpdateConversionKeyPairSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
 		return err
 	}
-	if err := CreateOrUpdateConversionCACertSecret(ctx, identity, caCertBytes, dryRun); err != nil {
-		return err
-	}
 
-	return nil
+	return CreateOrUpdateConversionCACertSecret(ctx, identity, caCertBytes, dryRun)
 }
