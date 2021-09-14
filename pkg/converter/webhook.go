@@ -64,7 +64,7 @@ func ServeConversionWebhook(ctx context.Context) error {
 	}
 
 	go func() {
-		klog.V(2).Infof("Starting conversion webhook server in port: %s", port)
+		klog.V(3).Infof("Starting conversion webhook server in port: %s", port)
 		if err := server.ServeTLS(listener, "", ""); err != nil {
 			klog.Errorf("Failed to listen and serve conversion webhook server: %v", err)
 		}
