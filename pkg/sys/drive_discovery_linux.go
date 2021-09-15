@@ -36,6 +36,7 @@ import (
 	"github.com/minio/direct-csi/pkg/fs"
 	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
 	"github.com/minio/direct-csi/pkg/sys/smart"
+	"github.com/minio/direct-csi/pkg/uevent"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
@@ -414,13 +415,6 @@ func newDevice(event map[string]string, name string, major, minor int, virtual b
 		Virtual: virtual,
 	}
 
-	if value, found := event["ID_PART_ENTRY_SIZE"]; found {
-		if device.Size, err = strconv.ParseUint(value, 10, 64); err != nil {
-			return nil, err
-		}
-		device.Size *= defaultBlockSize
-	}
-
 	if value, found := event["ID_PART_ENTRY_NUMBER"]; found {
 		if device.Partition, err = strconv.Atoi(value); err != nil {
 			return nil, err
@@ -439,6 +433,9 @@ func newDevice(event map[string]string, name string, major, minor int, virtual b
 	device.PartUUID = event["ID_PART_ENTRY_UUID"]
 	device.UeventFSUUID = event["ID_FS_UUID"]
 	device.FSType = event["ID_FS_TYPE"]
+
+	serial, _ := getSerial("/dev/" + name)
+	device.Serial = serial
 
 	return device, nil
 }
@@ -500,11 +497,10 @@ func probeDevicesFromUdev() (devices map[string]*Device, err error) {
 			return nil, err
 		}
 
-		if device.Partition <= 0 {
-			if device.Size, err = getSize(name); err != nil {
-				return nil, err
-			}
+		if device.Size, err = getSize(name); err != nil {
+			return nil, err
 		}
+
 		if device.Removable, err = getRemovable(name); err != nil {
 			return nil, err
 		}
@@ -549,15 +545,15 @@ func getBlockSizes(device string) (physicalBlockSize, logicalBlockSize uint64, e
 func probeFS(device *Device) (fs.FS, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
-	sb, err := fs.Probe(ctx, "/dev/"+device.Name)
+	fsInfo, err := fs.Probe(ctx, "/dev/"+device.Name)
 	if err != nil && device.Size > 0 {
 		switch {
-		case errors.Is(err, fserrors.ErrFSNotFound), errors.Is(err, fserrors.ErrCancelled):
+		case errors.Is(err, fserrors.ErrFSNotFound), errors.Is(err, fserrors.ErrCancelled), errors.Is(err, io.ErrUnexpectedEOF):
 		default:
 			return nil, err
 		}
 	}
-	return sb, nil
+	return fsInfo, nil
 }
 
 func getCapacity(device *Device) (totalCapacity, freeCapacity uint64) {
@@ -595,18 +591,21 @@ func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos 
 	}
 
 	if device.FSType == "" {
-		sb, err := probeFS(device)
+		fsInfo, err := probeFS(device)
 		if err != nil {
 			return err
 		}
-		if sb != nil {
-			device.FSUUID = sb.ID()
-			device.FSType = sb.Type()
-			device.TotalCapacity = sb.TotalCapacity()
-			device.FreeCapacity = sb.FreeCapacity()
+		if fsInfo != nil {
+			device.FSUUID = fsInfo.ID()
+			if device.FSType != "" && !FSTypeEqual(device.FSType, fsInfo.Type()) {
+				klog.Errorf("%v: FSType %v from Uevent does not match probed FSType %v", "/dev/"+device.Name, device.FSType, fsInfo.Type())
+				device.TotalCapacity, device.FreeCapacity = getCapacity(device)
+			} else {
+				device.FSType = fsInfo.Type()
+				device.TotalCapacity = fsInfo.TotalCapacity()
+				device.FreeCapacity = fsInfo.FreeCapacity()
+			}
 		}
-	} else {
-		device.TotalCapacity, device.FreeCapacity = getCapacity(device)
 	}
 	return nil
 }
@@ -735,4 +734,90 @@ func probeDevices() (devices map[string]*Device, err error) {
 	}
 
 	return devices, nil
+}
+
+func createDevice(event map[string]string) (device *Device, err error) {
+	name := filepath.Base(event["DEVPATH"])
+	if name == "" {
+		return nil, fmt.Errorf("event does not have valid DEVPATH %v", event["DEVPATH"])
+	}
+
+	major, err := strconv.Atoi(event["MAJOR"])
+	if err != nil {
+		return nil, err
+	}
+
+	minor, err := strconv.Atoi(event["MINOR"])
+	if err != nil {
+		return nil, err
+	}
+
+	switch event["ACTION"] {
+	case uevent.Add, uevent.Change:
+		// Older kernels like in CentOS 7 does not send all information about the device,
+		// hence read relavent data from /run/udev/data/b<major>:<minor>
+		info, err := readRunUdevData(major, minor)
+		if err != nil {
+			return nil, err
+		}
+		for key, value := range info {
+			if _, found := event[key]; !found {
+				event[key] = value
+			}
+		}
+	}
+
+	if device, err = newDevice(event, name, major, minor, strings.Contains(event["DEVPATH"], "/virtual/")); err != nil {
+		return nil, err
+	}
+
+	if event["ACTION"] == uevent.Remove {
+		return device, nil
+	}
+
+	if device.Removable, err = getRemovable(device.Name); err != nil {
+		return nil, err
+	}
+
+	if device.ReadOnly, err = getReadOnly(device.Name); err != nil {
+		return nil, err
+	}
+
+	if device.Size, err = getSize(device.Name); err != nil {
+		return nil, err
+	}
+
+	if device.Partition <= 0 {
+		names, err := getPartitions(name)
+		if err != nil {
+			return nil, err
+		}
+		device.Partitioned = len(names) > 0
+	}
+
+	CDROMs, err := getCDROMs()
+	if err != nil {
+		return nil, err
+	}
+
+	mountInfos, err := ProbeMounts()
+	if err != nil {
+		return nil, err
+	}
+
+	mountPointsMap, err := getMountPoints(mountInfos)
+	if err != nil {
+		return nil, err
+	}
+
+	swaps, err := getSwaps()
+	if err != nil {
+		return nil, err
+	}
+
+	if err = updateFSInfo(device, CDROMs, swaps, mountInfos, mountPointsMap); err != nil {
+		return nil, err
+	}
+
+	return device, nil
 }

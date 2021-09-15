@@ -158,7 +158,7 @@ func run(ctx context.Context, args []string) error {
 		volume.SyncVolumes(ctx, nodeID)
 		klog.V(3).Infof("Volumes sync completed")
 
-		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region)
+		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, enableDynamicDiscovery)
 		if err != nil {
 			return err
 		}

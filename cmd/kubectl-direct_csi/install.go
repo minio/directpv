@@ -122,7 +122,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' namespace created", utils.Bold(identity))
 	}
 
-	if err := installer.CreatePodSecurityPolicy(ctx, identity, dryRun, file); err != nil {
+	if err := installer.CreatePodSecurityPolicy(ctx, identity, dryRun, enableDynamicDiscovery, file); err != nil {
 		switch {
 		case errors.Is(err, installer.ErrKubeVersionNotSupported):
 			klog.Infof("pod security policy is not supported in your kubernetes")

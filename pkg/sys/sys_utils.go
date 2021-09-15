@@ -164,3 +164,35 @@ func ReserveLoopbackDevices(devCount int) error {
 	}
 	return nil
 }
+
+func isFATFSType(fsType string) bool {
+	switch fsType {
+	case "fat", "vfat", "fat12", "fat16", "fat32":
+		return true
+	default:
+		return false
+	}
+}
+
+func isSwapFSType(fsType string) bool {
+	switch fsType {
+	case "linux-swap", "swap":
+		return true
+	default:
+		return false
+	}
+}
+
+func FSTypeEqual(fsType1, fsType2 string) bool {
+	fsType1, fsType2 = strings.ToLower(fsType1), strings.ToLower(fsType2)
+	switch {
+	case fsType1 == fsType2:
+		return true
+	case isFATFSType(fsType1) && isFATFSType(fsType2):
+		return true
+	case isSwapFSType(fsType1) && isSwapFSType(fsType2):
+		return true
+	default:
+		return false
+	}
+}

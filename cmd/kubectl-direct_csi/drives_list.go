@@ -29,7 +29,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
@@ -81,6 +80,38 @@ func init() {
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "match based on access-tier")
 }
 
+func getModel(drive directcsi.DirectCSIDrive) string {
+	var result string
+
+	switch {
+	case drive.Status.DMUUID != "":
+		result = drive.Status.DMName
+	case drive.Status.MDUUID != "":
+		result = "Linux RAID"
+	default:
+		vendor := strings.TrimSpace(drive.Status.Vendor)
+		model := strings.TrimSpace(drive.Status.ModelNumber)
+		switch {
+		case vendor == "" || strings.Contains(model, vendor):
+			result = model
+		case model == "" || strings.Contains(vendor, model):
+			result = vendor
+		default:
+			result = vendor + " " + model
+		}
+	}
+
+	if drive.Status.PartitionNum <= 0 {
+		return result
+	}
+
+	if result == "" {
+		return "PART"
+	}
+
+	return result + " PART"
+}
+
 func listDrives(ctx context.Context, args []string) error {
 
 	filteredDrives, err := getFilteredDriveList(
@@ -124,23 +155,20 @@ func listDrives(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	headers := func() []interface{} {
-		header := []interface{}{
-			"DRIVE",
-			"CAPACITY",
-			"ALLOCATED",
-			"FILESYSTEM",
-			"VOLUMES",
-			"NODE",
-			"ACCESS-TIER",
-			"STATUS",
-			"",
-		}
-		if wide {
-			header = append(header, "DRIVE ID")
-		}
-		return header
-	}()
+	headers := []interface{}{
+		"DRIVE",
+		"CAPACITY",
+		"ALLOCATED",
+		"FILESYSTEM",
+		"VOLUMES",
+		"NODE",
+		"ACCESS-TIER",
+		"STATUS",
+		"",
+	}
+	if wide {
+		headers = append(headers, "DRIVE ID", "MODEL")
+	}
 
 	text.DisableColors()
 	t := table.NewWriter()
@@ -153,78 +181,59 @@ func listDrives(ctx context.Context, args []string) error {
 	t.SetStyle(style)
 
 	for _, d := range filteredDrives {
-		volumes := len(d.Finalizers)
-		if volumes > 0 {
-			volumes--
+		drive := strings.ReplaceAll(
+			"/dev/"+canonicalNameFromPath(d.Status.Path),
+			directCSIPartitionInfix,
+			"",
+		)
+
+		volumes := "-"
+		if len(d.Finalizers) > 1 {
+			volumes = fmt.Sprintf("%v", len(d.Finalizers)-1)
 		}
 
+		accessTier := "-"
+		if d.Status.AccessTier != directcsi.AccessTierUnknown {
+			accessTier = strings.ToLower(string(d.Status.AccessTier))
+		}
+
+		status := d.Status.DriveStatus
 		msg := ""
-		for _, c := range d.Status.Conditions {
-			if d.Status.DriveStatus == directcsi.DriveStatusReleased {
-				// Do not diplay error in case of released drives
-				continue
-			}
-			if c.Type == string(directcsi.DirectCSIDriveConditionInitialized) {
-				if c.Status != metav1.ConditionTrue {
-					msg = c.Message
-					continue
-				}
-			}
-			if c.Type == string(directcsi.DirectCSIDriveConditionOwned) {
-				if c.Status != metav1.ConditionTrue {
-					msg = c.Message
-					continue
+		if d.Status.DriveStatus != directcsi.DriveStatusReleased {
+			for _, c := range d.Status.Conditions {
+				switch c.Type {
+				case string(directcsi.DirectCSIDriveConditionInitialized), string(directcsi.DirectCSIDriveConditionOwned):
+					if c.Status != metav1.ConditionTrue {
+						msg = c.Message
+						if msg != "" {
+							status = d.Status.DriveStatus + "*"
+							msg = strings.ReplaceAll(msg, d.Name, "")
+							msg = strings.ReplaceAll(msg, sys.GetDirectCSIPath(d.Status.FilesystemUUID), drive)
+							msg = strings.ReplaceAll(msg, directCSIPartitionInfix, "")
+							msg = strings.Split(msg, "\n")[0]
+						}
+					}
 				}
 			}
 		}
 
-		dr := func(val string) string {
-			dr := canonicalNameFromPath(val)
-			return strings.ReplaceAll("/dev/"+dr, directCSIPartitionInfix, "")
-		}(d.Status.Path)
-		drStatus := d.Status.DriveStatus
-		if msg != "" {
-			drStatus = drStatus + "*"
-			msg = strings.ReplaceAll(msg, d.Name, "")
-			msg = strings.ReplaceAll(msg, sys.GetDirectCSIPath(d.Status.FilesystemUUID), dr)
-			msg = strings.ReplaceAll(msg, directCSIPartitionInfix, "")
-			msg = strings.Split(msg, "\n")[0]
-		}
-
-		emptyOrVal := func(val int) string {
-			if val == 0 {
-				return "-"
-			}
-			return fmt.Sprintf("%d", val)
-		}
-		emptyOrBytes := func(val int64) string {
-			if val == 0 {
-				return "-"
-			}
-			return humanize.IBytes(uint64(val))
-		}
-		t.AppendRow([]interface{}{
-			dr,                                       //DRIVE
-			emptyOrBytes(d.Status.TotalCapacity),     //CAPACITY
-			emptyOrBytes(d.Status.AllocatedCapacity), //ALLOCATED
+		output := []interface{}{
+			drive,
+			printableBytes(d.Status.TotalCapacity),
+			printableBytes(d.Status.AllocatedCapacity),
 			printableString(d.Status.Filesystem),
-			emptyOrVal(volumes), //VOLUMES
-			d.Status.NodeName,   //SERVER
-			func(drive directcsi.DirectCSIDrive) string {
-				if drive.Status.AccessTier == directcsi.AccessTierUnknown {
-					return "-"
-				}
-				return strings.ToLower(string(drive.Status.AccessTier))
-			}(d), //ACCESS-TIER
-			utils.Bold(drStatus), //STATUS
-			msg,                  //MESSAGE
-			func() string {
-				if wide {
-					return d.Name
-				}
-				return ""
-			}(),
-		})
+			volumes,
+			d.Status.NodeName,
+			accessTier,
+			utils.Bold(status),
+			msg,
+		}
+
+		if wide {
+			output = append(output, d.Name, printableString(getModel(d)))
+		}
+
+		t.AppendRow(output)
 	}
 
 	t.Render()

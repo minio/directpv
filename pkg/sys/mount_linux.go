@@ -255,3 +255,13 @@ func Unmount(target string, opts []UnmountOption) error {
 	klog.V(5).Infof("unmounting %s", target)
 	return syscall.Unmount(target, flags)
 }
+
+func ForceUnmount(target string) {
+	err := syscall.Unmount(target, syscall.MNT_FORCE|syscall.MNT_DETACH)
+	switch {
+	case err == nil:
+		klog.V(5).Infof("%v forcefully unmount successfully", target)
+	case err != nil:
+		klog.V(5).InfoS("unable to unmount", "err", err, "target", target)
+	}
+}

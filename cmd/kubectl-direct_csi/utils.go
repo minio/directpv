@@ -26,6 +26,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 	"github.com/mitchellh/go-homedir"
 
@@ -81,6 +82,14 @@ func printableString(s string) string {
 		return "-"
 	}
 	return s
+}
+
+func printableBytes(value int64) string {
+	if value == 0 {
+		return "-"
+	}
+
+	return humanize.IBytes(uint64(value))
 }
 
 func printYAML(obj interface{}) error {

@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
+func createPodSecurityPolicy(ctx context.Context, identity string, dryRun, enableDynamicDiscovery bool, writer io.Writer) error {
 	psp := &policy.PodSecurityPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policy/v1beta1",
@@ -63,6 +63,10 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool, 
 
 	if err := utils.WriteObject(writer, psp); err != nil {
 		return err
+	}
+
+	if enableDynamicDiscovery {
+		psp.Spec.HostNetwork = true
 	}
 
 	if dryRun {
@@ -112,14 +116,14 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool, 
 	return err
 }
 
-func CreatePodSecurityPolicy(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
+func CreatePodSecurityPolicy(ctx context.Context, identity string, dryRun, enableDynamicDiscovery bool, writer io.Writer) error {
 	info, err := utils.GetGroupKindVersions("policy", "PodSecurityPolicy", "v1beta1")
 	if err != nil {
 		return err
 	}
 
 	if info.Version == "v1beta1" {
-		return createPodSecurityPolicy(ctx, identity, dryRun, writer)
+		return createPodSecurityPolicy(ctx, identity, dryRun, enableDynamicDiscovery, writer)
 	}
 
 	return ErrKubeVersionNotSupported
