@@ -19,7 +19,7 @@ package discovery
 import (
 	"errors"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 )
 
 var (

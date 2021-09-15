@@ -123,7 +123,7 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		return &csi.NodeGetVolumeStatsResponse{}, nil
 	}
 
-	directCSIClient := ns.directcsiClient.DirectV1beta2()
+	directCSIClient := ns.directcsiClient.DirectV1beta3()
 	vclient := directCSIClient.DirectCSIVolumes()
 	dclient := directCSIClient.DirectCSIDrives()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{

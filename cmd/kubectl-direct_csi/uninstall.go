@@ -23,8 +23,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -55,7 +55,7 @@ func init() {
 	uninstallCmd.PersistentFlags().BoolVarP(&forceRemove, "force", "", forceRemove, "Removes the direct.csi.min.io resources [May cause data loss]")
 }
 
-func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta2Interface) error {
+func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3Interface) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -99,7 +99,7 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta2I
 	return err
 }
 
-func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta2Interface) error {
+func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3Interface) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 

@@ -27,7 +27,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -132,7 +132,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	ctx := context.TODO()
 	ns := createFakeNodeServer()
 	ns.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
-	directCSIClient := ns.directcsiClient.DirectV1beta2()
+	directCSIClient := ns.directcsiClient.DirectV1beta3()
 	hostPath := filepath.Join(testMountPointDir, testVolumeName50MB)
 
 	// Stage Volume test

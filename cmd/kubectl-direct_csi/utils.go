@@ -26,8 +26,8 @@ import (
 
 	"github.com/fatih/color"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
 
 	"github.com/minio/direct-csi/pkg/utils"
@@ -135,7 +135,7 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 	return filteredDrives, nil
 }
 
-func defaultDriveUpdateFunc(directCSIClient clientset.DirectV1beta2Interface) func(context.Context, *directcsi.DirectCSIDrive) error {
+func defaultDriveUpdateFunc(directCSIClient clientset.DirectV1beta3Interface) func(context.Context, *directcsi.DirectCSIDrive) error {
 	return func(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
 		_, err := directCSIClient.DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{})
 		return err

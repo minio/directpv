@@ -25,7 +25,7 @@ import (
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -880,7 +880,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	ctx := context.TODO()
 	cl := createFakeController()
 	cl.directcsiClient = clientsetfake.NewSimpleClientset(testDriveObjects...)
-	directCSIClient := cl.directcsiClient.DirectV1beta2()
+	directCSIClient := cl.directcsiClient.DirectV1beta3()
 
 	for _, cvReq := range createVolumeRequests {
 		volName := cvReq.GetName()

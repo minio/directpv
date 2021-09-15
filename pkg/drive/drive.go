@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/sys"
@@ -66,7 +66,7 @@ func (handler *DriveEventHandler) ListerWatcher() cache.ListerWatcher {
 	}
 
 	return cache.NewFilteredListWatchFromClient(
-		handler.directCSIClient.DirectV1beta2().RESTClient(),
+		handler.directCSIClient.DirectV1beta3().RESTClient(),
 		"DirectCSIDrives",
 		"",
 		optionsModifier,
@@ -107,7 +107,7 @@ func (handler *DriveEventHandler) getFSUUID(ctx context.Context, drive *directcs
 
 	// Use new UUID if it is aleady used in another drive.
 	resultCh, err := utils.ListDrives(
-		ctx, handler.directCSIClient.DirectV1beta2().DirectCSIDrives(), []string{handler.nodeID}, nil, nil, utils.MaxThreadCount,
+		ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), []string{handler.nodeID}, nil, nil, utils.MaxThreadCount,
 	)
 	if err != nil {
 		return "", err
@@ -228,7 +228,7 @@ func (handler *DriveEventHandler) format(ctx context.Context, drive *directcsi.D
 		drive.Spec.RequestedFormat = nil
 	}
 
-	if _, uErr := handler.directCSIClient.DirectV1beta2().DirectCSIDrives().Update(
+	if _, uErr := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
 		ctx, drive, metav1.UpdateOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		},
@@ -263,41 +263,7 @@ func (handler *DriveEventHandler) update(ctx context.Context, drive *directcsi.D
 }
 
 func (handler *DriveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	directCSIClient := handler.directCSIClient.DirectV1beta2()
-	if drive.Status.DriveStatus != directcsi.DriveStatusTerminating {
-		drive.Status.DriveStatus = directcsi.DriveStatusTerminating
-		if _, err := directCSIClient.DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-		}); err != nil {
-			return err
-		}
-	}
-
-	finalizers := drive.GetFinalizers()
-	if len(finalizers) == 0 {
-		return nil
-	}
-
-	if len(finalizers) > 1 {
-		return fmt.Errorf("cannot delete drive in use")
-	}
-	finalizer := finalizers[0]
-
-	if finalizer != directcsi.DirectCSIDriveFinalizerDataProtection {
-		return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/direct-csi/issues")
-	}
-
-	if err := sys.SafeUnmount(filepath.Join(sys.MountRoot, drive.Name), nil); err != nil {
-		return err
-	}
-
-	drive.Finalizers = []string{}
-	_, err := directCSIClient.DirectCSIDrives().Update(
-		ctx, drive, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-		},
-	)
-	return err
+	return utils.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), drive)
 }
 
 func StartController(ctx context.Context, nodeID string) error {

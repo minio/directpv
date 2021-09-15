@@ -26,7 +26,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,13 +37,15 @@ const (
 	versionV1Alpha1 = "direct.csi.min.io/v1alpha1"
 	versionV1Beta1  = "direct.csi.min.io/v1beta1"
 	versionV1Beta2  = "direct.csi.min.io/v1beta2"
+	versionV1Beta3  = "direct.csi.min.io/v1beta3"
 )
 
-var (
-	supportedVersions = []string{versionV1Alpha1,
-		versionV1Beta1,
-		versionV1Beta2} //ordered
-)
+var supportedVersions = []string{
+	versionV1Alpha1,
+	versionV1Beta1,
+	versionV1Beta2,
+	versionV1Beta3,
+} //ordered
 
 type CRDKind string
 

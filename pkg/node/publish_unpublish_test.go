@@ -25,7 +25,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -116,7 +116,7 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	ctx := context.TODO()
 	ns := createFakeNodeServer()
 	ns.directcsiClient = fakedirect.NewSimpleClientset(testVol)
-	directCSIClient := ns.directcsiClient.DirectV1beta2()
+	directCSIClient := ns.directcsiClient.DirectV1beta3()
 
 	// Publish volume test
 	if _, err := ns.NodePublishVolume(ctx, &publishVolumeRequest); err != nil {

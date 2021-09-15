@@ -27,9 +27,9 @@ import (
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
-	directcsifake "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2/fake"
+	directcsifake "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -104,8 +104,8 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 
 	ctx, _ := context.WithCancel(context.Background())
 	testClientSet := clientsetfake.NewSimpleClientset(testDriveObjects...)
-	testClient := testClientSet.DirectV1beta2()
-	utils.SetDirectCSIClient(testClient.(*directcsifake.FakeDirectV1beta2))
+	testClient := testClientSet.DirectV1beta3()
+	utils.SetDirectCSIClient(testClient.(*directcsifake.FakeDirectV1beta3))
 
 	resetDrives := func() error {
 		driveList, err := utils.GetDriveList(ctx, testClient.DirectCSIDrives(), nil, nil, nil)

@@ -17,21 +17,26 @@
 package converter
 
 import (
-	"k8s.io/klog/v2"
 	"path/filepath"
 
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directv1beta3 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 )
 
 func upgradeDriveObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
 	switch fromVersion {
 	case versionV1Alpha1:
+		if toVersion == versionV1Alpha1 {
+			klog.V(10).Info("Successfully migrated")
+			break
+		}
 		if err := driveUpgradeV1alpha1ToV1Beta1(convertedObject); err != nil {
 			return err
 		}
@@ -47,6 +52,15 @@ func upgradeDriveObject(fromVersion, toVersion string, convertedObject *unstruct
 		fallthrough
 	case versionV1Beta2:
 		if toVersion == versionV1Beta2 {
+			klog.V(10).Info("Successfully migrated")
+			break
+		}
+		if err := driveUpgradeV1Beta2ToV1Beta3(convertedObject); err != nil {
+			return err
+		}
+		fallthrough
+	case versionV1Beta3:
+		if toVersion == versionV1Beta3 {
 			klog.V(10).Info("Successfully migrated")
 			break
 		}
@@ -108,6 +122,40 @@ func driveUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error
 	)
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta2DirectCSIDrive)
+	if err != nil {
+		return err
+	}
+
+	unstructured.Object = convertedObj
+	return nil
+}
+
+func driveUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) error {
+
+	unstructuredObject := unstructured.Object
+
+	var v1beta2DirectCSIDrive directv1beta2.DirectCSIDrive
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObject, &v1beta2DirectCSIDrive)
+	if err != nil {
+		return err
+	}
+
+	klog.V(10).Infof("Converting directcsidrive: %v to v1beta3", v1beta2DirectCSIDrive.Name)
+
+	var v1beta3DirectCSIDrive directv1beta3.DirectCSIDrive
+	if err := directv1beta3.Convert_v1beta2_DirectCSIDrive_To_v1beta3_DirectCSIDrive(&v1beta2DirectCSIDrive, &v1beta3DirectCSIDrive, nil); err != nil {
+		return err
+	}
+
+	v1beta3DirectCSIDrive.TypeMeta = v1beta2DirectCSIDrive.TypeMeta
+	utils.UpdateLabels(&v1beta3DirectCSIDrive,
+		utils.NodeLabel, v1beta2DirectCSIDrive.Status.NodeName,
+		utils.DrivePathLabel, filepath.Base(v1beta2DirectCSIDrive.Status.Path),
+		utils.CreatedByLabel, "directcsi-driver",
+		utils.AccessTierLabel, string(v1beta2DirectCSIDrive.Status.AccessTier),
+	)
+
+	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta3DirectCSIDrive)
 	if err != nil {
 		return err
 	}

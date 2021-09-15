@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -110,10 +110,23 @@ func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDriv
 	}
 	existingObj.Status.FreeCapacity = localDrive.Status.TotalCapacity - allocatedCapacity
 	existingObj.Status.AllocatedCapacity = allocatedCapacity
+	existingObj.Status.UeventSerial = localDrive.Status.UeventSerial
+	existingObj.Status.UeventFSUUID = localDrive.Status.UeventFSUUID
+	existingObj.Status.WWID = localDrive.Status.WWID
+	existingObj.Status.Vendor = localDrive.Status.Vendor
+	existingObj.Status.DMName = localDrive.Status.DMName
+	existingObj.Status.DMUUID = localDrive.Status.DMUUID
+	existingObj.Status.MDUUID = localDrive.Status.MDUUID
+	existingObj.Status.PartTableUUID = localDrive.Status.PartTableUUID
+	existingObj.Status.PartTableType = localDrive.Status.PartTableType
+	existingObj.Status.ReadOnly = localDrive.Status.ReadOnly
+	existingObj.Status.Partitioned = localDrive.Status.Partitioned
+	existingObj.Status.SwapOn = localDrive.Status.SwapOn
+	existingObj.Status.Master = localDrive.Status.Master
 }
 
 func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectCSIDrive) error {
-	directCSIClient := d.directcsiClient.DirectV1beta2()
+	directCSIClient := d.directcsiClient.DirectV1beta3()
 	driveClient := directCSIClient.DirectCSIDrives()
 
 	driveSync := func() error {
@@ -156,7 +169,7 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 }
 
 func (d *Discovery) deleteUnmatchedRemoteDrives(ctx context.Context) error {
-	directCSIClient := d.directcsiClient.DirectV1beta2()
+	directCSIClient := d.directcsiClient.DirectV1beta3()
 	driveClient := directCSIClient.DirectCSIDrives()
 
 	for _, remoteDrive := range d.remoteDrives {

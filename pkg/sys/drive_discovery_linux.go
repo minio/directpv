@@ -423,7 +423,7 @@ func newDevice(event map[string]string, name string, major, minor int, virtual b
 
 	device.WWID = event["ID_WWN"]
 	device.Model = event["ID_MODEL"]
-	device.Serial = event["ID_SERIAL_SHORT"]
+	device.UeventSerial = event["ID_SERIAL_SHORT"]
 	device.Vendor = event["ID_VENDOR"]
 	device.DMName = event["DM_NAME"]
 	device.DMUUID = event["DM_UUID"]
@@ -431,7 +431,7 @@ func newDevice(event map[string]string, name string, major, minor int, virtual b
 	device.PTUUID = event["ID_PART_TABLE_UUID"]
 	device.PTType = event["ID_PART_TABLE_TYPE"]
 	device.PartUUID = event["ID_PART_ENTRY_UUID"]
-	device.FSUUID = event["ID_FS_UUID"]
+	device.UeventFSUUID = event["ID_FS_UUID"]
 	device.FSType = event["ID_FS_TYPE"]
 
 	return device, nil

@@ -41,6 +41,9 @@ type Device struct {
 	FSUUID    string
 	FSType    string
 
+	UeventSerial string
+	UeventFSUUID string
+
 	// Computed
 	Parent      string
 	Master      string

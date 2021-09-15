@@ -73,7 +73,7 @@ func (c *metricsCollector) volumeStatsEmitter(
 	defer cancelFunc()
 
 	resultCh, err := utils.ListVolumes(
-		ctx, c.directcsiClient.DirectV1beta2().DirectCSIVolumes(), []string{c.nodeID}, nil, nil, nil, utils.MaxThreadCount,
+		ctx, c.directcsiClient.DirectV1beta3().DirectCSIVolumes(), []string{c.nodeID}, nil, nil, nil, utils.MaxThreadCount,
 	)
 	if err != nil {
 		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
