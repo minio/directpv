@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
@@ -132,16 +131,10 @@ func listVolumes(ctx context.Context, args []string) error {
 		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
 		return strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
 	}
-	emptyOrBytes := func(val int64) string {
-		if val == 0 {
-			return "-"
-		}
-		return humanize.IBytes(uint64(val))
-	}
 	for _, volume := range volumeList {
 		row := []interface{}{
 			volume.Name, //VOLUME
-			emptyOrBytes(volume.Status.TotalCapacity),                         //CAPACITY
+			printableBytes(volume.Status.TotalCapacity),                       //CAPACITY
 			volume.Status.NodeName,                                            //SERVER
 			driveName(utils.GetLabelV(&volume, utils.ReservedDrivePathLabel)), //DRIVE
 			printableString(volume.Labels[directcsi.Group+"/pod.name"]),

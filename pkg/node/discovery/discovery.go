@@ -19,7 +19,6 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
@@ -35,8 +34,6 @@ import (
 const (
 	loopBackDeviceCount = 4
 )
-
-var loopRegexp = regexp.MustCompile("loop[0-9].*")
 
 var unknownDriveCounter int32
 
@@ -183,7 +180,7 @@ func (d *Discovery) findLocalDrives(ctx context.Context, loopBackOnly bool) (map
 	}
 
 	for name := range devices {
-		if (loopRegexp.MatchString(name) && !loopBackOnly) || devices[name].Size == 0 {
+		if (sys.LoopRegexp.MatchString(name) && !loopBackOnly) || devices[name].Size == 0 {
 			delete(devices, name)
 		}
 	}

@@ -21,6 +21,8 @@ package sys
 import (
 	"fmt"
 	"runtime"
+
+	"k8s.io/klog/v2"
 )
 
 func SafeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
@@ -41,4 +43,8 @@ func SafeUnmountAll(path string, opts []UnmountOption) error {
 
 func Unmount(target string, opts []UnmountOption) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+}
+
+func ForceUnmount(target string) {
+	klog.V(5).Infof("unsupported operating system %v", runtime.GOOS)
 }

@@ -35,7 +35,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*NodeServer, error) {
+func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, enableDynamicDiscovery bool) (*NodeServer, error) {
 	config, err := utils.GetKubeConfig()
 	if err != nil {
 		return &NodeServer{}, err
@@ -61,6 +61,17 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	go drive.StartController(ctx, nodeID)
 	go volume.StartController(ctx, nodeID)
 	go metrics.ServeMetrics(ctx, nodeID)
+	if enableDynamicDiscovery {
+		go startUeventHandler(
+			ctx, nodeID, map[string]string{
+				topology.TopologyDriverIdentity: identity,
+				topology.TopologyDriverRack:     rack,
+				topology.TopologyDriverZone:     zone,
+				topology.TopologyDriverRegion:   region,
+				topology.TopologyDriverNode:     nodeID,
+			},
+		)
+	}
 
 	return nodeServer, nil
 }

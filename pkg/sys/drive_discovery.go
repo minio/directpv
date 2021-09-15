@@ -23,3 +23,7 @@ func GetMajorMinor(device string) (major, minor uint32, err error) {
 func ProbeDevices() (devices map[string]*Device, err error) {
 	return probeDevices()
 }
+
+func CreateDevice(event map[string]string) (device *Device, err error) {
+	return createDevice(event)
+}

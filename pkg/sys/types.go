@@ -16,6 +16,10 @@
 
 package sys
 
+import "regexp"
+
+var LoopRegexp = regexp.MustCompile("^loop[0-9]*")
+
 type Device struct {
 	// Populated from /sys
 	Name      string

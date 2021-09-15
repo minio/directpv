@@ -1,6 +1,6 @@
 [base-8]
 name=CentOS 8 - $basearch - Base
-baseurl=http://mirrors.kernel.org/centos/8/BaseOS/$basearch/os/                                                                                               
+baseurl=http://mirrors.kernel.org/centos/8/BaseOS/$basearch/os/
 gpgcheck=1
 enabled=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official

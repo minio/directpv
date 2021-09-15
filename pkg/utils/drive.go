@@ -19,8 +19,7 @@ package utils
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"regexp"
+	"path"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
@@ -29,8 +28,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-var loopRegexp = regexp.MustCompile("loop[0-9].*")
 
 func isDirectCSIMount(mountPoints []string) bool {
 	if len(mountPoints) == 0 {
@@ -47,7 +44,7 @@ func isDirectCSIMount(mountPoints []string) bool {
 
 func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[string]string) directcsi.DirectCSIDriveStatus {
 	driveStatus := directcsi.DriveStatusAvailable
-	if device.ReadOnly || device.Partitioned || device.SwapOn || device.Master != "" || !isDirectCSIMount(device.MountPoints) {
+	if device.Size < 1048576 || device.ReadOnly || device.Partitioned || device.SwapOn || device.Master != "" || !isDirectCSIMount(device.MountPoints) {
 		driveStatus = directcsi.DriveStatusUnavailable
 	}
 
@@ -135,7 +132,7 @@ func NewDirectCSIDrive(name string, status directcsi.DirectCSIDriveStatus) *dire
 			Name: name,
 			Labels: map[string]string{
 				NodeLabel:       status.NodeName,
-				DrivePathLabel:  filepath.Base(status.Path),
+				DrivePathLabel:  path.Base(status.Path),
 				VersionLabel:    directcsi.Version,
 				CreatedByLabel:  "directcsi-driver",
 				AccessTierLabel: string(status.AccessTier),
@@ -150,12 +147,19 @@ func CreateDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInt
 	return err
 }
 
-func DeleteDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, drive *directcsi.DirectCSIDrive) error {
+func DeleteDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, drive *directcsi.DirectCSIDrive, force bool) error {
 	if drive.Status.DriveStatus != directcsi.DriveStatusTerminating {
 		drive.Status.DriveStatus = directcsi.DriveStatusTerminating
 		if _, err := driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: DirectCSIDriveTypeMeta()}); err != nil {
 			return err
 		}
+	}
+
+	if force {
+		if drive.Status.FilesystemUUID != "" && drive.Status.DriveStatus != directcsi.DriveStatusInUse {
+			sys.ForceUnmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID))
+		}
+		return driveInterface.Delete(ctx, drive.Name, metav1.DeleteOptions{})
 	}
 
 	switch finalizers := drive.GetFinalizers(); len(finalizers) {
@@ -164,7 +168,7 @@ func DeleteDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInt
 			return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/direct-csi/issues")
 		}
 
-		if err := sys.SafeUnmount(filepath.Join(sys.MountRoot, drive.Name), nil); err != nil {
+		if err := sys.SafeUnmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID), nil); err != nil {
 			return err
 		}
 

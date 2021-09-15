@@ -50,11 +50,18 @@ const (
 	clusterRoleVerbPatch  = "patch"
 	selectorValueEnabled  = "enabled"
 
-	volumeNameSocketDir       = "socket-dir"
-	volumeNameSysDir          = "sys-fs"
-	volumePathSysDir          = "/sys"
-	volumeNameRunUdevData     = "run-udev-data"
-	volumePathRunUdevData     = "/run/udev/data"
+	volumeNameSocketDir = "socket-dir"
+	volumePathSocketDir = "/csi"
+
+	volumeNameSysDir = "sysfs"
+	volumePathSysDir = "/sys"
+
+	volumeNameDevDir = "devfs"
+	volumePathDevDir = "/dev"
+
+	volumeNameRunUdevData = "run-udev-data-dir"
+	volumePathRunUdevData = "/run/udev/data"
+
 	volumeNameCSIRootDir      = "direct-csi-common-root"
 	volumeNameMountpointDir   = "mountpoint-dir"
 	volumeNameRegistrationDir = "registration-dir"
