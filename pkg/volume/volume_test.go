@@ -24,7 +24,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetesfake "k8s.io/client-go/kubernetes/fake"
@@ -153,7 +153,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 
 	vl := createFakeVolumeEventListener(testObjects...)
 	ctx := context.TODO()
-	directCSIClient := vl.directCSIClient.DirectV1beta2()
+	directCSIClient := vl.directCSIClient.DirectV1beta3()
 	for _, testObj := range testObjects {
 		vObj, ok := testObj.(*directcsi.DirectCSIVolume)
 		if !ok {
@@ -244,7 +244,7 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 
 	vl := createFakeVolumeEventListener(testObjects...)
 	ctx := context.TODO()
-	directCSIClient := vl.directCSIClient.DirectV1beta2()
+	directCSIClient := vl.directCSIClient.DirectV1beta3()
 
 	for _, testObj := range testObjects {
 		vObj, ok := testObj.(*directcsi.DirectCSIVolume)

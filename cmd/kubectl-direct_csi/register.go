@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/converter"
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	currentCRDStorageVersion = "v1beta2"
+	currentCRDStorageVersion = "v1beta3"
 	driveCRDName             = "directcsidrives.direct.csi.min.io"
 	volumeCRDName            = "directcsivolumes.direct.csi.min.io"
 )

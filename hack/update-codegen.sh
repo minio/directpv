@@ -56,7 +56,7 @@ PROJECT_ROOT=$(cd "${SCRIPT_ROOT}/.."; pwd -P)
 # Remove old generated code
 rm -rf "${PROJECT_ROOT}/config/crd" "${PROJECT_ROOT}/pkg/clientset"
 
-versions=(v1alpha1 v1beta1 v1beta2)
+versions=(v1alpha1 v1beta1 v1beta2 v1beta3)
 
 # Prefix ${REPOSITORY}/pkg/apis/direct.csi.min.io/ to each versions.
 arr=("${versions[@]/#/$REPOSITORY/pkg/apis/direct.csi.min.io/}")
@@ -97,5 +97,5 @@ controller-gen crd:crdVersions=v1 paths=./...
 # conversion
 conversion-gen \
     --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
-    --input-dirs "${input_dirs}" \
+    --input-dirs "${versions[-1]/#/$REPOSITORY/pkg/apis/direct.csi.min.io/}" \
     --output-package "${REPOSITORY}/pkg/" 

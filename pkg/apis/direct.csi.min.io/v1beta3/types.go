@@ -1,0 +1,281 @@
+// This file is part of MinIO Direct CSI
+// Copyright (c) 2021 MinIO, Inc.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+package v1beta3
+
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	DirectCSIVolumeFinalizerPVProtection    = Group + "/pv-protection"
+	DirectCSIVolumeFinalizerPurgeProtection = Group + "/purge-protection"
+
+	DirectCSIDriveFinalizerDataProtection = Group + "/data-protection"
+	DirectCSIDriveFinalizerPrefix         = Group + ".volume/"
+)
+
+// +genclient
+// +genclient:nonNamespaced
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:storageversion
+// +k8s:openapi-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type DirectCSIDrive struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+
+	Spec   DirectCSIDriveSpec   `json:"spec"`
+	Status DirectCSIDriveStatus `json:"status,omitempty"`
+}
+
+type DirectCSIDriveSpec struct {
+	// +optional
+	RequestedFormat *RequestedFormat `json:"requestedFormat,omitempty"`
+	// required
+	DirectCSIOwned bool `json:"directCSIOwned"`
+	// +optional
+	DriveTaint map[string]string `json:"driveTaint,omitempty"`
+}
+
+type AccessTier string
+
+const (
+	AccessTierWarm    AccessTier = "Warm"
+	AccessTierHot     AccessTier = "Hot"
+	AccessTierCold    AccessTier = "Cold"
+	AccessTierUnknown AccessTier = "Unknown"
+)
+
+type DirectCSIDriveStatus struct {
+	Path string `json:"path"`
+	// +optional
+	AllocatedCapacity int64 `json:"allocatedCapacity,omitempty"`
+	// +optional
+	FreeCapacity int64 `json:"freeCapacity,omitempty"`
+	// +optional
+	RootPartition string `json:"rootPartition,omitempty"`
+	// +optional
+	PartitionNum int `json:"partitionNum,omitempty"`
+	// +optional
+	Filesystem string `json:"filesystem,omitempty"`
+	// +optional
+	Mountpoint string `json:"mountpoint,omitempty"`
+	// +listType=atomic
+	// +optional
+	MountOptions []string `json:"mountOptions,omitempty"`
+	// +optional
+	NodeName string `json:"nodeName"`
+	// +optional
+	DriveStatus DriveStatus `json:"driveStatus,omitempty"`
+	// +optional
+	ModelNumber string `json:"modelNumber,omitempty"`
+	// +optional
+	SerialNumber string `json:"serialNumber,omitempty"`
+	// +optional
+	TotalCapacity int64 `json:"totalCapacity,omitempty"`
+	// +optional
+	PhysicalBlockSize int64 `json:"physicalBlockSize,omitempty"`
+	// +optional
+	LogicalBlockSize int64 `json:"logicalBlockSize,omitempty"`
+	// +optional
+	Topology map[string]string `json:"topology,omitempty"`
+	// +optional
+	AccessTier AccessTier `json:"accessTier,omitempty"`
+	// +optional
+	FilesystemUUID string `json:"filesystemUUID,omitempty"`
+	// +optional
+	PartitionUUID string `json:"partitionUUID,omitempty"`
+	// +optional
+	MajorNumber uint32 `json:"majorNumber,omitempty"`
+	// +optional
+	MinorNumber uint32 `json:"minorNumber,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	UeventSerial string `json:"ueventSerial,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	UeventFSUUID string `json:"ueventFSUUID,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	WWID string `json:"wwid,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	Vendor string `json:"vendor,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	DMName string `json:"dmName,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	DMUUID string `json:"dmUUID,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	MDUUID string `json:"mdUUID,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	PartTableUUID string `json:"partTableUUID,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	PartTableType string `json:"partTableType,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	Virtual bool `json:"virtual,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	ReadOnly bool `json:"readOnly,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	Partitioned bool `json:"partitioned,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	SwapOn bool `json:"swapOn,omitempty"`
+	// +optional
+	// +k8s:conversion-gen=false
+	Master string `json:"master,omitempty"`
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+}
+
+type DirectCSIDriveCondition string
+
+const (
+	DirectCSIDriveConditionOwned       DirectCSIDriveCondition = "Owned"
+	DirectCSIDriveConditionMounted     DirectCSIDriveCondition = "Mounted"
+	DirectCSIDriveConditionFormatted   DirectCSIDriveCondition = "Formatted"
+	DirectCSIDriveConditionInitialized DirectCSIDriveCondition = "Initialized"
+)
+
+type DirectCSIDriveReason string
+
+const (
+	DirectCSIDriveReasonNotAdded    DirectCSIDriveReason = "NotAdded"
+	DirectCSIDriveReasonAdded       DirectCSIDriveReason = "Added"
+	DirectCSIDriveReasonInitialized DirectCSIDriveReason = "Initialized"
+)
+
+type DirectCSIDriveMessage string
+
+const (
+	DirectCSIDriveMessageMounted      DirectCSIDriveMessage = "Mounted"
+	DirectCSIDriveMessageNotMounted   DirectCSIDriveMessage = "NotMounted"
+	DirectCSIDriveMessageFormatted    DirectCSIDriveMessage = "Formatted"
+	DirectCSIDriveMessageNotFormatted DirectCSIDriveMessage = "NotFormatted"
+)
+
+type RequestedFormat struct {
+	// +optional
+	Force bool `json:"force,omitempty"`
+	// +optional
+	Purge bool `json:"purge,omitempty"`
+	// +optional
+	Filesystem string `json:"filesystem,omitempty"`
+	// +optional
+	Mountpoint string `json:"mountpoint,omitempty"`
+	// +listType=atomic
+	// +optional
+	MountOptions []string `json:"mountOptions,omitempty"`
+}
+
+type DriveStatus string
+
+const (
+	DriveStatusInUse       DriveStatus = "InUse"
+	DriveStatusAvailable   DriveStatus = "Available"
+	DriveStatusUnavailable DriveStatus = "Unavailable"
+	DriveStatusReady       DriveStatus = "Ready"
+	DriveStatusTerminating DriveStatus = "Terminating"
+	DriveStatusReleased    DriveStatus = "Released"
+)
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type DirectCSIDriveList struct {
+	metav1.TypeMeta `json:",inline"`
+	// metdata is the standard list metadata.
+	// +optional
+	metav1.ListMeta `json:"metadata"`
+	Items           []DirectCSIDrive `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type DirectCSIVolumeList struct {
+	metav1.TypeMeta `json:",inline"`
+	// metdata is the standard list metadata.
+	// +optional
+	metav1.ListMeta `json:"metadata"`
+	Items           []DirectCSIVolume `json:"items"`
+}
+
+// +genclient
+// +genclient:nonNamespaced
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:storageversion
+// +k8s:openapi-gen=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type DirectCSIVolume struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+
+	Status DirectCSIVolumeStatus `json:"status,omitempty"`
+}
+
+type DirectCSIVolumeCondition string
+
+const (
+	DirectCSIVolumeConditionPublished DirectCSIVolumeCondition = "Published"
+	DirectCSIVolumeConditionStaged    DirectCSIVolumeCondition = "Staged"
+	DirectCSIVolumeConditionReady     DirectCSIVolumeCondition = "Ready"
+)
+
+type DirectCSIVolumeReason string
+
+const (
+	DirectCSIVolumeReasonNotInUse DirectCSIVolumeReason = "NotInUse"
+	DirectCSIVolumeReasonInUse    DirectCSIVolumeReason = "InUse"
+	DirectCSIVolumeReasonReady    DirectCSIVolumeReason = "Ready"
+	DirectCSIVolumeReasonNotReady DirectCSIVolumeReason = "NotReady"
+)
+
+type DirectCSIVolumeStatus struct {
+	// +optional
+	Drive string `json:"drive,omitempty"`
+	// +optional
+	NodeName string `json:"nodeName,omitempty"`
+	// +optional
+	HostPath string `json:"hostPath,omitempty"`
+	// +optional
+	StagingPath string `json:"stagingPath,omitempty"`
+	// +optional
+	ContainerPath string `json:"containerPath,omitempty"`
+	// +optional
+	TotalCapacity int64 `json:"totalCapacity"`
+	// +optional
+	AvailableCapacity int64 `json:"availableCapacity"`
+	// +optional
+	UsedCapacity int64 `json:"usedCapacity"`
+	// +optional
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+}

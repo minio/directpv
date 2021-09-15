@@ -17,59 +17,23 @@
 package v1beta2
 
 import (
-	"strings"
-
-	"github.com/mb0/glob"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/minio/direct-csi/pkg/matcher"
 )
 
 func (volume *DirectCSIVolume) MatchStatus(statusList []string) bool {
-	statusXs := fmap(statusList, strings.ToLower)
-	statusMatches := 0
-	for _, c := range volume.Status.Conditions {
-		switch c.Type {
-		case string(DirectCSIVolumeConditionPublished):
-			for _, statusX := range statusXs {
-				if statusX == strings.ToLower(string(DirectCSIVolumeConditionPublished)) {
-					if c.Status == metav1.ConditionTrue {
-						statusMatches = statusMatches + 1
-					}
-				}
-			}
-		case string(DirectCSIVolumeConditionStaged):
-			for _, statusX := range statusXs {
-				if statusX == strings.ToLower(string(DirectCSIVolumeConditionStaged)) {
-					if c.Status == metav1.ConditionTrue {
-						statusMatches = statusMatches + 1
-					}
-				}
-			}
-		}
-	}
-	return statusMatches == len(statusXs)
-}
-
-func matchGlob(name string, patterns []string) bool {
-	if len(patterns) == 0 {
-		return true
-	}
-
-	for _, pattern := range patterns {
-		if matched, _ := glob.Match(pattern, name); matched {
-			return true
-		}
-	}
-	return false
+	return matcher.MatchTrueConditions(
+		volume.Status.Conditions,
+		[]string{string(DirectCSIVolumeConditionPublished), string(DirectCSIVolumeConditionStaged)},
+		statusList,
+	)
 }
 
 // MatchPodName matches pod name of this volume with atleast of the patterns.
 func (volume *DirectCSIVolume) MatchPodName(patterns []string) bool {
-	podName := volume.ObjectMeta.Labels[Group+"/pod.name"]
-	return matchGlob(podName, patterns)
+	return matcher.GlobMatch(volume.Labels[Group+"/pod.name"], patterns)
 }
 
 // MatchPodNamespace matches pod namespace of this volume with atleast of the patterns.
 func (volume *DirectCSIVolume) MatchPodNamespace(patterns []string) bool {
-	podNs := volume.ObjectMeta.Labels[Group+"/pod.namespace"]
-	return matchGlob(podNs, patterns)
+	return matcher.GlobMatch(volume.Labels[Group+"/pod.namespace"], patterns)
 }

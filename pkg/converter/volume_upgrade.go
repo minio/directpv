@@ -22,6 +22,7 @@ import (
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directv1beta3 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +33,10 @@ import (
 func upgradeVolumeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
 	switch fromVersion {
 	case versionV1Alpha1:
+		if toVersion == versionV1Alpha1 {
+			klog.V(10).Info("Successfully migrated")
+			break
+		}
 		if err := volumeUpgradeV1alpha1ToV1Beta1(convertedObject); err != nil {
 			return err
 		}
@@ -47,6 +52,15 @@ func upgradeVolumeObject(fromVersion, toVersion string, convertedObject *unstruc
 		fallthrough
 	case versionV1Beta2:
 		if toVersion == versionV1Beta2 {
+			klog.V(10).Info("Successfully migrated")
+			break
+		}
+		if err := volumeUpgradeV1Beta2ToV1Beta3(convertedObject); err != nil {
+			return err
+		}
+		fallthrough
+	case versionV1Beta3:
+		if toVersion == versionV1Beta3 {
 			klog.V(10).Info("Successfully migrated")
 			break
 		}
@@ -137,6 +151,38 @@ func volumeUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) erro
 	)
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta2DirectCSIVolume)
+	if err != nil {
+		return err
+	}
+
+	unstructured.Object = convertedObj
+	return nil
+}
+
+func volumeUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) error {
+
+	unstructuredObject := unstructured.Object
+
+	var v1beta2DirectCSIVolume directv1beta2.DirectCSIVolume
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObject, &v1beta2DirectCSIVolume)
+	if err != nil {
+		return err
+	}
+
+	klog.V(10).Infof("Converting directcsivolume:%v to v1beta3", v1beta2DirectCSIVolume.Name)
+
+	var v1beta3DirectCSIVolume directv1beta3.DirectCSIVolume
+	if err := directv1beta3.Convert_v1beta2_DirectCSIVolume_To_v1beta3_DirectCSIVolume(&v1beta2DirectCSIVolume, &v1beta3DirectCSIVolume, nil); err != nil {
+		return err
+	}
+
+	v1beta3DirectCSIVolume.TypeMeta = v1beta2DirectCSIVolume.TypeMeta
+	utils.UpdateLabels(&v1beta3DirectCSIVolume,
+		utils.NodeLabel, v1beta3DirectCSIVolume.Status.NodeName,
+		utils.CreatedByLabel, "directcsi-controller",
+	)
+
+	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta3DirectCSIVolume)
 	if err != nil {
 		return err
 	}

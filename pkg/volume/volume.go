@@ -22,7 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -61,7 +61,7 @@ func (handler *VolumeEventHandler) ListerWatcher() cache.ListerWatcher {
 	}
 
 	return cache.NewFilteredListWatchFromClient(
-		handler.directCSIClient.DirectV1beta2().RESTClient(),
+		handler.directCSIClient.DirectV1beta3().RESTClient(),
 		"DirectCSIVolumes",
 		"",
 		optionsModifier,
@@ -81,7 +81,7 @@ func (handler *VolumeEventHandler) ObjectType() runtime.Object {
 }
 
 func (handler *VolumeEventHandler) releaseVolume(ctx context.Context, driveName, volumeName string, capacity int64) error {
-	drive, err := handler.directCSIClient.DirectV1beta2().DirectCSIDrives().Get(
+	drive, err := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Get(
 		ctx, driveName, metav1.GetOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		},
@@ -105,7 +105,7 @@ func (handler *VolumeEventHandler) releaseVolume(ctx context.Context, driveName,
 		drive.Status.FreeCapacity += capacity
 		drive.Status.AllocatedCapacity = drive.Status.TotalCapacity - drive.Status.FreeCapacity
 
-		_, err = handler.directCSIClient.DirectV1beta2().DirectCSIDrives().Update(
+		_, err = handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
 			ctx, drive, metav1.UpdateOptions{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			},
@@ -134,7 +134,7 @@ func (handler *VolumeEventHandler) delete(ctx context.Context, volume *directcsi
 	}
 
 	volume.SetFinalizers(finalizers)
-	_, err := handler.directCSIClient.DirectV1beta2().DirectCSIVolumes().Update(
+	_, err := handler.directCSIClient.DirectV1beta3().DirectCSIVolumes().Update(
 		ctx, volume, metav1.UpdateOptions{
 			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		},

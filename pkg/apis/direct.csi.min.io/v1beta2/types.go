@@ -31,7 +31,6 @@ const (
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -97,16 +96,12 @@ type DirectCSIDriveStatus struct {
 	// +optional
 	AccessTier AccessTier `json:"accessTier,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	FilesystemUUID string `json:"filesystemUUID,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	PartitionUUID string `json:"partitionUUID,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	MajorNumber uint32 `json:"majorNumber,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	MinorNumber uint32 `json:"minorNumber,omitempty"`
 	// +patchMergeKey=type
 	// +patchStrategy=merge
@@ -189,7 +184,6 @@ type DirectCSIVolumeList struct {
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

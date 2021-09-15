@@ -20,7 +20,7 @@ import (
 	"context"
 	"path/filepath"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -164,7 +164,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
 	}
 
-	directCSIClient := c.directcsiClient.DirectV1beta2()
+	directCSIClient := c.directcsiClient.DirectV1beta3()
 	dclient := directCSIClient.DirectCSIDrives()
 	vclient := directCSIClient.DirectCSIVolumes()
 
@@ -185,7 +185,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	matchDrive := func() (*directcsi.DirectCSIDrive, error) {
 		drives, err := utils.GetDriveList(
 			ctx,
-			c.directcsiClient.DirectV1beta2().DirectCSIDrives(),
+			c.directcsiClient.DirectV1beta3().DirectCSIDrives(),
 			nil, nil, nil,
 		)
 		if err != nil {
@@ -376,7 +376,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
 
-	directCSIClient := c.directcsiClient.DirectV1beta2()
+	directCSIClient := c.directcsiClient.DirectV1beta3()
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{

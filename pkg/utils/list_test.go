@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"testing"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -30,7 +30,7 @@ import (
 func TestGetDriveList(t *testing.T) {
 	drives, err := GetDriveList(
 		context.TODO(),
-		clientsetfake.NewSimpleClientset().DirectV1beta2().DirectCSIDrives(),
+		clientsetfake.NewSimpleClientset().DirectV1beta3().DirectCSIDrives(),
 		nil, nil, nil,
 	)
 	if err != nil {
@@ -48,7 +48,7 @@ func TestGetDriveList(t *testing.T) {
 	}
 	drives, err = GetDriveList(
 		context.TODO(),
-		clientsetfake.NewSimpleClientset(objects...).DirectV1beta2().DirectCSIDrives(),
+		clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIDrives(),
 		nil, nil, nil,
 	)
 	if err != nil {
@@ -62,7 +62,7 @@ func TestGetDriveList(t *testing.T) {
 func TestGetVolumeList(t *testing.T) {
 	volumes, err := GetVolumeList(
 		context.TODO(),
-		clientsetfake.NewSimpleClientset().DirectV1beta2().DirectCSIVolumes(),
+		clientsetfake.NewSimpleClientset().DirectV1beta3().DirectCSIVolumes(),
 		nil, nil, nil, nil,
 	)
 	if err != nil {
@@ -80,7 +80,7 @@ func TestGetVolumeList(t *testing.T) {
 	}
 	volumes, err = GetVolumeList(
 		context.TODO(),
-		clientsetfake.NewSimpleClientset(objects...).DirectV1beta2().DirectCSIVolumes(),
+		clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIVolumes(),
 		nil, nil, nil, nil,
 	)
 	if err != nil {

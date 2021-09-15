@@ -21,7 +21,7 @@ package clientset
 import (
 	"fmt"
 
-	directv1beta2 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
+	directv1beta3 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -29,19 +29,19 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	DirectV1beta2() directv1beta2.DirectV1beta2Interface
+	DirectV1beta3() directv1beta3.DirectV1beta3Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	directV1beta2 *directv1beta2.DirectV1beta2Client
+	directV1beta3 *directv1beta3.DirectV1beta3Client
 }
 
-// DirectV1beta2 retrieves the DirectV1beta2Client
-func (c *Clientset) DirectV1beta2() directv1beta2.DirectV1beta2Interface {
-	return c.directV1beta2
+// DirectV1beta3 retrieves the DirectV1beta3Client
+func (c *Clientset) DirectV1beta3() directv1beta3.DirectV1beta3Interface {
+	return c.directV1beta3
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -65,7 +65,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.directV1beta2, err = directv1beta2.NewForConfig(&configShallowCopy)
+	cs.directV1beta3, err = directv1beta3.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.directV1beta2 = directv1beta2.NewForConfigOrDie(c)
+	cs.directV1beta3 = directv1beta3.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -90,7 +90,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.directV1beta2 = directv1beta2.New(c)
+	cs.directV1beta3 = directv1beta3.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

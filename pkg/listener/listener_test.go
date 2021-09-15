@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"testing"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/clientset"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -51,10 +51,10 @@ type testEventHandler struct {
 func (handler *testEventHandler) ListerWatcher() cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return handler.directCSIClient.DirectV1beta2().DirectCSIVolumes().List(context.TODO(), options)
+			return handler.directCSIClient.DirectV1beta3().DirectCSIVolumes().List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return handler.directCSIClient.DirectV1beta2().DirectCSIVolumes().Watch(context.TODO(), options)
+			return handler.directCSIClient.DirectV1beta3().DirectCSIVolumes().Watch(context.TODO(), options)
 		},
 	}
 }
@@ -207,7 +207,7 @@ func TestListener(t *testing.T) {
 	doneCh, handleFunc = getHandleFunc(t, UpdateEvent, volumes[1])
 	testHandler.handleFunc = handleFunc
 	for _, volume := range volumes {
-		_, err := testHandler.directCSIClient.DirectV1beta2().DirectCSIVolumes().Update(
+		_, err := testHandler.directCSIClient.DirectV1beta3().DirectCSIVolumes().Update(
 			ctx,
 			volume,
 			metav1.UpdateOptions{
@@ -233,7 +233,7 @@ func TestListener(t *testing.T) {
 	doneCh, handleFunc = getHandleFunc(t, DeleteEvent, volumes...)
 	testHandler.handleFunc = handleFunc
 	for _, volume := range volumes {
-		_, err := testHandler.directCSIClient.DirectV1beta2().DirectCSIVolumes().Update(
+		_, err := testHandler.directCSIClient.DirectV1beta3().DirectCSIVolumes().Update(
 			ctx,
 			volume,
 			metav1.UpdateOptions{
@@ -276,7 +276,7 @@ func TestListener(t *testing.T) {
 	}
 
 	for _, volume := range volumes {
-		_, err := testHandler.directCSIClient.DirectV1beta2().DirectCSIVolumes().Update(
+		_, err := testHandler.directCSIClient.DirectV1beta3().DirectCSIVolumes().Update(
 			ctx,
 			volume,
 			metav1.UpdateOptions{
@@ -330,7 +330,7 @@ func TestListenerParallel(t *testing.T) {
 	}
 	startTestController(ctx, t, testHandler, 40)
 
-	_, err := testHandler.directCSIClient.DirectV1beta2().DirectCSIVolumes().Update(
+	_, err := testHandler.directCSIClient.DirectV1beta3().DirectCSIVolumes().Update(
 		ctx,
 		newDirectCSIVolume("test-volume-1", "1", 512*GiB, []condition{
 			{directcsi.DirectCSIVolumeConditionStaged, metav1.ConditionTrue, directcsi.DirectCSIVolumeReasonInUse},
@@ -346,7 +346,7 @@ func TestListenerParallel(t *testing.T) {
 	}
 	<-stopCh
 
-	_, err = testHandler.directCSIClient.DirectV1beta2().DirectCSIVolumes().Update(
+	_, err = testHandler.directCSIClient.DirectV1beta3().DirectCSIVolumes().Update(
 		ctx,
 		newDirectCSIVolume("test-volume-1", "1", 1*GiB, []condition{
 			{directcsi.DirectCSIVolumeConditionStaged, metav1.ConditionTrue, directcsi.DirectCSIVolumeReasonInUse},

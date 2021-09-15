@@ -17,53 +17,20 @@
 package v1beta1
 
 import (
-	"github.com/mb0/glob"
-	"github.com/minio/direct-csi/pkg/sys"
-	"path/filepath"
-	"strings"
+	"github.com/minio/direct-csi/pkg/matcher"
 )
 
+func accessTiersToStrings(accessTiers []AccessTier) (slice []string) {
+	for _, accessTier := range accessTiers {
+		slice = append(slice, string(accessTier))
+	}
+	return slice
+}
+
 func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
-
-	getBasePath := func(in string) string {
-		path := strings.ReplaceAll(in, sys.DirectCSIPartitionInfix, "")
-		path = strings.ReplaceAll(path, sys.DirectCSIDevRoot+"/", "")
-		path = strings.ReplaceAll(path, sys.HostDevRoot+"/", "")
-		return filepath.Base(path)
-	}
-
-	matchGlob := func(patternList []string, name string, transformF transformFunc) bool {
-		name = transformF(name)
-		for _, p := range patternList {
-			if ok, _ := glob.Match(p, name); ok {
-				return true
-			}
-		}
-		return false
-	}
-
-	nodeList, driveList, statusesList := checkWildcards(nodes),
-		fmap(checkWildcards(drives), getBasePath),
-		fmap(checkWildcards(status), strings.ToLower)
-
-	var noOp transformFunc
-	noOp = func(a string) string {
-		return a
-	}
-
-	return matchGlob(nodeList, drive.Status.NodeName, noOp) &&
-		matchGlob(driveList, drive.Status.Path, getBasePath) &&
-		matchGlob(statusesList, string(drive.Status.DriveStatus), strings.ToLower)
+	return matcher.GlobMatchNodesDrivesStatuses(nodes, drives, status, drive.Status.NodeName, drive.Status.Path, string(drive.Status.DriveStatus))
 }
 
 func (drive *DirectCSIDrive) MatchAccessTier(accessTierList []AccessTier) bool {
-	if len(accessTierList) == 0 {
-		return true
-	}
-	for _, at := range accessTierList {
-		if drive.Status.AccessTier == at {
-			return true
-		}
-	}
-	return false
+	return matcher.StringIn(accessTiersToStrings(accessTierList), string(drive.Status.AccessTier))
 }

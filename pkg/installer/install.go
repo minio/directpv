@@ -839,7 +839,7 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 	}
 
 	getValidatingWebhooks := func() []admissionv1.ValidatingWebhook {
-		supportedReviewVersions := []string{"v1", "v1beta1", "v1beta2"}
+		supportedReviewVersions := []string{"v1", "v1beta1", "v1beta2", "v1beta3"}
 		sideEffectClass := admissionv1.SideEffectClassNone
 		return []admissionv1.ValidatingWebhook{
 			{

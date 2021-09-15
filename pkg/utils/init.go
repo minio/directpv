@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 
 	direct "github.com/minio/direct-csi/pkg/clientset"
-	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/client-go/discovery"
@@ -37,7 +37,7 @@ const MaxThreadCount = 200
 var (
 	initialized         int32
 	kubeClient          kubernetes.Interface
-	directCSIClient     directcsi.DirectV1beta2Interface
+	directCSIClient     directcsi.DirectV1beta3Interface
 	directClientset     direct.Interface
 	apiextensionsClient apiextensions.ApiextensionsV1Interface
 	crdClient           apiextensions.CustomResourceDefinitionInterface
@@ -49,7 +49,7 @@ func GetKubeClient() kubernetes.Interface {
 	return kubeClient
 }
 
-func GetDirectCSIClient() directcsi.DirectV1beta2Interface {
+func GetDirectCSIClient() directcsi.DirectV1beta3Interface {
 	return directCSIClient
 }
 
