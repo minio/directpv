@@ -42,16 +42,17 @@ var installCmd = &cobra.Command{
 }
 
 var (
-	installCRD         = false
-	admissionControl   = false
-	image              = "direct-csi:" + Version
-	registry           = "quay.io"
-	org                = "minio"
-	loopBackOnly       = false
-	nodeSelectorValues = []string{}
-	tolerationValues   = []string{}
-	seccompProfile     = ""
-	apparmorProfile    = ""
+	installCRD             = false
+	admissionControl       = false
+	image                  = "direct-csi:" + Version
+	registry               = "quay.io"
+	org                    = "minio"
+	loopBackOnly           = false
+	nodeSelectorValues     = []string{}
+	tolerationValues       = []string{}
+	seccompProfile         = ""
+	apparmorProfile        = ""
+	enableDynamicDiscovery = false
 )
 
 func init() {
@@ -68,6 +69,7 @@ func init() {
 
 	installCmd.PersistentFlags().BoolVarP(&loopBackOnly, "loopback-only", "", loopBackOnly, "Uses 4 free loopback devices per node and treat them as DirectCSIDrive resources. This is recommended only for testing/development purposes")
 	installCmd.PersistentFlags().MarkHidden("loopback-only")
+	installCmd.PersistentFlags().BoolVarP(&enableDynamicDiscovery, "enable-dynamic-discovery", "", enableDynamicDiscovery, "Enable dynamic drive discovery")
 }
 
 func install(ctx context.Context, args []string) error {
@@ -169,7 +171,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' service created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations, seccompProfile, apparmorProfile); err != nil {
+	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations, seccompProfile, apparmorProfile, enableDynamicDiscovery); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}

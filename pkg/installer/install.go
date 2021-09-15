@@ -308,7 +308,8 @@ func CreateDaemonSet(ctx context.Context,
 	loopBackOnly bool,
 	nodeSelector map[string]string,
 	tolerations []corev1.Toleration,
-	seccompProfileName, apparmorProfileName string) error {
+	seccompProfileName, apparmorProfileName string,
+	enableDynamicDiscovery bool) error {
 
 	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
@@ -324,22 +325,36 @@ func CreateDaemonSet(ctx context.Context,
 		}
 	}
 
+	volumes := []corev1.Volume{
+		newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name)),
+		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
+		newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
+		newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
+		newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
+		newHostPathVolume(volumeNameSysDir, volumePathSysDir),
+		newSecretVolume(conversionCACert, conversionCACert),
+		newSecretVolume(conversionKeyPair, conversionKeyPair),
+	}
+	volumeMounts := []corev1.VolumeMount{
+		newVolumeMount(volumeNameSocketDir, "/csi", false, false),
+		newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", true, false),
+		newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true, false),
+		newVolumeMount(volumeNameCSIRootDir, csiRootPath, true, false),
+		newVolumeMount(volumeNameSysDir, "/sys", true, true),
+		newVolumeMount(conversionCACert, conversionCADir, false, false),
+		newVolumeMount(conversionKeyPair, conversionCertsDir, false, false),
+	}
+	if enableDynamicDiscovery {
+		volumes = append(volumes, newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData))
+		volumeMounts = append(volumeMounts, newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, true, true))
+	}
+
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: name,
 		HostNetwork:        false,
 		HostIPC:            true,
 		HostPID:            true,
-		Volumes: []corev1.Volume{
-			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, name)),
-			newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
-			newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
-			newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
-			newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
-			newHostPathVolume(volumeNameSysDir, volumePathSysDir),
-			newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData),
-			newSecretVolume(conversionCACert, conversionCACert),
-			newSecretVolume(conversionKeyPair, conversionKeyPair),
-		},
+		Volumes:            volumes,
 		Containers: []corev1.Container{
 			{
 				Name:  nodeDriverRegistrarContainerName,
@@ -383,6 +398,9 @@ func CreateDaemonSet(ctx context.Context,
 					if loopBackOnly {
 						args = append(args, "--loopback-only")
 					}
+					if enableDynamicDiscovery {
+						args = append(args, "--enable-dynamic-discovery")
+					}
 					return args
 				}(),
 				SecurityContext: securityContext,
@@ -403,16 +421,7 @@ func CreateDaemonSet(ctx context.Context,
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-termination-log",
-				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", false, false),
-					newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", true, false),
-					newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true, false),
-					newVolumeMount(volumeNameCSIRootDir, csiRootPath, true, false),
-					newVolumeMount(volumeNameSysDir, "/sys", true, true),
-					newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, true, true),
-					newVolumeMount(conversionCACert, conversionCADir, false, false),
-					newVolumeMount(conversionKeyPair, conversionCertsDir, false, false),
-				},
+				VolumeMounts:             volumeMounts,
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 9898,
