@@ -222,6 +222,11 @@ func uninstall(ctx context.Context, args []string) error {
 	}
 	klog.Infof("'%s' conversion secrets deleted", utils.Bold(identity))
 
+	if err := installer.DeletePodSecurityPolicy(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	klog.Infof("'%s' pod security policy removed", utils.Bold(identity))
+
 	if err := installer.DeleteNamespace(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
