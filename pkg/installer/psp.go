@@ -116,3 +116,11 @@ func CreatePodSecurityPolicy(ctx context.Context, identity string, dryRun bool) 
 
 	return ErrKubeVersionNotSupported
 }
+
+func removePSPClusterRoleBinding(ctx context.Context, identity string) error {
+	return utils.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, utils.SanitizeKubeResourceName("psp-"+identity), metav1.DeleteOptions{})
+}
+
+func deletePodSecurityPolicy(ctx context.Context, identity string) error {
+	return utils.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
+}

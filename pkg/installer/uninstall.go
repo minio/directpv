@@ -204,3 +204,13 @@ func DeleteLegacyConversionDeployment(ctx context.Context, identity string) erro
 
 	return nil
 }
+
+func DeletePodSecurityPolicy(ctx context.Context, identity string) error {
+	if err := removePSPClusterRoleBinding(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := deletePodSecurityPolicy(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
