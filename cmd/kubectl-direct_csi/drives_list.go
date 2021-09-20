@@ -167,6 +167,10 @@ func listDrives(ctx context.Context, args []string) error {
 
 		msg := ""
 		for _, c := range d.Status.Conditions {
+			if d.Status.DriveStatus == directcsi.DriveStatusReleased {
+				// Do not diplay error in case of released drives
+				continue
+			}
 			if c.Type == string(directcsi.DirectCSIDriveConditionInitialized) {
 				if c.Status != metav1.ConditionTrue {
 					msg = c.Message
