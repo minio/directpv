@@ -14,36 +14,33 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package installer
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
 	"strings"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/converter"
+	"github.com/minio/direct-csi/pkg/utils"
+
 	"k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/converter"
-	"github.com/minio/direct-csi/pkg/installer"
-	"github.com/minio/direct-csi/pkg/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 )
 
-const (
-	currentCRDStorageVersion = "v1beta3"
-	driveCRDName             = "directcsidrives.direct.csi.min.io"
-	volumeCRDName            = "directcsivolumes.direct.csi.min.io"
+var (
+	errEmptyCABundle = errors.New("CA bundle is empty")
 )
 
-func registerCRDs(ctx context.Context, identity string, writer io.Writer) error {
+func registerCRDs(ctx context.Context, c *Config) error {
 	crdObjs := []runtime.Object{}
 	for _, asset := range AssetNames() {
 		crdBytes, err := Asset(asset)
@@ -66,44 +63,41 @@ func registerCRDs(ctx context.Context, identity string, writer io.Writer) error 
 
 		existingCRD, err := crdClient.Get(ctx, crdObj.Name, metav1.GetOptions{})
 		if err != nil {
-			if !errors.IsNotFound(err) {
+			if !k8serrors.IsNotFound(err) {
 				return err
 			}
 
-			if err := setConversionWebhook(ctx, &crdObj, identity); err != nil {
+			if err := setConversionWebhook(ctx, &crdObj, c); err != nil {
 				return err
 			}
 
-			if err := utils.WriteObject(writer, crdObj); err != nil {
-				return err
-			}
-
-			if dryRun {
+			if c.DryRun {
 				utils.UpdateLabels(&crdObj, map[utils.LabelKey]utils.LabelValue{utils.VersionLabelKey: directcsi.Version})
-				if err := utils.LogYAML(crdObj); err != nil {
+			} else {
+				if _, err := crdClient.Create(ctx, &crdObj, metav1.CreateOptions{}); err != nil {
 					return err
 				}
-				continue
 			}
-			if _, err := crdClient.Create(ctx, &crdObj, metav1.CreateOptions{}); err != nil {
+
+			if err := c.postProc(crdObj); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := syncCRD(ctx, existingCRD, crdObj, identity, writer); err != nil {
+		if err := syncCRD(ctx, existingCRD, crdObj, c); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefinition, newCRD apiextensions.CustomResourceDefinition, identity string, writer io.Writer) error {
+func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefinition, newCRD apiextensions.CustomResourceDefinition, c *Config) error {
 	existingCRDStorageVersion, err := apihelpers.GetCRDStorageVersion(existingCRD)
 	if err != nil {
 		return err
 	}
 
-	if existingCRDStorageVersion != currentCRDStorageVersion {
+	if existingCRDStorageVersion != directcsi.Version {
 		// Set all the existing versions to false
 		func() {
 			for i := range existingCRD.Spec.Versions {
@@ -119,36 +113,26 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 	}
 
-	if err := setConversionWebhook(ctx, existingCRD, identity); err != nil {
+	if err := setConversionWebhook(ctx, existingCRD, c); err != nil {
 		return err
 	}
 
-	if err := utils.WriteObject(writer, existingCRD); err != nil {
-		return err
-	}
-
-	if dryRun {
+	if c.DryRun {
 		utils.UpdateLabels(existingCRD, map[utils.LabelKey]utils.LabelValue{utils.VersionLabelKey: directcsi.Version})
 		existingCRD.TypeMeta = newCRD.TypeMeta
-		if err := utils.LogYAML(existingCRD); err != nil {
+	} else {
+		crdClient := utils.GetCRDClient()
+		if _, err := crdClient.Update(ctx, existingCRD, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
-		return nil
+		klog.V(5).Infof("'%s' CRD succesfully updated to '%s'", existingCRD.Name, utils.Bold(directcsi.Version))
 	}
 
-	crdClient := utils.GetCRDClient()
-	if _, err := crdClient.Update(ctx, existingCRD, metav1.UpdateOptions{}); err != nil {
-		return err
-	}
-
-	klog.V(5).Infof("'%s' CRD successfully updated to '%s'", existingCRD.Name, utils.Bold(currentCRDStorageVersion))
-
-	return nil
+	return c.postProc(existingCRD)
 }
 
-func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, identity string) error {
+func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, c *Config) error {
 
-	name := utils.SanitizeKubeResourceName(identity)
 	getServiceRef := func() *apiextensions.ServiceReference {
 		path := func() string {
 			switch crdObj.Name {
@@ -160,18 +144,18 @@ func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResou
 				panic("unknown crd name found")
 			}
 		}()
-		port := int32(installer.ConversionWebhookPort)
+		port := int32(conversionWebhookPort)
 
 		return &apiextensions.ServiceReference{
-			Namespace: name,
-			Name:      utils.SanitizeKubeResourceName(identity),
+			Namespace: c.namespace(),
+			Name:      c.serviceName(),
 			Path:      &path,
 			Port:      &port,
 		}
 	}
 
 	getWebhookClientConfig := func() (*apiextensions.WebhookClientConfig, error) {
-		caBundle, err := installer.GetConversionCABundle(ctx, identity, dryRun)
+		caBundle, err := GetConversionCABundle(ctx, c)
 		if err != nil {
 			return nil, err
 		}
@@ -212,14 +196,43 @@ func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResou
 	return nil
 }
 
+func GetConversionCABundle(ctx context.Context, c *Config) ([]byte, error) {
+	getCABundleFromConfig := func() ([]byte, error) {
+		conversionCABundle := c.conversionWebhookCaBundle
+		if len(conversionCABundle) == 0 {
+			return []byte{}, errEmptyCABundle
+		}
+		return conversionCABundle, nil
+	}
+
+	secret, err := utils.GetKubeClient().
+		CoreV1().
+		Secrets(c.namespace()).
+		Get(ctx, conversionCACert, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) && c.DryRun {
+			return getCABundleFromConfig()
+		}
+		return []byte{}, err
+	}
+
+	for key, value := range secret.Data {
+		if key == caCertFileName {
+			return value, nil
+		}
+	}
+
+	return []byte{}, errEmptyCABundle
+}
+
 func getLatestCRDVersionObject(newCRD apiextensions.CustomResourceDefinition) (apiextensions.CustomResourceDefinitionVersion, error) {
 	for i := range newCRD.Spec.Versions {
-		if newCRD.Spec.Versions[i].Name == currentCRDStorageVersion {
+		if newCRD.Spec.Versions[i].Name == directcsi.Version {
 			return newCRD.Spec.Versions[i], nil
 		}
 	}
 
-	return apiextensions.CustomResourceDefinitionVersion{}, fmt.Errorf("no version %v foung crd %v", currentCRDStorageVersion, newCRD.Name)
+	return apiextensions.CustomResourceDefinitionVersion{}, fmt.Errorf("no version %v foung crd %v", directcsi.Version, newCRD.Name)
 }
 
 func unregisterCRDs(ctx context.Context) error {
@@ -239,7 +252,7 @@ func unregisterCRDs(ctx context.Context) error {
 	crdClient := utils.GetCRDClient()
 	for _, crd := range crdNames {
 		if err := crdClient.Delete(ctx, crd, metav1.DeleteOptions{}); err != nil {
-			if !errors.IsNotFound(err) {
+			if !k8serrors.IsNotFound(err) {
 				return err
 			}
 		}

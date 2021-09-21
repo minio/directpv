@@ -16,31 +16,13 @@
 
 package installer
 
-// CSI provisioner images
 const (
-	// quay.io/minio/csi-provisioner:v2.2.0-go1.17
-	CSIImageCSIProvisioner = "csi-provisioner@sha256:d4f94539565cf62aea57062b6a42c5156337003133fd3f51b93df9a789e69840"
+	// conversion deployment
+	conversionWebhookDeploymentName = "directcsi-conversion-webhook"
+	conversionWebhookSecretName     = "conversionwebhookcerts"
+	conversionWebhookCertsSecret    = "converionwebhookcertsecret"
 
-	// quay.io/minio/csi-node-driver-registrar:v2.2.0-go1.17
-	CSIImageNodeDriverRegistrar = "csi-node-driver-registrar@sha256:843fb23b1a3fa1de986378b0b8c08c35f8e62499d386de8ec57801fd029afe6d"
-
-	// quay.io/minio/livenessprobe:v2.2.0-go1.17
-	CSIImageLivenessProbe = "livenessprobe@sha256:928a80be4d363e0e438ff28dcdb00d8d674d3059c6149a8cda64ce6016a9a3f8"
-)
-
-// Misc
-const (
-	CreatedByLabel      = "created-by"
-	DirectCSIPluginName = "kubectl/direct-csi"
-
-	AppNameLabel = "application-name"
-	AppTypeLabel = "application-type"
-
-	CSIDriver = "CSIDriver"
-	DirectCSI = "direct.csi.min.io"
-)
-
-const (
+	// rbac
 	clusterRoleVerbList   = "list"
 	clusterRoleVerbGet    = "get"
 	clusterRoleVerbWatch  = "watch"
@@ -48,72 +30,74 @@ const (
 	clusterRoleVerbDelete = "delete"
 	clusterRoleVerbUpdate = "update"
 	clusterRoleVerbPatch  = "patch"
-	selectorValueEnabled  = "enabled"
 
-	volumeNameSocketDir = "socket-dir"
-	volumePathSocketDir = "/csi"
+	// conversion secret
+	conversionKeyPair = "conversionkeypair"
+	caCertFileName    = "ca.pem"
+	conversionCACert  = "conversioncacert"
 
-	volumeNameSysDir = "sysfs"
-	volumePathSysDir = "/sys"
+	// crd
+	driveCRDName  = "directcsidrives.direct.csi.min.io"
+	volumeCRDName = "directcsivolumes.direct.csi.min.io"
 
-	volumeNameDevDir = "devfs"
-	volumePathDevDir = "/dev"
-
-	volumeNameRunUdevData = "run-udev-data-dir"
-	volumePathRunUdevData = "/run/udev/data"
-
-	volumeNameCSIRootDir      = "direct-csi-common-root"
-	volumeNameMountpointDir   = "mountpoint-dir"
-	volumeNameRegistrationDir = "registration-dir"
-	volumeNamePluginDir       = "plugins-dir"
-
-	directCSISelector = "selector.direct.csi.min.io"
-
-	directCSIContainerName           = "direct-csi"
-	livenessProbeContainerName       = "liveness-probe"
+	// Daemonset
+	volumeNameMountpointDir          = "mountpoint-dir"
+	volumeNameRegistrationDir        = "registration-dir"
+	volumeNamePluginDir              = "plugins-dir"
+	volumeNameCSIRootDir             = "direct-csi-common-root"
+	csiRootPath                      = "/var/lib/direct-csi/"
 	nodeDriverRegistrarContainerName = "node-driver-registrar"
-	csiProvisionerContainerName      = "csi-provisioner"
+	healthZContainerPortName         = "healthz"
+	livenessProbeContainerName       = "liveness-probe"
+	volumeNameSysDir                 = "sysfs"
+	volumePathSysDir                 = "/sys"
+	volumeNameDevDir                 = "devfs"
+	volumePathDevDir                 = "/dev"
+	volumeNameRunUdevData            = "run-udev-data-dir"
+	volumePathRunUdevData            = "/run/udev/data"
 
-	healthZContainerPortName = "healthz"
-	healthZContainerPortPath = "/healthz"
+	// Deployment
+	admissionWebhookSecretName     = "validationwebhookcerts"
+	admissionControllerWebhookPort = 20443
+	admissionControllerWebhookName = "validatinghook"
+	validationControllerName       = "directcsi-validation-controller"
+	admissionControllerCertsDir    = "admission-webhook-certs"
+	admissionCertsDir              = "/etc/admission/certs"
+	csiProvisionerContainerName    = "csi-provisioner"
+	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
 
-	kubeNodeNameEnvVar = "KUBE_NODE_NAME"
-	endpointEnvVarCSI  = "CSI_ENDPOINT"
+	// validation rules
+	validationWebhookConfigName = "drive.validation.controller"
 
-	kubeletDirPath = "/var/lib/kubelet"
-	csiRootPath    = "/var/lib/direct-csi/"
+	// Common
+	volumeNameSocketDir                = "socket-dir"
+	directCSISelector                  = "selector.direct.csi.min.io"
+	directCSIContainerName             = "direct-csi"
+	kubeNodeNameEnvVar                 = "KUBE_NODE_NAME"
+	endpointEnvVarCSI                  = "CSI_ENDPOINT"
+	kubeletDirPath                     = "/var/lib/kubelet"
+	directCSIPluginName                = "kubectl-direct-csi"
+	conversionWebhookPortName          = "convwebhook"
+	conversionWebhookPort              = 30443
+	selectorValueEnabled               = "enabled"
+	conversionCADir                    = "/etc/conversion/CAs"
+	conversionCertsDir                 = "/etc/conversion/certs"
+	webhookSelector                    = "selector.direct.csi.min.io.webhook"
+	healthZContainerPortPath           = "/healthz"
+	directCSIFinalizerDeleteProtection = "/delete-protection"
 
 	// debug log level default
 	logLevel = 3
 
-	// Admission controller
-	admissionControllerCertsDir    = "admission-webhook-certs"
-	admissionWebhookSecretName     = "validationwebhookcerts"
-	validationControllerName       = "directcsi-validation-controller"
-	admissionControllerWebhookName = "validatinghook"
-	validationWebhookConfigName    = "drive.validation.controller"
-	admissionControllerWebhookPort = 20443
-	admissionCertsDir              = "/etc/admission/certs"
-	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
-	privateKeyFileName             = "key.pem"
-	publicCertFileName             = "cert.pem"
+	// key-pairs
+	privateKeyFileName = "key.pem"
+	publicCertFileName = "cert.pem"
 
-	// Finalizers
-	directCSIFinalizerDeleteProtection = "/delete-protection"
+	// string-gen
+	charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-	// Conversion webhook (Legacy)
-	conversionWebhookDeploymentName = "directcsi-conversion-webhook"
-	conversionWebhookSecretName     = "conversionwebhookcerts"
-	conversionWebhookCertsSecret    = "converionwebhookcertsecret"
-
-	// conversion
-	conversionKeyPair         = "conversionkeypair"
-	conversionCACert          = "conversioncacert"
-	conversionWebhookPortName = "convwebhook"
-	// ConversionWebhookPort denotes conversion webhook port.
-	ConversionWebhookPort = 30443
-	caCertFileName        = "ca.pem"
-	conversionCADir       = "/etc/conversion/CAs"
-	conversionCertsDir    = "/etc/conversion/certs"
-	webhookSelector       = "selector.direct.csi.min.io.webhook"
+	// Misc
+	createdByLabel = "created-by"
+	appNameLabel   = "application-name"
+	appTypeLabel   = "application-type"
 )

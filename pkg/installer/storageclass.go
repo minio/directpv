@@ -24,74 +24,136 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	storagev1beta1 "k8s.io/api/storage/v1beta1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/klog/v2"
 )
 
-var _ Installer = &scInstaller{}
+var (
+	errStorageClassVersionUnsupported = errors.New("Unsupported StorageClass version found")
+)
 
-type scInstaller struct {
-	name string
-
-	*installConfig
-}
-
-func (sc *scInstaller) Init(i *installConfig) error {
-	sc.installConfig = i
-
-	identity := sc.GetIdentity()
-	if identity == "" {
-		err := errors.New("identity cannot be empty")
-		klog.ErrorS(err, "Invalid configuration", "Installer", "StorageClassInstaller")
-		return err
+func installStorageClassDefault(ctx context.Context, c *Config) error {
+	if err := createStorageClass(ctx, c); err != nil {
+		if !k8serrors.IsAlreadyExists(err) {
+			return err
+		}
 	}
-	sc.name = utils.SanitizeKubeResourceName(utils.DefaultIfZeroString(sc.name, identity))
+
+	if !c.DryRun {
+		klog.Infof("'%s' storageclass created", utils.Bold(c.Identity))
+	}
 
 	return nil
 }
 
-func (sc *scInstaller) Install(ctx context.Context) error {
-	scName := utils.SanitizeKubeResourceName(sc.name)
-	allowExpansionFalse := false
-	allowTopologiesWithName := utils.NewIdentityTopologySelector(scName)
-	reclaimPolicyDelete := corev1.PersistentVolumeReclaimDelete
-	bindingModeWaitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
-
-	// Create StorageClass for the new driver
-	storageClass := &storagev1.StorageClass{
-		TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1", Kind: "StorageClass"},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        scName,
-			Namespace:   metav1.NamespaceNone,
-			Annotations: defaultAnnotations,
-			Labels:      defaultLabels,
-			Finalizers:  []string{metav1.FinalizerDeleteDependents}, // foregroundDeletion finalizer
-		},
-		Provisioner:          scName,
-		AllowVolumeExpansion: &allowExpansionFalse,
-		VolumeBindingMode:    &bindingModeWaitForFirstConsumer,
-		AllowedTopologies: []corev1.TopologySelectorTerm{
-			allowTopologiesWithName,
-		},
-		ReclaimPolicy: &reclaimPolicyDelete,
+func uninstallStorageClassDefault(ctx context.Context, c *Config) error {
+	if err := deleteStorageClass(ctx, c); err != nil && !k8serrors.IsNotFound(err) {
+		return err
 	}
+	klog.Infof("'%s' storageclass deleted", utils.Bold(c.Identity))
+	return nil
+}
 
-	createdSC, err := utils.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{
-		DryRun: sc.getDryRunDirectives(),
-	})
+func createStorageClass(ctx context.Context, c *Config) error {
+	allowExpansion := false
+	allowTopologiesWithName := utils.NewIdentityTopologySelector(c.driverIdentity())
+	retainPolicy := corev1.PersistentVolumeReclaimDelete
+
+	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
-	return sc.PostProc(createdSC)
+	version := gvk.Version
+
+	switch version {
+	case "v1":
+		// Create StorageClass for the new driver
+		bindingMode := storagev1.VolumeBindingWaitForFirstConsumer
+		storageClass := &storagev1.StorageClass{
+			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1", Kind: "StorageClass"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        c.storageClassName(),
+				Namespace:   metav1.NamespaceNone,
+				Annotations: defaultAnnotations,
+				Labels:      defaultLabels,
+				Finalizers:  []string{metav1.FinalizerDeleteDependents}, // foregroundDeletion finalizer
+			},
+			Provisioner:          c.provisionerName(),
+			AllowVolumeExpansion: &allowExpansion,
+			VolumeBindingMode:    &bindingMode,
+			AllowedTopologies: []corev1.TopologySelectorTerm{
+				allowTopologiesWithName,
+			},
+			ReclaimPolicy: &retainPolicy,
+			Parameters: map[string]string{
+				"fstype": "xfs",
+			},
+		}
+
+		if c.DryRun {
+			return c.postProc(storageClass)
+		}
+
+		if _, err := utils.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+		return c.postProc(storageClass)
+	case "v1beta1":
+		// Create StorageClass for the new driver
+		bindingMode := storagev1beta1.VolumeBindingWaitForFirstConsumer
+		storageClass := &storagev1beta1.StorageClass{
+			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1beta1", Kind: "StorageClass"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        c.storageClassName(),
+				Namespace:   metav1.NamespaceNone,
+				Annotations: defaultAnnotations,
+				Labels:      defaultLabels,
+				Finalizers:  []string{metav1.FinalizerDeleteDependents}, // foregroundDeletion finalizer
+			},
+			Provisioner:          c.provisionerName(),
+			AllowVolumeExpansion: &allowExpansion,
+			VolumeBindingMode:    &bindingMode,
+			AllowedTopologies: []corev1.TopologySelectorTerm{
+				allowTopologiesWithName,
+			},
+			ReclaimPolicy: &retainPolicy,
+			Parameters: map[string]string{
+				"fstype": "xfs",
+			},
+		}
+
+		if c.DryRun {
+			return c.postProc(storageClass)
+		}
+
+		if _, err := utils.GetKubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+		return c.postProc(storageClass)
+	default:
+		return errStorageClassVersionUnsupported
+	}
 }
 
-func (sc *scInstaller) Uninstall(ctx context.Context) error {
-	scName := sc.name
-	foregroundDeletePropagation := metav1.DeletePropagationForeground
-	// Delete Namespace Obj
-	return utils.GetKubeClient().StorageV1().StorageClasses().Delete(ctx, scName, metav1.DeleteOptions{
-		DryRun:            sc.getDryRunDirectives(),
-		PropagationPolicy: &foregroundDeletePropagation,
-	})
+func deleteStorageClass(ctx context.Context, c *Config) error {
+	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	if err != nil {
+		return err
+	}
+
+	switch gvk.Version {
+	case "v1":
+		if err := utils.GetKubeClient().StorageV1().StorageClasses().Delete(ctx, c.storageClassName(), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	case "v1beta1":
+		if err := utils.GetKubeClient().StorageV1beta1().StorageClasses().Delete(ctx, c.storageClassName(), metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	default:
+		return errStorageClassVersionUnsupported
+	}
+	return nil
 }

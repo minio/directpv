@@ -18,14 +18,11 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
-
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -93,7 +90,7 @@ func install(ctx context.Context, args []string) (err error) {
 	if err != nil {
 		return fmt.Errorf("invalid tolerations. format of '--tolerations' must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>")
 	}
-	defaultAuditDir, err := GetDefaultAuditDir()
+	defaultAuditDir, err := utils.GetDefaultAuditDir()
 	if err != nil {
 		return fmt.Errorf("unable to get default audit directory; %w", err)
 	}
@@ -114,114 +111,21 @@ func install(ctx context.Context, args []string) (err error) {
 		}
 	}()
 
-	if err := installer.CreateNamespace(ctx, identity, dryRun, file); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("'%s' namespace created", utils.Bold(identity))
-	}
-
-	if err := installer.CreatePodSecurityPolicy(ctx, identity, dryRun, enableDynamicDiscovery, file); err != nil {
-		switch {
-		case errors.Is(err, installer.ErrKubeVersionNotSupported):
-			klog.Infof("pod security policy is not supported in your kubernetes")
-		case !k8serrors.IsAlreadyExists(err):
-			return err
-		}
-	} else if !dryRun {
-		klog.Infof("'%s' pod security policy created", utils.Bold(identity))
+	installConfig := &installer.Config{
+		Identity:                   identity,
+		DirectCSIContainerImage:    image,
+		DirectCSIContainerOrg:      org,
+		DirectCSIContainerRegistry: registry,
+		AdmissionControl:           admissionControl,
+		LoopBackMode:               loopBackOnly,
+		NodeSelector:               nodeSelector,
+		Tolerations:                tolerations,
+		SeccompProfile:             seccompProfile,
+		ApparmorProfile:            apparmorProfile,
+		DynamicDiscovery:           enableDynamicDiscovery,
+		DryRun:                     dryRun,
+		AuditFile:                  file,
 	}
 
-	if err := installer.CreateRBACRoles(ctx, identity, dryRun, file); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("'%s' rbac roles created", utils.Bold(identity))
-	}
-
-	if !dryRun {
-		if err := installer.DeleteLegacyConversionDeployment(ctx, identity); err != nil {
-			return err
-		}
-	}
-
-	if err := installer.CreateConversionWebhookSecrets(ctx, identity, dryRun, file); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("'%s' conversion webhook secrets created", utils.Bold(identity))
-	}
-
-	if err := registerCRDs(ctx, identity, file); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("crds successfully registered")
-	}
-
-	if err := installer.CreateCSIDriver(ctx, identity, dryRun, file); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("'%s' csidriver created", utils.Bold(identity))
-	}
-
-	if err := installer.CreateStorageClass(ctx, identity, dryRun, file); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("'%s' storageclass created", utils.Bold(identity))
-	}
-
-	if err := installer.CreateService(ctx, identity, dryRun, file); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("'%s' service created", utils.Bold(identity))
-	}
-
-	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations, seccompProfile, apparmorProfile, enableDynamicDiscovery, file); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("'%s' daemonset created", utils.Bold(identity))
-	}
-
-	if err := installer.CreateDeployment(ctx, identity, image, dryRun, registry, org, file); err != nil {
-		if !k8serrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	if !dryRun {
-		klog.Infof("'%s' deployment created", utils.Bold(identity))
-	}
-
-	if admissionControl {
-		if err := installer.RegisterDriveValidationRules(ctx, identity, dryRun, file); err != nil {
-			if !k8serrors.IsAlreadyExists(err) {
-				return err
-			}
-		}
-		if !dryRun {
-			klog.Infof("'%s' drive validation rules registered", utils.Bold(identity))
-		}
-	}
-
-	return nil
+	return installer.Install(ctx, installConfig)
 }

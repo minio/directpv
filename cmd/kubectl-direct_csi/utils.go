@@ -20,30 +20,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"k8s.io/klog/v2"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/mitchellh/go-homedir"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/ellipsis"
 	"github.com/minio/direct-csi/pkg/sys"
-
 	"github.com/minio/direct-csi/pkg/utils"
-	runtime "k8s.io/apimachinery/pkg/runtime"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -61,13 +53,6 @@ var (
 	errMixedStatusSelectorUsage = fmt.Errorf("either glob or [%s] is supported", strings.Join(directcsi.SupportedStatusSelectorValues(), ", "))
 )
 
-var ( // Default direct csi directory where direct csi audit logs are stored.
-	defaultDirectCSIDir = ".direct-csi"
-
-	// Directory contains below files for audit logs
-	auditDir = "audit"
-)
-
 type Command string
 
 const (
@@ -75,8 +60,6 @@ const (
 	UnSetAcessTier Command = "unSetAccessTier"
 	Format         Command = "format"
 	DriveRelease   Command = "driveRelease"
-	RemoveVolumes  Command = "removeVolumes"
-	RemoveDrives   Command = "removeDrives"
 )
 
 func printableString(s string) string {
@@ -144,7 +127,7 @@ func processFilteredDrives(
 		}
 	}
 
-	defaultAuditDir, err := GetDefaultAuditDir()
+	defaultAuditDir, err := utils.GetDefaultAuditDir()
 	if err != nil {
 		return fmt.Errorf("unable to get default audit directory; %w", err)
 	}
@@ -165,7 +148,7 @@ func processFilteredDrives(
 		}
 	}()
 
-	return processDrives(
+	return utils.ProcessDrives(
 		ctx,
 		resultCh,
 		func(drive *directcsi.DirectCSIDrive) bool {
@@ -177,6 +160,7 @@ func processFilteredDrives(
 		applyFunc,
 		processFunc,
 		file,
+		dryRun,
 	)
 }
 
@@ -247,218 +231,6 @@ func defaultDriveUpdateFunc(directCSIClient clientset.DirectV1beta3Interface) fu
 		_, err := directCSIClient.DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{})
 		return err
 	}
-}
-
-type objectResult struct {
-	object runtime.Object
-	err    error
-}
-
-func processObjects(
-	ctx context.Context,
-	resultCh <-chan objectResult,
-	matchFunc func(runtime.Object) bool,
-	applyFunc func(runtime.Object) error,
-	processFunc func(context.Context, runtime.Object) error,
-	writer io.Writer,
-) error {
-	stopCh := make(chan struct{})
-	var stopChMu int32
-	closeStopCh := func() {
-		if atomic.AddInt32(&stopChMu, 1) == 1 {
-			close(stopCh)
-		}
-	}
-	defer closeStopCh()
-
-	objectCh := make(chan runtime.Object)
-	var wg sync.WaitGroup
-
-	// Start utils.MaxThreadCount workers.
-	var errs []error
-	for i := 0; i < utils.MaxThreadCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-stopCh:
-					return
-				case object, ok := <-objectCh:
-					if !ok {
-						return
-					}
-					if err := processFunc(ctx, object); err != nil {
-						errs = append(errs, err)
-						defer closeStopCh()
-						return
-					}
-				}
-			}
-		}()
-	}
-
-	var err error
-	for result := range resultCh {
-		if result.err != nil {
-			err = result.err
-			break
-		}
-
-		if !matchFunc(result.object) {
-			continue
-		}
-
-		if err = applyFunc(result.object); err != nil {
-			break
-		}
-
-		if dryRun {
-			if err := utils.LogYAML(result.object); err != nil {
-				klog.Errorf("Unable to convert to YAML. %v", err)
-			}
-			continue
-		}
-		if err := utils.WriteObject(writer, result.object); err != nil {
-			return err
-		}
-
-		breakLoop := false
-		select {
-		case <-ctx.Done():
-			breakLoop = true
-		case <-stopCh:
-			breakLoop = true
-		case objectCh <- result.object:
-		}
-
-		if breakLoop {
-			break
-		}
-	}
-
-	close(objectCh)
-	wg.Wait()
-
-	if err != nil {
-		return err
-	}
-
-	msgs := []string{}
-	for _, err := range errs {
-		msgs = append(msgs, err.Error())
-	}
-	if msg := strings.Join(msgs, "; "); msg != "" {
-		return errors.New(msg)
-	}
-
-	return nil
-}
-
-func processVolumes(
-	ctx context.Context,
-	resultCh <-chan utils.ListVolumeResult,
-	matchFunc func(*directcsi.DirectCSIVolume) bool,
-	applyFunc func(*directcsi.DirectCSIVolume) error,
-	processFunc func(context.Context, *directcsi.DirectCSIVolume) error,
-	writer io.Writer,
-) error {
-	objectCh := make(chan objectResult)
-	go func() {
-		defer close(objectCh)
-		for result := range resultCh {
-			var oresult objectResult
-			if result.Err != nil {
-				oresult.err = result.Err
-			} else {
-				volume := result.Volume
-				oresult.object = &volume
-			}
-
-			select {
-			case <-ctx.Done():
-				return
-			case objectCh <- oresult:
-			}
-		}
-	}()
-
-	return processObjects(
-		ctx,
-		objectCh,
-		func(object runtime.Object) bool {
-			return matchFunc(object.(*directcsi.DirectCSIVolume))
-		},
-		func(object runtime.Object) error {
-			return applyFunc(object.(*directcsi.DirectCSIVolume))
-		},
-		func(ctx context.Context, object runtime.Object) error {
-			return processFunc(ctx, object.(*directcsi.DirectCSIVolume))
-		},
-		writer,
-	)
-}
-
-func processDrives(
-	ctx context.Context,
-	resultCh <-chan utils.ListDriveResult,
-	matchFunc func(*directcsi.DirectCSIDrive) bool,
-	applyFunc func(*directcsi.DirectCSIDrive) error,
-	processFunc func(context.Context, *directcsi.DirectCSIDrive) error,
-	writer io.Writer,
-) error {
-	objectCh := make(chan objectResult)
-	go func() {
-		defer close(objectCh)
-		for result := range resultCh {
-			var oresult objectResult
-			if result.Err != nil {
-				oresult.err = result.Err
-			} else {
-				drive := result.Drive
-				oresult.object = &drive
-			}
-
-			select {
-			case <-ctx.Done():
-				return
-			case objectCh <- oresult:
-			}
-		}
-	}()
-
-	return processObjects(
-		ctx,
-		objectCh,
-		func(object runtime.Object) bool {
-			return matchFunc(object.(*directcsi.DirectCSIDrive))
-		},
-		func(object runtime.Object) error {
-			return applyFunc(object.(*directcsi.DirectCSIDrive))
-		},
-		func(ctx context.Context, object runtime.Object) error {
-			return processFunc(ctx, object.(*directcsi.DirectCSIDrive))
-		},
-		writer,
-	)
-}
-
-func getDirectCSIHomeDir() (string, error) {
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(homeDir, defaultDirectCSIDir), nil
-}
-
-func GetDefaultAuditDir() (string, error) {
-	defaultDir, err := getDirectCSIHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(defaultDir, auditDir), nil
 }
 
 func getValidSelectors(selectors []string) (globs []string, values []utils.LabelValue, err error) {

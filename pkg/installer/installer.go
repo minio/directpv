@@ -18,86 +18,70 @@ package installer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/utils"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	defaultLabels = map[string]string{ // labels
-		AppNameLabel: DirectCSI,
-		AppTypeLabel: CSIDriver,
-
-		string(utils.CreatedByLabelKey): DirectCSIPluginName,
-		string(utils.VersionLabelKey):   directcsi.Version,
+func getInstaller(config *Config) (installer, error) {
+	versionInfo, err := utils.GetDiscoveryClient().ServerVersion()
+	if err != nil {
+		return nil, err
 	}
 
-	defaultAnnotations = map[string]string{}
-)
-
-// Installer is installer interface
-type Installer interface {
-	Install(context.Context) error
-	Uninstall(context.Context) error
-}
-
-type installConfig struct {
-	Identity string
-
-	// DirectCSIContainerImage properties
-	DirectCSIContainerImage    string
-	DirectCSIContainerOrg      string
-	DirectCSIContainerRegistry string
-
-	// CSIImage properties
-	CSIProvisionerImage      string
-	NodeDriverRegistrarImage string
-	LivenessProbeImage       string
-
-	// Mode switches
-	LoopBackMode bool
-
-	// dry-run properties
-	DryRun       bool
-	DryRunFormat DryRunFormat
-}
-
-func (i *installConfig) GetIdentity() string {
-	return i.Identity
-}
-
-func (i *installConfig) GetDryRunFormat() DryRunFormat {
-	if i.DryRunFormat == "" {
-		return DryRunFormatYAML
-	}
-	return i.DryRunFormat
-}
-
-func (i *installConfig) PostProc(obj interface{}) error {
-	if i.DryRun {
-		var format func(interface{}) string
-		dryRunFormat := i.GetDryRunFormat()
-		if dryRunFormat == DryRunFormatJSON {
-			format = utils.MustJSON
-		} else {
-			format = func(obj interface{}) string {
-				return fmt.Sprintf("%s\n---\n", utils.MustYAML(obj))
-			}
-		}
-		fmt.Println(format(obj))
-	}
-
-	return nil
-}
-
-func (i *installConfig) getDryRunDirectives() []string {
-	if i.DryRun {
-		return []string{
-			metav1.DryRunAll,
+	if versionInfo.Major == "1" {
+		switch versionInfo.Minor {
+		case "18":
+			return newV1Dot18(config), nil
+		case "19":
+			return newV1Dot19(config), nil
+		case "20":
+			return newV1Dot20(config), nil
+		case "21":
+			return newV1Dot21(config), nil
+		case "22":
+			return newV1Dot22(config), nil
 		}
 	}
-	return []string{}
+
+	return nil, fmt.Errorf("unsupported kubernetes version %s.%s", versionInfo.Major, versionInfo.Minor)
+}
+
+func Install(ctx context.Context, config *Config) error {
+	if config == nil {
+		return errors.New("bad arguments: empty configuration")
+	}
+	if err := config.validate(); err != nil {
+		return err
+	}
+	installer, err := getInstaller(config)
+	if err != nil {
+		return err
+	}
+	if !config.DryRun {
+		if err := deleteLegacyConversionDeployment(ctx, config.Identity); err != nil {
+			return err
+		}
+	}
+	return installer.Install(ctx)
+}
+
+func Uninstall(ctx context.Context, config *Config) error {
+	if config == nil {
+		return errors.New("bad arguments: empty configuration")
+	}
+	if err := config.validate(); err != nil {
+		return err
+	}
+	installer, err := getInstaller(config)
+	if err != nil {
+		return err
+	}
+	if !config.DryRun {
+		if err := deleteLegacyConversionDeployment(ctx, config.Identity); err != nil {
+			return err
+		}
+	}
+	return installer.Uninstall(ctx)
 }

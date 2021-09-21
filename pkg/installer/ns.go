@@ -22,27 +22,17 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
-var _ Installer = &nsInstaller{}
-
-type nsInstaller struct {
-	name string
-
-	*installConfig
-}
-
-func (n *nsInstaller) Install(ctx context.Context) error {
-	if n.installConfig == nil {
-		return errInstallationFailed("bad arguments: empty configuration", "Namespace")
-	}
-
+func installNSDefault(ctx context.Context, i *Config) error {
+	name := i.identity()
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Namespace"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        utils.SanitizeKubeResourceName(n.name),
+			Name:        name,
 			Namespace:   metav1.NamespaceNone,
 			Annotations: defaultAnnotations,
 			Labels:      defaultLabels,
@@ -50,35 +40,35 @@ func (n *nsInstaller) Install(ctx context.Context) error {
 		},
 	}
 
+	if i.DryRun {
+		return i.postProc(ns)
+	}
+
 	// Create Namespace Obj
-	createdNS, err := utils.GetKubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{
-		DryRun: n.getDryRunDirectives(),
-	})
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
+	if _, err := utils.GetKubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
+		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
 
-	return n.PostProc(createdNS)
+	klog.Infof("'%s' namespace created", utils.Bold(i.Identity))
+
+	return i.postProc(ns)
 }
 
-func (n *nsInstaller) Uninstall(ctx context.Context) error {
-	if n.installConfig == nil {
-		return errInstallationFailed("bad arguments: empty configuration", "Namespace")
-	}
-
-	nsName := utils.SanitizeKubeResourceName(n.name)
-	foregroundDeletePropagation := metav1.DeletePropagationForeground
-
+func uninstallNSDefault(ctx context.Context, i *Config) error {
 	// Delete Namespace Obj
-	if err := utils.GetKubeClient().CoreV1().Namespaces().Delete(ctx, nsName, metav1.DeleteOptions{
-		DryRun:            n.getDryRunDirectives(),
+	name := i.identity()
+	foregroundDeletePropagation := metav1.DeletePropagationForeground
+	if err := utils.GetKubeClient().CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{
 		PropagationPolicy: &foregroundDeletePropagation,
 	}); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}
+
+	klog.Infof("'%s' namespace deleted", utils.Bold(i.Identity))
+
 	return nil
 }
