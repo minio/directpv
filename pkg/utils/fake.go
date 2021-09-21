@@ -23,20 +23,39 @@ import (
 	apiextensionsv1fake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/version"
 	discoveryfake "k8s.io/client-go/discovery/fake"
 	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 	metadatafake "k8s.io/client-go/metadata/fake"
 )
+
+type fakeServerGroupsAndResourcesMethod func() ([]*metav1.APIGroup, []*metav1.APIResourceList, error)
+
+type FakeDiscovery struct {
+	discoveryfake.FakeDiscovery
+	fakeServerGroupsAndResourcesMethod
+	versionInfo *version.Info
+}
+
+func (fd *FakeDiscovery) ServerVersion() (*version.Info, error) {
+	return fd.versionInfo, nil
+}
+
+func (fd *FakeDiscovery) ServerGroupsAndResources() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
+	return fd.fakeServerGroupsAndResourcesMethod()
+}
 
 // FakeInit initializes fake clients.
 func FakeInit() {
 	kubeClient = kubernetesfake.NewSimpleClientset()
 	directClientset = clientsetfake.NewSimpleClientset()
 	directCSIClient = directClientset.DirectV1beta3()
-	apiextensionsClient = &apiextensionsv1fake.FakeApiextensionsV1{}
-	crdClient = apiextensionsClient.CustomResourceDefinitions()
+	crdClient = &apiextensionsv1fake.FakeCustomResourceDefinitions{
+		Fake: &apiextensionsv1fake.FakeApiextensionsV1{
+			Fake: &kubeClient.(*kubernetesfake.Clientset).Fake,
+		},
+	}
 	discoveryClient = &discoveryfake.FakeDiscovery{}
-
 	scheme := runtime.NewScheme()
 	_ = metav1.AddMetaToScheme(scheme)
 	metadataClient = metadatafake.NewSimpleMetadataClient(scheme)
@@ -47,4 +66,12 @@ func FakeInit() {
 // SetDirectCSIClient sets fake direct-csi client.
 func SetDirectCSIClient(fakeClient *directcsifake.FakeDirectV1beta3) {
 	directCSIClient = fakeClient
+}
+
+func SetFakeDiscoveryClient(groupsAndMethodsFn fakeServerGroupsAndResourcesMethod, serverVersionInfo *version.Info) {
+	discoveryClient = &FakeDiscovery{
+		FakeDiscovery:                      discoveryfake.FakeDiscovery{Fake: &kubeClient.(*kubernetesfake.Clientset).Fake},
+		fakeServerGroupsAndResourcesMethod: groupsAndMethodsFn,
+		versionInfo:                        serverVersionInfo,
+	}
 }

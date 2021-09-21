@@ -22,9 +22,19 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mitchellh/go-homedir"
+
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+var ( // Default direct csi directory where direct csi audit logs are stored.
+	defaultDirectCSIDir = ".direct-csi"
+
+	// Directory contains below files for audit logs
+	auditDir = "audit"
 )
 
 // BoolToCondition converts boolean value to condition status.
@@ -103,4 +113,20 @@ func NewSafeFile(fileName string) (*SafeFile, error) {
 		tempFile: tempFile,
 		filename: fileName,
 	}, nil
+}
+
+func getDirectCSIHomeDir() (string, error) {
+	homeDir, err := homedir.Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(homeDir, defaultDirectCSIDir), nil
+}
+
+func GetDefaultAuditDir() (string, error) {
+	defaultDir, err := getDirectCSIHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(defaultDir, auditDir), nil
 }

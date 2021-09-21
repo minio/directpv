@@ -1,4 +1,4 @@
-name: Functional Tests
+name: Testing on k8s v1.18.20
 
 on:
   push:
@@ -39,8 +39,8 @@ jobs:
       - name: Setup Minikube
         uses: manusa/actions-setup-minikube@v2.4.2
         with:
-          minikube version: 'v1.22.0'
-          kubernetes version: 'v1.21.4'
+          minikube version: 'v1.24.0'
+          kubernetes version: 'v1.18.20'
           github token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check Minikube

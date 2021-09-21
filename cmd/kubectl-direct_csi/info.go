@@ -18,13 +18,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	storagev1 "k8s.io/api/storage/v1"
@@ -130,7 +130,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	}
 
 	if gvk.Version == "v1alpha1" {
-		return installer.ErrKubeVersionNotSupported
+		return errors.New("this version of CSINode is not supported by direct-csi")
 	}
 
 	if len(nodeList) == 0 {
