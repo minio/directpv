@@ -42,7 +42,7 @@ func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []di
 
 	filteredDrivesByFormat := FilterDrivesByRequestFormat(csiDrives)
 	if len(filteredDrivesByFormat) == 0 {
-		return []directcsi.DirectCSIDrive{}, status.Error(codes.FailedPrecondition, "No csi drives are been added. Please use `add drives` plugin command to add the drives")
+		return []directcsi.DirectCSIDrive{}, status.Error(codes.FailedPrecondition, "No drives are 'Ready' to be used. Please use `kubectl direct-csi drives format` command to format the drives")
 	}
 
 	capFilteredDrives := FilterDrivesByCapacityRange(capacityRange, filteredDrivesByFormat)
