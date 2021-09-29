@@ -21,6 +21,7 @@ import (
 	"testing"
 )
 
+// TestExpandPatterns - Test for ellipsis expansion
 func TestExpandPatterns(t *testing.T) {
 	testCases := []struct {
 		input       string
@@ -42,8 +43,9 @@ func TestExpandPatterns(t *testing.T) {
 		// Valid case- Start with ellipsis
 		{"{a...c}p{0...2}9", []string{"ap09", "ap19", "ap29", "bp09", "bp19", "bp29", "cp09", "cp19", "cp29"}, false},
 		// Valid case- Start with ellipsis
-		{"{a...c}p{0...2}9{d...a}", []string{"ap09a", "ap09b", "ap09c", "ap09d", "ap19a", "ap19b", "ap19c", "ap19d", "ap29a", "ap29b", "ap29c", "ap29d", "bp09a", "bp09b", "bp09c", "bp09d", "bp19a", "bp19b", "bp19c", "bp19d", "bp29a", "bp29b", "bp29c", "bp29d", "cp09a", "cp09b", "cp09c", "cp09d", "cp19a", "cp19b",
-			"cp19c", "cp19d", "cp29a", "cp29b", "cp29c", "cp29d"}, false},
+		{"{a...c}p{0...2}9{d...a}", []string{"ap09a", "ap09b", "ap09c", "ap09d", "ap19a", "ap19b", "ap19c", "ap19d", "ap29a",
+			"ap29b", "ap29c", "ap29d", "bp09a", "bp09b", "bp09c", "bp09d", "bp19a", "bp19b", "bp19c", "bp19d", "bp29a",
+			"bp29b", "bp29c", "bp29d", "cp09a", "cp09b", "cp09c", "cp09d", "cp19a", "cp19b", "cp19c", "cp19d", "cp29a", "cp29b", "cp29c", "cp29d"}, false},
 		// Valid case- Start with non-ellipsis
 		{"abc", []string{"abc"}, false},
 		// Valid case- Start with non-ellipsis
@@ -52,7 +54,17 @@ func TestExpandPatterns(t *testing.T) {
 		{"ab{p...r}1", []string{"abp1", "abq1", "abr1"}, false},
 		// Valid case- Start with non-ellipsis
 		{"ab{p...r}0{1...2}", []string{"abp01", "abp02", "abq01", "abq02", "abr01", "abr02"}, false},
-		// Invalid case - one dots
+		// Valid case- ellipsis start with two digit
+		{"a{12...20}x", []string{"a12x", "a13x", "a14x", "a15x", "a16x", "a17x", "a18x", "a19x", "a20x"}, false},
+		// Valid case - ellipsis start with two digit end with two digits
+		{"ax{ab...dx}y", []string{"axaby", "axacy", "axady", "axaey", "axafy", "axagy", "axahy", "axaiy", "axajy", "axaky",
+			"axaly", "axamy", "axany", "axaoy", "axapy", "axaqy", "axary", "axasy", "axaty", "axauy", "axavy", "axawy", "axaxy", "axayy", "axbzy",
+			"axbay", "axbby", "axbcy", "axbdy", "axbey", "axbfy", "axbgy", "axbhy", "axbiy", "axbjy", "axbky", "axbly", "axbmy", "axbny", "axboy",
+			"axbpy", "axbqy", "axbry", "axbsy", "axbty", "axbuy", "axbvy", "axbwy", "axbxy", "axbyy", "axczy", "axcay", "axcby", "axccy", "axcdy",
+			"axcey", "axcfy", "axcgy", "axchy", "axciy", "axcjy", "axcky", "axcly", "axcmy", "axcny", "axcoy", "axcpy", "axcqy", "axcry", "axcsy",
+			"axcty", "axcuy", "axcvy", "axcwy", "axcxy", "axcyy", "axdzy", "axday", "axdby", "axdcy", "axddy", "axdey", "axdfy", "axdgy", "axdhy",
+			"axdiy", "axdjy", "axdky", "axdly", "axdmy", "axdny", "axdoy", "axdpy", "axdqy", "axdry", "axdsy", "axdty", "axduy", "axdvy", "axdwy", "axdxy"}, false},
+		// Invalid case with one dot
 		{"a{a.c}p", []string{}, true},
 		// Invalid case - two dots
 		{"a{a..c}p", []string{}, true},
@@ -72,7 +84,7 @@ func TestExpandPatterns(t *testing.T) {
 
 }
 
-// TestEllipsisParser
+// TestEllipsisParser - test for valid/invalid ellipses pattern
 func TestEllipsisParser(t *testing.T) {
 	parseValue := func(value string) (ui64 uint64) {
 		if ui64, err := strconv.ParseUint(value, 10, 64); err == nil {
@@ -103,10 +115,26 @@ func TestEllipsisParser(t *testing.T) {
 		{"{a..z}", []*ellipsis{}, true},
 		// Four or more dots in expansion
 		{"{a....z}", []*ellipsis{}, true},
+		// No dot in expansion
+		{"{123}", []*ellipsis{}, true},
+		// Multiple opening braces in ellipsis
+		{"{a...{a...z}}", []*ellipsis{}, true},
+		// No RHS
+		{"{a...}z", []*ellipsis{}, true},
+		// No LHS
+		{"{...b}z", []*ellipsis{}, true},
+		// Multiple openin braces
+		{"{1.{...{zz}", []*ellipsis{}, true},
+		// Invalid numer of braces
+		{"1}ccc{sss}", []*ellipsis{}, true},
+		// Alphabet in LHS number in RHS
+		{"{11...az}", []*ellipsis{}, true},
 		// Alphabet in LHS number in RHS
 		{"{a...0}", []*ellipsis{}, true},
 		// Number in LHS alphabet in RHS
 		{"{0...a}", []*ellipsis{}, true},
+		// alphabet in LHS and Number in RHS
+		{"{a...0}", []*ellipsis{}, true},
 	}
 
 	for i, test := range testCases {
