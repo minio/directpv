@@ -96,7 +96,9 @@ func (handler *DriveEventHandler) Handle(ctx context.Context, args listener.Even
 }
 
 func (handler *DriveEventHandler) getFSUUID(ctx context.Context, drive *directcsi.DirectCSIDrive) (string, error) {
-	if drive.Status.FilesystemUUID == "" {
+	if drive.Status.FilesystemUUID == "" ||
+		drive.Status.FilesystemUUID == "00000000-0000-0000-0000-000000000000" ||
+		len(drive.Status.FilesystemUUID) != 36 {
 		return uuid.New().String(), nil
 	}
 

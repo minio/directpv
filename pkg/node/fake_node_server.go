@@ -20,7 +20,7 @@ import (
 	"context"
 
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
-	"github.com/minio/direct-csi/pkg/sys/fs/xfs/quota"
+	"github.com/minio/direct-csi/pkg/fs/xfs"
 )
 
 const (
@@ -50,6 +50,16 @@ func (f *fakeVolumeMounter) UnmountVolume(targetPath string) error {
 	return nil
 }
 
+type fakeQuotaFuncs struct{}
+
+func (q *fakeQuotaFuncs) GetQuota(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error) {
+	return &xfs.Quota{}, nil
+}
+
+func (q *fakeQuotaFuncs) SetQuota(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error) {
+	return nil
+}
+
 func createFakeNodeServer() *NodeServer {
 	return &NodeServer{
 		NodeID:          testNodeName,
@@ -59,6 +69,6 @@ func createFakeNodeServer() *NodeServer {
 		Region:          "test-region",
 		directcsiClient: fakedirect.NewSimpleClientset(),
 		mounter:         &fakeVolumeMounter{},
-		quotaer:         &quota.FakeDriveQuotaer{},
+		quotaFuncs:      &fakeQuotaFuncs{},
 	}
 }

@@ -1,3 +1,5 @@
+//go:build !linux
+
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.
 //
@@ -14,25 +16,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package quota
+package xfs
 
 import (
 	"context"
-	"fmt"
+	"runtime"
 )
 
-type FakeDriveQuotaer struct{}
-
-func (fq *FakeDriveQuotaer) SetQuota(ctx context.Context, path, volumeID, blockFile string, quota FSQuota) error {
-	if path == "" || volumeID == "" || blockFile == "" || quota.HardLimit <= int64(0) {
-		return fmt.Errorf("Invalid arguments passed for SetQuota (%v, %v, %v, %v) ", path, volumeID, blockFile, quota)
-	}
-	return nil
+func getQuota(device, volumeID string) (*Quota, error) {
+	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func (fq *FakeDriveQuotaer) GetQuota(blockFile, volumeID string) (FSQuota, error) {
-	if blockFile == "" || volumeID == "" {
-		return FSQuota{}, fmt.Errorf("Invalid arguments passed for GetQuota (%v, %v) ", blockFile, volumeID)
-	}
-	return FSQuota{}, nil
+func setQuota(device, path, volumeID string, quota Quota) error {
+	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	"github.com/minio/direct-csi/pkg/fs/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +30,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/sys/fs/xfs/quota"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
@@ -76,15 +76,11 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Errorf(codes.Internal, "failed stage volume: %v", err)
 	}
 
-	fsQuota := quota.FSQuota{
-		HardLimit: vol.Status.TotalCapacity,
-		SoftLimit: vol.Status.TotalCapacity,
+	quota := xfs.Quota{
+		HardLimit: uint64(vol.Status.TotalCapacity),
+		SoftLimit: uint64(vol.Status.TotalCapacity),
 	}
-	if err := n.quotaer.SetQuota(ctx,
-		stagingTargetPath,
-		vID,
-		sys.GetDirectCSIPath(drive.Status.FilesystemUUID),
-		fsQuota); err != nil {
+	if err := n.quotaFuncs.SetQuota(ctx, sys.GetDirectCSIPath(drive.Status.FilesystemUUID), stagingTargetPath, vID, quota); err != nil {
 		return nil, status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
 	}
 

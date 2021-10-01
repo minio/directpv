@@ -18,26 +18,27 @@ package ext4
 
 import (
 	"encoding/binary"
-	"encoding/hex"
-	"github.com/google/uuid"
-	"math"
-	"os"
-	"strconv"
+	"fmt"
+	"io"
+
+	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
 )
 
-const (
-	RevlevelDynamicRev = 1
-)
+const dynamicRev = 1
 
-type EXT4 struct {
-	SuperBlock *EXT4SuperBlock
+// UUID2String converts UUID to string.
+func UUID2String(uuid [16]byte) string {
+	return fmt.Sprintf(
+		"%08x-%04x-%04x-%x-%x",
+		binary.BigEndian.Uint32(uuid[0:4]),
+		binary.BigEndian.Uint16(uuid[4:6]),
+		binary.BigEndian.Uint16(uuid[6:8]),
+		uuid[8:10],
+		uuid[10:],
+	)
 }
 
-func NewEXT4() *EXT4 {
-	return &EXT4{}
-}
-
-type EXT4SuperBlock struct {
+type SuperBlock struct {
 	_                         [1024]byte
 	NumInodes                 uint32
 	NumBlocks                 uint32
@@ -165,69 +166,37 @@ type EXT4SuperBlock struct {
 	SChecksum         int32      /* crc32c(superblock) */
 }
 
-func (e EXT4SuperBlock) Is() bool {
-	return e.MagicNum == EXT4MagicNum
-}
-
-func (e EXT4SuperBlock) HasExtended() bool {
-	return e.RevLevel >= RevlevelDynamicRev
-}
-
-func (ext4 *EXT4) UUID() (string, error) {
-
-	getUUID := func(ext4uuid [16]uint8) (string, error) {
-		uid, err := uuid.Parse(hex.EncodeToString(ext4uuid[:]))
-		if err != nil {
-			return "", err
-		}
-		return uid.String(), nil
+func (sb *SuperBlock) ID() string {
+	if sb.RevLevel == dynamicRev {
+		return UUID2String(sb.SUuid)
 	}
 
-	if ext4.SuperBlock.HasExtended() {
-		return getUUID(ext4.SuperBlock.SUuid)
+	return UUID2String([16]byte{})
+}
+
+func (sb *SuperBlock) Type() string {
+	return "ext4"
+}
+
+func (sb *SuperBlock) TotalCapacity() uint64 {
+	return uint64(sb.NumBlocks) * (1 << (10 + sb.LogBlockSize))
+}
+
+func (sb *SuperBlock) FreeCapacity() uint64 {
+	return uint64(sb.FreeBlocks) * (1 << (10 + sb.LogBlockSize))
+}
+
+// Probe tries to probe ext2/3/4 superblock.
+func Probe(reader io.Reader) (*SuperBlock, error) {
+	var superBlock SuperBlock
+	if err := binary.Read(reader, binary.LittleEndian, &superBlock); err != nil {
+		return nil, err
 	}
 
-	return strconv.Itoa(int(ext4.SuperBlock.DefaultReserveUID)) + strconv.Itoa(int(ext4.SuperBlock.DefaultReserveGID)), nil
-}
-
-func (ext4 *EXT4) Type() string {
-	return FSTypeEXT4
-}
-
-func (ext4 *EXT4) FSBlockSize() uint64 {
-	return uint64(math.Pow(2, float64(10+ext4.SuperBlock.LogBlockSize)))
-}
-
-func (ext4 *EXT4) TotalCapacity() uint64 {
-	fsBlockSize := ext4.FSBlockSize()
-	return uint64(ext4.SuperBlock.NumBlocks) * uint64(fsBlockSize)
-}
-
-func (ext4 *EXT4) FreeCapacity() uint64 {
-	fsBlockSize := ext4.FSBlockSize()
-	return uint64(ext4.SuperBlock.FreeBlocks) * uint64(fsBlockSize)
-}
-
-func (ext4 *EXT4) ByteOrder() binary.ByteOrder {
-	return binary.LittleEndian
-}
-
-func (ext4 *EXT4) ProbeFS(devicePath string, startOffset int64) (bool, error) {
-	devFile, err := os.OpenFile(devicePath, os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return false, err
-	}
-	defer devFile.Close()
-
-	if _, err = devFile.Seek(startOffset, os.SEEK_SET); err != nil {
-		return false, err
+	if superBlock.MagicNum != 0xef53 {
+		return nil, fserrors.ErrFSNotFound
 	}
 
-	ext4SuperBlock := &EXT4SuperBlock{}
-	if err := binary.Read(devFile, ext4.ByteOrder(), ext4SuperBlock); err != nil {
-		return false, err
-	}
-	ext4.SuperBlock = ext4SuperBlock
-
-	return ext4.SuperBlock.Is(), nil
+	// TODO: validate superblock CRC
+	return &superBlock, nil
 }

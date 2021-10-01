@@ -14,15 +14,25 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package xfs
+package node
 
 import (
-	"errors"
+	"context"
+
+	"github.com/minio/direct-csi/pkg/fs/xfs"
 )
 
-var XFSMagicNum = uint32(0x58465342)
-var ErrNotXFS = errors.New("Not a xfs partition")
+type quotaFuncs interface {
+	GetQuota(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error)
+	SetQuota(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error)
+}
 
-const (
-	FSTypeXFS = "xfs"
-)
+type xfsQuotaFuncs struct{}
+
+func (q *xfsQuotaFuncs) GetQuota(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error) {
+	return xfs.GetQuota(ctx, device, volumeID)
+}
+
+func (q *xfsQuotaFuncs) SetQuota(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error) {
+	return xfs.SetQuota(ctx, device, path, volumeID, quota)
+}

@@ -18,20 +18,25 @@ package xfs
 
 import (
 	"encoding/binary"
-	"encoding/hex"
-	"github.com/google/uuid"
-	"os"
+	"fmt"
+	"io"
+
+	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
 )
 
-type XFS struct {
-	SuperBlock *XFSSuperBlock
+// UUID2String converts UUID to string.
+func UUID2String(uuid [16]byte) string {
+	return fmt.Sprintf(
+		"%08x-%04x-%04x-%x-%x",
+		binary.BigEndian.Uint32(uuid[0:4]),
+		binary.BigEndian.Uint16(uuid[4:6]),
+		binary.BigEndian.Uint16(uuid[6:8]),
+		uuid[8:10],
+		uuid[10:],
+	)
 }
 
-func NewXFS() *XFS {
-	return &XFS{}
-}
-
-type XFSSuperBlock struct {
+type SuperBlock struct {
 	MagicNumber         uint32
 	BlockSize           uint32
 	TotalBlocks         uint64
@@ -67,60 +72,31 @@ type XFSSuperBlock struct {
 	// Ignoring the rest
 }
 
-type XFSVolumeStats struct {
-	AvailableBytes int64
-	TotalBytes     int64
-	UsedBytes      int64
+func (sb *SuperBlock) ID() string {
+	return UUID2String(sb.UUID)
 }
 
-func (x XFSSuperBlock) Is() bool {
-	return x.MagicNumber == XFSMagicNum
+func (sb *SuperBlock) Type() string {
+	return "xfs"
 }
 
-func (xfs *XFS) Type() string {
-	return FSTypeXFS
+func (sb *SuperBlock) TotalCapacity() uint64 {
+	return sb.TotalBlocks * uint64(sb.BlockSize)
 }
 
-func (xfs *XFS) FSBlockSize() uint64 {
-	return uint64(xfs.SuperBlock.BlockSize)
+func (sb *SuperBlock) FreeCapacity() uint64 {
+	return sb.FreeBlocks * uint64(sb.BlockSize)
 }
 
-func (xfs *XFS) TotalCapacity() uint64 {
-	return uint64(xfs.SuperBlock.TotalBlocks) * uint64(xfs.SuperBlock.BlockSize)
-}
-
-func (xfs *XFS) FreeCapacity() uint64 {
-	return uint64(xfs.SuperBlock.FreeBlocks) * uint64(xfs.SuperBlock.BlockSize)
-}
-
-func (xfs *XFS) UUID() (string, error) {
-	uid, err := uuid.Parse(hex.EncodeToString(xfs.SuperBlock.UUID[:]))
-	if err != nil {
-		return "", err
-	}
-	return uid.String(), nil
-}
-
-func (xfs *XFS) ByteOrder() binary.ByteOrder {
-	return binary.BigEndian
-}
-
-func (xfs *XFS) ProbeFS(devicePath string, startOffset int64) (bool, error) {
-	devFile, err := os.OpenFile(devicePath, os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return false, err
-	}
-	defer devFile.Close()
-
-	if _, err = devFile.Seek(startOffset, os.SEEK_SET); err != nil {
-		return false, err
+func Probe(reader io.Reader) (*SuperBlock, error) {
+	var superBlock SuperBlock
+	if err := binary.Read(reader, binary.BigEndian, &superBlock); err != nil {
+		return nil, err
 	}
 
-	xfsSuperBlock := &XFSSuperBlock{}
-	if err := binary.Read(devFile, xfs.ByteOrder(), xfsSuperBlock); err != nil {
-		return false, err
+	if superBlock.MagicNumber != 0x58465342 {
+		return nil, fserrors.ErrFSNotFound
 	}
-	xfs.SuperBlock = xfsSuperBlock
 
-	return xfs.SuperBlock.Is(), nil
+	return &superBlock, nil
 }

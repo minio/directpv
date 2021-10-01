@@ -20,6 +20,7 @@ package sys
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -28,10 +29,12 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/minio/direct-csi/pkg/blockdev"
 	"github.com/minio/direct-csi/pkg/blockdev/parttable"
-	"github.com/minio/direct-csi/pkg/sys/fs"
+	"github.com/minio/direct-csi/pkg/fs"
+	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
 	"github.com/minio/direct-csi/pkg/sys/smart"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
@@ -537,6 +540,31 @@ func getBlockSizes(device string) (physicalBlockSize, logicalBlockSize uint64, e
 	return
 }
 
+func probeFS(device *Device) (fs.FS, error) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFunc()
+	sb, err := fs.Probe(ctx, "/dev/"+device.Name)
+	if err != nil && device.Size > 0 {
+		switch {
+		case errors.Is(err, fserrors.ErrFSNotFound), errors.Is(err, fserrors.ErrCancelled):
+		default:
+			return nil, err
+		}
+	}
+	return sb, nil
+}
+
+func getCapacity(device *Device) (totalCapacity, freeCapacity uint64) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFunc()
+	var err error
+	totalCapacity, freeCapacity, err = fs.GetCapacity(ctx, "/dev/"+device.Name, device.FSType)
+	if err != nil {
+		klog.V(5).InfoS("unable to get device capacity", "err", err, "Device", device.Name, "FSType", device.FSType)
+	}
+	return
+}
+
 func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos map[string][]MountInfo, mountPointsMap map[string][]string) error {
 	if _, found := CDROMs[device.Name]; found {
 		device.ReadOnly = true
@@ -561,19 +589,18 @@ func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos 
 	}
 
 	if device.FSType == "" {
-		filesystem, err := fs.Probe("/dev/" + device.Name)
-		if device.Size > 0 && err != nil && !errors.Is(err, fs.ErrFSNotFound) {
+		sb, err := probeFS(device)
+		if err != nil {
 			return err
 		}
-		if filesystem != nil {
-			uuid, _ := filesystem.UUID()
-			device.FSUUID = uuid
-			device.FSType = filesystem.Type()
-			device.TotalCapacity = filesystem.TotalCapacity()
-			device.FreeCapacity = filesystem.FreeCapacity()
+		if sb != nil {
+			device.FSUUID = sb.ID()
+			device.FSType = sb.Type()
+			device.TotalCapacity = sb.TotalCapacity()
+			device.FreeCapacity = sb.FreeCapacity()
 		}
 	} else {
-		device.TotalCapacity, device.FreeCapacity, _ = fs.GetCapacity("/dev/"+device.Name, device.FSType)
+		device.TotalCapacity, device.FreeCapacity = getCapacity(device)
 	}
 	return nil
 }
