@@ -14,15 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package rangeexpander
+package ellipsis
 
 import (
-	"strconv"
+	"reflect"
 	"testing"
 )
 
-// TestExpandPatterns - Test for ellipsis expansion
-func TestExpandPatterns(t *testing.T) {
+func TestExpand(t *testing.T) {
 	testCases := []struct {
 		input       string
 		output      []string
@@ -32,6 +31,8 @@ func TestExpandPatterns(t *testing.T) {
 		{"{a...c}", []string{"a", "b", "c"}, false},
 		// Valid case - Start with ellipsis
 		{"{f...c}", []string{"c", "d", "e", "f"}, false},
+		// Valid case - Start with ellipsis
+		{"{az...bc}", []string{"az", "ba", "bb", "bc"}, false},
 		// Valid case- Start with ellipsis
 		{"{a...c}a", []string{"aa", "ba", "ca"}, false},
 		// Valid case- Start with ellipsis
@@ -58,53 +59,41 @@ func TestExpandPatterns(t *testing.T) {
 		{"a{12...20}x", []string{"a12x", "a13x", "a14x", "a15x", "a16x", "a17x", "a18x", "a19x", "a20x"}, false},
 		// Valid case - ellipsis start with two digit end with two digits
 		{"ax{ab...dx}y", []string{"axaby", "axacy", "axady", "axaey", "axafy", "axagy", "axahy", "axaiy", "axajy", "axaky",
-			"axaly", "axamy", "axany", "axaoy", "axapy", "axaqy", "axary", "axasy", "axaty", "axauy", "axavy", "axawy", "axaxy", "axayy", "axbzy",
+			"axaly", "axamy", "axany", "axaoy", "axapy", "axaqy", "axary", "axasy", "axaty", "axauy", "axavy", "axawy", "axaxy", "axayy", "axazy",
 			"axbay", "axbby", "axbcy", "axbdy", "axbey", "axbfy", "axbgy", "axbhy", "axbiy", "axbjy", "axbky", "axbly", "axbmy", "axbny", "axboy",
-			"axbpy", "axbqy", "axbry", "axbsy", "axbty", "axbuy", "axbvy", "axbwy", "axbxy", "axbyy", "axczy", "axcay", "axcby", "axccy", "axcdy",
+			"axbpy", "axbqy", "axbry", "axbsy", "axbty", "axbuy", "axbvy", "axbwy", "axbxy", "axbyy", "axbzy", "axcay", "axcby", "axccy", "axcdy",
 			"axcey", "axcfy", "axcgy", "axchy", "axciy", "axcjy", "axcky", "axcly", "axcmy", "axcny", "axcoy", "axcpy", "axcqy", "axcry", "axcsy",
-			"axcty", "axcuy", "axcvy", "axcwy", "axcxy", "axcyy", "axdzy", "axday", "axdby", "axdcy", "axddy", "axdey", "axdfy", "axdgy", "axdhy",
+			"axcty", "axcuy", "axcvy", "axcwy", "axcxy", "axcyy", "axczy", "axday", "axdby", "axdcy", "axddy", "axdey", "axdfy", "axdgy", "axdhy",
 			"axdiy", "axdjy", "axdky", "axdly", "axdmy", "axdny", "axdoy", "axdpy", "axdqy", "axdry", "axdsy", "axdty", "axduy", "axdvy", "axdwy", "axdxy"}, false},
 		// Invalid case with one dot
-		{"a{a.c}p", []string{}, true},
+		{"a{a.c}p", nil, true},
 		// Invalid case - two dots
-		{"a{a..c}p", []string{}, true},
+		{"a{a..c}p", nil, true},
 		// Invalid case - four dots
-		{"a{a....c}p", []string{}, true},
+		{"a{a....c}p", nil, true},
 	}
 	for i, test := range testCases {
-		expansion, err := ExpandPatterns(test.input)
+		expansion, err := Expand(test.input)
 		errReturned := err != nil
 		if errReturned != test.errReturned {
-			t.Errorf("Test %d: expected %t got %t", i+1, test.errReturned, errReturned)
+			t.Fatalf("Test %d: expected %t got %t", i+1, test.errReturned, errReturned)
 		}
-		if !testEq(expansion, test.output) {
-			t.Errorf("Test %d: expected %s got %s", i+1, test.output, expansion)
+		if !reflect.DeepEqual(expansion, test.output) {
+			t.Fatalf("Test %d: expected %s got %s", i+1, test.output, expansion)
 		}
 	}
-
 }
 
-// TestEllipsisParser - test for valid/invalid ellipses pattern
-func TestEllipsisParser(t *testing.T) {
-	parseValue := func(value string) (ui64 uint64) {
-		if ui64, err := strconv.ParseUint(value, 10, 64); err == nil {
-			return ui64
-		}
-
-		if alphaRegexp.MatchString(value) {
-			return alpha2int(value)
-		}
-		return 0
-	}
+func TestGetEllipsis(t *testing.T) {
 	testCases := []struct {
 		arg         string
 		ellipses    []*ellipsis
 		errReturned bool
 	}{
 		// Valid case
-		{"{a...z}", []*ellipsis{{start: parseValue("a"), end: parseValue("z"), isAlpha: true, startIndex: 0, endIndex: 7}}, false},
+		{"{a...z}", []*ellipsis{{start: 1, end: 26, isAlpha: true, startIndex: 0, endIndex: 7}}, false},
 		// Valid case
-		{"{aa...az}", []*ellipsis{{start: parseValue("aa"), end: parseValue("az"), isAlpha: true, startIndex: 0, endIndex: 9}}, false},
+		{"{aa...az}", []*ellipsis{{start: 27, end: 52, isAlpha: true, startIndex: 0, endIndex: 9}}, false},
 		// Valid case
 		{"{0...11}", []*ellipsis{{start: 0, end: 11, isAlpha: false, startIndex: 0, endIndex: 8}}, false},
 		// Alpha numeric combination
@@ -141,25 +130,25 @@ func TestEllipsisParser(t *testing.T) {
 		ellipses, err := getEllipses(test.arg)
 		errReturned := err != nil
 		if errReturned != test.errReturned {
-			t.Errorf("Test %d: expected %t got %t", i+1, test.errReturned, errReturned)
+			t.Fatalf("Test %d: expected %t got %t", i+1, test.errReturned, errReturned)
 		}
 
 		for index, p := range ellipses {
 			ts := test.ellipses[index]
 			if p.start != ts.start {
-				t.Errorf("Test %d: expected %d got %d", i+1, ts.start, p.start)
+				t.Fatalf("Test %d: expected %d got %d", i+1, ts.start, p.start)
 			}
 			if p.end != ts.end {
-				t.Errorf("Test %d: expected %d got %d", i+1, ts.end, p.end)
+				t.Fatalf("Test %d: expected %d got %d", i+1, ts.end, p.end)
 			}
 			if p.isAlpha != ts.isAlpha {
-				t.Errorf("Test %d: expected %t got %t", i+1, ts.isAlpha, p.isAlpha)
+				t.Fatalf("Test %d: expected %t got %t", i+1, ts.isAlpha, p.isAlpha)
 			}
 			if p.startIndex != ts.startIndex {
-				t.Errorf("Test %d: expected %d got %d", i+1, ts.startIndex, p.startIndex)
+				t.Fatalf("Test %d: expected %d got %d", i+1, ts.startIndex, p.startIndex)
 			}
 			if p.endIndex != ts.endIndex {
-				t.Errorf("Test %d: expected %d got %d", i+1, ts.endIndex, p.endIndex)
+				t.Fatalf("Test %d: expected %d got %d", i+1, ts.endIndex, p.endIndex)
 			}
 		}
 	}
