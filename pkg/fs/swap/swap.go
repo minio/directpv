@@ -18,11 +18,10 @@ package swap
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
-	"os"
+
+	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
 )
 
 const (
@@ -33,28 +32,30 @@ const (
 
 type Swap struct{}
 
-func NewSwap() *Swap {
-	return &Swap{}
+func (swap *Swap) ID() string {
+	return ""
 }
 
 func (swap *Swap) Type() string {
 	return "linux-swap"
 }
 
-func (swap *Swap) ProbeFS(devicePath string, _ int64) (bool, error) {
+func (swap *Swap) TotalCapacity() uint64 {
+	return 0
+}
+
+func (swap *Swap) FreeCapacity() uint64 {
+	return 0
+}
+
+func Probe(reader io.Reader) (*Swap, error) {
 	// Refer https://github.com/karelzak/util-linux/blob/master/sys-utils/swapon.c#L426
 	// for more information for this logic.
-	devFile, err := os.OpenFile(devicePath, os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return false, fmt.Errorf("%v: %w", devicePath, err)
-	}
-	defer devFile.Close()
-
 	// The smallest swap area is PAGE_SIZE*10, it means 40k, that's less than maxPageSize
 	data := make([]byte, maxPageSize)
-	n, err := io.ReadFull(devFile, data)
+	n, err := io.ReadFull(reader, data)
 	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
-		return false, err
+		return nil, err
 	}
 	data = data[:n]
 
@@ -72,29 +73,9 @@ func (swap *Swap) ProbeFS(devicePath string, _ int64) (bool, error) {
 		if bytes.HasPrefix(data[offset:], []byte(swapSignature)) {
 			// TODO: read swap header for UUID and volume name.
 			// Refer https://github.com/karelzak/util-linux/blob/master/include/swapheader.h
-			return true, nil
+			return &Swap{}, nil
 		}
 	}
 
-	return false, nil
-}
-
-func (swap *Swap) UUID() (string, error) {
-	return "", nil
-}
-
-func (swap *Swap) FSBlockSize() uint64 {
-	return 0
-}
-
-func (swap *Swap) TotalCapacity() uint64 {
-	return 0
-}
-
-func (swap *Swap) FreeCapacity() uint64 {
-	return 0
-}
-
-func (swap *Swap) ByteOrder() binary.ByteOrder {
-	return binary.BigEndian
+	return nil, fserrors.ErrFSNotFound
 }

@@ -25,7 +25,6 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
-	"github.com/minio/direct-csi/pkg/sys/fs/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -103,11 +102,11 @@ func TestVolumeStatsEmitter(t *testing.T) {
 		}
 	}
 
-	testStatsGetter := func(_ context.Context, vol *directcsi.DirectCSIVolume) (xfs.XFSVolumeStats, error) {
-		return xfs.XFSVolumeStats{
-			TotalBytes:     vol.Status.TotalCapacity,
-			UsedBytes:      vol.Status.UsedCapacity,
-			AvailableBytes: vol.Status.TotalCapacity - vol.Status.UsedCapacity,
+	testStatsGetter := func(_ context.Context, vol *directcsi.DirectCSIVolume) (XFSVolumeStats, error) {
+		return XFSVolumeStats{
+			TotalBytes:     uint64(vol.Status.TotalCapacity),
+			UsedBytes:      uint64(vol.Status.UsedCapacity),
+			AvailableBytes: uint64(vol.Status.TotalCapacity - vol.Status.UsedCapacity),
 		}, nil
 	}
 

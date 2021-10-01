@@ -20,8 +20,8 @@ import (
 	"context"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
+	"github.com/minio/direct-csi/pkg/fs/xfs"
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/sys/fs/xfs"
 	"github.com/minio/direct-csi/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -34,24 +34,30 @@ const (
 	tenantLabel = "direct.csi.min.io/tenant"
 )
 
-type xfsVolumeStatsGetter func(context.Context, *directcsi.DirectCSIVolume) (xfs.XFSVolumeStats, error)
+type XFSVolumeStats struct {
+	AvailableBytes uint64
+	TotalBytes     uint64
+	UsedBytes      uint64
+}
 
-func (c *metricsCollector) getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfs.XFSVolumeStats, error) {
+type xfsVolumeStatsGetter func(context.Context, *directcsi.DirectCSIVolume) (XFSVolumeStats, error)
+
+func (c *metricsCollector) getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (XFSVolumeStats, error) {
 	directCSIClient := utils.GetDirectCSIClient()
 	drive, err := directCSIClient.DirectCSIDrives().Get(ctx, vol.Status.Drive, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})
 	if err != nil {
-		return xfs.XFSVolumeStats{}, err
+		return XFSVolumeStats{}, err
 	}
-	quotaInfo, err := c.quotaer.GetQuota(sys.GetDirectCSIPath(drive.Status.FilesystemUUID), vol.Name)
+	quota, err := xfs.GetQuota(ctx, sys.GetDirectCSIPath(drive.Status.FilesystemUUID), vol.Name)
 	if err != nil {
-		return xfs.XFSVolumeStats{}, err
+		return XFSVolumeStats{}, err
 	}
-	return xfs.XFSVolumeStats{
-		AvailableBytes: vol.Status.TotalCapacity - int64(quotaInfo.CurrentSpace),
-		TotalBytes:     vol.Status.TotalCapacity,
-		UsedBytes:      int64(quotaInfo.CurrentSpace),
+	return XFSVolumeStats{
+		AvailableBytes: uint64(vol.Status.TotalCapacity) - quota.CurrentSpace,
+		TotalBytes:     uint64(vol.Status.TotalCapacity),
+		UsedBytes:      quota.CurrentSpace,
 	}, nil
 }
 

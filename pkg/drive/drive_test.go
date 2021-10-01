@@ -141,7 +141,7 @@ func TestDriveFormat(t *testing.T) {
 				NodeName:       testNodeID,
 				DriveStatus:    directcsi.DriveStatusAvailable,
 				Path:           "/drive/path",
-				FilesystemUUID: "test_drive_umounted_uuid",
+				FilesystemUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
 				MajorNumber:    202,
 				MinorNumber:    1,
 				Conditions: []metav1.Condition{
@@ -188,7 +188,7 @@ func TestDriveFormat(t *testing.T) {
 				DriveStatus:    directcsi.DriveStatusAvailable,
 				Path:           "/drive/path",
 				Mountpoint:     "/mnt/mp",
-				FilesystemUUID: "test_drive_mounted_uuid",
+				FilesystemUUID: "d8e7d5de-88c6-4675-9e38-f712669e87b3",
 				MajorNumber:    202,
 				MinorNumber:    2,
 				Conditions: []metav1.Condition{
