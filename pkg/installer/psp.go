@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool) error {
+func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
 	psp := &policy.PodSecurityPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policy/v1beta1",
@@ -58,6 +58,10 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool) 
 				Rule: policy.FSGroupStrategyRunAsAny,
 			},
 		},
+	}
+
+	if err := sf.Write(psp); err != nil {
+		return err
 	}
 
 	if dryRun {
@@ -96,6 +100,9 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool) 
 		},
 	}
 
+	if err := sf.Write(crb); err != nil {
+		return err
+	}
 	if dryRun {
 		return utils.LogYAML(crb)
 	}
@@ -104,14 +111,14 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun bool) 
 	return err
 }
 
-func CreatePodSecurityPolicy(ctx context.Context, identity string, dryRun bool) error {
+func CreatePodSecurityPolicy(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
 	info, err := utils.GetGroupKindVersions("policy", "PodSecurityPolicy", "v1beta1")
 	if err != nil {
 		return err
 	}
 
 	if info.Version == "v1beta1" {
-		return createPodSecurityPolicy(ctx, identity, dryRun)
+		return createPodSecurityPolicy(ctx, identity, dryRun, sf)
 	}
 
 	return ErrKubeVersionNotSupported
