@@ -18,6 +18,7 @@ package utils
 
 import (
 	"fmt"
+	"os"
 
 	yamlFormatter "sigs.k8s.io/yaml"
 )
@@ -52,4 +53,17 @@ func PrintYaml(data string) {
 	fmt.Println()
 	fmt.Println("---")
 	fmt.Println()
+}
+
+func AuditLog(obj interface{}, audit *os.File) error {
+	y, err := ToYAML(obj)
+	if err != nil {
+		return err
+	}
+	y = y + "\n --- \n\n"
+	if _, err := audit.Write([]byte(y)); err != nil {
+		return err
+	}
+	return nil
+
 }

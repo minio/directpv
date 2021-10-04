@@ -8,6 +8,7 @@ require (
 	github.com/dswarbrick/smart v0.0.0-20190505152634-909a45200d6d
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fatih/color v1.12.0
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/go-openapi/spec v0.19.5
 	github.com/go-openapi/strfmt v0.19.3 // indirect
 	github.com/google/addlicense v1.0.0 // indirect
