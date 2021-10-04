@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/spf13/cobra"
 
@@ -53,6 +54,7 @@ var (
 	seccompProfile         = ""
 	apparmorProfile        = ""
 	enableDynamicDiscovery = false
+	auditIntall            = "/install"
 )
 
 func init() {
@@ -90,8 +92,23 @@ func install(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("invalid tolerations. format of '--tolerations' must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>")
 	}
+	defaultAuditDir, err := utils.GetDefaultAuditDir()
+	if err != nil {
+		return fmt.Errorf("error in creating the default audit directory err=%v", err)
+	}
 
-	if err := installer.CreateNamespace(ctx, identity, dryRun); err != nil {
+	if err := utils.MkdirAllIgnorePerm(defaultAuditDir); err != nil {
+		return err
+	}
+
+	auditFile, err := ioutil.TempFile("", "install")
+	if err != nil {
+		return fmt.Errorf("error in creating the log file err=%v", err)
+	}
+	sf := &utils.SafeFile{Filename: defaultAuditDir + auditIntall, TempFilename: auditFile.Name(), TempFile: auditFile}
+	defer sf.Close()
+
+	if err := installer.CreateNamespace(ctx, identity, dryRun, sf); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -100,7 +117,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' namespace created", utils.Bold(identity))
 	}
 
-	if err := installer.CreatePodSecurityPolicy(ctx, identity, dryRun); err != nil {
+	if err := installer.CreatePodSecurityPolicy(ctx, identity, dryRun, sf); err != nil {
 		switch {
 		case errors.Is(err, installer.ErrKubeVersionNotSupported):
 			klog.Infof("pod security policy is not supported in your kubernetes")
@@ -111,7 +128,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' pod security policy created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateRBACRoles(ctx, identity, dryRun); err != nil {
+	if err := installer.CreateRBACRoles(ctx, identity, dryRun, sf); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -126,7 +143,7 @@ func install(ctx context.Context, args []string) error {
 		}
 	}
 
-	if err := installer.CreateConversionWebhookSecrets(ctx, identity, dryRun); err != nil {
+	if err := installer.CreateConversionWebhookSecrets(ctx, identity, dryRun, sf); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -135,7 +152,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' conversion webhook secrets created", utils.Bold(identity))
 	}
 
-	if err := registerCRDs(ctx, identity); err != nil {
+	if err := registerCRDs(ctx, identity, sf); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -144,7 +161,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("crds successfully registered")
 	}
 
-	if err := installer.CreateCSIDriver(ctx, identity, dryRun); err != nil {
+	if err := installer.CreateCSIDriver(ctx, identity, dryRun, sf); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -153,7 +170,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' csidriver created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateStorageClass(ctx, identity, dryRun); err != nil {
+	if err := installer.CreateStorageClass(ctx, identity, dryRun, sf); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -162,7 +179,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' storageclass created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateService(ctx, identity, dryRun); err != nil {
+	if err := installer.CreateService(ctx, identity, dryRun, sf); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -171,7 +188,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' service created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations, seccompProfile, apparmorProfile, enableDynamicDiscovery); err != nil {
+	if err := installer.CreateDaemonSet(ctx, identity, image, dryRun, registry, org, loopBackOnly, nodeSelector, tolerations, seccompProfile, apparmorProfile, enableDynamicDiscovery, sf); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -180,7 +197,7 @@ func install(ctx context.Context, args []string) error {
 		klog.Infof("'%s' daemonset created", utils.Bold(identity))
 	}
 
-	if err := installer.CreateDeployment(ctx, identity, image, dryRun, registry, org); err != nil {
+	if err := installer.CreateDeployment(ctx, identity, image, dryRun, registry, org, sf); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -190,7 +207,7 @@ func install(ctx context.Context, args []string) error {
 	}
 
 	if admissionControl {
-		if err := installer.RegisterDriveValidationRules(ctx, identity, dryRun); err != nil {
+		if err := installer.RegisterDriveValidationRules(ctx, identity, dryRun, sf); err != nil {
 			if !k8serrors.IsAlreadyExists(err) {
 				return err
 			}

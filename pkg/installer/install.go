@@ -64,7 +64,7 @@ func objMeta(name string) metav1.ObjectMeta {
 
 }
 
-func CreateNamespace(ctx context.Context, identity string, dryRun bool) error {
+func CreateNamespace(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Namespace",
@@ -75,6 +75,11 @@ func CreateNamespace(ctx context.Context, identity string, dryRun bool) error {
 			Finalizers: []corev1.FinalizerName{},
 		},
 		Status: corev1.NamespaceStatus{},
+	}
+
+	sf.Write(ns)
+	if err := sf.Write(ns); err != nil {
+		return err
 	}
 
 	if dryRun {
@@ -88,7 +93,7 @@ func CreateNamespace(ctx context.Context, identity string, dryRun bool) error {
 	return nil
 }
 
-func CreateCSIDriver(ctx context.Context, identity string, dryRun bool) error {
+func CreateCSIDriver(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
 	podInfoOnMount := true
 	attachRequired := false
 
@@ -116,6 +121,9 @@ func CreateCSIDriver(ctx context.Context, identity string, dryRun bool) error {
 			},
 		}
 
+		if err := sf.Write(csiDriver); err != nil {
+			return err
+		}
 		if dryRun {
 			return utils.LogYAML(csiDriver)
 		}
@@ -171,7 +179,7 @@ func getTopologySelectorTerm(identity string) corev1.TopologySelectorTerm {
 	}
 }
 
-func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error {
+func CreateStorageClass(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
 	allowExpansion := false
 	allowedTopologies := []corev1.TopologySelectorTerm{
 		getTopologySelectorTerm(identity),
@@ -203,6 +211,9 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error
 				"fstype": "xfs",
 			},
 		}
+		if err := sf.Write(storageClass); err != nil {
+			return err
+		}
 
 		if dryRun {
 			return utils.LogYAML(storageClass)
@@ -229,6 +240,9 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error
 				"fstype": "xfs",
 			},
 		}
+		if err := sf.Write(storageClass); err != nil {
+			return err
+		}
 
 		if dryRun {
 			return utils.LogYAML(storageClass)
@@ -243,7 +257,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool) error
 	return nil
 }
 
-func CreateService(ctx context.Context, identity string, dryRun bool) error {
+func CreateService(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
 	csiPort := corev1.ServicePort{
 		Port: 12345,
 		Name: "unused",
@@ -268,6 +282,9 @@ func CreateService(ctx context.Context, identity string, dryRun bool) error {
 				webhookSelector: selectorValueEnabled,
 			},
 		},
+	}
+	if err := sf.Write(svc); err != nil {
+		return err
 	}
 
 	if dryRun {
@@ -309,7 +326,8 @@ func CreateDaemonSet(ctx context.Context,
 	nodeSelector map[string]string,
 	tolerations []corev1.Toleration,
 	seccompProfileName, apparmorProfileName string,
-	enableDynamicDiscovery bool) error {
+	enableDynamicDiscovery bool,
+	sf *utils.SafeFile) error {
 
 	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
@@ -499,6 +517,9 @@ func CreateDaemonSet(ctx context.Context,
 		Status: appsv1.DaemonSetStatus{},
 	}
 
+	if err := sf.Write(daemonset); err != nil {
+		return err
+	}
 	if dryRun {
 		return utils.LogYAML(daemonset)
 	}
@@ -575,7 +596,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 	return nil
 }
 
-func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string) error {
+func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, sf *utils.SafeFile) error {
 	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionHealthzURL := getConversionHealthzURL(identity)
@@ -729,6 +750,9 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 	deployment.ObjectMeta.Finalizers = []string{
 		utils.SanitizeKubeResourceName(identity) + DirectCSIFinalizerDeleteProtection,
 	}
+	if err := sf.Write(deployment); err != nil {
+		return err
+	}
 
 	if dryRun {
 		return utils.LogYAML(deployment)
@@ -870,8 +894,11 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 	return validatingWebhookConfiguration
 }
 
-func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun bool) error {
+func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
 	driveValidatingWebhookConfig := getDriveValidatingWebhookConfig(identity)
+	if err := sf.Write(driveValidatingWebhookConfig); err != nil {
+		return err
+	}
 	if dryRun {
 		return utils.LogYAML(driveValidatingWebhookConfig)
 	}
@@ -886,7 +913,7 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 	return nil
 }
 
-func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool) error {
+func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool, sf *utils.SafeFile) error {
 
 	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 
@@ -907,6 +934,10 @@ func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string,
 			Namespace: utils.SanitizeKubeResourceName(identity),
 		},
 		Data: getCertsDataMap(),
+	}
+
+	if err := sf.Write(secret); err != nil {
+		return err
 	}
 
 	if dryRun {
@@ -932,7 +963,7 @@ func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string,
 	return nil
 }
 
-func CreateOrUpdateConversionCACertSecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool) error {
+func CreateOrUpdateConversionCACertSecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool, sf *utils.SafeFile) error {
 
 	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 
@@ -953,7 +984,9 @@ func CreateOrUpdateConversionCACertSecret(ctx context.Context, identity string, 
 		},
 		Data: getCertsDataMap(),
 	}
-
+	if err := sf.Write(secret); err != nil {
+		return err
+	}
 	if dryRun {
 		return utils.LogYAML(secret)
 	}
@@ -1014,7 +1047,7 @@ func checkConversionSecrets(ctx context.Context, identity string) error {
 	return err
 }
 
-func CreateConversionWebhookSecrets(ctx context.Context, identity string, dryRun bool) error {
+func CreateConversionWebhookSecrets(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
 
 	err := checkConversionSecrets(ctx, identity)
 	if err == nil {
@@ -1030,9 +1063,9 @@ func CreateConversionWebhookSecrets(ctx context.Context, identity string, dryRun
 	}
 	conversionWebhookCaBundle = caCertBytes
 
-	if err := CreateOrUpdateConversionKeyPairSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun); err != nil {
+	if err := CreateOrUpdateConversionKeyPairSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun, sf); err != nil {
 		return err
 	}
 
-	return CreateOrUpdateConversionCACertSecret(ctx, identity, caCertBytes, dryRun)
+	return CreateOrUpdateConversionCACertSecret(ctx, identity, caCertBytes, dryRun, sf)
 }

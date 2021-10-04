@@ -42,7 +42,7 @@ const (
 	volumeCRDName            = "directcsivolumes.direct.csi.min.io"
 )
 
-func registerCRDs(ctx context.Context, identity string) error {
+func registerCRDs(ctx context.Context, identity string, sf *utils.SafeFile) error {
 	crdObjs := []runtime.Object{}
 	for _, asset := range AssetNames() {
 		crdBytes, err := Asset(asset)
@@ -72,6 +72,9 @@ func registerCRDs(ctx context.Context, identity string) error {
 			if err := setConversionWebhook(ctx, &crdObj, identity); err != nil {
 				return err
 			}
+			if err := sf.Write(crdObj); err != nil {
+				return err
+			}
 
 			if dryRun {
 				utils.SetLabelKV(&crdObj, utils.VersionLabel, directcsi.Version)
@@ -85,14 +88,14 @@ func registerCRDs(ctx context.Context, identity string) error {
 			}
 			continue
 		}
-		if err := syncCRD(ctx, existingCRD, crdObj, identity); err != nil {
+		if err := syncCRD(ctx, existingCRD, crdObj, identity, sf); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefinition, newCRD apiextensions.CustomResourceDefinition, identity string) error {
+func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefinition, newCRD apiextensions.CustomResourceDefinition, identity string, sf *utils.SafeFile) error {
 	existingCRDStorageVersion, err := apihelpers.GetCRDStorageVersion(existingCRD)
 	if err != nil {
 		return err
@@ -115,6 +118,9 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 	}
 
 	if err := setConversionWebhook(ctx, existingCRD, identity); err != nil {
+		return err
+	}
+	if err := sf.Write(existingCRD); err != nil {
 		return err
 	}
 
