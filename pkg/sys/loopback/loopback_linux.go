@@ -33,7 +33,7 @@ var (
 	errAlreadyBackedByFile = errors.New("Device already backed by a file")
 	errNotBackedByFile     = errors.New("device not backed by a file")
 	errDoesNotExist        = errors.New("No such file or directory")
-	backFileSize           = 100 * oneMB
+	backFileSize           = 1024 * oneMB
 )
 
 type LoopInfo struct {
