@@ -75,9 +75,15 @@ function do_upgrade_test() {
     check_drives_state InUse
 
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" volumes list -o wide
+    "${DIRECT_CSI_CLIENT}" volumes list --all -o wide
 
-    for volume in $("${DIRECT_CSI_CLIENT}" volumes list | awk '{print $1}' ); do
+    upgraded_volumes=($("${DIRECT_CSI_CLIENT}" volumes list --all | awk '{print $1}' ))
+    if [[ ${#upgraded_volumes[@]} -ne ${#volumes[@]} ]]; then
+        echo "$ME: volume count is not matching after upgrade"
+        return 1
+    fi
+
+    for volume in $upgraded_volumes; do
         if [[ ! ${volumes[${volume}]+_} ]]; then
             echo "$ME: ${volume} not found after upgrade"
             return 1

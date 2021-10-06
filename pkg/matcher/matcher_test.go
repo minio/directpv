@@ -76,8 +76,8 @@ func TestStringIn(t *testing.T) {
 		value          string
 		expectedResult bool
 	}{
-		{[]string{}, "b", true},
 		{[]string{"A", "b", "C"}, "b", true},
+		{[]string{}, "b", false},
 		{[]string{"A", "b", "C"}, "B", false},
 	}
 
