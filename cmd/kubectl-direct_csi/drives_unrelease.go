@@ -38,9 +38,15 @@ var unreleaseDrivesCmd = &cobra.Command{
  # Unrelease all available drives in the cluster
  $ kubectl direct-csi drives unrelease --all
  
- # Unrelease all nvme drives in all nodes 
- $ kubectl direct-csi drives unrelease --drives '/dev/nvme*'
+ # Unrelease the 'sdf' drives in all nodes
+ $ kubectl direct-csi drives unrelease --drives '/dev/sdf'
+
+ # Unrelease the selective drives using ellipses expander
+ $ kubectl direct-csi drives unrelease --drives '/dev/sd{a...z}'
  
+ # Unrelease the drives from selective nodes using ellipses expander
+ $ kubectl direct-csi drives unrelease --nodes 'directcsi-{1...3}'
+
  # Unrelease all drives from a particular node
  $ kubectl direct-csi drives unrelease --nodes=directcsi-1
  
@@ -66,16 +72,16 @@ var unreleaseDrivesCmd = &cobra.Command{
 }
 
 func init() {
-	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glog selector for drive paths")
-	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob selector for node names")
+	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
+	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
 	unreleaseDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "unrelease all available drives")
 	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers,
 		"unrelease based on access-tier set. The possible values are hot|cold|warm")
 }
 
-func unreleaseDrives(ctx context.Context, args []string) error {
+func unreleaseDrives(ctx context.Context, IDArgs []string) error {
 	if !all {
-		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {
+		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(IDArgs) == 0 {
 			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified",
 				utils.Bold("--all"),
 				utils.Bold("--drives"),
@@ -83,34 +89,11 @@ func unreleaseDrives(ctx context.Context, args []string) error {
 		}
 	}
 
-	accessTierSet, err := getAccessTierSet(accessTiers)
-	if err != nil {
-		return err
-	}
-
-	directCSIClient := utils.GetDirectCSIClient()
-	var resultCh <-chan utils.ListDriveResult
-	if len(args) > 0 {
-		resultCh = getDrivesByIds(ctx, args)
-	} else {
-		var err error
-		if resultCh, err = utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nodes, drives, accessTiers, utils.MaxThreadCount); err != nil {
-			return err
-		}
-	}
-
-	return processDrives(
+	return processFilteredDrives(
 		ctx,
-		resultCh,
+		utils.GetDirectCSIClient().DirectCSIDrives(),
+		IDArgs,
 		func(drive *directcsi.DirectCSIDrive) bool {
-			if !drive.MatchGlob(nodes, drives, status) {
-				return false
-			}
-
-			if !drive.MatchAccessTier(accessTierSet) {
-				return false
-			}
-
 			if drive.Status.DriveStatus != directcsi.DriveStatusReleased {
 				driveAddr := fmt.Sprintf("%s:/dev/%s", drive.Status.NodeName, canonicalNameFromPath(drive.Status.Path))
 				klog.Errorf("%s is not in 'released' state", utils.Bold(driveAddr))
@@ -123,6 +106,6 @@ func unreleaseDrives(ctx context.Context, args []string) error {
 			drive.Status.DriveStatus = directcsi.DriveStatusAvailable
 			return nil
 		},
-		defaultDriveUpdateFunc(directCSIClient),
+		defaultDriveUpdateFunc,
 	)
 }

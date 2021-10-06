@@ -45,8 +45,6 @@ var listVolumesCmd = &cobra.Command{
 	Short: "list volumes in the DirectCSI cluster",
 	Long:  "",
 	Example: `
-# List all volumes provisioned on nvme drives across all nodes 
-$ kubectl direct-csi volumes ls --drives '/dev/nvme*'
 
 # List all staged and published volumes
 $ kubectl direct-csi volumes ls --status=staged,published
@@ -62,6 +60,10 @@ $ kubectl direct-csi volumes ls --status=published --pod-name=my-minio*
 
 # List all published volumes by pod namespace
 $ kubectl direct-csi volumes ls --status=published --pod-namespace=my-minio-ns*
+
+# List all volumes provisioned based on drive filters
+$ kubectl direct-csi volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
+
 `,
 	RunE: func(c *cobra.Command, args []string) error {
 		return listVolumes(c.Context(), args)
@@ -72,8 +74,8 @@ $ kubectl direct-csi volumes ls --status=published --pod-namespace=my-minio-ns*
 }
 
 func init() {
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glob prefix match for drive paths")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob prefix match for node names")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses match for drive paths")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses match for node names")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&volumeStatus, "status", "s", volumeStatus, "filters based on volume status. The possible values are [staged,published]")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "filter based on access-tier")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNames, "pod-name", "", podNames, "glob prefix match for pod names")
@@ -82,16 +84,12 @@ func init() {
 }
 
 func listVolumes(ctx context.Context, args []string) error {
-	accessTierSet, err := getAccessTierSet(accessTiers)
-	if err != nil {
-		return err
-	}
 
 	drives, err := getFilteredDriveList(
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
-			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet) && drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
+			return drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
 		},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {

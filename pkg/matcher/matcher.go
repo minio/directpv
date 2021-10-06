@@ -45,7 +45,7 @@ func GlobMatch(name string, patterns []string) bool {
 	return false
 }
 
-func GlobMatchNodesDrivesStatuses(nodes, drives, statuses []string, node, drive, status string) bool {
+func GlobMatchNodesDrives(nodes, drives []string, node, drive string) bool {
 	matchGlob := func(patterns []string, value string, applyFunc func(src string) string) bool {
 		if applyFunc != nil {
 			patterns = fmap(patterns, applyFunc)
@@ -66,8 +66,6 @@ func GlobMatchNodesDrivesStatuses(nodes, drives, statuses []string, node, drive,
 	case !matchGlob(nodes, node, nil):
 		return false
 	case !matchGlob(drives, drive, getDriveName):
-		return false
-	case !matchGlob(statuses, status, strings.ToLower):
 		return false
 	default:
 		return true

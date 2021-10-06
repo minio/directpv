@@ -42,8 +42,8 @@ var listDrivesCmd = &cobra.Command{
 	Short: "list drives in the DirectCSI cluster",
 	Long:  "",
 	Example: `
-# Filter all nvme drives in all nodes 
-$ kubectl direct-csi drives ls --drives='/dev/nvme*'
+# Filter drives by ellipses expander
+$ kubectl direct-csi drives ls --drives='/dev/xvd{a...d}' --nodes='node-{1...4}'
 
 # Filter all ready drives 
 $ kubectl direct-csi drives ls --status=ready
@@ -74,15 +74,16 @@ $ kubectl direct-csi drives drives ls --access-tier="*"
 var all bool
 
 func init() {
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glob prefix match for drive paths")
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob prefix match for node names")
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "glob prefix match for drive status")
+	listDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
+	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
+	listDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "match based on drive status ['inuse','available','unavailable','ready','terminating','released']")
 	listDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all drives (including unavailable)")
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "filter based on access-tier")
+	listDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "match based on access-tier")
 }
 
 func listDrives(ctx context.Context, args []string) error {
-	accessTierSet, err := getAccessTierSet(accessTiers)
+
+	driveStatusList, err := getDriveStatusList(status)
 	if err != nil {
 		return err
 	}
@@ -91,10 +92,13 @@ func listDrives(ctx context.Context, args []string) error {
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
-			if drive.Status.DriveStatus == directcsi.DriveStatusUnavailable && !all {
-				return false
+			if all {
+				return true
 			}
-			return drive.MatchGlob(nodes, drives, status) && drive.MatchAccessTier(accessTierSet)
+			if len(driveStatusList) > 0 {
+				return drive.MatchDriveStatus(driveStatusList)
+			}
+			return drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
 		},
 	)
 	if err != nil {
