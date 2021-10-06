@@ -44,8 +44,14 @@ var formatDrivesCmd = &cobra.Command{
 # Format all available drives in the cluster
 $ kubectl direct-csi drives format --all
 
-# Format all nvme drives in all nodes 
-$ kubectl direct-csi drives format --drives '/dev/nvme*'
+# Format the 'sdf' drives in all nodes
+$ kubectl direct-csi drives format --drives '/dev/sdf'
+
+# Format the selective drives using ellipses expander
+$ kubectl direct-csi drives format --drives '/dev/sd{a...z}'
+
+# Format the drives from selective nodes using ellipses expander
+$ kubectl direct-csi drives format --nodes 'directcsi-{1...3}'
 
 # Format all drives from a particular node
 $ kubectl direct-csi drives format --nodes=directcsi-1
@@ -75,17 +81,17 @@ $ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
 }
 
 func init() {
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glog selector for drive paths")
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob selector for node names")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
 	formatDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "format all available drives")
 	formatDrivesCmd.PersistentFlags().BoolVarP(&force, "force", "f", force, "force format a drive even if a FS is already present")
 	formatDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers,
 		"format based on access-tier set. The possible values are hot|cold|warm")
 }
 
-func formatDrives(ctx context.Context, args []string) error {
+func formatDrives(ctx context.Context, IDArgs []string) error {
 	if !all {
-		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {
+		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(IDArgs) == 0 {
 			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified",
 				utils.Bold("--all"),
 				utils.Bold("--drives"),
@@ -93,36 +99,11 @@ func formatDrives(ctx context.Context, args []string) error {
 		}
 	}
 
-	accessTierSet, err := getAccessTierSet(accessTiers)
-	if err != nil {
-		return err
-	}
-
-	directCSIClient := utils.GetDirectCSIClient()
-	var resultCh <-chan utils.ListDriveResult
-	if len(args) > 0 {
-		resultCh = getDrivesByIds(ctx, args)
-	} else {
-		ctx, cancelFunc := context.WithCancel(ctx)
-		defer cancelFunc()
-		var err error
-		if resultCh, err = utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount); err != nil {
-			return err
-		}
-	}
-
-	return processDrives(
+	return processFilteredDrives(
 		ctx,
-		resultCh,
+		utils.GetDirectCSIClient().DirectCSIDrives(),
+		IDArgs,
 		func(drive *directcsi.DirectCSIDrive) bool {
-			if !drive.MatchGlob(nodes, drives, status) {
-				return false
-			}
-
-			if !drive.MatchAccessTier(accessTierSet) {
-				return false
-			}
-
 			if drive.Status.DriveStatus == directcsi.DriveStatusUnavailable {
 				return false
 			}
@@ -161,6 +142,6 @@ func formatDrives(ctx context.Context, args []string) error {
 			}
 			return nil
 		},
-		defaultDriveUpdateFunc(directCSIClient),
+		defaultDriveUpdateFunc,
 	)
 }

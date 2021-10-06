@@ -22,10 +22,10 @@ Here is the ***extremely*** quickstart:
 
 ```sh
 kubectl krew install direct-csi
-kubectl direct-csi install --crd
+kubectl direct-csi install
 kubectl direct-csi drives ls
 # choose all the drives that direct-csi should manage and format them
-kubectl direct-csi drives format --drives $DRIVE_SELECTOR_GLOB --nodes $NODE_SELECTOR_GLOB
+kubectl direct-csi drives format --drives $DRIVE_SELECTOR_ELLIPSES --nodes $NODE_SELECTOR_ELLIPSES
 # 'direct-csi-min-io' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates
 ```
 

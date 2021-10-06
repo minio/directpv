@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -30,6 +31,7 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/ellipsis"
 	"github.com/minio/direct-csi/pkg/sys"
 
 	"github.com/minio/direct-csi/pkg/utils"
@@ -43,6 +45,7 @@ import (
 const (
 	dot                     = "•"
 	directCSIPartitionInfix = "-part-"
+	globRegExpPattern       = `(^|[^\\])[\*\?\[]`
 )
 
 type migrateFunc func(ctx context.Context, fromVersion string) error
@@ -90,6 +93,28 @@ func getAccessTierSet(accessTiers []string) ([]directcsi.AccessTier, error) {
 	return atSet, nil
 }
 
+func getDriveStatusList(statusList []string) ([]directcsi.DriveStatus, error) {
+	var driveStatusList []directcsi.DriveStatus
+	for i := range statusList {
+		if statusList[i] == "*" {
+			return []directcsi.DriveStatus{
+				directcsi.DriveStatusInUse,
+				directcsi.DriveStatusAvailable,
+				directcsi.DriveStatusUnavailable,
+				directcsi.DriveStatusReady,
+				directcsi.DriveStatusTerminating,
+				directcsi.DriveStatusReleased,
+			}, nil
+		}
+		st, err := utils.ValidateDriveStatus(strings.TrimSpace(statusList[i]))
+		if err != nil {
+			return driveStatusList, err
+		}
+		driveStatusList = append(driveStatusList, st)
+	}
+	return driveStatusList, nil
+}
+
 func printableString(s string) string {
 	if s == "" {
 		return "-"
@@ -121,11 +146,129 @@ func canonicalNameFromPath(val string) string {
 	return strings.ReplaceAll(dr, directCSIPartitionInfix, "")
 }
 
+func hasGlob(s string) (bool, error) {
+	re, err := regexp.Compile(globRegExpPattern)
+	if err != nil {
+		return false, err
+	}
+	return re.MatchString(s), nil
+}
+
+func expandSelector(selectors []string) ([]string, error) {
+	var expanded []string
+	for _, selector := range selectors {
+		globFound, gErr := hasGlob(selector)
+		if gErr != nil {
+			return expanded, gErr
+		}
+		if globFound {
+			if !dryRun {
+				klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+			}
+			return nil, nil
+		}
+		expandedList, err := ellipsis.Expand(selector)
+		if err != nil {
+			return nil, err
+		}
+		expanded = append(expanded, expandedList...)
+	}
+
+	return expanded, nil
+}
+
+func accessTierToString(aTs []directcsi.AccessTier) []string {
+	var atStringList []string
+	for _, aT := range aTs {
+		atStringList = append(atStringList, string(aT))
+	}
+	return atStringList
+}
+
+func processFilteredDrives(
+	ctx context.Context,
+	driveInterface clientset.DirectCSIDriveInterface,
+	idArgs []string,
+	matchFunc func(*directcsi.DirectCSIDrive) bool,
+	applyFunc func(*directcsi.DirectCSIDrive) error,
+	processFunc func(context.Context, *directcsi.DirectCSIDrive) error) error {
+	var resultCh <-chan utils.ListDriveResult
+	var err error
+	var nodeSelector, driveSelector []string
+	if len(idArgs) > 0 {
+		resultCh = getDrivesByIds(ctx, idArgs)
+	} else {
+		nodeSelector, err = expandSelector(nodes)
+		if err != nil {
+			return err
+		}
+
+		driveSelector, err = expandSelector(drives)
+		if err != nil {
+			return err
+		}
+
+		accessTierSet, err := getAccessTierSet(accessTiers)
+		if err != nil {
+			return err
+		}
+		accessTierSelector := accessTierToString(accessTierSet)
+
+		directCSIClient := utils.GetDirectCSIClient()
+		ctx, cancelFunc := context.WithCancel(ctx)
+		defer cancelFunc()
+
+		resultCh, err = utils.ListDrives(ctx,
+			directCSIClient.DirectCSIDrives(),
+			nodeSelector,
+			driveSelector,
+			accessTierSelector,
+			utils.MaxThreadCount)
+		if err != nil {
+			return err
+		}
+	}
+
+	return processDrives(
+		ctx,
+		resultCh,
+		func(drive *directcsi.DirectCSIDrive) bool {
+			expanded := nodeSelector != nil || driveSelector != nil
+			if !expanded && !drive.MatchGlob(nodes, drives) {
+				return false
+			}
+			return matchFunc(drive)
+		},
+		applyFunc,
+		processFunc,
+	)
+}
+
 func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, filterFunc func(directcsi.DirectCSIDrive) bool) ([]directcsi.DirectCSIDrive, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListDrives(ctx, driveInterface, nil, nil, nil, utils.MaxThreadCount)
+	nodeSelector, err := expandSelector(nodes)
+	if err != nil {
+		return nil, err
+	}
+	driveSelector, err := expandSelector(drives)
+	if err != nil {
+		return nil, err
+	}
+
+	accessTierSet, err := getAccessTierSet(accessTiers)
+	if err != nil {
+		return nil, err
+	}
+	accessTierSelector := accessTierToString(accessTierSet)
+
+	resultCh, err := utils.ListDrives(ctx,
+		driveInterface,
+		nodeSelector,
+		driveSelector,
+		accessTierSelector,
+		utils.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}
@@ -135,20 +278,20 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 		if result.Err != nil {
 			return nil, result.Err
 		}
-
-		if filterFunc(result.Drive) {
-			filteredDrives = append(filteredDrives, result.Drive)
+		expanded := nodeSelector != nil || driveSelector != nil
+		if expanded || result.Drive.MatchGlob(nodes, drives) {
+			if filterFunc(result.Drive) {
+				filteredDrives = append(filteredDrives, result.Drive)
+			}
 		}
 	}
 
 	return filteredDrives, nil
 }
 
-func defaultDriveUpdateFunc(directCSIClient clientset.DirectV1beta3Interface) func(context.Context, *directcsi.DirectCSIDrive) error {
-	return func(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-		_, err := directCSIClient.DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{})
-		return err
-	}
+func defaultDriveUpdateFunc(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+	_, err := utils.GetDirectCSIClient().DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{})
+	return err
 }
 
 type objectResult struct {

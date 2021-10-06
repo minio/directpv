@@ -40,8 +40,14 @@ var releaseDrivesCmd = &cobra.Command{
  # Release all drives in the cluster
  $ kubectl direct-csi drives release --all
  
- # Release all nvme drives in all nodes 
- $ kubectl direct-csi drives release --drives '/dev/nvme*'
+ # Release the 'sdf' drives in all nodes
+ $ kubectl direct-csi drives release --drives '/dev/sdf'
+
+ # Release the selective drives using ellipses expander
+ $ kubectl direct-csi drives release --drives '/dev/sd{a...z}'
+ 
+ # Release the drives from selective nodes using ellipses expander
+ $ kubectl direct-csi drives release --nodes 'directcsi-{1...3}'
  
  # Release all drives from a particular node
  $ kubectl direct-csi drives release --nodes=directcsi-1
@@ -62,23 +68,18 @@ var releaseDrivesCmd = &cobra.Command{
 }
 
 func init() {
-	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glog selector for drive paths")
-	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "glob selector for node names")
+	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
+	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
 	releaseDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "release all available drives")
 
 	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "release based on access-tier set. The possible values are [hot,cold,warm] ")
 }
 
-func releaseDrives(ctx context.Context, args []string) error {
+func releaseDrives(ctx context.Context, IDArgs []string) error {
 	if !all {
-		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 {
+		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(IDArgs) == 0 {
 			return fmt.Errorf("atleast one among ['%s','%s','%s','%s'] should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"), utils.Bold("--access-tier"))
 		}
-	}
-
-	accessTierSet, err := getAccessTierSet(accessTiers)
-	if err != nil {
-		return err
 	}
 
 	driveName := func(val string) string {
@@ -87,27 +88,14 @@ func releaseDrives(ctx context.Context, args []string) error {
 		return strings.ReplaceAll(dr, "-part-", "")
 	}
 
-	directCSIClient := utils.GetDirectCSIClient()
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount)
-	if err != nil {
-		return err
-	}
-
-	return processDrives(
+	return processFilteredDrives(
 		ctx,
-		resultCh,
+		utils.GetDirectCSIClient().DirectCSIDrives(),
+		IDArgs,
 		func(drive *directcsi.DirectCSIDrive) bool {
-			if !drive.MatchGlob(nodes, drives, status) {
-				return false
-			}
-
-			if !drive.MatchAccessTier(accessTierSet) {
-				return false
-			}
-
 			if drive.Status.DriveStatus == directcsi.DriveStatusUnavailable {
 				return false
 			}
@@ -131,6 +119,6 @@ func releaseDrives(ctx context.Context, args []string) error {
 			drive.Spec.RequestedFormat = nil
 			return nil
 		},
-		defaultDriveUpdateFunc(directCSIClient),
+		defaultDriveUpdateFunc,
 	)
 }

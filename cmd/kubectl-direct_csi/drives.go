@@ -22,12 +22,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	drives      = []string{}
-	nodes       = []string{}
-	status      = []string{}
-	accessTiers = []string{}
-)
+var drives, nodes, status, accessTiers []string
 
 var drivesCmd = &cobra.Command{
 	Use:   "drives",

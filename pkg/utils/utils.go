@@ -51,6 +51,25 @@ func ValidateAccessTier(at string) (directcsi.AccessTier, error) {
 	}
 }
 
+func ValidateDriveStatus(status string) (directcsi.DriveStatus, error) {
+	switch strings.ToLower(status) {
+	case strings.ToLower(string(directcsi.DriveStatusInUse)):
+		return directcsi.DriveStatusInUse, nil
+	case strings.ToLower(string(directcsi.DriveStatusAvailable)):
+		return directcsi.DriveStatusAvailable, nil
+	case strings.ToLower(string(directcsi.DriveStatusUnavailable)):
+		return directcsi.DriveStatusUnavailable, nil
+	case strings.ToLower(string(directcsi.DriveStatusReady)):
+		return directcsi.DriveStatusReady, nil
+	case strings.ToLower(string(directcsi.DriveStatusTerminating)):
+		return directcsi.DriveStatusTerminating, nil
+	case strings.ToLower(string(directcsi.DriveStatusReleased)):
+		return directcsi.DriveStatusReleased, nil
+	default:
+		return directcsi.DriveStatus("unknown"), fmt.Errorf("Invalid 'status' value, Please set any one among ['inuse','available','unavailable','ready','terminating','released']")
+	}
+}
+
 func defaultIfZero(left, right interface{}) interface{} {
 	lval := reflect.ValueOf(left)
 	if lval.IsZero() {

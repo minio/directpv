@@ -27,10 +27,22 @@ func accessTiersToStrings(accessTiers []AccessTier) (slice []string) {
 	return slice
 }
 
-func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
-	return matcher.GlobMatchNodesDrivesStatuses(nodes, drives, status, drive.Status.NodeName, drive.Status.Path, string(drive.Status.DriveStatus))
+func (drive *DirectCSIDrive) MatchGlob(nodes, drives []string) bool {
+	return matcher.GlobMatchNodesDrives(nodes, drives, drive.Status.NodeName, drive.Status.Path)
 }
 
 func (drive *DirectCSIDrive) MatchAccessTier(accessTierList []AccessTier) bool {
 	return len(accessTierList) == 0 || matcher.StringIn(accessTiersToStrings(accessTierList), string(drive.Status.AccessTier))
+}
+
+func (drive *DirectCSIDrive) MatchDriveStatus(statusList []DriveStatus) bool {
+	if len(statusList) == 0 {
+		return true
+	}
+	for _, st := range statusList {
+		if drive.Status.DriveStatus == st {
+			return true
+		}
+	}
+	return false
 }
