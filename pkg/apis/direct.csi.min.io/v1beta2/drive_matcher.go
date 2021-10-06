@@ -32,5 +32,5 @@ func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 }
 
 func (drive *DirectCSIDrive) MatchAccessTier(accessTierList []AccessTier) bool {
-	return matcher.StringIn(accessTiersToStrings(accessTierList), string(drive.Status.AccessTier))
+	return len(accessTierList) == 0 || matcher.StringIn(accessTiersToStrings(accessTierList), string(drive.Status.AccessTier))
 }

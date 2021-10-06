@@ -75,10 +75,6 @@ func GlobMatchNodesDrivesStatuses(nodes, drives, statuses []string, node, drive,
 }
 
 func StringIn(slice []string, value string) bool {
-	if len(slice) == 0 {
-		return true
-	}
-
 	for _, s := range slice {
 		if value == s {
 			return true
