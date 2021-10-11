@@ -20,11 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/fatih/color"
+	"github.com/mitchellh/go-homedir"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
@@ -50,6 +52,13 @@ var (
 	red    = color.New(color.FgRed).SprintFunc()
 	green  = color.New(color.FgGreen).SprintFunc()
 	yellow = color.New(color.FgYellow).SprintFunc()
+)
+
+var ( // Default direct csi directory where direct csi audit logs are stored.
+	defaultDirectCSIDir = ".direct-csi"
+
+	// Directory contains below files for audit logs
+	auditDir = "audit"
 )
 
 // ListVolumesInDrive returns a slice of all the DirectCSIVolumes created on a given DirectCSIDrive
@@ -328,4 +337,20 @@ func processDrives(
 			return processFunc(ctx, object.(*directcsi.DirectCSIDrive))
 		},
 	)
+}
+
+func getDirectCSIHomeDir() (string, error) {
+	homeDir, err := homedir.Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(homeDir, defaultDirectCSIDir), nil
+}
+
+func GetDefaultAuditDir() (string, error) {
+	defaultDir, err := getDirectCSIHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(defaultDir, auditDir), nil
 }

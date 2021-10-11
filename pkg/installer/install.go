@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -64,7 +65,7 @@ func objMeta(name string) metav1.ObjectMeta {
 
 }
 
-func CreateNamespace(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
+func CreateNamespace(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Namespace",
@@ -77,8 +78,7 @@ func CreateNamespace(ctx context.Context, identity string, dryRun bool, sf *util
 		Status: corev1.NamespaceStatus{},
 	}
 
-	sf.Write(ns)
-	if err := sf.Write(ns); err != nil {
+	if err := utils.WriteObject(writer, ns); err != nil {
 		return err
 	}
 
@@ -93,7 +93,7 @@ func CreateNamespace(ctx context.Context, identity string, dryRun bool, sf *util
 	return nil
 }
 
-func CreateCSIDriver(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
+func CreateCSIDriver(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	podInfoOnMount := true
 	attachRequired := false
 
@@ -121,9 +121,10 @@ func CreateCSIDriver(ctx context.Context, identity string, dryRun bool, sf *util
 			},
 		}
 
-		if err := sf.Write(csiDriver); err != nil {
+		if err := utils.WriteObject(writer, csiDriver); err != nil {
 			return err
 		}
+
 		if dryRun {
 			return utils.LogYAML(csiDriver)
 		}
@@ -179,7 +180,7 @@ func getTopologySelectorTerm(identity string) corev1.TopologySelectorTerm {
 	}
 }
 
-func CreateStorageClass(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
+func CreateStorageClass(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	allowExpansion := false
 	allowedTopologies := []corev1.TopologySelectorTerm{
 		getTopologySelectorTerm(identity),
@@ -211,7 +212,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool, sf *u
 				"fstype": "xfs",
 			},
 		}
-		if err := sf.Write(storageClass); err != nil {
+		if err := utils.WriteObject(writer, storageClass); err != nil {
 			return err
 		}
 
@@ -240,7 +241,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool, sf *u
 				"fstype": "xfs",
 			},
 		}
-		if err := sf.Write(storageClass); err != nil {
+		if err := utils.WriteObject(writer, storageClass); err != nil {
 			return err
 		}
 
@@ -257,7 +258,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool, sf *u
 	return nil
 }
 
-func CreateService(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
+func CreateService(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	csiPort := corev1.ServicePort{
 		Port: 12345,
 		Name: "unused",
@@ -283,7 +284,7 @@ func CreateService(ctx context.Context, identity string, dryRun bool, sf *utils.
 			},
 		},
 	}
-	if err := sf.Write(svc); err != nil {
+	if err := utils.WriteObject(writer, svc); err != nil {
 		return err
 	}
 
@@ -327,7 +328,7 @@ func CreateDaemonSet(ctx context.Context,
 	tolerations []corev1.Toleration,
 	seccompProfileName, apparmorProfileName string,
 	enableDynamicDiscovery bool,
-	sf *utils.SafeFile) error {
+	writer io.Writer) error {
 
 	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
@@ -517,7 +518,7 @@ func CreateDaemonSet(ctx context.Context,
 		Status: appsv1.DaemonSetStatus{},
 	}
 
-	if err := sf.Write(daemonset); err != nil {
+	if err := utils.WriteObject(writer, daemonset); err != nil {
 		return err
 	}
 	if dryRun {
@@ -596,7 +597,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 	return nil
 }
 
-func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, sf *utils.SafeFile) error {
+func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, writer io.Writer) error {
 	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
 	conversionHealthzURL := getConversionHealthzURL(identity)
@@ -750,7 +751,8 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 	deployment.ObjectMeta.Finalizers = []string{
 		utils.SanitizeKubeResourceName(identity) + DirectCSIFinalizerDeleteProtection,
 	}
-	if err := sf.Write(deployment); err != nil {
+
+	if err := utils.WriteObject(writer, deployment); err != nil {
 		return err
 	}
 
@@ -894,9 +896,9 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 	return validatingWebhookConfiguration
 }
 
-func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
+func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	driveValidatingWebhookConfig := getDriveValidatingWebhookConfig(identity)
-	if err := sf.Write(driveValidatingWebhookConfig); err != nil {
+	if err := utils.WriteObject(writer, driveValidatingWebhookConfig); err != nil {
 		return err
 	}
 	if dryRun {
@@ -913,7 +915,7 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 	return nil
 }
 
-func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool, sf *utils.SafeFile) error {
+func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool, writer io.Writer) error {
 
 	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 
@@ -936,7 +938,7 @@ func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string,
 		Data: getCertsDataMap(),
 	}
 
-	if err := sf.Write(secret); err != nil {
+	if err := utils.WriteObject(writer, secret); err != nil {
 		return err
 	}
 
@@ -963,7 +965,7 @@ func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string,
 	return nil
 }
 
-func CreateOrUpdateConversionCACertSecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool, sf *utils.SafeFile) error {
+func CreateOrUpdateConversionCACertSecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool, writer io.Writer) error {
 
 	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 
@@ -984,7 +986,7 @@ func CreateOrUpdateConversionCACertSecret(ctx context.Context, identity string, 
 		},
 		Data: getCertsDataMap(),
 	}
-	if err := sf.Write(secret); err != nil {
+	if err := utils.WriteObject(writer, secret); err != nil {
 		return err
 	}
 	if dryRun {
@@ -1047,7 +1049,7 @@ func checkConversionSecrets(ctx context.Context, identity string) error {
 	return err
 }
 
-func CreateConversionWebhookSecrets(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
+func CreateConversionWebhookSecrets(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 
 	err := checkConversionSecrets(ctx, identity)
 	if err == nil {
@@ -1063,9 +1065,9 @@ func CreateConversionWebhookSecrets(ctx context.Context, identity string, dryRun
 	}
 	conversionWebhookCaBundle = caCertBytes
 
-	if err := CreateOrUpdateConversionKeyPairSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun, sf); err != nil {
+	if err := CreateOrUpdateConversionKeyPairSecret(ctx, identity, publicCertBytes, privateKeyBytes, dryRun, writer); err != nil {
 		return err
 	}
 
-	return CreateOrUpdateConversionCACertSecret(ctx, identity, caCertBytes, dryRun, sf)
+	return CreateOrUpdateConversionCACertSecret(ctx, identity, caCertBytes, dryRun, writer)
 }
