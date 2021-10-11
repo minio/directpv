@@ -17,10 +17,91 @@
 package utils
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"bytes"
+	"fmt"
+	"os"
+	"reflect"
 	"testing"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestWriteObject(t *testing.T) {
+	var byteBuffer bytes.Buffer
+	meta := metav1.ObjectMeta{
+		Name:      SanitizeKubeResourceName("direct.csi.min.io"),
+		Namespace: SanitizeKubeResourceName("direct.csi.min.io"),
+		Annotations: map[string]string{
+			CreatedByLabel: "kubectl/direct-csi",
+		},
+		Labels: map[string]string{
+			"app":  "direct.csi.min.io",
+			"type": "CSIDriver",
+		},
+	}
+	testCases := []struct {
+		input       interface{}
+		errReturned bool
+	}{
+		{
+			input: &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Namespace",
+					APIVersion: "v1",
+				},
+				ObjectMeta: meta,
+				Spec: corev1.NamespaceSpec{
+					Finalizers: []corev1.FinalizerName{},
+				},
+				Status: corev1.NamespaceStatus{},
+			},
+			errReturned: false,
+		},
+		{[]string{"1"}, false},
+		{make(chan int), true},
+	}
+	for i, test := range testCases {
+		err := WriteObject(&byteBuffer, testCases[i].input)
+		errReturned := err != nil
+		if errReturned != test.errReturned {
+			t.Fatalf("Test %d: expected %t got %t", i+1, test.errReturned, errReturned)
+		}
+	}
+}
+
+func TestNewSafeFile(t *testing.T) {
+	tempFile, _ := os.CreateTemp("", "safefile.")
+	dirname, _ := os.UserHomeDir()
+	timeinNs := time.Now().UnixNano()
+	defaultDirname, _ := GetDefaultAuditDir()
+	testCases := []struct {
+		input       string
+		output      *SafeFile
+		errReturned bool
+	}{
+		{
+			input: fmt.Sprintf("%v/%v-%v", dirname+"/.direct-csi", "audit/"+"install", timeinNs),
+			output: &SafeFile{
+				filename: fmt.Sprintf("%v/%v-%v", defaultDirname, "audit/"+"install", timeinNs),
+				tempFile: tempFile,
+			},
+			errReturned: false,
+		},
+	}
+	for i, test := range testCases {
+		out, err := NewSafeFile(testCases[i].input)
+		errReturned := err != nil
+		if errReturned != test.errReturned {
+			t.Fatalf("Test %d: expected %t got %t", i+1, test.errReturned, errReturned)
+		}
+		if !reflect.DeepEqual(out.filename, test.input) {
+			t.Fatalf("Test %d: expected %v got %v", i+1, test.input, out.filename)
+		}
+	}
+
+}
 
 func TestVolumeStatusTransitions(t1 *testing.T) {
 

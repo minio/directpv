@@ -20,6 +20,7 @@ package installer
 
 import (
 	"context"
+	"io"
 
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -29,14 +30,14 @@ import (
 )
 
 // CreateRBACRoles creates SA, ClusterRole and CRBs
-func CreateRBACRoles(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
+func CreateRBACRoles(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	if err := createServiceAccount(ctx, identity, dryRun); err != nil {
 		return err
 	}
-	if err := createClusterRole(ctx, identity, dryRun, sf); err != nil {
+	if err := createClusterRole(ctx, identity, dryRun, writer); err != nil {
 		return err
 	}
-	if err := createClusterRoleBinding(ctx, identity, dryRun, sf); err != nil {
+	if err := createClusterRoleBinding(ctx, identity, dryRun, writer); err != nil {
 		return err
 	}
 	return nil
@@ -64,7 +65,7 @@ func createServiceAccount(ctx context.Context, identity string, dryRun bool) err
 	return nil
 }
 
-func createClusterRoleBinding(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
+func createClusterRoleBinding(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ClusterRoleBinding",
@@ -86,7 +87,7 @@ func createClusterRoleBinding(ctx context.Context, identity string, dryRun bool,
 	}
 
 	clusterRoleBinding.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
-	if err := sf.Write(clusterRoleBinding); err != nil {
+	if err := utils.WriteObject(writer, clusterRoleBinding); err != nil {
 		return err
 	}
 
@@ -100,7 +101,7 @@ func createClusterRoleBinding(ctx context.Context, identity string, dryRun bool,
 	return nil
 }
 
-func createClusterRole(ctx context.Context, identity string, dryRun bool, sf *utils.SafeFile) error {
+func createClusterRole(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	clusterRole := &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ClusterRole",
@@ -331,7 +332,7 @@ func createClusterRole(ctx context.Context, identity string, dryRun bool, sf *ut
 
 	clusterRole.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
 
-	if err := sf.Write(clusterRole); err != nil {
+	if err := utils.WriteObject(writer, clusterRole); err != nil {
 		return err
 	}
 

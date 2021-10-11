@@ -17,13 +17,12 @@
 package utils
 
 import (
-	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
-	"time"
 
 	homedir "github.com/mitchellh/go-homedir"
 
@@ -33,7 +32,7 @@ import (
 )
 
 var ( // Default direct csi directory where direct csi audit logs are stored.
-	defaultDirectCsiDir = ".direct-csi"
+	defaultDirectCSIDir = ".direct-csi"
 
 	// Directory contains below files for audit logs
 	auditDir = "audit"
@@ -118,7 +117,7 @@ func getDefaultDirectCsiDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(homeDir, defaultDirectCsiDir), nil
+	return filepath.Join(homeDir, defaultDirectCSIDir), nil
 }
 
 func GetDefaultAuditDir() (string, error) {
@@ -129,41 +128,43 @@ func GetDefaultAuditDir() (string, error) {
 	return filepath.Join(defaultDir, auditDir), nil
 }
 
-// Attempts to create all directories, ignores any permission denied errors.
-func MkdirAllIgnorePerm(path string) error {
-	err := os.MkdirAll(path, 0700)
-	if err != nil && errors.Is(err, os.ErrPermission) {
-		// It is possible in kubernetes like deployments this directory
-		// is already mounted and is not writable, ignore any write errors.
-		err = nil
-	}
-	return err
-}
-
 type SafeFile struct {
-	Filename     string
-	TempFilename string
-	TempFile     *os.File
+	filename string
+	tempFile *os.File
 }
 
-func (safeFile *SafeFile) Write(obj interface{}) error {
+func WriteObject(writer io.Writer, obj interface{}) error {
 	y, err := ToYAML(obj)
 	if err != nil {
 		return err
 	}
-	y = y + "\n --- \n "
-	if _, err := safeFile.TempFile.Write([]byte(y)); err != nil {
+	if _, err = writer.Write([]byte(y)); err != nil {
+		return err
+	}
+	if _, err = writer.Write([]byte("\n---\n")); err != nil {
 		return err
 	}
 	return nil
 }
 
+func (safeFile *SafeFile) Write(p []byte) (int, error) {
+	return safeFile.tempFile.Write(p)
+}
+
 func (safeFile *SafeFile) Close() error {
-	if err := safeFile.TempFile.Close(); err != nil {
+	if err := safeFile.tempFile.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(safeFile.TempFilename, fmt.Sprintf("%v-%v", safeFile.Filename, time.Now().UnixNano())); err != nil {
-		return err
+	return os.Rename(safeFile.tempFile.Name(), safeFile.filename)
+}
+
+func NewSafeFile(fileName string) (*SafeFile, error) {
+	tempFile, err := os.CreateTemp("", "safefile.")
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return &SafeFile{
+		tempFile: tempFile,
+		filename: fileName,
+	}, nil
 }
