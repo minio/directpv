@@ -51,12 +51,15 @@ function setup_luks() {
 function install_directcsi() {
     "${DIRECT_CSI_CLIENT}" install --image "direct-csi:${DIRECT_CSI_VERSION}"
 
-    pending=7
-    while [[ $pending -gt 0 ]]; do
-        echo "$ME: waiting for ${pending} direct-csi pods to come up"
-        sleep ${pending}
-        count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
-        pending=$(( pending - count ))
+    required_count=4
+    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]]; then
+        required_count=7 # plus 3 for conversion deployment pods
+    fi
+    running_count=0
+    while [[ $running_count -lt $required_count ]]; do
+        echo "$ME: waiting for $(( required_count - running_count )) direct-csi pods to come up"
+        sleep $(( required_count - running_count ))
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
     done
 
     while true; do
@@ -71,7 +74,10 @@ function install_directcsi() {
 function uninstall_directcsi() {
     "${DIRECT_CSI_CLIENT}" uninstall  --crd --force
 
-    pending=7
+    pending=4
+    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]]; then
+        pending=7 # plus 3 for conversion deployment pods
+    fi
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} direct-csi pods to go down"
         sleep ${pending}
@@ -118,12 +124,12 @@ function check_drives() {
 function deploy_minio() {
     kubectl apply -f functests/minio.yaml
 
-    pending=4
-    while [[ $pending -gt 0 ]]; do
-        echo "$ME: waiting for ${pending} minio pods to come up"
-        sleep ${pending}
-        count=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep '^minio-' | wc -l)
-        pending=$(( pending - count ))
+    required_count=4
+    running_count=0
+    while [[ $running_count -lt $required_count ]]; do
+        echo "$ME: waiting for $(( required_count - running_count )) minio pods to come up"
+        sleep $(( required_count - running_count ))
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep '^minio-' | wc -l)
     done
 }
 
