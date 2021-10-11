@@ -47,7 +47,7 @@ function do_upgrade_test() {
     deploy_minio
 
     declare -A volumes
-    for volume in $("${DIRECT_CSI_CLIENT}" volumes list | awk '{print $1}' ); do
+    for volume in $("${DIRECT_CSI_CLIENT}" volumes list --status 'published' | awk '{print $1}' ); do
         volumes["${volume}"]=
     done
 
@@ -77,7 +77,7 @@ function do_upgrade_test() {
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" volumes list --all -o wide
 
-    upgraded_volumes=($("${DIRECT_CSI_CLIENT}" volumes list --all | awk '{print $1}' ))
+    upgraded_volumes=($("${DIRECT_CSI_CLIENT}" volumes list --status 'published' | awk '{print $1}' ))
     if [[ ${#upgraded_volumes[@]} -ne ${#volumes[@]} ]]; then
         echo "$ME: volume count is not matching after upgrade"
         return 1
