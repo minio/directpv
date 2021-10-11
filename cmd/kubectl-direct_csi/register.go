@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -42,7 +43,7 @@ const (
 	volumeCRDName            = "directcsivolumes.direct.csi.min.io"
 )
 
-func registerCRDs(ctx context.Context, identity string, sf *utils.SafeFile) error {
+func registerCRDs(ctx context.Context, identity string, writer io.Writer) error {
 	crdObjs := []runtime.Object{}
 	for _, asset := range AssetNames() {
 		crdBytes, err := Asset(asset)
@@ -72,7 +73,8 @@ func registerCRDs(ctx context.Context, identity string, sf *utils.SafeFile) erro
 			if err := setConversionWebhook(ctx, &crdObj, identity); err != nil {
 				return err
 			}
-			if err := sf.Write(crdObj); err != nil {
+
+			if err := utils.WriteObject(writer, crdObj); err != nil {
 				return err
 			}
 
@@ -88,14 +90,14 @@ func registerCRDs(ctx context.Context, identity string, sf *utils.SafeFile) erro
 			}
 			continue
 		}
-		if err := syncCRD(ctx, existingCRD, crdObj, identity, sf); err != nil {
+		if err := syncCRD(ctx, existingCRD, crdObj, identity, writer); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefinition, newCRD apiextensions.CustomResourceDefinition, identity string, sf *utils.SafeFile) error {
+func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefinition, newCRD apiextensions.CustomResourceDefinition, identity string, writer io.Writer) error {
 	existingCRDStorageVersion, err := apihelpers.GetCRDStorageVersion(existingCRD)
 	if err != nil {
 		return err
@@ -120,7 +122,8 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 	if err := setConversionWebhook(ctx, existingCRD, identity); err != nil {
 		return err
 	}
-	if err := sf.Write(existingCRD); err != nil {
+
+	if err := utils.WriteObject(writer, existingCRD); err != nil {
 		return err
 	}
 
