@@ -22,7 +22,10 @@ import (
 	"errors"
 )
 
-var ErrPartTableNotFound = errors.New("partition table not found")
+var (
+	ErrPartTableNotFound = errors.New("partition table not found")
+	ErrCancelled         = errors.New("cancelled by context")
+)
 
 type PartType int
 

@@ -19,7 +19,9 @@
 package blockdev
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/minio/direct-csi/pkg/blockdev/gpt"
@@ -27,14 +29,7 @@ import (
 	"github.com/minio/direct-csi/pkg/blockdev/parttable"
 )
 
-// Probe detects and returns partition table in given device filename.
-func Probe(filename string) (parttable.PartTable, error) {
-	devFile, err := os.OpenFile(filename, os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return nil, err
-	}
-	defer devFile.Close()
-
+func probe(devFile *os.File) (parttable.PartTable, error) {
 	mbrPT, err := mbr.Probe(devFile)
 	if err == nil {
 		return mbrPT, nil
@@ -52,4 +47,27 @@ func Probe(filename string) (parttable.PartTable, error) {
 		return nil, err
 	}
 	return gptPT, nil
+}
+
+// Probe detects and returns partition table in given device device.
+func Probe(ctx context.Context, device string) (partTable parttable.PartTable, err error) {
+	devFile, err := os.OpenFile(device, os.O_RDONLY, os.ModeDevice)
+	if err != nil {
+		return nil, err
+	}
+	defer devFile.Close()
+
+	doneCh := make(chan struct{})
+	go func() {
+		partTable, err = probe(devFile)
+		close(doneCh)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("%w; %v", parttable.ErrCancelled, ctx.Err())
+	case <-doneCh:
+	}
+
+	return partTable, err
 }
