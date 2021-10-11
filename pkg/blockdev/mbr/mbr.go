@@ -122,7 +122,6 @@ func probeMSDOSMBR(data []byte) ([]PartEntry, error) {
 		return nil, parttable.ErrPartTableNotFound
 	}
 
-	// fmt.Printf("probeMSDOSMBR(): %+v\n", header)
 	return header.PartitionEntries[:], nil
 }
 
@@ -136,7 +135,6 @@ func probeAAPMBR(data []byte) ([]PartEntry, error) {
 		return nil, parttable.ErrPartTableNotFound
 	}
 
-	// fmt.Printf("probeAAPMBR(): %+v\n", header)
 	return header.PartitionEntries[:], nil
 }
 
@@ -150,7 +148,6 @@ func probeModernStandardMBR(data []byte) ([]PartEntry, error) {
 	if header.Empty != 0 {
 		return nil, parttable.ErrPartTableNotFound
 	}
-	// fmt.Printf("probeModernStandardMBR(): %+v\n", header)
 
 	if header.PartitionEntries[0].PartitionType == 0xEE {
 		return nil, ErrGPTProtectiveMBR
@@ -165,7 +162,6 @@ func probeClassicMBR(data []byte) ([]PartEntry, error) {
 		return nil, err
 	}
 
-	// fmt.Printf("probeClassicMBR(): %+v\n", header)
 	return header.PartitionEntries[:], nil
 }
 
@@ -196,9 +192,6 @@ func Probe(readSeeker io.ReadSeeker) (mbr *MBR, err error) {
 		if _, err = io.ReadFull(readSeeker, data); err != nil {
 			return
 		}
-		// for i := range data {
-		// 	fmt.Printf("%v: %X\n", i, data[i])
-		// }
 	}
 
 	if read(); err != nil {
@@ -223,7 +216,6 @@ func Probe(readSeeker io.ReadSeeker) (mbr *MBR, err error) {
 		switch entry.PartitionType {
 		case 0x05, 0x0F, 0x85, 0xC5, 0xCF, 0xD5:
 			add(i+1, entry, parttable.Extended)
-			// fmt.Println("DEBUG:::: ", int64(entry.FirstLBA-1)*512)
 			if _, err = readSeeker.Seek(int64(entry.FirstLBA-1)*512, os.SEEK_CUR); err != nil {
 				return nil, err
 			}

@@ -336,6 +336,12 @@ func getAllDevices() (devices map[string]*Device, err error) {
 	return devices, nil
 }
 
+func probePartTable(name string) (parttable.PartTable, error) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFunc()
+	return blockdev.Probe(ctx, "/dev/"+name)
+}
+
 func updatePartTableInfo(devices map[string]*Device) error {
 	names, err := readSysBlock()
 	if err != nil {
@@ -343,7 +349,7 @@ func updatePartTableInfo(devices map[string]*Device) error {
 	}
 
 	for _, name := range names {
-		partTable, err := blockdev.Probe("/dev/" + name)
+		partTable, err := probePartTable(name)
 		if devices[name].Size > 0 && err != nil {
 			switch {
 			case errors.Is(err, parttable.ErrPartTableNotFound):
