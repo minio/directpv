@@ -6,16 +6,16 @@ $ docker login --username <QUAY_USERNAME> https://quay.io
 ```
 3. Create `csi-provisioner`, `livenessprobe` and `csi-node-driver-registrar` repositories by pull/tag/push respective images to your `quay.io` account.
 ```bash
-$ docker pull quay.io/minio/csi-provisioner@sha256:3b465cbcadf7d437fc70c3b6aa2c93603a7eef0a3f5f1e861d91f303e4aabdee && \
-docker tag quay.io/minio/csi-provisioner@sha256:3b465cbcadf7d437fc70c3b6aa2c93603a7eef0a3f5f1e861d91f303e4aabdee quay.io/<QUAY_USERNAME>/csi-provisioner && \
+$ docker pull quay.io/minio/csi-provisioner@sha256:d4f94539565cf62aea57062b6a42c5156337003133fd3f51b93df9a789e69840 && \
+docker tag quay.io/minio/csi-provisioner@sha256:d4f94539565cf62aea57062b6a42c5156337003133fd3f51b93df9a789e69840 quay.io/<QUAY_USERNAME>/csi-provisioner && \
 docker push quay.io/<QUAY_USERNAME>/csi-provisioner
 
-$ docker pull quay.io/minio/livenessprobe@sha256:072e29e350ed7e870e119cbba37324348e1d00f0ba06d4ea288413466d1aa8e8 && \
-docker tag quay.io/minio/livenessprobe@sha256:072e29e350ed7e870e119cbba37324348e1d00f0ba06d4ea288413466d1aa8e8 quay.io/<QUAY_USERNAME>/livenessprobe && \
+$ docker pull quay.io/minio/livenessprobe@sha256:928a80be4d363e0e438ff28dcdb00d8d674d3059c6149a8cda64ce6016a9a3f8 && \
+docker tag quay.io/minio/livenessprobe@sha256:928a80be4d363e0e438ff28dcdb00d8d674d3059c6149a8cda64ce6016a9a3f8 quay.io/<QUAY_USERNAME>/livenessprobe && \
 docker push quay.io/<QUAY_USERNAME>/livenessprobe
 
-$ docker pull quay.io/minio/csi-node-driver-registrar@sha256:ba763bb01ddc09e312240c8abc310aa2e2dd6aee636d342f6dd9238a6bff179c && \
-docker tag quay.io/minio/csi-node-driver-registrar@sha256:ba763bb01ddc09e312240c8abc310aa2e2dd6aee636d342f6dd9238a6bff179c quay.io/<QUAY_USERNAME>/csi-node-driver-registrar && \
+$ docker pull quay.io/minio/csi-node-driver-registrar@sha256:843fb23b1a3fa1de986378b0b8c08c35f8e62499d386de8ec57801fd029afe6d && \
+docker tag quay.io/minio/csi-node-driver-registrar@sha256:843fb23b1a3fa1de986378b0b8c08c35f8e62499d386de8ec57801fd029afe6d quay.io/<QUAY_USERNAME>/csi-node-driver-registrar && \
 docker push quay.io/<QUAY_USERNAME>/csi-node-driver-registrar
 ```
 4. Make sure `csi-provisioner`, `livenessprobe` and `csi-node-driver-registrar` repositories are `public` in your `quay.io` account.
