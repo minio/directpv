@@ -25,7 +25,6 @@ import (
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
@@ -35,10 +34,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	podNames = []string{}
-	podNss   = []string{}
-)
+var podNames, podNss []string
 
 var listVolumesCmd = &cobra.Command{
 	Use:   "list",
@@ -56,12 +52,12 @@ $ kubectl direct-csi volumes ls --nodes=directcsi-1
 $ kubectl direct-csi vol ls --nodes=directcsi-1,directcsi-2 --status=staged --drives=/dev/nvme0n1
 
 # List all published volumes by pod name
-$ kubectl direct-csi volumes ls --status=published --pod-name=my-minio*
+$ kubectl direct-csi volumes ls --status=published --pod-name=minio-{1...3}
 
 # List all published volumes by pod namespace
-$ kubectl direct-csi volumes ls --status=published --pod-namespace=my-minio-ns*
+$ kubectl direct-csi volumes ls --status=published --pod-namespace=tenant-{1...3}
 
-# List all volumes provisioned based on drive filters
+# List all volumes provisioned based on drive and volume ellipses
 $ kubectl direct-csi volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
 
 `,
@@ -74,59 +70,43 @@ $ kubectl direct-csi volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}'
 }
 
 func init() {
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses match for drive paths")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses match for node names")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&volumeStatus, "status", "s", volumeStatus, "filters based on volume status. The possible values are [staged,published]")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "filter based on access-tier")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNames, "pod-name", "", podNames, "glob prefix match for pod names")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNss, "pod-namespace", "", podNss, "glob prefix match for pod namespace")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&volumeStatus, "status", "s", volumeStatus, "match based on volume status. The possible values are [staged,published]")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNames, "pod-name", "", podNames, "ellipses expander for pod names")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNss, "pod-namespace", "", podNss, "ellipses expander for pod namespace")
 	listVolumesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all volumes (including non-provisioned)")
 }
 
 func listVolumes(ctx context.Context, args []string) error {
 
-	drives, err := getFilteredDriveList(
+	volumeList, err := getFilteredVolumeList(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
-		func(drive directcsi.DirectCSIDrive) bool {
-			return drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
+		utils.GetDirectCSIClient().DirectCSIVolumes(),
+		func(volume directcsi.DirectCSIVolume) bool {
+			if all {
+				return true
+			}
+			return utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue) && volume.MatchStatus(volumeStatus)
 		},
 	)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	driveMap := map[string]*directcsi.DirectCSIDrive{}
-	for i := range drives {
-		driveMap[drives[i].Name] = &drives[i]
-	}
-
-	volumes, err := utils.GetVolumeList(ctx, utils.GetDirectCSIClient().DirectCSIVolumes(), nil, nil, nil, nil)
-	if err != nil && !apierrors.IsNotFound(err) {
-		klog.Errorf("error getting volume list: %v", err)
+	if err != nil {
 		return err
 	}
 
-	volumeList := directcsi.DirectCSIVolumeList{
+	wrappedVolumeList := directcsi.DirectCSIVolumeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
 			APIVersion: utils.DirectCSIGroupVersion,
 		},
+		Items: volumeList,
 	}
-	for _, volume := range volumes {
-		if volume.MatchStatus(volumeStatus) && volume.MatchPodName(podNames) && volume.MatchPodNamespace(podNss) {
-			if _, found := driveMap[volume.Status.Drive]; found {
-				if all || utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue) {
-					volumeList.Items = append(volumeList.Items, volume)
-				}
-			}
+	if yaml || json {
+		if err := printer(wrappedVolumeList); err != nil {
+			klog.ErrorS(err, "error marshaling volumes", "format", outputMode)
+			return err
 		}
-	}
-
-	if yaml {
-		return printYAML(volumeList)
-	}
-	if json {
-		return printJSON(volumeList)
+		return nil
 	}
 
 	headers := table.Row{
@@ -138,7 +118,7 @@ func listVolumes(ctx context.Context, args []string) error {
 		"PODNAMESPACE",
 	}
 	if wide {
-		headers = append(headers, "DRIVEUUID")
+		headers = append(headers, "DRIVENAME")
 	}
 
 	text.DisableColors()
@@ -161,18 +141,17 @@ func listVolumes(ctx context.Context, args []string) error {
 		}
 		return humanize.IBytes(uint64(val))
 	}
-	for _, volume := range volumeList.Items {
-		drive := driveMap[volume.Status.Drive]
+	for _, volume := range volumeList {
 		row := []interface{}{
 			volume.Name, //VOLUME
-			emptyOrBytes(volume.Status.TotalCapacity), //CAPACITY
-			volume.Status.NodeName,                    //SERVER
-			driveName(drive.Status.Path),              //DRIVE
+			emptyOrBytes(volume.Status.TotalCapacity),                         //CAPACITY
+			volume.Status.NodeName,                                            //SERVER
+			driveName(utils.GetLabelV(&volume, utils.ReservedDrivePathLabel)), //DRIVE
 			printableString(volume.Labels[directcsi.Group+"/pod.name"]),
 			printableString(volume.Labels[directcsi.Group+"/pod.namespace"]),
 		}
 		if wide {
-			row = append(row, drive.Status.FilesystemUUID)
+			row = append(row, utils.GetLabelV(&volume, utils.DriveLabel))
 		}
 		t.AppendRow(row)
 	}
