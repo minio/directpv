@@ -185,6 +185,13 @@ func accessTierToString(aTs []directcsi.AccessTier) []string {
 	return atStringList
 }
 
+func setIfNil(sliceA, sliceB []string) []string {
+	if sliceA == nil {
+		return sliceB
+	}
+	return nil
+}
+
 func processFilteredDrives(
 	ctx context.Context,
 	driveInterface clientset.DirectCSIDriveInterface,
@@ -194,16 +201,16 @@ func processFilteredDrives(
 	processFunc func(context.Context, *directcsi.DirectCSIDrive) error) error {
 	var resultCh <-chan utils.ListDriveResult
 	var err error
-	var nodeSelector, driveSelector []string
+	var expandedNodeList, expandedDriveList []string
 	if len(idArgs) > 0 {
 		resultCh = getDrivesByIds(ctx, idArgs)
 	} else {
-		nodeSelector, err = expandSelector(nodes)
+		expandedNodeList, err = expandSelector(nodes)
 		if err != nil {
 			return err
 		}
 
-		driveSelector, err = expandSelector(drives)
+		expandedDriveList, err = expandSelector(drives)
 		if err != nil {
 			return err
 		}
@@ -220,8 +227,8 @@ func processFilteredDrives(
 
 		resultCh, err = utils.ListDrives(ctx,
 			directCSIClient.DirectCSIDrives(),
-			nodeSelector,
-			driveSelector,
+			expandedNodeList,
+			expandedDriveList,
 			accessTierSelector,
 			utils.MaxThreadCount)
 		if err != nil {
@@ -233,11 +240,9 @@ func processFilteredDrives(
 		ctx,
 		resultCh,
 		func(drive *directcsi.DirectCSIDrive) bool {
-			expanded := nodeSelector != nil || driveSelector != nil
-			if !expanded && !drive.MatchGlob(nodes, drives) {
-				return false
-			}
-			return matchFunc(drive)
+			return drive.MatchGlob(
+				setIfNil(expandedNodeList, nodes),
+				setIfNil(expandedDriveList, drives)) && matchFunc(drive)
 		},
 		applyFunc,
 		processFunc,
@@ -248,11 +253,11 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	nodeSelector, err := expandSelector(nodes)
+	expandedNodeList, err := expandSelector(nodes)
 	if err != nil {
 		return nil, err
 	}
-	driveSelector, err := expandSelector(drives)
+	expandedDriveList, err := expandSelector(drives)
 	if err != nil {
 		return nil, err
 	}
@@ -265,8 +270,8 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 
 	resultCh, err := utils.ListDrives(ctx,
 		driveInterface,
-		nodeSelector,
-		driveSelector,
+		expandedNodeList,
+		expandedDriveList,
 		accessTierSelector,
 		utils.MaxThreadCount)
 	if err != nil {
@@ -278,15 +283,67 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 		if result.Err != nil {
 			return nil, result.Err
 		}
-		expanded := nodeSelector != nil || driveSelector != nil
-		if expanded || result.Drive.MatchGlob(nodes, drives) {
-			if filterFunc(result.Drive) {
-				filteredDrives = append(filteredDrives, result.Drive)
-			}
+		if result.Drive.MatchGlob(
+			setIfNil(expandedNodeList, nodes),
+			setIfNil(expandedDriveList, drives)) && filterFunc(result.Drive) {
+			filteredDrives = append(filteredDrives, result.Drive)
 		}
 	}
 
 	return filteredDrives, nil
+}
+
+func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, filterFunc func(directcsi.DirectCSIVolume) bool) ([]directcsi.DirectCSIVolume, error) {
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	expandedNodeList, err := expandSelector(nodes)
+	if err != nil {
+		return nil, err
+	}
+
+	expandedDriveList, err := expandSelector(drives)
+	if err != nil {
+		return nil, err
+	}
+
+	expandedPodNameList, err := expandSelector(podNames)
+	if err != nil {
+		return nil, err
+	}
+
+	expandedPodNssList, err := expandSelector(podNss)
+	if err != nil {
+		return nil, err
+	}
+
+	resultCh, err := utils.ListVolumes(ctx,
+		volumeInterface,
+		expandedNodeList,
+		expandedDriveList,
+		expandedPodNameList,
+		expandedPodNssList,
+		utils.MaxThreadCount)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredVolumes := []directcsi.DirectCSIVolume{}
+	for result := range resultCh {
+		if result.Err != nil {
+			return nil, result.Err
+		}
+		if result.Volume.MatchNodeDrives(
+			setIfNil(expandedNodeList, nodes),
+			setIfNil(expandedDriveList, drives)) &&
+			result.Volume.MatchPodName(setIfNil(expandedPodNameList, podNames)) &&
+			result.Volume.MatchPodNamespace(setIfNil(expandedPodNssList, podNss)) &&
+			filterFunc(result.Volume) {
+			filteredVolumes = append(filteredVolumes, result.Volume)
+		}
+	}
+
+	return filteredVolumes, nil
 }
 
 func defaultDriveUpdateFunc(ctx context.Context, drive *directcsi.DirectCSIDrive) error {

@@ -26,6 +26,9 @@ import (
 	"time"
 
 	"github.com/mitchellh/go-homedir"
+
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -158,4 +161,52 @@ func TestVolumeStatusTransitions(t1 *testing.T) {
 		})
 	}
 
+}
+
+func TestValidateDriveStatus(t1 *testing.T) {
+	testCases := []struct {
+		statusStr            string
+		directcsiDriveStatus directcsi.DriveStatus
+		expectErr            bool
+	}{
+		{
+			statusStr:            "inuse",
+			directcsiDriveStatus: directcsi.DriveStatusInUse,
+		},
+		{
+			statusStr:            "available",
+			directcsiDriveStatus: directcsi.DriveStatusAvailable,
+		},
+		{
+			statusStr:            "unavailable",
+			directcsiDriveStatus: directcsi.DriveStatusUnavailable,
+		},
+		{
+			statusStr:            "ready",
+			directcsiDriveStatus: directcsi.DriveStatusReady,
+		},
+		{
+			statusStr:            "terminating",
+			directcsiDriveStatus: directcsi.DriveStatusTerminating,
+		},
+		{
+			statusStr:            "released",
+			directcsiDriveStatus: directcsi.DriveStatusReleased,
+		},
+		{
+			statusStr:            "abc",
+			directcsiDriveStatus: directcsi.DriveStatus("unknown"),
+			expectErr:            true,
+		},
+	}
+
+	for i, testCase := range testCases {
+		driveStatus, err := ValidateDriveStatus(testCase.statusStr)
+		if err != nil && !testCase.expectErr {
+			t1.Fatalf("case %v: did not expect error but got: %v", i+1, err)
+		}
+		if testCase.directcsiDriveStatus != driveStatus {
+			t1.Errorf("case %v: Expected drive status = %v, got %v", i+1, testCase.directcsiDriveStatus, driveStatus)
+		}
+	}
 }

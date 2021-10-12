@@ -195,6 +195,14 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 			force:          true,
 			expectedDrives: []string{"d1", "d2", "d4", "d5", "d7"},
 		},
+		{
+			name:           "test-format-drives-by-ellipses-selectors",
+			drives:         []string{"/dev/xvd{b...c}"},
+			nodes:          []string{"n1"},
+			accessTiers:    []string{},
+			force:          true,
+			expectedDrives: []string{"d1", "d2"},
+		},
 	}
 
 	for _, tt := range testCases {

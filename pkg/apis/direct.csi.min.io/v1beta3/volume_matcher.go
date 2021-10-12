@@ -37,3 +37,7 @@ func (volume *DirectCSIVolume) MatchPodName(patterns []string) bool {
 func (volume *DirectCSIVolume) MatchPodNamespace(patterns []string) bool {
 	return matcher.GlobMatch(volume.Labels[Group+"/pod.namespace"], patterns)
 }
+
+func (volume *DirectCSIVolume) MatchNodeDrives(nodes, drives []string) bool {
+	return matcher.GlobMatchNodesDrives(nodes, drives, volume.Labels[Group+"/node"], volume.Labels[Group+"/drive-path"])
+}
