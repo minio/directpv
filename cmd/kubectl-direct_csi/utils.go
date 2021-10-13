@@ -45,7 +45,6 @@ import (
 const (
 	dot                     = "•"
 	directCSIPartitionInfix = "-part-"
-	globRegExpPattern       = `(^|[^\\])[\*\?\[]`
 )
 
 type migrateFunc func(ctx context.Context, fromVersion string) error
@@ -55,6 +54,9 @@ var (
 	red    = color.New(color.FgRed).SprintFunc()
 	green  = color.New(color.FgGreen).SprintFunc()
 	yellow = color.New(color.FgYellow).SprintFunc()
+
+	globRegexp            = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
+	errMixedSelectorUsage = errors.New("mixed usage of glob and ellipses selectors is not allowed")
 )
 
 var ( // Default direct csi directory where direct csi audit logs are stored.
@@ -72,25 +74,6 @@ func ListVolumesInDrive(drive directcsi.DirectCSIDrive, volumes *directcsi.Direc
 		}
 	}
 	return vols
-}
-
-func getAccessTierSet(accessTiers []string) ([]directcsi.AccessTier, error) {
-	var atSet []directcsi.AccessTier
-	for i := range accessTiers {
-		if accessTiers[i] == "*" {
-			return []directcsi.AccessTier{
-				directcsi.AccessTierHot,
-				directcsi.AccessTierWarm,
-				directcsi.AccessTierCold,
-			}, nil
-		}
-		at, err := utils.ValidateAccessTier(strings.TrimSpace(accessTiers[i]))
-		if err != nil {
-			return atSet, err
-		}
-		atSet = append(atSet, at)
-	}
-	return atSet, nil
 }
 
 func printableString(s string) string {
@@ -124,27 +107,9 @@ func canonicalNameFromPath(val string) string {
 	return strings.ReplaceAll(dr, directCSIPartitionInfix, "")
 }
 
-func hasGlob(s string) (bool, error) {
-	re, err := regexp.Compile(globRegExpPattern)
-	if err != nil {
-		return false, err
-	}
-	return re.MatchString(s), nil
-}
-
 func expandSelector(selectors []string) ([]string, error) {
 	var expanded []string
 	for _, selector := range selectors {
-		globFound, gErr := hasGlob(selector)
-		if gErr != nil {
-			return expanded, gErr
-		}
-		if globFound {
-			if !dryRun {
-				klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
-			}
-			return nil, nil
-		}
 		expandedList, err := ellipsis.Expand(selector)
 		if err != nil {
 			return nil, err
@@ -155,16 +120,21 @@ func expandSelector(selectors []string) ([]string, error) {
 	return expanded, nil
 }
 
-func accessTierToString(aTs []directcsi.AccessTier) []string {
-	var atStringList []string
-	for _, aT := range aTs {
-		atStringList = append(atStringList, string(aT))
+func hasGlobSelectors(selectors []string) (bool, error) {
+	globCount := 0
+	for _, selector := range selectors {
+		if globRegexp.MatchString(selector) {
+			globCount++
+		}
 	}
-	return atStringList
+	if globCount > 0 && globCount != len(selectors) {
+		return false, errMixedSelectorUsage
+	}
+	return globCount > 0, nil
 }
 
-func setIfNil(sliceA, sliceB []string) []string {
-	if sliceA == nil {
+func setIfTrue(cond bool, sliceB []string) []string {
+	if cond {
 		return sliceB
 	}
 	return nil
@@ -179,25 +149,35 @@ func processFilteredDrives(
 	processFunc func(context.Context, *directcsi.DirectCSIDrive) error) error {
 	var resultCh <-chan utils.ListDriveResult
 	var err error
-	var expandedNodeList, expandedDriveList []string
+	var hasGlobNodeSelector, hasGlobDriveSelector bool
 	if len(idArgs) > 0 {
 		resultCh = getDrivesByIds(ctx, idArgs)
 	} else {
-		expandedNodeList, err = expandSelector(nodes)
+		hasGlobNodeSelector, err = hasGlobSelectors(nodes)
 		if err != nil {
 			return err
 		}
 
-		expandedDriveList, err = expandSelector(drives)
+		hasGlobDriveSelector, err = hasGlobSelectors(drives)
 		if err != nil {
 			return err
 		}
 
-		accessTierSet, err := getAccessTierSet(accessTiers)
+		expandedNodeList, err := expandSelector(setIfTrue(!hasGlobNodeSelector, nodes))
 		if err != nil {
 			return err
 		}
-		accessTierSelector := accessTierToString(accessTierSet)
+
+		expandedDriveList, err := expandSelector(setIfTrue(!hasGlobDriveSelector, drives))
+		if err != nil {
+			return err
+		}
+
+		accessTierSet, err := directcsi.GetAccessTierSet(accessTiers)
+		if err != nil {
+			return err
+		}
+		accessTierSelector := directcsi.AccessTiersToStrings(accessTierSet)
 
 		directCSIClient := utils.GetDirectCSIClient()
 		ctx, cancelFunc := context.WithCancel(ctx)
@@ -214,13 +194,19 @@ func processFilteredDrives(
 		}
 	}
 
+	if hasGlobNodeSelector || hasGlobDriveSelector {
+		if !dryRun {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
+	}
+
 	return processDrives(
 		ctx,
 		resultCh,
 		func(drive *directcsi.DirectCSIDrive) bool {
 			return drive.MatchGlob(
-				setIfNil(expandedNodeList, nodes),
-				setIfNil(expandedDriveList, drives),
+				setIfTrue(hasGlobNodeSelector, nodes),
+				setIfTrue(hasGlobDriveSelector, drives),
 				status) && matchFunc(drive)
 		},
 		applyFunc,
@@ -232,20 +218,31 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	expandedNodeList, err := expandSelector(nodes)
-	if err != nil {
-		return nil, err
-	}
-	expandedDriveList, err := expandSelector(drives)
+	hasGlobNodeSelector, err := hasGlobSelectors(nodes)
 	if err != nil {
 		return nil, err
 	}
 
-	accessTierSet, err := getAccessTierSet(accessTiers)
+	hasGlobDriveSelector, err := hasGlobSelectors(drives)
 	if err != nil {
 		return nil, err
 	}
-	accessTierSelector := accessTierToString(accessTierSet)
+
+	expandedNodeList, err := expandSelector(setIfTrue(!hasGlobNodeSelector, nodes))
+	if err != nil {
+		return nil, err
+	}
+
+	expandedDriveList, err := expandSelector(setIfTrue(!hasGlobDriveSelector, drives))
+	if err != nil {
+		return nil, err
+	}
+
+	accessTierSet, err := directcsi.GetAccessTierSet(accessTiers)
+	if err != nil {
+		return nil, err
+	}
+	accessTierSelector := directcsi.AccessTiersToStrings(accessTierSet)
 
 	resultCh, err := utils.ListDrives(ctx,
 		driveInterface,
@@ -257,14 +254,20 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 		return nil, err
 	}
 
+	if hasGlobNodeSelector || hasGlobDriveSelector {
+		if !dryRun {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
+	}
+
 	filteredDrives := []directcsi.DirectCSIDrive{}
 	for result := range resultCh {
 		if result.Err != nil {
 			return nil, result.Err
 		}
 		if result.Drive.MatchGlob(
-			setIfNil(expandedNodeList, nodes),
-			setIfNil(expandedDriveList, drives),
+			setIfTrue(hasGlobNodeSelector, nodes),
+			setIfTrue(hasGlobDriveSelector, drives),
 			status) && filterFunc(result.Drive) {
 			filteredDrives = append(filteredDrives, result.Drive)
 		}
@@ -277,22 +280,42 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	expandedNodeList, err := expandSelector(nodes)
+	hasGlobNodeSelector, err := hasGlobSelectors(nodes)
 	if err != nil {
 		return nil, err
 	}
 
-	expandedDriveList, err := expandSelector(drives)
+	hasGlobDriveSelector, err := hasGlobSelectors(drives)
 	if err != nil {
 		return nil, err
 	}
 
-	expandedPodNameList, err := expandSelector(podNames)
+	hasGlobPodNameSelector, err := hasGlobSelectors(podNames)
 	if err != nil {
 		return nil, err
 	}
 
-	expandedPodNssList, err := expandSelector(podNss)
+	hasGlobPodNsSelector, err := hasGlobSelectors(podNss)
+	if err != nil {
+		return nil, err
+	}
+
+	expandedNodeList, err := expandSelector(setIfTrue(!hasGlobNodeSelector, nodes))
+	if err != nil {
+		return nil, err
+	}
+
+	expandedDriveList, err := expandSelector(setIfTrue(!hasGlobDriveSelector, drives))
+	if err != nil {
+		return nil, err
+	}
+
+	expandedPodNameList, err := expandSelector(setIfTrue(!hasGlobPodNameSelector, podNames))
+	if err != nil {
+		return nil, err
+	}
+
+	expandedPodNssList, err := expandSelector(setIfTrue(!hasGlobPodNsSelector, podNss))
 	if err != nil {
 		return nil, err
 	}
@@ -308,14 +331,20 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 		return nil, err
 	}
 
+	if hasGlobNodeSelector || hasGlobDriveSelector || hasGlobPodNameSelector || hasGlobPodNsSelector {
+		if !dryRun {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
+	}
+
 	filteredVolumes := []directcsi.DirectCSIVolume{}
 	for result := range resultCh {
 		if result.Err != nil {
 			return nil, result.Err
 		}
-		if result.Volume.MatchNodeDrives(setIfNil(expandedNodeList, nodes), setIfNil(expandedDriveList, drives)) &&
-			result.Volume.MatchPodName(setIfNil(expandedPodNameList, podNames)) &&
-			result.Volume.MatchPodNamespace(setIfNil(expandedPodNssList, podNss)) &&
+		if result.Volume.MatchNodeDrives(setIfTrue(hasGlobNodeSelector, nodes), setIfTrue(hasGlobDriveSelector, drives)) &&
+			result.Volume.MatchPodName(setIfTrue(hasGlobPodNameSelector, podNames)) &&
+			result.Volume.MatchPodNamespace(setIfTrue(hasGlobPodNsSelector, podNss)) &&
 			result.Volume.MatchStatus(volumeStatus) &&
 			filterFunc(result.Volume) {
 			filteredVolumes = append(filteredVolumes, result.Volume)

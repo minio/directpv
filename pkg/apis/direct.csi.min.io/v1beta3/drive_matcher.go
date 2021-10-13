@@ -17,10 +17,47 @@
 package v1beta3
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/minio/direct-csi/pkg/matcher"
 )
 
-func accessTiersToStrings(accessTiers []AccessTier) (slice []string) {
+func ValidateAccessTier(at string) (AccessTier, error) {
+	switch AccessTier(strings.Title(at)) {
+	case AccessTierWarm:
+		return AccessTierWarm, nil
+	case AccessTierHot:
+		return AccessTierHot, nil
+	case AccessTierCold:
+		return AccessTierCold, nil
+	case AccessTierUnknown:
+		return AccessTierUnknown, fmt.Errorf("Please set any one among ['hot','warm', 'cold']")
+	default:
+		return AccessTierUnknown, fmt.Errorf("Invalid 'access-tier' value, Please set any one among ['hot','warm','cold']")
+	}
+}
+
+func GetAccessTierSet(accessTiers []string) ([]AccessTier, error) {
+	var atSet []AccessTier
+	for i := range accessTiers {
+		if accessTiers[i] == "*" {
+			return []AccessTier{
+				AccessTierHot,
+				AccessTierWarm,
+				AccessTierCold,
+			}, nil
+		}
+		at, err := ValidateAccessTier(strings.TrimSpace(accessTiers[i]))
+		if err != nil {
+			return atSet, err
+		}
+		atSet = append(atSet, at)
+	}
+	return atSet, nil
+}
+
+func AccessTiersToStrings(accessTiers []AccessTier) (slice []string) {
 	for _, accessTier := range accessTiers {
 		slice = append(slice, string(accessTier))
 	}
@@ -32,5 +69,5 @@ func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 }
 
 func (drive *DirectCSIDrive) MatchAccessTier(accessTierList []AccessTier) bool {
-	return len(accessTierList) == 0 || matcher.StringIn(accessTiersToStrings(accessTierList), string(drive.Status.AccessTier))
+	return len(accessTierList) == 0 || matcher.StringIn(AccessTiersToStrings(accessTierList), string(drive.Status.AccessTier))
 }

@@ -82,7 +82,7 @@ func setAccessTier(ctx context.Context, accessTierArg []string) error {
 		return fmt.Errorf("Invalid input arguments. Please use '%s' for examples to set access-tiers", utils.Bold("--help"))
 	}
 
-	accessTier, err := utils.ValidateAccessTier(accessTierArg[0])
+	accessTier, err := directcsi.ValidateAccessTier(accessTierArg[0])
 	if err != nil {
 		return err
 	}

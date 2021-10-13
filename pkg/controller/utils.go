@@ -23,7 +23,6 @@ import (
 	"sort"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -112,7 +111,7 @@ func FilterDrivesByParameters(parameters map[string]string, csiDrives []directcs
 	for k, v := range parameters {
 		switch k {
 		case "direct-csi-min-io/access-tier":
-			accessT, err := utils.ValidateAccessTier(v)
+			accessT, err := directcsi.ValidateAccessTier(v)
 			if err != nil {
 				return csiDrives, err
 			}
