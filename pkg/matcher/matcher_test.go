@@ -32,28 +32,38 @@ func TestFmap(t *testing.T) {
 	}
 }
 
-func TestGlobMatchNodesDrives(t *testing.T) {
+func TestGlobMatchNodesDrivesStatuses(t *testing.T) {
 	testCases := []struct {
 		nodes          []string
 		drives         []string
+		statuses       []string
 		node           string
 		drive          string
+		status         string
 		expectedResult bool
 	}{
-		{[]string{"worker1*"}, nil, "worker15", "", true},
-		{[]string{"master*", "worker1*"}, nil, "master", "", true},
-		{[]string{"worker1*"}, nil, "master", "", false},
+		{[]string{"worker1*"}, nil, nil, "worker15", "", "", true},
+		{[]string{"master*", "worker1*"}, nil, nil, "master", "", "", true},
+		{[]string{"worker1*"}, nil, nil, "master", "", "", false},
 
-		{nil, []string{"sd*"}, "", "sdaz", true},
-		{nil, []string{"*1"}, "", "nvme0n1", true},
-		{nil, []string{"*1"}, "", "nvme0n1p3", false},
+		{nil, []string{"sd*"}, nil, "", "sdaz", "", true},
+		{nil, []string{"*1"}, nil, "", "nvme0n1", "", true},
+		{nil, []string{"*1"}, nil, "", "nvme0n1p3", "", false},
 
-		{[]string{"master*", "worker1*"}, []string{"sd*"}, "master", "sdb", true},
-		{[]string{"master*", "worker1*"}, []string{"sd*"}, "master", "hdb", false},
+		{nil, nil, []string{"Available"}, "", "", "Available", true},
+		{nil, nil, []string{"Avail*"}, "", "", "Available", true},
+		{nil, nil, []string{"Avail*"}, "", "", "Avail", true},
+		{nil, nil, []string{"Avail*", "Read*"}, "", "", "Available", true},
+		{nil, nil, []string{"Avail*", "Read*"}, "", "", "Ready", true},
+		{nil, nil, []string{"Available"}, "", "", "", false},
+		{nil, nil, []string{"Avail*"}, "", "", "Ready", false},
+
+		{[]string{"master*", "worker1*"}, []string{"sd*"}, []string{"Avail*"}, "master", "sdb", "Available", true},
+		{[]string{"master*", "worker1*"}, []string{"sd*"}, []string{"Avail*"}, "master", "hdb", "Available", false},
 	}
 
 	for i, testCase := range testCases {
-		result := GlobMatchNodesDrives(testCase.nodes, testCase.drives, testCase.node, testCase.drive)
+		result := GlobMatchNodesDrivesStatuses(testCase.nodes, testCase.drives, testCase.statuses, testCase.node, testCase.drive, testCase.status)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v, got: %v", i+1, testCase.expectedResult, result)
 		}

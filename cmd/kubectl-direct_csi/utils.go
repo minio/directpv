@@ -93,28 +93,6 @@ func getAccessTierSet(accessTiers []string) ([]directcsi.AccessTier, error) {
 	return atSet, nil
 }
 
-func getDriveStatusList(statusList []string) ([]directcsi.DriveStatus, error) {
-	var driveStatusList []directcsi.DriveStatus
-	for i := range statusList {
-		if statusList[i] == "*" {
-			return []directcsi.DriveStatus{
-				directcsi.DriveStatusInUse,
-				directcsi.DriveStatusAvailable,
-				directcsi.DriveStatusUnavailable,
-				directcsi.DriveStatusReady,
-				directcsi.DriveStatusTerminating,
-				directcsi.DriveStatusReleased,
-			}, nil
-		}
-		st, err := utils.ValidateDriveStatus(strings.TrimSpace(statusList[i]))
-		if err != nil {
-			return driveStatusList, err
-		}
-		driveStatusList = append(driveStatusList, st)
-	}
-	return driveStatusList, nil
-}
-
 func printableString(s string) string {
 	if s == "" {
 		return "-"
@@ -242,7 +220,8 @@ func processFilteredDrives(
 		func(drive *directcsi.DirectCSIDrive) bool {
 			return drive.MatchGlob(
 				setIfNil(expandedNodeList, nodes),
-				setIfNil(expandedDriveList, drives)) && matchFunc(drive)
+				setIfNil(expandedDriveList, drives),
+				status) && matchFunc(drive)
 		},
 		applyFunc,
 		processFunc,
@@ -285,7 +264,8 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 		}
 		if result.Drive.MatchGlob(
 			setIfNil(expandedNodeList, nodes),
-			setIfNil(expandedDriveList, drives)) && filterFunc(result.Drive) {
+			setIfNil(expandedDriveList, drives),
+			status) && filterFunc(result.Drive) {
 			filteredDrives = append(filteredDrives, result.Drive)
 		}
 	}
@@ -333,11 +313,10 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 		if result.Err != nil {
 			return nil, result.Err
 		}
-		if result.Volume.MatchNodeDrives(
-			setIfNil(expandedNodeList, nodes),
-			setIfNil(expandedDriveList, drives)) &&
+		if result.Volume.MatchNodeDrives(setIfNil(expandedNodeList, nodes), setIfNil(expandedDriveList, drives)) &&
 			result.Volume.MatchPodName(setIfNil(expandedPodNameList, podNames)) &&
 			result.Volume.MatchPodNamespace(setIfNil(expandedPodNssList, podNss)) &&
+			result.Volume.MatchStatus(volumeStatus) &&
 			filterFunc(result.Volume) {
 			filteredVolumes = append(filteredVolumes, result.Volume)
 		}
