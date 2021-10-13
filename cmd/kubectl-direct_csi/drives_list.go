@@ -83,22 +83,11 @@ func init() {
 
 func listDrives(ctx context.Context, args []string) error {
 
-	driveStatusList, err := getDriveStatusList(status)
-	if err != nil {
-		return err
-	}
-
 	filteredDrives, err := getFilteredDriveList(
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
-			if all {
-				return true
-			}
-			if len(driveStatusList) > 0 {
-				return drive.MatchDriveStatus(driveStatusList)
-			}
-			return drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
+			return all || len(status) > 0 || drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
 		},
 	)
 	if err != nil {

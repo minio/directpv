@@ -80,11 +80,6 @@ func unsetAccessTier(ctx context.Context, _ []string) error {
 		}
 	}
 
-	driveStatusList, err := getDriveStatusList(status)
-	if err != nil {
-		return err
-	}
-
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -92,9 +87,7 @@ func unsetAccessTier(ctx context.Context, _ []string) error {
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIDrives(),
 		nil,
-		func(drive *directcsi.DirectCSIDrive) bool {
-			return drive.MatchDriveStatus(driveStatusList)
-		},
+		nil,
 		func(drive *directcsi.DirectCSIDrive) error {
 			drive.Status.AccessTier = directcsi.AccessTierUnknown
 			utils.SetAccessTierLabel(drive, directcsi.AccessTierUnknown)

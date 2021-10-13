@@ -84,10 +84,7 @@ func listVolumes(ctx context.Context, args []string) error {
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIVolumes(),
 		func(volume directcsi.DirectCSIVolume) bool {
-			if all {
-				return true
-			}
-			return utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue) && volume.MatchStatus(volumeStatus)
+			return all || utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue)
 		},
 	)
 	if err != nil {
