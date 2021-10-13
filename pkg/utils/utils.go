@@ -17,8 +17,6 @@
 package utils
 
 import (
-	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -34,21 +32,6 @@ func BoolToCondition(val bool) metav1.ConditionStatus {
 		return metav1.ConditionTrue
 	}
 	return metav1.ConditionFalse
-}
-
-func ValidateAccessTier(at string) (directcsi.AccessTier, error) {
-	switch directcsi.AccessTier(strings.Title(at)) {
-	case directcsi.AccessTierWarm:
-		return directcsi.AccessTierWarm, nil
-	case directcsi.AccessTierHot:
-		return directcsi.AccessTierHot, nil
-	case directcsi.AccessTierCold:
-		return directcsi.AccessTierCold, nil
-	case directcsi.AccessTierUnknown:
-		return directcsi.AccessTierUnknown, fmt.Errorf("Please set any one among ['hot','warm', 'cold']")
-	default:
-		return directcsi.AccessTierUnknown, fmt.Errorf("Invalid 'access-tier' value, Please set any one among ['hot','warm','cold']")
-	}
 }
 
 func defaultIfZero(left, right interface{}) interface{} {

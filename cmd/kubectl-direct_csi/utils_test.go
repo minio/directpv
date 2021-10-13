@@ -78,14 +78,6 @@ func TestExpandSelector(t1 *testing.T) {
 			},
 		},
 		{
-			selectors:    []string{"/dev/xvd[b-f]"},
-			expandedList: nil,
-		},
-		{
-			selectors:    []string{"node-*"},
-			expandedList: nil,
-		},
-		{
 			selectors:    []string{"/dev/xvd{b..c}"},
 			expandedList: nil,
 			expectErr:    true,
@@ -123,71 +115,85 @@ func TestExpandSelector(t1 *testing.T) {
 	}
 }
 
-func TestHasGlob(t1 *testing.T) {
+func TestHasGlobSelectors(t1 *testing.T) {
 	testCases := []struct {
-		inputStr string
-		isGlob   bool
+		selectors       []string
+		hasGlobSelector bool
+		expectErr       bool
 	}{
 		{
-			inputStr: "/dev/xvd[b-c]",
-			isGlob:   true,
+			selectors:       []string{"/dev/xvd{a...c}", "/dev/xvd{e...f}"},
+			hasGlobSelector: false,
+			expectErr:       false,
 		},
 		{
-			inputStr: "/dev/xvd*",
-			isGlob:   true,
+			selectors:       []string{"/dev/xvd[a-c]", "/dev/xvd[e-f]"},
+			hasGlobSelector: true,
+			expectErr:       false,
 		},
 		{
-			inputStr: "/dev/node[1-3]",
-			isGlob:   true,
+			selectors:       []string{"/dev/xvd[a-c]"},
+			hasGlobSelector: true,
+			expectErr:       false,
 		},
 		{
-			inputStr: "/dev/node1*",
-			isGlob:   true,
+			selectors:       []string{"/dev/xvda*"},
+			hasGlobSelector: true,
+			expectErr:       false,
 		},
 		{
-			inputStr: "/dev/xvd{b...c}",
+			selectors:       []string{"/dev/xvd{a...b}"},
+			hasGlobSelector: false,
+			expectErr:       false,
 		},
 		{
-			inputStr: "/dev/node{1...3}",
+			selectors:       nil,
+			hasGlobSelector: false,
+			expectErr:       false,
+		},
+		{
+			selectors:       []string{"/dev/xvd{a...c}", "/dev/xvd[e-f]"},
+			hasGlobSelector: false,
+			expectErr:       true,
 		},
 	}
 
 	for i, testCase := range testCases {
-		isGlob, err := hasGlob(testCase.inputStr)
-		if err != nil {
-			t1.Fatalf("case %v: failed to check for glob: %v", i+1, err)
+		hasGlob, err := hasGlobSelectors(testCase.selectors)
+		if err != nil && !testCase.expectErr {
+			t1.Fatalf("case %v: did not expect error but got: %v", i+1, err)
 		}
-		if testCase.isGlob != isGlob {
-			t1.Errorf("case %v: Expected result = %v, got %v", i+1, testCase.isGlob, isGlob)
+		if testCase.hasGlobSelector != hasGlob {
+			t1.Errorf("case %v: Expected hasGlob = %v, got %v", i+1, testCase.hasGlobSelector, hasGlob)
 		}
 	}
 }
 
-func TestSetIfNil(t1 *testing.T) {
+func TestSetIfTrue(t1 *testing.T) {
 	testCases := []struct {
-		sliceA []string
+		cond   bool
 		sliceB []string
 		result []string
 	}{
 		{
-			sliceA: []string{"abc"},
+			cond:   false,
 			sliceB: []string{"def"},
 			result: nil,
 		},
 		{
-			sliceA: nil,
+			cond:   true,
 			sliceB: []string{"def"},
 			result: []string{"def"},
 		},
 		{
-			sliceA: nil,
+			cond:   true,
 			sliceB: nil,
 			result: nil,
 		},
 	}
 
 	for i, testCase := range testCases {
-		result := setIfNil(testCase.sliceA, testCase.sliceB)
+		result := setIfTrue(testCase.cond, testCase.sliceB)
 		if !reflect.DeepEqual(result, testCase.result) {
 			t1.Errorf("case %v: Expected result = %v, got %v", i+1, testCase.result, result)
 		}
