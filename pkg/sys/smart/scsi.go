@@ -26,30 +26,27 @@ import (
 )
 
 const (
-	// INQ_REPLY_LEN = 96
-	INQ_REPLY_LEN = 20
+	// inqReplyLen = 96
+	inqReplyLen = 20
 
-	SGInfoOk     = 0x0 //no sense, host nor driver "noise" or error
-	SGInfoOkMask = 0x1 //indicates whether some error or status field is non-zero
+	sgInfoOk     = 0x0 //no sense, host nor driver "noise" or error
+	sgInfoOkMask = 0x1 //indicates whether some error or status field is non-zero
 
-	SG_IO             = 0x2285 //scsi generic ioctl command
-	SCSI_INQUIRY      = 0x12   // inquiry command
-	SG_DXFER_FROM_DEV = -3
+	sgIO           = 0x2285 //scsi generic ioctl command
+	sgDxferFromDev = -3
 )
 
 var (
-	SERIALINQUIRY = []byte{0x12, 0x01, 0x80, 0x00, 0x60, 0x00}
+	serialInquiry = []byte{0x12, 0x01, 0x80, 0x00, 0x60, 0x00}
 )
 
-type CDB6 [6]byte
-
-type SCSIDevice struct {
+type scsiDevice struct {
 	Name string
 	fd   int
 }
 
-func NewSCSIDevice(devName string) *SCSIDevice {
-	return &SCSIDevice{devName, -1}
+func newSCSIDevice(devName string) *scsiDevice {
+	return &scsiDevice{devName, -1}
 }
 
 type sgIOErr struct {
@@ -65,60 +62,62 @@ func (s sgIOErr) Error() string {
 
 // SCSI generic ioctl header, defined as sg_io_hdr_t in <scsi/sg.h>
 type sgIoHdr struct {
-	interface_id    int32   // 'S' for SCSI generic (required)
-	dxfer_direction int32   // data transfer direction
-	cmd_len         uint8   // SCSI command length (<= 16 bytes)
-	mx_sb_len       uint8   // max length to write to sbp
-	iovec_count     uint16  // 0 implies no scatter gather
-	dxfer_len       uint32  // byte count of data transfer
-	dxferp          uintptr // points to data transfer memory or scatter gather list
-	cmdp            uintptr // points to command to perform
-	sbp             uintptr // points to sense_buffer memory
-	timeout         uint32  // MAX_UINT -> no timeout (unit: millisec)
-	flags           uint32  // 0 -> default, see SG_FLAG...
-	pack_id         int32   // unused internally (normally)
-	usr_ptr         uintptr // unused internally
-	status          uint8   // SCSI status
-	masked_status   uint8   // shifted, masked scsi status
-	msg_status      uint8   // messaging level data (optional)
-	sb_len_wr       uint8   // byte count actually written to sbp
-	host_status     uint16  // errors from host adapter
-	driver_status   uint16  // errors from software driver
-	resid           int32   // dxfer_len - actual_transferred
-	duration        uint32  // time taken by cmd (unit: millisec)
-	info            uint32  // auxiliary information
+	interfaceID    int32   // interfaceID: 'S' for SCSI generic (required)
+	dxferDirection int32   // dxferDirection: data transfer direction
+	cmdLen         uint8   // cmdLen: SCSI command length (<= 16 bytes)
+	mxSbLen        uint8   // mxSbLen: max length to write to sbp
+	_              uint16  // iovecCount: 0 implies no scatter gather
+	dxferLen       uint32  // dxferLen: byte count of data transfer
+	dxferp         uintptr // dxferp: points to data transfer memory or scatter gather list
+	cmdp           uintptr // cmdp: points to command to perform
+	sbp            uintptr // sbp: points to sense_buffer memory
+	_              uint32  // timeout: MAX_UINT -> no timeout (unit: millisec)
+	_              uint32  // flags: 0 -> default, see SG_FLAG...
+	_              int32   // packID: unused internally (normally)
+	_              uintptr // usrPtr: unused internally
+	status         uint8   // status: SCSI status
+	_              uint8   // maskedStatus: shifted, masked scsi status
+	_              uint8   // msgStatus: messaging level data (optional)
+	_              uint8   // sbLenWR: byte count actually written to sbp
+	hostStatus     uint16  // hostStatus: errors from host adapter
+	driverStatus   uint16  // driverStatus: errors from software driver
+	_              int32   // resid: dxfer_len - actual_transferred
+	_              uint32  // duration: time taken by cmd (unit: millisec)
+	info           uint32  // info: auxiliary information
 }
 
-type InquiryResponse [20]byte
+type inquiryResponse [20]byte
 
-func (d *SCSIDevice) serialInquiry() (InquiryResponse, error) {
-	var resp InquiryResponse
+func (d *scsiDevice) serialInquiry() (inquiryResponse, error) {
+	var resp inquiryResponse
 
-	respBuf := make([]byte, INQ_REPLY_LEN)
+	respBuf := make([]byte, inqReplyLen)
 
-	cdb := SERIALINQUIRY
+	cdb := serialInquiry
 	binary.BigEndian.PutUint16(cdb[3:], uint16(len(respBuf)))
 
 	if err := d.sendCDB(cdb[:], &respBuf); err != nil {
 		return resp, err
 	}
 
-	binary.Read(bytes.NewBuffer(respBuf), NativeEndian, &resp)
+	if err := binary.Read(bytes.NewBuffer(respBuf), nativeEndian, &resp); err != nil {
+		return resp, err
+	}
 
 	return resp, nil
 }
 
-func (d *SCSIDevice) execGenericIO(hdr *sgIoHdr) error {
-	if err := Ioctl(uintptr(d.fd), SG_IO, uintptr(unsafe.Pointer(hdr))); err != nil {
+func (d *scsiDevice) execGenericIO(hdr *sgIoHdr) error {
+	if err := sysIOCTL(uintptr(d.fd), sgIO, uintptr(unsafe.Pointer(hdr))); err != nil {
 		return err
 	}
 
 	// See http://www.t10.org/lists/2status.htm for SCSI status codes
-	if hdr.info&SGInfoOkMask != SGInfoOk {
+	if hdr.info&sgInfoOkMask != sgInfoOk {
 		err := sgIOErr{
 			scsiStatus:   hdr.status,
-			hostStatus:   hdr.host_status,
-			driverStatus: hdr.driver_status,
+			hostStatus:   hdr.hostStatus,
+			driverStatus: hdr.driverStatus,
 		}
 		return err
 	}
@@ -126,35 +125,35 @@ func (d *SCSIDevice) execGenericIO(hdr *sgIoHdr) error {
 	return nil
 }
 
-func (d *SCSIDevice) sendCDB(cdb []byte, respBuf *[]byte) error {
+func (d *scsiDevice) sendCDB(cdb []byte, respBuf *[]byte) error {
 	senseBuf := make([]byte, 32)
 
 	// Populate required fields of "sg_io_hdr_t" struct
 	hdr := sgIoHdr{
-		interface_id:    'S',
-		dxfer_direction: SG_DXFER_FROM_DEV,
+		interfaceID:    'S',
+		dxferDirection: sgDxferFromDev,
 		// timeout:         DEFAULT_TIMEOUT,
-		cmd_len:   uint8(len(cdb)),
-		mx_sb_len: uint8(len(senseBuf)),
-		dxfer_len: uint32(len(*respBuf)),
-		dxferp:    uintptr(unsafe.Pointer(&(*respBuf)[0])),
-		cmdp:      uintptr(unsafe.Pointer(&cdb[0])),
-		sbp:       uintptr(unsafe.Pointer(&senseBuf[0])),
+		cmdLen:   uint8(len(cdb)),
+		mxSbLen:  uint8(len(senseBuf)),
+		dxferLen: uint32(len(*respBuf)),
+		dxferp:   uintptr(unsafe.Pointer(&(*respBuf)[0])),
+		cmdp:     uintptr(unsafe.Pointer(&cdb[0])),
+		sbp:      uintptr(unsafe.Pointer(&senseBuf[0])),
 	}
 
 	return d.execGenericIO(&hdr)
 }
 
-func (d *SCSIDevice) open() (err error) {
+func (d *scsiDevice) open() (err error) {
 	d.fd, err = unix.Open(d.Name, unix.O_RDWR, 0600)
 	return err
 }
 
-func (d *SCSIDevice) close() error {
+func (d *scsiDevice) close() error {
 	return unix.Close(d.fd)
 }
 
-func (d *SCSIDevice) SerialNumber() (string, error) {
+func (d *scsiDevice) SerialNumber() (string, error) {
 	if err := d.open(); err != nil {
 		return "", err
 	}

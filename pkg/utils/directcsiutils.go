@@ -22,12 +22,21 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/topology"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Topology keys.
+const (
+	TopologyDriverIdentity = "direct.csi.min.io/identity"
+	TopologyDriverNode     = "direct.csi.min.io/node"
+	TopologyDriverRack     = "direct.csi.min.io/rack"
+	TopologyDriverZone     = "direct.csi.min.io/zone"
+	TopologyDriverRegion   = "direct.csi.min.io/region"
+)
+
+// Various direct-csi labels.
 var (
 	PodNameLabel      = NewDirectCSILabel("pod.name")
 	PodNamespaceLabel = NewDirectCSILabel("pod.namespace")
@@ -45,10 +54,12 @@ var (
 	DirectCSIGroupVersion = SanitizeLabelK(directcsi.Group + "/" + directcsi.Version)
 )
 
+// NewDirectCSILabel creates direct-csi label of a key.
 func NewDirectCSILabel(key string) string {
 	return SanitizeLabelK(directcsi.Group + "/" + key)
 }
 
+// SanitizeDrivePath sanitizes drive path.
 func SanitizeDrivePath(in string) string {
 	path := strings.ReplaceAll(in, sys.DirectCSIPartitionInfix, "")
 	path = strings.ReplaceAll(path, sys.DirectCSIDevRoot+"/", "")
@@ -56,17 +67,19 @@ func SanitizeDrivePath(in string) string {
 	return filepath.Base(path)
 }
 
+// SetAccessTierLabel sets access tier label in object.
 func SetAccessTierLabel(obj metav1.Object, accessTier directcsi.AccessTier) {
-	labels := SafeGetLabels(obj)
+	labels := safeGetLabels(obj)
 	labels[AccessTierLabel] = SanitizeLabelV(string(accessTier))
 	obj.SetLabels(labels)
 }
 
+// NewIdentityTopologySelector creates identity topology selector.
 func NewIdentityTopologySelector(identity string) corev1.TopologySelectorTerm {
 	return corev1.TopologySelectorTerm{
 		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
 			{
-				Key: SanitizeLabelK(topology.TopologyDriverIdentity),
+				Key: SanitizeLabelK(TopologyDriverIdentity),
 				Values: []string{
 					SanitizeLabelV(identity),
 				},
@@ -75,10 +88,12 @@ func NewIdentityTopologySelector(identity string) corev1.TopologySelectorTerm {
 	}
 }
 
+// DirectCSIDriveTypeMeta gets new direct-csi drive meta.
 func DirectCSIDriveTypeMeta() metav1.TypeMeta {
 	return NewTypeMeta(DirectCSIGroupVersion, "DirectCSIDrive")
 }
 
+// DirectCSIVolumeTypeMeta gets new direct-csi volume meta.
 func DirectCSIVolumeTypeMeta() metav1.TypeMeta {
 	return NewTypeMeta(DirectCSIGroupVersion, "DirectCSIVolume")
 }

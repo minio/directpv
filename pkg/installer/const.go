@@ -74,10 +74,8 @@ const (
 	nodeDriverRegistrarContainerName = "node-driver-registrar"
 	csiProvisionerContainerName      = "csi-provisioner"
 
-	healthZContainerPort         = 9898
-	healthZContainerPortName     = "healthz"
-	healthZContainerPortProtocol = "TCP"
-	healthZContainerPortPath     = "/healthz"
+	healthZContainerPortName = "healthz"
+	healthZContainerPortPath = "/healthz"
 
 	kubeNodeNameEnvVar = "KUBE_NODE_NAME"
 	endpointEnvVarCSI  = "CSI_ENDPOINT"
@@ -90,10 +88,10 @@ const (
 
 	// Admission controller
 	admissionControllerCertsDir    = "admission-webhook-certs"
-	AdmissionWebhookSecretName     = "validationwebhookcerts"
+	admissionWebhookSecretName     = "validationwebhookcerts"
 	validationControllerName       = "directcsi-validation-controller"
 	admissionControllerWebhookName = "validatinghook"
-	ValidationWebhookConfigName    = "drive.validation.controller"
+	validationWebhookConfigName    = "drive.validation.controller"
 	admissionControllerWebhookPort = 20443
 	admissionCertsDir              = "/etc/admission/certs"
 	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
@@ -101,20 +99,21 @@ const (
 	publicCertFileName             = "cert.pem"
 
 	// Finalizers
-	DirectCSIFinalizerDeleteProtection = "/delete-protection"
+	directCSIFinalizerDeleteProtection = "/delete-protection"
 
 	// Conversion webhook (Legacy)
 	conversionWebhookDeploymentName = "directcsi-conversion-webhook"
-	ConversionWebhookSecretName     = "conversionwebhookcerts"
+	conversionWebhookSecretName     = "conversionwebhookcerts"
 	conversionWebhookCertsSecret    = "converionwebhookcertsecret"
 
 	// conversion
 	conversionKeyPair         = "conversionkeypair"
 	conversionCACert          = "conversioncacert"
 	conversionWebhookPortName = "convwebhook"
-	ConversionWebhookPort     = 30443
-	caCertFileName            = "ca.pem"
-	conversionCADir           = "/etc/conversion/CAs"
-	conversionCertsDir        = "/etc/conversion/certs"
-	webhookSelector           = "selector.direct.csi.min.io.webhook"
+	// ConversionWebhookPort denotes conversion webhook port.
+	ConversionWebhookPort = 30443
+	caCertFileName        = "ca.pem"
+	conversionCADir       = "/etc/conversion/CAs"
+	conversionCertsDir    = "/etc/conversion/certs"
+	webhookSelector       = "selector.direct.csi.min.io.webhook"
 )

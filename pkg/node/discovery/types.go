@@ -27,6 +27,7 @@ type remoteDrive struct {
 	directcsi.DirectCSIDrive
 }
 
+// Discovery is drive discovery.
 type Discovery struct {
 	NodeID          string
 	directcsiClient clientset.Interface

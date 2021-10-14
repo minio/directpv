@@ -16,6 +16,7 @@
 
 package smart
 
+// GetSerialNumber fetches device serial number from S.M.A.R.T.
 func GetSerialNumber(devicePath string) (string, error) {
 	sd := getSmartDevice(devicePath)
 	return sd.SerialNumber()

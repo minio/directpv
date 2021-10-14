@@ -23,7 +23,6 @@ import (
 	"github.com/minio/direct-csi/pkg/drive"
 	"github.com/minio/direct-csi/pkg/metrics"
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/volume"
 
@@ -35,6 +34,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// NewNodeServer creates node server.
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, enableDynamicDiscovery bool) (*NodeServer, error) {
 	config, err := utils.GetKubeConfig()
 	if err != nil {
@@ -58,17 +58,27 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	}
 
 	// Start background tasks
-	go drive.StartController(ctx, nodeID)
-	go volume.StartController(ctx, nodeID)
+	go func() {
+		if err := drive.StartController(ctx, nodeID); err != nil {
+			klog.Error(err)
+		}
+	}()
+
+	go func() {
+		if err := volume.StartController(ctx, nodeID); err != nil {
+			klog.Error(err)
+		}
+	}()
+
 	go metrics.ServeMetrics(ctx, nodeID)
 	if enableDynamicDiscovery {
 		go startUeventHandler(
 			ctx, nodeID, map[string]string{
-				topology.TopologyDriverIdentity: identity,
-				topology.TopologyDriverRack:     rack,
-				topology.TopologyDriverZone:     zone,
-				topology.TopologyDriverRegion:   region,
-				topology.TopologyDriverNode:     nodeID,
+				utils.TopologyDriverIdentity: identity,
+				utils.TopologyDriverRack:     rack,
+				utils.TopologyDriverZone:     zone,
+				utils.TopologyDriverRegion:   region,
+				utils.TopologyDriverNode:     nodeID,
 			},
 		)
 	}
@@ -76,7 +86,8 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	return nodeServer, nil
 }
 
-type NodeServer struct {
+// NodeServer denotes node server.
+type NodeServer struct { //revive:disable-line:exported
 	NodeID          string
 	Identity        string
 	Rack            string
@@ -87,25 +98,29 @@ type NodeServer struct {
 	quotaFuncs      quotaFuncs
 }
 
-func (n *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+//revive:enable-line:exported
+
+// NodeGetInfo gets node information.
+func (ns *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	topology := &csi.Topology{
 		Segments: map[string]string{
-			topology.TopologyDriverIdentity: n.Identity,
-			topology.TopologyDriverRack:     n.Rack,
-			topology.TopologyDriverZone:     n.Zone,
-			topology.TopologyDriverRegion:   n.Region,
-			topology.TopologyDriverNode:     n.NodeID,
+			utils.TopologyDriverIdentity: ns.Identity,
+			utils.TopologyDriverRack:     ns.Rack,
+			utils.TopologyDriverZone:     ns.Zone,
+			utils.TopologyDriverRegion:   ns.Region,
+			utils.TopologyDriverNode:     ns.NodeID,
 		},
 	}
 
 	return &csi.NodeGetInfoResponse{
-		NodeId:             n.NodeID,
+		NodeId:             ns.NodeID,
 		MaxVolumesPerNode:  int64(100),
 		AccessibleTopology: topology,
 	}, nil
 }
 
-func (n *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+// NodeGetCapabilities gets node capabilities.
+func (ns *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	nodeCap := func(cap csi.NodeServiceCapability_RPC_Type) *csi.NodeServiceCapability {
 		klog.V(2).Infof("Using node capability %v", cap)
 
@@ -126,6 +141,7 @@ func (n *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 	}, nil
 }
 
+// NodeGetVolumeStats gets node volume stats.
 func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	vID := req.GetVolumeId()
 	volumePath := req.GetVolumePath()
@@ -173,6 +189,7 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	}, nil
 }
 
+// NodeExpandVolume returns unimplemented error.
 func (ns *NodeServer) NodeExpandVolume(ctx context.Context, in *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }

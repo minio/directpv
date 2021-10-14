@@ -22,6 +22,7 @@ import (
 	jsonFormatter "encoding/json"
 )
 
+// MustJSON converts given value to JSON string.
 func MustJSON(obj interface{}) string {
 	j, err := ToJSON(obj)
 	if err != nil {
@@ -30,6 +31,7 @@ func MustJSON(obj interface{}) string {
 	return j
 }
 
+// ToJSON converts given value to JSON string.
 func ToJSON(obj interface{}) (string, error) {
 	formattedObj, err := jsonFormatter.MarshalIndent(obj, "", "  ")
 	if err != nil {

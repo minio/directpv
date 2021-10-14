@@ -62,7 +62,7 @@ func (c *metricsCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect is called by the Prometheus registry when collecting metrics.
 func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
-	c.volumeStatsEmitter(context.Background(), ch, c.getXFSVolumeStats)
+	c.volumeStatsEmitter(context.Background(), ch, c.getxfsVolumeStats)
 }
 
 func (c *metricsCollector) volumeStatsEmitter(

@@ -62,6 +62,7 @@ func parseVolumeContext(volumeContext map[string]string) (name, ns string, err e
 	return
 }
 
+// NodePublishVolume is node publish volume request handler.
 func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(3).InfoS("NodePublishVolumeRequest",
 		"volumeID", req.GetVolumeId(),
@@ -162,6 +163,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
+// NodeUnpublishVolume is node unpublish volume handler.
 func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(3).InfoS("NodeUnPublishVolumeRequest",
 		"volumeID", req.GetVolumeId(),

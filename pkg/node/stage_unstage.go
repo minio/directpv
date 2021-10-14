@@ -35,6 +35,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// NodeStageVolume is node stage volume request handler.
 func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	klog.V(3).InfoS("NodeStageVolumeRequest",
 		"volumeID", req.GetVolumeId(),
@@ -109,6 +110,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
+// NodeUnstageVolume is node unstage volume request handler.
 func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	klog.V(3).InfoS("NodeUnstageVolumeRequest",
 		"volumeID", req.GetVolumeId(),

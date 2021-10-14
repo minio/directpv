@@ -25,15 +25,13 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	port        = "80"
-	metricsPath = "direct-csi/metrics"
-)
+const port = "80"
 
-func ServeMetrics(ctx context.Context, nodeId string) {
+// ServeMetrics starts metrics service.
+func ServeMetrics(ctx context.Context, nodeID string) {
 
 	server := &http.Server{
-		Handler: metricsHandler(nodeId),
+		Handler: metricsHandler(nodeID),
 	}
 
 	lc := net.ListenConfig{}

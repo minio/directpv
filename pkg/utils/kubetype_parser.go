@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// ParseSingleKubeNativeFromBytes parses YAML byte data to runtime object.
 func ParseSingleKubeNativeFromBytes(data []byte) (runtime.Object, error) {
 	obj := map[string]interface{}{}
 	err := yaml.Unmarshal(data, &obj)

@@ -16,6 +16,7 @@
 
 package sys
 
+// ProbeMounts probes mount information from /proc/1/mountinfo.
 func ProbeMounts() (map[string][]MountInfo, error) {
 	return probeMounts("/proc/1/mountinfo")
 }

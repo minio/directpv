@@ -63,31 +63,31 @@ type fsDiskQuota struct {
 	id              uint32  // User, project, or group ID
 	hardLimitBlocks uint64  // Absolute limit on disk blocks
 	softLimitBlocks uint64  // Preferred limit on disk blocks
-	hardLimitInodes uint64  // Maximum allocated inodes
-	softLimitInodes uint64  // Preferred inode limit
+	_               uint64  // hardLimitInodes: Maximum allocated inodes
+	_               uint64  // softLimitInodes: Preferred inode limit
 	blocksCount     uint64  // disk blocks owned by the project/user/group
-	inodesCount     uint64  // inodes owned by the project/user/group
-	inodeTimer      int32   // Zero if within inode limits, If not, we refuse service */
-	blocksTimer     int32   // Similar to above; for disk blocks
-	inodeWarnings   uint16  // warnings issued with respect to number of inodes
-	blockWarnings   uint16  // warnings issued with respect to disk blocks
-	padding2        int32   // Padding - for future use
-	rtbHardLimit    uint64  // Absolute limit on realtime (RT) disk blocks
-	rtbSoftLimit    uint64  // Preferred limit on RT disk blocks
-	rtbCount        uint64  // realtime blocks owned
-	rtbTimer        int32   // Similar to above; for RT disk blocks
-	rtbWarnings     uint16  // warnings issued with respect to RT disk blocks
-	padding3        int16   // Padding - for future use
-	padding4        [8]byte // Yet more padding
+	_               uint64  // inodesCount: inodes owned by the project/user/group
+	_               int32   // inodeTimer: Zero if within inode limits, If not, we refuse service
+	_               int32   // blocksTimer: Similar to above; for disk blocks
+	_               uint16  // inodeWarnings: warnings issued with respect to number of inodes
+	_               uint16  // blockWarnings: warnings issued with respect to disk blocks
+	_               int32   // padding2: Padding - for future use
+	_               uint64  // rtbHardLimit: Absolute limit on realtime (RT) disk blocks
+	_               uint64  // rtbSoftLimit: Preferred limit on RT disk blocks
+	_               uint64  // rtbCount: realtime blocks owned
+	_               int32   // rtbTimer: Similar to above; for RT disk blocks
+	_               uint16  // rtbWarnings: warnings issued with respect to RT disk blocks
+	_               int16   // padding3: Padding - for future use
+	_               [8]byte // padding4: Yet more padding
 }
 
 type fsXAttr struct {
-	fsXXFlags     uint32
-	fsXExtSize    uint32
-	fsXNextents   uint32
-	fsXProjID     uint32
-	fsXCowextSize uint32
-	fsXPad        [8]byte
+	fsXXFlags uint32
+	_         uint32 // fsXExtSize
+	_         uint32 // fsXNextents
+	fsXProjID uint32
+	_         uint32  // fsXCowextSize
+	_         [8]byte // fsXPad
 }
 
 func getProjectIDHash(id string) uint32 {

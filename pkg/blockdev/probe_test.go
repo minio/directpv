@@ -139,7 +139,7 @@ func TestGPTProbe(t *testing.T) {
 		}
 		defer devFile.Close()
 
-		if _, err = devFile.Seek(512, os.SEEK_SET); err != nil {
+		if _, err = devFile.Seek(512, io.SeekStart); err != nil {
 			t.Fatalf("case %v: %v: %v", i+1, testCase.testDataFile, err)
 		}
 

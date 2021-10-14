@@ -25,7 +25,7 @@ import (
 // Idempotent function to bind mount a xfs filesystem with limits
 func mountVolume(ctx context.Context, src, dest string, readOnly bool) error {
 	klog.V(5).Infof("[mountVolume] source: %v destination: %v", src, dest)
-	if err := SafeMount(src, dest, string(FSTypeXFS),
+	if err := safeMount(src, dest, string(FSTypeXFS),
 		func() []MountOption {
 			mOpts := []MountOption{
 				MountOptionMSBind,
@@ -45,17 +45,21 @@ func unmountVolume(targetPath string) error {
 	return SafeUnmount(targetPath, nil)
 }
 
+// VolumeMounter is mount/unmount of volume interface.
 type VolumeMounter interface {
 	MountVolume(ctx context.Context, src, dest string, readOnly bool) error
 	UnmountVolume(targetPath string) error
 }
 
+// DefaultVolumeMounter is a default mount/unmount of volume interface.
 type DefaultVolumeMounter struct{}
 
+// MountVolume mounts a volume.
 func (c *DefaultVolumeMounter) MountVolume(ctx context.Context, src, dest string, readOnly bool) error {
 	return mountVolume(ctx, src, dest, readOnly)
 }
 
+// UnmountVolume unmounts a volume.
 func (c *DefaultVolumeMounter) UnmountVolume(targetPath string) error {
 	return unmountVolume(targetPath)
 }

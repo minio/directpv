@@ -29,6 +29,7 @@ import (
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 )
 
+// Run starts identity/controller/node servers.
 func Run(ctx context.Context, endpoint string, identity csi.IdentityServer, controller csi.ControllerServer, node csi.NodeServer) error {
 	parsedURL, err := url.Parse(endpoint)
 	if err != nil {

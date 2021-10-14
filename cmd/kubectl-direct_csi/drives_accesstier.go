@@ -24,7 +24,7 @@ import (
 
 var drivesAccessTierCmd = &cobra.Command{
 	Use:   "access-tier",
-	Short: "tag/untag DirectCSI drives based on thier access-tiers",
+	Short: "tag/untag DirectCSI drives based on their access-tiers",
 	Long:  "",
 	Aliases: []string{
 		"accesstier",

@@ -32,6 +32,7 @@ func fmap(slice []string, applyFunc func(string) string) (result []string) {
 	return
 }
 
+// GlobMatch matches given name in list of glob patterns.
 func GlobMatch(name string, patterns []string) bool {
 	if len(patterns) == 0 {
 		return true
@@ -45,6 +46,7 @@ func GlobMatch(name string, patterns []string) bool {
 	return false
 }
 
+// GlobMatchNodesDrivesStatuses matches node/drive/status in list of nodes/drives/statuses glob patterns.
 func GlobMatchNodesDrivesStatuses(nodes, drives, statuses []string, node, drive, status string) bool {
 	matchGlob := func(patterns []string, value string, applyFunc func(src string) string) bool {
 		if applyFunc != nil {
@@ -74,6 +76,7 @@ func GlobMatchNodesDrivesStatuses(nodes, drives, statuses []string, node, drive,
 	}
 }
 
+// StringIn checks whether value in the slice.
 func StringIn(slice []string, value string) bool {
 	for _, s := range slice {
 		if value == s {
@@ -84,6 +87,7 @@ func StringIn(slice []string, value string) bool {
 	return false
 }
 
+// MatchTrueConditions matches whether types and status list are in a true conditions or not.
 func MatchTrueConditions(conditions []metav1.Condition, types, statusList []string) bool {
 	statusList = fmap(statusList, strings.ToLower)
 	types = fmap(types, strings.ToLower)

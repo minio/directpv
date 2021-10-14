@@ -29,6 +29,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 )
 
+// Version is kubectl direct-csi version.
 var Version string
 
 // flags
@@ -44,7 +45,6 @@ var (
 )
 
 var printer func(interface{}) error
-var threadiness chan struct{}
 
 var pluginCmd = &cobra.Command{
 	Use:           "direct-csi",
@@ -116,10 +116,9 @@ func init() {
 	pluginCmd.AddCommand(drivesCmd)
 	pluginCmd.AddCommand(volumesCmd)
 	//pluginCmd.AddCommand(newVolumesCmd())
-
-	threadiness = make(chan struct{}, utils.MaxThreadCount)
 }
 
+// Execute executes plugin command.
 func Execute(ctx context.Context) error {
 	return pluginCmd.ExecuteContext(ctx)
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/minio/direct-csi/pkg/matcher"
 )
 
+// MatchStatus does volume's condition status with given status list.
 func (volume *DirectCSIVolume) MatchStatus(statusList []string) bool {
 	return matcher.MatchTrueConditions(
 		volume.Status.Conditions,

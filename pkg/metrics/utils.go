@@ -34,27 +34,27 @@ const (
 	tenantLabel = "direct.csi.min.io/tenant"
 )
 
-type XFSVolumeStats struct {
+type xfsVolumeStats struct {
 	AvailableBytes uint64
 	TotalBytes     uint64
 	UsedBytes      uint64
 }
 
-type xfsVolumeStatsGetter func(context.Context, *directcsi.DirectCSIVolume) (XFSVolumeStats, error)
+type xfsVolumeStatsGetter func(context.Context, *directcsi.DirectCSIVolume) (xfsVolumeStats, error)
 
-func (c *metricsCollector) getXFSVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (XFSVolumeStats, error) {
+func (c *metricsCollector) getxfsVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfsVolumeStats, error) {
 	directCSIClient := utils.GetDirectCSIClient()
 	drive, err := directCSIClient.DirectCSIDrives().Get(ctx, vol.Status.Drive, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})
 	if err != nil {
-		return XFSVolumeStats{}, err
+		return xfsVolumeStats{}, err
 	}
 	quota, err := xfs.GetQuota(ctx, sys.GetDirectCSIPath(drive.Status.FilesystemUUID), vol.Name)
 	if err != nil {
-		return XFSVolumeStats{}, err
+		return xfsVolumeStats{}, err
 	}
-	return XFSVolumeStats{
+	return xfsVolumeStats{
 		AvailableBytes: uint64(vol.Status.TotalCapacity) - quota.CurrentSpace,
 		TotalBytes:     uint64(vol.Status.TotalCapacity),
 		UsedBytes:      quota.CurrentSpace,

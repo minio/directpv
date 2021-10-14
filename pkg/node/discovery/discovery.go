@@ -18,25 +18,20 @@ package discovery
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/google/uuid"
-	simd "github.com/minio/sha256-simd"
 )
 
 const (
 	loopBackDeviceCount = 4
 )
 
-var unknownDriveCounter int32
-
+// NewDiscovery creates drive discovery.
 func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region string) (*Discovery, error) {
 	config, err := utils.GetKubeConfig()
 	if err != nil {
@@ -44,11 +39,11 @@ func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region stri
 	}
 
 	topologies := map[string]string{}
-	topologies[topology.TopologyDriverIdentity] = identity
-	topologies[topology.TopologyDriverRack] = rack
-	topologies[topology.TopologyDriverZone] = zone
-	topologies[topology.TopologyDriverRegion] = region
-	topologies[topology.TopologyDriverNode] = nodeID
+	topologies[utils.TopologyDriverIdentity] = identity
+	topologies[utils.TopologyDriverRack] = rack
+	topologies[utils.TopologyDriverZone] = zone
+	topologies[utils.TopologyDriverRegion] = region
+	topologies[utils.TopologyDriverNode] = nodeID
 
 	directClientset, err := clientset.NewForConfig(config)
 	if err != nil {
@@ -100,6 +95,7 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 	return nil
 }
 
+// Init initializes drive discovery.
 func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 	localDrives, err := d.findLocalDrives(ctx, loopBackOnly)
 	if err != nil {
@@ -116,7 +112,7 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 		}
 	} else {
 		for _, localDriveState := range localDriveStates {
-			remoteDrive, err := d.Identify(localDriveState)
+			remoteDrive, err := d.identify(localDriveState)
 			if err == nil {
 				if err := d.syncRemoteDrive(ctx, localDriveState, remoteDrive); err != nil {
 					return err
@@ -194,9 +190,4 @@ func (d *Discovery) toDirectCSIDriveStatus(devices map[string]*sys.Device) []dir
 		statusList = append(statusList, utils.NewDirectCSIDriveStatus(device, d.NodeID, d.driveTopology))
 	}
 	return statusList
-}
-
-func makeV1beta1DriveName(nodeID, path string) string {
-	driveName := strings.Join([]string{nodeID, path}, "-")
-	return fmt.Sprintf("%x", simd.Sum256([]byte(driveName)))
 }

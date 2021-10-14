@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/minio/direct-csi/pkg/topology"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -42,13 +41,19 @@ var (
 	validationWebhookCaBundle []byte
 	conversionWebhookCaBundle []byte
 
+	// ErrKubeVersionNotSupported denotes kubernetes version not supported error.
 	ErrKubeVersionNotSupported = errors.New(
 		utils.Red("Error") +
 			"This version of kubernetes is not supported by direct-csi" +
 			"Please upgrade your kubernetes installation and try again",
 	)
-	ErrEmptyCABundle = errors.New("CA bundle is empty")
+
+	errEmptyCABundle = errors.New("CA bundle is empty")
 )
+
+func errInstallationFailed(reason string, installer string) error {
+	return fmt.Errorf("installation failed: %s installer=%s", reason, installer)
+}
 
 func objMeta(name string) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
@@ -65,6 +70,7 @@ func objMeta(name string) metav1.ObjectMeta {
 
 }
 
+// CreateNamespace creates direct-csi namespace.
 func CreateNamespace(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
@@ -93,6 +99,7 @@ func CreateNamespace(ctx context.Context, identity string, dryRun bool, writer i
 	return nil
 }
 
+// CreateCSIDriver creates CSI driver.
 func CreateCSIDriver(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	podInfoOnMount := true
 	attachRequired := false
@@ -168,7 +175,7 @@ func getTopologySelectorTerm(identity string) corev1.TopologySelectorTerm {
 
 	getIdentityLabelRequirement := func() corev1.TopologySelectorLabelRequirement {
 		return corev1.TopologySelectorLabelRequirement{
-			Key:    topology.TopologyDriverIdentity,
+			Key:    utils.TopologyDriverIdentity,
 			Values: []string{utils.SanitizeKubeResourceName(identity)},
 		}
 	}
@@ -180,6 +187,7 @@ func getTopologySelectorTerm(identity string) corev1.TopologySelectorTerm {
 	}
 }
 
+// CreateStorageClass creates storage class.
 func CreateStorageClass(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	allowExpansion := false
 	allowedTopologies := []corev1.TopologySelectorTerm{
@@ -258,6 +266,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool, write
 	return nil
 }
 
+// CreateService creates direct-csi service.
 func CreateService(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	csiPort := corev1.ServicePort{
 		Port: 12345,
@@ -318,6 +327,7 @@ func getConversionHealthzURL(identity string) (conversionWebhookURL string) {
 	return
 }
 
+// CreateDaemonSet creates direct-csi daemonset.
 func CreateDaemonSet(ctx context.Context,
 	identity string,
 	directCSIContainerImage string,
@@ -540,6 +550,7 @@ func CreateDaemonSet(ctx context.Context,
 	return nil
 }
 
+// CreateControllerService creates direct-csi controller service.
 func CreateControllerService(ctx context.Context, generatedSelectorValue, identity string, dryRun bool) error {
 	admissionWebhookPort := corev1.ServicePort{
 		Port: admissionControllerWebhookPort,
@@ -575,6 +586,7 @@ func CreateControllerService(ctx context.Context, generatedSelectorValue, identi
 	return nil
 }
 
+// CreateControllerSecret creates controller secret.
 func CreateControllerSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool) error {
 
 	getCertsDataMap := func() map[string][]byte {
@@ -590,7 +602,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      AdmissionWebhookSecretName,
+			Name:      admissionWebhookSecretName,
 			Namespace: utils.SanitizeKubeResourceName(identity),
 		},
 		Data: getCertsDataMap(),
@@ -606,6 +618,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 	return nil
 }
 
+// CreateDeployment creates direct-csi deployment.
 func CreateDeployment(ctx context.Context, identity string, directCSIContainerImage string, dryRun bool, registry, org string, writer io.Writer) error {
 	name := utils.SanitizeKubeResourceName(identity)
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(name)
@@ -617,7 +630,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		ServiceAccountName: name,
 		Volumes: []corev1.Volume{
 			newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", name))),
-			newSecretVolume(admissionControllerCertsDir, AdmissionWebhookSecretName),
+			newSecretVolume(admissionControllerCertsDir, admissionWebhookSecretName),
 			newSecretVolume(conversionCACert, conversionCACert),
 			newSecretVolume(conversionKeyPair, conversionKeyPair),
 		},
@@ -758,7 +771,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		Status: appsv1.DeploymentStatus{},
 	}
 	deployment.ObjectMeta.Finalizers = []string{
-		utils.SanitizeKubeResourceName(identity) + DirectCSIFinalizerDeleteProtection,
+		utils.SanitizeKubeResourceName(identity) + directCSIFinalizerDeleteProtection,
 	}
 
 	if err := utils.WriteObject(writer, deployment); err != nil {
@@ -789,7 +802,7 @@ func generateSanitizedUniqueNameFrom(name string) string {
 	}
 
 	// Get a 5 byte randomstring
-	shortUUID := NewRandomString(5)
+	shortUUID := newRandomString(5)
 
 	// Concatenate sanitizedName (249) and shortUUID (5) with a '-' in between
 	// Max length of the returned name cannot be more than 255 bytes
@@ -878,7 +891,7 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 		sideEffectClass := admissionv1.SideEffectClassNone
 		return []admissionv1.ValidatingWebhook{
 			{
-				Name:                    ValidationWebhookConfigName,
+				Name:                    validationWebhookConfigName,
 				ClientConfig:            getClientConfig(),
 				AdmissionReviewVersions: supportedReviewVersions,
 				SideEffects:             &sideEffectClass,
@@ -893,10 +906,10 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 			APIVersion: "admissionregistration.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ValidationWebhookConfigName,
+			Name:      validationWebhookConfigName,
 			Namespace: name,
 			Finalizers: []string{
-				utils.SanitizeKubeResourceName(identity) + DirectCSIFinalizerDeleteProtection,
+				utils.SanitizeKubeResourceName(identity) + directCSIFinalizerDeleteProtection,
 			},
 		},
 		Webhooks: getValidatingWebhooks(),
@@ -905,6 +918,7 @@ func getDriveValidatingWebhookConfig(identity string) admissionv1.ValidatingWebh
 	return validatingWebhookConfiguration
 }
 
+// RegisterDriveValidationRules registers drive validation rules.
 func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	driveValidatingWebhookConfig := getDriveValidatingWebhookConfig(identity)
 	if err := utils.WriteObject(writer, driveValidatingWebhookConfig); err != nil {
@@ -924,6 +938,7 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 	return nil
 }
 
+// CreateOrUpdateConversionKeyPairSecret creates/updates conversion keypairs secret.
 func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool, writer io.Writer) error {
 
 	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
@@ -974,6 +989,7 @@ func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string,
 	return nil
 }
 
+// CreateOrUpdateConversionCACertSecret creates/updates conversion CA certs secret.
 func CreateOrUpdateConversionCACertSecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool, writer io.Writer) error {
 
 	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
@@ -1021,10 +1037,11 @@ func CreateOrUpdateConversionCACertSecret(ctx context.Context, identity string, 
 	return nil
 }
 
+// GetConversionCABundle gets conversion CA bundle.
 func GetConversionCABundle(ctx context.Context, identity string, dryRun bool) ([]byte, error) {
 	getCABundlerFromGlobal := func() ([]byte, error) {
 		if len(conversionWebhookCaBundle) == 0 {
-			return []byte{}, ErrEmptyCABundle
+			return []byte{}, errEmptyCABundle
 		}
 		return conversionWebhookCaBundle, nil
 	}
@@ -1046,7 +1063,7 @@ func GetConversionCABundle(ctx context.Context, identity string, dryRun bool) ([
 		}
 	}
 
-	return []byte{}, ErrEmptyCABundle
+	return []byte{}, errEmptyCABundle
 }
 
 func checkConversionSecrets(ctx context.Context, identity string) error {
@@ -1058,6 +1075,7 @@ func checkConversionSecrets(ctx context.Context, identity string) error {
 	return err
 }
 
+// CreateConversionWebhookSecrets creates conversion webhook secrets.
 func CreateConversionWebhookSecrets(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 
 	err := checkConversionSecrets(ctx, identity)

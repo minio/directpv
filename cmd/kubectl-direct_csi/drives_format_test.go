@@ -102,7 +102,8 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 		createTestDrive("n2", "d7", "/var/lib/direct-csi/devices/xvdh", directcsi.DriveStatusAvailable, directcsi.AccessTierUnknown),
 	}
 
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 	testClientSet := clientsetfake.NewSimpleClientset(testDriveObjects...)
 	testClient := testClientSet.DirectV1beta3()
 	utils.SetDirectCSIClient(testClient.(*directcsifake.FakeDirectV1beta3))

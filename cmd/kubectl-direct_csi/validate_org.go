@@ -24,7 +24,7 @@ func parseOrg(r rune) (interface{}, bool, error) {
 		return parseOrg1, false, nil
 	}
 
-	return parseOrg, false, ErrInvalid("[a-zA-Z]", r)
+	return parseOrg, false, errInvalid("[a-zA-Z]", r)
 }
 
 func parseOrg1(r rune) (interface{}, bool, error) {
@@ -50,7 +50,7 @@ func parseOrg1(r rune) (interface{}, bool, error) {
 		return parseOrgSlash1, true, nil
 	}
 
-	return parseOrg, false, ErrInvalid("[a-zA-Z-._0-9]", r)
+	return parseOrg, false, errInvalid("[a-zA-Z-._0-9]", r)
 }
 
 func parseOrgSlash1(r rune) (interface{}, bool, error) {
@@ -63,7 +63,7 @@ func parseOrgSlash1(r rune) (interface{}, bool, error) {
 	if r >= '0' && r <= '9' {
 		return parseOrg1, false, nil
 	}
-	return parseOrg, false, ErrInvalid("[a-zA-Z-._0-9]", r)
+	return parseOrg, false, errInvalid("[a-zA-Z-._0-9]", r)
 }
 
 func parseOrgPeriod1(r rune) (interface{}, bool, error) {
@@ -77,19 +77,19 @@ func parseOrgPeriod1(r rune) (interface{}, bool, error) {
 		return parseOrg1, false, nil
 	}
 	if r == '-' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z0-9]", r)
 	}
 	if r == '.' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z0-9]", r)
 	}
 	if r == '_' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z0-9]", r)
 	}
 	if r == ':' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z0-9]", r)
 	}
 
-	return parseOrg, false, ErrInvalid("[a-zA-Z-._0-9]", r)
+	return parseOrg, false, errInvalid("[a-zA-Z-._0-9]", r)
 }
 
 func parseOrgSym1(r rune) (interface{}, bool, error) {
@@ -106,16 +106,16 @@ func parseOrgSym1(r rune) (interface{}, bool, error) {
 		return parseOrgSym1, true, nil
 	}
 	if r == '_' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z-0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z-0-9]", r)
 	}
 	if r == '.' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z-0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z-0-9]", r)
 	}
 	if r == ':' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z-0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z-0-9]", r)
 	}
 
-	return parseOrg, false, ErrInvalid("[a-zA-Z-0-9]", r)
+	return parseOrg, false, errInvalid("[a-zA-Z-0-9]", r)
 }
 
 func parseOrgUnderscore1(r rune) (interface{}, bool, error) {
@@ -132,16 +132,16 @@ func parseOrgUnderscore1(r rune) (interface{}, bool, error) {
 		return parseOrgUnderscore2, true, nil
 	}
 	if r == '-' {
-		return parseOrg, false, ErrInvalid("a-zA-Z_0-9", r)
+		return parseOrg, false, errInvalid("a-zA-Z_0-9", r)
 	}
 	if r == '.' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z_0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z_0-9]", r)
 	}
 	if r == ':' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z_0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z_0-9]", r)
 	}
 
-	return parseOrg, false, ErrInvalid("[a-zA-Z_0-9]", r)
+	return parseOrg, false, errInvalid("[a-zA-Z_0-9]", r)
 }
 
 func parseOrgUnderscore2(r rune) (interface{}, bool, error) {
@@ -155,15 +155,15 @@ func parseOrgUnderscore2(r rune) (interface{}, bool, error) {
 		return parseOrg1, false, nil
 	}
 	if r == '.' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z0-9]", r)
 	}
 	if r == '-' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z0-9]", r)
 	}
 	// max 2 consecutive underscores
 	if r == '_' {
-		return parseOrg, false, ErrInvalid("[a-zA-Z0-9]", r)
+		return parseOrg, false, errInvalid("[a-zA-Z0-9]", r)
 	}
 
-	return parseOrg, false, ErrInvalid("[a-zA-Z0-9]", r)
+	return parseOrg, false, errInvalid("[a-zA-Z0-9]", r)
 }

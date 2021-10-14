@@ -70,7 +70,9 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun, enabl
 	}
 
 	if dryRun {
-		utils.LogYAML(psp)
+		if err := utils.LogYAML(psp); err != nil {
+			return err
+		}
 	} else if _, err := utils.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Create(ctx, psp, metav1.CreateOptions{}); err != nil {
 		return err
 	}
@@ -116,6 +118,7 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun, enabl
 	return err
 }
 
+// CreatePodSecurityPolicy creates pod security policy.
 func CreatePodSecurityPolicy(ctx context.Context, identity string, dryRun, enableDynamicDiscovery bool, writer io.Writer) error {
 	info, err := utils.GetGroupKindVersions("policy", "PodSecurityPolicy", "v1beta1")
 	if err != nil {

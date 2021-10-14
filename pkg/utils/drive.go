@@ -42,6 +42,7 @@ func isDirectCSIMount(mountPoints []string) bool {
 	return false
 }
 
+// NewDirectCSIDriveStatus creates direct CSI drive status.
 func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[string]string) directcsi.DirectCSIDriveStatus {
 	driveStatus := directcsi.DriveStatusAvailable
 	if device.Size < 1048576 || device.ReadOnly || device.Partitioned || device.SwapOn || device.Master != "" || !isDirectCSIMount(device.MountPoints) {
@@ -126,6 +127,7 @@ func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[str
 	}
 }
 
+// NewDirectCSIDrive creates new direct-csi drive.
 func NewDirectCSIDrive(name string, status directcsi.DirectCSIDriveStatus) *directcsi.DirectCSIDrive {
 	return &directcsi.DirectCSIDrive{
 		ObjectMeta: metav1.ObjectMeta{
@@ -142,11 +144,13 @@ func NewDirectCSIDrive(name string, status directcsi.DirectCSIDriveStatus) *dire
 	}
 }
 
+// CreateDrive creates drive CRD.
 func CreateDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, drive *directcsi.DirectCSIDrive) error {
 	_, err := driveInterface.Create(ctx, drive, metav1.CreateOptions{})
 	return err
 }
 
+// DeleteDrive deletes drive CRD.
 func DeleteDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, drive *directcsi.DirectCSIDrive, force bool) error {
 	if drive.Status.DriveStatus != directcsi.DriveStatusTerminating {
 		drive.Status.DriveStatus = directcsi.DriveStatusTerminating

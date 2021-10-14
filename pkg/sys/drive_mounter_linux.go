@@ -34,7 +34,7 @@ func mountDrive(source, target string, mountOpts []string) error {
 	}
 
 	klog.V(3).Infof("mounting drive %s at %s", source, target)
-	return SafeMount(source, target, string(FSTypeXFS), func(opts []string) []MountOption {
+	return safeMount(source, target, string(FSTypeXFS), func(opts []string) []MountOption {
 		newOpts := []MountOption{}
 		for _, opt := range opts {
 			newOpts = append(newOpts, MountOption(opt))
@@ -48,7 +48,7 @@ func mountDrive(source, target string, mountOpts []string) error {
 // unmountDrive - Idempotent function to unmount a DirectCSIDrive
 func unmountDrive(path string) error {
 	klog.V(3).Infof("unmounting drive %s", path)
-	if err := SafeUnmountAll(path, []UnmountOption{
+	if err := safeUnmountAll(path, []UnmountOption{
 		UnmountOptionDetach,
 		UnmountOptionForce,
 	}); err != nil {
@@ -58,17 +58,21 @@ func unmountDrive(path string) error {
 	return nil
 }
 
+// DriveMounter is mount/unmount drive interface.
 type DriveMounter interface {
 	MountDrive(source, target string, mountOpts []string) error
 	UnmountDrive(path string) error
 }
 
+// DefaultDriveMounter is a default mount/unmount drive interface.
 type DefaultDriveMounter struct{}
 
+// MountDrive mounts a drive into given mountpoint.
 func (c *DefaultDriveMounter) MountDrive(source, target string, mountOpts []string) error {
 	return mountDrive(source, target, mountOpts)
 }
 
+// UnmountDrive unmounts given mountpoint.
 func (c *DefaultDriveMounter) UnmountDrive(path string) error {
 	return unmountDrive(path)
 }

@@ -30,12 +30,15 @@ func getFreeCapacityFromStatfs(path string) (freeCapacity int64, err error) {
 	return
 }
 
+// DriveStatter denotes function to get free capacity of a drive.
 type DriveStatter interface {
 	GetFreeCapacityFromStatfs(path string) (freeCapacity int64, err error)
 }
 
+// DefaultDriveStatter is a default interface to get free capacity of a drive.
 type DefaultDriveStatter struct{}
 
+// GetFreeCapacityFromStatfs gets free capacity of a drive.
 func (c *DefaultDriveStatter) GetFreeCapacityFromStatfs(path string) (int64, error) {
 	return getFreeCapacityFromStatfs(path)
 }

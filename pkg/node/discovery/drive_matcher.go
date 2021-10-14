@@ -23,14 +23,14 @@ import (
 )
 
 var (
-	ErrNoMatchFound = errors.New("No matching drive found")
+	errNoMatchFound = errors.New("no matching drive found")
 )
 
-func (d *Discovery) Identify(localDriveState directcsi.DirectCSIDriveStatus) (*remoteDrive, error) {
+func (d *Discovery) identify(localDriveState directcsi.DirectCSIDriveStatus) (*remoteDrive, error) {
 	if len(d.remoteDrives) > 0 {
 		return d.identifyDriveByAttributes(localDriveState)
 	}
-	return nil, ErrNoMatchFound
+	return nil, errNoMatchFound
 }
 
 func (d *Discovery) identifyDriveByAttributes(localDriveState directcsi.DirectCSIDriveStatus) (*remoteDrive, error) {
@@ -43,13 +43,13 @@ func (d *Discovery) identifyDriveByAttributes(localDriveState directcsi.DirectCS
 	if selectedDrive, err := d.selectBySerialNumber(localDriveState.SerialNumber, localDriveState.PartitionNum); err == nil {
 		return selectedDrive, nil
 	}
-	return nil, ErrNoMatchFound
+	return nil, errNoMatchFound
 }
 
 func (d *Discovery) selectByFSUUID(fsUUID string) (*remoteDrive, error) {
 	if fsUUID == "" {
 		// No FSUUID available to match
-		return nil, ErrNoMatchFound
+		return nil, errNoMatchFound
 	}
 	for i, remoteDrive := range d.remoteDrives {
 		if !remoteDrive.matched && remoteDrive.Status.FilesystemUUID == fsUUID {
@@ -57,13 +57,13 @@ func (d *Discovery) selectByFSUUID(fsUUID string) (*remoteDrive, error) {
 			return d.remoteDrives[i], nil
 		}
 	}
-	return nil, ErrNoMatchFound
+	return nil, errNoMatchFound
 }
 
 func (d *Discovery) selectByPartitionUUID(partUUID string) (*remoteDrive, error) {
 	if partUUID == "" {
 		// No partUUID available to match
-		return nil, ErrNoMatchFound
+		return nil, errNoMatchFound
 	}
 	for i, remoteDrive := range d.remoteDrives {
 		if !remoteDrive.matched && remoteDrive.Status.PartitionUUID == partUUID {
@@ -71,13 +71,13 @@ func (d *Discovery) selectByPartitionUUID(partUUID string) (*remoteDrive, error)
 			return d.remoteDrives[i], nil
 		}
 	}
-	return nil, ErrNoMatchFound
+	return nil, errNoMatchFound
 }
 
 func (d *Discovery) selectBySerialNumber(serialNumber string, partitionNum int) (*remoteDrive, error) {
 	if serialNumber == "" {
 		// No serialNumber available to match
-		return nil, ErrNoMatchFound
+		return nil, errNoMatchFound
 	}
 	for i, remoteDrive := range d.remoteDrives {
 		if !remoteDrive.matched && remoteDrive.Status.SerialNumber == serialNumber && remoteDrive.Status.PartitionNum == partitionNum {
@@ -85,7 +85,7 @@ func (d *Discovery) selectBySerialNumber(serialNumber string, partitionNum int) 
 			return d.remoteDrives[i], nil
 		}
 	}
-	return nil, ErrNoMatchFound
+	return nil, errNoMatchFound
 }
 
 func (d *Discovery) identifyDriveByLegacyName(localDriveState directcsi.DirectCSIDriveStatus) (*remoteDrive, bool, error) {
@@ -106,5 +106,5 @@ func (d *Discovery) identifyDriveByLegacyName(localDriveState directcsi.DirectCS
 			return d.remoteDrives[i], notUpgraded, nil
 		}
 	}
-	return nil, false, ErrNoMatchFound
+	return nil, false, errNoMatchFound
 }

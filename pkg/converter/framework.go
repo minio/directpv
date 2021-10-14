@@ -47,11 +47,11 @@ var supportedVersions = []string{
 	versionV1Beta3,
 } //ordered
 
-type CRDKind string
+type crdKind string
 
 const (
-	DriveCRDKind  CRDKind = "DirectCSIDrive"
-	VolumeCRDKind CRDKind = "DirectCSIVolume"
+	driveCRDKind  crdKind = "DirectCSIDrive"
+	volumeCRDKind crdKind = "DirectCSIVolume"
 )
 
 // convertFunc is the user defined function for any conversion. The code in this file is a
@@ -156,11 +156,11 @@ func serve(w http.ResponseWriter, r *http.Request, convert convertFunc) {
 	}
 }
 
-func ServeDriveConversion(w http.ResponseWriter, r *http.Request) {
+func serveDriveConversion(w http.ResponseWriter, r *http.Request) {
 	serve(w, r, convertDriveCRD)
 }
 
-func ServeVolumeConversion(w http.ResponseWriter, r *http.Request) {
+func serveVolumeConversion(w http.ResponseWriter, r *http.Request) {
 	serve(w, r, convertVolumeCRD)
 }
 

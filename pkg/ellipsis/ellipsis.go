@@ -184,6 +184,7 @@ func getEllipses(arg string) (ellipses []*ellipsis, err error) {
 	return ellipses, nil
 }
 
+// Expand expends ellipses of given argument.
 func Expand(arg string) ([]string, error) {
 	ellipses, err := getEllipses(arg)
 	if err != nil {

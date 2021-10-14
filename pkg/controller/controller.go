@@ -73,6 +73,7 @@ import (
  *
  */
 
+// NewControllerServer creates new controller server.
 func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
 	// Start admission webhook server
 	go serveAdmissionController(ctx)
@@ -97,7 +98,8 @@ func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, regi
 	}, nil
 }
 
-type ControllerServer struct {
+// ControllerServer denotes controller server.
+type ControllerServer struct { //revive:disable-line:exported
 	NodeID          string
 	Identity        string
 	Rack            string
@@ -106,6 +108,9 @@ type ControllerServer struct {
 	directcsiClient clientset.Interface
 }
 
+//revive:enable-line:exported
+
+// ControllerGetCapabilities returns this controller's capabilities.
 func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	controllerCap := func(cap csi.ControllerServiceCapability_RPC_Type) *csi.ControllerServiceCapability {
 		klog.V(4).Infof("Using controller capability %v", cap)
@@ -126,6 +131,7 @@ func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *c
 	}, nil
 }
 
+// ValidateVolumeCapabilities validates volume capabilities.
 func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	validateVolumeCapabilities := func() error {
 		vcaps := req.GetVolumeCapabilities()
@@ -189,7 +195,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			nil, nil, nil,
 		)
 		if err != nil {
-			return nil, status.Errorf(codes.NotFound, "could not retreive directcsidrives: %v", err)
+			return nil, status.Errorf(codes.NotFound, "could not retrieve directcsidrives: %v", err)
 		}
 
 		volFinalizer := directcsi.DirectCSIDriveFinalizerPrefix + name
@@ -369,6 +375,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 }
 
+// DeleteVolume handles delete volume request.
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	klog.V(3).InfoS("DeleteVolumeRequest", "name", req.GetVolumeId())
 	vID := req.GetVolumeId()
@@ -386,7 +393,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		if errors.IsNotFound(err) {
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		return nil, status.Errorf(codes.NotFound, "could not retreive volume [%s]: %v", vID, err)
+		return nil, status.Errorf(codes.NotFound, "could not retrieve volume [%s]: %v", vID, err)
 	}
 
 	// Do not proceed if the volume hasn't been unpublished or unstaged
@@ -424,38 +431,47 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
+// ListVolumes returns unimplemented error.
 func (c *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerPublishVolume returns unimplemented error.
 func (c *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerUnpublishVolume returns unimplemented error.
 func (c *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerExpandVolume returns unimplemented error.
 func (c *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerGetVolume returns unimplemented error.
 func (c *ControllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ListSnapshots returns unimplemented error.
 func (c *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// CreateSnapshot returns unimplemented error.
 func (c *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// DeleteSnapshot returns unimplemented error.
 func (c *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// GetCapacity returns unimplemented error.
 func (c *ControllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }

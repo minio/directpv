@@ -16,10 +16,12 @@
 
 package installer
 
+// DryRunFormat denotes dry run output format.
 type DryRunFormat string
 
+// DryRun output formats.
 const (
 	DryRunFormatUnknown DryRunFormat = ""
-	DryRunFormatYAML                 = "yaml"
-	DryRunFormatJSON                 = "json"
+	DryRunFormatYAML    DryRunFormat = "yaml"
+	DryRunFormatJSON    DryRunFormat = "json"
 )

@@ -16,6 +16,7 @@
 
 package utils
 
+// FmapStringSlice applies function on each value in slice.
 func FmapStringSlice(vs []string, f func(string) string) []string {
 	vsm := make([]string, len(vs))
 	for i, v := range vs {
@@ -24,6 +25,7 @@ func FmapStringSlice(vs []string, f func(string) string) []string {
 	return vsm
 }
 
+// FmapString applies function on each rune in string.
 func FmapString(str string, f func(rune) rune) string {
 	retStr := []rune{}
 	for _, v := range str {

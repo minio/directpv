@@ -30,24 +30,30 @@ const (
 	maxPageSize       = 64 * 1024
 )
 
+// Swap denotes swap filesystem.
 type Swap struct{}
 
+// ID returns empty string.
 func (swap *Swap) ID() string {
 	return ""
 }
 
+// Type returns "linux-swap".
 func (swap *Swap) Type() string {
 	return "linux-swap"
 }
 
+// TotalCapacity returns zero.
 func (swap *Swap) TotalCapacity() uint64 {
 	return 0
 }
 
+// FreeCapacity returns zero.
 func (swap *Swap) FreeCapacity() uint64 {
 	return 0
 }
 
+// Probe tries to probe swap filesystem.
 func Probe(reader io.Reader) (*Swap, error) {
 	// Refer https://github.com/karelzak/util-linux/blob/master/sys-utils/swapon.c#L426
 	// for more information for this logic.

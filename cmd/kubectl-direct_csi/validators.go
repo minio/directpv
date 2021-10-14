@@ -27,10 +27,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-type parseFunc func(r rune) (interface{}, bool, error)
-
 var (
-	ErrEndExpected     = fmt.Errorf("EOF expected")
+	errEndExpected     = fmt.Errorf("EOF expected")
 	validHostPortRegex = regexp.MustCompile(`^` + reference.DomainRegexp.String() + `$`)
 )
 
@@ -58,7 +56,7 @@ func validImage(img string) error {
 	var cont bool
 	var err error
 	for _, r := range img {
-		if err == ErrEndExpected {
+		if err == errEndExpected {
 			return err
 		}
 		next, cont, err = next.(func(r rune) (interface{}, bool, error))(r)
@@ -67,7 +65,7 @@ func validImage(img string) error {
 		}
 	}
 	if cont {
-		return ErrInvalid("[a-zA-Z_-:.0-9]", '~')
+		return errInvalid("[a-zA-Z_-:.0-9]", '~')
 	}
 	return nil
 }
@@ -78,7 +76,7 @@ func validOrg(org string) error {
 	var cont bool
 	var err error
 	for _, r := range org {
-		if err == ErrEndExpected {
+		if err == errEndExpected {
 			return err
 		}
 		next, cont, err = next.(func(r rune) (interface{}, bool, error))(r)
@@ -87,7 +85,7 @@ func validOrg(org string) error {
 		}
 	}
 	if cont {
-		return ErrInvalid("[a-zA-Z_-:.0-9]", '~')
+		return errInvalid("[a-zA-Z_-:.0-9]", '~')
 	}
 	return nil
 }
@@ -115,7 +113,7 @@ func validRegistry(registry string) error {
 	return nil
 }
 
-func ErrInvalid(expected string, r rune) error {
+func errInvalid(expected string, r rune) error {
 	if r == '~' {
 		return fmt.Errorf("expected %s, found EOF", expected)
 	}

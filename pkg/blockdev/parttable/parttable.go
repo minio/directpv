@@ -23,12 +23,17 @@ import (
 )
 
 var (
+	// ErrPartTableNotFound denotes partition table not found error.
 	ErrPartTableNotFound = errors.New("partition table not found")
-	ErrCancelled         = errors.New("cancelled by context")
+
+	// ErrCancelled denotes cancelled by context error.
+	ErrCancelled = errors.New("cancelled by context")
 )
 
+// PartType denotes partition type.
 type PartType int
 
+// Partition types.
 const (
 	Primary PartType = iota + 1
 	Extended

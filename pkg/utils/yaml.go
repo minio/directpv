@@ -22,6 +22,7 @@ import (
 	yamlFormatter "sigs.k8s.io/yaml"
 )
 
+// MustYAML converts value to YAML string.
 func MustYAML(obj interface{}) string {
 	y, err := ToYAML(obj)
 	if err != nil {
@@ -30,6 +31,7 @@ func MustYAML(obj interface{}) string {
 	return y
 }
 
+// ToYAML converts value to YAML string.
 func ToYAML(obj interface{}) (string, error) {
 	formattedObj, err := yamlFormatter.Marshal(obj)
 	if err != nil {
@@ -38,18 +40,16 @@ func ToYAML(obj interface{}) (string, error) {
 	return string(formattedObj), nil
 }
 
+// LogYAML prints value as YAML string to standard output.
 func LogYAML(obj interface{}) error {
 	y, err := ToYAML(obj)
 	if err != nil {
 		return err
 	}
-	PrintYaml(string(y))
-	return nil
-}
 
-func PrintYaml(data string) {
-	fmt.Print(data)
+	fmt.Print(string(y))
 	fmt.Println()
 	fmt.Println("---")
 	fmt.Println()
+	return nil
 }

@@ -36,6 +36,7 @@ func UUID2String(uuid [16]byte) string {
 	)
 }
 
+// SuperBlock denotes XFS superblock.
 type SuperBlock struct {
 	MagicNumber         uint32
 	BlockSize           uint32
@@ -72,22 +73,27 @@ type SuperBlock struct {
 	// Ignoring the rest
 }
 
+// ID returns filesystem UUID.
 func (sb *SuperBlock) ID() string {
 	return UUID2String(sb.UUID)
 }
 
+// Type returns "xfs".
 func (sb *SuperBlock) Type() string {
 	return "xfs"
 }
 
+// TotalCapacity returns total capacity of filesystem.
 func (sb *SuperBlock) TotalCapacity() uint64 {
 	return sb.TotalBlocks * uint64(sb.BlockSize)
 }
 
+// FreeCapacity returns free capacity of filesystem.
 func (sb *SuperBlock) FreeCapacity() uint64 {
 	return sb.FreeBlocks * uint64(sb.BlockSize)
 }
 
+// Probe tries to probe XFS superblock.
 func Probe(reader io.Reader) (*SuperBlock, error) {
 	var superBlock SuperBlock
 	if err := binary.Read(reader, binary.BigEndian, &superBlock); err != nil {

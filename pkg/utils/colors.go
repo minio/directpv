@@ -20,6 +20,7 @@ import (
 	"github.com/fatih/color"
 )
 
+// Color print functions.
 var (
 	Bold = color.New(color.Bold).SprintFunc()
 	Red  = color.New(color.FgRed).SprintFunc()

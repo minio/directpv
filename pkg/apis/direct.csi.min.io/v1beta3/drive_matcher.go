@@ -62,6 +62,7 @@ func AccessTiersToStrings(accessTiers []AccessTier) (slice []string) {
 	return slice
 }
 
+// MatchGlob does glob match of nodes/drives/statuses with drive's NodeName/Path/DriveStatus.
 func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 	return matcher.GlobMatchNodesDrivesStatuses(nodes, drives, status, drive.Status.NodeName, drive.Status.Path, string(drive.Status.DriveStatus))
 }

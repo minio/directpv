@@ -32,6 +32,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// MaxThreadCount is maximum thread count.
 const MaxThreadCount = 200
 
 var (
@@ -45,34 +46,42 @@ var (
 	metadataClient      metadata.Interface
 )
 
+// GetKubeClient gets kube client.
 func GetKubeClient() kubernetes.Interface {
 	return kubeClient
 }
 
+// GetDirectCSIClient gets direct-csi client.
 func GetDirectCSIClient() directcsi.DirectV1beta3Interface {
 	return directCSIClient
 }
 
+// GetDirectClientset gets direct-csi clientset.
 func GetDirectClientset() direct.Interface {
 	return directClientset
 }
 
+// GetAPIExtensionsClient gets API extension client.
 func GetAPIExtensionsClient() apiextensions.ApiextensionsV1Interface {
 	return apiextensionsClient
 }
 
+// GetCRDClient gets CRD client.
 func GetCRDClient() apiextensions.CustomResourceDefinitionInterface {
 	return crdClient
 }
 
+// GetDiscoveryClient gets discovery client.
 func GetDiscoveryClient() discovery.DiscoveryInterface {
 	return discoveryClient
 }
 
+// GetMetadataClient gets metadata client.
 func GetMetadataClient() metadata.Interface {
 	return metadataClient
 }
 
+// Init initializes various clients.
 func Init() {
 	if atomic.AddInt32(&initialized, 1) != 1 {
 		return

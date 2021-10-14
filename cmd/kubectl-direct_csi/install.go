@@ -75,7 +75,7 @@ func init() {
 	installCmd.PersistentFlags().BoolVarP(&enableDynamicDiscovery, "enable-dynamic-discovery", "", enableDynamicDiscovery, "Enable dynamic drive discovery")
 }
 
-func install(ctx context.Context, args []string) error {
+func install(ctx context.Context, args []string) (err error) {
 	if err := validImage(image); err != nil {
 		return fmt.Errorf("invalid argument. format of '--image' must be [image:tag] err=%v", err)
 	}
@@ -106,11 +106,12 @@ func install(ctx context.Context, args []string) error {
 		return fmt.Errorf("unable to get default audit directory ; %w", err)
 	}
 
-	defer func() error {
-		if err := file.Close(); err != nil {
-			return fmt.Errorf("unable to close the file ; %w", err)
+	defer func() {
+		if cerr := file.Close(); err != nil {
+			klog.Errorf("unable to close file; %w", cerr)
+		} else {
+			err = cerr
 		}
-		return nil
 	}()
 
 	if err := installer.CreateNamespace(ctx, identity, dryRun, file); err != nil {

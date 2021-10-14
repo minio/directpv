@@ -27,44 +27,44 @@ import (
 )
 
 const (
-	NVME_ADMIN_IDENTIFY = 0x06
+	nvmeAdminIdentify = 0x06
 )
 
 var (
-	NVME_IOCTL_ADMIN_CMD = ioctl.Iowr('N', 0x41, unsafe.Sizeof(nvmePassthruCommand{}))
+	nvmeIoctlAdminCmd = ioctl.Iowr('N', 0x41, unsafe.Sizeof(nvmePassthruCommand{}))
 )
 
-type NVMeDevice struct {
+type nvmeDevice struct {
 	Name string
 }
 
-func IsNVMEDevice(devPath string) bool {
+func isNVMEDevice(devPath string) bool {
 	return strings.HasPrefix(devPath, "/dev/nvme")
 }
 
-func NewNVMeDevice(name string) *NVMeDevice {
-	return &NVMeDevice{name}
+func newNVMeDevice(name string) *nvmeDevice {
+	return &nvmeDevice{name}
 }
 
 type nvmePassthruCommand struct {
-	opcode       uint8
-	flags        uint8
-	rsvd1        uint16
-	nsid         uint32
-	cdw2         uint32
-	cdw3         uint32
-	metadata     uint64
-	addr         uint64
-	metadata_len uint32
-	data_len     uint32
-	cdw10        uint32
-	cdw11        uint32
-	cdw12        uint32
-	cdw13        uint32
-	cdw14        uint32
-	cdw15        uint32
-	timeout_ms   uint32
-	result       uint32
+	opcode  uint8  // opcode
+	_       uint8  // flags
+	_       uint16 // rsvd1
+	nsid    uint32 // nsid
+	_       uint32 // cdw2
+	_       uint32 // cdw3
+	_       uint64 // metadata
+	addr    uint64 // addr
+	_       uint32 // metadataLen
+	dataLen uint32 // dataLen
+	cdw10   uint32 // cdw10
+	_       uint32 // cdw11
+	_       uint32 // cdw12
+	_       uint32 // cdw13
+	_       uint32 // cdw14
+	_       uint32 // cdw15
+	_       uint32 // timeoutMS
+	_       uint32 // result
 } // 72 bytes
 
 type nvmeIdentController struct {
@@ -84,7 +84,7 @@ type nvmeIdentController struct {
 	Oaes         uint32     // Optional Asynchronous Events Supported
 	Rsvd96       [160]byte  // ...
 	Oacs         uint16     // Optional Admin Command Support
-	Acl          uint8      // Abort Command Limit
+	ACL          uint8      // Abort Command Limit
 	Aerl         uint8      // Asynchronous Event Request Limit
 	Frmw         uint8      // Firmware Updates
 	Lpa          uint8      // Log Page Attributes
@@ -121,15 +121,15 @@ type nvmeIdentController struct {
 	// Vs           [1024]byte              // Vendor Specific
 } // 4096 bytes
 
-func (d *NVMeDevice) open() (int, error) {
+func (d *nvmeDevice) open() (int, error) {
 	return unix.Open(d.Name, unix.O_RDWR, 0600)
 }
 
-func (d *NVMeDevice) close(fd int) error {
+func (d *nvmeDevice) close(fd int) error {
 	return unix.Close(fd)
 }
 
-func (d *NVMeDevice) SerialNumber() (string, error) {
+func (d *nvmeDevice) SerialNumber() (string, error) {
 
 	fd, err := d.open()
 	if err != nil {
@@ -140,20 +140,22 @@ func (d *NVMeDevice) SerialNumber() (string, error) {
 	buf := make([]byte, 4096)
 
 	cmd := nvmePassthruCommand{
-		opcode:   NVME_ADMIN_IDENTIFY,
-		nsid:     0, // Namespace 0, since we are identifying the controller
-		addr:     uint64(uintptr(unsafe.Pointer(&buf[0]))),
-		data_len: uint32(len(buf)),
-		cdw10:    1, // Identify controller
+		opcode:  nvmeAdminIdentify,
+		nsid:    0, // Namespace 0, since we are identifying the controller
+		addr:    uint64(uintptr(unsafe.Pointer(&buf[0]))),
+		dataLen: uint32(len(buf)),
+		cdw10:   1, // Identify controller
 	}
 
-	if err := Ioctl(uintptr(fd), NVME_IOCTL_ADMIN_CMD, uintptr(unsafe.Pointer(&cmd))); err != nil {
+	if err := sysIOCTL(uintptr(fd), nvmeIoctlAdminCmd, uintptr(unsafe.Pointer(&cmd))); err != nil {
 		return "", err
 	}
 
 	var controller nvmeIdentController
 
-	binary.Read(bytes.NewBuffer(buf[:]), NativeEndian, &controller)
+	if err := binary.Read(bytes.NewBuffer(buf[:]), nativeEndian, &controller); err != nil {
+		return "", err
+	}
 
 	return string(controller.SerialNumber[:]), nil
 }

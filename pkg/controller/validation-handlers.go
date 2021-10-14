@@ -29,13 +29,12 @@ import (
 )
 
 const (
-	FailureStatus = "Failure"
-	SuccessStatus = "Success"
+	failureStatus = "Failure"
 	rootPath      = "/"
 	xfsFileSystem = "xfs"
 )
 
-type ValidationHandler struct {
+type validationHandler struct {
 }
 
 func parseAdmissionReview(req *http.Request) (admissionv1.AdmissionReview, error) {
@@ -43,7 +42,7 @@ func parseAdmissionReview(req *http.Request) (admissionv1.AdmissionReview, error
 	admissionReview := admissionv1.AdmissionReview{}
 
 	if req.Method != http.MethodPost {
-		return admissionReview, errors.New("Invalid HTTP Method")
+		return admissionReview, errors.New("invalid HTTP Method")
 	}
 
 	if req.Body != nil {
@@ -52,7 +51,7 @@ func parseAdmissionReview(req *http.Request) (admissionv1.AdmissionReview, error
 		}
 	}
 	if len(body) == 0 {
-		return admissionReview, errors.New("Request body empty")
+		return admissionReview, errors.New("request body empty")
 	}
 
 	if err := json.Unmarshal(body, &admissionReview); err != nil {
@@ -90,14 +89,14 @@ func validateRequestedFormat(directCSIDrive directcsi.DirectCSIDrive, admissionR
 		case directcsi.DriveStatusUnavailable:
 			admissionReview.Response.Allowed = false
 			admissionReview.Response.Result = &metav1.Status{
-				Status:  FailureStatus,
+				Status:  failureStatus,
 				Message: "Unavailable drives cannot be added/formatted",
 			}
 			return false
 		case directcsi.DriveStatusInUse:
 			admissionReview.Response.Allowed = false
 			admissionReview.Response.Result = &metav1.Status{
-				Status:  FailureStatus,
+				Status:  failureStatus,
 				Message: "Drives in-use cannot be formatted and added",
 			}
 			return false
@@ -120,7 +119,7 @@ func validateRequestedFormat(directCSIDrive directcsi.DirectCSIDrive, admissionR
 		case rootPath:
 			admissionReview.Response.Allowed = false
 			admissionReview.Response.Result = &metav1.Status{
-				Status:  FailureStatus,
+				Status:  failureStatus,
 				Message: "Root partition'ed drives cannot be added/formatted",
 			}
 			return false
@@ -128,7 +127,7 @@ func validateRequestedFormat(directCSIDrive directcsi.DirectCSIDrive, admissionR
 			if !requestedFormat.Force {
 				admissionReview.Response.Allowed = false
 				admissionReview.Response.Result = &metav1.Status{
-					Status:  FailureStatus,
+					Status:  failureStatus,
 					Message: "Force flag must be set to unmount and format the drive",
 				}
 				return false
@@ -152,7 +151,7 @@ func validateRequestedFormat(directCSIDrive directcsi.DirectCSIDrive, admissionR
 			if !requestedFormat.Force {
 				admissionReview.Response.Allowed = false
 				admissionReview.Response.Result = &metav1.Status{
-					Status:  FailureStatus,
+					Status:  failureStatus,
 					Message: "Force flag must be set to override the format and remount",
 				}
 				return false
@@ -161,18 +160,14 @@ func validateRequestedFormat(directCSIDrive directcsi.DirectCSIDrive, admissionR
 		default:
 			admissionReview.Response.Allowed = false
 			admissionReview.Response.Result = &metav1.Status{
-				Status:  FailureStatus,
+				Status:  failureStatus,
 				Message: "DirectCSI supports only xfs filesystem format",
 			}
 			return false
 		}
 	}
-	if !validateFS() {
-		return false
-	}
 
-	// All validations passed!
-	return true
+	return validateFS()
 }
 
 /* Validates the following admission rules
@@ -181,7 +176,7 @@ func validateRequestedFormat(directCSIDrive directcsi.DirectCSIDrive, admissionR
    - Check if requestedFormat is not set for a drive in-use
    - Check if force option is set if the drive has an existing filesystem or mountpoint
 */
-func (vh *ValidationHandler) validateDrive(w http.ResponseWriter, r *http.Request) {
+func (vh *validationHandler) validateDrive(w http.ResponseWriter, r *http.Request) {
 
 	admissionReview, err := parseAdmissionReview(r)
 	if err != nil {
@@ -213,7 +208,7 @@ func (vh *ValidationHandler) validateDrive(w http.ResponseWriter, r *http.Reques
 }
 
 // To-Do: Volume updates other than conditions shouldn't be allowed.
-func (vh *ValidationHandler) validateVolume(w http.ResponseWriter, r *http.Request) {
+func (vh *validationHandler) validateVolume(w http.ResponseWriter, r *http.Request) {
 
 	admissionReview, err := parseAdmissionReview(r)
 	if err != nil {

@@ -97,8 +97,8 @@ func (c *fakeDriveMounter) UnmountDrive(path string) error {
 	return nil
 }
 
-func createFakeDriveEventListener() *DriveEventHandler {
-	return &DriveEventHandler{
+func createFakeDriveEventListener() *driveEventHandler {
+	return &driveEventHandler{
 		kubeClient:      kubernetesfake.NewSimpleClientset(),
 		directCSIClient: clientsetfake.NewSimpleClientset(),
 		nodeID:          testNodeID,

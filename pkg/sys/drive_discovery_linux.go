@@ -548,7 +548,7 @@ func probeFS(device *Device) (fs.FS, error) {
 	fsInfo, err := fs.Probe(ctx, "/dev/"+device.Name)
 	if err != nil && device.Size > 0 {
 		switch {
-		case errors.Is(err, fserrors.ErrFSNotFound), errors.Is(err, fserrors.ErrCancelled), errors.Is(err, io.ErrUnexpectedEOF):
+		case errors.Is(err, fserrors.ErrFSNotFound), errors.Is(err, fserrors.ErrCanceled), errors.Is(err, io.ErrUnexpectedEOF):
 		default:
 			return nil, err
 		}
