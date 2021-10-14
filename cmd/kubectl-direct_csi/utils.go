@@ -48,13 +48,10 @@ const (
 	directCSIPartitionInfix = "-part-"
 )
 
-type migrateFunc func(ctx context.Context, fromVersion string) error
-
 var (
-	bold   = color.New(color.Bold).SprintFunc()
-	red    = color.New(color.FgRed).SprintFunc()
-	green  = color.New(color.FgGreen).SprintFunc()
-	yellow = color.New(color.FgYellow).SprintFunc()
+	bold  = color.New(color.Bold).SprintFunc()
+	red   = color.New(color.FgRed).SprintFunc()
+	green = color.New(color.FgGreen).SprintFunc()
 
 	globRegexp            = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
 	errMixedSelectorUsage = errors.New("either glob or ellipsis pattern is supported")
@@ -66,16 +63,6 @@ var ( // Default direct csi directory where direct csi audit logs are stored.
 	// Directory contains below files for audit logs
 	auditDir = "audit"
 )
-
-// ListVolumesInDrive returns a slice of all the DirectCSIVolumes created on a given DirectCSIDrive
-func ListVolumesInDrive(drive directcsi.DirectCSIDrive, volumes *directcsi.DirectCSIVolumeList, vols []directcsi.DirectCSIVolume) []directcsi.DirectCSIVolume {
-	for _, volume := range volumes.Items {
-		if volume.Status.Drive == drive.ObjectMeta.Name {
-			vols = append(vols, volume)
-		}
-	}
-	return vols
-}
 
 func printableString(s string) string {
 	if s == "" {

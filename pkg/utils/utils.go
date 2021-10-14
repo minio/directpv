@@ -20,7 +20,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
@@ -28,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// BoolToCondition converts boolean value to condition status.
 func BoolToCondition(val bool) metav1.ConditionStatus {
 	if val {
 		return metav1.ConditionTrue
@@ -35,36 +35,12 @@ func BoolToCondition(val bool) metav1.ConditionStatus {
 	return metav1.ConditionFalse
 }
 
-func defaultIfZero(left, right interface{}) interface{} {
-	lval := reflect.ValueOf(left)
-	if lval.IsZero() {
-		return right
-	}
-	return left
-}
-
-func DefaultIfZero(left, right interface{}) interface{} {
-	return defaultIfZero(left, right)
-}
-
+// DefaultIfZeroString returns string which is non empty of left or right.
 func DefaultIfZeroString(left, right string) string {
-	return defaultIfZero(left, right).(string)
-}
-
-func DefaultIfZeroInt(left, right int) int {
-	return defaultIfZero(left, right).(int)
-}
-
-func DefaultIfZeroInt64(left, right int64) int64 {
-	return defaultIfZero(left, right).(int64)
-}
-
-func DefaultIfZeroFloat(left, right float32) float32 {
-	return defaultIfZero(left, right).(float32)
-}
-
-func DefaultIfZeroFloat64(left, right float64) float64 {
-	return defaultIfZero(left, right).(float64)
+	if left != "" {
+		return left
+	}
+	return right
 }
 
 func getRootBlockFile(devName string) string {
@@ -83,6 +59,7 @@ func getRootBlockFile(devName string) string {
 	}
 }
 
+// GetDrivePath gets sanitized drive path.
 func GetDrivePath(drive *directcsi.DirectCSIDrive) string {
 	return getRootBlockFile(drive.Status.Path)
 }

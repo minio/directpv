@@ -61,17 +61,21 @@ func getCerts(dnsNames []string) (caCertBytes, publicCertBytes, privateKeyBytes 
 
 	// pem encode
 	caPEM := new(bytes.Buffer)
-	pem.Encode(caPEM, &pem.Block{
+	if err := pem.Encode(caPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: caBytes,
-	})
+	}); err != nil {
+		return nil, nil, nil, err
+	}
 	caCertBytes = caPEM.Bytes()
 
 	caPrivKeyPEM := new(bytes.Buffer)
-	pem.Encode(caPrivKeyPEM, &pem.Block{
+	if err := pem.Encode(caPrivKeyPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(caPrivKey),
-	})
+	}); err != nil {
+		return nil, nil, nil, err
+	}
 
 	// set up our server certificate
 	cert := &x509.Certificate{
@@ -103,17 +107,21 @@ func getCerts(dnsNames []string) (caCertBytes, publicCertBytes, privateKeyBytes 
 	}
 
 	certPEM := new(bytes.Buffer)
-	pem.Encode(certPEM, &pem.Block{
+	if err := pem.Encode(certPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certBytes,
-	})
+	}); err != nil {
+		return nil, nil, nil, err
+	}
 	publicCertBytes = certPEM.Bytes()
 
 	certPrivKeyPEM := new(bytes.Buffer)
-	pem.Encode(certPrivKeyPEM, &pem.Block{
+	if err := pem.Encode(certPrivKeyPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(certPrivKey),
-	})
+	}); err != nil {
+		return nil, nil, nil, err
+	}
 	privateKeyBytes = certPrivKeyPEM.Bytes()
 
 	return

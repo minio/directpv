@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"reflect"
 	"sort"
 
 	"github.com/minio/direct-csi/pkg/utils"
@@ -97,16 +96,4 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 		return err
 	}
 	return nil
-}
-
-func CheckStatusEquality(existingConditions, newConditions []metav1.Condition) bool {
-	extractStatuses := func(conds []metav1.Condition) []metav1.ConditionStatus {
-		condStatuses := []metav1.ConditionStatus{}
-		for _, cond := range conds {
-			condStatuses = append(condStatuses, cond.Status)
-		}
-		return condStatuses
-	}
-
-	return reflect.DeepEqual(extractStatuses(existingConditions), extractStatuses(newConditions))
 }

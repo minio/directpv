@@ -48,7 +48,7 @@ const (
 )
 
 var (
-	errInvalidConversionHealthzURL = errors.New("The `--conversion-webhook-healthz-url` flag is unset/empty")
+	errInvalidConversionHealthzURL = errors.New("the `--conversion-webhook-healthz-url` flag is unset/empty")
 )
 
 func waitForConversionWebhook() error {
@@ -150,7 +150,7 @@ func run(ctx context.Context, args []string) error {
 			return err
 		}
 		if err := discovery.Init(ctx, loopBackOnly); err != nil {
-			return fmt.Errorf("Error while initializing drive discovery: %v", err)
+			return fmt.Errorf("error while initializing drive discovery: %v", err)
 		}
 		klog.V(3).Infof("Drive discovery finished")
 

@@ -27,14 +27,19 @@ import (
 )
 
 const (
-	port              = "30443"
-	certPath          = "/etc/conversion/certs/cert.pem"
-	keyPath           = "/etc/conversion/certs/key.pem"
-	DriveHandlerPath  = "/convertdrive"
+	port        = "30443"
+	certPath    = "/etc/conversion/certs/cert.pem"
+	keyPath     = "/etc/conversion/certs/key.pem"
+	healthzPath = "/healthz"
+
+	// DriveHandlerPath denotes drive conversion URI.
+	DriveHandlerPath = "/convertdrive"
+
+	// VolumeHandlerPath denotes volume conversion URI.
 	VolumeHandlerPath = "/convertvolume"
-	healthzPath       = "/healthz"
 )
 
+// ServeConversionWebhook starts conversion webhook service.
 func ServeConversionWebhook(ctx context.Context) error {
 	certs, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
@@ -52,8 +57,8 @@ func ServeConversionWebhook(ctx context.Context) error {
 
 	// define http server and server handler
 	mux := http.NewServeMux()
-	mux.HandleFunc(DriveHandlerPath, ServeDriveConversion)
-	mux.HandleFunc(VolumeHandlerPath, ServeVolumeConversion)
+	mux.HandleFunc(DriveHandlerPath, serveDriveConversion)
+	mux.HandleFunc(VolumeHandlerPath, serveVolumeConversion)
 	mux.HandleFunc(healthzPath, LivenessCheckHandler)
 	server.Handler = mux
 

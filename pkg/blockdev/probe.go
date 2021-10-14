@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/minio/direct-csi/pkg/blockdev/gpt"
@@ -38,7 +39,7 @@ func probe(devFile *os.File) (parttable.PartTable, error) {
 		return nil, err
 	}
 
-	if _, err = devFile.Seek(512, os.SEEK_SET); err != nil {
+	if _, err = devFile.Seek(512, io.SeekStart); err != nil {
 		return nil, err
 	}
 

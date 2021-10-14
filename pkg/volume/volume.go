@@ -36,21 +36,21 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type VolumeEventHandler struct {
+type volumeEventHandler struct {
 	kubeClient      kubernetes.Interface
 	directCSIClient clientset.Interface
 	nodeID          string
 }
 
-func NewVolumeEventHandler(nodeID string) *VolumeEventHandler {
-	return &VolumeEventHandler{
+func newVolumeEventHandler(nodeID string) *volumeEventHandler {
+	return &volumeEventHandler{
 		directCSIClient: utils.GetDirectClientset(),
 		kubeClient:      utils.GetKubeClient(),
 		nodeID:          nodeID,
 	}
 }
 
-func (handler *VolumeEventHandler) ListerWatcher() cache.ListerWatcher {
+func (handler *volumeEventHandler) ListerWatcher() cache.ListerWatcher {
 	labelSelector := ""
 	if handler.nodeID != "" {
 		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabel, utils.SanitizeLabelV(handler.nodeID))
@@ -68,19 +68,19 @@ func (handler *VolumeEventHandler) ListerWatcher() cache.ListerWatcher {
 	)
 }
 
-func (handler *VolumeEventHandler) KubeClient() kubernetes.Interface {
+func (handler *volumeEventHandler) KubeClient() kubernetes.Interface {
 	return handler.kubeClient
 }
 
-func (handler *VolumeEventHandler) Name() string {
+func (handler *volumeEventHandler) Name() string {
 	return "volume"
 }
 
-func (handler *VolumeEventHandler) ObjectType() runtime.Object {
+func (handler *volumeEventHandler) ObjectType() runtime.Object {
 	return &directcsi.DirectCSIVolume{}
 }
 
-func (handler *VolumeEventHandler) releaseVolume(ctx context.Context, driveName, volumeName string, capacity int64) error {
+func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName, volumeName string, capacity int64) error {
 	drive, err := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Get(
 		ctx, driveName, metav1.GetOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -115,12 +115,12 @@ func (handler *VolumeEventHandler) releaseVolume(ctx context.Context, driveName,
 	return err
 }
 
-func (handler *VolumeEventHandler) delete(ctx context.Context, volume *directcsi.DirectCSIVolume) error {
+func (handler *volumeEventHandler) delete(ctx context.Context, volume *directcsi.DirectCSIVolume) error {
 	finalizers, _ := utils.ExcludeFinalizer(
 		volume.GetFinalizers(), string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
 	)
 	if len(finalizers) > 0 {
-		return fmt.Errorf("Waiting for the volume to be released before cleaning up")
+		return fmt.Errorf("waiting for the volume to be released before cleaning up")
 	}
 
 	// Remove associated directory of the volume.
@@ -143,7 +143,7 @@ func (handler *VolumeEventHandler) delete(ctx context.Context, volume *directcsi
 	return err
 }
 
-func (handler *VolumeEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
+func (handler *volumeEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
 	if args.Event == listener.DeleteEvent {
 		return handler.delete(ctx, args.Object.(*directcsi.DirectCSIVolume))
 	}
@@ -151,13 +151,14 @@ func (handler *VolumeEventHandler) Handle(ctx context.Context, args listener.Eve
 	return nil
 }
 
+// StartController starts volume controller.
 func StartController(ctx context.Context, nodeID string) error {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
 	}
 
-	listener := listener.NewListener(NewVolumeEventHandler(nodeID), "volume-controller", hostname, 40)
+	listener := listener.NewListener(newVolumeEventHandler(nodeID), "volume-controller", hostname, 40)
 	return listener.Run(ctx)
 }
 
@@ -192,6 +193,7 @@ func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[strin
 	return labels
 }
 
+// SyncVolumes syncs direct-csi volume CRD.
 func SyncVolumes(ctx context.Context, nodeID string) {
 	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
 

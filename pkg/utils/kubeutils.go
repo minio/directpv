@@ -35,11 +35,11 @@ import (
 )
 
 const (
-	// 127 or \u007f is the DEL character
+	// DEL character i.e. 127 or \u007f.
 	DEL rune = 127
 )
 
-func SafeGetLabels(obj metav1.Object) map[string]string {
+func safeGetLabels(obj metav1.Object) map[string]string {
 	l := obj.GetLabels()
 	if l == nil {
 		return map[string]string{}
@@ -47,35 +47,38 @@ func SafeGetLabels(obj metav1.Object) map[string]string {
 	return l
 }
 
+// UpdateLabels updates labels in object.
 func UpdateLabels(obj metav1.Object, labelKVs ...string) {
-	labels := SafeGetLabels(obj)
+	labels := safeGetLabels(obj)
 	for i := 0; i < len(labelKVs); i += 2 {
 		k := labelKVs[i]
 		v := ""
 		if len(labelKVs) > i+1 {
 			v = labelKVs[i+1]
 		}
-		sk, sv := SanitizeLabelKV(k, v)
+		sk, sv := sanitizeLabelKV(k, v)
 		labels[sk] = sv
 	}
 	obj.SetLabels(labels)
 }
 
+// GetLabelV gets label value.
 func GetLabelV(obj metav1.Object, key string) string {
-	l := SafeGetLabels(obj)
+	l := safeGetLabels(obj)
 	return l[key]
 }
 
+// SetLabelKV sets label key/value in given object.
 func SetLabelKV(obj metav1.Object, key, value string) {
-	labels := SafeGetLabels(obj)
+	labels := safeGetLabels(obj)
 
-	sk, sv := SanitizeLabelKV(key, value)
+	sk, sv := sanitizeLabelKV(key, value)
 	labels[sk] = sv
 
 	obj.SetLabels(labels)
 }
 
-// NewObjectMeta - creates a new TypeMeta
+// NewTypeMeta - creates a new TypeMeta
 // upcoming:
 //   - verify API group/version/kind
 //   - verify that kubernetes backend support group/version/kind (use discovery client)
@@ -99,9 +102,9 @@ func NewObjectMeta(
 	return metav1.ObjectMeta{
 		Name:            SanitizeKubeResourceName(name),
 		Namespace:       SanitizeKubeResourceName(namespace),
-		Annotations:     SanitizeLabelMap(annotations),
-		Labels:          SanitizeLabelMap(labels),
-		Finalizers:      SanitizeFinalizers(finalizers),
+		Annotations:     sanitizeLabelMap(annotations),
+		Labels:          sanitizeLabelMap(labels),
+		Finalizers:      sanitizeFinalizers(finalizers),
 		OwnerReferences: ownerRefs,
 	}
 }
@@ -186,7 +189,7 @@ func SanitizeKubeResourceName(name string) string {
 //
 // WARNING: This function will truncate to 63 bytes if the input is longer
 func SanitizeLabelV(value string) string {
-	_, v := SanitizeLabelKV("", value)
+	_, v := sanitizeLabelKV("", value)
 	return v
 }
 
@@ -199,11 +202,11 @@ func SanitizeLabelV(value string) string {
 //
 // WARNING: This function will truncate to 63 bytes if the input is longer
 func SanitizeLabelK(key string) string {
-	k, _ := SanitizeLabelKV(key, "")
+	k, _ := sanitizeLabelKV(key, "")
 	return k
 }
 
-func SanitizeLabelKV(key, value string) (string, string) {
+func sanitizeLabelKV(key, value string) (string, string) {
 	// charFmt - [A-Za-z0-9]
 	sanitizeCharFmt := func(r rune) rune {
 		if r >= 'A' && r <= 'Z' {
@@ -265,10 +268,9 @@ func SanitizeLabelKV(key, value string) (string, string) {
 			if r == '/' {
 				if separatorFound {
 					return '-'
-				} else {
-					separatorFound = true
-					return r
 				}
+				separatorFound = true
+				return r
 			}
 
 			return sanitizeExtCharFmt(r)
@@ -306,17 +308,17 @@ func SanitizeLabelKV(key, value string) (string, string) {
 	return FmapString(key, sanitizeKeyFn(len(key))), FmapString(value, sanitizeValFn(len(value)))
 }
 
-func SanitizeLabelMap(kvMap map[string]string) map[string]string {
+func sanitizeLabelMap(kvMap map[string]string) map[string]string {
 	retMap := map[string]string{}
 
 	for k, v := range kvMap {
-		sk, sv := SanitizeLabelKV(k, v)
+		sk, sv := sanitizeLabelKV(k, v)
 		retMap[sk] = sv
 	}
 	return retMap
 }
 
-func SanitizeFinalizers(finalizers []string) []string {
+func sanitizeFinalizers(finalizers []string) []string {
 	uniq := map[string]struct{}{}
 
 	for _, f := range finalizers {
@@ -351,11 +353,13 @@ func getKubeConfig() (*rest.Config, string, error) {
 	return config, "", nil
 }
 
+// GetKubeConfig gets kubernetes configuration.
 func GetKubeConfig() (*rest.Config, error) {
 	config, _, err := getKubeConfig()
 	return config, err
 }
 
+// GetGroupKindVersions gets group/version/kind of given versions.
 func GetGroupKindVersions(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
 	discoveryClient := GetDiscoveryClient()
 	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)

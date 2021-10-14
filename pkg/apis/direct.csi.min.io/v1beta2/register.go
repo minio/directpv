@@ -23,7 +23,10 @@ import (
 )
 
 const (
-	Group   = "direct.csi.min.io"
+	// Group denotes group name.
+	Group = "direct.csi.min.io"
+
+	// Version denotes API version.
 	Version = "v1beta2"
 )
 

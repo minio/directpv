@@ -88,10 +88,7 @@ func volumeUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) err
 
 	getReadyCondition := func() metav1.Condition {
 		isVolumeStaged := func() bool {
-			if v1beta1DirectCSIVolume.Status.StagingPath != "" {
-				return true
-			}
-			return false
+			return v1beta1DirectCSIVolume.Status.StagingPath != ""
 		}()
 
 		return metav1.Condition{
@@ -99,16 +96,14 @@ func volumeUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) err
 			Status: func() metav1.ConditionStatus {
 				if isVolumeStaged {
 					return metav1.ConditionTrue
-				} else {
-					return metav1.ConditionFalse
 				}
+				return metav1.ConditionFalse
 			}(),
 			Reason: func() string {
 				if isVolumeStaged {
 					return string(directv1beta1.DirectCSIVolumeReasonReady)
-				} else {
-					return string(directv1beta1.DirectCSIVolumeReasonNotReady)
 				}
+				return string(directv1beta1.DirectCSIVolumeReasonNotReady)
 			}(),
 			Message:            "",
 			LastTransitionTime: metav1.Now(),

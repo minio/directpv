@@ -38,12 +38,13 @@ var (
 	defaultAnnotations = map[string]string{}
 )
 
+// Installer is installer interface
 type Installer interface {
 	Install(context.Context) error
 	Uninstall(context.Context) error
 }
 
-type InstallConfig struct {
+type installConfig struct {
 	Identity string
 
 	// DirectCSIContainerImage properties
@@ -62,89 +63,20 @@ type InstallConfig struct {
 	// dry-run properties
 	DryRun       bool
 	DryRunFormat DryRunFormat
-
-	// internal
-	initialized bool
 }
 
-func NewInstallConfig(identity string) *InstallConfig {
-	return &InstallConfig{
-		Identity: identity,
-	}
-}
-
-func (i *InstallConfig) SetIdentity(identity string) {
-	i.Identity = identity
-}
-
-func (i *InstallConfig) GetIdentity() string {
+func (i *installConfig) GetIdentity() string {
 	return i.Identity
 }
 
-func (i *InstallConfig) GetCSIProvisionerImage() string {
-	return utils.DefaultIfZeroString(i.CSIProvisionerImage, CSIImageCSIProvisioner)
-}
-
-func (i *InstallConfig) SetNodeDriverRegistrarImage(nodeDriverRegistrarImage string) {
-	i.NodeDriverRegistrarImage = nodeDriverRegistrarImage
-}
-
-func (i *InstallConfig) GetNodeDriverRegistrarImage() string {
-	return utils.DefaultIfZeroString(i.NodeDriverRegistrarImage, CSIImageNodeDriverRegistrar)
-}
-
-func (i *InstallConfig) SetLivenessProbeImage(livenessProbeImage string) {
-	i.LivenessProbeImage = livenessProbeImage
-}
-
-func (i *InstallConfig) GetLivenessProbeImage() string {
-	return utils.DefaultIfZeroString(i.LivenessProbeImage, CSIImageLivenessProbe)
-}
-
-func (i *InstallConfig) SetDirectCSIContainerImage(directCSIContainerImage string) {
-	i.DirectCSIContainerImage = directCSIContainerImage
-}
-
-func (i *InstallConfig) GetDirectCSIContainerImage() string {
-	return i.DirectCSIContainerImage
-}
-
-func (i *InstallConfig) SetDirectCSIContainerOrg(directCSIContainerOrg string) {
-	i.DirectCSIContainerOrg = directCSIContainerOrg
-}
-
-func (i *InstallConfig) GetDirectCSIContainerOrg() string {
-	return i.DirectCSIContainerOrg
-}
-
-func (i *InstallConfig) SetDirectCSIContainerRegistry(directCSIContainerRegistry string) {
-	i.DirectCSIContainerRegistry = directCSIContainerRegistry
-}
-
-func (i *InstallConfig) GetDirectCSIContainerRegistry() string {
-	return i.DirectCSIContainerRegistry
-}
-
-func (i *InstallConfig) SetDryRun() {
-	i.DryRun = true
-}
-
-func (i *InstallConfig) UnsetDryRun() {
-	i.DryRun = false
-}
-
-func (i *InstallConfig) SetDryRunFormat(format DryRunFormat) {
-	i.DryRunFormat = format
-}
-
-func (i *InstallConfig) GetDryRunFormat() DryRunFormat {
+func (i *installConfig) GetDryRunFormat() DryRunFormat {
 	if i.DryRunFormat == "" {
 		return DryRunFormatYAML
 	}
 	return i.DryRunFormat
 }
 
-func (i *InstallConfig) PostProc(obj interface{}) error {
+func (i *installConfig) PostProc(obj interface{}) error {
 	if i.DryRun {
 		var format func(interface{}) string
 		dryRunFormat := i.GetDryRunFormat()
@@ -161,7 +93,7 @@ func (i *InstallConfig) PostProc(obj interface{}) error {
 	return nil
 }
 
-func (i *InstallConfig) getDryRunDirectives() []string {
+func (i *installConfig) getDryRunDirectives() []string {
 	if i.DryRun {
 		return []string{
 			metav1.DryRunAll,

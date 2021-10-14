@@ -21,6 +21,9 @@ package errors
 import "errors"
 
 var (
+	// ErrFSNotFound denotes filesystem not found error.
 	ErrFSNotFound = errors.New("filesystem not found")
-	ErrCancelled  = errors.New("cancelled by context")
+
+	// ErrCanceled denotes canceled by context error.
+	ErrCanceled = errors.New("canceled by context")
 )

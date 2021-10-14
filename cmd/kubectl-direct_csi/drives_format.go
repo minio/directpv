@@ -30,7 +30,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const XFS = "xfs"
+const xfs = "xfs"
 
 var (
 	force = false
@@ -137,7 +137,7 @@ func formatDrives(ctx context.Context, IDArgs []string) error {
 		func(drive *directcsi.DirectCSIDrive) error {
 			drive.Spec.DirectCSIOwned = true
 			drive.Spec.RequestedFormat = &directcsi.RequestedFormat{
-				Filesystem: XFS,
+				Filesystem: xfs,
 				Force:      force,
 			}
 			return nil

@@ -50,7 +50,7 @@ const (
 	mb10 = 10 * MB
 
 	metricStatsBytesUsed  metricType = "directcsi_stats_bytes_used"
-	metricStatsBytesTotal            = "directcsi_stats_bytes_total"
+	metricStatsBytesTotal metricType = "directcsi_stats_bytes_total"
 )
 
 func createFakeMetricsCollector() *metricsCollector {
@@ -102,8 +102,8 @@ func TestVolumeStatsEmitter(t *testing.T) {
 		}
 	}
 
-	testStatsGetter := func(_ context.Context, vol *directcsi.DirectCSIVolume) (XFSVolumeStats, error) {
-		return XFSVolumeStats{
+	testStatsGetter := func(_ context.Context, vol *directcsi.DirectCSIVolume) (xfsVolumeStats, error) {
+		return xfsVolumeStats{
 			TotalBytes:     uint64(vol.Status.TotalCapacity),
 			UsedBytes:      uint64(vol.Status.UsedCapacity),
 			AvailableBytes: uint64(vol.Status.TotalCapacity - vol.Status.UsedCapacity),
@@ -138,7 +138,9 @@ func TestVolumeStatsEmitter(t *testing.T) {
 					return
 				}
 				metricOut := dto.Metric{}
-				metric.Write(&metricOut)
+				if err := metric.Write(&metricOut); err != nil {
+					(*t).Fatal(err)
+				}
 				volumeName := getVolumeNameFromLabelPair(metricOut.GetLabel())
 				mt := metricType(getFQNameFromDesc(metric.Desc().String()))
 				switch mt {
@@ -147,7 +149,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 					})
 					if gErr != nil {
-						t.Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
+						(*t).Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
 					}
 					if int64(volObj.Status.UsedCapacity) != int64(*metricOut.Gauge.Value) {
 						t.Errorf("Expected Used capacity: %v But got %v", int64(volObj.Status.UsedCapacity), int64(*metricOut.Gauge.Value))
@@ -157,7 +159,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 					})
 					if gErr != nil {
-						t.Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
+						(*t).Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
 					}
 					if int64(volObj.Status.TotalCapacity) != int64(*metricOut.Gauge.Value) {
 						t.Errorf("Expected Total capacity: %v But got %v", int64(volObj.Status.TotalCapacity), int64(*metricOut.Gauge.Value))

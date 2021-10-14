@@ -28,13 +28,13 @@ import (
 
 // formatDrive - Idempotent function to format a DirectCSIDrive
 func formatDrive(ctx context.Context, uuid, path string, force bool) error {
-	output, err := Format(ctx, path, string(FSTypeXFS), []string{"-i", "maxpct=50"}, force)
+	output, err := format(ctx, path, string(FSTypeXFS), []string{"-i", "maxpct=50"}, force)
 	if err != nil {
 		klog.Errorf("failed to format drive: %s", output)
 		return fmt.Errorf("error while formatting: %v output: %s", err, output)
 	}
 	if uuid != "" {
-		output, err = SetXFSUUID(ctx, uuid, path)
+		output, err = setXFSUUID(ctx, uuid, path)
 		if err != nil {
 			klog.Errorf("failed to set uuid after formatting: %s", output)
 			return fmt.Errorf("error while setting uuid: %v output: %s", err, output)
@@ -43,17 +43,21 @@ func formatDrive(ctx context.Context, uuid, path string, force bool) error {
 	return nil
 }
 
+// DriveFormatter denotes filesystem making interface.
 type DriveFormatter interface {
 	FormatDrive(ctx context.Context, uuid, path string, force bool) error
 	MakeBlockFile(path string, major, minor uint32) error
 }
 
+// DefaultDriveFormatter is a default filesystem making interface.
 type DefaultDriveFormatter struct{}
 
+// FormatDrive makes XFS filesystem on given device.
 func (c *DefaultDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
 	return formatDrive(ctx, uuid, path, force)
 }
 
+// MakeBlockFile creates device file by it's major/minor number.
 func MakeBlockFile(path string, major, minor uint32) error {
 	mknod := func(path string, major, minor uint32) error {
 		return unix.Mknod(path, unix.S_IFBLK|0666, int(unix.Mkdev(major, minor)))
@@ -80,6 +84,7 @@ func MakeBlockFile(path string, major, minor uint32) error {
 	return mknod(path, major, minor)
 }
 
+// MakeBlockFile creates device file by it's major/minor number.
 func (c *DefaultDriveFormatter) MakeBlockFile(path string, major, minor uint32) error {
 	return MakeBlockFile(path, major, minor)
 }

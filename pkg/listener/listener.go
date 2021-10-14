@@ -70,6 +70,7 @@ func newRateLimitingQueue() workqueue.RateLimitingInterface {
 	)
 }
 
+// EventHandler is type of any compatible event handler.
 type EventHandler interface {
 	ListerWatcher() cache.ListerWatcher
 	KubeClient() kubernetes.Interface
@@ -78,8 +79,10 @@ type EventHandler interface {
 	Handle(ctx context.Context, args EventArgs) error
 }
 
+// EventType denotes type of event.
 type EventType int
 
+// Event types.
 const (
 	AddEvent EventType = iota + 1
 	UpdateEvent
@@ -98,6 +101,7 @@ func (et EventType) String() string {
 	return ""
 }
 
+// EventArgs denotes event arguments.
 type EventArgs struct {
 	Event     EventType
 	Key       string
@@ -105,6 +109,7 @@ type EventArgs struct {
 	OldObject interface{}
 }
 
+// Listener is event listener.
 type Listener struct {
 	handler EventHandler
 
@@ -127,6 +132,7 @@ type Listener struct {
 	indexer     cache.Indexer
 }
 
+// NewListener creates new listener with provided event handler.
 func NewListener(handler EventHandler, identity, leaderLock string, threadiness int) *Listener {
 	if identity == "" {
 		identity = leaderLock
@@ -202,12 +208,18 @@ func (listener *Listener) processNextItem(ctx context.Context) bool {
 	err := listener.handler.Handle(ctx, args)
 	switch args.Event {
 	case AddEvent:
-		listener.indexer.Add(args.Object)
+		if err := listener.indexer.Add(args.Object); err != nil {
+			klog.Error(err)
+		}
 	case UpdateEvent:
-		listener.indexer.Update(args.Object)
+		if err := listener.indexer.Update(args.Object); err != nil {
+			klog.Error(err)
+		}
 	case DeleteEvent:
 		if err == nil {
-			listener.indexer.Delete(args.Object)
+			if err := listener.indexer.Delete(args.Object); err != nil {
+				klog.Error(err)
+			}
 			listener.eventMap.Delete(uuid)
 		}
 	}
@@ -327,6 +339,7 @@ func (listener *Listener) runController(ctx context.Context) {
 	<-ctx.Done()
 }
 
+// Run starts this listener.
 func (listener *Listener) Run(ctx context.Context) error {
 	id, err := os.Hostname()
 	if err != nil {

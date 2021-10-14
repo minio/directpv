@@ -33,7 +33,7 @@ func prepareBackingFile(loopDevNum uint64) (string, error) {
 }
 
 func getDeviceFileName(ldNumber uint64) string {
-	fileName := fmt.Sprintf(LoopDeviceFormat, ldNumber)
+	fileName := fmt.Sprintf(loopDeviceFormat, ldNumber)
 	return fileName
 }
 
@@ -44,18 +44,18 @@ func checkIfBackingFileAttached(ldNumber uint64) (bool, error) {
 	}
 
 	hasFileNameAttached := func() bool {
-		emptyFileNameinB := [NameSize]byte{}
-		return bytes.Compare(emptyFileNameinB[:], info.FileName[:]) != 0
+		emptyFileNameinB := [nameSize]byte{}
+		return !bytes.Equal(emptyFileNameinB[:], info.FileName[:])
 	}()
 
 	return hasFileNameAttached, nil
 }
 
-func getInfoFromLDNumber(ldNumber uint64) (LoopInfo, error) {
+func getInfoFromLDNumber(ldNumber uint64) (loopInfo, error) {
 	devFile := getDeviceFileName(ldNumber)
 	loopFile, err := os.OpenFile(devFile, os.O_RDWR, 0660)
 	if err != nil {
-		return LoopInfo{}, fmt.Errorf("could not open loop device: %v", err)
+		return loopInfo{}, fmt.Errorf("could not open loop device: %v", err)
 	}
 	defer loopFile.Close()
 

@@ -25,21 +25,22 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// NewIdentityServer creates new identity server.
 func NewIdentityServer(ident, version string, manifest map[string]string) (csi.IdentityServer, error) {
-	return &IdentityServer{
+	return &identityServer{
 		Identity: ident,
 		Version:  version,
 		Manifest: manifest,
 	}, nil
 }
 
-type IdentityServer struct {
+type identityServer struct {
 	Identity string
 	Version  string
 	Manifest map[string]string
 }
 
-func (i *IdentityServer) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
+func (i *identityServer) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	if i.Identity == "" {
 		return nil, status.Error(codes.Unavailable, "Driver name not configured")
 	}
@@ -54,11 +55,11 @@ func (i *IdentityServer) GetPluginInfo(ctx context.Context, req *csi.GetPluginIn
 	}, nil
 }
 
-func (i *IdentityServer) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
+func (i *identityServer) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
 	return &csi.ProbeResponse{}, nil
 }
 
-func (i *IdentityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
+func (i *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	serviceCap := func(cap csi.PluginCapability_Service_Type) *csi.PluginCapability {
 		klog.V(5).Infof("Using plugin capability %v", cap)
 

@@ -25,12 +25,14 @@ import (
 	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
 )
 
+// Quota denotes XFS quota information.
 type Quota struct {
 	HardLimit    uint64
 	SoftLimit    uint64
 	CurrentSpace uint64
 }
 
+// GetQuota returns XFS quota information of given volume ID.
 func GetQuota(ctx context.Context, device, volumeID string) (quota *Quota, err error) {
 	doneCh := make(chan struct{})
 	go func() {
@@ -40,13 +42,14 @@ func GetQuota(ctx context.Context, device, volumeID string) (quota *Quota, err e
 
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("%w; %v", fserrors.ErrCancelled, ctx.Err())
+		return nil, fmt.Errorf("%w; %v", fserrors.ErrCanceled, ctx.Err())
 	case <-doneCh:
 	}
 
 	return quota, err
 }
 
+// SetQuota sets quota information on given path and volume ID.
 func SetQuota(ctx context.Context, device, path, volumeID string, quota Quota) (err error) {
 	doneCh := make(chan struct{})
 	go func() {
@@ -56,7 +59,7 @@ func SetQuota(ctx context.Context, device, path, volumeID string, quota Quota) (
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("%w; %v", fserrors.ErrCancelled, ctx.Err())
+		return fmt.Errorf("%w; %v", fserrors.ErrCanceled, ctx.Err())
 	case <-doneCh:
 	}
 

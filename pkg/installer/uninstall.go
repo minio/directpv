@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// DeleteNamespace deletes direct-csi namespace.
 func DeleteNamespace(ctx context.Context, identity string) error {
 	// Delete Namespace Obj
 	if err := utils.GetKubeClient().CoreV1().Namespaces().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{}); err != nil {
@@ -33,6 +34,7 @@ func DeleteNamespace(ctx context.Context, identity string) error {
 	return nil
 }
 
+// DeleteCSIDriver deletes direct-csi driver.
 func DeleteCSIDriver(ctx context.Context, identity string) error {
 	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
@@ -57,6 +59,7 @@ func DeleteCSIDriver(ctx context.Context, identity string) error {
 	return nil
 }
 
+// DeleteStorageClass deletes storage class.
 func DeleteStorageClass(ctx context.Context, identity string) error {
 	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
@@ -78,6 +81,7 @@ func DeleteStorageClass(ctx context.Context, identity string) error {
 	return nil
 }
 
+// DeleteService deletes service.
 func DeleteService(ctx context.Context, identity string) error {
 	if err := utils.GetKubeClient().CoreV1().Services(utils.SanitizeKubeResourceName(identity)).Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{}); err != nil {
 		return err
@@ -85,6 +89,7 @@ func DeleteService(ctx context.Context, identity string) error {
 	return nil
 }
 
+// DeleteDaemonSet deletes direct-csi daemonset.
 func DeleteDaemonSet(ctx context.Context, identity string) error {
 	if err := utils.GetKubeClient().AppsV1().DaemonSets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{}); err != nil {
 		return err
@@ -92,15 +97,16 @@ func DeleteDaemonSet(ctx context.Context, identity string) error {
 	return nil
 }
 
+// DeleteDriveValidationRules deletes drive validation rules.
 func DeleteDriveValidationRules(ctx context.Context, identity string) error {
 	vClient := utils.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations()
 
 	getDeleteProtectionFinalizer := func() string {
-		return utils.SanitizeKubeResourceName(identity) + DirectCSIFinalizerDeleteProtection
+		return utils.SanitizeKubeResourceName(identity) + directCSIFinalizerDeleteProtection
 	}
 
 	clearFinalizers := func() error {
-		config, err := vClient.Get(ctx, ValidationWebhookConfigName, metav1.GetOptions{})
+		config, err := vClient.Get(ctx, validationWebhookConfigName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -116,19 +122,21 @@ func DeleteDriveValidationRules(ctx context.Context, identity string) error {
 		return err
 	}
 
-	if err := vClient.Delete(ctx, ValidationWebhookConfigName, metav1.DeleteOptions{}); err != nil {
+	if err := vClient.Delete(ctx, validationWebhookConfigName, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
+// DeleteControllerSecret deletes controller secret.
 func DeleteControllerSecret(ctx context.Context, identity string) error {
-	if err := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, AdmissionWebhookSecretName, metav1.DeleteOptions{}); err != nil {
+	if err := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, admissionWebhookSecretName, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil
 }
 
+// DeleteControllerDeployment deletes controller deployment.
 func DeleteControllerDeployment(ctx context.Context, identity string) error {
 	return DeleteDeployment(ctx, identity, utils.SanitizeKubeResourceName(identity))
 }
@@ -137,11 +145,12 @@ func deleteConversionDeployment(ctx context.Context, identity string) error {
 	return DeleteDeployment(ctx, identity, conversionWebhookDeploymentName)
 }
 
+// DeleteDeployment deletes deployment.
 func DeleteDeployment(ctx context.Context, identity, name string) error {
 	dClient := utils.GetKubeClient().AppsV1().Deployments(utils.SanitizeKubeResourceName(identity))
 
 	getDeleteProtectionFinalizer := func() string {
-		return utils.SanitizeKubeResourceName(identity) + DirectCSIFinalizerDeleteProtection
+		return utils.SanitizeKubeResourceName(identity) + directCSIFinalizerDeleteProtection
 	}
 
 	clearFinalizers := func(name string) error {
@@ -168,7 +177,7 @@ func DeleteDeployment(ctx context.Context, identity, name string) error {
 }
 
 func deleteLegacyConversionSecret(ctx context.Context, identity string) error {
-	if err := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, ConversionWebhookSecretName, metav1.DeleteOptions{}); err != nil {
+	if err := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, conversionWebhookSecretName, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -181,6 +190,7 @@ func deleteLegacyConversionWebhookCertsSecret(ctx context.Context, identity stri
 	return nil
 }
 
+// DeleteConversionSecrets deletes conversion secrets.
 func DeleteConversionSecrets(ctx context.Context, identity string) error {
 	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 	if err := secretsClient.Delete(ctx, conversionKeyPair, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
@@ -189,6 +199,7 @@ func DeleteConversionSecrets(ctx context.Context, identity string) error {
 	return secretsClient.Delete(ctx, conversionCACert, metav1.DeleteOptions{})
 }
 
+// DeleteLegacyConversionDeployment deletes legacy conversion deployment.
 func DeleteLegacyConversionDeployment(ctx context.Context, identity string) error {
 	if err := deleteConversionDeployment(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
 		return err
@@ -205,6 +216,7 @@ func DeleteLegacyConversionDeployment(ctx context.Context, identity string) erro
 	return nil
 }
 
+// DeletePodSecurityPolicy deletes pod security policy.
 func DeletePodSecurityPolicy(ctx context.Context, identity string) error {
 	if err := removePSPClusterRoleBinding(ctx, identity); err != nil && !apierrors.IsNotFound(err) {
 		return err

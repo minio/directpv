@@ -41,6 +41,7 @@ func initEvent(kubeClient kubernetes.Interface) {
 	)
 }
 
+// Eventf raises kubernetes events.
 func Eventf(object runtime.Object, eventType, reason, messageFmt string, args ...interface{}) {
 	eventRecorder.Eventf(object, eventType, reason, messageFmt, args...)
 }

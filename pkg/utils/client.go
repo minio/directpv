@@ -24,6 +24,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// GetClientForNonCoreGroupKindVersions gets client for group/kind of given versions.
 func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
 	gvk, err := GetGroupKindVersions(group, kind, versions...)
 	if err != nil {

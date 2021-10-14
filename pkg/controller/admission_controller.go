@@ -49,7 +49,7 @@ func serveAdmissionController(ctx context.Context) {
 	}
 
 	// define http server and server handler
-	vh := ValidationHandler{}
+	vh := validationHandler{}
 	mux := http.NewServeMux()
 	mux.HandleFunc(driveHandlerPath, vh.validateDrive)
 	mux.HandleFunc(volumeHandlerPath, vh.validateVolume)

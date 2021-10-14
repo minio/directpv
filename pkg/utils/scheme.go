@@ -26,8 +26,13 @@ import (
 	kubernetesscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
+// Scheme is new runtime scheme.
 var Scheme = runtime.NewScheme()
+
+// Codecs is new codec of new runtime scheme.
 var Codecs = serializer.NewCodecFactory(Scheme)
+
+// ParameterCodec is new parameter codec of new runtime scheme.
 var ParameterCodec = runtime.NewParameterCodec(Scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
 	kubernetesscheme.AddToScheme,

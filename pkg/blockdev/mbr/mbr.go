@@ -28,6 +28,7 @@ import (
 	"github.com/minio/direct-csi/pkg/blockdev/parttable"
 )
 
+// ErrGPTProtectiveMBR denotes GPT protected MBR found error.
 var ErrGPTProtectiveMBR = errors.New("GPT protective MBR found")
 
 // MBR is interface compatible partition table information.
@@ -35,7 +36,7 @@ type MBR struct {
 	partitions map[int]*parttable.Partition
 }
 
-// Type returns "gpt"
+// Type returns "msdos"
 func (mbr *MBR) Type() string {
 	return "msdos"
 }

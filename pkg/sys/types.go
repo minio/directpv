@@ -20,6 +20,7 @@ import "regexp"
 
 var LoopRegexp = regexp.MustCompile("^loop[0-9]*")
 
+// Device is a block device information.
 type Device struct {
 	// Populated from /sys
 	Name      string
@@ -66,6 +67,7 @@ type Device struct {
 	FirstMountOptions []string
 }
 
+// MountInfo is a device mount information.
 type MountInfo struct {
 	majorMinor   string
 	MountPoint   string

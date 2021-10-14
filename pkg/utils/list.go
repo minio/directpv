@@ -38,11 +38,13 @@ func toLabelSelector(labelMap map[string][]string) string {
 	return strings.Join(selectors, ",")
 }
 
+// ListDriveResult denotes list of drive result.
 type ListDriveResult struct {
 	Drive directcsi.DirectCSIDrive
 	Err   error
 }
 
+// ListDrives lists direct-csi drives.
 func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []string, maxObjects int64) (<-chan ListDriveResult, error) {
 	labelMap := map[string][]string{
 		DrivePathLabel:  FmapStringSlice(drives, SanitizeDrivePath),
@@ -93,6 +95,7 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 	return resultCh, nil
 }
 
+// GetDriveList gets list of drives.
 func GetDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []string) ([]directcsi.DirectCSIDrive, error) {
 	resultCh, err := ListDrives(ctx, driveInterface, nodes, drives, accessTiers, MaxThreadCount)
 	if err != nil {
@@ -110,11 +113,13 @@ func GetDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveIn
 	return driveList, nil
 }
 
+// ListVolumeResult denotes list of volume result.
 type ListVolumeResult struct {
 	Volume directcsi.DirectCSIVolume
 	Err    error
 }
 
+// ListVolumes lists direct-csi volumes.
 func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNss []string, maxObjects int64) (<-chan ListVolumeResult, error) {
 	labelMap := map[string][]string{
 		ReservedDrivePathLabel: FmapStringSlice(drives, SanitizeDrivePath),
@@ -167,6 +172,7 @@ func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeI
 	return resultCh, nil
 }
 
+// GetVolumeList gets list of volumes.
 func GetVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNss []string) ([]directcsi.DirectCSIVolume, error) {
 	resultCh, err := ListVolumes(ctx, volumeInterface, nodes, drives, podNames, podNss, MaxThreadCount)
 	if err != nil {

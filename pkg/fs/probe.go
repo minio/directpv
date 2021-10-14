@@ -91,7 +91,7 @@ func Probe(ctx context.Context, device string) (fs FS, err error) {
 
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("%w; %v", fserrors.ErrCancelled, ctx.Err())
+		return nil, fmt.Errorf("%w; %v", fserrors.ErrCanceled, ctx.Err())
 	case <-doneCh:
 	}
 
@@ -146,7 +146,7 @@ func GetCapacity(ctx context.Context, device, filesystem string) (totalCapacity,
 
 	select {
 	case <-ctx.Done():
-		return 0, 0, fmt.Errorf("%w; %v", fserrors.ErrCancelled, ctx.Err())
+		return 0, 0, fmt.Errorf("%w; %v", fserrors.ErrCanceled, ctx.Err())
 	case <-doneCh:
 	}
 

@@ -25,7 +25,7 @@ import "errors"
 var errNotALoopDevice = errors.New("Not a loop device")
 var backFileSize = 100 * oneMB
 
-type LoopInfo struct {
+type loopInfo struct {
 	Device         uint64
 	INode          uint64
 	RDevice        uint64
@@ -33,16 +33,16 @@ type LoopInfo struct {
 	SizeLimit      uint64
 	Number         uint32
 	EncryptType    uint32
-	EncryptKeySize uint32
+	EncryptkeySize uint32
 	Flags          uint32
-	FileName       [NameSize]byte
-	CryptName      [NameSize]byte
-	EncryptKey     [KeySize]byte
+	FileName       [nameSize]byte
+	CryptName      [nameSize]byte
+	EncryptKey     [keySize]byte
 	Init           [2]uint64
 }
 
-func getInfo(fd uintptr) (LoopInfo, error) {
-	return LoopInfo{}, errNotALoopDevice
+func getInfo(fd uintptr) (loopInfo, error) {
+	return loopInfo{}, errNotALoopDevice
 }
 
 func RemoveLoopDevice(loopPath string) error {

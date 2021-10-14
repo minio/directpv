@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-// Semantic Version
+// SemVer denotes semantic version.
 //
 // Format RegEx:
 // ^(?P<major>0|[1-9]\d*)
@@ -37,10 +37,12 @@ func (v *SemVer) String() string {
 	return v.value
 }
 
+// Compare compares two version.
 func (v *SemVer) Compare(other *SemVer) int {
 	return strings.Compare(v.value, other.value)
 }
 
+// NewVersion creates new semver.
 func NewVersion(version string) (*SemVer, error) {
 	versionNumParser := func(end1, end2 rune,
 		followFn1, followFn2 func(rune) (bool, bool, interface{}),
@@ -265,19 +267,15 @@ func NewVersion(version string) (*SemVer, error) {
 	for _, r := range version {
 		valid, shouldContinue, parseFnInt = parseFn(r)
 		if !valid {
-			return nil, errInvalidSemVerFormat(version)
+			return nil, fmt.Errorf("invalid semver value %v", version)
 		}
 
 		parseFn = parseFnInt.(func(rune) (bool, bool, interface{}))
 	}
 	if shouldContinue {
-		return nil, errInvalidSemVerFormat(version)
+		return nil, fmt.Errorf("invalid semver value %v", version)
 	}
 	return &SemVer{
 		value: version,
 	}, nil
-}
-
-func errInvalidSemVerFormat(version string) error {
-	return fmt.Errorf("Invalid Semver Value: %v", version)
 }

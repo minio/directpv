@@ -17,21 +17,21 @@
 package loopback
 
 const (
-	LoopDeviceFormat      = "/dev/loop%d"
-	LoopControlPath       = "/dev/loop-control"
+	// DirectCSIBackFileRoot denotes loopback root.
 	DirectCSIBackFileRoot = "/var/lib/direct-csi/loop"
-	NameSize              = 64
-	KeySize               = 32
+	loopDeviceFormat      = "/dev/loop%d"
+	loopControlPath       = "/dev/loop-control"
+	nameSize              = 64
+	keySize               = 32
 
 	// Syscalls
-	CtlAdd      = 0x4C80
-	CtlRemove   = 0x4C81
-	CtlGetFree  = 0x4C82
-	SetFd       = 0x4C00
-	ClrFd       = 0x4C01
-	SetStatus   = 0x4C02
-	SetStatus64 = 0x4C04
-	GetStatus64 = 0x4C05
+	ctlAdd      = 0x4C80
+	ctlRemove   = 0x4C81
+	ctlGetFree  = 0x4C82
+	setFD       = 0x4C00
+	clrFD       = 0x4C01
+	setStatus64 = 0x4C04
+	getStatus64 = 0x4C05
 
 	oneMB = 1048576
 )

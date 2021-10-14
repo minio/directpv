@@ -21,11 +21,17 @@ import (
 )
 
 const (
-	DirectCSIVolumeFinalizerPVProtection    = Group + "/pv-protection"
+	// DirectCSIVolumeFinalizerPVProtection denotes PV protection finalizer.
+	DirectCSIVolumeFinalizerPVProtection = Group + "/pv-protection"
+
+	// DirectCSIVolumeFinalizerPurgeProtection denotes purge protection finalizer.
 	DirectCSIVolumeFinalizerPurgeProtection = Group + "/purge-protection"
 
+	// DirectCSIDriveFinalizerDataProtection denotes data protection finalizer.
 	DirectCSIDriveFinalizerDataProtection = Group + "/data-protection"
-	DirectCSIDriveFinalizerPrefix         = Group + ".volume/"
+
+	// DirectCSIDriveFinalizerPrefix denotes prefix finalizer.
+	DirectCSIDriveFinalizerPrefix = Group + ".volume/"
 )
 
 // +genclient
@@ -34,6 +40,7 @@ const (
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// DirectCSIDrive denotes drive CRD object.
 type DirectCSIDrive struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
@@ -42,6 +49,7 @@ type DirectCSIDrive struct {
 	Status DirectCSIDriveStatus `json:"status,omitempty"`
 }
 
+// DirectCSIDriveSpec denotes drive specification.
 type DirectCSIDriveSpec struct {
 	// +optional
 	RequestedFormat *RequestedFormat `json:"requestedFormat,omitempty"`
@@ -51,15 +59,24 @@ type DirectCSIDriveSpec struct {
 	DriveTaint map[string]string `json:"driveTaint,omitempty"`
 }
 
+// AccessTier denotes access tier.
 type AccessTier string
 
 const (
-	AccessTierWarm    AccessTier = "Warm"
-	AccessTierHot     AccessTier = "Hot"
-	AccessTierCold    AccessTier = "Cold"
+	// AccessTierWarm denotes "Warm" access tier.
+	AccessTierWarm AccessTier = "Warm"
+
+	// AccessTierHot denotes "Hot" access tier.
+	AccessTierHot AccessTier = "Hot"
+
+	// AccessTierCold denotes "Cold" access tier.
+	AccessTierCold AccessTier = "Cold"
+
+	// AccessTierUnknown denotes "Unknown" access tier.
 	AccessTierUnknown AccessTier = "Unknown"
 )
 
+// DirectCSIDriveStatus denotes drive information.
 type DirectCSIDriveStatus struct {
 	Path string `json:"path"`
 	// +optional
@@ -110,32 +127,55 @@ type DirectCSIDriveStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
+// DirectCSIDriveCondition denotes drive condition.
 type DirectCSIDriveCondition string
 
 const (
-	DirectCSIDriveConditionOwned       DirectCSIDriveCondition = "Owned"
-	DirectCSIDriveConditionMounted     DirectCSIDriveCondition = "Mounted"
-	DirectCSIDriveConditionFormatted   DirectCSIDriveCondition = "Formatted"
+	// DirectCSIDriveConditionOwned denotes "Owned" drive condition.
+	DirectCSIDriveConditionOwned DirectCSIDriveCondition = "Owned"
+
+	// DirectCSIDriveConditionMounted denotes "Mounted" drive condition.
+	DirectCSIDriveConditionMounted DirectCSIDriveCondition = "Mounted"
+
+	// DirectCSIDriveConditionFormatted denotes "Formatted" drive condition.
+	DirectCSIDriveConditionFormatted DirectCSIDriveCondition = "Formatted"
+
+	// DirectCSIDriveConditionInitialized denotes "Initialized" drive condition.
 	DirectCSIDriveConditionInitialized DirectCSIDriveCondition = "Initialized"
 )
 
+// DirectCSIDriveReason denotes drive reason.
 type DirectCSIDriveReason string
 
 const (
-	DirectCSIDriveReasonNotAdded    DirectCSIDriveReason = "NotAdded"
-	DirectCSIDriveReasonAdded       DirectCSIDriveReason = "Added"
+	// DirectCSIDriveReasonNotAdded denotes "NotAdded" drive reason.
+	DirectCSIDriveReasonNotAdded DirectCSIDriveReason = "NotAdded"
+
+	// DirectCSIDriveReasonAdded denotes "Added" drive reason.
+	DirectCSIDriveReasonAdded DirectCSIDriveReason = "Added"
+
+	// DirectCSIDriveReasonInitialized denotes "Initialized" drive reason.
 	DirectCSIDriveReasonInitialized DirectCSIDriveReason = "Initialized"
 )
 
+// DirectCSIDriveMessage denotes drive message.
 type DirectCSIDriveMessage string
 
 const (
-	DirectCSIDriveMessageMounted      DirectCSIDriveMessage = "Mounted"
-	DirectCSIDriveMessageNotMounted   DirectCSIDriveMessage = "NotMounted"
-	DirectCSIDriveMessageFormatted    DirectCSIDriveMessage = "Formatted"
+	// DirectCSIDriveMessageMounted denotes "Mounted" drive message.
+	DirectCSIDriveMessageMounted DirectCSIDriveMessage = "Mounted"
+
+	// DirectCSIDriveMessageNotMounted denotes "NotMounted" drive message.
+	DirectCSIDriveMessageNotMounted DirectCSIDriveMessage = "NotMounted"
+
+	// DirectCSIDriveMessageFormatted denotes "Formatted" drive message.
+	DirectCSIDriveMessageFormatted DirectCSIDriveMessage = "Formatted"
+
+	// DirectCSIDriveMessageNotFormatted denotes "NotFormatted" drive message.
 	DirectCSIDriveMessageNotFormatted DirectCSIDriveMessage = "NotFormatted"
 )
 
+// RequestedFormat denotes drive format request information.
 type RequestedFormat struct {
 	// +optional
 	Force bool `json:"force,omitempty"`
@@ -150,19 +190,32 @@ type RequestedFormat struct {
 	MountOptions []string `json:"mountOptions,omitempty"`
 }
 
+// DriveStatus denotes drive status.
 type DriveStatus string
 
 const (
-	DriveStatusInUse       DriveStatus = "InUse"
-	DriveStatusAvailable   DriveStatus = "Available"
+	// DriveStatusInUse denotes "InUse" drive status.
+	DriveStatusInUse DriveStatus = "InUse"
+
+	// DriveStatusAvailable denotes "Available" drive status.
+	DriveStatusAvailable DriveStatus = "Available"
+
+	// DriveStatusUnavailable denotes "Unavailable" drive status.
 	DriveStatusUnavailable DriveStatus = "Unavailable"
-	DriveStatusReady       DriveStatus = "Ready"
+
+	// DriveStatusReady denotes "Ready" drive status.
+	DriveStatusReady DriveStatus = "Ready"
+
+	// DriveStatusTerminating denotes "Terminating" drive status.
 	DriveStatusTerminating DriveStatus = "Terminating"
-	DriveStatusReleased    DriveStatus = "Released"
+
+	// DriveStatusReleased denotes "Released" drive status.
+	DriveStatusReleased DriveStatus = "Released"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// DirectCSIDriveList denotes list of drives.
 type DirectCSIDriveList struct {
 	metav1.TypeMeta `json:",inline"`
 	// metdata is the standard list metadata.
@@ -173,6 +226,7 @@ type DirectCSIDriveList struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// DirectCSIVolumeList denotes list of volumes.
 type DirectCSIVolumeList struct {
 	metav1.TypeMeta `json:",inline"`
 	// metdata is the standard list metadata.
@@ -187,6 +241,7 @@ type DirectCSIVolumeList struct {
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// DirectCSIVolume denotes volume CRD object.
 type DirectCSIVolume struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
@@ -194,23 +249,38 @@ type DirectCSIVolume struct {
 	Status DirectCSIVolumeStatus `json:"status,omitempty"`
 }
 
+// DirectCSIVolumeCondition denotes volume condition.
 type DirectCSIVolumeCondition string
 
 const (
+	// DirectCSIVolumeConditionPublished denotes "Published" volume condition.
 	DirectCSIVolumeConditionPublished DirectCSIVolumeCondition = "Published"
-	DirectCSIVolumeConditionStaged    DirectCSIVolumeCondition = "Staged"
-	DirectCSIVolumeConditionReady     DirectCSIVolumeCondition = "Ready"
+
+	// DirectCSIVolumeConditionStaged denotes "Staged" volume condition.
+	DirectCSIVolumeConditionStaged DirectCSIVolumeCondition = "Staged"
+
+	// DirectCSIVolumeConditionReady denotes "Ready" volume condition.
+	DirectCSIVolumeConditionReady DirectCSIVolumeCondition = "Ready"
 )
 
+// DirectCSIVolumeReason denotes volume reason.
 type DirectCSIVolumeReason string
 
 const (
+	// DirectCSIVolumeReasonNotInUse denotes "NotInUse" volume reason.
 	DirectCSIVolumeReasonNotInUse DirectCSIVolumeReason = "NotInUse"
-	DirectCSIVolumeReasonInUse    DirectCSIVolumeReason = "InUse"
-	DirectCSIVolumeReasonReady    DirectCSIVolumeReason = "Ready"
+
+	// DirectCSIVolumeReasonInUse denotes "InUse" volume reason.
+	DirectCSIVolumeReasonInUse DirectCSIVolumeReason = "InUse"
+
+	// DirectCSIVolumeReasonReady denotes "Ready" volume reason.
+	DirectCSIVolumeReasonReady DirectCSIVolumeReason = "Ready"
+
+	// DirectCSIVolumeReasonNotReady denotes "NotReady" volume reason.
 	DirectCSIVolumeReasonNotReady DirectCSIVolumeReason = "NotReady"
 )
 
+// DirectCSIVolumeStatus denotes volume information.
 type DirectCSIVolumeStatus struct {
 	// +optional
 	Drive string `json:"drive,omitempty"`

@@ -20,23 +20,21 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
 )
 
 var (
-	errNotALoopDevice      = errors.New("Not a loop device")
-	errAlreadyBackedByFile = errors.New("Device already backed by a file")
+	errNotALoopDevice      = errors.New("not a loop device")
+	errAlreadyBackedByFile = errors.New("device already backed by a file")
 	errNotBackedByFile     = errors.New("device not backed by a file")
-	errDoesNotExist        = errors.New("No such file or directory")
+	errDoesNotExist        = errors.New("no such file or directory")
 	backFileSize           = 1024 * oneMB
 )
 
-type LoopInfo struct {
+type loopInfo struct {
 	Device         uint64
 	INode          uint64
 	RDevice        uint64
@@ -44,28 +42,29 @@ type LoopInfo struct {
 	SizeLimit      uint64
 	Number         uint32
 	EncryptType    uint32
-	EncryptKeySize uint32
+	EncryptkeySize uint32
 	Flags          uint32
-	FileName       [NameSize]byte
-	CryptName      [NameSize]byte
-	EncryptKey     [KeySize]byte
+	FileName       [nameSize]byte
+	CryptName      [nameSize]byte
+	EncryptKey     [keySize]byte
 	Init           [2]uint64
 }
 
 func getFree() (uint64, error) {
-	ctrl, err := os.OpenFile(LoopControlPath, os.O_RDWR, 0660)
+	ctrl, err := os.OpenFile(loopControlPath, os.O_RDWR, 0660)
 	if err != nil {
-		return uint64(0), fmt.Errorf("could not open %v: %v", LoopControlPath, err)
+		return uint64(0), fmt.Errorf("could not open %v: %v", loopControlPath, err)
 	}
 	defer ctrl.Close()
-	dev, _, errno := unix.Syscall(unix.SYS_IOCTL, ctrl.Fd(), CtlGetFree, 0)
-	if dev < 0 {
+	dev, _, errno := unix.Syscall(unix.SYS_IOCTL, ctrl.Fd(), ctlGetFree, 0)
+	if int64(dev) < 0 {
 		return uint64(0), fmt.Errorf("could not get free device (err: %d): %v", errno, errno)
 	}
 
 	return uint64(dev), nil
 }
 
+// CreateLoopbackDevice creates loopback device.
 func CreateLoopbackDevice() (string, error) {
 	if err := os.MkdirAll(DirectCSIBackFileRoot, 0755); err != nil {
 		return "", err
@@ -116,17 +115,17 @@ func attachLoopbackDeviceToFile(devFile, backingFile string) error {
 	defer loopFile.Close()
 
 	// Attach backfile to loop device
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), SetFd, back.Fd())
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), setFD, back.Fd())
 	if errno != 0 {
 		return fmt.Errorf("could not attach backing file (%s) with loop device (%s): errno: %v", backingFile, devFile, errno)
 	}
 
 	// Setting the backing filename in the device info
-	info := LoopInfo{}
+	info := loopInfo{}
 	copy(info.FileName[:], []byte(backingFile))
 	info.Offset = uint64(0)
 	if err := setInfo(loopFile.Fd(), info); err != nil {
-		unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), ClrFd, 0)
+		_, _, _ = unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), clrFD, 0)
 		return fmt.Errorf("could not set info: %v", err)
 	}
 
@@ -135,13 +134,13 @@ func attachLoopbackDeviceToFile(devFile, backingFile string) error {
 
 // Add will add a loopback device if it does not exist already.
 func addLoopDevice(ldNumber uint64) error {
-	ctrl, err := os.OpenFile(LoopControlPath, os.O_RDWR, 0660)
+	ctrl, err := os.OpenFile(loopControlPath, os.O_RDWR, 0660)
 	if err != nil {
-		return fmt.Errorf("could not open %v: %v", LoopControlPath, err)
+		return fmt.Errorf("could not open %v: %v", loopControlPath, err)
 	}
 	defer ctrl.Close()
 
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, ctrl.Fd(), CtlAdd, uintptr(ldNumber))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, ctrl.Fd(), ctlAdd, uintptr(ldNumber))
 	if errno == unix.EEXIST {
 		hasFileNameAttached, err := checkIfBackingFileAttached(ldNumber)
 		if err != nil {
@@ -158,8 +157,8 @@ func addLoopDevice(ldNumber uint64) error {
 	return nil
 }
 
-func setInfo(fd uintptr, info LoopInfo) error {
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, fd, SetStatus64, uintptr(unsafe.Pointer(&info)))
+func setInfo(fd uintptr, info loopInfo) error {
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, fd, setStatus64, uintptr(unsafe.Pointer(&info)))
 	if errno == unix.ENXIO {
 		return errNotBackedByFile
 	} else if errno != 0 {
@@ -168,9 +167,9 @@ func setInfo(fd uintptr, info LoopInfo) error {
 	return nil
 }
 
-func getInfo(fd uintptr) (LoopInfo, error) {
-	retInfo := LoopInfo{}
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, fd, GetStatus64, uintptr(unsafe.Pointer(&retInfo)))
+func getInfo(fd uintptr) (loopInfo, error) {
+	retInfo := loopInfo{}
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, fd, getStatus64, uintptr(unsafe.Pointer(&retInfo)))
 	if errno != 0 && errno != unix.ENXIO {
 		if errno == unix.ENOENT {
 			return retInfo, errDoesNotExist
@@ -181,6 +180,7 @@ func getInfo(fd uintptr) (LoopInfo, error) {
 	return retInfo, nil
 }
 
+// RemoveLoopDevice removes given loopback device.
 func RemoveLoopDevice(loopPath string) error {
 	loopFile, err := os.OpenFile(loopPath, os.O_RDONLY, 0660)
 	if err != nil {
@@ -197,7 +197,7 @@ func RemoveLoopDevice(loopPath string) error {
 	backFile := string(backFileInB)
 
 	// Detaching the backing file
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), ClrFd, 0)
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, loopFile.Fd(), clrFD, 0)
 	if errno != 0 && errno != unix.ENXIO {
 		return fmt.Errorf("error clearing loopfile: %v", errno)
 	}
@@ -218,9 +218,9 @@ func RemoveLoopDevice(loopPath string) error {
 }
 
 func removeLoopDevice(path string) error {
-	ctrl, err := os.OpenFile(LoopControlPath, os.O_RDWR, 0660)
+	ctrl, err := os.OpenFile(loopControlPath, os.O_RDWR, 0660)
 	if err != nil {
-		return fmt.Errorf("could not open %v: %v", LoopControlPath, err)
+		return fmt.Errorf("could not open %v: %v", loopControlPath, err)
 	}
 	defer ctrl.Close()
 
@@ -228,7 +228,7 @@ func removeLoopDevice(path string) error {
 	if lErr != nil {
 		return lErr
 	}
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, ctrl.Fd(), CtlRemove, uintptr(devNumber))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, ctrl.Fd(), ctlRemove, uintptr(devNumber))
 	if errno == unix.EBUSY {
 		return nil
 	}
@@ -240,16 +240,4 @@ func removeLoopDevice(path string) error {
 	}
 
 	return nil
-}
-
-func GetAttachedDeviceNames() ([]string, error) {
-	var names []string
-	files, err := ioutil.ReadDir(DirectCSIBackFileRoot)
-	if err != nil {
-		return names, err
-	}
-	for _, file := range files {
-		names = append(names, filepath.Base(file.Name()))
-	}
-	return names, nil
 }

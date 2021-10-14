@@ -38,6 +38,7 @@ func UUID2String(uuid [16]byte) string {
 	)
 }
 
+// SuperBlock denotes ext4 superblock.
 type SuperBlock struct {
 	_                         [1024]byte
 	NumInodes                 uint32
@@ -93,7 +94,7 @@ type SuperBlock struct {
 	/*
 	 * Journaling support valid if EXT4_FEATURE_COMPAT_HAS_JOURNAL set.
 	 */
-	SJournalUuid [16]uint8 /* uuid of journal superblock */
+	SJournalUUID [16]uint8 /* uuid of journal superblock */
 
 	SJournalInum    uint32    /* inode number of journal file */
 	SJournalDev     uint32    /* device number of journal file */
@@ -129,7 +130,7 @@ type SuperBlock struct {
 	SKbytesWritten    uint64 /* nr of lifetime kilobytes written */
 
 	SSnapshotInum         uint32 /* Inode number of active snapshot */
-	SSnapshotId           uint32 /* sequential ID of active snapshot */
+	SSnapshotID           uint32 /* sequential ID of active snapshot */
 	SSnapshotRBlocksCount uint64 /* reserved blocks for active snapshot's future use */
 	SSnapshotList         uint32 /* inode number of the head of the on-disk snapshot list */
 
@@ -166,6 +167,7 @@ type SuperBlock struct {
 	SChecksum         int32      /* crc32c(superblock) */
 }
 
+// ID returns filesystem UUID.
 func (sb *SuperBlock) ID() string {
 	if sb.RevLevel == dynamicRev {
 		return UUID2String(sb.SUuid)
@@ -174,14 +176,17 @@ func (sb *SuperBlock) ID() string {
 	return UUID2String([16]byte{})
 }
 
+// Type returns "ext4".
 func (sb *SuperBlock) Type() string {
 	return "ext4"
 }
 
+// TotalCapacity returns total capacity of filesystem.
 func (sb *SuperBlock) TotalCapacity() uint64 {
 	return uint64(sb.NumBlocks) * (1 << (10 + sb.LogBlockSize))
 }
 
+// FreeCapacity returns free capacity of filesystem.
 func (sb *SuperBlock) FreeCapacity() uint64 {
 	return uint64(sb.FreeBlocks) * (1 << (10 + sb.LogBlockSize))
 }

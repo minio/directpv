@@ -78,18 +78,22 @@ type FAT32 struct {
 	freeCapacity  uint64
 }
 
+// ID returns filesystem UUID.
 func (f *FAT32) ID() string {
 	return f.id
 }
 
+// Type returns "fat32".
 func (f *FAT32) Type() string {
 	return "fat32"
 }
 
+// TotalCapacity returns total capacity of filesystem.
 func (f *FAT32) TotalCapacity() uint64 {
 	return f.totalCapacity
 }
 
+// FreeCapacity returns free capacity of filesystem.
 func (f *FAT32) FreeCapacity() uint64 {
 	return f.freeCapacity
 }
@@ -102,7 +106,9 @@ func Probe(reader io.ReadSeeker) (*FAT32, error) {
 	}
 
 	blockSize := binary.LittleEndian.Uint16([]byte(ebpb.SectorSize[:]))
-	reader.Seek(int64(ebpb.FsinfoSector*blockSize), io.SeekStart)
+	if _, err = reader.Seek(int64(ebpb.FsinfoSector*blockSize), io.SeekStart); err != nil {
+		return nil, err
+	}
 
 	data := make([]byte, 512)
 	if _, err := io.ReadFull(reader, data); err != nil {

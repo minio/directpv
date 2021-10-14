@@ -26,35 +26,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ Installer = &NSInstaller{}
+var _ Installer = &nsInstaller{}
 
-type NSInstaller struct {
+type nsInstaller struct {
 	name string
 
-	*InstallConfig
+	*installConfig
 }
 
-func NewNSInstaller(i *InstallConfig, name string) (*NSInstaller, error) {
-	if i == nil {
-		return nil, ErrInstallationFailed("bad arguments: empty configuration", "Namespace")
-	}
-	identity := i.GetIdentity()
-	if identity == "" {
-		return nil, ErrInstallationFailed("identity cannot be empty", "Namespace")
-
-	}
-	sanitizedName := utils.SanitizeKubeResourceName(name)
-	ns := &NSInstaller{
-		name: utils.DefaultIfZeroString(sanitizedName, identity),
-	}
-	ns.InstallConfig = i
-
-	return ns, nil
-}
-
-func (n *NSInstaller) Install(ctx context.Context) error {
-	if n.InstallConfig == nil {
-		return ErrInstallationFailed("bad arguments: empty configuration", "Namespace")
+func (n *nsInstaller) Install(ctx context.Context) error {
+	if n.installConfig == nil {
+		return errInstallationFailed("bad arguments: empty configuration", "Namespace")
 	}
 	nsName := utils.SanitizeKubeResourceName(n.name)
 
@@ -85,9 +67,9 @@ func (n *NSInstaller) Install(ctx context.Context) error {
 	return n.PostProc(createdNS)
 }
 
-func (n *NSInstaller) Uninstall(ctx context.Context) error {
-	if n.InstallConfig == nil {
-		return ErrInstallationFailed("bad arguments: empty configuration", "Namespace")
+func (n *nsInstaller) Uninstall(ctx context.Context) error {
+	if n.installConfig == nil {
+		return errInstallationFailed("bad arguments: empty configuration", "Namespace")
 	}
 
 	nsName := utils.SanitizeKubeResourceName(n.name)

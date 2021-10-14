@@ -24,7 +24,7 @@ import (
 	"os/exec"
 )
 
-func Format(ctx context.Context, path, fs string, options []string, force bool) (string, error) {
+func format(ctx context.Context, path, fs string, options []string, force bool) (string, error) {
 	bin := "mkfs." + fs
 	args := func() []string {
 		args := options
@@ -39,7 +39,7 @@ func Format(ctx context.Context, path, fs string, options []string, force bool) 
 	return string(outputBytes), err
 }
 
-func SetXFSUUID(ctx context.Context, uuid, path string) (string, error) {
+func setXFSUUID(ctx context.Context, uuid, path string) (string, error) {
 	bin := "xfs_admin"
 	args := func() []string {
 		args := []string{"-U", uuid}

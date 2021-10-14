@@ -25,11 +25,11 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func SafeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
+func safeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
+func mount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
@@ -37,7 +37,7 @@ func SafeUnmount(target string, opts []UnmountOption) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func SafeUnmountAll(path string, opts []UnmountOption) error {
+func safeUnmountAll(path string, opts []UnmountOption) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 

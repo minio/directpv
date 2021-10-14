@@ -141,19 +141,9 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		return err
 	}
 
-	klog.V(5).Infof("'%s' CRD succesfully updated to '%s'", existingCRD.Name, utils.Bold(currentCRDStorageVersion))
+	klog.V(5).Infof("'%s' CRD successfully updated to '%s'", existingCRD.Name, utils.Bold(currentCRDStorageVersion))
 
 	return nil
-}
-
-func setConversionNone(crdObj *apiextensions.CustomResourceDefinition) {
-	getConversionSettings := func() *apiextensions.CustomResourceConversion {
-		return &apiextensions.CustomResourceConversion{
-			Strategy: apiextensions.NoneConverter,
-		}
-	}
-	noneConverter := getConversionSettings()
-	crdObj.Spec.Conversion = noneConverter
 }
 
 func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, identity string) error {
@@ -229,7 +219,7 @@ func getLatestCRDVersionObject(newCRD apiextensions.CustomResourceDefinition) (a
 		}
 	}
 
-	return apiextensions.CustomResourceDefinitionVersion{}, fmt.Errorf("No version %v foung crd %v", currentCRDStorageVersion, newCRD.Name)
+	return apiextensions.CustomResourceDefinitionVersion{}, fmt.Errorf("no version %v foung crd %v", currentCRDStorageVersion, newCRD.Name)
 }
 
 func unregisterCRDs(ctx context.Context) error {

@@ -100,7 +100,7 @@ request:
 		t.Fatal(err)
 	}
 	request.Header.Add("Content-Type", "application/yaml")
-	ServeDriveConversion(response, request)
+	serveDriveConversion(response, request)
 	convertReview := v1.ConversionReview{}
 	scheme := runtime.NewScheme()
 	yamlSerializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{Yaml: true})
@@ -219,7 +219,7 @@ request:
 		t.Fatal(err)
 	}
 	request.Header.Add("Content-Type", "application/yaml")
-	ServeVolumeConversion(response, request)
+	serveVolumeConversion(response, request)
 	convertReview := v1.ConversionReview{}
 	scheme := runtime.NewScheme()
 	yamlSerializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{Yaml: true})
@@ -346,7 +346,7 @@ request:
 		t.Fatal(err)
 	}
 	request.Header.Add("Content-Type", "application/yaml")
-	ServeVolumeConversion(response, request)
+	serveVolumeConversion(response, request)
 	convertReview := v1.ConversionReview{}
 	scheme := runtime.NewScheme()
 	yamlSerializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{Yaml: true})
@@ -449,7 +449,7 @@ request:
 		t.Fatal(err)
 	}
 	request.Header.Add("Content-Type", "application/yaml")
-	ServeDriveConversion(response, request)
+	serveDriveConversion(response, request)
 	convertReview := v1.ConversionReview{}
 	scheme := runtime.NewScheme()
 	yamlSerializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{Yaml: true})
@@ -571,7 +571,7 @@ request:
 		t.Fatal(err)
 	}
 	request.Header.Add("Content-Type", "application/yaml")
-	ServeDriveConversion(response, request)
+	serveDriveConversion(response, request)
 	convertReview := v1.ConversionReview{}
 	scheme := runtime.NewScheme()
 	yamlSerializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{Yaml: true})

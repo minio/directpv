@@ -84,7 +84,7 @@ func startTestController(ctx context.Context, t *testing.T, handler *testEventHa
 	listener := NewListener(handler, "test-volume-controller", hostname, threadiness)
 	go func() {
 		if err := listener.Run(ctx); err != nil {
-			(*t).Fatal(err)
+			panic(err)
 		}
 	}()
 }

@@ -18,8 +18,9 @@ package smart
 
 import (
 	"encoding/binary"
-	"golang.org/x/sys/unix"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 //intSize is the size in bytes (converted to integer) of 0
@@ -28,7 +29,7 @@ const intSize int = int(unsafe.Sizeof(0))
 // A ByteOrder specifies how to convert byte sequences
 // into 16-, 32-, or 64-bit unsigned integers.
 var (
-	NativeEndian binary.ByteOrder
+	nativeEndian binary.ByteOrder
 )
 
 // init determines native endianness of a system
@@ -37,14 +38,14 @@ func init() {
 	b := (*[intSize]byte)(unsafe.Pointer(&i))
 	if b[0] == 1 {
 		// LittleEndian is the little-endian implementation of ByteOrder
-		NativeEndian = binary.LittleEndian
+		nativeEndian = binary.LittleEndian
 	} else {
 		// BigEndian is the Big-endian implementation of ByteOrder
-		NativeEndian = binary.BigEndian
+		nativeEndian = binary.BigEndian
 	}
 }
 
-func Ioctl(fd, cmd, ptr uintptr) error {
+func sysIOCTL(fd, cmd, ptr uintptr) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, fd, cmd, ptr)
 	if errno != 0 {
 		return errno
@@ -52,9 +53,13 @@ func Ioctl(fd, cmd, ptr uintptr) error {
 	return nil
 }
 
-func getSmartDevice(devicePath string) SmartDevice {
-	if IsNVMEDevice(devicePath) {
-		return NewNVMeDevice(devicePath)
+type smartDevice interface {
+	SerialNumber() (string, error)
+}
+
+func getSmartDevice(devicePath string) smartDevice {
+	if isNVMEDevice(devicePath) {
+		return newNVMeDevice(devicePath)
 	}
-	return NewSCSIDevice(devicePath)
+	return newSCSIDevice(devicePath)
 }

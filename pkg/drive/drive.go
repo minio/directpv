@@ -35,7 +35,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type DriveEventHandler struct {
+type driveEventHandler struct {
 	directCSIClient clientset.Interface
 	kubeClient      kubernetes.Interface
 	nodeID          string
@@ -44,8 +44,8 @@ type DriveEventHandler struct {
 	statter         sys.DriveStatter
 }
 
-func NewDriveEventHandler(nodeID string) *DriveEventHandler {
-	return &DriveEventHandler{
+func newDriveEventHandler(nodeID string) *driveEventHandler {
+	return &driveEventHandler{
 		directCSIClient: utils.GetDirectClientset(),
 		kubeClient:      utils.GetKubeClient(),
 		nodeID:          nodeID,
@@ -55,7 +55,7 @@ func NewDriveEventHandler(nodeID string) *DriveEventHandler {
 	}
 }
 
-func (handler *DriveEventHandler) ListerWatcher() cache.ListerWatcher {
+func (handler *driveEventHandler) ListerWatcher() cache.ListerWatcher {
 	labelSelector := ""
 	if handler.nodeID != "" {
 		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabel, utils.SanitizeLabelV(handler.nodeID))
@@ -73,19 +73,19 @@ func (handler *DriveEventHandler) ListerWatcher() cache.ListerWatcher {
 	)
 }
 
-func (handler *DriveEventHandler) KubeClient() kubernetes.Interface {
+func (handler *driveEventHandler) KubeClient() kubernetes.Interface {
 	return handler.kubeClient
 }
 
-func (handler *DriveEventHandler) Name() string {
+func (handler *driveEventHandler) Name() string {
 	return "drive"
 }
 
-func (handler *DriveEventHandler) ObjectType() runtime.Object {
+func (handler *driveEventHandler) ObjectType() runtime.Object {
 	return &directcsi.DirectCSIDrive{}
 }
 
-func (handler *DriveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
+func (handler *driveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
 	switch args.Event {
 	case listener.AddEvent, listener.UpdateEvent:
 		return handler.update(ctx, args.Object.(*directcsi.DirectCSIDrive))
@@ -95,7 +95,7 @@ func (handler *DriveEventHandler) Handle(ctx context.Context, args listener.Even
 	return nil
 }
 
-func (handler *DriveEventHandler) getFSUUID(ctx context.Context, drive *directcsi.DirectCSIDrive) (string, error) {
+func (handler *driveEventHandler) getFSUUID(ctx context.Context, drive *directcsi.DirectCSIDrive) (string, error) {
 	if drive.Status.FilesystemUUID == "" ||
 		drive.Status.FilesystemUUID == "00000000-0000-0000-0000-000000000000" ||
 		len(drive.Status.FilesystemUUID) != 36 {
@@ -126,7 +126,7 @@ func (handler *DriveEventHandler) getFSUUID(ctx context.Context, drive *directcs
 	return drive.Status.FilesystemUUID, nil
 }
 
-func (handler *DriveEventHandler) format(ctx context.Context, drive *directcsi.DirectCSIDrive) (err error) {
+func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.DirectCSIDrive) (err error) {
 	fsUUID, err := handler.getFSUUID(ctx, drive)
 	if err != nil {
 		klog.Error(err)
@@ -241,7 +241,7 @@ func (handler *DriveEventHandler) format(ctx context.Context, drive *directcsi.D
 	return err
 }
 
-func (handler *DriveEventHandler) update(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
 	klog.V(5).Infof("drive update called on %s", drive.Name)
 
 	if drive.Spec.DirectCSIOwned && drive.Spec.RequestedFormat != nil {
@@ -262,16 +262,17 @@ func (handler *DriveEventHandler) update(ctx context.Context, drive *directcsi.D
 	return nil
 }
 
-func (handler *DriveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
 	return utils.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), drive, false)
 }
 
+// StartController starts drive event controller.
 func StartController(ctx context.Context, nodeID string) error {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
 	}
 
-	listener := listener.NewListener(NewDriveEventHandler(nodeID), "drive-controller", hostname, 40)
+	listener := listener.NewListener(newDriveEventHandler(nodeID), "drive-controller", hostname, 40)
 	return listener.Run(ctx)
 }

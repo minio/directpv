@@ -1,0 +1,20 @@
+run:
+  timeout: 5m
+  skip-files:
+    - ".*crd_bindata.go$"
+
+linters-settings:
+  golint:
+    min-confidence: 0
+
+  misspell:
+    locale: US
+
+issues:
+  exclude-use-default: false
+  exclude:
+    - should have a package comment
+    - Error return value of `` is not checked
+    - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv)|flag\.Set|flag\.CommandLine\.Parse|viper\.BindPFlags. is not checked
+    - the goroutine calls T.Fatal(f)?, which must be called in the same goroutine as the test
+    - call to T.Fatal(f)?

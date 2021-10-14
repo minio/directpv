@@ -20,13 +20,7 @@ import (
 	"github.com/minio/direct-csi/pkg/matcher"
 )
 
-func accessTiersToStrings(accessTiers []AccessTier) (slice []string) {
-	for _, accessTier := range accessTiers {
-		slice = append(slice, string(accessTier))
-	}
-	return slice
-}
-
+// MatchGlob does glob match of nodes/drives/statuses with drive's NodeName/Path/DriveStatus.
 func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 	return matcher.GlobMatchNodesDrivesStatuses(nodes, drives, status, drive.Status.NodeName, drive.Status.Path, string(drive.Status.DriveStatus))
 }

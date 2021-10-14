@@ -28,6 +28,7 @@ import (
 	metadatafake "k8s.io/client-go/metadata/fake"
 )
 
+// FakeInit initializes fake clients.
 func FakeInit() {
 	kubeClient = kubernetesfake.NewSimpleClientset()
 	directClientset = clientsetfake.NewSimpleClientset()
@@ -37,12 +38,13 @@ func FakeInit() {
 	discoveryClient = &discoveryfake.FakeDiscovery{}
 
 	scheme := runtime.NewScheme()
-	metav1.AddMetaToScheme(scheme)
+	_ = metav1.AddMetaToScheme(scheme)
 	metadataClient = metadatafake.NewSimpleMetadataClient(scheme)
 
 	initEvent(kubeClient)
 }
 
+// SetDirectCSIClient sets fake direct-csi client.
 func SetDirectCSIClient(fakeClient *directcsifake.FakeDirectV1beta3) {
 	directCSIClient = fakeClient
 }

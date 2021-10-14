@@ -30,6 +30,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// Version is direct-csi version.
 var Version string
 
 // flags
@@ -120,6 +121,7 @@ func init() {
 	viper.BindPFlags(driverCmd.PersistentFlags())
 }
 
+// Execute executes driver command.
 func Execute(ctx context.Context) error {
 	return driverCmd.ExecuteContext(ctx)
 }

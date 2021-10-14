@@ -42,8 +42,8 @@ const (
 	testNodeName = "test-node"
 )
 
-func createFakeVolumeEventListener(objects ...runtime.Object) *VolumeEventHandler {
-	return &VolumeEventHandler{
+func createFakeVolumeEventListener(objects ...runtime.Object) *volumeEventHandler {
+	return &volumeEventHandler{
 		kubeClient:      kubernetesfake.NewSimpleClientset(),
 		directCSIClient: clientsetfake.NewSimpleClientset(objects...),
 		nodeID:          testNodeName,

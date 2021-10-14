@@ -29,26 +29,20 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var _ Installer = &SCInstaller{}
+var _ Installer = &scInstaller{}
 
-type SCInstaller struct {
+type scInstaller struct {
 	name string
 
-	*InstallConfig
+	*installConfig
 }
 
-func NewSCInstaller(name string) *SCInstaller {
-	return &SCInstaller{
-		name: name,
-	}
-}
-
-func (sc *SCInstaller) Init(i *InstallConfig) error {
-	sc.InstallConfig = i
+func (sc *scInstaller) Init(i *installConfig) error {
+	sc.installConfig = i
 
 	identity := sc.GetIdentity()
 	if identity == "" {
-		err := errors.New("Identity cannot be empty")
+		err := errors.New("identity cannot be empty")
 		klog.ErrorS(err, "Invalid configuration", "Installer", "StorageClassInstaller")
 		return err
 	}
@@ -57,7 +51,7 @@ func (sc *SCInstaller) Init(i *InstallConfig) error {
 	return nil
 }
 
-func (sc *SCInstaller) Install(ctx context.Context) error {
+func (sc *scInstaller) Install(ctx context.Context) error {
 	scName := utils.SanitizeKubeResourceName(sc.name)
 	allowExpansionFalse := false
 	allowTopologiesWithName := utils.NewIdentityTopologySelector(scName)
@@ -95,7 +89,7 @@ func (sc *SCInstaller) Install(ctx context.Context) error {
 	return sc.PostProc(createdSC)
 }
 
-func (sc *SCInstaller) Uninstall(ctx context.Context) error {
+func (sc *scInstaller) Uninstall(ctx context.Context) error {
 	scName := sc.name
 	foregroundDeletePropagation := metav1.DeletePropagationForeground
 	// Delete Namespace Obj

@@ -115,14 +115,14 @@ func FilterDrivesByParameters(parameters map[string]string, csiDrives []directcs
 			if err != nil {
 				return csiDrives, err
 			}
-			filteredDriveList = FilterDrivesByAccessTier(accessT, filteredDriveList)
+			filteredDriveList = filterDrivesByAccessTier(accessT, filteredDriveList)
 		default:
 		}
 	}
 	return filteredDriveList, nil
 }
 
-func FilterDrivesByAccessTier(accessTier directcsi.AccessTier, csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
+func filterDrivesByAccessTier(accessTier directcsi.AccessTier, csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
 	filteredDriveList := []directcsi.DirectCSIDrive{}
 	for _, csiDrive := range csiDrives {
 		if csiDrive.Status.AccessTier == accessTier {
@@ -139,7 +139,7 @@ func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDriv
 	preferredXs := tReq.GetPreferred()
 	requisiteXs := tReq.GetRequisite()
 
-	// Try to fullfill the preferred topology request, If not, fallback to requisite list.
+	// Try to fulfill the preferred topology request, If not, fallback to requisite list.
 	// Ref: https://godoc.org/github.com/container-storage-interface/spec/lib/go/csi#TopologyRequirement
 	for _, preferredTop := range preferredXs {
 		if selectedDrives, err := selectDrivesByTopology(preferredTop, csiDrives); err == nil {

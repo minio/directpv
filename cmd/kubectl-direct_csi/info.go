@@ -52,28 +52,29 @@ var infoCmd = &cobra.Command{
 func getInfo(ctx context.Context, args []string, quiet bool) error {
 	crdclient := utils.GetCRDClient()
 
-	if crds, err := crdclient.List(ctx, metav1.ListOptions{}); err != nil {
+	crds, err := crdclient.List(ctx, metav1.ListOptions{})
+	if err != nil {
 		if !quiet {
 			klog.Errorf("error listing crds: %v", err)
 		}
 		return err
-	} else {
-		drivesFound := false
-		volumesFound := false
-		for _, crd := range crds.Items {
-			if strings.Contains(crd.Name, "directcsidrives.direct.csi.min.io") {
-				drivesFound = true
-			}
-			if strings.Contains(crd.Name, "directcsivolumes.direct.csi.min.io") {
-				volumesFound = true
-			}
+	}
+
+	drivesFound := false
+	volumesFound := false
+	for _, crd := range crds.Items {
+		if strings.Contains(crd.Name, "directcsidrives.direct.csi.min.io") {
+			drivesFound = true
 		}
-		if !(drivesFound && volumesFound) {
-			if !quiet {
-				return fmt.Errorf("%s: DirectCSI installation not found", bold("Error"))
-			}
+		if strings.Contains(crd.Name, "directcsivolumes.direct.csi.min.io") {
+			volumesFound = true
+		}
+	}
+	if !(drivesFound && volumesFound) {
+		if !quiet {
 			return fmt.Errorf("%s: DirectCSI installation not found", bold("Error"))
 		}
+		return fmt.Errorf("%s: DirectCSI installation not found", bold("Error"))
 	}
 
 	client, gvk, err := utils.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")

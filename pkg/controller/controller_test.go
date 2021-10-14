@@ -39,10 +39,8 @@ const (
 	KB = 1 << 10
 	MB = KB << 10
 
-	mb50  = 50 * MB
 	mb100 = 100 * MB
 	mb20  = 20 * MB
-	mb30  = 30 * MB
 )
 
 func TestSelectDrivesByTopology(t1 *testing.T) {

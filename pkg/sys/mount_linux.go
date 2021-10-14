@@ -26,7 +26,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func SafeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
+func safeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
 	mountInfos, err := ProbeMounts()
 	if err != nil {
 		return err
@@ -46,10 +46,10 @@ func SafeMount(source, target, fsType string, mountOpts []MountOption, superbloc
 		}
 	}
 
-	return Mount(source, target, fsType, mountOpts, superblockOpts)
+	return mount(source, target, fsType, mountOpts, superblockOpts)
 }
 
-func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
+func mount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
 	verifyRemount := func(mountOpts []MountOption) error {
 		remount := false
 		for _, opt := range mountOpts {
@@ -192,6 +192,7 @@ func Mount(source, target, fsType string, mountOpts []MountOption, superblockOpt
 	return syscall.Mount(source, target, fsType, flags, strings.Join(superblockOpts, ","))
 }
 
+// SafeUnmount unmounts of a target directory if it is a mountpoint.
 func SafeUnmount(target string, opts []UnmountOption) error {
 	mountInfos, err := ProbeMounts()
 	if err != nil {
@@ -216,7 +217,7 @@ func SafeUnmount(target string, opts []UnmountOption) error {
 	return Unmount(target, opts)
 }
 
-func SafeUnmountAll(path string, opts []UnmountOption) error {
+func safeUnmountAll(path string, opts []UnmountOption) error {
 	mountInfos, err := ProbeMounts()
 	if err != nil {
 		return err
@@ -238,6 +239,7 @@ func SafeUnmountAll(path string, opts []UnmountOption) error {
 	return nil
 }
 
+// Unmount unmounts given mountpoint.
 func Unmount(target string, opts []UnmountOption) error {
 	flags := 0
 	for _, opt := range opts {
@@ -249,7 +251,7 @@ func Unmount(target string, opts []UnmountOption) error {
 		case UnmountOptionExpire:
 			flags = flags | syscall.MNT_EXPIRE
 		default:
-			return fmt.Errorf("Unsupport unmount flag: %s", opt)
+			return fmt.Errorf("unsupported unmount flag: %s", opt)
 		}
 	}
 	klog.V(5).Infof("unmounting %s", target)
