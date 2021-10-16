@@ -31,7 +31,7 @@ fatal() {
 # verify_priv verifies if installation has neccessary privileges.
 verify_priv() {
     # --- bail if we are not root ---
-    if [ ! $(id -u) -eq 0 ]; then
+    if [ "$(id -u)" -ne 0 ]; then
         fatal "You need to be root to perform this install"
     fi
 }
@@ -92,20 +92,19 @@ download() {
 
     case ${DOWNLOADER} in
     *curl)
-        curl -o "$1" -fsSL "$2"
+        if ! curl -o "$1" -fsSL "$2"; then
+            fatal "download failed"
+        fi
         ;;
     *wget)
-        wget -qO "$1" "$2"
+        if ! wget -qO "$1" "$2"; then
+            fatal "download failed"
+        fi
         ;;
     *)
         fatal "downloader executable not supported: '${DOWNLOADER}'"
         ;;
     esac
-
-    # Abort if download command failed
-    if [ $? -ne 0 ]; then
-        fatal "download failed"
-    fi
 }
 
 # download_checksums downloads hash from github url.
@@ -134,8 +133,8 @@ verify_binary() {
 install_binary() {
     INSTALL_LOCATION=/usr/local/bin
     info "install binary to ${INSTALL_LOCATION}"
-    chmod +x ${TMP_BINARY}
-    mv ${TMP_BINARY} ${INSTALL_LOCATION}/kubectl-direct_csi
+    chmod +x "${TMP_BINARY}"
+    mv "${TMP_BINARY}" ${INSTALL_LOCATION}/kubectl-direct_csi
 }
 
 do_install() {

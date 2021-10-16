@@ -18,19 +18,25 @@
 
 set -ex
 
-SCRIPT_ROOT="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-REPOSITORY=github.com/minio/direct-csi
-CSI_VERSION=$(git describe --tags --always --dirty)
+SCRIPT_DIR=$(dirname "$0")
+BUILD_VERSION=$(git describe --tags --always --dirty)
+
+"${SCRIPT_DIR}/update-codegen.sh"
 
 export CGO_ENABLED=0
 
-"${SCRIPT_ROOT}/update-codegen.sh"
-
 go get -u github.com/jteeuwen/go-bindata/...
-go-bindata -o ${SCRIPT_ROOT}/../cmd/kubectl-direct_csi/crd_bindata.go ${SCRIPT_ROOT}/../config/crd/...
+go-bindata -o "${SCRIPT_DIR}/../cmd/kubectl-direct_csi/crd_bindata.go" "${SCRIPT_DIR}/../config/crd/..."
 gofmt -s -w cmd/kubectl-direct_csi/crd_bindata.go
 
-"${SCRIPT_ROOT}/add-license-header.sh"
+"${SCRIPT_DIR}/add-license-header.sh"
 
-go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${CSI_VERSION} -extldflags=-static" ${REPOSITORY}/cmd/direct-csi
-go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${CSI_VERSION} -extldflags=-static" ${REPOSITORY}/cmd/kubectl-direct_csi
+export GO111MODULE=on
+
+go build -tags "osusergo netgo static_build" \
+   -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
+   github.com/minio/direct-csi/cmd/direct-csi
+
+go build -tags "osusergo netgo static_build" \
+   -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
+   github.com/minio/direct-csi/cmd/kubectl-direct_csi

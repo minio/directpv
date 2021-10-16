@@ -129,7 +129,7 @@ function deploy_minio() {
     while [[ $running_count -lt $required_count ]]; do
         echo "$ME: waiting for $(( required_count - running_count )) minio pods to come up"
         sleep $(( required_count - running_count ))
-        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep '^minio-' | wc -l)
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep -c '^minio-' || true)
     done
 }
 
@@ -139,7 +139,7 @@ function uninstall_minio() {
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} minio pods to go down"
         sleep ${pending}
-        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep '^minio-' | wc -l)
+        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep -c '^minio-' || true)
     done
 
     kubectl delete pvc --all
@@ -159,7 +159,7 @@ function uninstall_minio() {
     "${DIRECT_CSI_CLIENT}" drives ls --all
 
     while true; do
-        count=$("${DIRECT_CSI_CLIENT}" drives ls | grep InUse | wc -l)
+        count=$("${DIRECT_CSI_CLIENT}" drives ls | grep -c InUse || true)
         if [[ $count -eq 0 ]]; then
             break
         fi
