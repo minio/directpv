@@ -16,11 +16,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-SCRIPT_ROOT="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-
-# install addlicense
-GO111MODULE=off 
-go get -u github.com/google/addlicense
-
-# apply license to all go files
-find . | grep .go$ | xargs addlicense -f ${SCRIPT_ROOT}/boilerplate.go.txt
+SCRIPT_DIR=$(dirname "$0")
+go install github.com/google/addlicense@latest
+find . -name "*.go" -print0 | xargs --null addlicense -f "${SCRIPT_DIR}/boilerplate.go.txt"

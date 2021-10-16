@@ -65,8 +65,8 @@ function do_upgrade_test() {
     # Show output for manual debugging.
     kubectl get pods -n direct-csi-min-io
 
-    DIRECT_CSI_CLIENT=./kubectl-direct_csi
-    DIRECT_CSI_VERSION="${BUILD_VERSION}"
+    export DIRECT_CSI_CLIENT=./kubectl-direct_csi
+    export DIRECT_CSI_VERSION="${BUILD_VERSION}"
     install_directcsi
 
     # Show output for manual debugging.
@@ -77,13 +77,13 @@ function do_upgrade_test() {
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" volumes list --all -o wide
 
-    upgraded_volumes=($("${DIRECT_CSI_CLIENT}" volumes list --status 'published' | awk '{print $1}' ))
+    mapfile -t upgraded_volumes < <("${DIRECT_CSI_CLIENT}" volumes list --status published | awk '{print $1}')
     if [[ ${#upgraded_volumes[@]} -ne ${#volumes[@]} ]]; then
         echo "$ME: volume count is not matching after upgrade"
         return 1
     fi
 
-    for volume in $upgraded_volumes; do
+    for volume in "${upgraded_volumes[@]}"; do
         if [[ ! ${volumes[${volume}]+_} ]]; then
             echo "$ME: ${volume} not found after upgrade"
             return 1

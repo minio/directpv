@@ -19,20 +19,12 @@
 set -e
 
 SCRIPT_ROOT="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+GID=$(id -g)
 
-if [ -t 1 ]; then
-    docker run \
-           --interactive --tty \
-           -u $(id -u ${USER}):$(id -g ${USER}) \
-           -e HOME=/go/home \
-           -v "${SCRIPT_ROOT}:/go/src/github.com/minio/direct-csi" \
-           -w /go/src/github.com/minio/direct-csi \
-           --entrypoint hack/build-without-docker.sh golang:1.17
-else
-    docker run \
-           -u $(id -u ${USER}):$(id -g ${USER}) \
-           -e HOME=/go/home \
-           -v "${SCRIPT_ROOT}:/go/src/github.com/minio/direct-csi" \
-           -w /go/src/github.com/minio/direct-csi \
-           --entrypoint hack/build-without-docker.sh golang:1.17
-fi
+docker_run=( docker run -u "${UID}:${GID}" -e HOME=/go/home \
+                    -v "${SCRIPT_ROOT}:/go/src/github.com/minio/direct-csi" \
+                    -w /go/src/github.com/minio/direct-csi \
+                    --entrypoint hack/build-without-docker.sh golang:1.17 )
+[ -t 1 ] && docker_run+=( --interactive --tty )
+
+"${docker_run[@]}"
