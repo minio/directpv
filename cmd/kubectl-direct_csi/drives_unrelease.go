@@ -124,5 +124,6 @@ func unreleaseDrives(ctx context.Context, args []string) error {
 			return nil
 		},
 		defaultDriveUpdateFunc(directCSIClient),
+		nil,
 	)
 }

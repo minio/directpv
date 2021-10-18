@@ -21,6 +21,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -78,6 +80,25 @@ func unsetAccessTier(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	defaultAuditDir, err := utils.GetDefaultAuditDir()
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory; %w", err)
+	}
+	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
+		return err
+	}
+
+	file, err := utils.NewSafeFile(fmt.Sprintf("%v/%v-%v", defaultAuditDir, auditSetAccessTier, time.Now().UnixNano()))
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory ; %w", err)
+	}
+
+	defer func() error {
+		if err := file.Close(); err != nil {
+			return fmt.Errorf("unable to close the file ; %w", err)
+		}
+		return nil
+	}()
 
 	directCSIClient := utils.GetDirectCSIClient()
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -100,5 +121,6 @@ func unsetAccessTier(ctx context.Context, args []string) error {
 			return nil
 		},
 		defaultDriveUpdateFunc(directCSIClient),
+		file,
 	)
 }

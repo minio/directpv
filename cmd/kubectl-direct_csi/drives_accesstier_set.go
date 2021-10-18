@@ -21,6 +21,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -53,6 +55,7 @@ $ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1,othernode-2 
 	},
 	Aliases: []string{},
 }
+var auditSetAccessTier = "set-access-tier"
 
 func init() {
 	accessTierSet.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "glob selector for drive paths")
@@ -75,6 +78,25 @@ func setAccessTier(ctx context.Context, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("Invalid input arguments. Please use '%s' for examples to set access-tiers", utils.Bold("--help"))
 	}
+	defaultAuditDir, err := utils.GetDefaultAuditDir()
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory; %w", err)
+	}
+	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
+		return err
+	}
+
+	file, err := utils.NewSafeFile(fmt.Sprintf("%v/%v-%v", defaultAuditDir, auditSetAccessTier, time.Now().UnixNano()))
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory ; %w", err)
+	}
+
+	defer func() error {
+		if err := file.Close(); err != nil {
+			return fmt.Errorf("unable to close the file ; %w", err)
+		}
+		return nil
+	}()
 
 	accessTier, err := utils.ValidateAccessTier(args[0])
 	if err != nil {
@@ -102,5 +124,6 @@ func setAccessTier(ctx context.Context, args []string) error {
 			return nil
 		},
 		defaultDriveUpdateFunc(directCSIClient),
+		file,
 	)
 }

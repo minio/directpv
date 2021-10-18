@@ -136,6 +136,7 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 			}
 			return nil
 		},
+		nil,
 	)
 
 	if errors.Is(err, errForceRequired) {

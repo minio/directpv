@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -153,6 +154,7 @@ func processObjects(
 	matchFunc func(runtime.Object) bool,
 	applyFunc func(runtime.Object) error,
 	processFunc func(context.Context, runtime.Object) error,
+	writer io.Writer,
 ) error {
 	stopCh := make(chan struct{})
 	var stopChMu int32
@@ -205,6 +207,10 @@ func processObjects(
 
 		if err = applyFunc(result.object); err != nil {
 			break
+		}
+
+		if err := utils.WriteObject(writer, result.object); err != nil {
+			return err
 		}
 
 		if dryRun {
@@ -285,6 +291,7 @@ func processVolumes(
 		func(ctx context.Context, object runtime.Object) error {
 			return processFunc(ctx, object.(*directcsi.DirectCSIVolume))
 		},
+		nil,
 	)
 }
 
@@ -294,6 +301,7 @@ func processDrives(
 	matchFunc func(*directcsi.DirectCSIDrive) bool,
 	applyFunc func(*directcsi.DirectCSIDrive) error,
 	processFunc func(context.Context, *directcsi.DirectCSIDrive) error,
+	writer io.Writer,
 ) error {
 	objectCh := make(chan objectResult)
 	go func() {
@@ -327,5 +335,6 @@ func processDrives(
 		func(ctx context.Context, object runtime.Object) error {
 			return processFunc(ctx, object.(*directcsi.DirectCSIDrive))
 		},
+		writer,
 	)
 }
