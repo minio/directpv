@@ -21,6 +21,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -55,7 +56,26 @@ $ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1 --nodes=othe
 $ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1,othernode-2 --status=ready
 `,
 	RunE: func(c *cobra.Command, args []string) error {
-		return setAccessTier(c.Context(), args)
+		if !all {
+			if len(drives) == 0 && len(nodes) == 0 && len(status) == 0 {
+				return fmt.Errorf("atleast one of '%s', '%s', '%s' or '%s' should be specified",
+					utils.Bold("--all"),
+					utils.Bold("--drives"),
+					utils.Bold("--nodes"),
+					utils.Bold("--status"))
+			}
+		}
+
+		if len(args) != 1 {
+			return fmt.Errorf("Invalid input arguments. Please use '%s' for examples to set access-tiers", utils.Bold("--help"))
+		}
+
+		accessTier, err := directcsi.ToAccessTier(args[0])
+		if err != nil {
+			return err
+		}
+
+		return setAccessTier(c.Context(), accessTier)
 	},
 	Aliases: []string{},
 }
@@ -64,29 +84,10 @@ func init() {
 	accessTierSet.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
 	accessTierSet.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
 	accessTierSet.PersistentFlags().BoolVarP(&all, "all", "a", all, "tag all available drives")
-	accessTierSet.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "match based on drive status ['inuse','available','unavailable','ready','terminating','released']")
+	accessTierSet.PersistentFlags().StringSliceVarP(&status, "status", "s", status, fmt.Sprintf("match based on drive status [%s]", strings.Join(directcsi.SupportedStatusSelectorValues(), ", ")))
 }
 
-func setAccessTier(ctx context.Context, accessTierArg []string) error {
-	if !all {
-		if len(drives) == 0 && len(nodes) == 0 && len(status) == 0 {
-			return fmt.Errorf("atleast one of '%s', '%s', '%s' or '%s' should be specified",
-				utils.Bold("--all"),
-				utils.Bold("--drives"),
-				utils.Bold("--nodes"),
-				utils.Bold("--status"))
-		}
-	}
-
-	if len(accessTierArg) != 1 {
-		return fmt.Errorf("Invalid input arguments. Please use '%s' for examples to set access-tiers", utils.Bold("--help"))
-	}
-
-	accessTier, err := directcsi.ValidateAccessTier(accessTierArg[0])
-	if err != nil {
-		return err
-	}
-
+func setAccessTier(ctx context.Context, accessTier directcsi.AccessTier) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 

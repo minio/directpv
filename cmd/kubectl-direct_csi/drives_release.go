@@ -62,6 +62,11 @@ var releaseDrivesCmd = &cobra.Command{
  $ kubectl direct-csi drives release --nodes=directcsi-1,othernode-2 --status=ready
  `,
 	RunE: func(c *cobra.Command, args []string) error {
+		if !all {
+			if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {
+				return fmt.Errorf("atleast one among ['%s','%s','%s','%s'] should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"), utils.Bold("--access-tier"))
+			}
+		}
 		return releaseDrives(c.Context(), args)
 	},
 	Aliases: []string{},
@@ -76,12 +81,6 @@ func init() {
 }
 
 func releaseDrives(ctx context.Context, IDArgs []string) error {
-	if !all {
-		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(IDArgs) == 0 {
-			return fmt.Errorf("atleast one among ['%s','%s','%s','%s'] should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"), utils.Bold("--access-tier"))
-		}
-	}
-
 	driveName := func(val string) string {
 		dr := strings.ReplaceAll(val, sys.DirectCSIDevRoot+"/", "")
 		dr = strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")

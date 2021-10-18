@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-func TestExpandSelector(t1 *testing.T) {
+func TestExpandSelectors(t1 *testing.T) {
 	testCases := []struct {
 		selectors    []string
 		expandedList []string
@@ -105,7 +105,7 @@ func TestExpandSelector(t1 *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		list, err := expandSelector(testCase.selectors)
+		list, err := expandSelectors(testCase.selectors)
 		if err != nil && !testCase.expectErr {
 			t1.Fatalf("case %v: did not expect error but got: %v", i+1, err)
 		}
@@ -115,87 +115,40 @@ func TestExpandSelector(t1 *testing.T) {
 	}
 }
 
-func TestHasGlobSelectors(t1 *testing.T) {
+func TestSplitSelectors(t1 *testing.T) {
 	testCases := []struct {
-		selectors       []string
-		hasGlobSelector bool
-		expectErr       bool
+		selectors         []string
+		globSelectors     []string
+		ellipsesSelectors []string
 	}{
 		{
-			selectors:       []string{"/dev/xvd{a...c}", "/dev/xvd{e...f}"},
-			hasGlobSelector: false,
-			expectErr:       false,
+			selectors:         []string{"/dev/xvd{a...c}", "/dev/xvd{e...f}"},
+			globSelectors:     nil,
+			ellipsesSelectors: []string{"/dev/xvd{a...c}", "/dev/xvd{e...f}"},
 		},
 		{
-			selectors:       []string{"/dev/xvd[a-c]", "/dev/xvd[e-f]"},
-			hasGlobSelector: true,
-			expectErr:       false,
+			selectors:         []string{"/dev/xvd[a-c]", "/dev/xvd[e-f]"},
+			globSelectors:     []string{"/dev/xvd[a-c]", "/dev/xvd[e-f]"},
+			ellipsesSelectors: nil,
 		},
 		{
-			selectors:       []string{"/dev/xvd[a-c]"},
-			hasGlobSelector: true,
-			expectErr:       false,
+			selectors:         []string{"/dev/xvd[a-c]"},
+			globSelectors:     []string{"/dev/xvd[a-c]"},
+			ellipsesSelectors: nil,
 		},
 		{
-			selectors:       []string{"/dev/xvda*"},
-			hasGlobSelector: true,
-			expectErr:       false,
-		},
-		{
-			selectors:       []string{"/dev/xvd{a...b}"},
-			hasGlobSelector: false,
-			expectErr:       false,
-		},
-		{
-			selectors:       nil,
-			hasGlobSelector: false,
-			expectErr:       false,
-		},
-		{
-			selectors:       []string{"/dev/xvd{a...c}", "/dev/xvd[e-f]"},
-			hasGlobSelector: false,
-			expectErr:       true,
+			selectors:         []string{"/dev/xvd{a...c}", "/dev/xvd[e-f]", "/dev/xvd{g...h}", "/dev/xvd[i-z]"},
+			globSelectors:     []string{"/dev/xvd[e-f]", "/dev/xvd[i-z]"},
+			ellipsesSelectors: []string{"/dev/xvd{a...c}", "/dev/xvd{g...h}"},
 		},
 	}
-
 	for i, testCase := range testCases {
-		hasGlob, err := hasGlobSelectors(testCase.selectors)
-		if err != nil && !testCase.expectErr {
-			t1.Fatalf("case %v: did not expect error but got: %v", i+1, err)
+		globSelectors, ellipsesSelectors := splitSelectors(testCase.selectors)
+		if !reflect.DeepEqual(globSelectors, testCase.globSelectors) {
+			t1.Errorf("case %v: Expected globSelectorList = %v, got %v", i+1, testCase.globSelectors, globSelectors)
 		}
-		if testCase.hasGlobSelector != hasGlob {
-			t1.Errorf("case %v: Expected hasGlob = %v, got %v", i+1, testCase.hasGlobSelector, hasGlob)
-		}
-	}
-}
-
-func TestSetIfTrue(t1 *testing.T) {
-	testCases := []struct {
-		cond   bool
-		sliceB []string
-		result []string
-	}{
-		{
-			cond:   false,
-			sliceB: []string{"def"},
-			result: nil,
-		},
-		{
-			cond:   true,
-			sliceB: []string{"def"},
-			result: []string{"def"},
-		},
-		{
-			cond:   true,
-			sliceB: nil,
-			result: nil,
-		},
-	}
-
-	for i, testCase := range testCases {
-		result := setIfTrue(testCase.cond, testCase.sliceB)
-		if !reflect.DeepEqual(result, testCase.result) {
-			t1.Errorf("case %v: Expected result = %v, got %v", i+1, testCase.result, result)
+		if !reflect.DeepEqual(ellipsesSelectors, testCase.ellipsesSelectors) {
+			t1.Errorf("case %v: Expected ellipsesSelectorList = %v, got %v", i+1, testCase.ellipsesSelectors, ellipsesSelectors)
 		}
 	}
 }

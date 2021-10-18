@@ -66,6 +66,15 @@ var unreleaseDrivesCmd = &cobra.Command{
  $ kubectl direct-csi drives unrelease <drive_id_1> <drive_id_2>
  `,
 	RunE: func(c *cobra.Command, args []string) error {
+		if !all {
+			if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {
+				return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified",
+					utils.Bold("--all"),
+					utils.Bold("--drives"),
+					utils.Bold("--nodes"))
+			}
+		}
+
 		return unreleaseDrives(c.Context(), args)
 	},
 	Aliases: []string{},
@@ -80,15 +89,6 @@ func init() {
 }
 
 func unreleaseDrives(ctx context.Context, IDArgs []string) error {
-	if !all {
-		if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(IDArgs) == 0 {
-			return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified",
-				utils.Bold("--all"),
-				utils.Bold("--drives"),
-				utils.Bold("--nodes"))
-		}
-	}
-
 	return processFilteredDrives(
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIDrives(),

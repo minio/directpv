@@ -111,7 +111,7 @@ func FilterDrivesByParameters(parameters map[string]string, csiDrives []directcs
 	for k, v := range parameters {
 		switch k {
 		case "direct-csi-min-io/access-tier":
-			accessT, err := directcsi.ValidateAccessTier(v)
+			accessT, err := directcsi.ToAccessTier(v)
 			if err != nil {
 				return csiDrives, err
 			}

@@ -25,25 +25,14 @@ import (
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
 )
 
 func toLabelSelector(labelMap map[string][]string) string {
-
-	validateLabelV := func(labelV string) string {
-		// If the value is not valid, a list of error strings is returned. Otherwise an empty list (or nil) is returned.
-		if validation.IsValidLabelValue(labelV) == nil {
-			return labelV
-		}
-		return ""
-	}
-
 	selectors := []string{}
 	for label, values := range labelMap {
 		if len(values) > 0 {
-			validLabelValues := FmapStringSlice(values, validateLabelV)
-			selectors = append(selectors, fmt.Sprintf("%s in (%s)", label, strings.Join(validLabelValues, ",")))
+			selectors = append(selectors, fmt.Sprintf("%s in (%s)", label, strings.Join(values, ",")))
 		}
 	}
 	return strings.Join(selectors, ",")

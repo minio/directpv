@@ -23,38 +23,36 @@ import (
 	"github.com/minio/direct-csi/pkg/matcher"
 )
 
-func ValidateAccessTier(at string) (AccessTier, error) {
-	switch AccessTier(strings.Title(at)) {
-	case AccessTierWarm:
-		return AccessTierWarm, nil
-	case AccessTierHot:
-		return AccessTierHot, nil
-	case AccessTierCold:
-		return AccessTierCold, nil
-	case AccessTierUnknown:
-		return AccessTierUnknown, fmt.Errorf("Please set any one among ['hot','warm', 'cold']")
-	default:
-		return AccessTierUnknown, fmt.Errorf("Invalid 'access-tier' value, Please set any one among ['hot','warm','cold']")
+func SupportedStatusSelectorValues() []string {
+	return []string{
+		string(DriveStatusInUse),
+		string(DriveStatusAvailable),
+		string(DriveStatusUnavailable),
+		string(DriveStatusReady),
+		string(DriveStatusTerminating),
+		string(DriveStatusReleased),
 	}
 }
 
-func GetAccessTierSet(accessTiers []string) ([]AccessTier, error) {
-	var atSet []AccessTier
-	for i := range accessTiers {
-		if accessTiers[i] == "*" {
-			return []AccessTier{
-				AccessTierHot,
-				AccessTierWarm,
-				AccessTierCold,
-			}, nil
-		}
-		at, err := ValidateAccessTier(strings.TrimSpace(accessTiers[i]))
-		if err != nil {
-			return atSet, err
-		}
-		atSet = append(atSet, at)
+func ToAccessTier(value string) (accessTier AccessTier, err error) {
+	accessTier = AccessTier(strings.Title(value))
+	switch accessTier {
+	case AccessTierWarm, AccessTierHot, AccessTierCold, AccessTierUnknown:
+	default:
+		err = fmt.Errorf("unknown access tier value %v", value)
 	}
-	return atSet, nil
+	return accessTier, err
+}
+
+func StringsToAccessTiers(values []string) (accessTiers []AccessTier, err error) {
+	var accessTier AccessTier
+	for _, value := range values {
+		if accessTier, err = ToAccessTier(value); err != nil {
+			return nil, err
+		}
+		accessTiers = append(accessTiers, accessTier)
+	}
+	return accessTiers, nil
 }
 
 func AccessTiersToStrings(accessTiers []AccessTier) (slice []string) {
@@ -66,8 +64,4 @@ func AccessTiersToStrings(accessTiers []AccessTier) (slice []string) {
 
 func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 	return matcher.GlobMatchNodesDrivesStatuses(nodes, drives, status, drive.Status.NodeName, drive.Status.Path, string(drive.Status.DriveStatus))
-}
-
-func (drive *DirectCSIDrive) MatchAccessTier(accessTierList []AccessTier) bool {
-	return len(accessTierList) == 0 || matcher.StringIn(AccessTiersToStrings(accessTierList), string(drive.Status.AccessTier))
 }

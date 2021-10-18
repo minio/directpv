@@ -21,6 +21,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -54,8 +55,18 @@ $ kubectl direct-csi drives access-tier unset --nodes=directcsi-1 --nodes=othern
 # Combine multiple parameters using csv
 $ kubectl direct-csi drives access-tier unset --nodes=directcsi-1,othernode-2 --access-tier=hot
 `,
-	RunE: func(c *cobra.Command, args []string) error {
-		return unsetAccessTier(c.Context(), args)
+	RunE: func(c *cobra.Command, _ []string) error {
+		if !all {
+			if len(drives) == 0 && len(nodes) == 0 && len(status) == 0 && len(accessTiers) == 0 {
+				return fmt.Errorf("atleast one of '%s', '%s', '%s', '%s', or '%s' should be specified",
+					utils.Bold("--all"),
+					utils.Bold("--drives"),
+					utils.Bold("--nodes"),
+					utils.Bold("--status"),
+					utils.Bold("--access-tier"))
+			}
+		}
+		return unsetAccessTier(c.Context())
 	},
 	Aliases: []string{},
 }
@@ -64,22 +75,11 @@ func init() {
 	accessTierUnset.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
 	accessTierUnset.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
 	accessTierUnset.PersistentFlags().BoolVarP(&all, "all", "a", all, "untag all available drives")
-	accessTierUnset.PersistentFlags().StringSliceVarP(&status, "status", "s", status, "match based on drive status ['inuse','available','unavailable','ready','terminating','released']")
+	accessTierUnset.PersistentFlags().StringSliceVarP(&status, "status", "s", status, fmt.Sprintf("match based on drive status [%s]", strings.Join(directcsi.SupportedStatusSelectorValues(), ", ")))
 	accessTierUnset.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "match based on access-tier set. The possible values are [hot,cold,warm] ")
 }
 
-func unsetAccessTier(ctx context.Context, _ []string) error {
-	if !all {
-		if len(drives) == 0 && len(nodes) == 0 && len(status) == 0 && len(accessTiers) == 0 {
-			return fmt.Errorf("atleast one of '%s', '%s', '%s', '%s', or '%s' should be specified",
-				utils.Bold("--all"),
-				utils.Bold("--drives"),
-				utils.Bold("--nodes"),
-				utils.Bold("--status"),
-				utils.Bold("--access-tier"))
-		}
-	}
-
+func unsetAccessTier(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 

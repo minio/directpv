@@ -30,7 +30,3 @@ func accessTiersToStrings(accessTiers []AccessTier) (slice []string) {
 func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 	return matcher.GlobMatchNodesDrivesStatuses(nodes, drives, status, drive.Status.NodeName, drive.Status.Path, string(drive.Status.DriveStatus))
 }
-
-func (drive *DirectCSIDrive) MatchAccessTier(accessTierList []AccessTier) bool {
-	return len(accessTierList) == 0 || matcher.StringIn(accessTiersToStrings(accessTierList), string(drive.Status.AccessTier))
-}
