@@ -68,7 +68,7 @@ var unreleaseDrivesCmd = &cobra.Command{
 	RunE: func(c *cobra.Command, args []string) error {
 		if !all {
 			if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {
-				return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified",
+				return fmt.Errorf("atleast one of '%s', '%s' or '%s' must be specified",
 					utils.Bold("--all"),
 					utils.Bold("--drives"),
 					utils.Bold("--nodes"))
@@ -81,17 +81,18 @@ var unreleaseDrivesCmd = &cobra.Command{
 }
 
 func init() {
-	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
-	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
+	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "filter by drive path(s) (also accepts ellipses range notations)")
+	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "filter by node name(s) (also accepts ellipses range notations)")
 	unreleaseDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "unrelease all available drives")
 	unreleaseDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers,
 		"unrelease based on access-tier set. The possible values are hot|cold|warm")
 }
 
 func unreleaseDrives(ctx context.Context, IDArgs []string) error {
+	directCSIClient := utils.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
+		directCSIClient.DirectCSIDrives(),
 		IDArgs,
 		func(drive *directcsi.DirectCSIDrive) bool {
 			if drive.Status.DriveStatus != directcsi.DriveStatusReleased {
@@ -106,6 +107,6 @@ func unreleaseDrives(ctx context.Context, IDArgs []string) error {
 			drive.Status.DriveStatus = directcsi.DriveStatusAvailable
 			return nil
 		},
-		defaultDriveUpdateFunc,
+		defaultDriveUpdateFunc(directCSIClient),
 	)
 }

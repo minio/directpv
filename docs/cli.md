@@ -44,30 +44,45 @@ Global Flags:
 The kubectl plugin makes it easy to discover drives in your cluster
 
 ```sh
-$ kubectl direct-csi drives list --help
+list drives in the DirectCSI cluster
 
-Flags:
-  -d, --drives strings   glob selector for drive paths
-  -h, --help             help for list
-  -n, --nodes strings    glob selector for node names
-  -s, --status strings   glob selector for drive status
+Usage:
+  direct-csi drives list [flags]
+
+Aliases:
+  list, ls
 
 Examples:
 
-# Filter all nvme drives in all nodes 
-$ kubectl direct-csi drives list --drives='/dev/nvme*'
+# Filter drives by ellipses notation for drive paths and nodes
+$ kubectl direct-csi drives ls --drives='/dev/xvd{a...d}' --nodes='node-{1...4}'
 
-# Filter all available drives 
-$ kubectl direct-csi drives list --status=available
+# Filter all ready drives 
+$ kubectl direct-csi drives ls --status=ready
 
 # Filter all drives from a particular node
-$ kubectl direct-csi drives list --nodes=directcsi-1
+$ kubectl direct-csi drives ls --nodes=directcsi-1
 
-# Combine multiple filters
-$ kubectl direct-csi drives list --nodes=directcsi-1 --nodes=othernode-2 --status=ready
+# Combine multiple filters using multi-arg
+$ kubectl direct-csi drives ls --nodes=directcsi-1 --nodes=othernode-2 --status=available
 
 # Combine multiple filters using csv
-$ kubectl direct-csi drives list --nodes=directcsi-1,othernode-2 --status=ready
+$ kubectl direct-csi drives ls --nodes=directcsi-1,othernode-2 --status=ready
+
+# Filter all drives based on access-tier
+$ kubectl direct-csi drives drives ls --access-tier="hot"
+
+# Filter all drives with access-tier being set
+$ kubectl direct-csi drives drives ls --access-tier="*"
+
+
+Flags:
+      --access-tier strings   match based on access-tier
+  -a, --all                   list all drives (including unavailable)
+  -d, --drives strings        filter by drive path(s) (also accepts ellipses range notations)
+  -h, --help                  help for list
+  -n, --nodes strings         filter by node name(s) (also accepts ellipses range notations)
+  -s, --status strings        match based on drive status [InUse, Available, Unavailable, Ready, Terminating, Released]
 ```
 
 **EXAMPLE** When direct-csi is first installed, the output will look something like this, with most drives in `Available` status
@@ -88,38 +103,54 @@ $ kubectl direct-csi drives list
 ### Format and add Drives to DirectCSI 
 
 ```sh
-$ kubectl direct-csi drives format --help
-add drives to the DirectCSI cluster
+format drives in the DirectCSI cluster
 
 Usage:
-  kubectl-direct_csi drives format [flags]
+  direct-csi drives format [flags]
 
 Examples:
 
-# Add all Available drives
+# Format all available drives in the cluster
 $ kubectl direct-csi drives format --all
 
-# Add all nvme drives in all nodes 
-$ kubectl direct-csi drives format --drives='/dev/nvme*'
+# Format the 'sdf' drives in all nodes
+$ kubectl direct-csi drives format --drives '/dev/sdf'
 
-# Add all drives from a particular node
+# Format the selective drives using ellipses notation for drive paths
+$ kubectl direct-csi drives format --drives '/dev/sd{a...z}'
+
+# Format the drives from selective nodes using ellipses notation for node names
+$ kubectl direct-csi drives format --nodes 'directcsi-{1...3}'
+
+# Format all drives from a particular node
 $ kubectl direct-csi drives format --nodes=directcsi-1
 
+# Format all drives based on the access-tier set [hot|cold|warm]
+$ kubectl direct-csi drives format --access-tier=hot
+
 # Combine multiple parameters using multi-arg
-$ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=ready
+$ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=available
 
 # Combine multiple parameters using csv
-$ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=ready
+$ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=available
+
+# Combine multiple parameters using ellipses notations
+$ kubectl direct-csi drives format --nodes "directcsi-{3...4}" --drives "/dev/xvd{b...f}"
+
+# Format a drive by it's drive-id
+$ kubectl direct-csi drives format <drive_id>
+
+# Format more than one drive by their drive-ids
+$ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
+
 
 Flags:
-  -d, --drives strings      glog selector for drive paths
-  -f, --force               force format a drive even if a FS is already present
-  -h, --help                help for add
-  -n, --nodes strings       glob selector for node names
-
-Global Flags:
-  -k, --kubeconfig string   path to kubeconfig
-  -v, --v Level             log level for V logs
+      --access-tier strings   format based on access-tier set. The possible values are hot|cold|warm
+  -a, --all                   format all available drives
+  -d, --drives strings        filter by drive path(s) (also accepts ellipses range notations)
+  -f, --force                 force format a drive even if a FS is already present
+  -h, --help                  help for format
+  -n, --nodes strings         filter by node name(s) (also accepts ellipses range notations)
 ```
 
 **WARNING** - Adding drives to direct-csi will result in them being formatted
@@ -147,16 +178,16 @@ Global Flags:
 The kubectl plugin makes it easy to discover volumes in your cluster
 
 ```sh
+list volumes in the DirectCSI cluster
+
 Usage:
-  kubectl-direct_csi volumes list [flags]
+  direct-csi volumes list [flags]
 
 Aliases:
   list, ls
 
 Examples:
 
-# List all volumes provisioned on nvme drives across all nodes 
-$ kubectl direct-csi volumes ls --drives='/dev/nvme*'
 
 # List all staged and published volumes
 $ kubectl direct-csi volumes ls --status=staged,published
@@ -167,16 +198,24 @@ $ kubectl direct-csi volumes ls --nodes=directcsi-1
 # Combine multiple filters using csv
 $ kubectl direct-csi vol ls --nodes=directcsi-1,directcsi-2 --status=staged --drives=/dev/nvme0n1
 
+# List all published volumes by pod name
+$ kubectl direct-csi volumes ls --status=published --pod-name=minio-{1...3}
+
+# List all published volumes by pod namespace
+$ kubectl direct-csi volumes ls --status=published --pod-namespace=tenant-{1...3}
+
+# List all volumes provisioned based on drive and volume ellipses
+$ kubectl direct-csi volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
+
 
 Flags:
-  -d, --drives strings   glob prefix match for drive paths
-  -h, --help             help for list
-  -n, --nodes strings    glob prefix match for node names
-  -s, --status strings   glob prefix match for drive status
-
-Global Flags:
-  -k, --kubeconfig string   path to kubeconfig
-  -v, --v Level             log level for V logs
+  -a, --all                     list all volumes (including non-provisioned)
+  -d, --drives strings          filter by drive path(s) (also accepts ellipses range notations)
+  -h, --help                    help for list
+  -n, --nodes strings           filter by node name(s) (also accepts ellipses range notations)
+      --pod-name strings        filter by pod name(s) (also accepts ellipses range notations)
+      --pod-namespace strings   filter by pod namespace(s) (also accepts ellipses range notations)
+  -s, --status strings          match based on volume status. The possible values are [staged,published]
 ```
 
 ### Verify Installation

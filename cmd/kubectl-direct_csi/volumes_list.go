@@ -70,11 +70,11 @@ $ kubectl direct-csi volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}'
 }
 
 func init() {
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "filter by drive path(s) (also accepts ellipses range notations)")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "filter by node name(s) (also accepts ellipses range notations)")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&volumeStatus, "status", "s", volumeStatus, "match based on volume status. The possible values are [staged,published]")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNames, "pod-name", "", podNames, "selector for pod names (also accepts ellipses range notations)")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNss, "pod-namespace", "", podNss, "selector for pod namespaces (also accepts ellipses range notations)")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNames, "pod-name", "", podNames, "filter by pod name(s) (also accepts ellipses range notations)")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNss, "pod-namespace", "", podNss, "filter by pod namespace(s) (also accepts ellipses range notations)")
 	listVolumesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all volumes (including non-provisioned)")
 }
 

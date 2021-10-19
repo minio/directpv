@@ -344,9 +344,11 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 	return filteredVolumes, nil
 }
 
-func defaultDriveUpdateFunc(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	_, err := utils.GetDirectCSIClient().DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{})
-	return err
+func defaultDriveUpdateFunc(directCSIClient clientset.DirectV1beta3Interface) func(context.Context, *directcsi.DirectCSIDrive) error {
+	return func(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+		_, err := directCSIClient.DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{})
+		return err
+	}
 }
 
 type objectResult struct {

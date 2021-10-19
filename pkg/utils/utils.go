@@ -17,6 +17,7 @@
 package utils
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"

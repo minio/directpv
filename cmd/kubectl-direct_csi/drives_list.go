@@ -74,8 +74,8 @@ $ kubectl direct-csi drives drives ls --access-tier="*"
 var all bool
 
 func init() {
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
+	listDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "filter by drive path(s) (also accepts ellipses range notations)")
+	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "filter by node name(s) (also accepts ellipses range notations)")
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, fmt.Sprintf("match based on drive status [%s]", strings.Join(directcsi.SupportedStatusSelectorValues(), ", ")))
 	listDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all drives (including unavailable)")
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "match based on access-tier")
