@@ -40,10 +40,10 @@ $ kubectl direct-csi drives access-tier unset --all
 # Unsets the 'access-tier' based on the tier value set
 $ kubectl direct-csi drives access-tier unset --access-tier=warm
 
-# Unsets the 'access-tier' on selective drives using ellipses expander
+# Unsets the 'access-tier' on selective drives using ellipses notation for drive paths
 $ kubectl direct-csi drives access-tier unset --drives '/dev/sd{a...z}'
 
-# Unsets the 'access-tier' on drives from selective nodes using ellipses expander
+# Unsets the 'access-tier' on drives from selective nodes using ellipses notation for node names
 $ kubectl direct-csi drives access-tier unset --nodes 'directcsi-{1...3}'
 
 # Unsets the 'access-tier' tag on all the drives from a particular node
@@ -72,8 +72,8 @@ $ kubectl direct-csi drives access-tier unset --nodes=directcsi-1,othernode-2 --
 }
 
 func init() {
-	accessTierUnset.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
-	accessTierUnset.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
+	accessTierUnset.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
+	accessTierUnset.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
 	accessTierUnset.PersistentFlags().BoolVarP(&all, "all", "a", all, "untag all available drives")
 	accessTierUnset.PersistentFlags().StringSliceVarP(&status, "status", "s", status, fmt.Sprintf("match based on drive status [%s]", strings.Join(directcsi.SupportedStatusSelectorValues(), ", ")))
 	accessTierUnset.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "match based on access-tier set. The possible values are [hot,cold,warm] ")

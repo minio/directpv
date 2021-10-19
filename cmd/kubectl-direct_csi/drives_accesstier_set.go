@@ -40,10 +40,10 @@ $ kubectl direct-csi drives access-tier set cold --all
 # Sets the 'access-tier:warm' tag to 'sdf' drives in all nodes
 $ kubectl direct-csi drives access-tier set warm --drives '/dev/sdf'
 
-# Sets the 'access-tier:hot' tag to selective drives using ellipses expander
+# Sets the 'access-tier:hot' tag to selective drives using ellipses notation for drive paths
 $ kubectl direct-csi drives access-tier set hot --drives '/dev/sd{a...z}'
 
-# Sets the 'access-tier:hot' tag to drives from selective nodes using ellipses expander
+# Sets the 'access-tier:hot' tag to drives from selective nodes using ellipses notation for node names
 $ kubectl direct-csi drives access-tier set hot --nodes 'directcsi-{1...3}'
 
 # Sets the 'access-tier:hot' tag to all drives from a particular node
@@ -81,8 +81,8 @@ $ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1,othernode-2 
 }
 
 func init() {
-	accessTierSet.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
-	accessTierSet.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
+	accessTierSet.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
+	accessTierSet.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
 	accessTierSet.PersistentFlags().BoolVarP(&all, "all", "a", all, "tag all available drives")
 	accessTierSet.PersistentFlags().StringSliceVarP(&status, "status", "s", status, fmt.Sprintf("match based on drive status [%s]", strings.Join(directcsi.SupportedStatusSelectorValues(), ", ")))
 }
