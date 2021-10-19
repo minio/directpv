@@ -58,7 +58,7 @@ $ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1,othernode-2 
 	RunE: func(c *cobra.Command, args []string) error {
 		if !all {
 			if len(drives) == 0 && len(nodes) == 0 && len(status) == 0 {
-				return fmt.Errorf("atleast one of '%s', '%s', '%s' or '%s' should be specified",
+				return fmt.Errorf("atleast one of '%s', '%s', '%s' or '%s' must be specified",
 					utils.Bold("--all"),
 					utils.Bold("--drives"),
 					utils.Bold("--nodes"),
@@ -67,7 +67,7 @@ $ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1,othernode-2 
 		}
 
 		if len(args) != 1 {
-			return fmt.Errorf("Invalid input arguments. Please use '%s' for examples to set access-tiers", utils.Bold("--help"))
+			return fmt.Errorf("only one access tier must be specified. please use '%s' for examples to set access-tier", utils.Bold("--help"))
 		}
 
 		accessTier, err := directcsi.ToAccessTier(args[0])
@@ -81,8 +81,8 @@ $ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1,othernode-2 
 }
 
 func init() {
-	accessTierSet.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
-	accessTierSet.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
+	accessTierSet.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "filter by drive path(s) (also accepts ellipses range notations)")
+	accessTierSet.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "filter by node name(s) (also accepts ellipses range notations)")
 	accessTierSet.PersistentFlags().BoolVarP(&all, "all", "a", all, "tag all available drives")
 	accessTierSet.PersistentFlags().StringSliceVarP(&status, "status", "s", status, fmt.Sprintf("match based on drive status [%s]", strings.Join(directcsi.SupportedStatusSelectorValues(), ", ")))
 }
@@ -91,9 +91,10 @@ func setAccessTier(ctx context.Context, accessTier directcsi.AccessTier) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
+	directCSIClient := utils.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
+		directCSIClient.DirectCSIDrives(),
 		nil,
 		func(drive *directcsi.DirectCSIDrive) bool {
 			return drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
@@ -103,6 +104,6 @@ func setAccessTier(ctx context.Context, accessTier directcsi.AccessTier) error {
 			utils.SetAccessTierLabel(drive, accessTier)
 			return nil
 		},
-		defaultDriveUpdateFunc,
+		defaultDriveUpdateFunc(directCSIClient),
 	)
 }

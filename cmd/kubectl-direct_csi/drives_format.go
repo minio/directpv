@@ -77,7 +77,7 @@ $ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
 	RunE: func(c *cobra.Command, args []string) error {
 		if !all {
 			if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {
-				return fmt.Errorf("atleast one of '%s', '%s' or '%s' should be specified",
+				return fmt.Errorf("atleast one of '%s', '%s' or '%s' must be specified",
 					utils.Bold("--all"),
 					utils.Bold("--drives"),
 					utils.Bold("--nodes"))
@@ -89,8 +89,8 @@ $ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
 }
 
 func init() {
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "filter by drive path(s) (also accepts ellipses range notations)")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "filter by node name(s) (also accepts ellipses range notations)")
 	formatDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "format all available drives")
 	formatDrivesCmd.PersistentFlags().BoolVarP(&force, "force", "f", force, "force format a drive even if a FS is already present")
 	formatDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers,
@@ -98,9 +98,10 @@ func init() {
 }
 
 func formatDrives(ctx context.Context, IDArgs []string) error {
+	directCSIClient := utils.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
+		directCSIClient.DirectCSIDrives(),
 		IDArgs,
 		func(drive *directcsi.DirectCSIDrive) bool {
 			if drive.Status.DriveStatus == directcsi.DriveStatusUnavailable {
@@ -141,6 +142,6 @@ func formatDrives(ctx context.Context, IDArgs []string) error {
 			}
 			return nil
 		},
-		defaultDriveUpdateFunc,
+		defaultDriveUpdateFunc(directCSIClient),
 	)
 }

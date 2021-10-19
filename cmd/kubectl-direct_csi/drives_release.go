@@ -73,8 +73,8 @@ var releaseDrivesCmd = &cobra.Command{
 }
 
 func init() {
-	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
-	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
+	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "filter by drive path(s) (also accepts ellipses range notations)")
+	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "filter by node name(s) (also accepts ellipses range notations)")
 	releaseDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "release all available drives")
 
 	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "release based on access-tier set. The possible values are [hot,cold,warm] ")
@@ -90,9 +90,10 @@ func releaseDrives(ctx context.Context, IDArgs []string) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
+	directCSIClient := utils.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
+		directCSIClient.DirectCSIDrives(),
 		IDArgs,
 		func(drive *directcsi.DirectCSIDrive) bool {
 			if drive.Status.DriveStatus == directcsi.DriveStatusUnavailable {
@@ -118,6 +119,6 @@ func releaseDrives(ctx context.Context, IDArgs []string) error {
 			drive.Spec.RequestedFormat = nil
 			return nil
 		},
-		defaultDriveUpdateFunc,
+		defaultDriveUpdateFunc(directCSIClient),
 	)
 }
