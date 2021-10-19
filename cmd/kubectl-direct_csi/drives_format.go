@@ -47,10 +47,10 @@ $ kubectl direct-csi drives format --all
 # Format the 'sdf' drives in all nodes
 $ kubectl direct-csi drives format --drives '/dev/sdf'
 
-# Format the selective drives using ellipses expander
+# Format the selective drives using ellipses notation for drive paths
 $ kubectl direct-csi drives format --drives '/dev/sd{a...z}'
 
-# Format the drives from selective nodes using ellipses expander
+# Format the drives from selective nodes using ellipses notation for node names
 $ kubectl direct-csi drives format --nodes 'directcsi-{1...3}'
 
 # Format all drives from a particular node
@@ -65,8 +65,8 @@ $ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --sta
 # Combine multiple parameters using csv
 $ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=available
 
-# Combine multiple parameters using globs
-$ kubectl direct-csi drives format --nodes "directcsi-[3-4]*" --drives "/dev/xvd[b-f]*"
+# Combine multiple parameters using ellipses notations
+$ kubectl direct-csi drives format --nodes "directcsi-{3...4}" --drives "/dev/xvd{b...f}"
 
 # Format a drive by it's drive-id
 $ kubectl direct-csi drives format <drive_id>
@@ -89,8 +89,8 @@ $ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
 }
 
 func init() {
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
+	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
 	formatDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "format all available drives")
 	formatDrivesCmd.PersistentFlags().BoolVarP(&force, "force", "f", force, "force format a drive even if a FS is already present")
 	formatDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers,

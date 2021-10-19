@@ -43,10 +43,10 @@ var releaseDrivesCmd = &cobra.Command{
  # Release the 'sdf' drives in all nodes
  $ kubectl direct-csi drives release --drives '/dev/sdf'
 
- # Release the selective drives using ellipses expander
+ # Release the selective drives using ellipses notation for drive paths
  $ kubectl direct-csi drives release --drives '/dev/sd{a...z}'
  
- # Release the drives from selective nodes using ellipses expander
+ # Release the drives from selective nodes using ellipses notation for node names
  $ kubectl direct-csi drives release --nodes 'directcsi-{1...3}'
  
  # Release all drives from a particular node
@@ -73,8 +73,8 @@ var releaseDrivesCmd = &cobra.Command{
 }
 
 func init() {
-	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
-	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
+	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
+	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
 	releaseDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "release all available drives")
 
 	releaseDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "release based on access-tier set. The possible values are [hot,cold,warm] ")

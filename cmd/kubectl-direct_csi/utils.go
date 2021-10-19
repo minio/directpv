@@ -131,18 +131,6 @@ func splitSelectors(selectors []string) (globs, ellipses []string) {
 	return globs, ellipses
 }
 
-// func hasGlobSelectors(selectors []string) (bool, error) {
-// 	globCount := 0
-// 	for _, selector := range selectors {
-// 		if globRegexp.MatchString(selector) {
-// 			globCount++
-// 		}
-// 	}
-// 	if globCount > 0 && globCount != len(selectors) {
-// 		return false, errMixedSelectorUsage
-// 	}
-// 	return globCount > 0, nil
-// }
 func processFilteredDrives(
 	ctx context.Context,
 	driveInterface clientset.DirectCSIDriveInterface,

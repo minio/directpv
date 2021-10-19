@@ -42,7 +42,7 @@ var listDrivesCmd = &cobra.Command{
 	Short: "list drives in the DirectCSI cluster",
 	Long:  "",
 	Example: `
-# Filter drives by ellipses expander
+# Filter drives by ellipses notation for drive paths and nodes
 $ kubectl direct-csi drives ls --drives='/dev/xvd{a...d}' --nodes='node-{1...4}'
 
 # Filter all ready drives 
@@ -74,8 +74,8 @@ $ kubectl direct-csi drives drives ls --access-tier="*"
 var all bool
 
 func init() {
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "ellipses expander for drive paths")
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "ellipses expander for node names")
+	listDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "selector for drive paths (also accepts ellipses range notations)")
+	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "selector for node names (also accepts ellipses range notations)")
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&status, "status", "s", status, fmt.Sprintf("match based on drive status [%s]", strings.Join(directcsi.SupportedStatusSelectorValues(), ", ")))
 	listDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all drives (including unavailable)")
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers, "match based on access-tier")
