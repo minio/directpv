@@ -17,216 +17,139 @@
 package controller
 
 import (
+	"context"
 	"crypto/rand"
-	"fmt"
 	"math/big"
-	"sort"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/matcher"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
 )
 
-// FilterDrivesByVolumeRequest - Filters the CSI drives by create volume request
-func FilterDrivesByVolumeRequest(volReq *csi.CreateVolumeRequest, csiDrives []directcsi.DirectCSIDrive) ([]directcsi.DirectCSIDrive, error) {
-	capacityRange := volReq.GetCapacityRange()
-	vCaps := volReq.GetVolumeCapabilities()
-	fsType := ""
-	if len(vCaps) > 0 {
-		fsType = vCaps[0].GetMount().GetFsType()
+func matchDrive(drive directcsi.DirectCSIDrive, req *csi.CreateVolumeRequest) bool {
+	// Match drive only in Ready or InUse state.
+	switch drive.Status.DriveStatus {
+	case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
+	default:
+		return false
 	}
 
-	filteredDrivesByFormat := FilterDrivesByRequestFormat(csiDrives)
-	if len(filteredDrivesByFormat) == 0 {
-		return []directcsi.DirectCSIDrive{}, status.Error(codes.FailedPrecondition, "No drives are 'Ready' to be used. Please use `kubectl direct-csi drives format` command to format the drives")
+	// Match drive if it has requested capacity.
+	if req.GetCapacityRange() != nil && drive.Status.FreeCapacity < req.GetCapacityRange().GetRequiredBytes() {
+		return false
 	}
 
-	capFilteredDrives := FilterDrivesByCapacityRange(capacityRange, filteredDrivesByFormat)
-	if len(capFilteredDrives) == 0 {
-		return []directcsi.DirectCSIDrive{}, status.Error(codes.OutOfRange, "Invalid capacity range")
+	// Match drive if requested filesystem matches.
+	if len(req.GetVolumeCapabilities()) > 0 && drive.Status.Filesystem != req.GetVolumeCapabilities()[0].GetMount().GetFsType() {
+		return false
 	}
 
-	fsFilteredDrives := FilterDrivesByFsType(fsType, capFilteredDrives)
-	if len(fsFilteredDrives) == 0 {
-		return []directcsi.DirectCSIDrive{}, status.Errorf(codes.InvalidArgument, "Cannot find any drives by the fstype: %s", fsType)
-	}
-
-	paramFilteredDrives, pErr := FilterDrivesByParameters(volReq.GetParameters(), fsFilteredDrives)
-	if pErr != nil {
-		return fsFilteredDrives, status.Errorf(codes.InvalidArgument, "Error while filtering based on sc parameters: %v", pErr)
-	}
-	if len(paramFilteredDrives) == 0 {
-		return []directcsi.DirectCSIDrive{}, status.Errorf(codes.InvalidArgument, "Cannot match any drives by the provided storage class parameters: %s", volReq.GetParameters())
-	}
-
-	return paramFilteredDrives, nil
-}
-
-// FilterDrivesByCapacityRange - Filters the CSI drives by capacity range in the create volume request
-func FilterDrivesByCapacityRange(capacityRange *csi.CapacityRange, csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
-	reqBytes := capacityRange.GetRequiredBytes()
-	//limitBytes := capacityRange.GetLimitBytes()
-	filteredDriveList := []directcsi.DirectCSIDrive{}
-	for _, csiDrive := range csiDrives {
-		if csiDrive.Status.FreeCapacity >= reqBytes {
-			filteredDriveList = append(filteredDriveList, csiDrive)
-		}
-	}
-	return filteredDriveList
-}
-
-// FilterDrivesByRequestFormat - Selects the drives only if the requested format is empty/satisfied already.
-func FilterDrivesByRequestFormat(csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
-	filteredDriveList := []directcsi.DirectCSIDrive{}
-	for _, csiDrive := range csiDrives {
-		dStatus := csiDrive.Status.DriveStatus
-		if dStatus == directcsi.DriveStatusReady ||
-			dStatus == directcsi.DriveStatusInUse {
-			filteredDriveList = append(filteredDriveList, csiDrive)
-		}
-	}
-	return filteredDriveList
-}
-
-// FilterDrivesByFsType - Filters the CSI drives by filesystem
-func FilterDrivesByFsType(fsType string, csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
-	if fsType == "" {
-		return csiDrives
-	}
-	filteredDriveList := []directcsi.DirectCSIDrive{}
-	for _, csiDrive := range csiDrives {
-		if csiDrive.Status.Filesystem == fsType {
-			filteredDriveList = append(filteredDriveList, csiDrive)
-		}
-	}
-	return filteredDriveList
-}
-
-// FilterDrivesByParameters - Filters the CSI drives by request parameters
-func FilterDrivesByParameters(parameters map[string]string, csiDrives []directcsi.DirectCSIDrive) ([]directcsi.DirectCSIDrive, error) {
-	filteredDriveList := csiDrives
-	for k, v := range parameters {
-		switch k {
-		case "direct-csi-min-io/access-tier":
-			accessT, err := directcsi.ToAccessTier(v)
-			if err != nil {
-				return csiDrives, err
-			}
-			filteredDriveList = filterDrivesByAccessTier(accessT, filteredDriveList)
-		default:
-		}
-	}
-	return filteredDriveList, nil
-}
-
-func filterDrivesByAccessTier(accessTier directcsi.AccessTier, csiDrives []directcsi.DirectCSIDrive) []directcsi.DirectCSIDrive {
-	filteredDriveList := []directcsi.DirectCSIDrive{}
-	for _, csiDrive := range csiDrives {
-		if csiDrive.Status.AccessTier == accessTier {
-			filteredDriveList = append(filteredDriveList, csiDrive)
-		}
-	}
-	return filteredDriveList
-}
-
-// FilterDrivesByTopologyRequirements - selects the CSI drive by topology in the create volume request
-func FilterDrivesByTopologyRequirements(volReq *csi.CreateVolumeRequest, csiDrives []directcsi.DirectCSIDrive, nodeID string) (directcsi.DirectCSIDrive, error) {
-	tReq := volReq.GetAccessibilityRequirements()
-
-	preferredXs := tReq.GetPreferred()
-	requisiteXs := tReq.GetRequisite()
-
-	// Try to fulfill the preferred topology request, If not, fallback to requisite list.
-	// Ref: https://godoc.org/github.com/container-storage-interface/spec/lib/go/csi#TopologyRequirement
-	for _, preferredTop := range preferredXs {
-		if selectedDrives, err := selectDrivesByTopology(preferredTop, csiDrives); err == nil {
-			return selectDriveByFreeCapacity(selectedDrives)
+	// Match drive by access-tier if requested.
+	for key, value := range req.GetParameters() {
+		if key == "direct-csi-min-io/access-tier" && string(drive.Status.AccessTier) != value {
+			return false
 		}
 	}
 
-	for _, requisiteTop := range requisiteXs {
-		if selectedDrives, err := selectDrivesByTopology(requisiteTop, csiDrives); err == nil {
-			return selectDriveByFreeCapacity(selectedDrives)
-		}
-	}
-
-	if len(preferredXs) == 0 && len(requisiteXs) == 0 {
-		return selectDriveByFreeCapacity(csiDrives)
-	}
-
-	klog.V(3).InfoS("Cannot satisfy the topology constraint",
-		"volume", volReq.GetName(),
-		"preferredTopology", preferredXs,
-		"requisiteTopology", requisiteXs,
-	)
-
-	message := fmt.Sprintf("No suitable drive found on node %v for %v. ", nodeID, volReq.GetName()) +
-		"Use nodeSelector or affinity to restrict pods to run on node with enough capacity"
-	return directcsi.DirectCSIDrive{}, status.Error(codes.ResourceExhausted, message)
-}
-
-func selectDriveByFreeCapacity(csiDrives []directcsi.DirectCSIDrive) (directcsi.DirectCSIDrive, error) {
-	// Sort the drives by free capacity [Descending]
-	sort.SliceStable(csiDrives, func(i, j int) bool {
-		return csiDrives[i].Status.FreeCapacity > csiDrives[j].Status.FreeCapacity
-	})
-
-	groupByFreeCapacity := func() []directcsi.DirectCSIDrive {
-		maxFreeCapacity := csiDrives[0].Status.FreeCapacity
-		groupedDrives := []directcsi.DirectCSIDrive{}
-		for _, csiDrive := range csiDrives {
-			if csiDrive.Status.FreeCapacity == maxFreeCapacity {
-				groupedDrives = append(groupedDrives, csiDrive)
+	matchTopologies := func(topologies []*csi.Topology) bool {
+		for _, topology := range topologies {
+			for key, value := range topology.GetSegments() {
+				if driveValue, found := drive.Status.Topology[key]; !found || value != driveValue {
+					return false
+				}
 			}
 		}
-		return groupedDrives
+		return true
 	}
 
-	pickRandomIndex := func(max int) (int, error) {
-		rInt, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
-		if err != nil {
-			return int(0), err
-		}
-		return int(rInt.Int64()), nil
+	// Match drive by preferred topologies if requested.
+	if len(req.GetAccessibilityRequirements().GetPreferred()) > 0 && matchTopologies(req.GetAccessibilityRequirements().GetPreferred()) {
+		return true
 	}
 
-	selectedDrives := groupByFreeCapacity()
-	rIndex, err := pickRandomIndex(len(selectedDrives))
+	// Match drive by requisite topology if requested.
+	if len(req.GetAccessibilityRequirements().GetRequisite()) > 0 && matchTopologies(req.GetAccessibilityRequirements().GetRequisite()) {
+		return true
+	}
+
+	// Match drive if no topology constraints requested.
+	return len(req.GetAccessibilityRequirements().GetPreferred()) == 0 && len(req.GetAccessibilityRequirements().GetRequisite()) == 0
+}
+
+func getFilteredDrives(
+	ctx context.Context,
+	driveInterface clientset.DirectCSIDriveInterface,
+	req *csi.CreateVolumeRequest,
+) (drives []directcsi.DirectCSIDrive, err error) {
+	resultCh, err := utils.ListDrives(ctx, driveInterface, nil, nil, nil, utils.MaxThreadCount)
 	if err != nil {
-		return selectedDrives[rIndex], status.Errorf(codes.Internal, "Error while selecting (random) drive: %v", err)
+		return nil, err
 	}
-	return selectedDrives[rIndex], nil
+
+	for result := range resultCh {
+		if result.Err != nil {
+			return nil, result.Err
+		}
+
+		if matcher.StringIn(result.Drive.Finalizers, directcsi.DirectCSIDriveFinalizerPrefix+req.GetName()) {
+			return []directcsi.DirectCSIDrive{result.Drive}, nil
+		}
+
+		if matchDrive(result.Drive, req) {
+			drives = append(drives, result.Drive)
+		}
+	}
+
+	return drives, nil
 }
 
-func selectDrivesByTopology(top *csi.Topology, csiDrives []directcsi.DirectCSIDrive) ([]directcsi.DirectCSIDrive, error) {
-	matchingDriveList := []directcsi.DirectCSIDrive{}
-	topSegments := top.GetSegments()
-	for _, csiDrive := range csiDrives {
-		driveSegments := csiDrive.Status.Topology
-		if matchSegments(topSegments, driveSegments) {
-			matchingDriveList = append(matchingDriveList, csiDrive)
-		}
+func getDrive(
+	ctx context.Context,
+	driveInterface clientset.DirectCSIDriveInterface,
+	req *csi.CreateVolumeRequest,
+) (*directcsi.DirectCSIDrive, error) {
+	drives, err := getFilteredDrives(ctx, driveInterface, req)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return matchingDriveList, func() error {
-		if len(matchingDriveList) == 0 {
-			return status.Error(codes.ResourceExhausted, "Cannot satisfy the topology constraint")
-		}
-		return nil
-	}()
-}
 
-func matchSegments(topSegments, driveSegments map[string]string) bool {
-	req := len(topSegments)
-	match := 0
-	for k, v := range topSegments {
-		if dval, ok := driveSegments[k]; ok && dval == v {
-			match = match + 1
-		} else {
-			break
+	if len(drives) == 0 {
+		if len(req.GetAccessibilityRequirements().GetPreferred()) != 0 || len(req.GetAccessibilityRequirements().GetRequisite()) != 0 {
+			return nil, status.Error(codes.ResourceExhausted, "no drive found for requested topology")
+		}
+
+		if req.GetCapacityRange() != nil {
+			return nil, status.Errorf(codes.OutOfRange, "no drive found for requested size %v", req.GetCapacityRange().GetRequiredBytes())
+		}
+
+		return nil, status.Error(codes.FailedPrecondition, "no drive found")
+	}
+
+	maxFreeCapacity := int64(-1)
+	var maxFreeCapacityDrives []directcsi.DirectCSIDrive
+	for _, drive := range drives {
+		switch {
+		case drive.Status.FreeCapacity == maxFreeCapacity:
+			maxFreeCapacityDrives = append(maxFreeCapacityDrives, drive)
+		case drive.Status.FreeCapacity > maxFreeCapacity:
+			maxFreeCapacity = drive.Status.FreeCapacity
+			maxFreeCapacityDrives = []directcsi.DirectCSIDrive{drive}
 		}
 	}
-	return req == match
+
+	if len(maxFreeCapacityDrives) == 1 {
+		return &maxFreeCapacityDrives[0], nil
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(maxFreeCapacityDrives))))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "random number generation failed; %v", err)
+	}
+
+	return &maxFreeCapacityDrives[n.Int64()], nil
 }

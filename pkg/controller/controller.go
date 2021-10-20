@@ -18,10 +18,12 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/clientset"
+	"github.com/minio/direct-csi/pkg/matcher"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -73,33 +75,7 @@ import (
  *
  */
 
-// NewControllerServer creates new controller server.
-func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
-	// Start admission webhook server
-	go serveAdmissionController(ctx)
-
-	config, err := utils.GetKubeConfig()
-	if err != nil {
-		return &ControllerServer{}, err
-	}
-
-	directClientset, err := clientset.NewForConfig(config)
-	if err != nil {
-		return &ControllerServer{}, err
-	}
-
-	return &ControllerServer{
-		NodeID:          nodeID,
-		Identity:        identity,
-		Rack:            rack,
-		Zone:            zone,
-		Region:          region,
-		directcsiClient: directClientset,
-	}, nil
-}
-
-// ControllerServer denotes controller server.
-type ControllerServer struct { //revive:disable-line:exported
+type ControllerServer struct {
 	NodeID          string
 	Identity        string
 	Rack            string
@@ -108,58 +84,50 @@ type ControllerServer struct { //revive:disable-line:exported
 	directcsiClient clientset.Interface
 }
 
-//revive:enable-line:exported
-
-// ControllerGetCapabilities returns this controller's capabilities.
-func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	controllerCap := func(cap csi.ControllerServiceCapability_RPC_Type) *csi.ControllerServiceCapability {
-		klog.V(4).Infof("Using controller capability %v", cap)
-
-		return &csi.ControllerServiceCapability{
-			Type: &csi.ControllerServiceCapability_Rpc{
-				Rpc: &csi.ControllerServiceCapability_RPC{
-					Type: cap,
-				},
-			},
-		}
+func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
+	controller := &ControllerServer{
+		NodeID:          nodeID,
+		Identity:        identity,
+		Rack:            rack,
+		Zone:            zone,
+		Region:          region,
+		directcsiClient: utils.GetDirectClientset(),
 	}
+	go serveAdmissionController(ctx) // Start admission webhook server
+	return controller, nil
+}
 
+func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: []*csi.ControllerServiceCapability{
-			controllerCap(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME),
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME},
+				},
+			},
 		},
 	}, nil
 }
 
-// ValidateVolumeCapabilities validates volume capabilities.
 func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	validateVolumeCapabilities := func() error {
-		vcaps := req.GetVolumeCapabilities()
-		for _, vcap := range vcaps {
-			access := vcap.GetAccessMode()
-			if access != nil {
-				mode := access.GetMode()
-				if mode != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-					return status.Errorf(codes.InvalidArgument, "unsupported access mode: %s", mode)
-				}
-			}
+	var message string
+	for _, vcap := range req.GetVolumeCapabilities() {
+		if vcap.GetAccessMode() != nil && vcap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+			message = fmt.Sprintf("unsupported access mode %s", vcap.GetAccessMode().GetMode())
+			break
 		}
-		return nil
 	}
 
-	var confirmed *csi.ValidateVolumeCapabilitiesResponse_Confirmed
-	message := ""
-	if err := validateVolumeCapabilities(); err != nil {
-		confirmed = &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+	response := &csi.ValidateVolumeCapabilitiesResponse{
+		Message: message,
+	}
+	if message == "" {
+		response.Confirmed = &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
 			VolumeCapabilities: req.GetVolumeCapabilities(),
 		}
-	} else {
-		message = err.Error()
 	}
-	return &csi.ValidateVolumeCapabilitiesResponse{
-		Confirmed: confirmed,
-		Message:   message,
-	}, nil
+
+	return response, nil
 }
 
 // CreateVolume - Creates a DirectCSI Volume
@@ -170,120 +138,39 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
 	}
 
-	directCSIClient := c.directcsiClient.DirectV1beta3()
-	dclient := directCSIClient.DirectCSIDrives()
-	vclient := directCSIClient.DirectCSIVolumes()
-
-	validateVolumeCapabilities := func() error {
-		vcaps := req.GetVolumeCapabilities()
-		for _, vcap := range vcaps {
-			access := vcap.GetAccessMode()
-			if access != nil {
-				mode := access.GetMode()
-				if mode != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-					return status.Errorf(codes.InvalidArgument, "unsupported access mode: %s", mode)
-				}
-			}
+	for _, vcap := range req.GetVolumeCapabilities() {
+		if vcap.GetAccessMode() != nil && vcap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+			return nil, status.Errorf(codes.InvalidArgument, "unsupported access mode: %s", vcap.GetAccessMode().GetMode())
 		}
-		return nil
 	}
 
-	matchDrive := func() (*directcsi.DirectCSIDrive, error) {
-		drives, err := utils.GetDriveList(
-			ctx,
-			c.directcsiClient.DirectV1beta3().DirectCSIDrives(),
-			nil, nil, nil,
-		)
-		if err != nil {
-			return nil, status.Errorf(codes.NotFound, "could not retrieve directcsidrives: %v", err)
-		}
-
-		volFinalizer := directcsi.DirectCSIDriveFinalizerPrefix + name
-		for _, drive := range drives {
-			finalizers := drive.GetFinalizers()
-			for _, f := range finalizers {
-				if f == volFinalizer {
-					return &drive, nil
-				}
-			}
-		}
-
-		filteredDrives, err := FilterDrivesByVolumeRequest(req, drives)
-		if err != nil {
-			return nil, err
-		}
-
-		selectedDrive, err := FilterDrivesByTopologyRequirements(req, filteredDrives, c.NodeID)
-		if err != nil {
-			return nil, err
-		}
-
-		klog.V(4).InfoS("Selected DirectCSI drive",
-			"drive-name", selectedDrive.Name,
-			"node", selectedDrive.Status.NodeName,
-			"volume", name)
-
-		return &selectedDrive, nil
+	if len(req.GetVolumeCapabilities()) > 0 && req.GetVolumeCapabilities()[0].GetMount().GetFsType() != "xfs" {
+		return nil, status.Errorf(codes.InvalidArgument, "unsupported filesystem type %v", req.GetVolumeCapabilities()[0].GetMount().GetFsType())
 	}
 
-	getSize := func(drive *directcsi.DirectCSIDrive) int64 {
-		var size int64
-		if capRange := req.GetCapacityRange(); capRange != nil {
-			size = capRange.GetRequiredBytes()
-		}
-		// if no size requirement is specified, occupy all the free capacity on the drive
-		if size == 0 {
-			size = drive.Status.FreeCapacity
-		}
-		return size
-	}
-
-	reserveDrive := func(drive *directcsi.DirectCSIDrive, size int64) error {
-		var alreadyReserved bool
-		finalizer := directcsi.DirectCSIDriveFinalizerPrefix + name
-		finalizers := drive.GetFinalizers()
-		for _, f := range finalizers {
-			if f == finalizer {
-				alreadyReserved = true
-				break
+	for key, value := range req.GetParameters() {
+		if key == "direct-csi-min-io/access-tier" {
+			if _, err := directcsi.ToAccessTier(value); err != nil {
+				return nil, status.Errorf(codes.InvalidArgument, "unknown access-tier %v; %v", value, err)
 			}
 		}
-		// only if drive was not previously reserved
-		if !alreadyReserved {
-			drive.Status.FreeCapacity = drive.Status.FreeCapacity - size
-			drive.Status.AllocatedCapacity = drive.Status.AllocatedCapacity + size
-			if drive.Status.DriveStatus == directcsi.DriveStatusReady {
-				drive.Status.DriveStatus = directcsi.DriveStatusInUse
-			}
-
-			finalizers = append(finalizers, finalizer)
-			drive.SetFinalizers(finalizers)
-
-			klog.V(4).InfoS("Reserving DirectCSI drive",
-				"drive-name", drive.Name,
-				"node", drive.Status.NodeName,
-				"volume", name)
-
-			if _, err := dclient.Update(ctx, drive, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
-			}); err != nil {
-				return status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
-			}
-		}
-
-		return nil
 	}
 
-	if err := validateVolumeCapabilities(); err != nil {
-		return nil, err
-	}
-
-	drive, err := matchDrive()
+	drive, err := getDrive(ctx, c.directcsiClient.DirectV1beta3().DirectCSIDrives(), req)
 	if err != nil {
 		return nil, err
 	}
 
-	size := getSize(drive)
+	klog.V(4).InfoS("Selected DirectCSI drive",
+		"drive-name", drive.Name,
+		"node", drive.Status.NodeName,
+		"volume", name)
+
+	size := drive.Status.FreeCapacity
+	if req.GetCapacityRange() != nil {
+		size = req.GetCapacityRange().GetRequiredBytes()
+	}
+
 	labels := map[string]string{
 		utils.NodeLabel:              drive.Status.NodeName,
 		utils.ReservedDrivePathLabel: filepath.Base(drive.Status.Path),
@@ -291,12 +178,13 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		utils.VersionLabel:           directcsi.Version,
 		utils.CreatedByLabel:         "directcsi-controller",
 	}
-	vol := &directcsi.DirectCSIVolume{
+
+	newVolume := &directcsi.DirectCSIVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Finalizers: []string{
-				string(directcsi.DirectCSIVolumeFinalizerPVProtection),
-				string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
+				directcsi.DirectCSIVolumeFinalizerPVProtection,
+				directcsi.DirectCSIVolumeFinalizerPurgeProtection,
 			},
 			Labels: labels,
 		},
@@ -332,32 +220,53 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		},
 	}
 
-	if _, err := vclient.Create(ctx, vol, metav1.CreateOptions{}); err != nil {
+	volumeInterface := c.directcsiClient.DirectV1beta3().DirectCSIVolumes()
+	if _, err := volumeInterface.Create(ctx, newVolume, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return nil, status.Errorf(codes.Internal, "could not create volume [%s]: %v", name, err)
-		}
-		existingVol, gErr := vclient.Get(ctx, vol.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-		})
-		if gErr != nil {
-			return nil, status.Error(codes.NotFound, gErr.Error())
+			return nil, status.Errorf(codes.Internal, "could not create volume %s; %v", name, err)
 		}
 
-		existingVol.ObjectMeta.SetLabels(labels)
-		existingVol.ObjectMeta.Finalizers = vol.ObjectMeta.Finalizers
-		existingVol.Status = vol.Status
-		if _, cErr := vclient.Update(ctx, existingVol, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-		}); cErr != nil {
-			return nil, cErr
+		volume, err := volumeInterface.Get(
+			ctx, newVolume.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+		)
+		if err != nil {
+			return nil, status.Error(codes.NotFound, err.Error())
 		}
+
+		volume.SetLabels(labels)
+		volume.Finalizers = newVolume.Finalizers
+		volume.Status = newVolume.Status
+		_, err = volumeInterface.Update(
+			ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		utils.Eventf(volume, corev1.EventTypeNormal, "directcsi-controller", "volume %v is updated", volume.Name)
+	} else {
+		utils.Eventf(newVolume, corev1.EventTypeNormal, "directcsi-controller", "volume %v is created", newVolume.Name)
 	}
 
-	if err := reserveDrive(drive, size); err != nil {
-		return nil, err
-	}
+	finalizer := directcsi.DirectCSIDriveFinalizerPrefix + req.GetName()
+	if !matcher.StringIn(drive.Finalizers, finalizer) {
+		drive.Status.FreeCapacity = drive.Status.FreeCapacity - size
+		drive.Status.AllocatedCapacity = drive.Status.AllocatedCapacity + size
+		drive.Status.DriveStatus = directcsi.DriveStatusInUse
+		drive.SetFinalizers(append(drive.GetFinalizers(), finalizer))
 
-	utils.Eventf(vol, corev1.EventTypeNormal, "directcsi-controller", "volume %v created", vol.Name)
+		klog.V(4).InfoS("Reserving DirectCSI drive",
+			"drive-name", drive.Name,
+			"node", drive.Status.NodeName,
+			"volume", name)
+
+		_, err = c.directcsiClient.DirectV1beta3().DirectCSIDrives().Update(
+			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+		)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
+		}
+	}
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
@@ -372,10 +281,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			},
 		},
 	}, nil
-
 }
 
-// DeleteVolume handles delete volume request.
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	klog.V(3).InfoS("DeleteVolumeRequest", "name", req.GetVolumeId())
 	vID := req.GetVolumeId()
@@ -393,7 +300,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		if errors.IsNotFound(err) {
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		return nil, status.Errorf(codes.NotFound, "could not retrieve volume [%s]: %v", vID, err)
+		return nil, status.Errorf(codes.NotFound, "could not retreive volume [%s]: %v", vID, err)
 	}
 
 	// Do not proceed if the volume hasn't been unpublished or unstaged
@@ -431,47 +338,38 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
-// ListVolumes returns unimplemented error.
 func (c *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
-// ControllerPublishVolume returns unimplemented error.
 func (c *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
-// ControllerUnpublishVolume returns unimplemented error.
 func (c *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
-// ControllerExpandVolume returns unimplemented error.
 func (c *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
-// ControllerGetVolume returns unimplemented error.
 func (c *ControllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
-// ListSnapshots returns unimplemented error.
 func (c *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
-// CreateSnapshot returns unimplemented error.
 func (c *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
-// DeleteSnapshot returns unimplemented error.
 func (c *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
-// GetCapacity returns unimplemented error.
 func (c *ControllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }

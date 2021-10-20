@@ -36,740 +36,9 @@ func init() {
 }
 
 const (
-	KB = 1 << 10
-	MB = KB << 10
-
-	mb100 = 100 * MB
-	mb20  = 20 * MB
+	mb100 = 100 * 1024 * 1024
+	mb20  = 20 * 1024 * 1024
 )
-
-func TestSelectDrivesByTopology(t1 *testing.T) {
-
-	getDriveNameSet := func(drives []directcsi.DirectCSIDrive) []string {
-		driveNames := []string{}
-		for _, drive := range drives {
-			driveNames = append(driveNames, drive.Name)
-		}
-		return driveNames
-	}
-
-	testDriveSet := []directcsi.DirectCSIDrive{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive1",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive11",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive2",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Topology: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive22",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Topology: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive3",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Topology: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"},
-			},
-		},
-	}
-
-	testCases := []struct {
-		name               string
-		topologyRequest    *csi.Topology
-		errExpected        bool
-		selectedDriveNames []string
-	}{
-		{
-			name:               "test1",
-			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N2", "rack": "RK2", "zone": "Z2", "region": "R2"}},
-			errExpected:        false,
-			selectedDriveNames: []string{"drive2", "drive22"},
-		},
-		{
-			name:               "test2",
-			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N3", "rack": "RK3", "zone": "Z3", "region": "R3"}},
-			errExpected:        false,
-			selectedDriveNames: []string{"drive3"},
-		},
-		{
-			name:               "test3",
-			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N4", "rack": "RK2", "zone": "Z4", "region": "R2"}},
-			errExpected:        true,
-			selectedDriveNames: []string{},
-		},
-		{
-			name:               "test4",
-			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N3", "rack": "RK3"}},
-			errExpected:        false,
-			selectedDriveNames: []string{"drive3"},
-		},
-		{
-			name:               "test5",
-			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N1", "rack": "RK5"}},
-			errExpected:        true,
-			selectedDriveNames: []string{},
-		},
-		{
-			name:               "test5",
-			topologyRequest:    &csi.Topology{Segments: map[string]string{"node": "N1"}},
-			errExpected:        false,
-			selectedDriveNames: []string{"drive1", "drive11"},
-		},
-	}
-
-	for _, tt := range testCases {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			selectedDrives, err := selectDrivesByTopology(tt.topologyRequest, testDriveSet)
-			if tt.errExpected && err == nil {
-				t1.Fatalf("Test case name %s: Expected error but succeeded", tt.name)
-			} else if !reflect.DeepEqual(getDriveNameSet(selectedDrives), tt.selectedDriveNames) {
-				t1.Errorf("Test case name %s: Expected drive names = %s, got %v", tt.name, tt.selectedDriveNames, getDriveNameSet(selectedDrives))
-			}
-		})
-	}
-}
-
-func TestFilterDrivesByCapacityRange(t1 *testing.T) {
-	testDriveSet := []directcsi.DirectCSIDrive{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive1",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				FreeCapacity: 5000,
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive2",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				FreeCapacity: 1000,
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive3",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				FreeCapacity: 7000,
-			},
-		},
-	}
-	testCases := []struct {
-		name              string
-		capacityRange     *csi.CapacityRange
-		selectedDriveList []directcsi.DirectCSIDrive
-	}{
-		{
-			name:          "test1",
-			capacityRange: &csi.CapacityRange{RequiredBytes: 2000, LimitBytes: 6000},
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 5000,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 7000,
-					},
-				},
-			},
-		},
-		{
-			name:          "test2",
-			capacityRange: &csi.CapacityRange{RequiredBytes: 0, LimitBytes: 0},
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 5000,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 1000,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 7000,
-					},
-				},
-			},
-		},
-		{
-			name:          "test3",
-			capacityRange: &csi.CapacityRange{RequiredBytes: 2000, LimitBytes: 0},
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 5000,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 7000,
-					},
-				},
-			},
-		},
-		{
-			name:              "test4",
-			capacityRange:     &csi.CapacityRange{RequiredBytes: 10000, LimitBytes: 0},
-			selectedDriveList: []directcsi.DirectCSIDrive{},
-		},
-		{
-			name:          "test5",
-			capacityRange: &csi.CapacityRange{RequiredBytes: 500, LimitBytes: 800},
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 5000,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 1000,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 7000,
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			driveList := FilterDrivesByCapacityRange(tt.capacityRange, testDriveSet)
-			if !reflect.DeepEqual(driveList, tt.selectedDriveList) {
-				t1.Errorf("Test case name %s: Expected drive list = %v, got %v", tt.name, tt.selectedDriveList, driveList)
-			}
-		})
-	}
-}
-
-func TestFilterDrivesByFsType(t1 *testing.T) {
-	testDriveSet := []directcsi.DirectCSIDrive{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive1",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-
-				Filesystem: "ext4",
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive2",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Filesystem: "ext4",
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "drive3",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Filesystem: "xfs",
-			},
-		},
-	}
-	testCases := []struct {
-		name              string
-		fsType            string
-		selectedDriveList []directcsi.DirectCSIDrive
-	}{
-		{
-			name:   "test1",
-			fsType: "ext4",
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						Filesystem: "ext4",
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						Filesystem: "ext4",
-					},
-				},
-			},
-		},
-		{
-			name:   "test2",
-			fsType: "xfs",
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						Filesystem: "xfs",
-					},
-				},
-			},
-		},
-		{
-			name:   "test3",
-			fsType: "",
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						Filesystem: "ext4",
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						Filesystem: "ext4",
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						Filesystem: "xfs",
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			driveList := FilterDrivesByFsType(tt.fsType, testDriveSet)
-			if !reflect.DeepEqual(driveList, tt.selectedDriveList) {
-				t1.Errorf("Test case name %s: Expected drive list = %v, got %v", tt.name, tt.selectedDriveList, driveList)
-			}
-		})
-	}
-}
-
-func TestFilterDrivesByRequestedFormat(t1 *testing.T) {
-	testCases := []struct {
-		name              string
-		driveList         []directcsi.DirectCSIDrive
-		selectedDriveList []directcsi.DirectCSIDrive
-	}{
-		{
-			name: "test1",
-			driveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusAvailable,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusInUse,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-			},
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusInUse,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-			},
-		},
-		{
-			name: "test2",
-			driveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-			},
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-			},
-		},
-		{
-			name: "test3",
-			driveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusTerminating,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusUnavailable,
-					},
-				},
-			},
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						DriveStatus: directcsi.DriveStatusReady,
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			driveList := FilterDrivesByRequestFormat(tt.driveList)
-			if !reflect.DeepEqual(driveList, tt.selectedDriveList) {
-				t1.Errorf("Test case name %s: Expected drive list = %v, got %v", tt.name, tt.selectedDriveList, driveList)
-			}
-		})
-	}
-}
-
-func TestFilterDrivesByParameters(t1 *testing.T) {
-	testCases := []struct {
-		name              string
-		parameters        map[string]string
-		driveList         []directcsi.DirectCSIDrive
-		selectedDriveList []directcsi.DirectCSIDrive
-		expectError       bool
-	}{
-		{
-			name:       "test1",
-			parameters: map[string]string{"abc": "def"},
-			driveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierUnknown,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierUnknown,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierCold,
-					},
-				},
-			},
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierUnknown,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierUnknown,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierCold,
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name:       "test2",
-			parameters: map[string]string{"direct-csi-min-io/access-tier": "hot", "abc": "def"},
-			driveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierHot,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierHot,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierUnknown,
-					},
-				},
-			},
-			selectedDriveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierHot,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierHot,
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name:       "test3",
-			parameters: map[string]string{"direct-csi-min-io/access-tier": "cold", "abc": "def"},
-			driveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierHot,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierHot,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierUnknown,
-					},
-				},
-			},
-			selectedDriveList: []directcsi.DirectCSIDrive{},
-			expectError:       false,
-		},
-		{
-			name:       "test4",
-			parameters: map[string]string{"direct-csi-min-io/access-tier": "inVaLidValue", "abc": "def"},
-			driveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierHot,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierHot,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						AccessTier: directcsi.AccessTierUnknown,
-					},
-				},
-			},
-			selectedDriveList: []directcsi.DirectCSIDrive{},
-			expectError:       true,
-		},
-	}
-
-	for _, tt := range testCases {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			driveList, err := FilterDrivesByParameters(tt.parameters, tt.driveList)
-			if err != nil {
-				if !tt.expectError {
-					t1.Errorf("Test case name %s: Failed with %v", tt.name, err)
-				}
-			} else {
-				if !reflect.DeepEqual(driveList, tt.selectedDriveList) {
-					t1.Errorf("Test case name %s: Expected drive list = %v, got %v", tt.name, tt.selectedDriveList, driveList)
-				}
-			}
-		})
-	}
-}
 
 func createFakeController() *ControllerServer {
 	return &ControllerServer{
@@ -1066,92 +335,124 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 	}
 }
 
-func TestSelectDriveByFreeCapacity(t1 *testing.T) {
+func TestControllerGetCapabilities(t *testing.T) {
+	result, err := createFakeController().ControllerGetCapabilities(context.TODO(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedResult := &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: []*csi.ControllerServiceCapability{
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME},
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Fatalf("expected: %#+v, got: %#+v\n", expectedResult, result)
+	}
+}
+
+func TestValidateVolumeCapabilities(t *testing.T) {
 	testCases := []struct {
-		name               string
-		driveList          []directcsi.DirectCSIDrive
-		expectedDriveNames []string
+		request        *csi.ValidateVolumeCapabilitiesRequest
+		expectedResult *csi.ValidateVolumeCapabilitiesResponse
 	}{
 		{
-			name: "test1",
-			driveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 1000,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 2000,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 3000,
-					},
-				},
-			},
-			expectedDriveNames: []string{"drive3"},
+			&csi.ValidateVolumeCapabilitiesRequest{},
+			&csi.ValidateVolumeCapabilitiesResponse{Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{}},
 		},
 		{
-			name: "test2",
-			driveList: []directcsi.DirectCSIDrive{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive1",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 4000,
-					},
+			&csi.ValidateVolumeCapabilitiesRequest{
+				VolumeCapabilities: []*csi.VolumeCapability{
+					{AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER}},
 				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive2",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 4000,
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "drive3",
-					},
-					Status: directcsi.DirectCSIDriveStatus{
-						FreeCapacity: 3000,
+			},
+			&csi.ValidateVolumeCapabilitiesResponse{
+				Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+					VolumeCapabilities: []*csi.VolumeCapability{
+						{AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER}},
 					},
 				},
 			},
-			expectedDriveNames: []string{"drive1", "drive2"},
+		},
+		{
+			&csi.ValidateVolumeCapabilitiesRequest{
+				VolumeCapabilities: []*csi.VolumeCapability{
+					{AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER}},
+				},
+			},
+			&csi.ValidateVolumeCapabilitiesResponse{
+				Message: "unsupported access mode MULTI_NODE_MULTI_WRITER",
+			},
 		},
 	}
 
-	checkDriveName := func(expectedDriveNames []string, driveName string) bool {
-		for _, edName := range expectedDriveNames {
-			if edName == driveName {
-				return true
-			}
+	controller := createFakeController()
+	for i, testCase := range testCases {
+		result, err := controller.ValidateVolumeCapabilities(context.TODO(), testCase.request)
+		if err != nil {
+			t.Fatalf("case %v: unexpected error %v", i+1, err)
 		}
-		return false
-	}
 
-	for _, tt := range testCases {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			selectedDrive, err := selectDriveByFreeCapacity(tt.driveList)
-			if err != nil {
-				t1.Fatalf("Text case name: %s: Error: %v", tt.name, err)
-			}
-			if !checkDriveName(tt.expectedDriveNames, selectedDrive.Name) {
-				t1.Errorf("Test case name %s: Unexpected drive selected. Expected one among %v but got %s", tt.name, tt.expectedDriveNames, selectedDrive.Name)
-			}
-		})
+		if !reflect.DeepEqual(result, testCase.expectedResult) {
+			t.Fatalf("case %v: expected: %#+v, got: %#+v\n", i+1, testCase.expectedResult, result)
+		}
+	}
+}
+
+func TestListVolumes(t *testing.T) {
+	if _, err := createFakeController().ListVolumes(context.TODO(), nil); err == nil {
+		t.Fatal("error expected")
+	}
+}
+
+func TestControllerPublishVolume(t *testing.T) {
+	if _, err := createFakeController().ControllerPublishVolume(context.TODO(), nil); err == nil {
+		t.Fatal("error expected")
+	}
+}
+
+func TestControllerUnpublishVolume(t *testing.T) {
+	if _, err := createFakeController().ControllerUnpublishVolume(context.TODO(), nil); err == nil {
+		t.Fatal("error expected")
+	}
+}
+
+func TestControllerExpandVolume(t *testing.T) {
+	if _, err := createFakeController().ControllerExpandVolume(context.TODO(), nil); err == nil {
+		t.Fatal("error expected")
+	}
+}
+
+func TestControllerGetVolume(t *testing.T) {
+	if _, err := createFakeController().ControllerGetVolume(context.TODO(), nil); err == nil {
+		t.Fatal("error expected")
+	}
+}
+
+func TestListSnapshots(t *testing.T) {
+	if _, err := createFakeController().ListSnapshots(context.TODO(), nil); err == nil {
+		t.Fatal("error expected")
+	}
+}
+
+func TestCreateSnapshot(t *testing.T) {
+	if _, err := createFakeController().CreateSnapshot(context.TODO(), nil); err == nil {
+		t.Fatal("error expected")
+	}
+}
+
+func TestDeleteSnapshot(t *testing.T) {
+	if _, err := createFakeController().DeleteSnapshot(context.TODO(), nil); err == nil {
+		t.Fatal("error expected")
+	}
+}
+
+func TestGetCapacity(t *testing.T) {
+	if _, err := createFakeController().GetCapacity(context.TODO(), nil); err == nil {
+		t.Fatal("error expected")
 	}
 }
