@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -136,7 +137,10 @@ func TestStageUnstageVolume(t *testing.T) {
 	hostPath := filepath.Join(testMountPointDir, testVolumeName50MB)
 
 	// Stage Volume test
-	if _, err := ns.NodeStageVolume(ctx, &stageVolumeRequest); err != nil {
+	_, err = ns.nodeStageVolume(ctx, &stageVolumeRequest, func() (map[string][]sys.MountInfo, error) {
+		return map[string][]sys.MountInfo{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt"}}}, nil
+	})
+	if err != nil {
 		t.Fatalf("[%s] StageVolume failed. Error: %v", stageVolumeRequest.VolumeId, err)
 	}
 

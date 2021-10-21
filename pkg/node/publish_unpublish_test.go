@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
@@ -119,7 +120,10 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	directCSIClient := ns.directcsiClient.DirectV1beta3()
 
 	// Publish volume test
-	if _, err := ns.NodePublishVolume(ctx, &publishVolumeRequest); err != nil {
+	_, err := ns.nodePublishVolume(ctx, &publishVolumeRequest, func() (map[string][]sys.MountInfo, error) {
+		return map[string][]sys.MountInfo{"0:0": {{MountPoint: testStagingPath}}}, nil
+	})
+	if err != nil {
 		t.Fatalf("[%s] PublishVolume failed. Error: %v", publishVolumeRequest.VolumeId, err)
 	}
 

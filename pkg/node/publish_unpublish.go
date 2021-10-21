@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -62,105 +63,100 @@ func parseVolumeContext(volumeContext map[string]string) (name, ns string, err e
 	return
 }
 
-// NodePublishVolume is node publish volume request handler.
-func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+func getPodInfo(ctx context.Context, req *csi.NodePublishVolumeRequest) (podName, podNS string, podLabels map[string]string) {
+	var err error
+	if podName, podNS, err = parseVolumeContext(req.GetVolumeContext()); err != nil {
+		klog.Errorf("unable to parse volume context %v for volume %v; %v", req.GetVolumeContext(), req.GetVolumeId(), err)
+		return
+	}
+
+	if pod, err := utils.GetKubeClient().CoreV1().Pods(podNS).Get(ctx, podName, metav1.GetOptions{}); err != nil {
+		klog.Errorf("unable to get pod information; name=%v, namespace=%v; %v", podName, podNS, err)
+	} else {
+		podLabels = pod.GetLabels()
+	}
+
+	return
+}
+
+func (n *NodeServer) nodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, probeMounts func() (map[string][]sys.MountInfo, error)) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(3).InfoS("NodePublishVolumeRequest",
 		"volumeID", req.GetVolumeId(),
 		"stagingTargetPath", req.GetStagingTargetPath(),
 		"containerPath", req.GetTargetPath())
 
-	vID := req.GetVolumeId()
-	if vID == "" {
-		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
-	}
-	stagingTargetPath := req.GetStagingTargetPath()
-	if stagingTargetPath == "" {
-		return nil, status.Error(codes.InvalidArgument, "stagingTargetPath missing in request")
+	if req.GetVolumeId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID must not be empty")
 	}
 
-	containerPath := req.GetTargetPath()
-	if containerPath == "" {
-		return nil, status.Error(codes.InvalidArgument, "containerPath missing in request")
+	if req.GetStagingTargetPath() == "" {
+		return nil, status.Error(codes.InvalidArgument, "Staging target path must not be empty")
 	}
 
-	readOnly := req.GetReadonly()
-	directCSIClient := n.directcsiClient.DirectV1beta3()
-	vclient := directCSIClient.DirectCSIVolumes()
+	if req.GetTargetPath() == "" {
+		return nil, status.Error(codes.InvalidArgument, "target path must not be empty")
+	}
 
-	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-	})
+	podName, podNS, podLabels := getPodInfo(ctx, req)
+
+	volumeInterface := n.directcsiClient.DirectV1beta3().DirectCSIVolumes()
+
+	vol, err := volumeInterface.Get(ctx, req.GetVolumeId(), metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	// If not staged
-	if vol.Status.StagingPath != stagingTargetPath {
-		return nil, status.Error(codes.FailedPrecondition, "cannot publish volume that hasn't been staged")
+	if vol.Status.StagingPath != req.GetStagingTargetPath() {
+		return nil, status.Errorf(codes.FailedPrecondition, "volume %v is not yet staged, but requested with %v", vol.Name, req.GetStagingTargetPath())
 	}
 
-	extractPodLabels := func() map[string]string {
-		volumeContext, volumeLabels := req.GetVolumeContext(), vol.ObjectMeta.GetLabels()
-		if volumeLabels == nil {
-			volumeLabels = make(map[string]string)
+	volumeLabels := vol.GetLabels()
+	if volumeLabels == nil {
+		volumeLabels = make(map[string]string)
+	}
+	volumeLabels[directcsi.Group+"/pod.name"] = podName
+	volumeLabels[directcsi.Group+"/pod.namespace"] = podNS
+	for key, value := range podLabels {
+		if strings.HasPrefix(key, directcsi.Group+"/") {
+			volumeLabels[key] = value
 		}
+	}
+	vol.Labels = volumeLabels
 
-		podName, podNs, parseErr := parseVolumeContext(volumeContext)
-		if parseErr != nil {
-			klog.V(5).Infof("Failed to parse the volume context: %v", parseErr)
-			return nil
-		}
-
-		pod, err := utils.GetKubeClient().CoreV1().Pods(podNs).Get(ctx, podName, metav1.GetOptions{})
-		if err != nil {
-			klog.V(5).Infof("Failed to extract pod labels: %v", err)
-			return nil
-		}
-
-		podLabels := pod.ObjectMeta.GetLabels()
-		for k, v := range podLabels {
-			if strings.HasPrefix(k, directcsi.Group+"/") {
-				volumeLabels[k] = v
-			}
-		}
-
-		volumeLabels[directcsi.Group+"/pod.name"] = podName
-		volumeLabels[directcsi.Group+"/pod.namespace"] = podNs
-		return volumeLabels
+	if err := checkStagingTargetPath(req.GetStagingTargetPath(), probeMounts); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	volLabels := extractPodLabels()
-	if volLabels != nil {
-		vol.ObjectMeta.Labels = volLabels
-	}
-
-	if err := os.MkdirAll(containerPath, 0755); err != nil {
+	if err := os.MkdirAll(req.GetTargetPath(), 0755); err != nil {
 		return nil, err
 	}
 
-	if err := n.mounter.MountVolume(ctx, stagingTargetPath, containerPath, readOnly); err != nil {
+	if err := n.mounter.MountVolume(ctx, req.GetStagingTargetPath(), req.GetTargetPath(), req.GetReadonly()); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed volume publish: %v", err)
 	}
 
 	conditions := vol.Status.Conditions
 	for i, c := range conditions {
-		switch c.Type {
-		case string(directcsi.DirectCSIVolumeConditionPublished):
+		if c.Type == string(directcsi.DirectCSIVolumeConditionPublished) {
 			conditions[i].Status = utils.BoolToCondition(true)
 			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonInUse)
-		case string(directcsi.DirectCSIVolumeConditionStaged):
-		case string(directcsi.DirectCSIVolumeConditionReady):
 		}
 	}
-	vol.Status.ContainerPath = containerPath
+	vol.Status.ContainerPath = req.GetTargetPath()
 
-	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{
+	_, err = volumeInterface.Update(ctx, vol, metav1.UpdateOptions{
 		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+// NodePublishVolume is node publish volume request handler.
+func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	return n.nodePublishVolume(ctx, req, sys.ProbeMounts)
 }
 
 // NodeUnpublishVolume is node unpublish volume handler.

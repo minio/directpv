@@ -35,8 +35,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// NodeStageVolume is node stage volume request handler.
-func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+func (n *NodeServer) nodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, probeMounts func() (map[string][]sys.MountInfo, error)) (*csi.NodeStageVolumeResponse, error) {
 	klog.V(3).InfoS("NodeStageVolumeRequest",
 		"volumeID", req.GetVolumeId(),
 		"StagingTargetPath", req.GetStagingTargetPath())
@@ -66,6 +65,10 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	if err := checkDrive(drive, req.GetVolumeId(), probeMounts); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	path := filepath.Join(drive.Status.Mountpoint, vID)
@@ -108,6 +111,11 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	return &csi.NodeStageVolumeResponse{}, nil
+}
+
+// NodeStageVolume is node stage volume request handler.
+func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	return n.nodeStageVolume(ctx, req, sys.ProbeMounts)
 }
 
 // NodeUnstageVolume is node unstage volume request handler.
