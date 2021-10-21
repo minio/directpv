@@ -74,7 +74,12 @@ var unreleaseDrivesCmd = &cobra.Command{
 					utils.Bold("--nodes"))
 			}
 		}
-
+		if err := validateDriveSelectors(); err != nil {
+			return err
+		}
+		if len(driveGlobs) > 0 || len(nodeGlobs) > 0 {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
 		return unreleaseDrives(c.Context(), args)
 	},
 	Aliases: []string{},

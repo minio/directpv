@@ -33,8 +33,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var podNames, podNss []string
-
 var listVolumesCmd = &cobra.Command{
 	Use:   "list",
 	Short: "list volumes in the DirectCSI cluster",
@@ -61,6 +59,12 @@ $ kubectl direct-csi volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}'
 
 `,
 	RunE: func(c *cobra.Command, args []string) error {
+		if err := validateVolumeSelectors(); err != nil {
+			return err
+		}
+		if len(driveGlobs) > 0 || len(nodeGlobs) > 0 || len(podNameGlobs) > 0 || len(podNsGlobs) > 0 {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
 		return listVolumes(c.Context(), args)
 	},
 	Aliases: []string{

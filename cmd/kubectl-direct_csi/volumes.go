@@ -22,9 +22,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	volumeStatus = []string{}
-)
+var volumeStatus, volumeStatusList, podNames, podNameGlobs, podNameSelectors, podNss, podNsGlobs, podNsSelectors []string
 
 var volumesCmd = &cobra.Command{
 	Use:   "volumes",
@@ -36,7 +34,32 @@ var volumesCmd = &cobra.Command{
 	},
 }
 
+func validateVolumeSelectors() (err error) {
+	driveGlobs, driveSelectors, err = getValidDriveSelectors(drives)
+	if err != nil {
+		return err
+	}
+
+	nodeGlobs, nodeSelectors, err = getValidNodeSelectors(nodes)
+	if err != nil {
+		return err
+	}
+
+	podNameGlobs, podNameSelectors, err = getValidPodNameSelectors(podNames)
+	if err != nil {
+		return err
+	}
+
+	podNsGlobs, podNsSelectors, err = getValidPodNameSpaceSelectors(podNss)
+	if err != nil {
+		return err
+	}
+
+	volumeStatusList, err = getValidVolumeStatusSelectors(volumeStatus)
+
+	return err
+}
+
 func init() {
 	volumesCmd.AddCommand(listVolumesCmd)
-	//volumesCmd.AddCommand(purgeVolumesCmd)
 }

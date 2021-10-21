@@ -27,6 +27,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 )
 
 var accessTierUnset = &cobra.Command{
@@ -66,6 +67,13 @@ $ kubectl direct-csi drives access-tier unset --nodes=directcsi-1,othernode-2 --
 					utils.Bold("--access-tier"))
 			}
 		}
+		if err := validateDriveSelectors(); err != nil {
+			return err
+		}
+		if len(driveGlobs) > 0 || len(nodeGlobs) > 0 || len(statusGlobs) > 0 {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
+
 		return unsetAccessTier(c.Context())
 	},
 	Aliases: []string{},

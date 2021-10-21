@@ -214,6 +214,10 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 			all = tt.all
 			force = tt.force
 
+			if err := validateDriveSelectors(); err != nil {
+				t1.Fatalf("Test case name %s: validateDriveSelectors failed with %v", tt.name, err)
+			}
+
 			if err := formatDrives(ctx, []string{}); err != nil {
 				t1.Errorf("Test case name %s: Failed with %v", tt.name, err)
 			}

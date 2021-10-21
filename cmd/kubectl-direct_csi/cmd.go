@@ -44,6 +44,8 @@ var (
 	yaml       = false
 )
 
+var drives, nodes, driveGlobs, driveSelectors, nodeGlobs, nodeSelectors []string
+
 var printer func(interface{}) error
 
 var pluginCmd = &cobra.Command{

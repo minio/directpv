@@ -62,7 +62,33 @@ func AccessTiersToStrings(accessTiers []AccessTier) (slice []string) {
 	return slice
 }
 
+func ToDriveStatus(value string) (driveStatus DriveStatus, err error) {
+	driveStatus = DriveStatus(strings.Title(value))
+	switch driveStatus {
+	case DriveStatusAvailable, DriveStatusUnavailable, DriveStatusReady, DriveStatusTerminating, DriveStatusReleased:
+	default:
+		// supported values for 'DriveStatusInUse' are ["inuse", "inUse", "Inuse", "InUse"]
+		if strings.ToLower(value) == "inuse" {
+			driveStatus = DriveStatusInUse
+		} else {
+			err = fmt.Errorf("unknown drive status value %v", value)
+		}
+	}
+	return driveStatus, err
+}
+
+func DriveStatusListToStrings(driveStatusList []DriveStatus) (slice []string) {
+	for _, driveStatus := range driveStatusList {
+		slice = append(slice, string(driveStatus))
+	}
+	return slice
+}
+
 // MatchGlob does glob match of nodes/drives/statuses with drive's NodeName/Path/DriveStatus.
 func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 	return matcher.GlobMatchNodesDrivesStatuses(nodes, drives, status, drive.Status.NodeName, drive.Status.Path, string(drive.Status.DriveStatus))
+}
+
+func (drive *DirectCSIDrive) MatchDriveStatus(driveStatusList []DriveStatus) bool {
+	return matcher.StringIn(DriveStatusListToStrings(driveStatusList), string(drive.Status.DriveStatus))
 }

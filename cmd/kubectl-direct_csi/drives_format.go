@@ -83,6 +83,12 @@ $ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
 					utils.Bold("--nodes"))
 			}
 		}
+		if err := validateDriveSelectors(); err != nil {
+			return err
+		}
+		if len(driveGlobs) > 0 || len(nodeGlobs) > 0 {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
 		return formatDrives(c.Context(), args)
 	},
 	Aliases: []string{},

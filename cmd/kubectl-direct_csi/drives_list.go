@@ -41,8 +41,11 @@ var listDrivesCmd = &cobra.Command{
 	Short: "list drives in the DirectCSI cluster",
 	Long:  "",
 	Example: `
-# Filter drives by ellipses notation for drive paths and nodes
-$ kubectl direct-csi drives ls --drives='/dev/xvd{a...d}' --nodes='node-{1...4}'
+# List all drives
+$ kubectl direct-csi drives ls
+
+# List all drives (including 'unavailable' drives)
+$ kubectl direct-csi drives ls --all
 
 # Filter all ready drives 
 $ kubectl direct-csi drives ls --status=ready
@@ -61,8 +64,17 @@ $ kubectl direct-csi drives drives ls --access-tier="hot"
 
 # Filter all drives with access-tier being set
 $ kubectl direct-csi drives drives ls --access-tier="*"
+
+# Filter drives by ellipses notation for drive paths and nodes
+$ kubectl direct-csi drives ls --drives='/dev/xvd{a...d}' --nodes='node-{1...4}'
 `,
 	RunE: func(c *cobra.Command, args []string) error {
+		if err := validateDriveSelectors(); err != nil {
+			return err
+		}
+		if len(driveGlobs) > 0 || len(nodeGlobs) > 0 || len(statusGlobs) > 0 {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
 		return listDrives(c.Context(), args)
 	},
 	Aliases: []string{
@@ -118,7 +130,10 @@ func listDrives(ctx context.Context, args []string) error {
 		ctx,
 		utils.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
-			return all || len(status) > 0 || drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
+			if len(driveStatusList) > 0 {
+				return drive.MatchDriveStatus(driveStatusList)
+			}
+			return all || len(statusGlobs) > 0 || drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
 		},
 	)
 	if err != nil {
