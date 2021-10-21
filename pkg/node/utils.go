@@ -18,8 +18,13 @@ package node
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"sort"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/matcher"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,4 +101,52 @@ func RemoveDriveFinalizerWithConflictRetry(ctx context.Context, csiDriveName str
 		return err
 	}
 	return nil
+}
+
+func checkDrive(drive *directcsi.DirectCSIDrive, volumeID string, probeMounts func() (map[string][]sys.MountInfo, error)) error {
+	if drive.Status.DriveStatus != directcsi.DriveStatusInUse {
+		return fmt.Errorf("drive %v is not in InUse state", drive.Name)
+	}
+
+	finalizer := directcsi.DirectCSIDriveFinalizerPrefix + volumeID
+	if !matcher.StringIn(drive.Finalizers, finalizer) {
+		return fmt.Errorf("drive %v does not have volume finalizer %v", drive.Name, finalizer)
+	}
+
+	mounts, err := probeMounts()
+	if err != nil {
+		return err
+	}
+
+	majorMinor := fmt.Sprintf("%v:%v", drive.Status.MajorNumber, drive.Status.MinorNumber)
+	mountInfos, found := mounts[majorMinor]
+	if !found {
+		return fmt.Errorf("mount information not found for major/minor %v of drive %v", majorMinor, drive.Name)
+	}
+
+	mountPoint := filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID)
+	for _, mountInfo := range mountInfos {
+		if mountInfo.MountPoint == mountPoint {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("drive %v is not mounted at mount point %v", drive.Name, mountPoint)
+}
+
+func checkStagingTargetPath(stagingPath string, probeMounts func() (map[string][]sys.MountInfo, error)) error {
+	mounts, err := probeMounts()
+	if err != nil {
+		return err
+	}
+
+	for _, mountInfos := range mounts {
+		for _, mountInfo := range mountInfos {
+			if mountInfo.MountPoint == stagingPath {
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("stagingPath %v is not mounted", stagingPath)
 }
