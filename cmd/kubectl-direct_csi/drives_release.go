@@ -67,6 +67,13 @@ var releaseDrivesCmd = &cobra.Command{
 				return fmt.Errorf("atleast one among ['%s','%s','%s','%s'] should be specified", utils.Bold("--all"), utils.Bold("--drives"), utils.Bold("--nodes"), utils.Bold("--access-tier"))
 			}
 		}
+		if err := validateDriveSelectors(); err != nil {
+			return err
+		}
+		if len(driveGlobs) > 0 || len(nodeGlobs) > 0 {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
+
 		return releaseDrives(c.Context(), args)
 	},
 	Aliases: []string{},

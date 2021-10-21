@@ -53,8 +53,9 @@ var (
 	red   = color.New(color.FgRed).SprintFunc()
 	green = color.New(color.FgGreen).SprintFunc()
 
-	globRegexp            = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
-	errMixedSelectorUsage = errors.New("either glob or ellipsis pattern is supported")
+	globRegexp                  = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
+	errMixedSelectorUsage       = errors.New("either glob or ellipsis pattern is supported")
+	errMixedStatusSelectorUsage = fmt.Errorf("either glob or [%s] is supported", strings.Join(directcsi.SupportedStatusSelectorValues(), ", "))
 )
 
 var ( // Default direct csi directory where direct csi audit logs are stored.
@@ -103,30 +104,6 @@ func canonicalNameFromPath(val string) string {
 	return strings.ReplaceAll(dr, directCSIPartitionInfix, "")
 }
 
-func expandSelectors(selectors []string) (result []string, err error) {
-	var values []string
-	for _, selector := range selectors {
-		values, err = ellipsis.Expand(selector)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, values...)
-	}
-
-	return result, nil
-}
-
-func splitSelectors(selectors []string) (globs, ellipses []string) {
-	for _, selector := range selectors {
-		if globRegexp.MatchString(selector) {
-			globs = append(globs, selector)
-			continue
-		}
-		ellipses = append(ellipses, selector)
-	}
-	return globs, ellipses
-}
-
 func processFilteredDrives(
 	ctx context.Context,
 	driveInterface clientset.DirectCSIDriveInterface,
@@ -135,54 +112,21 @@ func processFilteredDrives(
 	applyFunc func(*directcsi.DirectCSIDrive) error,
 	processFunc func(context.Context, *directcsi.DirectCSIDrive) error) error {
 	var resultCh <-chan utils.ListDriveResult
-	var globNodeSelectors, ellipsesNodeSelectors, globDriveSelectors, ellipsesDriveSelectors []string
+	var err error
 	if len(idArgs) > 0 {
 		resultCh = getDrivesByIds(ctx, idArgs)
 	} else {
-		globNodeSelectors, ellipsesNodeSelectors = splitSelectors(nodes)
-		if len(globNodeSelectors) > 0 && len(ellipsesNodeSelectors) > 0 {
-			return errMixedSelectorUsage
-		}
-
-		globDriveSelectors, ellipsesDriveSelectors = splitSelectors(drives)
-		if len(globDriveSelectors) > 0 && len(ellipsesDriveSelectors) > 0 {
-			return errMixedSelectorUsage
-		}
-
-		expandedNodeList, err := expandSelectors(ellipsesNodeSelectors)
-		if err != nil {
-			return err
-		}
-
-		expandedDriveList, err := expandSelectors(ellipsesDriveSelectors)
-		if err != nil {
-			return err
-		}
-
-		accessTierSet, err := directcsi.StringsToAccessTiers(accessTiers)
-		if err != nil {
-			return err
-		}
-		accessTierSelector := directcsi.AccessTiersToStrings(accessTierSet)
-
-		directCSIClient := utils.GetDirectCSIClient()
 		ctx, cancelFunc := context.WithCancel(ctx)
 		defer cancelFunc()
 
 		resultCh, err = utils.ListDrives(ctx,
-			directCSIClient.DirectCSIDrives(),
-			expandedNodeList,
-			expandedDriveList,
-			accessTierSelector,
+			driveInterface,
+			nodeSelectors,
+			driveSelectors,
+			accessTierSelectors,
 			utils.MaxThreadCount)
 		if err != nil {
 			return err
-		}
-	}
-
-	if len(globNodeSelectors) > 0 || len(globDriveSelectors) > 0 {
-		if !dryRun {
-			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
 		}
 	}
 
@@ -191,9 +135,9 @@ func processFilteredDrives(
 		resultCh,
 		func(drive *directcsi.DirectCSIDrive) bool {
 			return drive.MatchGlob(
-				globNodeSelectors,
-				globDriveSelectors,
-				status) && matchFunc(drive)
+				nodeGlobs,
+				driveGlobs,
+				statusGlobs) && matchFunc(drive)
 		},
 		applyFunc,
 		processFunc,
@@ -204,46 +148,14 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	globNodeSelectors, ellipsesNodeSelectors := splitSelectors(nodes)
-	if len(globNodeSelectors) > 0 && len(ellipsesNodeSelectors) > 0 {
-		return nil, errMixedSelectorUsage
-	}
-
-	globDriveSelectors, ellipsesDriveSelectors := splitSelectors(drives)
-	if len(globDriveSelectors) > 0 && len(ellipsesDriveSelectors) > 0 {
-		return nil, errMixedSelectorUsage
-	}
-
-	expandedNodeList, err := expandSelectors(ellipsesNodeSelectors)
-	if err != nil {
-		return nil, err
-	}
-
-	expandedDriveList, err := expandSelectors(ellipsesDriveSelectors)
-	if err != nil {
-		return nil, err
-	}
-
-	accessTierSet, err := directcsi.StringsToAccessTiers(accessTiers)
-	if err != nil {
-		return nil, err
-	}
-	accessTierSelector := directcsi.AccessTiersToStrings(accessTierSet)
-
 	resultCh, err := utils.ListDrives(ctx,
 		driveInterface,
-		expandedNodeList,
-		expandedDriveList,
-		accessTierSelector,
+		nodeSelectors,
+		driveSelectors,
+		accessTierSelectors,
 		utils.MaxThreadCount)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(globNodeSelectors) > 0 || len(globDriveSelectors) > 0 {
-		if !dryRun {
-			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
-		}
 	}
 
 	filteredDrives := []directcsi.DirectCSIDrive{}
@@ -252,9 +164,9 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 			return nil, result.Err
 		}
 		if result.Drive.MatchGlob(
-			globNodeSelectors,
-			globDriveSelectors,
-			status) && filterFunc(result.Drive) {
+			nodeGlobs,
+			driveGlobs,
+			statusGlobs) && filterFunc(result.Drive) {
 			filteredDrives = append(filteredDrives, result.Drive)
 		}
 	}
@@ -266,61 +178,15 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	globNodeSelectors, ellipsesNodeSelectors := splitSelectors(nodes)
-	if len(globNodeSelectors) > 0 && len(ellipsesNodeSelectors) > 0 {
-		return nil, errMixedSelectorUsage
-	}
-
-	globDriveSelectors, ellipsesDriveSelectors := splitSelectors(drives)
-	if len(globDriveSelectors) > 0 && len(ellipsesDriveSelectors) > 0 {
-		return nil, errMixedSelectorUsage
-	}
-
-	globPodNameSelectors, ellipsesPodNameSelectors := splitSelectors(podNames)
-	if len(globPodNameSelectors) > 0 && len(ellipsesPodNameSelectors) > 0 {
-		return nil, errMixedSelectorUsage
-	}
-
-	globPodNssSelectors, ellipsesPodNssSelectors := splitSelectors(podNss)
-	if len(globPodNssSelectors) > 0 && len(ellipsesPodNssSelectors) > 0 {
-		return nil, errMixedSelectorUsage
-	}
-
-	expandedNodeList, err := expandSelectors(ellipsesNodeSelectors)
-	if err != nil {
-		return nil, err
-	}
-
-	expandedDriveList, err := expandSelectors(ellipsesDriveSelectors)
-	if err != nil {
-		return nil, err
-	}
-
-	expandedPodNameList, err := expandSelectors(ellipsesPodNameSelectors)
-	if err != nil {
-		return nil, err
-	}
-
-	expandedPodNssList, err := expandSelectors(ellipsesPodNssSelectors)
-	if err != nil {
-		return nil, err
-	}
-
 	resultCh, err := utils.ListVolumes(ctx,
 		volumeInterface,
-		expandedNodeList,
-		expandedDriveList,
-		expandedPodNameList,
-		expandedPodNssList,
+		nodeSelectors,
+		driveSelectors,
+		podNameSelectors,
+		podNsSelectors,
 		utils.MaxThreadCount)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(globNodeSelectors) > 0 || len(globDriveSelectors) > 0 || len(globPodNameSelectors) > 0 || len(globPodNssSelectors) > 0 {
-		if !dryRun {
-			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
-		}
 	}
 
 	filteredVolumes := []directcsi.DirectCSIVolume{}
@@ -328,10 +194,10 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 		if result.Err != nil {
 			return nil, result.Err
 		}
-		if result.Volume.MatchNodeDrives(globNodeSelectors, globDriveSelectors) &&
-			result.Volume.MatchPodName(globPodNameSelectors) &&
-			result.Volume.MatchPodNamespace(globPodNssSelectors) &&
-			result.Volume.MatchStatus(volumeStatus) &&
+		if result.Volume.MatchNodeDrives(nodeGlobs, driveGlobs) &&
+			result.Volume.MatchPodName(podNameGlobs) &&
+			result.Volume.MatchPodNamespace(podNsGlobs) &&
+			result.Volume.MatchStatus(volumeStatusList) &&
 			filterFunc(result.Volume) {
 			filteredVolumes = append(filteredVolumes, result.Volume)
 		}
@@ -549,4 +415,79 @@ func GetDefaultAuditDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(defaultDir, auditDir), nil
+}
+
+func getValidSelectors(selectors []string) (globs, expandedList []string, err error) {
+	for _, selector := range selectors {
+		if globRegexp.MatchString(selector) {
+			globs = append(globs, selector)
+		} else {
+			result, err := ellipsis.Expand(selector)
+			if err != nil {
+				return nil, nil, err
+			}
+			expandedList = append(expandedList, result...)
+		}
+	}
+
+	if len(globs) > 0 && len(expandedList) > 0 {
+		return nil, nil, errMixedSelectorUsage
+	}
+
+	return
+}
+
+func getValidDriveSelectors(drives []string) ([]string, []string, error) {
+	return getValidSelectors(drives)
+}
+
+func getValidNodeSelectors(nodes []string) ([]string, []string, error) {
+	return getValidSelectors(nodes)
+}
+
+func getValidAccessTierSelectors(accessTiers []string) (accessTierSelectors []string, err error) {
+	accessTierSet, err := directcsi.StringsToAccessTiers(accessTiers)
+	if err != nil {
+		return nil, err
+	}
+	return directcsi.AccessTiersToStrings(accessTierSet), nil
+}
+
+func getValidDriveStatusSelectors(selectors []string) (globs []string, statusList []directcsi.DriveStatus, err error) {
+	for _, selector := range selectors {
+		if globRegexp.MatchString(selector) {
+			globs = append(globs, selector)
+		} else {
+			driveStatus, err := directcsi.ToDriveStatus(selector)
+			if err != nil {
+				return nil, nil, err
+			}
+			statusList = append(statusList, driveStatus)
+		}
+	}
+
+	if len(globs) > 0 && len(statusList) > 0 {
+		return nil, nil, errMixedStatusSelectorUsage
+	}
+
+	return
+}
+
+func getValidPodNameSelectors(podNames []string) ([]string, []string, error) {
+	return getValidSelectors(podNames)
+}
+
+func getValidPodNameSpaceSelectors(podNamespaces []string) ([]string, []string, error) {
+	return getValidSelectors(podNamespaces)
+}
+
+func getValidVolumeStatusSelectors(statusList []string) ([]string, error) {
+	for _, status := range statusList {
+		switch strings.ToLower(status) {
+		case "published", "staged":
+		default:
+			return nil, fmt.Errorf("invalid status '%s'. supported values are ['published', 'staged']", status)
+		}
+	}
+	return statusList, nil
 }

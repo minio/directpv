@@ -27,6 +27,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 )
 
 var accessTierSet = &cobra.Command{
@@ -65,16 +66,19 @@ $ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1,othernode-2 
 					utils.Bold("--status"))
 			}
 		}
-
 		if len(args) != 1 {
 			return fmt.Errorf("only one access tier must be specified. please use '%s' for examples to set access-tier", utils.Bold("--help"))
 		}
-
 		accessTier, err := directcsi.ToAccessTier(args[0])
 		if err != nil {
 			return err
 		}
-
+		if err := validateDriveSelectors(); err != nil {
+			return err
+		}
+		if len(driveGlobs) > 0 || len(nodeGlobs) > 0 || len(statusGlobs) > 0 {
+			klog.Warning("Glob matches will be deprecated soon. Please use ellipses instead")
+		}
 		return setAccessTier(c.Context(), accessTier)
 	},
 	Aliases: []string{},

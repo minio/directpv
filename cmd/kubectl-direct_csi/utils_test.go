@@ -19,11 +19,14 @@ package main
 import (
 	"reflect"
 	"testing"
+
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 )
 
-func TestExpandSelectors(t1 *testing.T) {
+func TestGetValidSelectors(t *testing.T) {
 	testCases := []struct {
 		selectors    []string
+		globs        []string
 		expandedList []string
 		expectErr    bool
 	}{
@@ -36,6 +39,7 @@ func TestExpandSelectors(t1 *testing.T) {
 				"/dev/xvde",
 				"/dev/xvdf",
 			},
+			globs: nil,
 		},
 		{
 			selectors: []string{"node-{1...3}"},
@@ -44,6 +48,7 @@ func TestExpandSelectors(t1 *testing.T) {
 				"node-2",
 				"node-3",
 			},
+			globs: nil,
 		},
 		{
 			selectors: []string{"/dev/xvd{b...c}", "/dev/xvd{e...h}"},
@@ -55,6 +60,7 @@ func TestExpandSelectors(t1 *testing.T) {
 				"/dev/xvdg",
 				"/dev/xvdh",
 			},
+			globs: nil,
 		},
 		{
 			selectors: []string{"node-{1...3}", "node-{7...10}"},
@@ -67,6 +73,7 @@ func TestExpandSelectors(t1 *testing.T) {
 				"node-9",
 				"node-10",
 			},
+			globs: nil,
 		},
 		{
 			selectors: []string{"/dev/nvmen{1...2}p{1...2}"},
@@ -76,79 +83,193 @@ func TestExpandSelectors(t1 *testing.T) {
 				"/dev/nvmen2p1",
 				"/dev/nvmen2p2",
 			},
+			globs: nil,
+		},
+		{
+			selectors:    []string{"/dev/xvd[b-f]"},
+			globs:        []string{"/dev/xvd[b-f]"},
+			expandedList: nil,
+		},
+		{
+			selectors:    []string{"node-[1-3]"},
+			globs:        []string{"node-[1-3]"},
+			expandedList: nil,
+		},
+		{
+			selectors:    []string{"/dev/xvd[b-c]", "/dev/xvd[e-h]"},
+			globs:        []string{"/dev/xvd[b-c]", "/dev/xvd[e-h]"},
+			expandedList: nil,
+		},
+		{
+			selectors:    []string{"node-[1-3]", "node-[7-10]"},
+			globs:        []string{"node-[1-3]", "node-[7-10]"},
+			expandedList: nil,
+		},
+		{
+			selectors:    []string{"/dev/nvmen*"},
+			globs:        []string{"/dev/nvmen*"},
+			expandedList: nil,
 		},
 		{
 			selectors:    []string{"/dev/xvd{b..c}"},
 			expandedList: nil,
+			globs:        nil,
 			expectErr:    true,
 		},
 		{
 			selectors:    []string{"/dev/xvd{b..}"},
 			expandedList: nil,
+			globs:        nil,
 			expectErr:    true,
 		},
 		{
 			selectors:    []string{"/dev/xvd{..c}"},
 			expandedList: nil,
+			globs:        nil,
 			expectErr:    true,
 		},
 		{
 			selectors:    []string{"/dev/xvd{...}"},
 			expandedList: nil,
+			globs:        nil,
 			expectErr:    true,
 		},
 		{
 			selectors:    []string{"/dev/xvd{b...c}", "/dev/xvd{e...}"},
 			expandedList: nil,
+			globs:        nil,
+			expectErr:    true,
+		},
+		{
+			selectors:    []string{"/dev/xvd{b...c}", "/dev/xvd[e-f]"},
+			expandedList: nil,
+			globs:        nil,
 			expectErr:    true,
 		},
 	}
 
 	for i, testCase := range testCases {
-		list, err := expandSelectors(testCase.selectors)
+		globs, expandedList, err := getValidSelectors(testCase.selectors)
 		if err != nil && !testCase.expectErr {
-			t1.Fatalf("case %v: did not expect error but got: %v", i+1, err)
+			t.Errorf("case %v: Expected err to nil, got %v", i+1, err)
 		}
-		if !reflect.DeepEqual(list, testCase.expandedList) {
-			t1.Errorf("case %v: Expected list = %v, got %v", i+1, testCase.expandedList, list)
+		if !reflect.DeepEqual(globs, testCase.globs) {
+			t.Errorf("case %v: Expected globs = %v, got %v", i+1, testCase.globs, globs)
+		}
+		if !reflect.DeepEqual(expandedList, testCase.expandedList) {
+			t.Errorf("case %v: Expected expandedList = %v, got %v", i+1, testCase.expandedList, expandedList)
 		}
 	}
 }
 
-func TestSplitSelectors(t1 *testing.T) {
+func TestGetValidAccessTierSelectors(t *testing.T) {
 	testCases := []struct {
-		selectors         []string
-		globSelectors     []string
-		ellipsesSelectors []string
+		accessTiers []string
+		result      []string
+		expectErr   bool
 	}{
 		{
-			selectors:         []string{"/dev/xvd{a...c}", "/dev/xvd{e...f}"},
-			globSelectors:     nil,
-			ellipsesSelectors: []string{"/dev/xvd{a...c}", "/dev/xvd{e...f}"},
+			accessTiers: []string{"hot", "cold"},
+			result:      []string{"Hot", "Cold"},
 		},
 		{
-			selectors:         []string{"/dev/xvd[a-c]", "/dev/xvd[e-f]"},
-			globSelectors:     []string{"/dev/xvd[a-c]", "/dev/xvd[e-f]"},
-			ellipsesSelectors: nil,
+			accessTiers: nil,
+			result:      nil,
 		},
 		{
-			selectors:         []string{"/dev/xvd[a-c]"},
-			globSelectors:     []string{"/dev/xvd[a-c]"},
-			ellipsesSelectors: nil,
-		},
-		{
-			selectors:         []string{"/dev/xvd{a...c}", "/dev/xvd[e-f]", "/dev/xvd{g...h}", "/dev/xvd[i-z]"},
-			globSelectors:     []string{"/dev/xvd[e-f]", "/dev/xvd[i-z]"},
-			ellipsesSelectors: []string{"/dev/xvd{a...c}", "/dev/xvd{g...h}"},
+			accessTiers: []string{"ho", "cod"},
+			result:      nil,
+			expectErr:   true,
 		},
 	}
+
 	for i, testCase := range testCases {
-		globSelectors, ellipsesSelectors := splitSelectors(testCase.selectors)
-		if !reflect.DeepEqual(globSelectors, testCase.globSelectors) {
-			t1.Errorf("case %v: Expected globSelectorList = %v, got %v", i+1, testCase.globSelectors, globSelectors)
+		result, err := getValidAccessTierSelectors(testCase.accessTiers)
+		if err != nil && !testCase.expectErr {
+			t.Errorf("case %v: Expected err to nil, got %v", i+1, err)
 		}
-		if !reflect.DeepEqual(ellipsesSelectors, testCase.ellipsesSelectors) {
-			t1.Errorf("case %v: Expected ellipsesSelectorList = %v, got %v", i+1, testCase.ellipsesSelectors, ellipsesSelectors)
+		if !reflect.DeepEqual(result, testCase.result) {
+			t.Errorf("case %v: Expected result = %v, got %v", i+1, testCase.result, result)
+		}
+	}
+}
+
+func TestGetValidDriveStatusSelectors(t *testing.T) {
+	testCases := []struct {
+		selectors  []string
+		globs      []string
+		statusList []directcsi.DriveStatus
+		expectErr  bool
+	}{
+		{
+			selectors:  []string{"available", "ready"},
+			globs:      nil,
+			statusList: []directcsi.DriveStatus{directcsi.DriveStatusAvailable, directcsi.DriveStatusReady},
+		},
+		{
+			selectors:  []string{"available"},
+			globs:      nil,
+			statusList: []directcsi.DriveStatus{directcsi.DriveStatusAvailable},
+		},
+		{
+			selectors:  []string{"*avail*"},
+			globs:      []string{"*avail*"},
+			statusList: nil,
+		},
+		{
+			selectors:  []string{"xyz"},
+			globs:      nil,
+			statusList: nil,
+			expectErr:  true,
+		},
+	}
+
+	for i, testCase := range testCases {
+		globs, statusList, err := getValidDriveStatusSelectors(testCase.selectors)
+		if err != nil && !testCase.expectErr {
+			t.Errorf("case %v: Expected err to nil, got %v", i+1, err)
+		}
+		if !reflect.DeepEqual(globs, testCase.globs) {
+			t.Errorf("case %v: Expected globs = %v, got %v", i+1, testCase.globs, globs)
+		}
+		if !reflect.DeepEqual(statusList, testCase.statusList) {
+			t.Errorf("case %v: Expected statusList = %v, got %v", i+1, testCase.statusList, statusList)
+		}
+	}
+}
+
+func TestGetValidVolumeStatusSelectors(t *testing.T) {
+	testCases := []struct {
+		selectors  []string
+		statusList []string
+		expectErr  bool
+	}{
+		{
+			selectors:  []string{"published"},
+			statusList: []string{"published"},
+		},
+		{
+			selectors:  []string{"staged"},
+			statusList: []string{"staged"},
+		},
+		{
+			selectors:  []string{"staged", "published"},
+			statusList: []string{"staged", "published"},
+		},
+		{
+			selectors:  []string{"sta", "zyx"},
+			statusList: nil,
+			expectErr:  true,
+		},
+	}
+
+	for i, testCase := range testCases {
+		statusList, err := getValidVolumeStatusSelectors(testCase.selectors)
+		if err != nil && !testCase.expectErr {
+			t.Errorf("case %v: Expected err to nil, got %v", i+1, err)
+		}
+		if !reflect.DeepEqual(statusList, testCase.statusList) {
+			t.Errorf("case %v: Expected statusList = %v, got %v", i+1, testCase.statusList, statusList)
 		}
 	}
 }
