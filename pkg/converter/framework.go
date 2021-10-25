@@ -18,7 +18,7 @@ package converter
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -45,7 +45,7 @@ var supportedVersions = []string{
 	versionV1Beta1,
 	versionV1Beta2,
 	versionV1Beta3,
-} //ordered
+} // ordered
 
 type crdKind string
 
@@ -112,7 +112,7 @@ func doConversion(convertRequest *v1.ConversionRequest, convert convertFunc) *v1
 func serve(w http.ResponseWriter, r *http.Request, convert convertFunc) {
 	var body []byte
 	if r.Body != nil {
-		if data, err := ioutil.ReadAll(r.Body); err == nil {
+		if data, err := io.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}

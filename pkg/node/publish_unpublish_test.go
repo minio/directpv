@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -34,7 +33,7 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	testVolumeName50MB := "test_volume_50MB"
 
 	createTestDir := func(prefix string) (string, error) {
-		tDir, err := ioutil.TempDir("", prefix)
+		tDir, err := os.MkdirTemp("", prefix)
 		if err != nil {
 			return "", err
 		}
