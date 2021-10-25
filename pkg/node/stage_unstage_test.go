@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,7 +44,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	testDriveName := "test_drive"
 	testVolumeName50MB := "test_volume_50MB"
 
-	testMountPointDir, err := ioutil.TempDir("", "test_")
+	testMountPointDir, err := os.MkdirTemp("", "test_")
 	if err != nil {
 		t.Fatal(err)
 	}

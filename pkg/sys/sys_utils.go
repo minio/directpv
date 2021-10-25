@@ -19,7 +19,6 @@ package sys
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -140,7 +139,7 @@ func FlushLoopBackReservations() error {
 		return nil
 	}
 
-	files, err := ioutil.ReadDir(loopback.DirectCSIBackFileRoot)
+	files, err := os.ReadDir(loopback.DirectCSIBackFileRoot)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil

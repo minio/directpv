@@ -19,7 +19,6 @@ package loopback
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -29,7 +28,7 @@ import (
 func prepareBackingFile(loopDevNum uint64) (string, error) {
 	backingFile := filepath.Join(DirectCSIBackFileRoot, fmt.Sprintf("loop%d", uint64(loopDevNum)))
 	bytesToWrite := make([]byte, backFileSize)
-	return backingFile, ioutil.WriteFile(backingFile, bytesToWrite, 0666)
+	return backingFile, os.WriteFile(backingFile, bytesToWrite, 0666)
 }
 
 func getDeviceFileName(ldNumber uint64) string {

@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
@@ -46,7 +46,7 @@ func parseAdmissionReview(req *http.Request) (admissionv1.AdmissionReview, error
 	}
 
 	if req.Body != nil {
-		if data, err := ioutil.ReadAll(req.Body); err == nil {
+		if data, err := io.ReadAll(req.Body); err == nil {
 			body = data
 		}
 	}

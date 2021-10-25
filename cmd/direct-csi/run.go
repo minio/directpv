@@ -22,7 +22,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -56,7 +55,7 @@ func waitForConversionWebhook() error {
 		return errInvalidConversionHealthzURL
 	}
 
-	caCert, err := ioutil.ReadFile(conversionCAFile)
+	caCert, err := os.ReadFile(conversionCAFile)
 	if err != nil {
 		klog.V(2).Infof("Error while reading cacert %v", err)
 		return err
