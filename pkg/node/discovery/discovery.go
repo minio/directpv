@@ -74,9 +74,18 @@ func (d *Discovery) readMounts() (err error) {
 func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
+
+	nodeLabelValue, err := utils.NewLabelValue(d.NodeID)
+	if err != nil {
+		return err
+	}
+
 	resultCh, err := utils.ListDrives(ctx,
 		d.directcsiClient.DirectV1beta3().DirectCSIDrives(),
-		[]utils.LabelValue{utils.ToLabelValue(d.NodeID)}, nil, nil, utils.MaxThreadCount,
+		[]utils.LabelValue{nodeLabelValue},
+		nil,
+		nil,
+		utils.MaxThreadCount,
 	)
 	if err != nil {
 		return err
