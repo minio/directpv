@@ -34,14 +34,14 @@ function test_build() {
 }
 
 function do_upgrade_test() {
-    wget --quiet --output-document=kubectl-direct_csi_1.3.6 https://github.com/minio/direct-csi/releases/download/v1.3.6/kubectl-direct_csi_1.3.6_linux_amd64
-    chmod a+x kubectl-direct_csi_1.3.6
+    wget --quiet --output-document="kubectl-direct_csi_$1" "https://github.com/minio/direct-csi/releases/download/v$1/kubectl-direct_csi_$1_linux_amd64"
+    chmod a+x "kubectl-direct_csi_$1"
 
     # unmount all direct-csi mounts of previous installation if any.
     mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl
 
-    DIRECT_CSI_CLIENT=./kubectl-direct_csi_1.3.6
-    DIRECT_CSI_VERSION="v1.3.6"
+    DIRECT_CSI_CLIENT="./kubectl-direct_csi_$1"
+    DIRECT_CSI_VERSION="v$1"
     install_directcsi
     check_drives
     deploy_minio
@@ -55,8 +55,14 @@ function do_upgrade_test() {
     "${DIRECT_CSI_CLIENT}" volumes list
 
     "${DIRECT_CSI_CLIENT}" uninstall
+
     pending=7
-    while [[ $pending -gt 3 ]]; do # webhook uninstallation is not supported in v1.3.6
+    wait_count=0
+    if [[ $1 == "1.3.6" ]]; then
+        wait_count=3 # webhook uninstallation is not supported in v1.3.6
+    fi
+
+    while [[ $pending -gt ${wait_count} ]]; do
         echo "$ME: waiting for ${pending} direct-csi pods to go down"
         sleep ${pending}
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
@@ -64,6 +70,16 @@ function do_upgrade_test() {
 
     # Show output for manual debugging.
     kubectl get pods -n direct-csi-min-io
+
+    if [[ $1 != "1.3.6" ]]; then
+        while true; do
+            echo "$ME: waiting for direct-csi-min-io namespace to be removed"
+            sleep 5
+            if ! kubectl get namespace direct-csi-min-io --no-headers | grep -q .; then
+                return 0
+            fi
+        done
+    fi
 
     export DIRECT_CSI_CLIENT=./kubectl-direct_csi
     export DIRECT_CSI_VERSION="${BUILD_VERSION}"
@@ -101,5 +117,8 @@ setup_luks
 echo "$ME: Run build test"
 test_build
 
-echo "$ME: Run upgrade test"
-do_upgrade_test
+echo "$ME: Run upgrade test from v1.3.6"
+do_upgrade_test "1.3.6"
+
+echo "$ME: Run upgrade test from v1.4.3"
+do_upgrade_test "1.4.3"
