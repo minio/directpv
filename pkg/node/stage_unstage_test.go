@@ -41,6 +41,71 @@ const (
 	mb20  = 20 * MB
 )
 
+func TestNodeStageVolume(t *testing.T) {
+	case1Req := &csi.NodeStageVolumeRequest{
+		VolumeId:          "volume-id-1",
+		StagingTargetPath: "volume-id-1-staging-target-path",
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{FsType: "xfs"}},
+			AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER},
+		},
+	}
+
+	case1Drive := &directcsi.DirectCSIDrive{
+		TypeMeta:   utils.DirectCSIDriveTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+	}
+
+	case2Drive := &directcsi.DirectCSIDrive{
+		TypeMeta:   utils.DirectCSIDriveTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+		Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusInUse},
+	}
+
+	case3Drive := &directcsi.DirectCSIDrive{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "drive-1",
+			Finalizers: []string{directcsi.DirectCSIDriveFinalizerPrefix + "volume-id-1"},
+		},
+		Status: directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusInUse},
+	}
+
+	testCases := []struct {
+		req       *csi.NodeStageVolumeRequest
+		drive     *directcsi.DirectCSIDrive
+		mountInfo map[string][]sys.MountInfo
+	}{
+		{case1Req, case1Drive, nil},
+		{case1Req, case2Drive, nil},
+		{case1Req, case3Drive, map[string][]sys.MountInfo{"1:0": {}}},
+		{case1Req, case3Drive, map[string][]sys.MountInfo{"0:0": {}}},
+	}
+
+	for i, testCase := range testCases {
+		volume := &directcsi.DirectCSIVolume{
+			TypeMeta:   utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{Name: testCase.req.VolumeId},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      testNodeName,
+				Drive:         testCase.drive.Name,
+				TotalCapacity: 100 * MB,
+			},
+		}
+
+		nodeServer := createFakeNodeServer()
+		nodeServer.directcsiClient = fakedirect.NewSimpleClientset(volume, testCase.drive)
+		_, err := nodeServer.nodeStageVolume(
+			context.TODO(),
+			testCase.req,
+			func() (map[string][]sys.MountInfo, error) { return testCase.mountInfo, nil },
+		)
+		if err == nil {
+			t.Fatalf("case %v: expected error, but succeeded", i+1)
+		}
+	}
+}
+
 func TestStageUnstageVolume(t *testing.T) {
 	testDriveName := "test_drive"
 	testVolumeName50MB := "test_volume_50MB"

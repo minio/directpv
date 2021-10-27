@@ -30,6 +30,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func TestNodePublishVolume(t *testing.T) {
+	req := &csi.NodePublishVolumeRequest{
+		VolumeId:          "volume-id-1",
+		StagingTargetPath: "volume-id-1-staging-target-path",
+		TargetPath:        "volume-id-1-target-path",
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{FsType: "xfs"}},
+			AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER},
+		},
+	}
+
+	volume := &directcsi.DirectCSIVolume{
+		TypeMeta:   utils.DirectCSIVolumeTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{Name: "volume-id-1"},
+		Status:     directcsi.DirectCSIVolumeStatus{StagingPath: "volume-id-1-staging-target-path"},
+	}
+
+	nodeServer := createFakeNodeServer()
+	nodeServer.directcsiClient = fakedirect.NewSimpleClientset(volume)
+	_, err := nodeServer.nodePublishVolume(
+		context.TODO(),
+		req,
+		func() (map[string][]sys.MountInfo, error) { return map[string][]sys.MountInfo{"0:0": {}}, nil },
+	)
+	if err == nil {
+		t.Fatalf("expected error, but succeeded")
+	}
+}
+
 func TestPublishUnpublishVolume(t *testing.T) {
 	testVolumeName50MB := "test_volume_50MB"
 
