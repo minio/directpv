@@ -52,7 +52,7 @@ function install_directcsi() {
     "${DIRECT_CSI_CLIENT}" install --image "direct-csi:${DIRECT_CSI_VERSION}"
 
     required_count=4
-    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]]; then
+    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
         required_count=7 # plus 3 for conversion deployment pods
     fi
     running_count=0
@@ -75,7 +75,7 @@ function uninstall_directcsi() {
     "${DIRECT_CSI_CLIENT}" uninstall  --crd --force
 
     pending=4
-    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]]; then
+    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
         pending=7 # plus 3 for conversion deployment pods
     fi
     while [[ $pending -gt 0 ]]; do
