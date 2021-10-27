@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/clientset"
@@ -185,8 +184,8 @@ func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[strin
 		labels = make(map[string]string)
 	}
 
-	labels[utils.NodeLabel] = volume.Status.NodeName
-	labels[utils.ReservedDrivePathLabel] = filepath.Base(drivePath)
+	labels[utils.NodeLabel] = utils.SanitizeLabelV(volume.Status.NodeName)
+	labels[utils.ReservedDrivePathLabel] = utils.SanitizeDrivePath(drivePath)
 	labels[utils.DriveLabel] = utils.SanitizeLabelV(driveName)
 	labels[utils.CreatedByLabel] = "directcsi-controller"
 
@@ -222,7 +221,7 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListVolumes(ctx, volumeClient, []string{nodeID}, nil, nil, nil, utils.MaxThreadCount)
+	resultCh, err := utils.ListVolumes(ctx, volumeClient, []utils.LabelValue{utils.ToLabelValue(nodeID)}, nil, nil, nil, utils.MaxThreadCount)
 	if err != nil {
 		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
 		return

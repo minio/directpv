@@ -44,7 +44,8 @@ var (
 	yaml       = false
 )
 
-var drives, nodes, driveGlobs, driveSelectors, nodeGlobs, nodeSelectors []string
+var drives, nodes, driveGlobs, nodeGlobs []string
+var driveSelectorValues, nodeSelectorValues []utils.LabelValue
 
 var printer func(interface{}) error
 

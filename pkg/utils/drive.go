@@ -133,8 +133,8 @@ func NewDirectCSIDrive(name string, status directcsi.DirectCSIDriveStatus) *dire
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
-				NodeLabel:       status.NodeName,
-				DrivePathLabel:  path.Base(status.Path),
+				NodeLabel:       SanitizeLabelV(status.NodeName),
+				DrivePathLabel:  SanitizeDrivePath(status.Path),
 				VersionLabel:    directcsi.Version,
 				CreatedByLabel:  "directcsi-driver",
 				AccessTierLabel: string(status.AccessTier),

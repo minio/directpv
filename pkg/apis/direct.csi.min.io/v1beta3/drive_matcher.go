@@ -63,18 +63,22 @@ func AccessTiersToStrings(accessTiers []AccessTier) (slice []string) {
 }
 
 func ToDriveStatus(value string) (driveStatus DriveStatus, err error) {
-	driveStatus = DriveStatus(strings.Title(value))
-	switch driveStatus {
-	case DriveStatusAvailable, DriveStatusUnavailable, DriveStatusReady, DriveStatusTerminating, DriveStatusReleased:
+	switch strings.ToLower(value) {
+	case "available":
+		return DriveStatusAvailable, nil
+	case "unavailable":
+		return DriveStatusUnavailable, nil
+	case "ready":
+		return DriveStatusReady, nil
+	case "terminating":
+		return DriveStatusTerminating, nil
+	case "released":
+		return DriveStatusReleased, nil
+	case "inuse":
+		return DriveStatusInUse, nil
 	default:
-		// supported values for 'DriveStatusInUse' are ["inuse", "inUse", "Inuse", "InUse"]
-		if strings.ToLower(value) == "inuse" {
-			driveStatus = DriveStatusInUse
-		} else {
-			err = fmt.Errorf("unknown drive status value %v", value)
-		}
+		return DriveStatus("unknown"), fmt.Errorf("unknown drive status value %v", value)
 	}
-	return driveStatus, err
 }
 
 func DriveStatusListToStrings(driveStatusList []DriveStatus) (slice []string) {

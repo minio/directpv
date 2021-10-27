@@ -121,9 +121,9 @@ func processFilteredDrives(
 
 		resultCh, err = utils.ListDrives(ctx,
 			driveInterface,
-			nodeSelectors,
-			driveSelectors,
-			accessTierSelectors,
+			nodeSelectorValues,
+			driveSelectorValues,
+			accessTierSelectorValues,
 			utils.MaxThreadCount)
 		if err != nil {
 			return err
@@ -150,9 +150,9 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 
 	resultCh, err := utils.ListDrives(ctx,
 		driveInterface,
-		nodeSelectors,
-		driveSelectors,
-		accessTierSelectors,
+		nodeSelectorValues,
+		driveSelectorValues,
+		accessTierSelectorValues,
 		utils.MaxThreadCount)
 	if err != nil {
 		return nil, err
@@ -180,10 +180,10 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 
 	resultCh, err := utils.ListVolumes(ctx,
 		volumeInterface,
-		nodeSelectors,
-		driveSelectors,
-		podNameSelectors,
-		podNsSelectors,
+		nodeSelectorValues,
+		driveSelectorValues,
+		podNameSelectorValues,
+		podNsSelectorValues,
 		utils.MaxThreadCount)
 	if err != nil {
 		return nil, err
@@ -417,7 +417,7 @@ func GetDefaultAuditDir() (string, error) {
 	return filepath.Join(defaultDir, auditDir), nil
 }
 
-func getValidSelectors(selectors []string) (globs, expandedList []string, err error) {
+func getValidSelectors(selectors []string) (globs []string, values []utils.LabelValue, err error) {
 	for _, selector := range selectors {
 		if globRegexp.MatchString(selector) {
 			globs = append(globs, selector)
@@ -426,31 +426,36 @@ func getValidSelectors(selectors []string) (globs, expandedList []string, err er
 			if err != nil {
 				return nil, nil, err
 			}
-			expandedList = append(expandedList, result...)
+			labelValues, err := utils.ToLabelValues(result)
+			if err != nil {
+				return nil, nil, err
+			}
+			values = append(values, labelValues...)
 		}
 	}
 
-	if len(globs) > 0 && len(expandedList) > 0 {
+	if len(globs) > 0 && len(values) > 0 {
 		return nil, nil, errMixedSelectorUsage
 	}
 
 	return
 }
 
-func getValidDriveSelectors(drives []string) ([]string, []string, error) {
-	return getValidSelectors(drives)
+func getValidDriveSelectors(selectors []string) ([]string, []utils.LabelValue, error) {
+	sanitizedDriveSelectors := utils.FmapStringSlice(selectors, utils.SanitizeDrivePath)
+	return getValidSelectors(sanitizedDriveSelectors)
 }
 
-func getValidNodeSelectors(nodes []string) ([]string, []string, error) {
+func getValidNodeSelectors(nodes []string) ([]string, []utils.LabelValue, error) {
 	return getValidSelectors(nodes)
 }
 
-func getValidAccessTierSelectors(accessTiers []string) (accessTierSelectors []string, err error) {
+func getValidAccessTierSelectors(accessTiers []string) ([]utils.LabelValue, error) {
 	accessTierSet, err := directcsi.StringsToAccessTiers(accessTiers)
 	if err != nil {
 		return nil, err
 	}
-	return directcsi.AccessTiersToStrings(accessTierSet), nil
+	return utils.AccessTiersToLabelValues(accessTierSet), nil
 }
 
 func getValidDriveStatusSelectors(selectors []string) (globs []string, statusList []directcsi.DriveStatus, err error) {
@@ -473,18 +478,18 @@ func getValidDriveStatusSelectors(selectors []string) (globs []string, statusLis
 	return
 }
 
-func getValidPodNameSelectors(podNames []string) ([]string, []string, error) {
+func getValidPodNameSelectors(podNames []string) ([]string, []utils.LabelValue, error) {
 	return getValidSelectors(podNames)
 }
 
-func getValidPodNameSpaceSelectors(podNamespaces []string) ([]string, []string, error) {
+func getValidPodNameSpaceSelectors(podNamespaces []string) ([]string, []utils.LabelValue, error) {
 	return getValidSelectors(podNamespaces)
 }
 
 func getValidVolumeStatusSelectors(statusList []string) ([]string, error) {
 	for _, status := range statusList {
-		switch strings.ToLower(status) {
-		case "published", "staged":
+		switch directcsi.DirectCSIVolumeCondition(strings.Title(status)) {
+		case directcsi.DirectCSIVolumeConditionPublished, directcsi.DirectCSIVolumeConditionStaged, directcsi.DirectCSIVolumeConditionReady:
 		default:
 			return nil, fmt.Errorf("invalid status '%s'. supported values are ['published', 'staged']", status)
 		}
