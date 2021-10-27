@@ -20,10 +20,12 @@ package main
 
 import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
-var status, accessTiers, accessTierSelectors, statusGlobs []string
+var status, accessTiers, statusGlobs []string
+var accessTierSelectorValues []utils.LabelValue
 var driveStatusList []directcsi.DriveStatus
 
 var drivesCmd = &cobra.Command{
@@ -37,15 +39,15 @@ var drivesCmd = &cobra.Command{
 }
 
 func validateDriveSelectors() (err error) {
-	driveGlobs, driveSelectors, err = getValidDriveSelectors(drives)
+	driveGlobs, driveSelectorValues, err = getValidDriveSelectors(drives)
 	if err != nil {
 		return err
 	}
-	nodeGlobs, nodeSelectors, err = getValidNodeSelectors(nodes)
+	nodeGlobs, nodeSelectorValues, err = getValidNodeSelectors(nodes)
 	if err != nil {
 		return err
 	}
-	accessTierSelectors, err = getValidAccessTierSelectors(accessTiers)
+	accessTierSelectorValues, err = getValidAccessTierSelectors(accessTiers)
 	if err != nil {
 		return err
 	}

@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/clientset"
@@ -172,8 +171,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	labels := map[string]string{
-		utils.NodeLabel:              drive.Status.NodeName,
-		utils.ReservedDrivePathLabel: filepath.Base(drive.Status.Path),
+		utils.NodeLabel:              utils.SanitizeLabelV(drive.Status.NodeName),
+		utils.ReservedDrivePathLabel: utils.SanitizeDrivePath(drive.Status.Path),
 		utils.DriveLabel:             utils.SanitizeLabelV(drive.Name),
 		utils.VersionLabel:           directcsi.Version,
 		utils.CreatedByLabel:         "directcsi-controller",

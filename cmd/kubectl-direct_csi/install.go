@@ -50,8 +50,8 @@ var (
 	registry               = "quay.io"
 	org                    = "minio"
 	loopBackOnly           = false
-	nodeSelectorValues     = []string{}
-	tolerationValues       = []string{}
+	nodeSelectorParameters = []string{}
+	tolerationParameters   = []string{}
 	seccompProfile         = ""
 	apparmorProfile        = ""
 	enableDynamicDiscovery = false
@@ -65,8 +65,8 @@ func init() {
 	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "organization name where direct-csi images are available")
 	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on direct-csi admission controller")
 	installCmd.PersistentFlags().MarkDeprecated("crd", "Will be removed in version 1.5 or greater")
-	installCmd.PersistentFlags().StringSliceVarP(&nodeSelectorValues, "node-selector", "n", nodeSelectorValues, "node selector parameters")
-	installCmd.PersistentFlags().StringSliceVarP(&tolerationValues, "tolerations", "t", tolerationValues, "tolerations parameters")
+	installCmd.PersistentFlags().StringSliceVarP(&nodeSelectorParameters, "node-selector", "n", nodeSelectorParameters, "node selector parameters")
+	installCmd.PersistentFlags().StringSliceVarP(&tolerationParameters, "tolerations", "t", tolerationParameters, "tolerations parameters")
 	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "set Seccomp profile")
 	installCmd.PersistentFlags().StringVarP(&apparmorProfile, "apparmor-profile", "", apparmorProfile, "set Apparmor profile")
 
@@ -85,11 +85,11 @@ func install(ctx context.Context, args []string) (err error) {
 	if err := validRegistry(registry); err != nil {
 		return fmt.Errorf("invalid registry. format of '--registry' must be [host:port?]")
 	}
-	nodeSelector, err := parseNodeSelector(nodeSelectorValues)
+	nodeSelector, err := parseNodeSelector(nodeSelectorParameters)
 	if err != nil {
 		return fmt.Errorf("invalid node selector. format of '--node-selector' must be [<key>=<value>]")
 	}
-	tolerations, err := parseTolerations(tolerationValues)
+	tolerations, err := parseTolerations(tolerationParameters)
 	if err != nil {
 		return fmt.Errorf("invalid tolerations. format of '--tolerations' must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>")
 	}

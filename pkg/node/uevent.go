@@ -115,7 +115,7 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 	resultCh, err := utils.ListDrives(
 		ctx,
 		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
-		[]string{handler.nodeID},
+		[]utils.LabelValue{utils.ToLabelValue(handler.nodeID)},
 		nil,
 		nil,
 		utils.MaxThreadCount,
@@ -199,8 +199,8 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 	resultCh, err := utils.ListDrives(
 		ctx,
 		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
-		[]string{handler.nodeID},
-		[]string{device.Name},
+		[]utils.LabelValue{utils.ToLabelValue(handler.nodeID)},
+		[]utils.LabelValue{utils.ToLabelValue(device.Name)},
 		nil,
 		utils.MaxThreadCount,
 	)

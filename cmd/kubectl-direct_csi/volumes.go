@@ -19,10 +19,12 @@
 package main
 
 import (
+	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
-var volumeStatus, volumeStatusList, podNames, podNameGlobs, podNameSelectors, podNss, podNsGlobs, podNsSelectors []string
+var volumeStatus, volumeStatusList, podNames, podNameGlobs, podNss, podNsGlobs []string
+var podNameSelectorValues, podNsSelectorValues []utils.LabelValue
 
 var volumesCmd = &cobra.Command{
 	Use:   "volumes",
@@ -35,22 +37,22 @@ var volumesCmd = &cobra.Command{
 }
 
 func validateVolumeSelectors() (err error) {
-	driveGlobs, driveSelectors, err = getValidDriveSelectors(drives)
+	driveGlobs, driveSelectorValues, err = getValidDriveSelectors(drives)
 	if err != nil {
 		return err
 	}
 
-	nodeGlobs, nodeSelectors, err = getValidNodeSelectors(nodes)
+	nodeGlobs, nodeSelectorValues, err = getValidNodeSelectors(nodes)
 	if err != nil {
 		return err
 	}
 
-	podNameGlobs, podNameSelectors, err = getValidPodNameSelectors(podNames)
+	podNameGlobs, podNameSelectorValues, err = getValidPodNameSelectors(podNames)
 	if err != nil {
 		return err
 	}
 
-	podNsGlobs, podNsSelectors, err = getValidPodNameSpaceSelectors(podNss)
+	podNsGlobs, podNsSelectorValues, err = getValidPodNameSpaceSelectors(podNss)
 	if err != nil {
 		return err
 	}

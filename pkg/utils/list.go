@@ -25,8 +25,41 @@ import (
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
 )
+
+type LabelValue string
+
+func AccessTiersToLabelValues(aTs []directcsi.AccessTier) (labelValues []LabelValue) {
+	for _, aT := range aTs {
+		labelValues = append(labelValues, LabelValue(aT))
+	}
+	return
+}
+
+func labelValuesToStrings(lvs []LabelValue) (strValues []string) {
+	for _, lv := range lvs {
+		strValues = append(strValues, string(lv))
+	}
+	return
+}
+
+func ToLabelValue(v string) LabelValue {
+	return LabelValue(SanitizeLabelV(v))
+}
+
+func ToLabelValues(vs []string) (labelValues []LabelValue, err error) {
+	for _, v := range vs {
+		// If the value is not valid, a list of error strings is returned. Otherwise an empty list (or nil) is returned.
+		// Ref: https://pkg.go.dev/k8s.io/apimachinery/pkg/util/validation#IsValidLabelValue
+		if errList := validation.IsValidLabelValue(v); len(errList) > 0 {
+			return nil, fmt.Errorf("invalid label value: %s", strings.Join(errList, " ,"))
+		}
+		labelValues = append(labelValues, ToLabelValue(v))
+	}
+	return
+}
 
 func toLabelSelector(labelMap map[string][]string) string {
 	selectors := []string{}
@@ -45,11 +78,11 @@ type ListDriveResult struct {
 }
 
 // ListDrives lists direct-csi drives.
-func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []string, maxObjects int64) (<-chan ListDriveResult, error) {
+func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []LabelValue, maxObjects int64) (<-chan ListDriveResult, error) {
 	labelMap := map[string][]string{
-		DrivePathLabel:  FmapStringSlice(drives, SanitizeDrivePath),
-		NodeLabel:       FmapStringSlice(nodes, SanitizeLabelV),
-		AccessTierLabel: FmapStringSlice(accessTiers, SanitizeLabelV),
+		DrivePathLabel:  labelValuesToStrings(drives),
+		NodeLabel:       labelValuesToStrings(nodes),
+		AccessTierLabel: labelValuesToStrings(accessTiers),
 	}
 	labelSelector := toLabelSelector(labelMap)
 
@@ -96,7 +129,7 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 }
 
 // GetDriveList gets list of drives.
-func GetDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []string) ([]directcsi.DirectCSIDrive, error) {
+func GetDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []LabelValue) ([]directcsi.DirectCSIDrive, error) {
 	resultCh, err := ListDrives(ctx, driveInterface, nodes, drives, accessTiers, MaxThreadCount)
 	if err != nil {
 		return nil, err
@@ -120,12 +153,12 @@ type ListVolumeResult struct {
 }
 
 // ListVolumes lists direct-csi volumes.
-func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNss []string, maxObjects int64) (<-chan ListVolumeResult, error) {
+func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNss []LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
 	labelMap := map[string][]string{
-		ReservedDrivePathLabel: FmapStringSlice(drives, SanitizeDrivePath),
-		NodeLabel:              FmapStringSlice(nodes, SanitizeLabelV),
-		PodNameLabel:           FmapStringSlice(podNames, SanitizeLabelV),
-		PodNamespaceLabel:      FmapStringSlice(podNss, SanitizeLabelV),
+		ReservedDrivePathLabel: labelValuesToStrings(drives),
+		NodeLabel:              labelValuesToStrings(nodes),
+		PodNameLabel:           labelValuesToStrings(podNames),
+		PodNamespaceLabel:      labelValuesToStrings(podNss),
 	}
 	labelSelector := toLabelSelector(labelMap)
 
@@ -173,7 +206,7 @@ func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeI
 }
 
 // GetVolumeList gets list of volumes.
-func GetVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNss []string) ([]directcsi.DirectCSIVolume, error) {
+func GetVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNss []LabelValue) ([]directcsi.DirectCSIVolume, error) {
 	resultCh, err := ListVolumes(ctx, volumeInterface, nodes, drives, podNames, podNss, MaxThreadCount)
 	if err != nil {
 		return nil, err
