@@ -31,32 +31,35 @@ import (
 
 type LabelValue string
 
-func AccessTiersToLabelValues(aTs []directcsi.AccessTier) (labelValues []LabelValue) {
-	for _, aT := range aTs {
-		labelValues = append(labelValues, LabelValue(aT))
+func AccessTiersToLabelValues(accessTiers []directcsi.AccessTier) (labelValues []LabelValue) {
+	for _, accessTier := range accessTiers {
+		labelValues = append(labelValues, LabelValue(accessTier))
 	}
 	return
 }
 
-func labelValuesToStrings(lvs []LabelValue) (strValues []string) {
-	for _, lv := range lvs {
-		strValues = append(strValues, string(lv))
+func labelValuesToStrings(values []LabelValue) (strValues []string) {
+	for _, value := range values {
+		strValues = append(strValues, string(value))
 	}
 	return
 }
 
-func ToLabelValue(v string) LabelValue {
-	return LabelValue(SanitizeLabelV(v))
+func NewLabelValue(value string) (LabelValue, error) {
+	value = SanitizeLabelV(value)
+	if errList := validation.IsValidLabelValue(value); len(errList) > 0 {
+		return LabelValue(""), fmt.Errorf("invalid label value %v: %v", value, strings.Join(errList, " ,"))
+	}
+	return LabelValue(value), nil
 }
 
 func ToLabelValues(vs []string) (labelValues []LabelValue, err error) {
 	for _, v := range vs {
-		// If the value is not valid, a list of error strings is returned. Otherwise an empty list (or nil) is returned.
-		// Ref: https://pkg.go.dev/k8s.io/apimachinery/pkg/util/validation#IsValidLabelValue
-		if errList := validation.IsValidLabelValue(v); len(errList) > 0 {
-			return nil, fmt.Errorf("invalid label value: %s", strings.Join(errList, " ,"))
+		labelV, err := NewLabelValue(v)
+		if err != nil {
+			return nil, err
 		}
-		labelValues = append(labelValues, ToLabelValue(v))
+		labelValues = append(labelValues, labelV)
 	}
 	return
 }

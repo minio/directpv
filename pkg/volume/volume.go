@@ -221,7 +221,19 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListVolumes(ctx, volumeClient, []utils.LabelValue{utils.ToLabelValue(nodeID)}, nil, nil, nil, utils.MaxThreadCount)
+	nodeLabelValue, err := utils.NewLabelValue(nodeID)
+	if err != nil {
+		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
+		return
+	}
+
+	resultCh, err := utils.ListVolumes(ctx,
+		volumeClient,
+		[]utils.LabelValue{nodeLabelValue},
+		nil,
+		nil,
+		nil,
+		utils.MaxThreadCount)
 	if err != nil {
 		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
 		return
