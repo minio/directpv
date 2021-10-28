@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build linux
 
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.
@@ -16,23 +16,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package drive
 
-import (
-	"context"
-)
+import "syscall"
 
-type VolumeMounter interface {
-	MountVolume(ctx context.Context, src, dest string, readOnly bool) error
-	UnmountVolume(targetPath string) error
-}
-
-type DefaultVolumeMounter struct{}
-
-func (c *DefaultVolumeMounter) MountVolume(ctx context.Context, src, dest string, readOnly bool) error {
-	return nil
-}
-
-func (c *DefaultVolumeMounter) UnmountVolume(targetPath string) error {
-	return nil
+func getFreeCapacity(path string) (uint64, error) {
+	stat := &syscall.Statfs_t{}
+	if err := syscall.Statfs(path, stat); err != nil {
+		return 0, err
+	}
+	return stat.Bavail * uint64(stat.Frsize), nil
 }

@@ -20,250 +20,141 @@ package sys
 
 import (
 	"fmt"
-	"strings"
 	"syscall"
 
 	"k8s.io/klog/v2"
 )
 
-func safeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
-	mountInfos, err := ProbeMounts()
-	if err != nil {
-		return err
-	}
-
-	major, minor, err := GetMajorMinor(source)
-	if err != nil {
-		return err
-	}
-
-	if mounts, found := mountInfos[fmt.Sprintf("%v:%v", major, minor)]; found {
-		for _, mount := range mounts {
-			if mount.MountPoint == target {
-				klog.V(3).Infof("drive already mounted: %s", target)
-				return nil
-			}
-		}
-	}
-
-	return mount(source, target, fsType, mountOpts, superblockOpts)
+var mountFlagMap = map[string]uintptr{
+	"remount":     syscall.MS_REMOUNT,
+	"bind":        syscall.MS_BIND,
+	"shared":      syscall.MS_SHARED,
+	"private":     syscall.MS_PRIVATE,
+	"slave":       syscall.MS_SLAVE,
+	"unbindable":  syscall.MS_UNBINDABLE,
+	"move":        syscall.MS_MOVE,
+	"dirsync":     syscall.MS_DIRSYNC,
+	"mand":        syscall.MS_MANDLOCK,
+	"noatime":     syscall.MS_NOATIME,
+	"nodev":       syscall.MS_NODEV,
+	"nodiratime":  syscall.MS_NODIRATIME,
+	"noexec":      syscall.MS_NOEXEC,
+	"nosuid":      syscall.MS_NOSUID,
+	"ro":          syscall.MS_RDONLY,
+	"relatime":    syscall.MS_RELATIME,
+	"recursive":   syscall.MS_REC,
+	"silent":      syscall.MS_SILENT,
+	"strictatime": syscall.MS_STRICTATIME,
+	"sync":        syscall.MS_SYNCHRONOUS,
 }
 
-func mount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
-	verifyRemount := func(mountOpts []MountOption) error {
-		remount := false
-		for _, opt := range mountOpts {
-			if opt == MountOptionMSRemount {
-				remount = true
-			}
+func mount(device, target, fsType string, flags []string, superBlockFlags string) error {
+	mountFlags := uintptr(0)
+	for _, flag := range flags {
+		value, found := mountFlagMap[flag]
+		if !found {
+			return fmt.Errorf("unknown flag %v", flag)
 		}
-		if !remount {
-			return nil
-		}
-		for _, opt := range mountOpts {
-			switch opt {
-			case MountOptionMSMandLock:
-			case MountOptionMSNoDev:
-			case MountOptionMSNoDirATime:
-			case MountOptionMSNoATime:
-			case MountOptionMSNoExec:
-			case MountOptionMSNoSUID:
-			case MountOptionMSRelatime:
-			case MountOptionMSReadOnly:
-			case MountOptionMSStrictATime:
-			default:
-				return fmt.Errorf("unsupported flag for remount operation: %s", opt)
-			}
-		}
-		return nil
+		mountFlags |= value
 	}
-	verifyBindMount := func(mountOpts []MountOption) error {
-		bindMount := false
-		for _, opt := range mountOpts {
-			if opt == MountOptionMSBind {
-				bindMount = true
-			}
-		}
-		if !bindMount {
-			return nil
-		}
-		for _, opt := range mountOpts {
-			switch opt {
-			case MountOptionMSRecursive:
-			case MountOptionMSBind:
-			default:
-				return fmt.Errorf("unsupported flag for bind mount operation: %s", opt)
-			}
-		}
-		return nil
-	}
-	verifyMountPropagation := func(mountOpts []MountOption) error {
-		mountPropagation := false
-		for _, opt := range mountOpts {
-			switch opt {
-			case MountOptionMSShared, MountOptionMSSlave, MountOptionMSPrivate, MountOptionMSUnBindable:
-				mountPropagation = true
-			}
-		}
-		if !mountPropagation {
-			return nil
-		}
-		if len(mountOpts) > 2 {
-			return fmt.Errorf("redundant/multiple mount propagation flags: %v", mountOpts)
-		}
-		for _, opt := range mountOpts {
-			switch opt {
-			case MountOptionMSRecursive:
-			case MountOptionMSShared:
-			case MountOptionMSSlave:
-			case MountOptionMSPrivate:
-			case MountOptionMSUnBindable:
-			default:
-				return fmt.Errorf("unsupported flag for bind mount operation: %s", opt)
-			}
-		}
-		return nil
-	}
-	verifyFlags := func(mountOpts []MountOption) error {
-		if err := verifyRemount(mountOpts); err != nil {
-			return err
-		}
-		if err := verifyBindMount(mountOpts); err != nil {
-			return err
-		}
-		if err := verifyMountPropagation(mountOpts); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	if err := verifyFlags(mountOpts); err != nil {
-		return err
-	}
-	flags := uintptr(0)
-	for _, opt := range mountOpts {
-		switch opt {
-		case MountOptionMSRemount:
-			flags = flags | syscall.MS_REMOUNT
-		case MountOptionMSBind:
-			flags = flags | syscall.MS_BIND
-		case MountOptionMSShared:
-			flags = flags | syscall.MS_SHARED
-		case MountOptionMSPrivate:
-			flags = flags | syscall.MS_PRIVATE
-		case MountOptionMSSlave:
-			flags = flags | syscall.MS_SLAVE
-		case MountOptionMSUnBindable:
-			flags = flags | syscall.MS_UNBINDABLE
-		case MountOptionMSMove:
-			flags = flags | syscall.MS_MOVE
-		case MountOptionMSDirSync:
-			flags = flags | syscall.MS_DIRSYNC
-		case MountOptionMSMandLock:
-			flags = flags | syscall.MS_MANDLOCK
-		case MountOptionMSNoATime:
-			flags = flags | syscall.MS_NOATIME
-		case MountOptionMSNoDev:
-			flags = flags | syscall.MS_NODEV
-		case MountOptionMSNoDirATime:
-			flags = flags | syscall.MS_NODIRATIME
-		case MountOptionMSNoExec:
-			flags = flags | syscall.MS_NOEXEC
-		case MountOptionMSNoSUID:
-			flags = flags | syscall.MS_NOSUID
-		case MountOptionMSReadOnly:
-			flags = flags | syscall.MS_RDONLY
-		case MountOptionMSRelatime:
-			flags = flags | syscall.MS_RELATIME
-		case MountOptionMSRecursive:
-			flags = flags | syscall.MS_REC
-		case MountOptionMSSilent:
-			flags = flags | syscall.MS_SILENT
-		case MountOptionMSStrictATime:
-			flags = flags | syscall.MS_STRICTATIME
-		case MountOptionMSSynchronous:
-			flags = flags | syscall.MS_SYNCHRONOUS
-		default:
-			return fmt.Errorf("unsupported mount flag: %s", opt)
-		}
-	}
-
-	klog.V(5).Infof("mounting %s at %s", source, target)
-	return syscall.Mount(source, target, fsType, flags, strings.Join(superblockOpts, ","))
+	return syscall.Mount(device, target, fsType, mountFlags, superBlockFlags)
 }
 
-// SafeUnmount unmounts of a target directory if it is a mountpoint.
-func SafeUnmount(target string, opts []UnmountOption) error {
+func unmount(target string, force, detach, expire bool) error {
+	flags := 0
+	if force {
+		flags |= syscall.MNT_FORCE
+	}
+	if detach {
+		flags |= syscall.MNT_DETACH
+	}
+	if expire {
+		flags |= syscall.MNT_EXPIRE
+	}
+	klog.V(5).InfoS("unmounting mount point", "target", target, "force", force, "detach", detach, "expire", expire)
+	return syscall.Unmount(target, flags)
+}
+
+func isMounted(target string) (bool, error) {
 	mountInfos, err := ProbeMounts()
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	mounted := false
 	for _, mounts := range mountInfos {
 		for _, mount := range mounts {
 			if mount.MountPoint == target {
-				mounted = true
-				break
+				return true, nil
 			}
 		}
 	}
 
-	if !mounted {
-		klog.V(3).Infof("drive already unmounted: %s", target)
+	return false, nil
+}
+
+func safeMount(device, target, fsType string, flags []string, superBlockFlags string) error {
+	mounted, err := isMounted(target)
+	if err != nil {
+		return err
+	}
+	if mounted {
+		klog.V(5).InfoS("target already mounted", "device", device, "target", target, "fsType", fsType, "flags", flags, "superBlockFlags", superBlockFlags)
+		return nil
+	}
+	return mount(device, target, fsType, flags, superBlockFlags)
+}
+
+func safeBindMount(source, target, fsType string, recursive, readOnly bool, superBlockFlags string) error {
+	mounted, err := isMounted(target)
+	if err != nil {
+		return err
+	}
+	if mounted {
+		klog.V(5).InfoS("target already mounted", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "superBlockFlags", superBlockFlags)
 		return nil
 	}
 
-	return Unmount(target, opts)
+	flags := mountFlagMap["bind"]
+	if recursive {
+		flags |= mountFlagMap["recursive"]
+	}
+	if readOnly {
+		flags |= mountFlagMap["ro"]
+	}
+	klog.V(5).InfoS("bind mounting directory", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "readOnly", readOnly, "superBlockFlags", superBlockFlags)
+	return syscall.Mount(source, target, fsType, flags, superBlockFlags)
 }
 
-func safeUnmountAll(path string, opts []UnmountOption) error {
-	mountInfos, err := ProbeMounts()
+func safeUnmount(target string, force, detach, expire bool) error {
+	mounted, err := isMounted(target)
+	if err != nil {
+		return err
+	}
+	if !mounted {
+		klog.V(5).InfoS("target already unmounted", "target", target, "force", force, "detach", detach, "expire", expire)
+		return nil
+	}
+	return unmount(target, force, detach, expire)
+}
+
+func unmountDevice(device string) error {
+	major, minor, err := GetMajorMinor(device)
 	if err != nil {
 		return err
 	}
 
-	major, minor, err := GetMajorMinor(path)
+	mountInfos, err := ProbeMounts()
 	if err != nil {
 		return err
 	}
 
 	if mounts, found := mountInfos[fmt.Sprintf("%v:%v", major, minor)]; found {
 		for _, mount := range mounts {
-			if err := SafeUnmount(mount.MountPoint, opts); err != nil {
+			if err := unmount(mount.MountPoint, true, true, false); err != nil {
 				return err
 			}
 		}
 	}
 
 	return nil
-}
-
-// Unmount unmounts given mountpoint.
-func Unmount(target string, opts []UnmountOption) error {
-	flags := 0
-	for _, opt := range opts {
-		switch opt {
-		case UnmountOptionForce:
-			flags = flags | syscall.MNT_FORCE
-		case UnmountOptionDetach:
-			flags = flags | syscall.MNT_DETACH
-		case UnmountOptionExpire:
-			flags = flags | syscall.MNT_EXPIRE
-		default:
-			return fmt.Errorf("unsupported unmount flag: %s", opt)
-		}
-	}
-	klog.V(5).Infof("unmounting %s", target)
-	return syscall.Unmount(target, flags)
-}
-
-func ForceUnmount(target string) {
-	err := syscall.Unmount(target, syscall.MNT_FORCE|syscall.MNT_DETACH)
-	switch {
-	case err == nil:
-		klog.V(5).Infof("%v forcefully unmount successfully", target)
-	case err != nil:
-		klog.V(5).InfoS("unable to unmount", "err", err, "target", target)
-	}
 }

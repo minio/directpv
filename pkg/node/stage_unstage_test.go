@@ -95,11 +95,10 @@ func TestNodeStageVolume(t *testing.T) {
 
 		nodeServer := createFakeNodeServer()
 		nodeServer.directcsiClient = fakedirect.NewSimpleClientset(volume, testCase.drive)
-		_, err := nodeServer.nodeStageVolume(
-			context.TODO(),
-			testCase.req,
-			func() (map[string][]sys.MountInfo, error) { return testCase.mountInfo, nil },
-		)
+		nodeServer.probeMounts = func() (map[string][]sys.MountInfo, error) {
+			return testCase.mountInfo, nil
+		}
+		_, err := nodeServer.NodeStageVolume(context.TODO(), testCase.req)
 		if err == nil {
 			t.Fatalf("case %v: expected error, but succeeded", i+1)
 		}
@@ -201,9 +200,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	hostPath := filepath.Join(testMountPointDir, testVolumeName50MB)
 
 	// Stage Volume test
-	_, err = ns.nodeStageVolume(ctx, &stageVolumeRequest, func() (map[string][]sys.MountInfo, error) {
-		return map[string][]sys.MountInfo{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt"}}}, nil
-	})
+	_, err = ns.NodeStageVolume(ctx, &stageVolumeRequest)
 	if err != nil {
 		t.Fatalf("[%s] StageVolume failed. Error: %v", stageVolumeRequest.VolumeId, err)
 	}
@@ -213,17 +210,6 @@ func TestStageUnstageVolume(t *testing.T) {
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", stageVolumeRequest.GetVolumeId(), gErr)
-	}
-
-	// Check if mount arguments were passed correctly
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.source != hostPath {
-		t.Errorf("Wrong source argument passed for mounting. Expected: %v, Got: %v", filepath.Join(testMountPointDir, testVolumeName50MB), ns.mounter.(*fakeVolumeMounter).mountArgs.source)
-	}
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.destination != stageVolumeRequest.GetStagingTargetPath() {
-		t.Errorf("Wrong destination argument passed for mounting. Expected: %v, Got: %v", stageVolumeRequest.GetStagingTargetPath(), ns.mounter.(*fakeVolumeMounter).mountArgs.destination)
-	}
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly {
-		t.Errorf("Wrong readOnly argument passed for mounting. Expected: False, Got: %v", ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly)
 	}
 
 	// Check if status fields were set correctly
@@ -249,11 +235,6 @@ func TestStageUnstageVolume(t *testing.T) {
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", unstageVolumeRequest.GetVolumeId(), gErr)
-	}
-
-	// Check if unmount arguments were set correctly
-	if ns.mounter.(*fakeVolumeMounter).unmountArgs.target != unstageVolumeRequest.GetStagingTargetPath() {
-		t.Errorf("Wrong target argument passed for unmounting. Expected: %v, Got: %v", unstageVolumeRequest.GetStagingTargetPath(), ns.mounter.(*fakeVolumeMounter).unmountArgs.target)
 	}
 
 	// Check if status fields were set correctly

@@ -37,23 +37,12 @@ func (d *Discovery) getMountInfo(major, minor uint32) []sys.MountInfo {
 }
 
 func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) error {
-	driveMounter := &sys.DefaultDriveMounter{}
 	switch existingDrive.Status.DriveStatus {
 	case directcsi.DriveStatusInUse, directcsi.DriveStatusReady:
-		mountSource := sys.GetDirectCSIPath(existingDrive.Status.FilesystemUUID)
-		// verify and fix the (major, minor) if it has changed
-		if err := sys.MakeBlockFile(mountSource, existingDrive.Status.MajorNumber, existingDrive.Status.MinorNumber); err != nil {
-			return err
-		}
 		mountTarget := filepath.Join(sys.MountRoot, existingDrive.Status.FilesystemUUID)
 
-		major, minor, err := sys.GetMajorMinor(mountSource)
-		if err != nil {
-			return err
-		}
-
 		mounted := false
-		for _, mount := range d.getMountInfo(major, minor) {
+		for _, mount := range d.getMountInfo(existingDrive.Status.MajorNumber, existingDrive.Status.MinorNumber) {
 			if mounted = (mount.MountPoint == mountTarget); mounted {
 				break
 			}
@@ -61,7 +50,11 @@ func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) er
 
 		// Mount if umounted
 		if !mounted {
-			if err := driveMounter.MountDrive(mountSource, mountTarget, []string{}); err != nil {
+			name, err := sys.GetDeviceName(existingDrive.Status.MajorNumber, existingDrive.Status.MinorNumber)
+			if err != nil {
+				return err
+			}
+			if err = sys.Mount("/dev/"+name, mountTarget, "xfs", nil, "prjquota"); err != nil {
 				return err
 			}
 			existingDrive.Status.Mountpoint = mountTarget

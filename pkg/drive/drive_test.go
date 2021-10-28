@@ -18,6 +18,7 @@ package drive
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -36,75 +37,17 @@ const (
 	testNodeID = "test-node"
 )
 
-type fakeDriveStatter struct {
-	args struct {
-		path string
-	}
-}
-
-func (c *fakeDriveStatter) GetFreeCapacityFromStatfs(path string) (int64, error) {
-	c.args.path = path
-	return 0, nil
-}
-
-type fakeDriveFormatter struct {
-	formatArgs struct {
-		uuid  string
-		path  string
-		force bool
-	}
-	makeBlockFileArgs struct {
-		path  string
-		major uint32
-		minor uint32
-	}
-}
-
-func (c *fakeDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
-	c.formatArgs.path = path
-	c.formatArgs.force = force
-	c.formatArgs.uuid = uuid
-	return nil
-}
-
-func (c *fakeDriveFormatter) MakeBlockFile(path string, major, minor uint32) error {
-	c.makeBlockFileArgs.path = path
-	c.makeBlockFileArgs.major = major
-	c.makeBlockFileArgs.minor = minor
-	return nil
-}
-
-type fakeDriveMounter struct {
-	mountArgs struct {
-		source    string
-		target    string
-		mountOpts []string
-	}
-	unmountArgs struct {
-		source string
-	}
-}
-
-func (c *fakeDriveMounter) MountDrive(source, target string, mountOpts []string) error {
-	c.mountArgs.source = source
-	c.mountArgs.target = target
-	c.mountArgs.mountOpts = mountOpts
-	return nil
-}
-
-func (c *fakeDriveMounter) UnmountDrive(path string) error {
-	c.unmountArgs.source = path
-	return nil
-}
-
 func createFakeDriveEventListener() *driveEventHandler {
 	return &driveEventHandler{
 		kubeClient:      kubernetesfake.NewSimpleClientset(),
 		directCSIClient: clientsetfake.NewSimpleClientset(),
 		nodeID:          testNodeID,
-		mounter:         &fakeDriveMounter{},
-		formatter:       &fakeDriveFormatter{},
-		statter:         &fakeDriveStatter{},
+		getDevice:       func(major, minor uint32) (string, error) { return "", nil },
+		stat:            func(name string) (os.FileInfo, error) { return nil, nil },
+		mountDevice:     func(device, target string, flags []string) error { return nil },
+		unmountDevice:   func(device string) error { return nil },
+		makeFS:          func(ctx context.Context, device, uuid string, force bool) error { return nil },
+		getFreeCapacity: func(path string) (uint64, error) { return 0, nil },
 	}
 }
 
@@ -246,56 +189,12 @@ func TestDriveFormat(t *testing.T) {
 		force := true
 		newObj.Spec.RequestedFormat = &directcsi.RequestedFormat{
 			Force:      force,
-			Filesystem: string(sys.FSTypeXFS),
+			Filesystem: "xfs",
 		}
 
 		// Step 4: Execute the Update hook
 		if err := dl.update(ctx, newObj); err != nil {
 			t.Errorf("Test case [%d]: Error while invoking the update listener: %+v", i, err)
-		}
-
-		// Step 4.1: Check if MakeBlockFile arguments passed are correct
-		if dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.path != sys.GetDirectCSIPath(dObj.Status.FilesystemUUID) {
-			t.Errorf("Test case [%d]: Invalid path provided for makeBlockFile call. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Status.FilesystemUUID), dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.path)
-		}
-		if dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.major != dObj.Status.MajorNumber {
-			t.Errorf("Test case [%d]: Invalid major number provided for makeBlockFile call. Expected: %v, Found: %v", i, dObj.Status.MajorNumber, dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.major)
-		}
-		if dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.minor != dObj.Status.MinorNumber {
-			t.Errorf("Test case [%d]: Invalid minor number provided for makeBlockFile call. Expected: %v, Found: %v", i, dObj.Status.MinorNumber, dl.formatter.(*fakeDriveFormatter).makeBlockFileArgs.minor)
-		}
-
-		// Step 4.1: Check if the format arguments passed are correct
-		if dl.formatter.(*fakeDriveFormatter).formatArgs.uuid != dObj.Status.FilesystemUUID {
-			t.Errorf("Test case [%d]: Invalid uuid provided for formatting. Expected: %s, Found: %s", i, dObj.Status.FilesystemUUID, dl.formatter.(*fakeDriveFormatter).formatArgs.uuid)
-		}
-		if dl.formatter.(*fakeDriveFormatter).formatArgs.path != sys.GetDirectCSIPath(dObj.Status.FilesystemUUID) {
-			t.Errorf("Test case [%d]: Invalid path provided for formatting. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Status.FilesystemUUID), dl.formatter.(*fakeDriveFormatter).formatArgs.path)
-		}
-		if dl.formatter.(*fakeDriveFormatter).formatArgs.force != force {
-			t.Errorf("Test case [%d]: Wrong force option provided for formatting. Expected: %v, Found: %v", i, force, dl.formatter.(*fakeDriveFormatter).formatArgs.force)
-		}
-
-		// Step 4.2: Check if mount arguments passed are correct
-		if dl.mounter.(*fakeDriveMounter).mountArgs.source != sys.GetDirectCSIPath(dObj.Status.FilesystemUUID) {
-			t.Errorf("Test case [%d]: Invalid source provided for mounting. Expected: %s, Found: %s", i, sys.GetDirectCSIPath(dObj.Status.FilesystemUUID), dl.mounter.(*fakeDriveMounter).mountArgs.source)
-		}
-		if dl.mounter.(*fakeDriveMounter).mountArgs.target != filepath.Join(sys.MountRoot, dObj.Status.FilesystemUUID) {
-			t.Errorf("Test case [%d]: Wrong target provided for mounting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, dObj.Status.FilesystemUUID), dl.mounter.(*fakeDriveMounter).mountArgs.target)
-		}
-		umountSource := func() string {
-			if dObj.Status.Mountpoint != "" {
-				return sys.GetDirectCSIPath(dObj.Status.FilesystemUUID)
-			}
-			return ""
-		}()
-		if dl.mounter.(*fakeDriveMounter).unmountArgs.source != umountSource {
-			t.Errorf("Test case [%d]: Invalid source provided for unmounting. Expected: %s, Found: %s", i, umountSource, dl.mounter.(*fakeDriveMounter).unmountArgs.source)
-		}
-
-		// Step 4.3: Check if stat arguments passed are correct
-		if dl.statter.(*fakeDriveStatter).args.path != filepath.Join(sys.MountRoot, dObj.Status.FilesystemUUID) {
-			t.Errorf("Test case [%d]: Wrong path provided for statting. Expected: %s, Found: %s", i, filepath.Join(sys.MountRoot, dObj.Name), dl.statter.(*fakeDriveStatter).args.path)
 		}
 
 		// Step 5: Get the latest version of the object
@@ -313,7 +212,7 @@ func TestDriveFormat(t *testing.T) {
 		if csiDrive.Status.Mountpoint != filepath.Join(sys.MountRoot, newObj.Status.FilesystemUUID) {
 			t.Errorf("Test case [%d]: Drive mountpoint invalid: %s", i, csiDrive.Status.Mountpoint)
 		}
-		if csiDrive.Status.Filesystem != string(sys.FSTypeXFS) {
+		if csiDrive.Status.Filesystem != "xfs" {
 			t.Errorf("Test case [%d]: Invalid filesystem after formatting: %s", i, string(csiDrive.Status.Filesystem))
 		}
 

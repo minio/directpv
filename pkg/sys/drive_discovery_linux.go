@@ -822,3 +822,31 @@ func createDevice(event map[string]string) (device *Device, err error) {
 
 	return device, nil
 }
+
+func getDeviceName(major, minor uint32) (string, error) {
+	filename := fmt.Sprintf("/sys/dev/block/%v:%v/uevent", major, minor)
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	for {
+		s, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+
+		if !strings.HasPrefix(s, "DEVNAME=") {
+			continue
+		}
+
+		switch tokens := strings.SplitN(s, "=", 2); len(tokens) {
+		case 2:
+			return strings.TrimSpace(tokens[1]), nil
+		default:
+			return "", fmt.Errorf("filename %v contains invalid DEVNAME value", filename)
+		}
+	}
+}

@@ -26,6 +26,12 @@ func ProbeDevices() (devices map[string]*Device, err error) {
 	return probeDevices()
 }
 
+// CreateDevice creates new device structure for given event data.
 func CreateDevice(event map[string]string) (device *Device, err error) {
 	return createDevice(event)
+}
+
+// GetDeviceName returns device name of given major/minor number.
+func GetDeviceName(major, minor uint32) (string, error) {
+	return getDeviceName(major, minor)
 }

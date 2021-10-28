@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -338,4 +339,14 @@ func getLabelValue(obj metav1.Object, key string) string {
 		return labels[key]
 	}
 	return ""
+}
+
+func getDirectCSIPath(driveName string) string {
+	if strings.Contains(driveName, sys.DirectCSIDevRoot) {
+		return driveName
+	}
+	if strings.HasPrefix(driveName, sys.HostDevRoot) {
+		return getDirectCSIPath(filepath.Base(driveName))
+	}
+	return filepath.Join(sys.DirectCSIDevRoot, driveName)
 }

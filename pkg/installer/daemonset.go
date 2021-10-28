@@ -89,10 +89,10 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 	volumes = append(volumes, newHostPathVolume(volumeNameSysDir, volumePathSysDir))
 	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameSysDir, volumePathSysDir, true, true))
 
-	if c.DynamicDiscovery {
-		volumes = append(volumes, newHostPathVolume(volumeNameDevDir, volumePathDevDir))
-		volumeMounts = append(volumeMounts, newVolumeMount(volumeNameDevDir, volumePathDevDir, true, true))
+	volumes = append(volumes, newHostPathVolume(volumeNameDevDir, volumePathDevDir))
+	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameDevDir, volumePathDevDir, true, true))
 
+	if c.DynamicDiscovery {
 		volumes = append(volumes, newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData))
 		volumeMounts = append(volumeMounts, newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, true, true))
 	}
