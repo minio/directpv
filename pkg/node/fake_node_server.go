@@ -19,46 +19,14 @@ package node
 import (
 	"context"
 
-	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
+	directsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	"github.com/minio/direct-csi/pkg/fs/xfs"
+	"github.com/minio/direct-csi/pkg/sys"
 )
 
 const (
 	testNodeName = "test-node"
 )
-
-type fakeVolumeMounter struct {
-	mountArgs struct {
-		source      string
-		destination string
-		readOnly    bool
-	}
-	unmountArgs struct {
-		target string
-	}
-}
-
-func (f *fakeVolumeMounter) MountVolume(_ context.Context, src, dest string, readOnly bool) error {
-	f.mountArgs.source = src
-	f.mountArgs.destination = dest
-	f.mountArgs.readOnly = readOnly
-	return nil
-}
-
-func (f *fakeVolumeMounter) UnmountVolume(targetPath string) error {
-	f.unmountArgs.target = targetPath
-	return nil
-}
-
-type fakeQuotaFuncs struct{}
-
-func (q *fakeQuotaFuncs) GetQuota(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error) {
-	return &xfs.Quota{}, nil
-}
-
-func (q *fakeQuotaFuncs) SetQuota(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error) {
-	return nil
-}
 
 func createFakeNodeServer() *NodeServer {
 	return &NodeServer{
@@ -67,8 +35,16 @@ func createFakeNodeServer() *NodeServer {
 		Rack:            "test-rack",
 		Zone:            "test-zone",
 		Region:          "test-region",
-		directcsiClient: fakedirect.NewSimpleClientset(),
-		mounter:         &fakeVolumeMounter{},
-		quotaFuncs:      &fakeQuotaFuncs{},
+		directcsiClient: directsetfake.NewSimpleClientset(),
+		probeMounts: func() (map[string][]sys.MountInfo, error) {
+			return map[string][]sys.MountInfo{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt"}}}, nil
+		},
+		getDevice:     func(major, minor uint32) (string, error) { return "", nil },
+		safeBindMount: func(source, target string, recursive, readOnly bool) error { return nil },
+		safeUnmount:   func(target string, force, detach, expire bool) error { return nil },
+		getQuota: func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error) {
+			return &xfs.Quota{}, nil
+		},
+		setQuota: func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error) { return nil },
 	}
 }

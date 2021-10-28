@@ -24,7 +24,6 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -80,7 +79,8 @@ func getPodInfo(ctx context.Context, req *csi.NodePublishVolumeRequest) (podName
 	return
 }
 
-func (n *NodeServer) nodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, probeMounts func() (map[string][]sys.MountInfo, error)) (*csi.NodePublishVolumeResponse, error) {
+// NodePublishVolume is node publish volume request handler.
+func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(3).InfoS("NodePublishVolumeRequest",
 		"volumeID", req.GetVolumeId(),
 		"stagingTargetPath", req.GetStagingTargetPath(),
@@ -124,7 +124,7 @@ func (n *NodeServer) nodePublishVolume(ctx context.Context, req *csi.NodePublish
 	}
 	vol.Labels = volumeLabels
 
-	if err := checkStagingTargetPath(req.GetStagingTargetPath(), probeMounts); err != nil {
+	if err := checkStagingTargetPath(req.GetStagingTargetPath(), n.probeMounts); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -132,7 +132,7 @@ func (n *NodeServer) nodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, err
 	}
 
-	if err := n.mounter.MountVolume(ctx, req.GetStagingTargetPath(), req.GetTargetPath(), req.GetReadonly()); err != nil {
+	if err := n.safeBindMount(req.GetStagingTargetPath(), req.GetTargetPath(), false, req.GetReadonly()); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed volume publish: %v", err)
 	}
 
@@ -153,11 +153,6 @@ func (n *NodeServer) nodePublishVolume(ctx context.Context, req *csi.NodePublish
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
-}
-
-// NodePublishVolume is node publish volume request handler.
-func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	return n.nodePublishVolume(ctx, req, sys.ProbeMounts)
 }
 
 // NodeUnpublishVolume is node unpublish volume handler.
@@ -186,7 +181,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if err := n.mounter.UnmountVolume(containerPath); err != nil {
+	if err := n.safeUnmount(containerPath, true, true, false); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

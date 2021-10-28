@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build linux
 
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.
@@ -16,14 +16,27 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package xfs
 
-type DriveStatter interface {
-	GetFreeCapacityFromStatfs(path string) (freeCapacity int64, err error)
-}
+import (
+	"context"
+	"fmt"
+	"os/exec"
+)
 
-type DefaultDriveStatter struct{}
+func makeFS(ctx context.Context, device, uuid string, force bool) error {
+	args := []string{"-i", "maxpct=50", "-m", "reflink=0", "-m", fmt.Sprintf("uuid=%v", uuid)}
+	if force {
+		args = append(args, "-f")
+	}
+	args = append(args, "-L", "DIRECTCSI", device)
 
-func (c *DefaultDriveStatter) GetFreeCapacityFromStatfs(path string) (int64, error) {
-	return 0, nil
+	if output, err := exec.CommandContext(ctx, "mkfs.xfs", args...).CombinedOutput(); err != nil {
+		return fmt.Errorf(
+			"unable to execute command %v; output=%v; error=%w",
+			append([]string{"mkfs.xfs"}, args...), string(output), err,
+		)
+	}
+
+	return nil
 }

@@ -49,11 +49,7 @@ func TestNodePublishVolume(t *testing.T) {
 
 	nodeServer := createFakeNodeServer()
 	nodeServer.directcsiClient = fakedirect.NewSimpleClientset(volume)
-	_, err := nodeServer.nodePublishVolume(
-		context.TODO(),
-		req,
-		func() (map[string][]sys.MountInfo, error) { return map[string][]sys.MountInfo{"0:0": {}}, nil },
-	)
+	_, err := nodeServer.NodePublishVolume(context.TODO(), req)
 	if err == nil {
 		t.Fatalf("expected error, but succeeded")
 	}
@@ -148,9 +144,10 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	directCSIClient := ns.directcsiClient.DirectV1beta3()
 
 	// Publish volume test
-	_, err := ns.nodePublishVolume(ctx, &publishVolumeRequest, func() (map[string][]sys.MountInfo, error) {
+	ns.probeMounts = func() (map[string][]sys.MountInfo, error) {
 		return map[string][]sys.MountInfo{"0:0": {{MountPoint: testStagingPath}}}, nil
-	})
+	}
+	_, err := ns.NodePublishVolume(ctx, &publishVolumeRequest)
 	if err != nil {
 		t.Fatalf("[%s] PublishVolume failed. Error: %v", publishVolumeRequest.VolumeId, err)
 	}
@@ -160,17 +157,6 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", publishVolumeRequest.GetVolumeId(), gErr)
-	}
-
-	// Check if mount args were set correctly
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.source != testStagingPath {
-		t.Errorf("Wrong source argument passed for mounting. Expected: %v, Got: %v", testStagingPath, ns.mounter.(*fakeVolumeMounter).mountArgs.source)
-	}
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.destination != testContainerPath {
-		t.Errorf("Wrong destination argument passed for mounting. Expected: %v, Got: %v", testContainerPath, ns.mounter.(*fakeVolumeMounter).mountArgs.destination)
-	}
-	if ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly != publishVolumeRequest.GetReadonly() {
-		t.Errorf("Wrong readOnly argument passed for mounting. Expected: %v, Got: %v", publishVolumeRequest.GetReadonly(), ns.mounter.(*fakeVolumeMounter).mountArgs.readOnly)
 	}
 
 	// Check if status fields were set correctly
@@ -193,11 +179,6 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", unpublishVolumeRequest.GetVolumeId(), gErr)
-	}
-
-	// Check if unmount args were set correctly
-	if ns.mounter.(*fakeVolumeMounter).unmountArgs.target != unpublishVolumeRequest.GetTargetPath() {
-		t.Errorf("Wrong target argument passed for unmounting. Expected: %v, Got: %v", unpublishVolumeRequest.GetTargetPath(), ns.mounter.(*fakeVolumeMounter).unmountArgs.target)
 	}
 
 	// Check if the status fields were unset

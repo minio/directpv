@@ -21,30 +21,28 @@ package sys
 import (
 	"fmt"
 	"runtime"
-
-	"k8s.io/klog/v2"
 )
 
-func safeMount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
+func mount(device, target, fsType string, flags []string, superBlockFlags string) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func mount(source, target, fsType string, mountOpts []MountOption, superblockOpts []string) error {
+func unmount(target string, force, detach, expire bool) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func SafeUnmount(target string, opts []UnmountOption) error {
+func safeMount(device, target, fsType string, flags []string, superBlockFlags string) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func safeUnmountAll(path string, opts []UnmountOption) error {
+func safeBindMount(source, target, fsType string, recursive, readOnly bool, superBlockFlags string) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func Unmount(target string, opts []UnmountOption) error {
+func safeUnmount(target string, force, detach, expire bool) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func ForceUnmount(target string) {
-	klog.V(5).Infof("unsupported operating system %v", runtime.GOOS)
+func unmountDevice(device string) error {
+	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

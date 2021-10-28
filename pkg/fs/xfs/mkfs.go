@@ -1,5 +1,3 @@
-//go:build !linux
-
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.
 //
@@ -16,22 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package xfs
 
-import (
-	"context"
-)
+import "context"
 
-type DriveFormatter interface {
-	FormatDrive(ctx context.Context, uuid, path string, force bool) error
-}
-
-type DefaultDriveFormatter struct{}
-
-func (c *DefaultDriveFormatter) FormatDrive(ctx context.Context, uuid, path string, force bool) error {
-	return nil
-}
-
-func (c *DefaultDriveFormatter) MakeBlockFile(path string, major, minor uint32) error {
-	return nil
+func MakeFS(ctx context.Context, device, uuid string, force bool) error {
+	return makeFS(ctx, device, uuid, force)
 }

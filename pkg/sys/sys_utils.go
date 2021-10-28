@@ -29,17 +29,6 @@ import (
 	"github.com/minio/direct-csi/pkg/sys/loopback"
 )
 
-// GetDirectCSIPath returns Direct CSI path of given drive name.
-func GetDirectCSIPath(driveName string) string {
-	if strings.Contains(driveName, DirectCSIDevRoot) {
-		return driveName
-	}
-	if strings.HasPrefix(driveName, HostDevRoot) {
-		return GetDirectCSIPath(filepath.Base(driveName))
-	}
-	return filepath.Join(DirectCSIDevRoot, driveName)
-}
-
 func getBlockFile(devName string) string {
 	if strings.Contains(devName, DirectCSIDevRoot) {
 		return devName
@@ -111,20 +100,10 @@ func splitDevAndPartNum(s string) (string, int) {
 
 // FlushLoopBackReservations does umount/detach/remove loopback devices and associated files.
 func FlushLoopBackReservations() error {
-	umountLoopDev := func(devPath string) error {
-		if err := safeUnmountAll(devPath, []UnmountOption{
-			UnmountOptionDetach,
-			UnmountOptionForce,
-		}); err != nil {
-			return err
-		}
-		return nil
-	}
-
 	flushLoopDevice := func(loopDevName string) error {
-		// umount
 		blockFile := getBlockFile(loopDevName)
-		if err := umountLoopDev(blockFile); err != nil && !os.IsNotExist(err) {
+		// umount
+		if err := UnmountDevice(blockFile); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		// Remove loop device

@@ -23,7 +23,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
@@ -75,7 +74,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 			},
 			Status: directcsi.DirectCSIDriveStatus{
 				NodeName:          node,
-				Filesystem:        string(sys.FSTypeXFS),
+				Filesystem:        "xfs",
 				DriveStatus:       directcsi.DriveStatusReady,
 				FreeCapacity:      mb100,
 				AllocatedCapacity: int64(0),

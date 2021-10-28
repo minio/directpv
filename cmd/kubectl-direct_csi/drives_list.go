@@ -25,7 +25,6 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -223,7 +222,7 @@ func listDrives(ctx context.Context, args []string) error {
 					if msg != "" {
 						status = d.Status.DriveStatus + "*"
 						msg = strings.ReplaceAll(msg, d.Name, "")
-						msg = strings.ReplaceAll(msg, sys.GetDirectCSIPath(d.Status.FilesystemUUID), drive)
+						msg = strings.ReplaceAll(msg, getDirectCSIPath(d.Status.FilesystemUUID), drive)
 						msg = strings.ReplaceAll(msg, directCSIPartitionInfix, "")
 						msg = strings.Split(msg, "\n")[0]
 					}

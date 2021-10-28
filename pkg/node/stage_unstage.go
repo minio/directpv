@@ -29,13 +29,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/direct-csi/pkg/sys"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 )
 
-func (n *NodeServer) nodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, probeMounts func() (map[string][]sys.MountInfo, error)) (*csi.NodeStageVolumeResponse, error) {
+// NodeStageVolume is node stage volume request handler.
+func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	klog.V(3).InfoS("NodeStageVolumeRequest",
 		"volumeID", req.GetVolumeId(),
 		"StagingTargetPath", req.GetStagingTargetPath())
@@ -67,7 +67,7 @@ func (n *NodeServer) nodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if err := checkDrive(drive, req.GetVolumeId(), probeMounts); err != nil {
+	if err := checkDrive(drive, req.GetVolumeId(), n.probeMounts); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -76,7 +76,7 @@ func (n *NodeServer) nodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, err
 	}
 
-	if err := n.mounter.MountVolume(ctx, path, stagingTargetPath, false); err != nil {
+	if err := n.safeBindMount(path, stagingTargetPath, false, false); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed stage volume: %v", err)
 	}
 
@@ -84,7 +84,12 @@ func (n *NodeServer) nodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		HardLimit: uint64(vol.Status.TotalCapacity),
 		SoftLimit: uint64(vol.Status.TotalCapacity),
 	}
-	if err := n.quotaFuncs.SetQuota(ctx, sys.GetDirectCSIPath(drive.Status.FilesystemUUID), stagingTargetPath, vID, quota); err != nil {
+
+	device, err := n.getDevice(drive.Status.MajorNumber, drive.Status.MinorNumber)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Unable to find device for major/minor %v:%v; %v", drive.Status.MajorNumber, drive.Status.MinorNumber, err)
+	}
+	if err := n.setQuota(ctx, device, stagingTargetPath, vID, quota); err != nil {
 		return nil, status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
 	}
 
@@ -111,11 +116,6 @@ func (n *NodeServer) nodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	return &csi.NodeStageVolumeResponse{}, nil
-}
-
-// NodeStageVolume is node stage volume request handler.
-func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return n.nodeStageVolume(ctx, req, sys.ProbeMounts)
 }
 
 // NodeUnstageVolume is node unstage volume request handler.
@@ -145,7 +145,7 @@ func (n *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if err := n.mounter.UnmountVolume(stagingTargetPath); err != nil {
+	if err := n.safeUnmount(stagingTargetPath, true, true, false); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

@@ -28,6 +28,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 func isDirectCSIMount(mountPoints []string) bool {
@@ -46,7 +47,7 @@ func isDirectCSIMount(mountPoints []string) bool {
 // NewDirectCSIDriveStatus creates direct CSI drive status.
 func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[string]string) directcsi.DirectCSIDriveStatus {
 	driveStatus := directcsi.DriveStatusAvailable
-	if device.Size < 1048576 || device.ReadOnly || device.Partitioned || device.SwapOn || device.Master != "" || !isDirectCSIMount(device.MountPoints) {
+	if device.Size < sys.MinSupportedDeviceSize || device.ReadOnly || device.Partitioned || device.SwapOn || device.Master != "" || !isDirectCSIMount(device.MountPoints) {
 		driveStatus = directcsi.DriveStatusUnavailable
 	}
 
@@ -163,7 +164,9 @@ func DeleteDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInt
 
 	if force {
 		if drive.Status.FilesystemUUID != "" && drive.Status.DriveStatus != directcsi.DriveStatusInUse {
-			sys.ForceUnmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID))
+			if err := sys.Unmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID), true, true, false); err != nil {
+				klog.Errorf("unable to unmount %v; %v", path.Join(sys.MountRoot, drive.Status.FilesystemUUID), err)
+			}
 		}
 		return driveInterface.Delete(ctx, drive.Name, metav1.DeleteOptions{})
 	}
@@ -174,7 +177,7 @@ func DeleteDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInt
 			return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/direct-csi/issues")
 		}
 
-		if err := sys.SafeUnmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID), nil); err != nil {
+		if err := sys.SafeUnmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID), false, false, false); err != nil {
 			return err
 		}
 

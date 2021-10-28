@@ -51,7 +51,11 @@ func (c *metricsCollector) getxfsVolumeStats(ctx context.Context, vol *directcsi
 	if err != nil {
 		return xfsVolumeStats{}, err
 	}
-	quota, err := xfs.GetQuota(ctx, sys.GetDirectCSIPath(drive.Status.FilesystemUUID), vol.Name)
+	device, err := sys.GetDeviceName(drive.Status.MajorNumber, drive.Status.MinorNumber)
+	if err != nil {
+		return xfsVolumeStats{}, err
+	}
+	quota, err := xfs.GetQuota(ctx, device, vol.Name)
 	if err != nil {
 		return xfsVolumeStats{}, err
 	}

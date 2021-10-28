@@ -31,49 +31,7 @@ const (
 
 	// HostPartitionInfix is host infix value.
 	HostPartitionInfix = "p"
-)
 
-// FSType is filesystem type.
-type FSType string
-
-const (
-	// FSTypeXFS is XFS filesystem type.
-	FSTypeXFS FSType = "xfs"
-)
-
-// MountOption denotes device mount options.
-type MountOption string
-
-// Mount options.
-const (
-	MountOptionMSRemount     MountOption = "remount"
-	MountOptionMSBind        MountOption = "bind"
-	MountOptionMSShared      MountOption = "shared"
-	MountOptionMSPrivate     MountOption = "private"
-	MountOptionMSSlave       MountOption = "slave"
-	MountOptionMSUnBindable  MountOption = "unbindable"
-	MountOptionMSMove        MountOption = "move"
-	MountOptionMSDirSync     MountOption = "dirsync"
-	MountOptionMSMandLock    MountOption = "mand"
-	MountOptionMSNoATime     MountOption = "noatime"
-	MountOptionMSNoDev       MountOption = "nodev"
-	MountOptionMSNoDirATime  MountOption = "nodiratime"
-	MountOptionMSNoExec      MountOption = "noexec"
-	MountOptionMSNoSUID      MountOption = "nosuid"
-	MountOptionMSReadOnly    MountOption = "ro"
-	MountOptionMSRelatime    MountOption = "relatime"
-	MountOptionMSRecursive   MountOption = "recursive"
-	MountOptionMSSilent      MountOption = "silent"
-	MountOptionMSStrictATime MountOption = "strictatime"
-	MountOptionMSSynchronous MountOption = "sync"
-)
-
-// UnmountOption denotes device unmount options.
-type UnmountOption string
-
-// Unmount options.
-const (
-	UnmountOptionForce  UnmountOption = "force"
-	UnmountOptionDetach UnmountOption = "detach"
-	UnmountOptionExpire UnmountOption = "expire"
+	// MinSupportedDeviceSize is minimum supported size for default XFS filesystem.
+	MinSupportedDeviceSize = 16 * 1024 * 1024 // 16 MiB
 )

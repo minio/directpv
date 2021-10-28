@@ -16,19 +16,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package xfs
 
-type DriveMounter interface {
-	MountDrive(source, target string, mountOpts []string) error
-	UnmountDrive(path string) error
-}
+import (
+	"context"
+	"fmt"
+	"runtime"
+)
 
-type DefaultDriveMounter struct{}
-
-func (c *DefaultDriveMounter) MountDrive(source, target string, mountOpts []string) error {
-	return nil
-}
-
-func (c *DefaultDriveMounter) UnmountDrive(path string) error {
-	return nil
+func makeFS(ctx context.Context, device, uuid string, force bool) error {
+	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

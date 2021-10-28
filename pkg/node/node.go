@@ -22,6 +22,7 @@ import (
 	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/drive"
+	"github.com/minio/direct-csi/pkg/fs/xfs"
 	"github.com/minio/direct-csi/pkg/metrics"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -34,6 +35,36 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 )
+
+func safeBindMount(source, target string, recursive, readOnly bool) error {
+	return sys.SafeBindMount(source, target, "xfs", recursive, readOnly, "prjquota")
+}
+
+func getDevice(major, minor uint32) (string, error) {
+	name, err := sys.GetDeviceName(major, minor)
+	if err != nil {
+		return "", err
+	}
+	return "/dev/" + name, nil
+}
+
+// NodeServer denotes node server.
+type NodeServer struct { //revive:disable-line:exported
+	NodeID          string
+	Identity        string
+	Rack            string
+	Zone            string
+	Region          string
+	directcsiClient clientset.Interface
+	probeMounts     func() (map[string][]sys.MountInfo, error)
+	getDevice       func(major, minor uint32) (string, error)
+	safeBindMount   func(source, target string, recursive, readOnly bool) error
+	safeUnmount     func(target string, force, detach, expire bool) error
+	getQuota        func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error)
+	setQuota        func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error)
+}
+
+//revive:enable-line:exported
 
 // NewNodeServer creates node server.
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, enableDynamicDiscovery bool) (*NodeServer, error) {
@@ -54,8 +85,12 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		Zone:            zone,
 		Region:          region,
 		directcsiClient: directClientset,
-		mounter:         &sys.DefaultVolumeMounter{},
-		quotaFuncs:      &xfsQuotaFuncs{},
+		probeMounts:     sys.ProbeMounts,
+		getDevice:       getDevice,
+		safeBindMount:   safeBindMount,
+		safeUnmount:     sys.SafeUnmount,
+		getQuota:        xfs.GetQuota,
+		setQuota:        xfs.SetQuota,
 	}
 
 	// Start background tasks
@@ -86,20 +121,6 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	return nodeServer, nil
 }
-
-// NodeServer denotes node server.
-type NodeServer struct { //revive:disable-line:exported
-	NodeID          string
-	Identity        string
-	Rack            string
-	Zone            string
-	Region          string
-	directcsiClient clientset.Interface
-	mounter         sys.VolumeMounter
-	quotaFuncs      quotaFuncs
-}
-
-//revive:enable-line:exported
 
 // NodeGetInfo gets node information.
 func (ns *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
@@ -167,7 +188,12 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
-	quota, err := ns.quotaFuncs.GetQuota(ctx, sys.GetDirectCSIPath(drive.Status.FilesystemUUID), vID)
+
+	device, err := ns.getDevice(drive.Status.MajorNumber, drive.Status.MinorNumber)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Unable to find device for major/minor %v:%v; %v", drive.Status.MajorNumber, drive.Status.MinorNumber, err)
+	}
+	quota, err := ns.getQuota(ctx, device, vID)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "Error while getting xfs volume stats: %v", err)
 	}

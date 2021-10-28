@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
@@ -72,7 +71,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 			Status: directcsi.DirectCSIDriveStatus{
 				Path:              path,
 				NodeName:          node,
-				Filesystem:        string(sys.FSTypeXFS),
+				Filesystem:        "xfs",
 				DriveStatus:       driveStatus,
 				FreeCapacity:      mb100,
 				AllocatedCapacity: int64(0),
