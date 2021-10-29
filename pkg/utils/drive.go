@@ -129,19 +129,20 @@ func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[str
 
 // NewDirectCSIDrive creates new direct-csi drive.
 func NewDirectCSIDrive(name string, status directcsi.DirectCSIDriveStatus) *directcsi.DirectCSIDrive {
-	return &directcsi.DirectCSIDrive{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				NodeLabel:       SanitizeLabelV(status.NodeName),
-				DrivePathLabel:  SanitizeDrivePath(status.Path),
-				VersionLabel:    directcsi.Version,
-				CreatedByLabel:  "directcsi-driver",
-				AccessTierLabel: string(status.AccessTier),
-			},
-		},
-		Status: status,
+	drive := &directcsi.DirectCSIDrive{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Status:     status,
 	}
+
+	UpdateLabels(drive, map[LabelKey]LabelValue{
+		NodeLabelKey:       NewLabelValue(status.NodeName),
+		PathLabelKey:       NewLabelValue(SanitizeDrivePath(status.Path)),
+		VersionLabelKey:    NewLabelValue(directcsi.Version),
+		CreatedByLabelKey:  DirectCSIDriverName,
+		AccessTierLabelKey: NewLabelValue(string(status.AccessTier)),
+	})
+
+	return drive
 }
 
 // CreateDrive creates drive CRD.

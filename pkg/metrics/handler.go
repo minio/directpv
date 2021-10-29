@@ -72,16 +72,10 @@ func (c *metricsCollector) volumeStatsEmitter(
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	nodeLabelValue, err := utils.NewLabelValue(c.nodeID)
-	if err != nil {
-		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
-		return
-	}
-
 	resultCh, err := utils.ListVolumes(
 		ctx,
 		c.directcsiClient.DirectV1beta3().DirectCSIVolumes(),
-		[]utils.LabelValue{nodeLabelValue},
+		[]utils.LabelValue{utils.NewLabelValue(c.nodeID)},
 		nil,
 		nil,
 		nil,

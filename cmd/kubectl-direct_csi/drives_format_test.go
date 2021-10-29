@@ -57,24 +57,17 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	}
 
 	createTestDrive := func(node, drive, path string, driveStatus directcsi.DriveStatus, accessTier directcsi.AccessTier) *directcsi.DirectCSIDrive {
-		objM := utils.NewObjectMeta(
-			drive,
-			metav1.NamespaceNone,
-			map[string]string{
-				utils.NodeLabel:      utils.SanitizeLabelV(node),
-				utils.DrivePathLabel: utils.SanitizeDrivePath(path),
+		csiDrive := &directcsi.DirectCSIDrive{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      drive,
+				Namespace: metav1.NamespaceNone,
+				Labels: map[string]string{
+					string(utils.NodeLabelKey): string(utils.NewLabelValue(node)),
+					string(utils.PathLabelKey): string(utils.NewLabelValue(utils.SanitizeDrivePath(path))),
+				},
+				Finalizers: []string{string(directcsi.DirectCSIDriveFinalizerDataProtection)},
 			},
-			map[string]string{},
-			[]string{
-				string(directcsi.DirectCSIDriveFinalizerDataProtection),
-			},
-			nil,
-		)
-
-		utils.SetAccessTierLabel(&objM, accessTier)
-		return &directcsi.DirectCSIDrive{
-			TypeMeta:   utils.DirectCSIDriveTypeMeta(),
-			ObjectMeta: objM,
 			Status: directcsi.DirectCSIDriveStatus{
 				Path:              path,
 				NodeName:          node,
@@ -87,6 +80,8 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 				AccessTier:        accessTier,
 			},
 		}
+		setDriveAccessTier(csiDrive, accessTier)
+		return csiDrive
 	}
 
 	testDriveObjects := []runtime.Object{

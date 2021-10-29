@@ -25,50 +25,18 @@ import (
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
 )
 
-type LabelValue string
-
-func AccessTiersToLabelValues(accessTiers []directcsi.AccessTier) (labelValues []LabelValue) {
-	for _, accessTier := range accessTiers {
-		labelValues = append(labelValues, LabelValue(accessTier))
-	}
-	return
-}
-
-func labelValuesToStrings(values []LabelValue) (strValues []string) {
-	for _, value := range values {
-		strValues = append(strValues, string(value))
-	}
-	return
-}
-
-func NewLabelValue(value string) (LabelValue, error) {
-	value = SanitizeLabelV(value)
-	if errList := validation.IsValidLabelValue(value); len(errList) > 0 {
-		return LabelValue(""), fmt.Errorf("invalid label value %v: %v", value, strings.Join(errList, " ,"))
-	}
-	return LabelValue(value), nil
-}
-
-func ToLabelValues(vs []string) (labelValues []LabelValue, err error) {
-	for _, v := range vs {
-		labelV, err := NewLabelValue(v)
-		if err != nil {
-			return nil, err
-		}
-		labelValues = append(labelValues, labelV)
-	}
-	return
-}
-
-func toLabelSelector(labelMap map[string][]string) string {
+func toLabelSelector(labels map[LabelKey][]LabelValue) string {
 	selectors := []string{}
-	for label, values := range labelMap {
-		if len(values) > 0 {
-			selectors = append(selectors, fmt.Sprintf("%s in (%s)", label, strings.Join(values, ",")))
+	for key, values := range labels {
+		if len(values) != 0 {
+			result := []string{}
+			for _, value := range values {
+				result = append(result, string(value))
+			}
+			selectors = append(selectors, fmt.Sprintf("%s in (%s)", key, strings.Join(result, ",")))
 		}
 	}
 	return strings.Join(selectors, ",")
@@ -82,10 +50,10 @@ type ListDriveResult struct {
 
 // ListDrives lists direct-csi drives.
 func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []LabelValue, maxObjects int64) (<-chan ListDriveResult, error) {
-	labelMap := map[string][]string{
-		DrivePathLabel:  labelValuesToStrings(drives),
-		NodeLabel:       labelValuesToStrings(nodes),
-		AccessTierLabel: labelValuesToStrings(accessTiers),
+	labelMap := map[LabelKey][]LabelValue{
+		PathLabelKey:       drives,
+		NodeLabelKey:       nodes,
+		AccessTierLabelKey: accessTiers,
 	}
 	labelSelector := toLabelSelector(labelMap)
 
@@ -156,12 +124,12 @@ type ListVolumeResult struct {
 }
 
 // ListVolumes lists direct-csi volumes.
-func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNss []LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
-	labelMap := map[string][]string{
-		ReservedDrivePathLabel: labelValuesToStrings(drives),
-		NodeLabel:              labelValuesToStrings(nodes),
-		PodNameLabel:           labelValuesToStrings(podNames),
-		PodNamespaceLabel:      labelValuesToStrings(podNss),
+func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNSs []LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
+	labelMap := map[LabelKey][]LabelValue{
+		DrivePathLabelKey: drives,
+		NodeLabelKey:      nodes,
+		PodNameLabelKey:   podNames,
+		PodNSLabelKey:     podNSs,
 	}
 	labelSelector := toLabelSelector(labelMap)
 
@@ -209,8 +177,8 @@ func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeI
 }
 
 // GetVolumeList gets list of volumes.
-func GetVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNss []LabelValue) ([]directcsi.DirectCSIVolume, error) {
-	resultCh, err := ListVolumes(ctx, volumeInterface, nodes, drives, podNames, podNss, MaxThreadCount)
+func GetVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNSs []LabelValue) ([]directcsi.DirectCSIVolume, error) {
+	resultCh, err := ListVolumes(ctx, volumeInterface, nodes, drives, podNames, podNSs, MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}

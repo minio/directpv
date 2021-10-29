@@ -140,10 +140,10 @@ func volumeUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) erro
 	}
 
 	v1beta2DirectCSIVolume.TypeMeta = v1beta1DirectCSIVolume.TypeMeta
-	utils.UpdateLabels(&v1beta2DirectCSIVolume,
-		utils.NodeLabel, v1beta2DirectCSIVolume.Status.NodeName,
-		utils.CreatedByLabel, "directcsi-controller",
-	)
+	utils.UpdateLabels(&v1beta2DirectCSIVolume, map[utils.LabelKey]utils.LabelValue{
+		utils.NodeLabelKey:      utils.NewLabelValue(v1beta2DirectCSIVolume.Status.NodeName),
+		utils.CreatedByLabelKey: utils.DirectCSIControllerName,
+	})
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta2DirectCSIVolume)
 	if err != nil {
@@ -172,10 +172,10 @@ func volumeUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) erro
 	}
 
 	v1beta3DirectCSIVolume.TypeMeta = v1beta2DirectCSIVolume.TypeMeta
-	utils.UpdateLabels(&v1beta3DirectCSIVolume,
-		utils.NodeLabel, v1beta3DirectCSIVolume.Status.NodeName,
-		utils.CreatedByLabel, "directcsi-controller",
-	)
+	utils.UpdateLabels(&v1beta3DirectCSIVolume, map[utils.LabelKey]utils.LabelValue{
+		utils.NodeLabelKey:      utils.NewLabelValue(v1beta3DirectCSIVolume.Status.NodeName),
+		utils.CreatedByLabelKey: utils.DirectCSIControllerName,
+	})
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta3DirectCSIVolume)
 	if err != nil {

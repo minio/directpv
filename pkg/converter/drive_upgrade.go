@@ -112,12 +112,12 @@ func driveUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error
 	}
 
 	v1beta2DirectCSIDrive.TypeMeta = v1beta1DirectCSIDrive.TypeMeta
-	utils.UpdateLabels(&v1beta2DirectCSIDrive,
-		utils.NodeLabel, utils.SanitizeLabelV(v1beta1DirectCSIDrive.Status.NodeName),
-		utils.DrivePathLabel, utils.SanitizeDrivePath(v1beta1DirectCSIDrive.Status.Path),
-		utils.CreatedByLabel, "directcsi-driver",
-		utils.AccessTierLabel, string(v1beta1DirectCSIDrive.Status.AccessTier),
-	)
+	utils.UpdateLabels(&v1beta2DirectCSIDrive, map[utils.LabelKey]utils.LabelValue{
+		utils.NodeLabelKey:       utils.NewLabelValue(v1beta1DirectCSIDrive.Status.NodeName),
+		utils.PathLabelKey:       utils.NewLabelValue(v1beta1DirectCSIDrive.Status.Path),
+		utils.CreatedByLabelKey:  utils.DirectCSIDriverName,
+		utils.AccessTierLabelKey: utils.NewLabelValue(string(v1beta1DirectCSIDrive.Status.AccessTier)),
+	})
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta2DirectCSIDrive)
 	if err != nil {
@@ -146,12 +146,12 @@ func driveUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) error
 	}
 
 	v1beta3DirectCSIDrive.TypeMeta = v1beta2DirectCSIDrive.TypeMeta
-	utils.UpdateLabels(&v1beta3DirectCSIDrive,
-		utils.NodeLabel, utils.SanitizeLabelV(v1beta2DirectCSIDrive.Status.NodeName),
-		utils.DrivePathLabel, utils.SanitizeDrivePath(v1beta2DirectCSIDrive.Status.Path),
-		utils.CreatedByLabel, "directcsi-driver",
-		utils.AccessTierLabel, string(v1beta2DirectCSIDrive.Status.AccessTier),
-	)
+	utils.UpdateLabels(&v1beta3DirectCSIDrive, map[utils.LabelKey]utils.LabelValue{
+		utils.NodeLabelKey:       utils.NewLabelValue(v1beta2DirectCSIDrive.Status.NodeName),
+		utils.PathLabelKey:       utils.NewLabelValue(v1beta2DirectCSIDrive.Status.Path),
+		utils.CreatedByLabelKey:  utils.DirectCSIDriverName,
+		utils.AccessTierLabelKey: utils.NewLabelValue(string(v1beta2DirectCSIDrive.Status.AccessTier)),
+	})
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta3DirectCSIDrive)
 	if err != nil {

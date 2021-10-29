@@ -38,20 +38,16 @@ func (n *nsInstaller) Install(ctx context.Context) error {
 	if n.installConfig == nil {
 		return errInstallationFailed("bad arguments: empty configuration", "Namespace")
 	}
-	nsName := utils.SanitizeKubeResourceName(n.name)
 
 	ns := &corev1.Namespace{
-		TypeMeta: utils.NewTypeMeta("v1", "Namespace"),
-		ObjectMeta: utils.NewObjectMeta(
-			nsName,
-			metav1.NamespaceNone,
-			defaultLabels,
-			defaultAnnotations,
-			[]string{
-				metav1.FinalizerDeleteDependents, // foregroundDeletion finalizer
-			},
-			nil),
-		Spec: corev1.NamespaceSpec{},
+		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Namespace"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        utils.SanitizeKubeResourceName(n.name),
+			Namespace:   metav1.NamespaceNone,
+			Annotations: defaultAnnotations,
+			Labels:      defaultLabels,
+			Finalizers:  []string{metav1.FinalizerDeleteDependents}, // foregroundDeletion finalizer
+		},
 	}
 
 	// Create Namespace Obj

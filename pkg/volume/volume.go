@@ -52,7 +52,7 @@ func newVolumeEventHandler(nodeID string) *volumeEventHandler {
 func (handler *volumeEventHandler) ListerWatcher() cache.ListerWatcher {
 	labelSelector := ""
 	if handler.nodeID != "" {
-		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabel, utils.SanitizeLabelV(handler.nodeID))
+		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabelKey, utils.NewLabelValue(handler.nodeID))
 	}
 
 	optionsModifier := func(options *metav1.ListOptions) {
@@ -184,10 +184,10 @@ func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[strin
 		labels = make(map[string]string)
 	}
 
-	labels[utils.NodeLabel] = utils.SanitizeLabelV(volume.Status.NodeName)
-	labels[utils.ReservedDrivePathLabel] = utils.SanitizeDrivePath(drivePath)
-	labels[utils.DriveLabel] = utils.SanitizeLabelV(driveName)
-	labels[utils.CreatedByLabel] = "directcsi-controller"
+	labels[string(utils.NodeLabelKey)] = string(utils.NewLabelValue(volume.Status.NodeName))
+	labels[string(utils.DrivePathLabelKey)] = string(utils.NewLabelValue(utils.SanitizeDrivePath(drivePath)))
+	labels[string(utils.DriveLabelKey)] = string(utils.NewLabelValue(driveName))
+	labels[string(utils.CreatedByLabelKey)] = utils.DirectCSIControllerName
 
 	return labels
 }
@@ -221,15 +221,9 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	nodeLabelValue, err := utils.NewLabelValue(nodeID)
-	if err != nil {
-		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
-		return
-	}
-
 	resultCh, err := utils.ListVolumes(ctx,
 		volumeClient,
-		[]utils.LabelValue{nodeLabelValue},
+		[]utils.LabelValue{utils.NewLabelValue(nodeID)},
 		nil,
 		nil,
 		nil,

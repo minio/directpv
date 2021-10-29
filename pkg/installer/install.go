@@ -175,7 +175,7 @@ func getTopologySelectorTerm(identity string) corev1.TopologySelectorTerm {
 
 	getIdentityLabelRequirement := func() corev1.TopologySelectorLabelRequirement {
 		return corev1.TopologySelectorLabelRequirement{
-			Key:    utils.TopologyDriverIdentity,
+			Key:    string(utils.TopologyDriverIdentity),
 			Values: []string{utils.SanitizeKubeResourceName(identity)},
 		}
 	}

@@ -104,8 +104,7 @@ func setAccessTier(ctx context.Context, accessTier directcsi.AccessTier) error {
 			return drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
 		},
 		func(drive *directcsi.DirectCSIDrive) error {
-			drive.Status.AccessTier = accessTier
-			utils.SetAccessTierLabel(drive, accessTier)
+			setDriveAccessTier(drive, accessTier)
 			return nil
 		},
 		defaultDriveUpdateFunc(directCSIClient),

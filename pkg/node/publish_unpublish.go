@@ -114,8 +114,8 @@ func (n *NodeServer) nodePublishVolume(ctx context.Context, req *csi.NodePublish
 	if volumeLabels == nil {
 		volumeLabels = make(map[string]string)
 	}
-	volumeLabels[directcsi.Group+"/pod.name"] = podName
-	volumeLabels[directcsi.Group+"/pod.namespace"] = podNS
+	volumeLabels[string(utils.PodNameLabelKey)] = podName
+	volumeLabels[string(utils.PodNSLabelKey)] = podNS
 	for key, value := range podLabels {
 		if strings.HasPrefix(key, directcsi.Group+"/") {
 			volumeLabels[key] = value

@@ -74,11 +74,11 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	if enableDynamicDiscovery {
 		go startUeventHandler(
 			ctx, nodeID, map[string]string{
-				utils.TopologyDriverIdentity: identity,
-				utils.TopologyDriverRack:     rack,
-				utils.TopologyDriverZone:     zone,
-				utils.TopologyDriverRegion:   region,
-				utils.TopologyDriverNode:     nodeID,
+				string(utils.TopologyDriverIdentity): identity,
+				string(utils.TopologyDriverRack):     rack,
+				string(utils.TopologyDriverZone):     zone,
+				string(utils.TopologyDriverRegion):   region,
+				string(utils.TopologyDriverNode):     nodeID,
 			},
 		)
 	}
@@ -104,11 +104,11 @@ type NodeServer struct { //revive:disable-line:exported
 func (ns *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	topology := &csi.Topology{
 		Segments: map[string]string{
-			utils.TopologyDriverIdentity: ns.Identity,
-			utils.TopologyDriverRack:     ns.Rack,
-			utils.TopologyDriverZone:     ns.Zone,
-			utils.TopologyDriverRegion:   ns.Region,
-			utils.TopologyDriverNode:     ns.NodeID,
+			string(utils.TopologyDriverIdentity): ns.Identity,
+			string(utils.TopologyDriverRack):     ns.Rack,
+			string(utils.TopologyDriverZone):     ns.Zone,
+			string(utils.TopologyDriverRegion):   ns.Region,
+			string(utils.TopologyDriverNode):     ns.NodeID,
 		},
 	}
 

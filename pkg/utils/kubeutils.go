@@ -19,6 +19,7 @@ package utils
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,79 +35,26 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
-const (
-	// DEL character i.e. 127 or \u007f.
-	DEL rune = 127
-)
-
-func safeGetLabels(obj metav1.Object) map[string]string {
-	l := obj.GetLabels()
-	if l == nil {
-		return map[string]string{}
+func SetLabels(object metav1.Object, labels map[LabelKey]LabelValue) {
+	values := make(map[string]string)
+	for key, value := range labels {
+		values[string(key)] = string(value)
 	}
-	return l
+	object.SetLabels(values)
 }
 
 // UpdateLabels updates labels in object.
-func UpdateLabels(obj metav1.Object, labelKVs ...string) {
-	labels := safeGetLabels(obj)
-	for i := 0; i < len(labelKVs); i += 2 {
-		k := labelKVs[i]
-		v := ""
-		if len(labelKVs) > i+1 {
-			v = labelKVs[i+1]
-		}
-		sk, sv := sanitizeLabelKV(k, v)
-		labels[sk] = sv
+func UpdateLabels(object metav1.Object, labels map[LabelKey]LabelValue) {
+	values := object.GetLabels()
+	if values == nil {
+		values = make(map[string]string)
 	}
-	obj.SetLabels(labels)
-}
 
-// GetLabelV gets label value.
-func GetLabelV(obj metav1.Object, key string) string {
-	l := safeGetLabels(obj)
-	return l[key]
-}
-
-// SetLabelKV sets label key/value in given object.
-func SetLabelKV(obj metav1.Object, key, value string) {
-	labels := safeGetLabels(obj)
-
-	sk, sv := sanitizeLabelKV(key, value)
-	labels[sk] = sv
-
-	obj.SetLabels(labels)
-}
-
-// NewTypeMeta - creates a new TypeMeta
-// upcoming:
-//   - verify API group/version/kind
-//   - verify that kubernetes backend support group/version/kind (use discovery client)
-func NewTypeMeta(groupVersion, resource string) metav1.TypeMeta {
-	return metav1.TypeMeta{
-		APIVersion: groupVersion,
-		Kind:       resource,
+	for key, value := range labels {
+		values[string(key)] = string(value)
 	}
-}
 
-// NewObjectMeta - creates a new ObjectMeta with sanitized fields
-func NewObjectMeta(
-	name string,
-	namespace string,
-	labels map[string]string,
-	annotations map[string]string,
-	finalizers []string,
-	ownerRefs []metav1.OwnerReference,
-) metav1.ObjectMeta {
-
-	return metav1.ObjectMeta{
-		Name:            SanitizeKubeResourceName(name),
-		Namespace:       SanitizeKubeResourceName(namespace),
-		Annotations:     sanitizeLabelMap(annotations),
-		Labels:          sanitizeLabelMap(labels),
-		Finalizers:      sanitizeFinalizers(finalizers),
-		OwnerReferences: ownerRefs,
-	}
+	object.SetLabels(values)
 }
 
 // SanitizeKubeResourceName - Sanitize given name to a valid kubernetes name format.
@@ -118,218 +66,24 @@ func NewObjectMeta(
 //
 // WARNING: This function will truncate to 253 bytes if the input is longer
 func SanitizeKubeResourceName(name string) string {
-	// alphaNumericLower - [a-z0-9]
-	sanitizeAlphaNumericLower := func(r rune) rune {
-		if r >= 'a' && r <= 'z' {
-			return r
-		}
-		if r >= 'A' && r <= 'Z' {
-			return r + 32
-		}
-		if r >= '0' && r <= '9' {
-			return r
-		}
-		return '0'
+	if len(name) > 253 {
+		name = name[:253]
 	}
 
-	// extAlphaNumericLower - [-a-z0-9]
-	sanitizeExtAlphaNumericLower := func(r rune) rune {
-		if r >= 'a' && r <= 'z' {
-			return r
-		}
-		if r >= 'A' && r <= 'Z' {
-			return r + 32
-		}
-		if r >= '0' && r <= '9' {
-			return r
-		}
-		if r == '.' {
-			return '-'
-		}
-		return '-'
-	}
-
-	sanitizeFn := func(strLength int) func(rune) rune {
-		initialPos := true
-		maxLength := 253
-		currLength := 0
-
-		if strLength > maxLength {
-			strLength = maxLength
-		}
-
-		return func(r rune) rune {
-			currLength = currLength + 1
-			if initialPos {
-				initialPos = false
-				return sanitizeAlphaNumericLower(r)
+	result := []rune(strings.ToLower(name))
+	for i, r := range result {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+		default:
+			if i == 0 {
+				result[i] = '0'
+			} else {
+				result[i] = '-'
 			}
-
-			if currLength == strLength || currLength == maxLength {
-				return sanitizeAlphaNumericLower(r)
-			}
-
-			if currLength > maxLength {
-				return DEL
-			}
-
-			return sanitizeExtAlphaNumericLower(r)
 		}
 	}
 
-	return FmapString(name, sanitizeFn(len(name)))
-}
-
-// SanitizeLabelV - Sanitize given label value to valid kubernetes label format.
-// RegEx for label value is
-//
-//      ([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]
-//
-// with a max length of 63
-//
-// WARNING: This function will truncate to 63 bytes if the input is longer
-func SanitizeLabelV(value string) string {
-	_, v := sanitizeLabelKV("", value)
-	return v
-}
-
-// SanitizeLabelK - Sanitize given label key to valid kubernetes label format.
-// RegEx for label key is
-//
-//      ([A-Za-z0-9][-A-Za-z0-9_.]*[/]?[-A-Za-z0-9_.]*)?[A-Za-z0-9]
-//
-// with a max length of 63
-//
-// WARNING: This function will truncate to 63 bytes if the input is longer
-func SanitizeLabelK(key string) string {
-	k, _ := sanitizeLabelKV(key, "")
-	return k
-}
-
-func sanitizeLabelKV(key, value string) (string, string) {
-	// charFmt - [A-Za-z0-9]
-	sanitizeCharFmt := func(r rune) rune {
-		if r >= 'A' && r <= 'Z' {
-			return r
-		}
-		if r >= 'a' && r <= 'z' {
-			return r
-		}
-		if r >= '0' && r <= '9' {
-			return r
-		}
-		return 'x'
-	}
-
-	// extCharFmt - [-A-Za-z0-9_.]
-	sanitizeExtCharFmt := func(r rune) rune {
-		if r >= 'A' && r <= 'Z' {
-			return r
-		}
-		if r >= 'a' && r <= 'z' {
-			return r
-		}
-		if r >= '0' && r <= '9' {
-			return r
-		}
-		if r == '.' || r == '_' {
-			return r
-		}
-		return '-'
-	}
-
-	sanitizeKeyFn := func(strLength int) func(rune) rune {
-		initialPos := true
-		separatorFound := false
-
-		maxLength := 63
-		currLength := 0
-
-		if strLength > maxLength {
-			strLength = maxLength
-		}
-
-		return func(r rune) rune {
-			currLength = currLength + 1
-			if initialPos {
-				initialPos = false
-				return sanitizeCharFmt(r)
-			}
-
-			if currLength == strLength || currLength == maxLength {
-				return sanitizeCharFmt(r)
-			}
-
-			if currLength > maxLength {
-				return DEL
-			}
-
-			// one '/' separator is allowed in key names
-			if r == '/' {
-				if separatorFound {
-					return '-'
-				}
-				separatorFound = true
-				return r
-			}
-
-			return sanitizeExtCharFmt(r)
-		}
-	}
-
-	sanitizeValFn := func(strLength int) func(rune) rune {
-		initialPos := true
-		maxLength := 63
-		currLength := 0
-
-		if strLength > maxLength {
-			strLength = maxLength
-		}
-
-		return func(r rune) rune {
-			currLength = currLength + 1
-			if initialPos {
-				initialPos = false
-				return sanitizeCharFmt(r)
-			}
-
-			if currLength == strLength || currLength == maxLength {
-				return sanitizeCharFmt(r)
-			}
-
-			if currLength > maxLength {
-				return DEL
-			}
-
-			return sanitizeExtCharFmt(r)
-		}
-	}
-
-	return FmapString(key, sanitizeKeyFn(len(key))), FmapString(value, sanitizeValFn(len(value)))
-}
-
-func sanitizeLabelMap(kvMap map[string]string) map[string]string {
-	retMap := map[string]string{}
-
-	for k, v := range kvMap {
-		sk, sv := sanitizeLabelKV(k, v)
-		retMap[sk] = sv
-	}
-	return retMap
-}
-
-func sanitizeFinalizers(finalizers []string) []string {
-	uniq := map[string]struct{}{}
-
-	for _, f := range finalizers {
-		uniq[f] = struct{}{}
-	}
-
-	toRet := []string{}
-	for k := range uniq {
-		toRet = append(toRet, SanitizeLabelK(k))
-	}
-	return toRet
+	return string(result)
 }
 
 func getKubeConfig() (*rest.Config, string, error) {

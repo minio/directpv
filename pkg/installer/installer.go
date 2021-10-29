@@ -31,8 +31,8 @@ var (
 		AppNameLabel: DirectCSI,
 		AppTypeLabel: CSIDriver,
 
-		utils.CreatedByLabel: DirectCSIPluginName,
-		utils.VersionLabel:   directcsi.Version,
+		string(utils.CreatedByLabelKey): DirectCSIPluginName,
+		string(utils.VersionLabelKey):   directcsi.Version,
 	}
 
 	defaultAnnotations = map[string]string{}

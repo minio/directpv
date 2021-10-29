@@ -470,11 +470,10 @@ func getValidSelectors(selectors []string) (globs []string, values []utils.Label
 			if err != nil {
 				return nil, nil, err
 			}
-			labelValues, err := utils.ToLabelValues(result)
-			if err != nil {
-				return nil, nil, err
+
+			for _, value := range result {
+				values = append(values, utils.NewLabelValue(value))
 			}
-			values = append(values, labelValues...)
 		}
 	}
 
@@ -485,9 +484,11 @@ func getValidSelectors(selectors []string) (globs []string, values []utils.Label
 	return
 }
 
-func getValidDriveSelectors(selectors []string) ([]string, []utils.LabelValue, error) {
-	sanitizedDriveSelectors := utils.FmapStringSlice(selectors, utils.SanitizeDrivePath)
-	return getValidSelectors(sanitizedDriveSelectors)
+func getValidDriveSelectors(drives []string) ([]string, []utils.LabelValue, error) {
+	for i := range drives {
+		drives[i] = utils.SanitizeDrivePath(drives[i])
+	}
+	return getValidSelectors(drives)
 }
 
 func getValidNodeSelectors(nodes []string) ([]string, []utils.LabelValue, error) {
@@ -499,7 +500,13 @@ func getValidAccessTierSelectors(accessTiers []string) ([]utils.LabelValue, erro
 	if err != nil {
 		return nil, err
 	}
-	return utils.AccessTiersToLabelValues(accessTierSet), nil
+
+	var labelValues []utils.LabelValue
+	for _, accessTier := range accessTierSet {
+		labelValues = append(labelValues, utils.NewLabelValue(string(accessTier)))
+	}
+
+	return labelValues, nil
 }
 
 func getValidDriveStatusSelectors(selectors []string) (globs []string, statusList []directcsi.DriveStatus, err error) {
@@ -539,4 +546,21 @@ func getValidVolumeStatusSelectors(statusList []string) ([]string, error) {
 		}
 	}
 	return statusList, nil
+}
+
+func setDriveAccessTier(drive *directcsi.DirectCSIDrive, accessTier directcsi.AccessTier) {
+	drive.Status.AccessTier = accessTier
+	labels := drive.GetLabels()
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	labels[string(utils.AccessTierLabelKey)] = string(utils.NewLabelValue(string(accessTier)))
+	drive.SetLabels(labels)
+}
+
+func getLabelValue(obj metav1.Object, key string) string {
+	if labels := obj.GetLabels(); labels != nil {
+		return labels[key]
+	}
+	return ""
 }

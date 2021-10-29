@@ -92,7 +92,7 @@ func (handler *ueventHandler) syncDrive(
 							return err
 						}
 
-						volume.Labels[utils.ReservedDrivePathLabel] = driveName
+						volume.Labels[string(utils.DrivePathLabelKey)] = driveName
 						_, err = volumeInterface.Update(
 							ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
 						)
@@ -150,16 +150,10 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 		return
 	}
 
-	nodeLabelValue, err := utils.NewLabelValue(handler.nodeID)
-	if err != nil {
-		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
-		return
-	}
-
 	resultCh, err := utils.ListDrives(
 		ctx,
 		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
-		[]utils.LabelValue{nodeLabelValue},
+		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
 		nil,
 		nil,
 		utils.MaxThreadCount,
@@ -240,23 +234,11 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 	handler.syncMu.Lock()
 	defer handler.syncMu.Unlock()
 
-	nodeLabelValue, err := utils.NewLabelValue(handler.nodeID)
-	if err != nil {
-		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
-		return
-	}
-
-	drivePathValue, err := utils.NewLabelValue(device.Name)
-	if err != nil {
-		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
-		return
-	}
-
 	resultCh, err := utils.ListDrives(
 		ctx,
 		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
-		[]utils.LabelValue{nodeLabelValue},
-		[]utils.LabelValue{drivePathValue},
+		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
+		[]utils.LabelValue{utils.NewLabelValue(device.Name)},
 		nil,
 		utils.MaxThreadCount,
 	)
