@@ -38,12 +38,13 @@ func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region stri
 		return nil, err
 	}
 
-	topologies := map[string]string{}
-	topologies[utils.TopologyDriverIdentity] = identity
-	topologies[utils.TopologyDriverRack] = rack
-	topologies[utils.TopologyDriverZone] = zone
-	topologies[utils.TopologyDriverRegion] = region
-	topologies[utils.TopologyDriverNode] = nodeID
+	topologies := map[string]string{
+		string(utils.TopologyDriverIdentity): identity,
+		string(utils.TopologyDriverRack):     rack,
+		string(utils.TopologyDriverZone):     zone,
+		string(utils.TopologyDriverRegion):   region,
+		string(utils.TopologyDriverNode):     nodeID,
+	}
 
 	directClientset, err := clientset.NewForConfig(config)
 	if err != nil {
@@ -75,14 +76,9 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	nodeLabelValue, err := utils.NewLabelValue(d.NodeID)
-	if err != nil {
-		return err
-	}
-
 	resultCh, err := utils.ListDrives(ctx,
 		d.directcsiClient.DirectV1beta3().DirectCSIDrives(),
-		[]utils.LabelValue{nodeLabelValue},
+		[]utils.LabelValue{utils.NewLabelValue(d.NodeID)},
 		nil,
 		nil,
 		utils.MaxThreadCount,

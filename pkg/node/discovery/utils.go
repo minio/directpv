@@ -71,14 +71,17 @@ func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) er
 }
 
 func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDrive *directcsi.DirectCSIDrive) {
+	var existingVersion string
+	if labels := existingObj.GetLabels(); labels != nil {
+		existingVersion = labels[string(utils.VersionLabelKey)]
+	}
 
-	existingObjVersion := utils.GetLabelV(existingObj, utils.VersionLabel)
 	// overwrite existing object labels
 	existingObj.SetLabels(localDrive.GetLabels())
-	utils.UpdateLabels(existingObj,
-		utils.AccessTierLabel, string(existingObj.Status.AccessTier), // set access-tier labels
-		utils.VersionLabel, existingObjVersion, // set obj version labels
-	)
+	utils.UpdateLabels(existingObj, map[utils.LabelKey]utils.LabelValue{
+		utils.AccessTierLabelKey: utils.NewLabelValue(string(existingObj.Status.AccessTier)),
+		utils.VersionLabelKey:    utils.LabelValue(existingVersion),
+	})
 
 	// Sync the possible states
 	existingObj.Status.RootPartition = localDrive.Status.RootPartition

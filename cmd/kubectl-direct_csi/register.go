@@ -79,7 +79,7 @@ func registerCRDs(ctx context.Context, identity string, writer io.Writer) error 
 			}
 
 			if dryRun {
-				utils.SetLabelKV(&crdObj, utils.VersionLabel, directcsi.Version)
+				utils.UpdateLabels(&crdObj, map[utils.LabelKey]utils.LabelValue{utils.VersionLabelKey: directcsi.Version})
 				if err := utils.LogYAML(crdObj); err != nil {
 					return err
 				}
@@ -128,7 +128,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 	}
 
 	if dryRun {
-		utils.SetLabelKV(existingCRD, utils.VersionLabel, directcsi.Version)
+		utils.UpdateLabels(existingCRD, map[utils.LabelKey]utils.LabelValue{utils.VersionLabelKey: directcsi.Version})
 		existingCRD.TypeMeta = newCRD.TypeMeta
 		if err := utils.LogYAML(existingCRD); err != nil {
 			return err

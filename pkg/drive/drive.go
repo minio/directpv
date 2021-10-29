@@ -58,7 +58,7 @@ func newDriveEventHandler(nodeID string) *driveEventHandler {
 func (handler *driveEventHandler) ListerWatcher() cache.ListerWatcher {
 	labelSelector := ""
 	if handler.nodeID != "" {
-		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabel, utils.SanitizeLabelV(handler.nodeID))
+		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabelKey, utils.NewLabelValue(handler.nodeID))
 	}
 
 	optionsModifier := func(options *metav1.ListOptions) {
@@ -105,16 +105,11 @@ func (handler *driveEventHandler) getFSUUID(ctx context.Context, drive *directcs
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	nodeLabelValue, err := utils.NewLabelValue(handler.nodeID)
-	if err != nil {
-		return "", err
-	}
-
 	// Use new UUID if it is aleady used in another drive.
 	resultCh, err := utils.ListDrives(
 		ctx,
 		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
-		[]utils.LabelValue{nodeLabelValue},
+		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
 		nil,
 		nil,
 		utils.MaxThreadCount,

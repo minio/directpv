@@ -98,8 +98,7 @@ func unsetAccessTier(ctx context.Context) error {
 		nil,
 		nil,
 		func(drive *directcsi.DirectCSIDrive) error {
-			drive.Status.AccessTier = directcsi.AccessTierUnknown
-			utils.SetAccessTierLabel(drive, directcsi.AccessTierUnknown)
+			setDriveAccessTier(drive, directcsi.AccessTierUnknown)
 			return nil
 		},
 		defaultDriveUpdateFunc(directCSIClient),

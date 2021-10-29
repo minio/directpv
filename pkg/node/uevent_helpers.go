@@ -197,7 +197,7 @@ func updateDriveProperties(drive directcsi.DirectCSIDrive, device *sys.Device) (
 		if drive.Labels == nil {
 			drive.Labels = map[string]string{}
 		}
-		drive.Labels[utils.DrivePathLabel] = utils.SanitizeDrivePath(device.Name)
+		drive.Labels[string(utils.DriveLabelKey)] = utils.SanitizeDrivePath(device.Name)
 		nameChanged = true
 		updated = true
 	}

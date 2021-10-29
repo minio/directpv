@@ -60,17 +60,14 @@ func (sc *scInstaller) Install(ctx context.Context) error {
 
 	// Create StorageClass for the new driver
 	storageClass := &storagev1.StorageClass{
-		TypeMeta: utils.NewTypeMeta("storage.k8s.io/v1", "StorageClass"),
-		ObjectMeta: utils.NewObjectMeta(
-			scName,
-			metav1.NamespaceNone,
-			defaultLabels,
-			defaultAnnotations,
-			[]string{
-				metav1.FinalizerDeleteDependents, // foregroundDeletion finalizer
-			},
-			nil,
-		),
+		TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1", Kind: "StorageClass"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        scName,
+			Namespace:   metav1.NamespaceNone,
+			Annotations: defaultAnnotations,
+			Labels:      defaultLabels,
+			Finalizers:  []string{metav1.FinalizerDeleteDependents}, // foregroundDeletion finalizer
+		},
 		Provisioner:          scName,
 		AllowVolumeExpansion: &allowExpansionFalse,
 		VolumeBindingMode:    &bindingModeWaitForFirstConsumer,

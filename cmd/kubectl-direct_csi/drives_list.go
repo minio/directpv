@@ -158,7 +158,7 @@ func listDrives(ctx context.Context, args []string) error {
 	wrappedDriveList := directcsi.DirectCSIDriveList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
-			APIVersion: utils.DirectCSIGroupVersion,
+			APIVersion: string(utils.DirectCSIVersionLabelKey),
 		},
 		Items: filteredDrives,
 	}

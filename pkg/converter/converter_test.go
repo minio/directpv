@@ -35,6 +35,13 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 )
 
+func getLabelValue(obj metav1.Object, key string) string {
+	if labels := obj.GetLabels(); labels != nil {
+		return labels[key]
+	}
+	return ""
+}
+
 func TestV1alpha1ToV1beta1DriveUpgrade(t *testing.T) {
 	sampleObj := `kind: ConversionReview
 apiVersion: apiextensions.k8s.io/v1
@@ -242,11 +249,11 @@ request:
 		t.Errorf("Error while converting %v", err)
 	}
 
-	if nodeLabelV := utils.GetLabelV(&directCSIVolume, utils.NodeLabel); nodeLabelV != directCSIVolume.Status.NodeName {
+	if nodeLabelV := getLabelValue(&directCSIVolume, string(utils.NodeLabelKey)); nodeLabelV != directCSIVolume.Status.NodeName {
 		t.Errorf("expected node label value = %s, got = %s", directCSIVolume.Status.NodeName, nodeLabelV)
 	}
 
-	if createdByLabelV := utils.GetLabelV(&directCSIVolume, utils.CreatedByLabel); createdByLabelV != "directcsi-controller" {
+	if createdByLabelV := getLabelValue(&directCSIVolume, string(utils.CreatedByLabelKey)); createdByLabelV != "directcsi-controller" {
 		t.Errorf("expected created-by label value = directcsi-controller, got = %s", createdByLabelV)
 	}
 
@@ -369,11 +376,11 @@ request:
 		t.Errorf("Error while converting %v", err)
 	}
 
-	if nodeLabelV := utils.GetLabelV(&directCSIVolume, utils.NodeLabel); nodeLabelV != directCSIVolume.Status.NodeName {
+	if nodeLabelV := getLabelValue(&directCSIVolume, string(utils.NodeLabelKey)); nodeLabelV != directCSIVolume.Status.NodeName {
 		t.Errorf("expected node label value = %s, got = %s", directCSIVolume.Status.NodeName, nodeLabelV)
 	}
 
-	if createdByLabelV := utils.GetLabelV(&directCSIVolume, utils.CreatedByLabel); createdByLabelV != "directcsi-controller" {
+	if createdByLabelV := getLabelValue(&directCSIVolume, string(utils.CreatedByLabelKey)); createdByLabelV != "directcsi-controller" {
 		t.Errorf("expected created-by label value = directcsi-controller, got = %s", createdByLabelV)
 	}
 
@@ -488,19 +495,19 @@ request:
 		t.Errorf("expected status.partitionUUID = \"\", actual status.partitionUUID = %v", directCSIDrive.Status.PartitionUUID)
 	}
 
-	if versionLabelV := utils.GetLabelV(&directCSIDrive, utils.VersionLabel); versionLabelV != "v1beta1" {
+	if versionLabelV := getLabelValue(&directCSIDrive, string(utils.VersionLabelKey)); versionLabelV != "v1beta1" {
 		t.Errorf("expected version label value = v1beta1, got = %s", versionLabelV)
 	}
 
-	if nodeLabelV := utils.GetLabelV(&directCSIDrive, utils.NodeLabel); nodeLabelV != directCSIDrive.Status.NodeName {
+	if nodeLabelV := getLabelValue(&directCSIDrive, string(utils.NodeLabelKey)); nodeLabelV != directCSIDrive.Status.NodeName {
 		t.Errorf("expected node label value = %s, got = %s", directCSIDrive.Status.NodeName, nodeLabelV)
 	}
 
-	if createdByLabelV := utils.GetLabelV(&directCSIDrive, utils.CreatedByLabel); createdByLabelV != "directcsi-driver" {
+	if createdByLabelV := getLabelValue(&directCSIDrive, string(utils.CreatedByLabelKey)); createdByLabelV != "directcsi-driver" {
 		t.Errorf("expected created-by label value = directcsi-driver, got = %s", createdByLabelV)
 	}
 
-	if accessTierLabelV := utils.GetLabelV(&directCSIDrive, utils.AccessTierLabel); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
+	if accessTierLabelV := getLabelValue(&directCSIDrive, string(utils.AccessTierLabelKey)); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
 		t.Errorf("expected access-tier label value = %s, got = %s", string(directCSIDrive.Status.AccessTier), accessTierLabelV)
 	}
 }
@@ -610,19 +617,19 @@ request:
 		t.Errorf("expected status.partitionUUID = \"\", actual status.partitionUUID = %v", directCSIDrive.Status.PartitionUUID)
 	}
 
-	if versionLabelV := utils.GetLabelV(&directCSIDrive, utils.VersionLabel); versionLabelV != "v1beta2" {
+	if versionLabelV := getLabelValue(&directCSIDrive, string(utils.VersionLabelKey)); versionLabelV != "v1beta2" {
 		t.Errorf("expected version label value = v1beta2, got = %s", versionLabelV)
 	}
 
-	if nodeLabelV := utils.GetLabelV(&directCSIDrive, utils.NodeLabel); nodeLabelV != directCSIDrive.Status.NodeName {
+	if nodeLabelV := getLabelValue(&directCSIDrive, string(utils.NodeLabelKey)); nodeLabelV != directCSIDrive.Status.NodeName {
 		t.Errorf("expected node label value = %s, got = %s", directCSIDrive.Status.NodeName, nodeLabelV)
 	}
 
-	if createdByLabelV := utils.GetLabelV(&directCSIDrive, utils.CreatedByLabel); createdByLabelV != "directcsi-driver" {
+	if createdByLabelV := getLabelValue(&directCSIDrive, string(utils.CreatedByLabelKey)); createdByLabelV != "directcsi-driver" {
 		t.Errorf("expected created-by label value = directcsi-driver, got = %s", createdByLabelV)
 	}
 
-	if accessTierLabelV := utils.GetLabelV(&directCSIDrive, utils.AccessTierLabel); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
+	if accessTierLabelV := getLabelValue(&directCSIDrive, string(utils.AccessTierLabelKey)); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
 		t.Errorf("expected access-tier label value = %s, got = %s", string(directCSIDrive.Status.AccessTier), accessTierLabelV)
 	}
 }

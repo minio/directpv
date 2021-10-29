@@ -97,7 +97,7 @@ func listVolumes(ctx context.Context, args []string) error {
 	wrappedVolumeList := directcsi.DirectCSIVolumeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
-			APIVersion: utils.DirectCSIGroupVersion,
+			APIVersion: string(utils.DirectCSIVersionLabelKey),
 		},
 		Items: volumeList,
 	}
@@ -138,14 +138,14 @@ func listVolumes(ctx context.Context, args []string) error {
 	for _, volume := range volumeList {
 		row := []interface{}{
 			volume.Name, //VOLUME
-			printableBytes(volume.Status.TotalCapacity),                       //CAPACITY
-			volume.Status.NodeName,                                            //SERVER
-			driveName(utils.GetLabelV(&volume, utils.ReservedDrivePathLabel)), //DRIVE
+			printableBytes(volume.Status.TotalCapacity),                        //CAPACITY
+			volume.Status.NodeName,                                             //SERVER
+			driveName(getLabelValue(&volume, string(utils.DrivePathLabelKey))), //DRIVE
 			printableString(volume.Labels[directcsi.Group+"/pod.name"]),
 			printableString(volume.Labels[directcsi.Group+"/pod.namespace"]),
 		}
 		if wide {
-			row = append(row, utils.GetLabelV(&volume, utils.DriveLabel))
+			row = append(row, getLabelValue(&volume, string(utils.DriveLabelKey)))
 		}
 		t.AppendRow(row)
 	}

@@ -170,14 +170,6 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		size = req.GetCapacityRange().GetRequiredBytes()
 	}
 
-	labels := map[string]string{
-		utils.NodeLabel:              utils.SanitizeLabelV(drive.Status.NodeName),
-		utils.ReservedDrivePathLabel: utils.SanitizeDrivePath(drive.Status.Path),
-		utils.DriveLabel:             utils.SanitizeLabelV(drive.Name),
-		utils.VersionLabel:           directcsi.Version,
-		utils.CreatedByLabel:         "directcsi-controller",
-	}
-
 	newVolume := &directcsi.DirectCSIVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
@@ -185,7 +177,6 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				directcsi.DirectCSIVolumeFinalizerPVProtection,
 				directcsi.DirectCSIVolumeFinalizerPurgeProtection,
 			},
-			Labels: labels,
 		},
 		Status: directcsi.DirectCSIVolumeStatus{
 			Drive:             drive.Name,
@@ -219,6 +210,15 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		},
 	}
 
+	labels := map[utils.LabelKey]utils.LabelValue{
+		utils.NodeLabelKey:      utils.NewLabelValue(drive.Status.NodeName),
+		utils.DrivePathLabelKey: utils.NewLabelValue(utils.SanitizeDrivePath(drive.Status.Path)),
+		utils.DriveLabelKey:     utils.NewLabelValue(drive.Name),
+		utils.VersionLabelKey:   directcsi.Version,
+		utils.CreatedByLabelKey: utils.DirectCSIControllerName,
+	}
+	utils.UpdateLabels(newVolume, labels)
+
 	volumeInterface := c.directcsiClient.DirectV1beta3().DirectCSIVolumes()
 	if _, err := volumeInterface.Create(ctx, newVolume, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -232,7 +232,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
 
-		volume.SetLabels(labels)
+		utils.SetLabels(volume, labels)
 		volume.Finalizers = newVolume.Finalizers
 		volume.Status = newVolume.Status
 		_, err = volumeInterface.Update(

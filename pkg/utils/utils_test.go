@@ -37,7 +37,7 @@ func TestWriteObject(t *testing.T) {
 		Name:      SanitizeKubeResourceName("direct.csi.min.io"),
 		Namespace: SanitizeKubeResourceName("direct.csi.min.io"),
 		Annotations: map[string]string{
-			CreatedByLabel: "kubectl/direct-csi",
+			string(CreatedByLabelKey): "kubectl/direct-csi",
 		},
 		Labels: map[string]string{
 			"app":  "direct.csi.min.io",
