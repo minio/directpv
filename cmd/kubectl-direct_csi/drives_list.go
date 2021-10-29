@@ -214,19 +214,17 @@ func listDrives(ctx context.Context, args []string) error {
 
 		status := d.Status.DriveStatus
 		msg := ""
-		if d.Status.DriveStatus != directcsi.DriveStatusReleased {
-			for _, c := range d.Status.Conditions {
-				switch c.Type {
-				case string(directcsi.DirectCSIDriveConditionInitialized), string(directcsi.DirectCSIDriveConditionOwned):
-					if c.Status != metav1.ConditionTrue {
-						msg = c.Message
-						if msg != "" {
-							status = d.Status.DriveStatus + "*"
-							msg = strings.ReplaceAll(msg, d.Name, "")
-							msg = strings.ReplaceAll(msg, sys.GetDirectCSIPath(d.Status.FilesystemUUID), drive)
-							msg = strings.ReplaceAll(msg, directCSIPartitionInfix, "")
-							msg = strings.Split(msg, "\n")[0]
-						}
+		for _, c := range d.Status.Conditions {
+			switch c.Type {
+			case string(directcsi.DirectCSIDriveConditionInitialized), string(directcsi.DirectCSIDriveConditionOwned):
+				if c.Status != metav1.ConditionTrue {
+					msg = c.Message
+					if msg != "" {
+						status = d.Status.DriveStatus + "*"
+						msg = strings.ReplaceAll(msg, d.Name, "")
+						msg = strings.ReplaceAll(msg, sys.GetDirectCSIPath(d.Status.FilesystemUUID), drive)
+						msg = strings.ReplaceAll(msg, directCSIPartitionInfix, "")
+						msg = strings.Split(msg, "\n")[0]
 					}
 				}
 			}

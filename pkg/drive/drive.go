@@ -251,9 +251,59 @@ func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.D
 	return err
 }
 
+func (handler *driveEventHandler) release(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+	err := handler.mounter.UnmountDrive(sys.GetDirectCSIPath(drive.Status.FilesystemUUID))
+	if err != nil {
+		err = fmt.Errorf("failed to release drive %s; %w", drive.Name, err)
+		klog.Error(err)
+	} else {
+		drive.Status.DriveStatus = directcsi.DriveStatusAvailable
+		drive.Finalizers = []string{}
+		utils.UpdateCondition(
+			drive.Status.Conditions,
+			string(directcsi.DirectCSIDriveConditionMounted),
+			metav1.ConditionFalse,
+			string(directcsi.DirectCSIDriveReasonAdded),
+			"",
+		)
+	}
+
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+
+	utils.UpdateCondition(
+		drive.Status.Conditions,
+		string(directcsi.DirectCSIDriveConditionOwned),
+		metav1.ConditionFalse,
+		string(directcsi.DirectCSIDriveReasonAdded),
+		message,
+	)
+
+	if _, uErr := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
+		ctx, drive, metav1.UpdateOptions{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+		},
+	); uErr != nil {
+		if err == nil {
+			err = uErr
+		}
+	}
+
+	return err
+}
+
 func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
 	klog.V(5).Infof("drive update called on %s", drive.Name)
 
+	// Release the drive
+	if drive.Status.DriveStatus == directcsi.DriveStatusReleased {
+		klog.V(3).Infof("releasing drive %s", drive.Name)
+		return handler.release(ctx, drive)
+	}
+
+	// Format the drive
 	if drive.Spec.DirectCSIOwned && drive.Spec.RequestedFormat != nil {
 		klog.V(3).Infof("owning and formatting drive %s", drive.Name)
 

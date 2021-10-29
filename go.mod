@@ -8,7 +8,6 @@ require (
 	github.com/dswarbrick/smart v0.0.0-20190505152634-909a45200d6d
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fatih/color v1.12.0
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/go-openapi/spec v0.19.5
 	github.com/go-openapi/strfmt v0.19.3 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
@@ -18,11 +17,13 @@ require (
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.0.5
+	github.com/jteeuwen/go-bindata v3.0.7+incompatible // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mb0/glob v0.0.0-20160210091149-1eb79d2de6c4
 	github.com/minio/pkg v1.1.2
 	github.com/minio/sha256-simd v1.0.0
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.13.0 // indirect

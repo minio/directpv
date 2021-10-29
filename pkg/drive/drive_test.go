@@ -436,3 +436,87 @@ func TestDriveDelete(t *testing.T) {
 		})
 	}
 }
+
+func TestDriveRelease(t *testing.T) {
+	driveObject := directcsi.DirectCSIDrive{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-drive",
+			Finalizers: []string{
+				string(directcsi.DirectCSIDriveFinalizerDataProtection),
+			},
+		},
+		Spec: directcsi.DirectCSIDriveSpec{
+			DirectCSIOwned: false,
+		},
+		Status: directcsi.DirectCSIDriveStatus{
+			NodeName:    "test-node",
+			DriveStatus: directcsi.DriveStatusReady,
+			Path:        "/drive/path",
+			Conditions: []metav1.Condition{
+				{
+					Type:               string(directcsi.DirectCSIDriveConditionOwned),
+					Status:             metav1.ConditionTrue,
+					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIDriveConditionMounted),
+					Status:             metav1.ConditionTrue,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIDriveConditionFormatted),
+					Status:             metav1.ConditionTrue,
+					Message:            "xfs",
+					Reason:             string(directcsi.DirectCSIDriveReasonNotAdded),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIDriveConditionInitialized),
+					Status:             metav1.ConditionTrue,
+					Message:            "initialized",
+					Reason:             string(directcsi.DirectCSIDriveReasonInitialized),
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		},
+	}
+
+	ctx := context.TODO()
+	dl := createFakeDriveEventListener()
+	dl.directCSIClient = clientsetfake.NewSimpleClientset(&driveObject)
+	directCSIClient := dl.directCSIClient.DirectV1beta3()
+
+	newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, "test-drive", metav1.GetOptions{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+	})
+	if dErr != nil {
+		t.Fatalf("Error while getting the drive object: %+v", dErr)
+	}
+
+	if err := dl.release(ctx, newObj); err != nil {
+		t.Errorf("Error while invoking the update listener: %+v", err)
+	}
+
+	csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, "test-drive", metav1.GetOptions{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+	})
+	if dErr != nil {
+		t.Fatalf("Error while fetching the drive object: %+v", dErr)
+	}
+
+	if csiDrive.Status.DriveStatus != directcsi.DriveStatusAvailable {
+		t.Errorf("Drive is not in 'available' state after releasing. Current status: %s", csiDrive.Status.DriveStatus)
+	}
+
+	if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionOwned), metav1.ConditionFalse, string(directcsi.DirectCSIDriveReasonAdded), "") {
+		t.Errorf("Incorrect %s condition in: %v", string(directcsi.DirectCSIDriveConditionOwned), csiDrive.Status.Conditions)
+	}
+
+	if !utils.IsCondition(csiDrive.Status.Conditions, string(directcsi.DirectCSIDriveConditionMounted), metav1.ConditionFalse, string(directcsi.DirectCSIDriveReasonAdded), "") {
+		t.Errorf("Incorrect %s condition in: %v", string(directcsi.DirectCSIDriveConditionMounted), csiDrive.Status.Conditions)
+	}
+}

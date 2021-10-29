@@ -118,6 +118,12 @@ func releaseDrives(ctx context.Context, IDArgs []string) error {
 				klog.Errorf("%s already in 'released' state", utils.Bold(driveAddr))
 				return false
 			}
+
+			if drive.Status.DriveStatus != directcsi.DriveStatusReady {
+				driveAddr := fmt.Sprintf("%s:/dev/%s", drive.Status.NodeName, driveName(drive.Status.Path))
+				klog.Errorf("%s in '%s' state. only 'ready' drives can be released", utils.Bold(driveAddr), string(drive.Status.DriveStatus))
+				return false
+			}
 			return true
 		},
 		func(drive *directcsi.DirectCSIDrive) error {

@@ -19,6 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,6 +34,7 @@ spec:
           metadata:
             type: object
           spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
               directCSIOwned:
                 description: required
@@ -42,6 +44,7 @@ spec:
                   type: string
                 type: object
               requestedFormat:
+                description: RequestedFormat denotes drive format request information.
                 properties:
                   filesystem:
                     type: string
@@ -61,6 +64,7 @@ spec:
             - directCSIOwned
             type: object
           status:
+            description: DirectCSIDriveStatus denotes drive information.
             properties:
               allocatedCapacity:
                 format: int64
@@ -138,6 +142,7 @@ spec:
                 - type
                 x-kubernetes-list-type: map
               driveStatus:
+                description: DriveStatus denotes drive status.
                 type: string
               filesystem:
                 type: string
@@ -188,6 +193,7 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -202,6 +208,7 @@ spec:
           metadata:
             type: object
           spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
               directCSIOwned:
                 description: required
@@ -211,6 +218,7 @@ spec:
                   type: string
                 type: object
               requestedFormat:
+                description: RequestedFormat denotes drive format request information.
                 properties:
                   filesystem:
                     type: string
@@ -230,8 +238,10 @@ spec:
             - directCSIOwned
             type: object
           status:
+            description: DirectCSIDriveStatus denotes drive information.
             properties:
               accessTier:
+                description: AccessTier denotes access tier.
                 type: string
               allocatedCapacity:
                 format: int64
@@ -309,6 +319,7 @@ spec:
                 - type
                 x-kubernetes-list-type: map
               driveStatus:
+                description: DriveStatus denotes drive status.
                 type: string
               filesystem:
                 type: string
@@ -359,6 +370,7 @@ spec:
   - name: v1beta2
     schema:
       openAPIV3Schema:
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -373,6 +385,7 @@ spec:
           metadata:
             type: object
           spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
               directCSIOwned:
                 description: required
@@ -382,6 +395,7 @@ spec:
                   type: string
                 type: object
               requestedFormat:
+                description: RequestedFormat denotes drive format request information.
                 properties:
                   filesystem:
                     type: string
@@ -401,8 +415,10 @@ spec:
             - directCSIOwned
             type: object
           status:
+            description: DirectCSIDriveStatus denotes drive information.
             properties:
               accessTier:
+                description: AccessTier denotes access tier.
                 type: string
               allocatedCapacity:
                 format: int64
@@ -480,6 +496,7 @@ spec:
                 - type
                 x-kubernetes-list-type: map
               driveStatus:
+                description: DriveStatus denotes drive status.
                 type: string
               filesystem:
                 type: string
@@ -540,6 +557,7 @@ spec:
   - name: v1beta3
     schema:
       openAPIV3Schema:
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -554,6 +572,7 @@ spec:
           metadata:
             type: object
           spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
               directCSIOwned:
                 description: required
@@ -563,6 +582,7 @@ spec:
                   type: string
                 type: object
               requestedFormat:
+                description: RequestedFormat denotes drive format request information.
                 properties:
                   filesystem:
                     type: string
@@ -582,8 +602,10 @@ spec:
             - directCSIOwned
             type: object
           status:
+            description: DirectCSIDriveStatus denotes drive information.
             properties:
               accessTier:
+                description: AccessTier denotes access tier.
                 type: string
               allocatedCapacity:
                 format: int64
@@ -665,6 +687,7 @@ spec:
               dmUUID:
                 type: string
               driveStatus:
+                description: DriveStatus denotes drive status.
                 type: string
               filesystem:
                 type: string
