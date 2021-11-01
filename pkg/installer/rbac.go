@@ -269,22 +269,6 @@ func createClusterRole(ctx context.Context, identity string, dryRun bool, writer
 					clusterRoleVerbCreate,
 					clusterRoleVerbUpdate,
 					clusterRoleVerbDelete,
-				},
-				Resources: []string{
-					"volumes",
-				},
-				APIGroups: []string{
-					"direct.csi.min.io",
-				},
-			},
-			{
-				Verbs: []string{
-					clusterRoleVerbGet,
-					clusterRoleVerbList,
-					clusterRoleVerbWatch,
-					clusterRoleVerbCreate,
-					clusterRoleVerbUpdate,
-					clusterRoleVerbDelete,
 					clusterRoleVerbPatch,
 				},
 				Resources: []string{

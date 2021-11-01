@@ -19,6 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
+        description: DirectCSIVolume denotes volume CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,6 +34,7 @@ spec:
           metadata:
             type: object
           status:
+            description: DirectCSIVolumeStatus denotes volume information.
             properties:
               availableCapacity:
                 format: int64
@@ -134,6 +136,7 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
+        description: DirectCSIVolume denotes volume CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -148,6 +151,7 @@ spec:
           metadata:
             type: object
           status:
+            description: DirectCSIVolumeStatus denotes volume information.
             properties:
               availableCapacity:
                 format: int64
@@ -249,6 +253,7 @@ spec:
   - name: v1beta2
     schema:
       openAPIV3Schema:
+        description: DirectCSIVolume denotes volume CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -263,6 +268,7 @@ spec:
           metadata:
             type: object
           status:
+            description: DirectCSIVolumeStatus denotes volume information.
             properties:
               availableCapacity:
                 format: int64
@@ -364,6 +370,7 @@ spec:
   - name: v1beta3
     schema:
       openAPIV3Schema:
+        description: DirectCSIVolume denotes volume CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -378,6 +385,7 @@ spec:
           metadata:
             type: object
           status:
+            description: DirectCSIVolumeStatus denotes volume information.
             properties:
               availableCapacity:
                 format: int64

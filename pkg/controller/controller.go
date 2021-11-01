@@ -155,7 +155,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	drive, err := getDrive(ctx, c.directcsiClient.DirectV1beta3().DirectCSIDrives(), req)
+	drive, err := selectDrive(ctx, c.directcsiClient.DirectV1beta3().DirectCSIDrives(), req)
 	if err != nil {
 		return nil, err
 	}
@@ -242,9 +242,9 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, err
 		}
 
-		utils.Eventf(volume, corev1.EventTypeNormal, "directcsi-controller", "volume %v is updated", volume.Name)
+		utils.Eventf(volume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v provisioned", volume.Name)
 	} else {
-		utils.Eventf(newVolume, corev1.EventTypeNormal, "directcsi-controller", "volume %v is created", newVolume.Name)
+		utils.Eventf(newVolume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v is created", newVolume.Name)
 	}
 
 	finalizer := directcsi.DirectCSIDriveFinalizerPrefix + req.GetName()
@@ -264,6 +264,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
+		} else {
+			utils.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
 		}
 	}
 

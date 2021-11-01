@@ -108,7 +108,7 @@ func getFilteredDrives(
 	return drives, nil
 }
 
-func getDrive(
+func selectDrive(
 	ctx context.Context,
 	driveInterface clientset.DirectCSIDriveInterface,
 	req *csi.CreateVolumeRequest,

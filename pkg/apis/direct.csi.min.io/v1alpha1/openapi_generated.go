@@ -45,7 +45,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDrive(ref common.Reference
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DirectCSIDrive denotes drive CRD object.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -92,7 +93,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveList(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DirectCSIDriveList denotes list of drives.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -141,7 +143,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveSpec(ref common.Refer
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DirectCSIDriveSpec denotes drive specification.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"requestedFormat": {
 						SchemaProps: spec.SchemaProps{
@@ -184,7 +187,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIDriveStatus(ref common.Ref
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DirectCSIDriveStatus denotes drive information.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"path": {
 						SchemaProps: spec.SchemaProps{
@@ -342,7 +346,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolume(ref common.Referenc
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DirectCSIVolume denotes volume CRD object.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -383,7 +388,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolumeList(ref common.Refe
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DirectCSIVolumeList denotes list of volumes.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -432,7 +438,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_DirectCSIVolumeStatus(ref common.Re
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DirectCSIVolumeStatus denotes volume information.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"drive": {
 						SchemaProps: spec.SchemaProps{
@@ -520,7 +527,8 @@ func schema_pkg_apis_directcsiminio_v1alpha1_RequestedFormat(ref common.Referenc
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "RequestedFormat denotes drive format request information.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"force": {
 						SchemaProps: spec.SchemaProps{
