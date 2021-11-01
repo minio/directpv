@@ -258,7 +258,7 @@ func TestGetDrive(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result, err := getDrive(
+		result, err := selectDrive(
 			context.TODO(),
 			clientsetfake.NewSimpleClientset(testCase.objects...).DirectV1beta3().DirectCSIDrives(),
 			testCase.request,
@@ -292,7 +292,7 @@ func TestGetDrive(t *testing.T) {
 	}
 	request := &csi.CreateVolumeRequest{Name: "volume-1", CapacityRange: &csi.CapacityRange{RequiredBytes: 2 * GiB}}
 
-	result, err := getDrive(
+	result, err := selectDrive(
 		context.TODO(),
 		clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIDrives(),
 		request,
