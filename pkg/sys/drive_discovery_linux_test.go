@@ -494,6 +494,7 @@ func TestNewDevice(t *testing.T) {
 		PTType:       "dos",
 		UeventFSUUID: "1234-ABCD",
 		FSType:       "vfat",
+		FSUUID:       "1234-ABCD",
 	}
 
 	_, case4Event := getCase4DataResult()
@@ -522,6 +523,7 @@ func TestNewDevice(t *testing.T) {
 		PartUUID:     "9a69a545-28c3-441c-a60b-6ed5223b03c3",
 		UeventFSUUID: "4321-FEDC",
 		FSType:       "vfat",
+		FSUUID:       "4321-FEDC",
 	}
 
 	_, case6Event := getCase6DataResult()
@@ -538,6 +540,7 @@ func TestNewDevice(t *testing.T) {
 		PartUUID:     "0959536f-134a-477f-9c02-a7916d034a33",
 		UeventFSUUID: "9b7c849b-387e-43f8-ad5a-b7d68c5c062f",
 		FSType:       "ext4",
+		FSUUID:       "9b7c849b-387e-43f8-ad5a-b7d68c5c062f",
 	}
 
 	_, case7Event := getCase7DataResult()
@@ -554,6 +557,7 @@ func TestNewDevice(t *testing.T) {
 		PartUUID:     "f8b65530-58bb-4464-b257-d3cb2aba034b",
 		UeventFSUUID: "1c9fee93-cc76-4d9d-a1b1-9895c06df6e3",
 		FSType:       "ext4",
+		FSUUID:       "1c9fee93-cc76-4d9d-a1b1-9895c06df6e3",
 	}
 
 	_, case8Event := getCase8DataResult()
@@ -570,6 +574,7 @@ func TestNewDevice(t *testing.T) {
 		PartUUID:     "656b4db9-e2f9-42a6-b09e-9466dcb070dc",
 		UeventFSUUID: "a49f8e69-03fb-4735-b900-91d068fcbb70",
 		FSType:       "ext4",
+		FSUUID:       "a49f8e69-03fb-4735-b900-91d068fcbb70",
 	}
 
 	testCases := []struct {

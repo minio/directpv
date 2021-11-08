@@ -434,6 +434,7 @@ func newDevice(event map[string]string, name string, major, minor int, virtual b
 	device.UeventFSUUID = event["ID_FS_UUID"]
 	device.FSType = event["ID_FS_TYPE"]
 
+	device.FSUUID = device.UeventFSUUID
 	serial, _ := getSerial("/dev/" + name)
 	device.Serial = serial
 
