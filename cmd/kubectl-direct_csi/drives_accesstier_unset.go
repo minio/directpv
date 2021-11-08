@@ -103,5 +103,6 @@ func unsetAccessTier(ctx context.Context) error {
 			return nil
 		},
 		defaultDriveUpdateFunc(directCSIClient),
+		UnSetAcessTier,
 	)
 }

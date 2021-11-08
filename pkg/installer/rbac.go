@@ -31,7 +31,7 @@ import (
 
 // CreateRBACRoles creates SA, ClusterRole and CRBs
 func CreateRBACRoles(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
-	if err := createServiceAccount(ctx, identity, dryRun); err != nil {
+	if err := createServiceAccount(ctx, identity, dryRun, writer); err != nil {
 		return err
 	}
 	if err := createClusterRole(ctx, identity, dryRun, writer); err != nil {
@@ -43,7 +43,7 @@ func CreateRBACRoles(ctx context.Context, identity string, dryRun bool, writer i
 	return nil
 }
 
-func createServiceAccount(ctx context.Context, identity string, dryRun bool) error {
+func createServiceAccount(ctx context.Context, identity string, dryRun bool, writer io.Writer) error {
 	serviceAccount := &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ServiceAccount",
@@ -55,6 +55,9 @@ func createServiceAccount(ctx context.Context, identity string, dryRun bool) err
 		AutomountServiceAccountToken: nil,
 	}
 
+	if err := utils.WriteObject(writer, serviceAccount); err != nil {
+		return err
+	}
 	if dryRun {
 		return utils.LogYAML(serviceAccount)
 	}

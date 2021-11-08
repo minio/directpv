@@ -20,11 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
@@ -63,6 +66,17 @@ var ( // Default direct csi directory where direct csi audit logs are stored.
 
 	// Directory contains below files for audit logs
 	auditDir = "audit"
+)
+
+type Command string
+
+const (
+	SetAcessTier   Command = "setAccessTier"
+	UnSetAcessTier Command = "unSetAccessTier"
+	Format         Command = "format"
+	DriveRelease   Command = "driveRelease"
+	RemoveVolumes  Command = "removeVolumes"
+	RemoveDrives   Command = "removeDrives"
 )
 
 func printableString(s string) string {
@@ -110,7 +124,7 @@ func processFilteredDrives(
 	idArgs []string,
 	matchFunc func(*directcsi.DirectCSIDrive) bool,
 	applyFunc func(*directcsi.DirectCSIDrive) error,
-	processFunc func(context.Context, *directcsi.DirectCSIDrive) error) error {
+	processFunc func(context.Context, *directcsi.DirectCSIDrive) error, command Command) error {
 	var resultCh <-chan utils.ListDriveResult
 	var err error
 	if len(idArgs) > 0 {
@@ -130,6 +144,27 @@ func processFilteredDrives(
 		}
 	}
 
+	defaultAuditDir, err := GetDefaultAuditDir()
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory; %w", err)
+	}
+	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
+		return err
+	}
+
+	file, err := utils.NewSafeFile(fmt.Sprintf("%v/%v-%v", defaultAuditDir, string(command), time.Now().UnixNano()))
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory ; %w", err)
+	}
+
+	defer func() {
+		if cerr := file.Close(); err != nil {
+			klog.Errorf("unable to close file; %w", cerr)
+		} else {
+			err = cerr
+		}
+	}()
+
 	return processDrives(
 		ctx,
 		resultCh,
@@ -141,6 +176,7 @@ func processFilteredDrives(
 		},
 		applyFunc,
 		processFunc,
+		file,
 	)
 }
 
@@ -224,6 +260,7 @@ func processObjects(
 	matchFunc func(runtime.Object) bool,
 	applyFunc func(runtime.Object) error,
 	processFunc func(context.Context, runtime.Object) error,
+	writer io.Writer,
 ) error {
 	stopCh := make(chan struct{})
 	var stopChMu int32
@@ -284,6 +321,9 @@ func processObjects(
 			}
 			continue
 		}
+		if err := utils.WriteObject(writer, result.object); err != nil {
+			return err
+		}
 
 		breakLoop := false
 		select {
@@ -323,6 +363,7 @@ func processVolumes(
 	matchFunc func(*directcsi.DirectCSIVolume) bool,
 	applyFunc func(*directcsi.DirectCSIVolume) error,
 	processFunc func(context.Context, *directcsi.DirectCSIVolume) error,
+	writer io.Writer,
 ) error {
 	objectCh := make(chan objectResult)
 	go func() {
@@ -356,6 +397,7 @@ func processVolumes(
 		func(ctx context.Context, object runtime.Object) error {
 			return processFunc(ctx, object.(*directcsi.DirectCSIVolume))
 		},
+		writer,
 	)
 }
 
@@ -365,6 +407,7 @@ func processDrives(
 	matchFunc func(*directcsi.DirectCSIDrive) bool,
 	applyFunc func(*directcsi.DirectCSIDrive) error,
 	processFunc func(context.Context, *directcsi.DirectCSIDrive) error,
+	writer io.Writer,
 ) error {
 	objectCh := make(chan objectResult)
 	go func() {
@@ -398,6 +441,7 @@ func processDrives(
 		func(ctx context.Context, object runtime.Object) error {
 			return processFunc(ctx, object.(*directcsi.DirectCSIDrive))
 		},
+		writer,
 	)
 }
 
