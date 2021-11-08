@@ -19,6 +19,9 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -67,6 +70,26 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 		return err
 	}
 
+	defaultAuditDir, err := GetDefaultAuditDir()
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory; %w", err)
+	}
+	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
+		return err
+	}
+	file, err := utils.NewSafeFile(fmt.Sprintf("%v/%v-%v", defaultAuditDir, string(RemoveVolumes), time.Now().UnixNano()))
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory ; %w", err)
+	}
+
+	defer func() {
+		if cerr := file.Close(); err != nil {
+			klog.Errorf("unable to close file; %w", cerr)
+		} else {
+			err = cerr
+		}
+	}()
+
 	err = processVolumes(
 		ctx,
 		resultCh,
@@ -89,6 +112,7 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 			}
 			return nil
 		},
+		file,
 	)
 
 	if errors.Is(err, errForceRequired) {
@@ -110,6 +134,25 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 		}
 		return err
 	}
+	defaultAuditDir, err := GetDefaultAuditDir()
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory; %w", err)
+	}
+	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
+		return err
+	}
+	file, err := utils.NewSafeFile(fmt.Sprintf("%v/%v-%v", defaultAuditDir, string(RemoveDrives), time.Now().UnixNano()))
+	if err != nil {
+		return fmt.Errorf("unable to get default audit directory ; %w", err)
+	}
+
+	defer func() {
+		if cerr := file.Close(); err != nil {
+			klog.Errorf("unable to close file; %w", cerr)
+		} else {
+			err = cerr
+		}
+	}()
 
 	err = processDrives(
 		ctx,
@@ -136,6 +179,7 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 			}
 			return nil
 		},
+		file,
 	)
 
 	if errors.Is(err, errForceRequired) {

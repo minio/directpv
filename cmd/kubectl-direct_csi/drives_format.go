@@ -149,5 +149,6 @@ func formatDrives(ctx context.Context, IDArgs []string) error {
 			return nil
 		},
 		defaultDriveUpdateFunc(directCSIClient),
+		Format,
 	)
 }
