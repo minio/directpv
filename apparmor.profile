@@ -29,8 +29,8 @@ profile direct-csi flags=(attach_disconnected,mediate_deleted) {
   deny /srv/** wl,
   deny /tmp/** wl,
   deny /sys/** wl,
-  deny /dev/**, wl,
-  deny /run/udev/data/**, wl,
+  deny /dev/** wl,
+  deny /run/udev/data/** wl,
   # deny /usr/** wl,
 
   # allow direct-csi directory to be writeable
