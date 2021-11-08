@@ -84,13 +84,7 @@ function uninstall_directcsi() {
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
     done
 
-    while true; do
-        echo "$ME: waiting for direct-csi-min-io namespace to be removed"
-        sleep 5
-        if ! kubectl get namespace direct-csi-min-io --no-headers | grep -q .; then
-            return 0
-        fi
-    done
+    wait_namespace_removal
 }
 
 # usage: check_drives_state <state>
@@ -165,5 +159,15 @@ function uninstall_minio() {
         fi
         echo "$ME: waiting for ${count} drives to be released"
         sleep 5
+    done
+}
+
+function wait_namespace_removal() {
+    while true; do
+        echo "$ME: waiting for direct-csi-min-io namespace to be removed"
+        sleep 5
+        if ! kubectl get namespace direct-csi-min-io --no-headers | grep -q .; then
+            return 0
+        fi
     done
 }

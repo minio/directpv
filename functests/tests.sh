@@ -72,13 +72,7 @@ function do_upgrade_test() {
     kubectl get pods -n direct-csi-min-io
 
     if [[ $1 != "1.3.6" ]]; then
-        while true; do
-            echo "$ME: waiting for direct-csi-min-io namespace to be removed"
-            sleep 5
-            if ! kubectl get namespace direct-csi-min-io --no-headers | grep -q .; then
-                return 0
-            fi
-        done
+        wait_namespace_removal
     fi
 
     export DIRECT_CSI_CLIENT=./kubectl-direct_csi
