@@ -262,7 +262,7 @@ func FindDevices(ctx context.Context, loopBackOnly bool) ([]BlockDevice, error) 
 		if info.Name() != "uevent" {
 			return nil
 		}
-		drive, err := parseUevent(path)
+		drive, _, err := parseUevent(path)
 		if err != nil {
 			klog.V(5).Info(err)
 			return nil
@@ -431,18 +431,19 @@ func subsystem(path string) (string, error) {
 	return filepath.Base(link), nil
 }
 
-func parseUevent(path string) (*BlockDevice, error) {
+func parseUevent(path string) (*BlockDevice, uint32, error) {
+	var partNum uint32
 	if filepath.Base(path) != "uevent" {
-		return nil, fmt.Errorf("not a uevent file")
+		return nil, partNum, fmt.Errorf("not a uevent file")
 	}
 
 	uevent, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, partNum, err
 	}
 
 	uev := string(uevent)
-	var major, minor, devname, devtype string
+	var major, minor, devname, devtype, partn string
 
 	lines := strings.Split(uev, "\n")
 	for _, line := range lines {
@@ -452,7 +453,7 @@ func parseUevent(path string) (*BlockDevice, error) {
 		cleanLine := strings.TrimSpace(line)
 		parts := strings.Split(cleanLine, "=")
 		if len(parts) != 2 {
-			return nil, fmt.Errorf("uevent file format not supported: %s", path)
+			return nil, partNum, fmt.Errorf("uevent file format not supported: %s", path)
 		}
 		key := parts[0]
 		value := parts[1]
@@ -465,18 +466,30 @@ func parseUevent(path string) (*BlockDevice, error) {
 			devname = value
 		case "DEVTYPE":
 			devtype = value
+		case "PARTN":
+			partn = value
+		case "PARTNAME":
 		default:
-			return nil, fmt.Errorf("uevent file format not supported: %s", path)
+			return nil, partNum, fmt.Errorf("uevent file format not supported: %s", path)
 		}
 	}
 	majorNum64, err := strconv.ParseUint(major, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("invalid major num: %s", major)
+		return nil, partNum, fmt.Errorf("invalid major num: %s. error: %v", major, err)
 	}
 	minorNum64, err := strconv.ParseUint(minor, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("invalid minor num: %s", minor)
+		return nil, partNum, fmt.Errorf("invalid minor num: %s. error: %v", minor, err)
 	}
+
+	if devtype == "partition" {
+		partNum64, err := strconv.ParseUint(partn, 10, 32)
+		if err != nil {
+			return nil, partNum, fmt.Errorf("invalid partnum: %s. error: %v", partn, err)
+		}
+		partNum = uint32(partNum64)
+	}
+
 	majorNum := uint32(majorNum64)
 	minorNum := uint32(minorNum64)
 
@@ -487,7 +500,7 @@ func parseUevent(path string) (*BlockDevice, error) {
 			Major: majorNum,
 			Minor: minorNum,
 		},
-	}, nil
+	}, partNum, nil
 }
 
 func (b *BlockDevice) getBlockSizes() (uint64, uint64, error) {
