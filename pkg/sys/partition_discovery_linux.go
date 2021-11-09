@@ -21,6 +21,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
@@ -93,7 +95,11 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 		if !p.Is() {
 			continue
 		}
-		partNum := uint32(i+1) + b.Minor
+		ueventInfo, partNum, err := parseUevent(partitionUeventPath(b.Devname, uint32(i+1)))
+		if err != nil {
+			klog.V(5).Info(err)
+			return nil, err
+		}
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
 
 		part := Partition{
@@ -105,10 +111,10 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 				TotalCapacity:     b.LogicalBlockSize * uint64(p.NumSectors),
 				NumBlocks:         uint64(p.NumSectors),
 				Path:              partitionPath,
-				Major:             b.DriveInfo.Major,
-				Minor:             uint32(partNum),
+				Major:             ueventInfo.Major,
+				Minor:             ueventInfo.Minor,
 			},
-			PartitionNum: uint32(partNum),
+			PartitionNum: partNum,
 			// Type:          p.PartitionType,
 			// TypeUUID:      "",
 			// PartitionGUID: "",
@@ -142,7 +148,11 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 		if !p.Is() {
 			continue
 		}
-		partNum := b.Minor + uint32(i+1)
+		ueventInfo, partNum, err := parseUevent(partitionUeventPath(b.Devname, uint32(i+1)))
+		if err != nil {
+			klog.V(5).Info(err)
+			return nil, err
+		}
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
 
 		part := Partition{
@@ -154,10 +164,10 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 				TotalCapacity:     b.LogicalBlockSize * uint64(p.NumSectors),
 				NumBlocks:         uint64(p.NumSectors),
 				Path:              partitionPath,
-				Major:             b.DriveInfo.Major,
-				Minor:             uint32(partNum),
+				Major:             ueventInfo.Major,
+				Minor:             ueventInfo.Minor,
 			},
-			PartitionNum: uint32(partNum),
+			PartitionNum: partNum,
 			// Type:          p.PartitionType,
 			// TypeUUID:      "",
 			// PartitionGUID: "",
@@ -191,7 +201,11 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 		if !p.Is() {
 			continue
 		}
-		partNum := b.Minor + uint32(i+1)
+		ueventInfo, partNum, err := parseUevent(partitionUeventPath(b.Devname, uint32(i+1)))
+		if err != nil {
+			klog.V(5).Info(err)
+			return nil, err
+		}
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
 
 		part := Partition{
@@ -203,10 +217,10 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 				TotalCapacity:     b.LogicalBlockSize * uint64(p.NumSectors),
 				NumBlocks:         uint64(p.NumSectors),
 				Path:              partitionPath,
-				Major:             b.DriveInfo.Major,
-				Minor:             uint32(partNum),
+				Major:             ueventInfo.Major,
+				Minor:             ueventInfo.Minor,
 			},
-			PartitionNum: uint32(partNum),
+			PartitionNum: partNum,
 			// Type:          p.PartitionType,
 			// TypeUUID:      "",
 			// PartitionGUID: "",
@@ -273,8 +287,12 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 		if partType == "" {
 			partType = partTypeUUID
 		}
+		ueventInfo, partNum, err := parseUevent(partitionUeventPath(b.Devname, uint32(i+1)))
+		if err != nil {
+			klog.V(5).Info(err)
+			return nil, err
+		}
 
-		partNum := b.Minor + uint32(i+1)
 		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
 
 		part := Partition{
@@ -286,10 +304,10 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 				TotalCapacity:     (lba.End - lba.Start) * b.LogicalBlockSize,
 				NumBlocks:         lba.End - lba.Start,
 				Path:              partitionPath,
-				Major:             b.DriveInfo.Major,
-				Minor:             uint32(partNum),
+				Major:             ueventInfo.Major,
+				Minor:             ueventInfo.Minor,
 			},
-			PartitionNum:  uint32(partNum),
+			PartitionNum:  partNum,
 			Type:          partType,
 			TypeUUID:      partTypeUUID,
 			PartitionGUID: stringifyUUID(lba.PartitionGUID),
@@ -298,6 +316,21 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 		partitions = append(partitions, part)
 	}
 	return partitions, nil
+}
+
+func partitionUeventPath(rootDevName string, partNum uint32) string {
+	partSubPath := fmt.Sprintf("%s%d", rootDevName, partNum)
+	if strings.HasPrefix(rootDevName, "nvme") {
+		partSubPath = fmt.Sprintf("%sp%d", rootDevName, partNum)
+	}
+
+	return filepath.Join(
+		"/sys",
+		"block",
+		rootDevName,
+		partSubPath,
+		"uevent",
+	)
 }
 
 func stringifyUUID(uuid [16]byte) string {
