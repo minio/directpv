@@ -587,7 +587,7 @@ func TestUpdateDriveProperties(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result, updated := updateDriveProperties(testCase.drive, testCase.device)
+		result, updated, _ := updateDriveProperties(testCase.drive, testCase.device)
 		if updated != testCase.expectedUpdated {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedUpdated, updated)
 		}

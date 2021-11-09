@@ -21,6 +21,7 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
+	"github.com/minio/direct-csi/pkg/utils"
 )
 
 func isDOSPTType(ptType string) bool {
@@ -152,7 +153,8 @@ func matchDeviceNameSize(drive directcsi.DirectCSIDrive, device *sys.Device) boo
 	return true
 }
 
-func updateDriveProperties(drive directcsi.DirectCSIDrive, device *sys.Device) (directcsi.DirectCSIDrive, bool) {
+func updateDriveProperties(drive directcsi.DirectCSIDrive, device *sys.Device) (directcsi.DirectCSIDrive, bool, bool) {
+	nameChanged := false
 	updated := false
 
 	if !sys.FSTypeEqual(drive.Status.Filesystem, device.FSType) {
@@ -192,6 +194,11 @@ func updateDriveProperties(drive directcsi.DirectCSIDrive, device *sys.Device) (
 
 	if drive.Status.Path != "/dev/"+device.Name {
 		drive.Status.Path = "/dev/" + device.Name
+		if drive.Labels == nil {
+			drive.Labels = map[string]string{}
+		}
+		drive.Labels[utils.DrivePathLabel] = utils.SanitizeDrivePath(device.Name)
+		nameChanged = true
 		updated = true
 	}
 
@@ -300,5 +307,5 @@ func updateDriveProperties(drive directcsi.DirectCSIDrive, device *sys.Device) (
 		updated = true
 	}
 
-	return drive, updated
+	return drive, updated, nameChanged
 }
