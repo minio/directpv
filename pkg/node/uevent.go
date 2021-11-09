@@ -21,6 +21,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 )
 
@@ -69,12 +71,48 @@ func (handler *ueventHandler) syncDrive(
 
 		delete(devices, device.Name)
 
-		var updated bool
-		if drive, updated = updateDriveProperties(drive, device); updated {
-			if _, err := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
+		var updated, nameChanged bool
+		if drive, updated, nameChanged = updateDriveProperties(drive, device); updated {
+			_, err := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
 				ctx, &drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
-			); err != nil {
+			)
+			if err != nil {
 				klog.ErrorS(err, "unable to update drive by "+matchName, "Path", drive.Status.Path, "device.Name", device.Name)
+			}
+
+			if err == nil && nameChanged {
+				volumeInterface := handler.directCSIClient.DirectV1beta3().DirectCSIVolumes()
+
+				updateLabels := func(volumeName, driveName string) func() error {
+					return func() error {
+						volume, err := volumeInterface.Get(
+							ctx, volumeName, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+						)
+						if err != nil {
+							return err
+						}
+
+						volume.Labels[utils.ReservedDrivePathLabel] = driveName
+						_, err = volumeInterface.Update(
+							ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+						)
+						return err
+					}
+				}
+
+				for _, finalizer := range drive.GetFinalizers() {
+					if !strings.HasPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix) {
+						continue
+					}
+
+					volumeName := strings.TrimPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix)
+					go func() {
+						err := retry.RetryOnConflict(retry.DefaultRetry, updateLabels(volumeName, utils.SanitizeDrivePath(drive.Status.Path)))
+						if err != nil {
+							klog.ErrorS(err, "unable to update volume %v", volumeName)
+						}
+					}()
+				}
 			}
 		}
 
