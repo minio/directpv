@@ -78,18 +78,21 @@ for version in "${versions[@]}"; do
         --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
         --input-dirs "${repo}" \
         --output-package "${repo}"
-
-    # client
-    client-gen \
-        --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
-        --input-dirs "${repo}" \
-        --output-package "${REPOSITORY}/pkg/" \
-        --fake-clientset \
-        --clientset-name clientset \
-        --input "direct.csi.min.io/${version}" \
-        --input-base "${REPOSITORY}/pkg/apis"
-
 done
+
+# Prefix direct.csi.min.io/ to each versions.
+arr=("${versions[@]/#/direct.csi.min.io/}")
+# Join array elements with ",".
+input_versions=$(IFS=,; echo "${arr[*]}")
+# client
+client-gen \
+    --go-header-file "${SCRIPT_ROOT}/boilerplate.go.txt" \
+    --input-dirs "${input_dirs}" \
+    --output-package "${REPOSITORY}/pkg/" \
+    --fake-clientset \
+    --clientset-name clientset \
+    --input "${input_versions}" \
+    --input-base "${REPOSITORY}/pkg/apis"
 
 # crd
 controller-gen crd:crdVersions=v1 paths=./...

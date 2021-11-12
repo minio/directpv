@@ -20,6 +20,12 @@ package fake
 
 import (
 	clientset "github.com/minio/direct-csi/pkg/clientset"
+	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
+	fakedirectv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1/fake"
+	directv1beta1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta1"
+	fakedirectv1beta1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta1/fake"
+	directv1beta2 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
+	fakedirectv1beta2 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2/fake"
 	directv1beta3 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	fakedirectv1beta3 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3/fake"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -75,6 +81,21 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 }
 
 var _ clientset.Interface = &Clientset{}
+
+// DirectV1alpha1 retrieves the DirectV1alpha1Client
+func (c *Clientset) DirectV1alpha1() directv1alpha1.DirectV1alpha1Interface {
+	return &fakedirectv1alpha1.FakeDirectV1alpha1{Fake: &c.Fake}
+}
+
+// DirectV1beta1 retrieves the DirectV1beta1Client
+func (c *Clientset) DirectV1beta1() directv1beta1.DirectV1beta1Interface {
+	return &fakedirectv1beta1.FakeDirectV1beta1{Fake: &c.Fake}
+}
+
+// DirectV1beta2 retrieves the DirectV1beta2Client
+func (c *Clientset) DirectV1beta2() directv1beta2.DirectV1beta2Interface {
+	return &fakedirectv1beta2.FakeDirectV1beta2{Fake: &c.Fake}
+}
 
 // DirectV1beta3 retrieves the DirectV1beta3Client
 func (c *Clientset) DirectV1beta3() directv1beta3.DirectV1beta3Interface {
