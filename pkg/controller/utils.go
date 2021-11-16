@@ -86,7 +86,7 @@ func getFilteredDrives(
 	driveInterface clientset.DirectCSIDriveInterface,
 	req *csi.CreateVolumeRequest,
 ) (drives []directcsi.DirectCSIDrive, err error) {
-	resultCh, err := utils.ListDrives(ctx, driveInterface, nil, nil, nil, utils.MaxThreadCount)
+	resultCh, err := utils.ListDrives(ctx, nil, nil, nil, utils.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}

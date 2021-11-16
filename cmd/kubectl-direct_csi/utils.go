@@ -134,7 +134,6 @@ func processFilteredDrives(
 		defer cancelFunc()
 
 		resultCh, err = utils.ListDrives(ctx,
-			driveInterface,
 			nodeSelectorValues,
 			driveSelectorValues,
 			accessTierSelectorValues,
@@ -180,12 +179,11 @@ func processFilteredDrives(
 	)
 }
 
-func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, filterFunc func(directcsi.DirectCSIDrive) bool) ([]directcsi.DirectCSIDrive, error) {
+func getFilteredDriveList(ctx context.Context, filterFunc func(directcsi.DirectCSIDrive) bool) ([]directcsi.DirectCSIDrive, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
 	resultCh, err := utils.ListDrives(ctx,
-		driveInterface,
 		nodeSelectorValues,
 		driveSelectorValues,
 		accessTierSelectorValues,

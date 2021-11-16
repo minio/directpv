@@ -127,7 +127,7 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount)
+	resultCh, err := utils.ListDrives(ctx, nil, nil, nil, utils.MaxThreadCount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil

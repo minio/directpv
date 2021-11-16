@@ -81,7 +81,6 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 	}
 
 	resultCh, err := utils.ListDrives(ctx,
-		d.directcsiClient.DirectV1beta3().DirectCSIDrives(),
 		[]utils.LabelValue{nodeLabelValue},
 		nil,
 		nil,

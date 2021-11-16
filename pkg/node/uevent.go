@@ -158,7 +158,6 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 
 	resultCh, err := utils.ListDrives(
 		ctx,
-		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
 		[]utils.LabelValue{nodeLabelValue},
 		nil,
 		nil,
@@ -254,7 +253,6 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 
 	resultCh, err := utils.ListDrives(
 		ctx,
-		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
 		[]utils.LabelValue{nodeLabelValue},
 		[]utils.LabelValue{drivePathValue},
 		nil,

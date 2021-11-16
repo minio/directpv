@@ -128,7 +128,6 @@ func listDrives(ctx context.Context, args []string) error {
 
 	filteredDrives, err := getFilteredDriveList(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
 			if len(driveStatusList) > 0 {
 				return drive.MatchDriveStatus(driveStatusList)

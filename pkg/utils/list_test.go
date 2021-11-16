@@ -30,7 +30,6 @@ import (
 func TestGetDriveList(t *testing.T) {
 	drives, err := GetDriveList(
 		context.TODO(),
-		clientsetfake.NewSimpleClientset().DirectV1beta3().DirectCSIDrives(),
 		nil, nil, nil,
 	)
 	if err != nil {
@@ -48,7 +47,6 @@ func TestGetDriveList(t *testing.T) {
 	}
 	drives, err = GetDriveList(
 		context.TODO(),
-		clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIDrives(),
 		nil, nil, nil,
 	)
 	if err != nil {

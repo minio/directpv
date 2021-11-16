@@ -25,9 +25,11 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/rest"
 
 	"k8s.io/klog/v2"
 )
@@ -36,14 +38,17 @@ import (
 const MaxThreadCount = 200
 
 var (
-	initialized         int32
-	kubeClient          kubernetes.Interface
-	directCSIClient     directcsi.DirectV1beta3Interface
-	directClientset     direct.Interface
-	apiextensionsClient apiextensions.ApiextensionsV1Interface
-	crdClient           apiextensions.CustomResourceDefinitionInterface
-	discoveryClient     discovery.DiscoveryInterface
-	metadataClient      metadata.Interface
+	initialized               int32
+	kubeClient                kubernetes.Interface
+	directCSIClient           directcsi.DirectV1beta3Interface
+	directClientset           direct.Interface
+	apiextensionsClient       apiextensions.ApiextensionsV1Interface
+	crdClient                 apiextensions.CustomResourceDefinitionInterface
+	discoveryClient           discovery.DiscoveryInterface
+	metadataClient            metadata.Interface
+	directcsiDriveClientset   rest.Interface
+	directcsiVolumeClientset  rest.Interface
+	directcsiGroupVersionKind *schema.GroupVersionKind
 )
 
 // GetKubeClient gets kube client.
@@ -54,6 +59,16 @@ func GetKubeClient() kubernetes.Interface {
 // GetDirectCSIClient gets direct-csi client.
 func GetDirectCSIClient() directcsi.DirectV1beta3Interface {
 	return directCSIClient
+}
+
+// GetUnversionedDirectCSIDriveClientset gets unversioned direct-csi drive clientset.
+func GetUnversionedDirectCSIDriveClientset() rest.Interface {
+	return directcsiDriveClientset
+}
+
+// GetUnversionedDirectCSIVolumeClientset gets unversioned direct-csi volume clientset.
+func GetUnversionedDirectCSIVolumeClientset() rest.Interface {
+	return directcsiVolumeClientset
 }
 
 // GetDirectClientset gets direct-csi clientset.
@@ -109,6 +124,28 @@ func Init() {
 	directCSIClient, err = directcsi.NewForConfig(config)
 	if err != nil {
 		klog.Fatalf("could not initialize direct-csi client: %v", err)
+	}
+
+	directcsiDriveClientset, directcsiGroupVersionKind, err = GetClientForNonCoreGroupKindVersions("direct.csi.min.io",
+		"directcsidrives",
+		"v1beta3",
+		"v1beta2",
+		"v1beta1",
+		"v1alpha1",
+	)
+	if err != nil {
+		klog.V(2).Infof("could not find direct-csi drive crd instalation: %v", err)
+	}
+
+	directcsiVolumeClientset, _, err = GetClientForNonCoreGroupKindVersions("direct.csi.min.io",
+		"directcsivolumes",
+		"v1beta3",
+		"v1beta2",
+		"v1beta1",
+		"v1alpha1",
+	)
+	if err != nil {
+		klog.V(2).Infof("could not find direct-csi volume crd instalation: %v", err)
 	}
 
 	crdClientset, err := apiextensions.NewForConfig(config)

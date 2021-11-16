@@ -81,7 +81,7 @@ type ListDriveResult struct {
 }
 
 // ListDrives lists direct-csi drives.
-func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []LabelValue, maxObjects int64) (<-chan ListDriveResult, error) {
+func ListDrives(ctx context.Context, nodes, drives, accessTiers []LabelValue, maxObjects int64) (<-chan ListDriveResult, error) {
 	labelMap := map[string][]string{
 		DrivePathLabel:  labelValuesToStrings(drives),
 		NodeLabel:       labelValuesToStrings(nodes),
@@ -108,7 +108,7 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 			LabelSelector: labelSelector,
 		}
 		for {
-			result, err := driveInterface.List(ctx, options)
+			result, err := GetDirectCSIClient().DirectCSIDrives().List(ctx, options)
 			if err != nil {
 				send(ListDriveResult{Err: err})
 				return
@@ -132,8 +132,8 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 }
 
 // GetDriveList gets list of drives.
-func GetDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []LabelValue) ([]directcsi.DirectCSIDrive, error) {
-	resultCh, err := ListDrives(ctx, driveInterface, nodes, drives, accessTiers, MaxThreadCount)
+func GetDriveList(ctx context.Context, nodes, drives, accessTiers []LabelValue) ([]directcsi.DirectCSIDrive, error) {
+	resultCh, err := ListDrives(ctx, nodes, drives, accessTiers, MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}

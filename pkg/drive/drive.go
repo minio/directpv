@@ -113,7 +113,6 @@ func (handler *driveEventHandler) getFSUUID(ctx context.Context, drive *directcs
 	// Use new UUID if it is aleady used in another drive.
 	resultCh, err := utils.ListDrives(
 		ctx,
-		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
 		[]utils.LabelValue{nodeLabelValue},
 		nil,
 		nil,
