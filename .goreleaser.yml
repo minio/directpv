@@ -68,17 +68,6 @@ changelog:
 
 dockers:
 - image_templates:
-  - "quay.io/minio/direct-csi:{{ .Tag }}-amd64-rhel7"
-  use: buildx
-  goarch: amd64
-  dockerfile: Dockerfile.rhel7
-  extra_files:
-    - LICENSE
-    - CREDITS
-    - centos7.repo
-  build_flag_templates:
-  - "--platform=linux/amd64"
-- image_templates:
   - "quay.io/minio/direct-csi:{{ .Tag }}-amd64"
   use: buildx
   goarch: amd64
@@ -122,6 +111,3 @@ docker_manifests:
   - quay.io/minio/direct-csi:{{ .Tag }}-amd64
   - quay.io/minio/direct-csi:{{ .Tag }}-arm64
   - quay.io/minio/direct-csi:{{ .Tag }}-ppc64le
-- name_template: quay.io/minio/direct-csi:{{ .Tag }}-rhel7
-  image_templates:
-  - quay.io/minio/direct-csi:{{ .Tag }}-amd64-rhel7
