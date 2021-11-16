@@ -24,8 +24,9 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/json"
 )
 
 type migrateFunc func(fromVersion, toVersion string, Object *unstructured.Unstructured) error
@@ -33,6 +34,22 @@ type migrateFunc func(fromVersion, toVersion string, Object *unstructured.Unstru
 var (
 	errCRDKindNotSupported = errors.New("unsupported CRD Kind")
 )
+
+// ConvertDirectCSIObject converts a runtime.object to a specific version
+func ConvertDirectCSIObject(object runtime.Object, toVersion string) (runtime.Object, error) {
+	objBytes, err := json.Marshal(object)
+	if err != nil {
+		return nil, err
+	}
+	cr := unstructured.Unstructured{}
+	if err := cr.UnmarshalJSON(objBytes); err != nil {
+		return nil, err
+	}
+	if err := migrate(&cr, toVersion); err != nil {
+		return nil, err
+	}
+	return cr.DeepCopyObject(), nil
+}
 
 func convertDriveCRD(Object *unstructured.Unstructured, toVersion string) (*unstructured.Unstructured, metav1.Status) {
 	convertedObject := Object.DeepCopy()
