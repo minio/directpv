@@ -28,7 +28,7 @@ import (
 
 // formatDrive - Idempotent function to format a DirectCSIDrive
 func formatDrive(ctx context.Context, uuid, path string, force bool) error {
-	output, err := format(ctx, path, string(FSTypeXFS), []string{"-i", "maxpct=50"}, force)
+	output, err := format(ctx, path, string(FSTypeXFS), []string{"-i", "maxpct=50", "-m", "reflink=0"}, force)
 	if err != nil {
 		klog.Errorf("failed to format drive: %s", output)
 		return fmt.Errorf("error while formatting: %v output: %s", err, output)
