@@ -358,7 +358,7 @@ func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.D
 }
 
 func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	return client.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), drive, false)
+	return client.DeleteDrive(ctx, handler.directCSIClient, drive, false)
 }
 
 // StartController starts drive event controller.

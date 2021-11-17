@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsiclientset "github.com/minio/direct-csi/pkg/clientset"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -154,10 +155,14 @@ func CreateDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInt
 }
 
 // DeleteDrive deletes drive CRD.
-func DeleteDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, drive *directcsi.DirectCSIDrive, force bool) error {
+func DeleteDrive(ctx context.Context, directCSIClient directcsiclientset.Interface, drive *directcsi.DirectCSIDrive, force bool) error {
+	var err error
+	driveInterface := directCSIClient.DirectV1beta3().DirectCSIDrives()
+	volumeInterface := directCSIClient.DirectV1beta3().DirectCSIVolumes()
 	if drive.Status.DriveStatus != directcsi.DriveStatusTerminating {
 		drive.Status.DriveStatus = directcsi.DriveStatusTerminating
-		if _, err := driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: DirectCSIDriveTypeMeta()}); err != nil {
+		drive, err = driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: DirectCSIDriveTypeMeta()})
+		if err != nil {
 			return err
 		}
 	}
@@ -171,7 +176,8 @@ func DeleteDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInt
 		return driveInterface.Delete(ctx, drive.Name, metav1.DeleteOptions{})
 	}
 
-	switch finalizers := drive.GetFinalizers(); len(finalizers) {
+	finalizers := drive.GetFinalizers()
+	switch len(finalizers) {
 	case 1:
 		if finalizers[0] != directcsi.DirectCSIDriveFinalizerDataProtection {
 			return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/direct-csi/issues")
@@ -187,6 +193,30 @@ func DeleteDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInt
 	case 0:
 		return nil
 	default:
-		return fmt.Errorf("cannot delete drive in use")
+		for _, finalizer := range finalizers {
+			if !strings.HasPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix) {
+				continue
+			}
+			volumeName := strings.TrimPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix)
+			volume, err := volumeInterface.Get(
+				ctx, volumeName, metav1.GetOptions{TypeMeta: DirectCSIVolumeTypeMeta()},
+			)
+			if err != nil {
+				return err
+			}
+			utils.UpdateCondition(volume.Status.Conditions,
+				string(directcsi.DirectCSIVolumeConditionReady),
+				metav1.ConditionFalse,
+				string(directcsi.DirectCSIVolumeReasonNotReady),
+				"[DRIVE LOST] Please refer https://github.com/minio/direct-csi/blob/master/docs/scheduling.md",
+			)
+			_, err = volumeInterface.Update(
+				ctx, volume, metav1.UpdateOptions{TypeMeta: DirectCSIVolumeTypeMeta()},
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 }

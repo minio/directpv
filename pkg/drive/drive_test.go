@@ -419,3 +419,94 @@ func TestDriveRelease(t *testing.T) {
 		t.Errorf("Incorrect %s condition in: %v", string(directcsi.DirectCSIDriveConditionMounted), csiDrive.Status.Conditions)
 	}
 }
+
+func TestInUseDriveDeletion(t *testing.T) {
+	driveObject := directcsi.DirectCSIDrive{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-drive",
+			Finalizers: []string{
+				directcsi.DirectCSIDriveFinalizerPrefix + "test-volume",
+				string(directcsi.DirectCSIDriveFinalizerDataProtection),
+			},
+		},
+		Spec: directcsi.DirectCSIDriveSpec{
+			DirectCSIOwned: false,
+		},
+		Status: directcsi.DirectCSIDriveStatus{
+			NodeName:    "node-1",
+			DriveStatus: directcsi.DriveStatusInUse,
+			Path:        "/drive/path",
+		},
+	}
+	volumeObject := directcsi.DirectCSIVolume{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-volume",
+			Finalizers: []string{
+				string(directcsi.DirectCSIVolumeFinalizerPVProtection),
+				string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
+			},
+		},
+		Status: directcsi.DirectCSIVolumeStatus{
+			NodeName:      "node-1",
+			Drive:         "test-drive",
+			TotalCapacity: int64(100),
+			StagingPath:   "/path/stagingpath",
+			ContainerPath: "/path/containerpath",
+			UsedCapacity:  int64(50),
+			Conditions: []metav1.Condition{
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+					Status:             metav1.ConditionTrue,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+					Status:             metav1.ConditionTrue,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionReady),
+					Status:             metav1.ConditionTrue,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+					LastTransitionTime: metav1.Now(),
+				},
+			},
+		},
+	}
+
+	ctx := context.TODO()
+	dl := createFakeDriveEventListener()
+	dl.directCSIClient = clientsetfake.NewSimpleClientset(&driveObject, &volumeObject)
+	directCSIClient := dl.directCSIClient.DirectV1beta3()
+
+	driveObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, "test-drive", metav1.GetOptions{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+	})
+	if dErr != nil {
+		t.Fatalf("Error while getting the drive object: %+v", dErr)
+	}
+
+	now := metav1.Now()
+	driveObj.ObjectMeta.DeletionTimestamp = &now
+	if err := dl.delete(ctx, driveObj); err != nil {
+		t.Errorf("Error while invoking the delete listener: %+v", err)
+	}
+
+	volumeObj, volErr := directCSIClient.DirectCSIVolumes().Get(ctx, "test-volume", metav1.GetOptions{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+	})
+	if volErr != nil {
+		t.Fatalf("Error while getting the volume object: %+v", volErr)
+	}
+
+	if !utils.IsConditionStatus(volumeObj.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionFalse) {
+		t.Errorf("Incorrect status condition: %v", volumeObj.Status.Conditions)
+	}
+}

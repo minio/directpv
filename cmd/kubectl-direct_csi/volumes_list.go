@@ -117,6 +117,7 @@ func listVolumes(ctx context.Context, args []string) error {
 		"DRIVE",
 		"PODNAME",
 		"PODNAMESPACE",
+		"",
 	}
 	if wide {
 		headers = append(headers, "DRIVENAME")
@@ -137,6 +138,17 @@ func listVolumes(ctx context.Context, args []string) error {
 		return strings.ReplaceAll(dr, sys.HostDevRoot+"/", "")
 	}
 	for _, volume := range volumeList {
+		msg := ""
+		for _, c := range volume.Status.Conditions {
+			switch c.Type {
+			case string(directcsi.DirectCSIVolumeConditionReady):
+				if c.Status != metav1.ConditionTrue {
+					if c.Message != "" {
+						msg = utils.Red("*" + c.Message)
+					}
+				}
+			}
+		}
 		row := []interface{}{
 			volume.Name, //VOLUME
 			printableBytes(volume.Status.TotalCapacity),                        //CAPACITY
@@ -144,6 +156,7 @@ func listVolumes(ctx context.Context, args []string) error {
 			driveName(getLabelValue(&volume, string(utils.DrivePathLabelKey))), //DRIVE
 			printableString(volume.Labels[directcsi.Group+"/pod.name"]),
 			printableString(volume.Labels[directcsi.Group+"/pod.namespace"]),
+			msg,
 		}
 		if wide {
 			row = append(row, getLabelValue(&volume, string(utils.DriveLabelKey)))

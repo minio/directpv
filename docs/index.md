@@ -16,6 +16,7 @@ Documentation
  - [Security](./security.md)
  - [CSI Specification](./specification.md)
  - [Metrics](./metrics.md)
+ - [Troubleshooting](./troubleshooting.md)
 
 <!--- 
  - [Usage Guide](./usage-guide.md)
@@ -23,7 +24,6 @@ Documentation
  
 ### Advanced
  - [Internals](./internals.md)
- - [Troubleshooting](./troubleshooting.md)
 ### Community
  - [Contributing](./contributing.md)
 -->
