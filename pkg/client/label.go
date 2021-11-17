@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package client
 
 import (
 	"fmt"
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
@@ -87,4 +88,26 @@ func NewLabelValue(value string) LabelValue {
 		"value", value, "converted value", result,
 	)
 	return result
+}
+
+// UpdateLabels updates labels in object.
+func UpdateLabels(object metav1.Object, labels map[LabelKey]LabelValue) {
+	values := object.GetLabels()
+	if values == nil {
+		values = make(map[string]string)
+	}
+
+	for key, value := range labels {
+		values[string(key)] = string(value)
+	}
+
+	object.SetLabels(values)
+}
+
+func SetLabels(object metav1.Object, labels map[LabelKey]LabelValue) {
+	values := make(map[string]string)
+	for key, value := range labels {
+		values[string(key)] = string(value)
+	}
+	object.SetLabels(values)
 }

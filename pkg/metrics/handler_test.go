@@ -24,8 +24,8 @@ import (
 	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
-	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -85,7 +85,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 
 	createTestVolume := func(volName string, totalCap, usedCap int64) *directcsi.DirectCSIVolume {
 		return &directcsi.DirectCSIVolume{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			TypeMeta: client.DirectCSIVolumeTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: volName,
 				Labels: map[string]string{
@@ -146,7 +146,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 				switch mt {
 				case metricStatsBytesUsed:
 					volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, volumeName, metav1.GetOptions{
-						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+						TypeMeta: client.DirectCSIVolumeTypeMeta(),
 					})
 					if gErr != nil {
 						(*t).Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
@@ -156,7 +156,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 					}
 				case metricStatsBytesTotal:
 					volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, volumeName, metav1.GetOptions{
-						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+						TypeMeta: client.DirectCSIVolumeTypeMeta(),
 					})
 					if gErr != nil {
 						(*t).Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)

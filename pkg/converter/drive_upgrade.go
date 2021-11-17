@@ -21,7 +21,7 @@ import (
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	directv1beta3 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/client"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -112,11 +112,11 @@ func driveUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error
 	}
 
 	v1beta2DirectCSIDrive.TypeMeta = v1beta1DirectCSIDrive.TypeMeta
-	utils.UpdateLabels(&v1beta2DirectCSIDrive, map[utils.LabelKey]utils.LabelValue{
-		utils.NodeLabelKey:       utils.NewLabelValue(v1beta1DirectCSIDrive.Status.NodeName),
-		utils.PathLabelKey:       utils.NewLabelValue(v1beta1DirectCSIDrive.Status.Path),
-		utils.CreatedByLabelKey:  utils.DirectCSIDriverName,
-		utils.AccessTierLabelKey: utils.NewLabelValue(string(v1beta1DirectCSIDrive.Status.AccessTier)),
+	client.UpdateLabels(&v1beta2DirectCSIDrive, map[client.LabelKey]client.LabelValue{
+		client.NodeLabelKey:       client.NewLabelValue(v1beta1DirectCSIDrive.Status.NodeName),
+		client.PathLabelKey:       client.NewLabelValue(v1beta1DirectCSIDrive.Status.Path),
+		client.CreatedByLabelKey:  client.DirectCSIDriverName,
+		client.AccessTierLabelKey: client.NewLabelValue(string(v1beta1DirectCSIDrive.Status.AccessTier)),
 	})
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta2DirectCSIDrive)
@@ -146,11 +146,11 @@ func driveUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) error
 	}
 
 	v1beta3DirectCSIDrive.TypeMeta = v1beta2DirectCSIDrive.TypeMeta
-	utils.UpdateLabels(&v1beta3DirectCSIDrive, map[utils.LabelKey]utils.LabelValue{
-		utils.NodeLabelKey:       utils.NewLabelValue(v1beta2DirectCSIDrive.Status.NodeName),
-		utils.PathLabelKey:       utils.NewLabelValue(v1beta2DirectCSIDrive.Status.Path),
-		utils.CreatedByLabelKey:  utils.DirectCSIDriverName,
-		utils.AccessTierLabelKey: utils.NewLabelValue(string(v1beta2DirectCSIDrive.Status.AccessTier)),
+	client.UpdateLabels(&v1beta3DirectCSIDrive, map[client.LabelKey]client.LabelValue{
+		client.NodeLabelKey:       client.NewLabelValue(v1beta2DirectCSIDrive.Status.NodeName),
+		client.PathLabelKey:       client.NewLabelValue(v1beta2DirectCSIDrive.Status.Path),
+		client.CreatedByLabelKey:  client.DirectCSIDriverName,
+		client.AccessTierLabelKey: client.NewLabelValue(string(v1beta2DirectCSIDrive.Status.AccessTier)),
 	})
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta3DirectCSIDrive)

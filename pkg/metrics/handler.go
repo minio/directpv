@@ -20,8 +20,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
-	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/klog/v2"
 
@@ -30,7 +30,7 @@ import (
 )
 
 func newMetricsCollector(nodeID string) (*metricsCollector, error) {
-	config, err := utils.GetKubeConfig()
+	config, err := client.GetKubeConfig()
 	if err != nil {
 		return &metricsCollector{}, err
 	}
@@ -72,14 +72,14 @@ func (c *metricsCollector) volumeStatsEmitter(
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListVolumes(
+	resultCh, err := client.ListVolumes(
 		ctx,
 		c.directcsiClient.DirectV1beta3().DirectCSIVolumes(),
-		[]utils.LabelValue{utils.NewLabelValue(c.nodeID)},
+		[]client.LabelValue{client.NewLabelValue(c.nodeID)},
 		nil,
 		nil,
 		nil,
-		utils.MaxThreadCount,
+		client.MaxThreadCount,
 	)
 	if err != nil {
 		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)

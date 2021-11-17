@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/utils"
 )
 
 func isDOSPTType(ptType string) bool {
@@ -197,7 +197,7 @@ func updateDriveProperties(drive directcsi.DirectCSIDrive, device *sys.Device) (
 		if drive.Labels == nil {
 			drive.Labels = map[string]string{}
 		}
-		drive.Labels[string(utils.DriveLabelKey)] = utils.SanitizeDrivePath(device.Name)
+		drive.Labels[string(client.DriveLabelKey)] = client.SanitizeDrivePath(device.Name)
 		nameChanged = true
 		updated = true
 	}

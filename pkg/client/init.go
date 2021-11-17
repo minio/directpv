@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package client
 
 import (
 	"fmt"
 	"os"
 	"sync/atomic"
 
+	"github.com/fatih/color"
 	direct "github.com/minio/direct-csi/pkg/clientset"
 	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 
@@ -44,6 +45,12 @@ var (
 	crdClient           apiextensions.CustomResourceDefinitionInterface
 	discoveryClient     discovery.DiscoveryInterface
 	metadataClient      metadata.Interface
+)
+
+// Color print functions.
+var (
+	Bold = color.New(color.Bold).SprintFunc()
+	Red  = color.New(color.FgRed).SprintFunc()
 )
 
 // GetKubeClient gets kube client.

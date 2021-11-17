@@ -19,11 +19,11 @@ package node
 import (
 	"context"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/drive"
 	"github.com/minio/direct-csi/pkg/metrics"
 	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/utils"
 	"github.com/minio/direct-csi/pkg/volume"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +36,7 @@ import (
 
 // NewNodeServer creates node server.
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, enableDynamicDiscovery bool) (*NodeServer, error) {
-	config, err := utils.GetKubeConfig()
+	config, err := client.GetKubeConfig()
 	if err != nil {
 		return &NodeServer{}, err
 	}
@@ -74,11 +74,11 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	if enableDynamicDiscovery {
 		go startUeventHandler(
 			ctx, nodeID, map[string]string{
-				string(utils.TopologyDriverIdentity): identity,
-				string(utils.TopologyDriverRack):     rack,
-				string(utils.TopologyDriverZone):     zone,
-				string(utils.TopologyDriverRegion):   region,
-				string(utils.TopologyDriverNode):     nodeID,
+				string(client.TopologyDriverIdentity): identity,
+				string(client.TopologyDriverRack):     rack,
+				string(client.TopologyDriverZone):     zone,
+				string(client.TopologyDriverRegion):   region,
+				string(client.TopologyDriverNode):     nodeID,
 			},
 		)
 	}
@@ -104,11 +104,11 @@ type NodeServer struct { //revive:disable-line:exported
 func (ns *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	topology := &csi.Topology{
 		Segments: map[string]string{
-			string(utils.TopologyDriverIdentity): ns.Identity,
-			string(utils.TopologyDriverRack):     ns.Rack,
-			string(utils.TopologyDriverZone):     ns.Zone,
-			string(utils.TopologyDriverRegion):   ns.Region,
-			string(utils.TopologyDriverNode):     ns.NodeID,
+			string(client.TopologyDriverIdentity): ns.Identity,
+			string(client.TopologyDriverRack):     ns.Rack,
+			string(client.TopologyDriverZone):     ns.Zone,
+			string(client.TopologyDriverRegion):   ns.Region,
+			string(client.TopologyDriverNode):     ns.NodeID,
 		},
 	}
 
@@ -154,14 +154,14 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	vclient := directCSIClient.DirectCSIVolumes()
 	dclient := directCSIClient.DirectCSIDrives()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		TypeMeta: client.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
 	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+		TypeMeta: client.DirectCSIDriveTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())

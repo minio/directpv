@@ -20,6 +20,7 @@ import (
 	"context"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -33,17 +34,17 @@ const (
 
 // NewDiscovery creates drive discovery.
 func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region string) (*Discovery, error) {
-	config, err := utils.GetKubeConfig()
+	config, err := client.GetKubeConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	topologies := map[string]string{
-		string(utils.TopologyDriverIdentity): identity,
-		string(utils.TopologyDriverRack):     rack,
-		string(utils.TopologyDriverZone):     zone,
-		string(utils.TopologyDriverRegion):   region,
-		string(utils.TopologyDriverNode):     nodeID,
+		string(client.TopologyDriverIdentity): identity,
+		string(client.TopologyDriverRack):     rack,
+		string(client.TopologyDriverZone):     zone,
+		string(client.TopologyDriverRegion):   region,
+		string(client.TopologyDriverNode):     nodeID,
 	}
 
 	directClientset, err := clientset.NewForConfig(config)
@@ -76,12 +77,12 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListDrives(ctx,
+	resultCh, err := client.ListDrives(ctx,
 		d.directcsiClient.DirectV1beta3().DirectCSIDrives(),
-		[]utils.LabelValue{utils.NewLabelValue(d.NodeID)},
+		[]client.LabelValue{client.NewLabelValue(d.NodeID)},
 		nil,
 		nil,
-		utils.MaxThreadCount,
+		client.MaxThreadCount,
 	)
 	if err != nil {
 		return err
@@ -152,15 +153,15 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 }
 
 func (d *Discovery) createNewDrive(ctx context.Context, localDriveState directcsi.DirectCSIDriveStatus) error {
-	return utils.CreateDrive(
+	return client.CreateDrive(
 		ctx,
 		d.directcsiClient.DirectV1beta3().DirectCSIDrives(),
-		utils.NewDirectCSIDrive(uuid.New().String(), localDriveState),
+		client.NewDirectCSIDrive(uuid.New().String(), localDriveState),
 	)
 }
 
 func (d *Discovery) syncRemoteDrive(ctx context.Context, localDriveState directcsi.DirectCSIDriveStatus, remoteDrive *remoteDrive) error {
-	return d.syncDrive(ctx, utils.NewDirectCSIDrive(remoteDrive.Name, localDriveState))
+	return d.syncDrive(ctx, client.NewDirectCSIDrive(remoteDrive.Name, localDriveState))
 }
 
 func (d *Discovery) findLocalDrives(ctx context.Context, loopBackOnly bool) (map[string]*sys.Device, error) {
@@ -192,7 +193,7 @@ func (d *Discovery) findLocalDrives(ctx context.Context, loopBackOnly bool) (map
 func (d *Discovery) toDirectCSIDriveStatus(devices map[string]*sys.Device) []directcsi.DirectCSIDriveStatus {
 	statusList := []directcsi.DirectCSIDriveStatus{}
 	for _, device := range devices {
-		statusList = append(statusList, utils.NewDirectCSIDriveStatus(device, d.NodeID, d.driveTopology))
+		statusList = append(statusList, client.NewDirectCSIDriveStatus(device, d.NodeID, d.driveTopology))
 	}
 	return statusList
 }

@@ -22,10 +22,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/klog/v2"
 )
@@ -68,7 +67,7 @@ For more information, use '%s man [sched | examples | ...]'
 			return nil
 		}
 
-		utils.Init()
+		client.Init()
 		if !controller && !driver {
 			return fmt.Errorf("one among [--controller, --driver] should be set")
 		}

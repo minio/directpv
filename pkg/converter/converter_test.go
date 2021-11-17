@@ -25,6 +25,7 @@ import (
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	directv1beta3 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -251,7 +252,7 @@ request:
 		t.Errorf("Error while converting %v", err)
 	}
 
-	if nodeLabelV := getLabelValue(&directCSIVolume, string(utils.NodeLabelKey)); nodeLabelV != directCSIVolume.Status.NodeName {
+	if nodeLabelV := getLabelValue(&directCSIVolume, string(client.NodeLabelKey)); nodeLabelV != directCSIVolume.Status.NodeName {
 		t.Errorf("expected node label value = %s, got = %s", directCSIVolume.Status.NodeName, nodeLabelV)
 	}
 
@@ -378,7 +379,7 @@ request:
 		t.Errorf("Error while converting %v", err)
 	}
 
-	if nodeLabelV := getLabelValue(&directCSIVolume, string(utils.NodeLabelKey)); nodeLabelV != directCSIVolume.Status.NodeName {
+	if nodeLabelV := getLabelValue(&directCSIVolume, string(client.NodeLabelKey)); nodeLabelV != directCSIVolume.Status.NodeName {
 		t.Errorf("expected node label value = %s, got = %s", directCSIVolume.Status.NodeName, nodeLabelV)
 	}
 
@@ -497,11 +498,11 @@ request:
 		t.Errorf("expected status.partitionUUID = \"\", actual status.partitionUUID = %v", directCSIDrive.Status.PartitionUUID)
 	}
 
-	if versionLabelV := getLabelValue(&directCSIDrive, string(utils.VersionLabelKey)); versionLabelV != "v1beta1" {
+	if versionLabelV := getLabelValue(&directCSIDrive, string(client.VersionLabelKey)); versionLabelV != "v1beta1" {
 		t.Errorf("expected version label value = v1beta1, got = %s", versionLabelV)
 	}
 
-	if nodeLabelV := getLabelValue(&directCSIDrive, string(utils.NodeLabelKey)); nodeLabelV != directCSIDrive.Status.NodeName {
+	if nodeLabelV := getLabelValue(&directCSIDrive, string(client.NodeLabelKey)); nodeLabelV != directCSIDrive.Status.NodeName {
 		t.Errorf("expected node label value = %s, got = %s", directCSIDrive.Status.NodeName, nodeLabelV)
 	}
 
@@ -509,7 +510,7 @@ request:
 		t.Errorf("expected created-by label value = directcsi-driver, got = %s", createdByLabelV)
 	}
 
-	if accessTierLabelV := getLabelValue(&directCSIDrive, string(utils.AccessTierLabelKey)); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
+	if accessTierLabelV := getLabelValue(&directCSIDrive, string(client.AccessTierLabelKey)); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
 		t.Errorf("expected access-tier label value = %s, got = %s", string(directCSIDrive.Status.AccessTier), accessTierLabelV)
 	}
 }
@@ -619,11 +620,11 @@ request:
 		t.Errorf("expected status.partitionUUID = \"\", actual status.partitionUUID = %v", directCSIDrive.Status.PartitionUUID)
 	}
 
-	if versionLabelV := getLabelValue(&directCSIDrive, string(utils.VersionLabelKey)); versionLabelV != "v1beta2" {
+	if versionLabelV := getLabelValue(&directCSIDrive, string(client.VersionLabelKey)); versionLabelV != "v1beta2" {
 		t.Errorf("expected version label value = v1beta2, got = %s", versionLabelV)
 	}
 
-	if nodeLabelV := getLabelValue(&directCSIDrive, string(utils.NodeLabelKey)); nodeLabelV != directCSIDrive.Status.NodeName {
+	if nodeLabelV := getLabelValue(&directCSIDrive, string(client.NodeLabelKey)); nodeLabelV != directCSIDrive.Status.NodeName {
 		t.Errorf("expected node label value = %s, got = %s", directCSIDrive.Status.NodeName, nodeLabelV)
 	}
 
@@ -631,7 +632,7 @@ request:
 		t.Errorf("expected created-by label value = directcsi-driver, got = %s", createdByLabelV)
 	}
 
-	if accessTierLabelV := getLabelValue(&directCSIDrive, string(utils.AccessTierLabelKey)); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
+	if accessTierLabelV := getLabelValue(&directCSIDrive, string(client.AccessTierLabelKey)); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
 		t.Errorf("expected access-tier label value = %s, got = %s", string(directCSIDrive.Status.AccessTier), accessTierLabelV)
 	}
 }

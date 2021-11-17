@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -58,13 +59,13 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 
 	createTestDrive := func(node, drive, path string, driveStatus directcsi.DriveStatus, accessTier directcsi.AccessTier) *directcsi.DirectCSIDrive {
 		csiDrive := &directcsi.DirectCSIDrive{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      drive,
 				Namespace: metav1.NamespaceNone,
 				Labels: map[string]string{
-					string(utils.NodeLabelKey): string(utils.NewLabelValue(node)),
-					string(utils.PathLabelKey): string(utils.NewLabelValue(utils.SanitizeDrivePath(path))),
+					string(client.NodeLabelKey): string(client.NewLabelValue(node)),
+					string(client.PathLabelKey): string(client.NewLabelValue(client.SanitizeDrivePath(path))),
 				},
 				Finalizers: []string{string(directcsi.DirectCSIDriveFinalizerDataProtection)},
 			},
@@ -112,7 +113,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 		for _, drive := range driveList {
 			drive.Spec.RequestedFormat = nil
 			if _, err := testClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				TypeMeta: client.DirectCSIDriveTypeMeta(),
 			}); err != nil {
 				return err
 			}

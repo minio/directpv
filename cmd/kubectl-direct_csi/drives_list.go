@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -128,7 +129,7 @@ func listDrives(ctx context.Context, args []string) error {
 
 	filteredDrives, err := getFilteredDriveList(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
+		client.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
 			if len(driveStatusList) > 0 {
 				return drive.MatchDriveStatus(driveStatusList)
@@ -158,7 +159,7 @@ func listDrives(ctx context.Context, args []string) error {
 	wrappedDriveList := directcsi.DirectCSIDriveList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
-			APIVersion: string(utils.DirectCSIVersionLabelKey),
+			APIVersion: string(client.DirectCSIVersionLabelKey),
 		},
 		Items: filteredDrives,
 	}

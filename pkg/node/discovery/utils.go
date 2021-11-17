@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -73,14 +74,14 @@ func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) er
 func syncDriveStatesOnDiscovery(existingObj *directcsi.DirectCSIDrive, localDrive *directcsi.DirectCSIDrive) {
 	var existingVersion string
 	if labels := existingObj.GetLabels(); labels != nil {
-		existingVersion = labels[string(utils.VersionLabelKey)]
+		existingVersion = labels[string(client.VersionLabelKey)]
 	}
 
 	// overwrite existing object labels
 	existingObj.SetLabels(localDrive.GetLabels())
-	utils.UpdateLabels(existingObj, map[utils.LabelKey]utils.LabelValue{
-		utils.AccessTierLabelKey: utils.NewLabelValue(string(existingObj.Status.AccessTier)),
-		utils.VersionLabelKey:    utils.LabelValue(existingVersion),
+	client.UpdateLabels(existingObj, map[client.LabelKey]client.LabelValue{
+		client.AccessTierLabelKey: client.NewLabelValue(string(existingObj.Status.AccessTier)),
+		client.VersionLabelKey:    client.LabelValue(existingVersion),
 	})
 
 	// Sync the possible states
@@ -134,7 +135,7 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 
 	driveSync := func() error {
 		existingDrive, err := driveClient.Get(ctx, localDrive.ObjectMeta.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		})
 		if err != nil {
 			return err
@@ -156,7 +157,7 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 			message)
 
 		updateOpts := metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		}
 		_, err = driveClient.Update(ctx, existingDrive, updateOpts)
 		return err

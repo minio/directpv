@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/converter"
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -57,7 +58,7 @@ func registerCRDs(ctx context.Context, identity string, writer io.Writer) error 
 		crdObjs = append(crdObjs, crdObj)
 	}
 
-	crdClient := utils.GetCRDClient()
+	crdClient := client.GetCRDClient()
 	for _, crd := range crdObjs {
 		var crdObj apiextensions.CustomResourceDefinition
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(crd.(*unstructured.Unstructured).Object, &crdObj); err != nil {
@@ -79,7 +80,7 @@ func registerCRDs(ctx context.Context, identity string, writer io.Writer) error 
 			}
 
 			if dryRun {
-				utils.UpdateLabels(&crdObj, map[utils.LabelKey]utils.LabelValue{utils.VersionLabelKey: directcsi.Version})
+				client.UpdateLabels(&crdObj, map[client.LabelKey]client.LabelValue{client.VersionLabelKey: directcsi.Version})
 				if err := utils.LogYAML(crdObj); err != nil {
 					return err
 				}
@@ -128,7 +129,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 	}
 
 	if dryRun {
-		utils.UpdateLabels(existingCRD, map[utils.LabelKey]utils.LabelValue{utils.VersionLabelKey: directcsi.Version})
+		client.UpdateLabels(existingCRD, map[client.LabelKey]client.LabelValue{client.VersionLabelKey: directcsi.Version})
 		existingCRD.TypeMeta = newCRD.TypeMeta
 		if err := utils.LogYAML(existingCRD); err != nil {
 			return err
@@ -136,7 +137,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		return nil
 	}
 
-	crdClient := utils.GetCRDClient()
+	crdClient := client.GetCRDClient()
 	if _, err := crdClient.Update(ctx, existingCRD, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
@@ -236,7 +237,7 @@ func unregisterCRDs(ctx context.Context) error {
 		crdNames = append(crdNames, fmt.Sprintf("%s.%s", crd, apiGroup))
 	}
 
-	crdClient := utils.GetCRDClient()
+	crdClient := client.GetCRDClient()
 	for _, crd := range crdNames {
 		if err := crdClient.Delete(ctx, crd, metav1.DeleteOptions{}); err != nil {
 			if !errors.IsNotFound(err) {

@@ -26,7 +26,7 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/client"
 )
 
 // Version is kubectl direct-csi version.
@@ -45,7 +45,7 @@ var (
 )
 
 var drives, nodes, driveGlobs, nodeGlobs []string
-var driveSelectorValues, nodeSelectorValues []utils.LabelValue
+var driveSelectorValues, nodeSelectorValues []client.LabelValue
 
 var printer func(interface{}) error
 
@@ -56,7 +56,7 @@ var pluginCmd = &cobra.Command{
 	SilenceErrors: false,
 	Version:       Version,
 	PersistentPreRunE: func(c *cobra.Command, args []string) error {
-		utils.Init()
+		client.Init()
 
 		switch outputMode {
 		case "":

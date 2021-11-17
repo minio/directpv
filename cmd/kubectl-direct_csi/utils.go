@@ -34,6 +34,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/ellipsis"
 	"github.com/minio/direct-csi/pkg/sys"
@@ -125,7 +126,7 @@ func processFilteredDrives(
 	matchFunc func(*directcsi.DirectCSIDrive) bool,
 	applyFunc func(*directcsi.DirectCSIDrive) error,
 	processFunc func(context.Context, *directcsi.DirectCSIDrive) error, command Command) error {
-	var resultCh <-chan utils.ListDriveResult
+	var resultCh <-chan client.ListDriveResult
 	var err error
 	if len(idArgs) > 0 {
 		resultCh = getDrivesByIds(ctx, idArgs)
@@ -133,12 +134,12 @@ func processFilteredDrives(
 		ctx, cancelFunc := context.WithCancel(ctx)
 		defer cancelFunc()
 
-		resultCh, err = utils.ListDrives(ctx,
+		resultCh, err = client.ListDrives(ctx,
 			driveInterface,
 			nodeSelectorValues,
 			driveSelectorValues,
 			accessTierSelectorValues,
-			utils.MaxThreadCount)
+			client.MaxThreadCount)
 		if err != nil {
 			return err
 		}
@@ -184,12 +185,12 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListDrives(ctx,
+	resultCh, err := client.ListDrives(ctx,
 		driveInterface,
 		nodeSelectorValues,
 		driveSelectorValues,
 		accessTierSelectorValues,
-		utils.MaxThreadCount)
+		client.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}
@@ -214,13 +215,13 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListVolumes(ctx,
+	resultCh, err := client.ListVolumes(ctx,
 		volumeInterface,
 		nodeSelectorValues,
 		driveSelectorValues,
 		podNameSelectorValues,
 		podNsSelectorValues,
-		utils.MaxThreadCount)
+		client.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}
@@ -274,9 +275,9 @@ func processObjects(
 	objectCh := make(chan runtime.Object)
 	var wg sync.WaitGroup
 
-	// Start utils.MaxThreadCount workers.
+	// Start client.MaxThreadCount workers.
 	var errs []error
-	for i := 0; i < utils.MaxThreadCount; i++ {
+	for i := 0; i < client.MaxThreadCount; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -359,7 +360,7 @@ func processObjects(
 
 func processVolumes(
 	ctx context.Context,
-	resultCh <-chan utils.ListVolumeResult,
+	resultCh <-chan client.ListVolumeResult,
 	matchFunc func(*directcsi.DirectCSIVolume) bool,
 	applyFunc func(*directcsi.DirectCSIVolume) error,
 	processFunc func(context.Context, *directcsi.DirectCSIVolume) error,
@@ -403,7 +404,7 @@ func processVolumes(
 
 func processDrives(
 	ctx context.Context,
-	resultCh <-chan utils.ListDriveResult,
+	resultCh <-chan client.ListDriveResult,
 	matchFunc func(*directcsi.DirectCSIDrive) bool,
 	applyFunc func(*directcsi.DirectCSIDrive) error,
 	processFunc func(context.Context, *directcsi.DirectCSIDrive) error,
@@ -461,7 +462,7 @@ func GetDefaultAuditDir() (string, error) {
 	return filepath.Join(defaultDir, auditDir), nil
 }
 
-func getValidSelectors(selectors []string) (globs []string, values []utils.LabelValue, err error) {
+func getValidSelectors(selectors []string) (globs []string, values []client.LabelValue, err error) {
 	for _, selector := range selectors {
 		if globRegexp.MatchString(selector) {
 			globs = append(globs, selector)
@@ -472,7 +473,7 @@ func getValidSelectors(selectors []string) (globs []string, values []utils.Label
 			}
 
 			for _, value := range result {
-				values = append(values, utils.NewLabelValue(value))
+				values = append(values, client.NewLabelValue(value))
 			}
 		}
 	}
@@ -484,26 +485,26 @@ func getValidSelectors(selectors []string) (globs []string, values []utils.Label
 	return
 }
 
-func getValidDriveSelectors(drives []string) ([]string, []utils.LabelValue, error) {
+func getValidDriveSelectors(drives []string) ([]string, []client.LabelValue, error) {
 	for i := range drives {
-		drives[i] = utils.SanitizeDrivePath(drives[i])
+		drives[i] = client.SanitizeDrivePath(drives[i])
 	}
 	return getValidSelectors(drives)
 }
 
-func getValidNodeSelectors(nodes []string) ([]string, []utils.LabelValue, error) {
+func getValidNodeSelectors(nodes []string) ([]string, []client.LabelValue, error) {
 	return getValidSelectors(nodes)
 }
 
-func getValidAccessTierSelectors(accessTiers []string) ([]utils.LabelValue, error) {
+func getValidAccessTierSelectors(accessTiers []string) ([]client.LabelValue, error) {
 	accessTierSet, err := directcsi.StringsToAccessTiers(accessTiers)
 	if err != nil {
 		return nil, err
 	}
 
-	var labelValues []utils.LabelValue
+	var labelValues []client.LabelValue
 	for _, accessTier := range accessTierSet {
-		labelValues = append(labelValues, utils.NewLabelValue(string(accessTier)))
+		labelValues = append(labelValues, client.NewLabelValue(string(accessTier)))
 	}
 
 	return labelValues, nil
@@ -529,11 +530,11 @@ func getValidDriveStatusSelectors(selectors []string) (globs []string, statusLis
 	return
 }
 
-func getValidPodNameSelectors(podNames []string) ([]string, []utils.LabelValue, error) {
+func getValidPodNameSelectors(podNames []string) ([]string, []client.LabelValue, error) {
 	return getValidSelectors(podNames)
 }
 
-func getValidPodNameSpaceSelectors(podNamespaces []string) ([]string, []utils.LabelValue, error) {
+func getValidPodNameSpaceSelectors(podNamespaces []string) ([]string, []client.LabelValue, error) {
 	return getValidSelectors(podNamespaces)
 }
 
@@ -554,7 +555,7 @@ func setDriveAccessTier(drive *directcsi.DirectCSIDrive, accessTier directcsi.Ac
 	if labels == nil {
 		labels = map[string]string{}
 	}
-	labels[string(utils.AccessTierLabelKey)] = string(utils.NewLabelValue(string(accessTier)))
+	labels[string(client.AccessTierLabelKey)] = string(client.NewLabelValue(string(accessTier)))
 	drive.SetLabels(labels)
 }
 

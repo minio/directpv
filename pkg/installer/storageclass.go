@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -54,7 +55,7 @@ func (sc *scInstaller) Init(i *installConfig) error {
 func (sc *scInstaller) Install(ctx context.Context) error {
 	scName := utils.SanitizeKubeResourceName(sc.name)
 	allowExpansionFalse := false
-	allowTopologiesWithName := utils.NewIdentityTopologySelector(scName)
+	allowTopologiesWithName := client.NewIdentityTopologySelector(scName)
 	reclaimPolicyDelete := corev1.PersistentVolumeReclaimDelete
 	bindingModeWaitForFirstConsumer := storagev1.VolumeBindingWaitForFirstConsumer
 
@@ -77,7 +78,7 @@ func (sc *scInstaller) Install(ctx context.Context) error {
 		ReclaimPolicy: &reclaimPolicyDelete,
 	}
 
-	createdSC, err := utils.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{
+	createdSC, err := client.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{
 		DryRun: sc.getDryRunDirectives(),
 	})
 	if err != nil {
@@ -90,7 +91,7 @@ func (sc *scInstaller) Uninstall(ctx context.Context) error {
 	scName := sc.name
 	foregroundDeletePropagation := metav1.DeletePropagationForeground
 	// Delete Namespace Obj
-	return utils.GetKubeClient().StorageV1().StorageClasses().Delete(ctx, scName, metav1.DeleteOptions{
+	return client.GetKubeClient().StorageV1().StorageClasses().Delete(ctx, scName, metav1.DeleteOptions{
 		DryRun:            sc.getDryRunDirectives(),
 		PropagationPolicy: &foregroundDeletePropagation,
 	})

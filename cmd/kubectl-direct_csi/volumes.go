@@ -19,12 +19,12 @@
 package main
 
 import (
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/spf13/cobra"
 )
 
 var volumeStatus, volumeStatusList, podNames, podNameGlobs, podNss, podNsGlobs []string
-var podNameSelectorValues, podNsSelectorValues []utils.LabelValue
+var podNameSelectorValues, podNsSelectorValues []client.LabelValue
 
 var volumesCmd = &cobra.Command{
 	Use:   "volumes",

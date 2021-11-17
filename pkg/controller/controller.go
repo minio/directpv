@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/matcher"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -90,7 +91,7 @@ func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, regi
 		Rack:            rack,
 		Zone:            zone,
 		Region:          region,
-		directcsiClient: utils.GetDirectClientset(),
+		directcsiClient: client.GetDirectClientset(),
 	}
 	go serveAdmissionController(ctx) // Start admission webhook server
 	return controller, nil
@@ -210,14 +211,14 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		},
 	}
 
-	labels := map[utils.LabelKey]utils.LabelValue{
-		utils.NodeLabelKey:      utils.NewLabelValue(drive.Status.NodeName),
-		utils.DrivePathLabelKey: utils.NewLabelValue(utils.SanitizeDrivePath(drive.Status.Path)),
-		utils.DriveLabelKey:     utils.NewLabelValue(drive.Name),
-		utils.VersionLabelKey:   directcsi.Version,
-		utils.CreatedByLabelKey: utils.DirectCSIControllerName,
+	labels := map[client.LabelKey]client.LabelValue{
+		client.NodeLabelKey:      client.NewLabelValue(drive.Status.NodeName),
+		client.DrivePathLabelKey: client.NewLabelValue(client.SanitizeDrivePath(drive.Status.Path)),
+		client.DriveLabelKey:     client.NewLabelValue(drive.Name),
+		client.VersionLabelKey:   directcsi.Version,
+		client.CreatedByLabelKey: client.DirectCSIControllerName,
 	}
-	utils.UpdateLabels(newVolume, labels)
+	client.UpdateLabels(newVolume, labels)
 
 	volumeInterface := c.directcsiClient.DirectV1beta3().DirectCSIVolumes()
 	if _, err := volumeInterface.Create(ctx, newVolume, metav1.CreateOptions{}); err != nil {
@@ -226,25 +227,25 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 
 		volume, err := volumeInterface.Get(
-			ctx, newVolume.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+			ctx, newVolume.Name, metav1.GetOptions{TypeMeta: client.DirectCSIVolumeTypeMeta()},
 		)
 		if err != nil {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
 
-		utils.SetLabels(volume, labels)
+		client.SetLabels(volume, labels)
 		volume.Finalizers = newVolume.Finalizers
 		volume.Status = newVolume.Status
 		_, err = volumeInterface.Update(
-			ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+			ctx, volume, metav1.UpdateOptions{TypeMeta: client.DirectCSIVolumeTypeMeta()},
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		utils.Eventf(volume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v provisioned", volume.Name)
+		client.Eventf(volume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v provisioned", volume.Name)
 	} else {
-		utils.Eventf(newVolume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v is created", newVolume.Name)
+		client.Eventf(newVolume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v is created", newVolume.Name)
 	}
 
 	finalizer := directcsi.DirectCSIDriveFinalizerPrefix + req.GetName()
@@ -260,12 +261,12 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			"volume", name)
 
 		_, err = c.directcsiClient.DirectV1beta3().DirectCSIDrives().Update(
-			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+			ctx, drive, metav1.UpdateOptions{TypeMeta: client.DirectCSIDriveTypeMeta()},
 		)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
 		} else {
-			utils.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
+			client.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
 		}
 	}
 
@@ -295,7 +296,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		TypeMeta: client.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -326,7 +327,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	vol.SetFinalizers(updatedFinalizers)
 
 	_, err = vclient.Update(ctx, vol, metav1.UpdateOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		TypeMeta: client.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove finalizer for volume [%s]: %v", vID, err)

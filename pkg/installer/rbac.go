@@ -22,6 +22,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -62,7 +63,7 @@ func createServiceAccount(ctx context.Context, identity string, dryRun bool, wri
 		return utils.LogYAML(serviceAccount)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().ServiceAccounts(utils.SanitizeKubeResourceName(identity)).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().ServiceAccounts(utils.SanitizeKubeResourceName(identity)).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -98,7 +99,7 @@ func createClusterRoleBinding(ctx context.Context, identity string, dryRun bool,
 		return utils.LogYAML(clusterRoleBinding)
 	}
 
-	if _, err := utils.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -327,7 +328,7 @@ func createClusterRole(ctx context.Context, identity string, dryRun bool, writer
 		return utils.LogYAML(clusterRole)
 	}
 
-	if _, err := utils.GetKubeClient().RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -348,13 +349,13 @@ func RemoveRBACRoles(ctx context.Context, identity string) error {
 }
 
 func removeServiceAccount(ctx context.Context, identity string) error {
-	return utils.GetKubeClient().CoreV1().ServiceAccounts(utils.SanitizeKubeResourceName(identity)).Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
+	return client.GetKubeClient().CoreV1().ServiceAccounts(utils.SanitizeKubeResourceName(identity)).Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
 }
 
 func removeClusterRoleBinding(ctx context.Context, identity string) error {
-	return utils.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
+	return client.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
 }
 
 func removeClusterRole(ctx context.Context, identity string) error {
-	return utils.GetKubeClient().RbacV1().ClusterRoles().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
+	return client.GetKubeClient().RbacV1().ClusterRoles().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
 }

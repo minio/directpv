@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -62,7 +63,7 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListVolumes(ctx, directCSIClient.DirectCSIVolumes(), nil, nil, nil, nil, utils.MaxThreadCount)
+	resultCh, err := client.ListVolumes(ctx, directCSIClient.DirectCSIVolumes(), nil, nil, nil, nil, client.MaxThreadCount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -127,7 +128,7 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount)
+	resultCh, err := client.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, client.MaxThreadCount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -197,7 +198,7 @@ func uninstall(ctx context.Context, args []string) error {
 	}
 
 	bold := color.New(color.Bold).SprintFunc()
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := client.GetDirectCSIClient()
 
 	if uninstallCRD {
 		if err := removeVolumes(ctx, directCSIClient); err != nil && !apierrors.IsNotFound(err) {

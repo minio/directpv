@@ -20,12 +20,12 @@ package main
 
 import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/spf13/cobra"
 )
 
 var status, accessTiers, statusGlobs []string
-var accessTierSelectorValues []utils.LabelValue
+var accessTierSelectorValues []client.LabelValue
 var driveStatusList []directcsi.DriveStatus
 
 var drivesCmd = &cobra.Command{

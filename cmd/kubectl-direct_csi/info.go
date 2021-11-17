@@ -24,6 +24,8 @@ import (
 	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
+	pkgclient "github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/installer"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -50,7 +52,7 @@ var infoCmd = &cobra.Command{
 }
 
 func getInfo(ctx context.Context, args []string, quiet bool) error {
-	crdclient := utils.GetCRDClient()
+	crdclient := client.GetCRDClient()
 
 	crds, err := crdclient.List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -77,7 +79,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		return fmt.Errorf("%s: DirectCSI installation not found", bold("Error"))
 	}
 
-	client, gvk, err := utils.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
+	client, gvk, err := pkgclient.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
@@ -144,7 +146,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 
 	drives, err := getFilteredDriveList(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
+		pkgclient.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
 			return drive.Status.DriveStatus == directcsi.DriveStatusInUse || drive.Status.DriveStatus == directcsi.DriveStatusReady
 		},
@@ -156,7 +158,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		return err
 	}
 
-	volumes, err := utils.GetVolumeList(ctx, utils.GetDirectCSIClient().DirectCSIVolumes(), nil, nil, nil, nil)
+	volumes, err := pkgclient.GetVolumeList(ctx, pkgclient.GetDirectCSIClient().DirectCSIVolumes(), nil, nil, nil, nil)
 	if err != nil {
 		if !quiet {
 			klog.Errorf("error getting volume list: %v", err)

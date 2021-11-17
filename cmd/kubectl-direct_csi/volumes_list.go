@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -85,7 +86,7 @@ func listVolumes(ctx context.Context, args []string) error {
 
 	volumeList, err := getFilteredVolumeList(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIVolumes(),
+		client.GetDirectCSIClient().DirectCSIVolumes(),
 		func(volume directcsi.DirectCSIVolume) bool {
 			return all || utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue)
 		},
@@ -97,7 +98,7 @@ func listVolumes(ctx context.Context, args []string) error {
 	wrappedVolumeList := directcsi.DirectCSIVolumeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
-			APIVersion: string(utils.DirectCSIVersionLabelKey),
+			APIVersion: string(client.DirectCSIVersionLabelKey),
 		},
 		Items: volumeList,
 	}
@@ -138,14 +139,14 @@ func listVolumes(ctx context.Context, args []string) error {
 	for _, volume := range volumeList {
 		row := []interface{}{
 			volume.Name, //VOLUME
-			printableBytes(volume.Status.TotalCapacity),                        //CAPACITY
-			volume.Status.NodeName,                                             //SERVER
-			driveName(getLabelValue(&volume, string(utils.DrivePathLabelKey))), //DRIVE
+			printableBytes(volume.Status.TotalCapacity),                         //CAPACITY
+			volume.Status.NodeName,                                              //SERVER
+			driveName(getLabelValue(&volume, string(client.DrivePathLabelKey))), //DRIVE
 			printableString(volume.Labels[directcsi.Group+"/pod.name"]),
 			printableString(volume.Labels[directcsi.Group+"/pod.namespace"]),
 		}
 		if wide {
-			row = append(row, getLabelValue(&volume, string(utils.DriveLabelKey)))
+			row = append(row, getLabelValue(&volume, string(client.DriveLabelKey)))
 		}
 		t.AppendRow(row)
 	}

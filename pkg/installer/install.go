@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -93,7 +94,7 @@ func CreateNamespace(ctx context.Context, identity string, dryRun bool, writer i
 	}
 
 	// Create Namespace Obj
-	if _, err := utils.GetKubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -104,7 +105,7 @@ func CreateCSIDriver(ctx context.Context, identity string, dryRun bool, writer i
 	podInfoOnMount := true
 	attachRequired := false
 
-	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	gvk, err := client.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
@@ -137,7 +138,7 @@ func CreateCSIDriver(ctx context.Context, identity string, dryRun bool, writer i
 		}
 
 		// Create CSIDriver Obj
-		if _, err := utils.GetKubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	case "v1beta1":
@@ -162,7 +163,7 @@ func CreateCSIDriver(ctx context.Context, identity string, dryRun bool, writer i
 		}
 
 		// Create CSIDriver Obj
-		if _, err := utils.GetKubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	default:
@@ -175,7 +176,7 @@ func getTopologySelectorTerm(identity string) corev1.TopologySelectorTerm {
 
 	getIdentityLabelRequirement := func() corev1.TopologySelectorLabelRequirement {
 		return corev1.TopologySelectorLabelRequirement{
-			Key:    string(utils.TopologyDriverIdentity),
+			Key:    string(client.TopologyDriverIdentity),
 			Values: []string{utils.SanitizeKubeResourceName(identity)},
 		}
 	}
@@ -195,7 +196,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool, write
 	}
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
-	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	gvk, err := client.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
@@ -228,7 +229,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool, write
 			return utils.LogYAML(storageClass)
 		}
 
-		if _, err := utils.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	case "v1beta1":
@@ -257,7 +258,7 @@ func CreateStorageClass(ctx context.Context, identity string, dryRun bool, write
 			return utils.LogYAML(storageClass)
 		}
 
-		if _, err := utils.GetKubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 	default:
@@ -301,7 +302,7 @@ func CreateService(ctx context.Context, identity string, dryRun bool, writer io.
 		return utils.LogYAML(svc)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Services(utils.SanitizeKubeResourceName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().Services(utils.SanitizeKubeResourceName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -544,7 +545,7 @@ func CreateDaemonSet(ctx context.Context,
 		return utils.LogYAML(daemonset)
 	}
 
-	if _, err := utils.GetKubeClient().AppsV1().DaemonSets(utils.SanitizeKubeResourceName(identity)).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().AppsV1().DaemonSets(utils.SanitizeKubeResourceName(identity)).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -580,7 +581,7 @@ func CreateControllerService(ctx context.Context, generatedSelectorValue, identi
 		return utils.LogYAML(svc)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Services(utils.SanitizeKubeResourceName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().Services(utils.SanitizeKubeResourceName(identity)).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -612,7 +613,7 @@ func CreateControllerSecret(ctx context.Context, identity string, publicCertByte
 		return utils.LogYAML(secret)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -782,7 +783,7 @@ func CreateDeployment(ctx context.Context, identity string, directCSIContainerIm
 		return utils.LogYAML(deployment)
 	}
 
-	if _, err := utils.GetKubeClient().AppsV1().Deployments(utils.SanitizeKubeResourceName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().AppsV1().Deployments(utils.SanitizeKubeResourceName(identity)).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 
@@ -928,7 +929,7 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 		return utils.LogYAML(driveValidatingWebhookConfig)
 	}
 
-	if _, err := utils.GetKubeClient().
+	if _, err := client.GetKubeClient().
 		AdmissionregistrationV1().
 		ValidatingWebhookConfigurations().
 		Create(ctx, &driveValidatingWebhookConfig, metav1.CreateOptions{}); err != nil {
@@ -941,7 +942,7 @@ func RegisterDriveValidationRules(ctx context.Context, identity string, dryRun b
 // CreateOrUpdateConversionKeyPairSecret creates/updates conversion keypairs secret.
 func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string, publicCertBytes, privateKeyBytes []byte, dryRun bool, writer io.Writer) error {
 
-	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
+	secretsClient := client.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
@@ -992,7 +993,7 @@ func CreateOrUpdateConversionKeyPairSecret(ctx context.Context, identity string,
 // CreateOrUpdateConversionCACertSecret creates/updates conversion CA certs secret.
 func CreateOrUpdateConversionCACertSecret(ctx context.Context, identity string, caCertBytes []byte, dryRun bool, writer io.Writer) error {
 
-	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
+	secretsClient := client.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
@@ -1046,7 +1047,7 @@ func GetConversionCABundle(ctx context.Context, identity string, dryRun bool) ([
 		return conversionWebhookCaBundle, nil
 	}
 
-	secret, err := utils.GetKubeClient().
+	secret, err := client.GetKubeClient().
 		CoreV1().
 		Secrets(utils.SanitizeKubeResourceName(identity)).
 		Get(ctx, conversionCACert, metav1.GetOptions{})
@@ -1067,7 +1068,7 @@ func GetConversionCABundle(ctx context.Context, identity string, dryRun bool) ([
 }
 
 func checkConversionSecrets(ctx context.Context, identity string) error {
-	secretsClient := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
+	secretsClient := client.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity))
 	if _, err := secretsClient.Get(ctx, conversionKeyPair, metav1.GetOptions{}); err != nil {
 		return err
 	}

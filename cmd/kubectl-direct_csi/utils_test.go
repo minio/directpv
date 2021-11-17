@@ -21,68 +21,68 @@ import (
 	"testing"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/client"
 )
 
 func TestGetValidSelectors(t *testing.T) {
 	testCases := []struct {
 		selectors []string
 		globs     []string
-		values    []utils.LabelValue
+		values    []client.LabelValue
 		expectErr bool
 	}{
 		{
 			selectors: []string{"xvd{b...f}"},
-			values: []utils.LabelValue{
-				utils.LabelValue("xvdb"),
-				utils.LabelValue("xvdc"),
-				utils.LabelValue("xvdd"),
-				utils.LabelValue("xvde"),
-				utils.LabelValue("xvdf"),
+			values: []client.LabelValue{
+				client.LabelValue("xvdb"),
+				client.LabelValue("xvdc"),
+				client.LabelValue("xvdd"),
+				client.LabelValue("xvde"),
+				client.LabelValue("xvdf"),
 			},
 			globs: nil,
 		},
 		{
 			selectors: []string{"node-{1...3}"},
-			values: []utils.LabelValue{
-				utils.LabelValue("node-1"),
-				utils.LabelValue("node-2"),
-				utils.LabelValue("node-3"),
+			values: []client.LabelValue{
+				client.LabelValue("node-1"),
+				client.LabelValue("node-2"),
+				client.LabelValue("node-3"),
 			},
 			globs: nil,
 		},
 		{
 			selectors: []string{"xvd{b...c}", "xvd{e...h}"},
-			values: []utils.LabelValue{
-				utils.LabelValue("xvdb"),
-				utils.LabelValue("xvdc"),
-				utils.LabelValue("xvde"),
-				utils.LabelValue("xvdf"),
-				utils.LabelValue("xvdg"),
-				utils.LabelValue("xvdh"),
+			values: []client.LabelValue{
+				client.LabelValue("xvdb"),
+				client.LabelValue("xvdc"),
+				client.LabelValue("xvde"),
+				client.LabelValue("xvdf"),
+				client.LabelValue("xvdg"),
+				client.LabelValue("xvdh"),
 			},
 			globs: nil,
 		},
 		{
 			selectors: []string{"node-{1...3}", "node-{7...10}"},
-			values: []utils.LabelValue{
-				utils.LabelValue("node-1"),
-				utils.LabelValue("node-2"),
-				utils.LabelValue("node-3"),
-				utils.LabelValue("node-7"),
-				utils.LabelValue("node-8"),
-				utils.LabelValue("node-9"),
-				utils.LabelValue("node-10"),
+			values: []client.LabelValue{
+				client.LabelValue("node-1"),
+				client.LabelValue("node-2"),
+				client.LabelValue("node-3"),
+				client.LabelValue("node-7"),
+				client.LabelValue("node-8"),
+				client.LabelValue("node-9"),
+				client.LabelValue("node-10"),
 			},
 			globs: nil,
 		},
 		{
 			selectors: []string{"nvmen{1...2}p{1...2}"},
-			values: []utils.LabelValue{
-				utils.LabelValue("nvmen1p1"),
-				utils.LabelValue("nvmen1p2"),
-				utils.LabelValue("nvmen2p1"),
-				utils.LabelValue("nvmen2p2"),
+			values: []client.LabelValue{
+				client.LabelValue("nvmen1p1"),
+				client.LabelValue("nvmen1p2"),
+				client.LabelValue("nvmen2p1"),
+				client.LabelValue("nvmen2p2"),
 			},
 			globs: nil,
 		},
@@ -166,12 +166,12 @@ func TestGetValidSelectors(t *testing.T) {
 func TestGetValidAccessTierSelectors(t *testing.T) {
 	testCases := []struct {
 		accessTiers []string
-		result      []utils.LabelValue
+		result      []client.LabelValue
 		expectErr   bool
 	}{
 		{
 			accessTiers: []string{"hot", "cold"},
-			result:      []utils.LabelValue{utils.LabelValue("Hot"), utils.LabelValue("Cold")},
+			result:      []client.LabelValue{client.LabelValue("Hot"), client.LabelValue("Cold")},
 		},
 		{
 			accessTiers: nil,

@@ -14,9 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package client
 
 import (
+	// v1 "k8s.io/api/core/v1"
+	// runtime "k8s.io/apimachinery/pkg/runtime"
+	// "k8s.io/client-go/kubernetes"
+	// corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	// "k8s.io/client-go/tools/record"
+
 	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -37,7 +43,7 @@ func initEvent(kubeClient kubernetes.Interface) {
 		},
 	)
 	eventRecorder = eventBroadcaster.NewRecorder(
-		Scheme, v1.EventSource{Component: "directcsi-controller"},
+		runtime.NewScheme(), v1.EventSource{Component: "directcsi-controller"},
 	)
 }
 

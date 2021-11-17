@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,8 +32,8 @@ var (
 		AppNameLabel: DirectCSI,
 		AppTypeLabel: CSIDriver,
 
-		string(utils.CreatedByLabelKey): DirectCSIPluginName,
-		string(utils.VersionLabelKey):   directcsi.Version,
+		string(client.CreatedByLabelKey): DirectCSIPluginName,
+		string(client.VersionLabelKey):   directcsi.Version,
 	}
 
 	defaultAnnotations = map[string]string{}

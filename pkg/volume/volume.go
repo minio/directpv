@@ -22,6 +22,7 @@ import (
 	"os"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -43,8 +44,8 @@ type volumeEventHandler struct {
 
 func newVolumeEventHandler(nodeID string) *volumeEventHandler {
 	return &volumeEventHandler{
-		directCSIClient: utils.GetDirectClientset(),
-		kubeClient:      utils.GetKubeClient(),
+		directCSIClient: client.GetDirectClientset(),
+		kubeClient:      client.GetKubeClient(),
 		nodeID:          nodeID,
 	}
 }
@@ -52,7 +53,7 @@ func newVolumeEventHandler(nodeID string) *volumeEventHandler {
 func (handler *volumeEventHandler) ListerWatcher() cache.ListerWatcher {
 	labelSelector := ""
 	if handler.nodeID != "" {
-		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabelKey, utils.NewLabelValue(handler.nodeID))
+		labelSelector = fmt.Sprintf("%s=%s", client.NodeLabelKey, client.NewLabelValue(handler.nodeID))
 	}
 
 	optionsModifier := func(options *metav1.ListOptions) {
@@ -82,7 +83,7 @@ func (handler *volumeEventHandler) ObjectType() runtime.Object {
 func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName, volumeName string, capacity int64) error {
 	drive, err := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Get(
 		ctx, driveName, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		},
 	)
 	if err != nil {
@@ -106,7 +107,7 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName,
 
 		_, err = handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
 			ctx, drive, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				TypeMeta: client.DirectCSIDriveTypeMeta(),
 			},
 		)
 	}
@@ -135,7 +136,7 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *directcsi
 	volume.SetFinalizers(finalizers)
 	_, err := handler.directCSIClient.DirectV1beta3().DirectCSIVolumes().Update(
 		ctx, volume, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			TypeMeta: client.DirectCSIVolumeTypeMeta(),
 		},
 	)
 
@@ -162,9 +163,9 @@ func StartController(ctx context.Context, nodeID string) error {
 }
 
 func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[string]string {
-	drive, err := utils.GetDirectCSIClient().DirectCSIDrives().Get(
+	drive, err := client.GetDirectCSIClient().DirectCSIDrives().Get(
 		ctx, volume.Status.Drive, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		},
 	)
 
@@ -184,23 +185,23 @@ func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[strin
 		labels = make(map[string]string)
 	}
 
-	labels[string(utils.NodeLabelKey)] = string(utils.NewLabelValue(volume.Status.NodeName))
-	labels[string(utils.DrivePathLabelKey)] = string(utils.NewLabelValue(utils.SanitizeDrivePath(drivePath)))
-	labels[string(utils.DriveLabelKey)] = string(utils.NewLabelValue(driveName))
-	labels[string(utils.CreatedByLabelKey)] = utils.DirectCSIControllerName
+	labels[string(client.NodeLabelKey)] = string(client.NewLabelValue(volume.Status.NodeName))
+	labels[string(client.DrivePathLabelKey)] = string(client.NewLabelValue(client.SanitizeDrivePath(drivePath)))
+	labels[string(client.DriveLabelKey)] = string(client.NewLabelValue(driveName))
+	labels[string(client.CreatedByLabelKey)] = client.DirectCSIControllerName
 
 	return labels
 }
 
 // SyncVolumes syncs direct-csi volume CRD.
 func SyncVolumes(ctx context.Context, nodeID string) {
-	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
+	volumeClient := client.GetDirectCSIClient().DirectCSIVolumes()
 
 	updateLabels := func(volume *directcsi.DirectCSIVolume) func() error {
 		return func() error {
 			volume, err := volumeClient.Get(
 				ctx, volume.Name, metav1.GetOptions{
-					TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+					TypeMeta: client.DirectCSIVolumeTypeMeta(),
 				},
 			)
 			if err != nil {
@@ -211,7 +212,7 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 			volume.SetLabels(getLabels(ctx, volume))
 			_, err = volumeClient.Update(
 				ctx, volume, metav1.UpdateOptions{
-					TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+					TypeMeta: client.DirectCSIVolumeTypeMeta(),
 				},
 			)
 			return err
@@ -221,13 +222,13 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListVolumes(ctx,
+	resultCh, err := client.ListVolumes(ctx,
 		volumeClient,
-		[]utils.LabelValue{utils.NewLabelValue(nodeID)},
+		[]client.LabelValue{client.NewLabelValue(nodeID)},
 		nil,
 		nil,
 		nil,
-		utils.MaxThreadCount)
+		client.MaxThreadCount)
 	if err != nil {
 		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
 		return

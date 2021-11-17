@@ -22,6 +22,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 	policy "k8s.io/api/policy/v1beta1"
 	rbac "k8s.io/api/rbac/v1"
@@ -73,7 +74,7 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun, enabl
 		if err := utils.LogYAML(psp); err != nil {
 			return err
 		}
-	} else if _, err := utils.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Create(ctx, psp, metav1.CreateOptions{}); err != nil {
+	} else if _, err := client.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Create(ctx, psp, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 
@@ -114,13 +115,13 @@ func createPodSecurityPolicy(ctx context.Context, identity string, dryRun, enabl
 		return utils.LogYAML(crb)
 	}
 
-	_, err := utils.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
+	_, err := client.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
 	return err
 }
 
 // CreatePodSecurityPolicy creates pod security policy.
 func CreatePodSecurityPolicy(ctx context.Context, identity string, dryRun, enableDynamicDiscovery bool, writer io.Writer) error {
-	info, err := utils.GetGroupKindVersions("policy", "PodSecurityPolicy", "v1beta1")
+	info, err := client.GetGroupKindVersions("policy", "PodSecurityPolicy", "v1beta1")
 	if err != nil {
 		return err
 	}
@@ -133,9 +134,9 @@ func CreatePodSecurityPolicy(ctx context.Context, identity string, dryRun, enabl
 }
 
 func removePSPClusterRoleBinding(ctx context.Context, identity string) error {
-	return utils.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, utils.SanitizeKubeResourceName("psp-"+identity), metav1.DeleteOptions{})
+	return client.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, utils.SanitizeKubeResourceName("psp-"+identity), metav1.DeleteOptions{})
 }
 
 func deletePodSecurityPolicy(ctx context.Context, identity string) error {
-	return utils.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
+	return client.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Delete(ctx, utils.SanitizeKubeResourceName(identity), metav1.DeleteOptions{})
 }
