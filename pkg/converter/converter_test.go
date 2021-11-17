@@ -30,7 +30,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	json1 "k8s.io/apimachinery/pkg/util/json"
 
 	"github.com/minio/direct-csi/pkg/utils"
 )
@@ -631,5 +633,348 @@ request:
 
 	if accessTierLabelV := getLabelValue(&directCSIDrive, string(utils.AccessTierLabelKey)); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
 		t.Errorf("expected access-tier label value = %s, got = %s", string(directCSIDrive.Status.AccessTier), accessTierLabelV)
+	}
+}
+
+func TestMigrate(t *testing.T) {
+	testCases := []struct {
+		srcObject    runtime.Object
+		destObject   runtime.Object
+		groupVersion schema.GroupVersion
+	}{
+		// upgrade drive v1beta1 => v1beta3
+		{
+			srcObject: &directv1beta1.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta1", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta1.DirectCSIDriveFinalizerDataProtection),
+						directv1beta1.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta1.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta1.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta1.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			destObject: &directv1beta3.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIDriveFinalizerDataProtection),
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta3.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta3.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta3"},
+		},
+		// upgrade drive v1beta2 => v1beta3
+		{
+			srcObject: &directv1beta2.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta2", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta2.DirectCSIDriveFinalizerDataProtection),
+						directv1beta2.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta2.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta2.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta2.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			destObject: &directv1beta3.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIDriveFinalizerDataProtection),
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta3.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta3.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta3"},
+		},
+		// downgrade drive v1beta3 => v1beta1
+		{
+			srcObject: &directv1beta3.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIDriveFinalizerDataProtection),
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta3.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta3.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			destObject: &directv1beta1.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta1", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta1.DirectCSIDriveFinalizerDataProtection),
+						directv1beta1.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta1.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta1.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta1.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta1"},
+		},
+		// downgrade drive v1beta3 => v1beta2
+		{
+			srcObject: &directv1beta3.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIDriveFinalizerDataProtection),
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta3.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta3.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			destObject: &directv1beta2.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta2", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta2.DirectCSIDriveFinalizerDataProtection),
+						directv1beta2.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta2.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta2.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta2.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta2"},
+		},
+
+		// upgrage volume v1beta1 => v1beta3
+		{
+			srcObject: &directv1beta1.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta1", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta1.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta1.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			destObject: &directv1beta3.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta3.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta3"},
+		},
+		// upgrage volume v1beta2 => v1beta3
+		{
+			srcObject: &directv1beta2.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta2", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta2.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta2.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			destObject: &directv1beta3.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta3.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta3"},
+		},
+		// downgrade volume v1beta3 => v1beta1
+		{
+			srcObject: &directv1beta3.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta3.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			destObject: &directv1beta1.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta1", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta1.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta1.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta1"},
+		},
+		// downgrage volume v1beta3 => v1beta2
+		{
+			srcObject: &directv1beta3.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta3.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			destObject: &directv1beta2.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta2", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta2.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta2.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta2"},
+		},
+	}
+
+	for i, test := range testCases {
+		objBytes, err := json1.Marshal(test.srcObject)
+		if err != nil {
+			t.Fatalf("failed to marshaling source object: %v", test.srcObject)
+		}
+		cr := unstructured.Unstructured{}
+		if err := cr.UnmarshalJSON(objBytes); err != nil {
+			t.Fatalf("failed to umarshaling source object: %v", test.srcObject)
+		}
+		result := &unstructured.Unstructured{}
+
+		err = Migrate(&cr, result, test.groupVersion)
+		if err != nil {
+			t.Fatalf("failed to convert runtime object: %v", err)
+		}
+		gv := result.GetObjectKind().GroupVersionKind().GroupVersion().String()
+		if gv != test.destObject.GetObjectKind().GroupVersionKind().GroupVersion().String() {
+			t.Fatalf("Test  %d failed wrong group version: %s, expected: %s", i+1, gv, test.groupVersion.Version)
+		}
 	}
 }
