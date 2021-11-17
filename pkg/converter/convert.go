@@ -22,8 +22,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/runtime"
+
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -50,27 +53,40 @@ func convertVolumeCRD(Object *unstructured.Unstructured, toVersion string) (*uns
 	return convertedObject, statusSucceed()
 }
 
-func migrate(convertedObject *unstructured.Unstructured, toVersion string) error {
-	fromVersion := convertedObject.GetAPIVersion()
+// Migrate function migrates unstructured object from one to another
+func Migrate(from, to *unstructured.Unstructured, groupVeraion schema.GroupVersion) error {
+	obj := from.DeepCopy()
+	if from.GetAPIVersion() == to.GetAPIVersion() {
+		return runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, to)
+	}
+	toVersion := fmt.Sprintf("%s/%s", groupVeraion.Group, groupVeraion.Version)
+	if err := migrate(obj, toVersion); err != nil {
+		return err
+	}
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, to)
+}
+
+func migrate(convertFromObject *unstructured.Unstructured, toVersion string) error {
+	fromVersion := convertFromObject.GetAPIVersion()
 	migrateFn, err := getMigrateFunc(fromVersion, toVersion)
 	if err != nil {
 		return err
 	}
 
 	// migrate the CRDs
-	if err := migrateFn(fromVersion, toVersion, convertedObject); err != nil {
+	if err := migrateFn(fromVersion, toVersion, convertFromObject); err != nil {
 		return err
 	}
-	convertedObject.SetAPIVersion(toVersion)
+	convertFromObject.SetAPIVersion(toVersion)
 
-	labels := convertedObject.GetLabels()
+	labels := convertFromObject.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
 	}
 	if _, ok := labels[directcsi.Group+"/version"]; !ok {
 		labels[directcsi.Group+"/version"] = filepath.Base(fromVersion)
 	}
-	convertedObject.SetLabels(labels)
+	convertFromObject.SetLabels(labels)
 
 	return nil
 }
