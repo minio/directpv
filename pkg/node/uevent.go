@@ -171,7 +171,7 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 		}
 
 		if !handler.updateDrive(ctx, result.Drive, devices) {
-			if err := client.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), &result.Drive, true); err != nil {
+			if err := client.DeleteDrive(ctx, handler.directCSIClient, &result.Drive, true); err != nil {
 				klog.ErrorS(err, "unable to delete drive", "Name", result.Drive.Name, "Status.Path", result.Drive.Status.Path)
 			}
 		}
@@ -206,7 +206,7 @@ func (handler *ueventHandler) removeDrive(ctx context.Context, drive directcsi.D
 			case !errors.Is(err, os.ErrNotExist):
 				klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
 			default:
-				if err := client.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), &drive, true); err != nil {
+				if err := client.DeleteDrive(ctx, handler.directCSIClient, &drive, true); err != nil {
 					klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
 				}
 			}
