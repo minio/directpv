@@ -24,17 +24,20 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
+	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	ctrl "github.com/minio/direct-csi/pkg/controller"
 	"github.com/minio/direct-csi/pkg/converter"
+	"github.com/minio/direct-csi/pkg/fs/xfs"
 	id "github.com/minio/direct-csi/pkg/identity"
 	"github.com/minio/direct-csi/pkg/node"
 	"github.com/minio/direct-csi/pkg/node/discovery"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils/grpc"
 	"github.com/minio/direct-csi/pkg/volume"
+	losetup "gopkg.in/freddierice/go-losetup.v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -97,25 +100,47 @@ func waitForConversionWebhook() error {
 	return nil
 }
 
-func mkdir(dir string) (err error) {
-	if err = os.Mkdir(sys.DirectCSIDevRoot, os.ModePerm); err == nil {
-		return nil
-	}
-
-	if !errors.Is(err, os.ErrExist) {
-		klog.Errorf("Unable to create directory %v; %v", dir, err)
-		return err
-	}
-
-	checkFile := path.Join(sys.DirectCSIDevRoot, ".writecheck")
-	if err = os.WriteFile(checkFile, []byte{}, os.ModePerm); err == nil {
-		err = os.Remove(checkFile)
-	}
+func checkXFS(ctx context.Context) (bool, error) {
+	mountPoint, err := os.MkdirTemp("", "xfs.check.mnt.")
 	if err != nil {
-		klog.Errorf("Unable to do write check on %v; %v", dir, err)
+		return false, err
+	}
+	defer os.Remove(mountPoint)
+
+	file, err := os.CreateTemp("", "xfs.check.file.")
+	if err != nil {
+		return false, err
+	}
+	defer os.Remove(file.Name())
+	file.Close()
+
+	if err = os.Truncate(file.Name(), sys.MinSupportedDeviceSize); err != nil {
+		return false, err
 	}
 
-	return err
+	if err = xfs.MakeFS(ctx, file.Name(), uuid.New().String(), false, true); err != nil {
+		return false, err
+	}
+
+	loopDevice, err := losetup.Attach(file.Name(), 0, false)
+	if err != nil {
+		return false, err
+	}
+
+	defer func() {
+		if err := loopDevice.Detach(); err != nil {
+			klog.Error(err)
+		}
+	}()
+
+	if err = sys.Mount(loopDevice.Path(), mountPoint, "xfs", nil, ""); err != nil {
+		if errors.Is(err, syscall.EINVAL) {
+			err = nil
+		}
+		return false, err
+	}
+
+	return true, sys.Unmount(mountPoint, true, true, false)
 }
 
 func run(ctx context.Context, args []string) error {
@@ -138,12 +163,11 @@ func run(ctx context.Context, args []string) error {
 
 	var nodeSrv csi.NodeServer
 	if driver {
-		if err := mkdir(sys.DirectCSIDevRoot); err != nil {
+		reflinkSupport, err := checkXFS(ctx)
+		if err != nil {
 			return err
 		}
-		if err := mkdir(sys.MountRoot); err != nil {
-			return err
-		}
+
 		discovery, err := discovery.NewDiscovery(ctx, identity, nodeID, rack, zone, region)
 		if err != nil {
 			return err
@@ -157,7 +181,7 @@ func run(ctx context.Context, args []string) error {
 		volume.SyncVolumes(ctx, nodeID)
 		klog.V(3).Infof("Volumes sync completed")
 
-		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, enableDynamicDiscovery)
+		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, enableDynamicDiscovery, reflinkSupport)
 		if err != nil {
 			return err
 		}

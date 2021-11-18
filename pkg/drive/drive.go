@@ -58,19 +58,21 @@ type driveEventHandler struct {
 	directCSIClient clientset.Interface
 	kubeClient      kubernetes.Interface
 	nodeID          string
+	reflinkSupport  bool
 	getDevice       func(major, minor uint32) (string, error)
 	stat            func(name string) (os.FileInfo, error)
 	mountDevice     func(fsUUID, target string, flags []string) error
 	unmountDevice   func(device string) error
-	makeFS          func(ctx context.Context, device, uuid string, force bool) error
+	makeFS          func(ctx context.Context, device, uuid string, force, reflink bool) error
 	getFreeCapacity func(path string) (uint64, error)
 }
 
-func newDriveEventHandler(nodeID string) *driveEventHandler {
+func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler {
 	return &driveEventHandler{
 		directCSIClient: client.GetDirectClientset(),
 		kubeClient:      client.GetKubeClient(),
 		nodeID:          nodeID,
+		reflinkSupport:  reflinkSupport,
 		getDevice:       getDevice,
 		stat:            os.Stat,
 		mountDevice:     mountDevice,
@@ -198,7 +200,7 @@ func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.D
 		}
 
 		if err == nil {
-			if err = handler.makeFS(ctx, drive.Status.Path, drive.Status.FilesystemUUID, force); err != nil {
+			if err = handler.makeFS(ctx, drive.Status.Path, drive.Status.FilesystemUUID, force, handler.reflinkSupport); err != nil {
 				klog.Errorf("failed to format drive %s; %w", drive.Name, err)
 			} else {
 				drive.Status.Filesystem = "xfs"
@@ -362,12 +364,12 @@ func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.D
 }
 
 // StartController starts drive event controller.
-func StartController(ctx context.Context, nodeID string) error {
+func StartController(ctx context.Context, nodeID string, reflinkSupport bool) error {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
 	}
 
-	listener := listener.NewListener(newDriveEventHandler(nodeID), "drive-controller", hostname, 40)
+	listener := listener.NewListener(newDriveEventHandler(nodeID, reflinkSupport), "drive-controller", hostname, 40)
 	return listener.Run(ctx)
 }

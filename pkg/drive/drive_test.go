@@ -46,7 +46,7 @@ func createFakeDriveEventListener() *driveEventHandler {
 		stat:            func(name string) (os.FileInfo, error) { return nil, nil },
 		mountDevice:     func(device, target string, flags []string) error { return nil },
 		unmountDevice:   func(device string) error { return nil },
-		makeFS:          func(ctx context.Context, device, uuid string, force bool) error { return nil },
+		makeFS:          func(ctx context.Context, device, uuid string, force, reflink bool) error { return nil },
 		getFreeCapacity: func(path string) (uint64, error) { return 0, nil },
 	}
 }
