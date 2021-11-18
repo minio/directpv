@@ -155,14 +155,14 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	vclient := directCSIClient.DirectCSIVolumes()
 	dclient := directCSIClient.DirectCSIDrives()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: client.DirectCSIVolumeTypeMeta(),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
 	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
-		TypeMeta: client.DirectCSIDriveTypeMeta(),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())

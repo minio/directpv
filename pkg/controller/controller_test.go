@@ -24,6 +24,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
@@ -65,7 +66,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 
 	createTestDrive100MB := func(node, drive string) *directcsi.DirectCSIDrive {
 		return &directcsi.DirectCSIDrive{
-			TypeMeta: client.DirectCSIDriveTypeMeta(),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: drive,
 				Finalizers: []string{
@@ -169,7 +170,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		}
 		// Step 4: Fetch the created volume object by volumeID
 		volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, volumeID, metav1.GetOptions{
-			TypeMeta: client.DirectCSIVolumeTypeMeta(),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 		})
 		if gErr != nil {
 			t.Fatalf("[%s] Volume (%s) not found. Error: %v", volName, volumeID, gErr)
@@ -233,7 +234,7 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 
 	testVolumeObjects := []runtime.Object{
 		&directcsi.DirectCSIVolume{
-			TypeMeta: client.DirectCSIVolumeTypeMeta(),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-volume-1",
 				Finalizers: []string{
@@ -274,7 +275,7 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 			},
 		},
 		&directcsi.DirectCSIVolume{
-			TypeMeta: client.DirectCSIVolumeTypeMeta(),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-volume-2",
 				Finalizers: []string{

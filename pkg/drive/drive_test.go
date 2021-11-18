@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/client"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -112,7 +111,7 @@ func createFakeDriveEventListener() *driveEventHandler {
 func TestUpdateDriveNoOp(t *testing.T) {
 	dl := createFakeDriveEventListener()
 	b := directcsi.DirectCSIDrive{
-		TypeMeta: client.DirectCSIDriveTypeMeta(),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test_drive",
 		},
@@ -131,7 +130,7 @@ func TestDriveFormat(t *testing.T) {
 
 	testDriveObjs := []runtime.Object{
 		&directcsi.DirectCSIDrive{
-			TypeMeta: client.DirectCSIDriveTypeMeta(),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test_drive_umounted_uuid",
 			},
@@ -177,7 +176,7 @@ func TestDriveFormat(t *testing.T) {
 			},
 		},
 		&directcsi.DirectCSIDrive{
-			TypeMeta: client.DirectCSIDriveTypeMeta(),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test_drive_mounted_uuid",
 			},
@@ -236,7 +235,7 @@ func TestDriveFormat(t *testing.T) {
 		dObj := tObj.(*directcsi.DirectCSIDrive)
 		// Step 2: Get the object
 		newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, dObj.Name, metav1.GetOptions{
-			TypeMeta: client.DirectCSIDriveTypeMeta(),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if dErr != nil {
 			t.Fatalf("Error while getting the drive object: %+v", dErr)
@@ -301,7 +300,7 @@ func TestDriveFormat(t *testing.T) {
 
 		// Step 5: Get the latest version of the object
 		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, newObj.Name, metav1.GetOptions{
-			TypeMeta: client.DirectCSIDriveTypeMeta(),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if dErr != nil {
 			t.Errorf("Test case [%d]: Error while fetching the drive object: %+v", i, dErr)
@@ -354,7 +353,7 @@ func TestDriveDelete(t *testing.T) {
 		{
 			name: "testDeletionLifecycleSuccessCase",
 			driveObject: directcsi.DirectCSIDrive{
-				TypeMeta: client.DirectCSIDriveTypeMeta(),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test_drive_1",
 					Finalizers: []string{
@@ -376,7 +375,7 @@ func TestDriveDelete(t *testing.T) {
 		{
 			name: "testDeletionLifecycleFailureCase",
 			driveObject: directcsi.DirectCSIDrive{
-				TypeMeta: client.DirectCSIDriveTypeMeta(),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test_drive_2",
 					Finalizers: []string{
@@ -408,7 +407,7 @@ func TestDriveDelete(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, tt.driveObject.Name, metav1.GetOptions{
-				TypeMeta: client.DirectCSIDriveTypeMeta(),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			})
 			if dErr != nil {
 				t.Fatalf("Error while getting the drive object: %+v", dErr)
@@ -421,7 +420,7 @@ func TestDriveDelete(t *testing.T) {
 			}
 
 			csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, newObj.Name, metav1.GetOptions{
-				TypeMeta: client.DirectCSIDriveTypeMeta(),
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			})
 			if dErr != nil {
 				t.Fatalf("Error while fetching the drive object: %+v", dErr)
@@ -440,7 +439,7 @@ func TestDriveDelete(t *testing.T) {
 
 func TestDriveRelease(t *testing.T) {
 	driveObject := directcsi.DirectCSIDrive{
-		TypeMeta: client.DirectCSIDriveTypeMeta(),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-drive",
 			Finalizers: []string{
@@ -492,7 +491,7 @@ func TestDriveRelease(t *testing.T) {
 	directCSIClient := dl.directCSIClient.DirectV1beta3()
 
 	newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, "test-drive", metav1.GetOptions{
-		TypeMeta: client.DirectCSIDriveTypeMeta(),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})
 	if dErr != nil {
 		t.Fatalf("Error while getting the drive object: %+v", dErr)
@@ -503,7 +502,7 @@ func TestDriveRelease(t *testing.T) {
 	}
 
 	csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, "test-drive", metav1.GetOptions{
-		TypeMeta: client.DirectCSIDriveTypeMeta(),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})
 	if dErr != nil {
 		t.Fatalf("Error while fetching the drive object: %+v", dErr)

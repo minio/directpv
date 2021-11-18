@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,18 +52,18 @@ func TestNodeStageVolume(t *testing.T) {
 	}
 
 	case1Drive := &directcsi.DirectCSIDrive{
-		TypeMeta:   client.DirectCSIDriveTypeMeta(),
+		TypeMeta:   utils.DirectCSIDriveTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
 	}
 
 	case2Drive := &directcsi.DirectCSIDrive{
-		TypeMeta:   client.DirectCSIDriveTypeMeta(),
+		TypeMeta:   utils.DirectCSIDriveTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
 		Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusInUse},
 	}
 
 	case3Drive := &directcsi.DirectCSIDrive{
-		TypeMeta: client.DirectCSIDriveTypeMeta(),
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "drive-1",
 			Finalizers: []string{directcsi.DirectCSIDriveFinalizerPrefix + "volume-id-1"},
@@ -85,7 +84,7 @@ func TestNodeStageVolume(t *testing.T) {
 
 	for i, testCase := range testCases {
 		volume := &directcsi.DirectCSIVolume{
-			TypeMeta:   client.DirectCSIVolumeTypeMeta(),
+			TypeMeta:   utils.DirectCSIVolumeTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{Name: testCase.req.VolumeId},
 			Status: directcsi.DirectCSIVolumeStatus{
 				NodeName:      testNodeName,
@@ -119,7 +118,7 @@ func TestStageUnstageVolume(t *testing.T) {
 
 	testObjects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
-			TypeMeta: client.DirectCSIDriveTypeMeta(),
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: testDriveName,
 				Finalizers: []string{
@@ -137,7 +136,7 @@ func TestStageUnstageVolume(t *testing.T) {
 			},
 		},
 		&directcsi.DirectCSIVolume{
-			TypeMeta: client.DirectCSIVolumeTypeMeta(),
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name: testVolumeName50MB,
 				Finalizers: []string{
@@ -210,7 +209,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	}
 
 	volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, stageVolumeRequest.GetVolumeId(), metav1.GetOptions{
-		TypeMeta: client.DirectCSIVolumeTypeMeta(),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", stageVolumeRequest.GetVolumeId(), gErr)
@@ -246,7 +245,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	}
 
 	volObj, gErr = directCSIClient.DirectCSIVolumes().Get(ctx, unstageVolumeRequest.GetVolumeId(), metav1.GetOptions{
-		TypeMeta: client.DirectCSIVolumeTypeMeta(),
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", unstageVolumeRequest.GetVolumeId(), gErr)
