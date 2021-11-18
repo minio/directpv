@@ -24,8 +24,11 @@ import (
 	"os/exec"
 )
 
-func makeFS(ctx context.Context, device, uuid string, force bool) error {
-	args := []string{"-i", "maxpct=50", "-m", "reflink=0", "-m", fmt.Sprintf("uuid=%v", uuid)}
+func makeFS(ctx context.Context, device, uuid string, force, reflink bool) error {
+	args := []string{"-i", "maxpct=50", "-m", fmt.Sprintf("uuid=%v", uuid)}
+	if !reflink {
+		args = append(args, "-m", "reflink=0")
+	}
 	if force {
 		args = append(args, "-f")
 	}

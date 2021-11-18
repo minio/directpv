@@ -18,6 +18,6 @@ package xfs
 
 import "context"
 
-func MakeFS(ctx context.Context, device, uuid string, force bool) error {
-	return makeFS(ctx, device, uuid, force)
+func MakeFS(ctx context.Context, device, uuid string, force, reflink bool) error {
+	return makeFS(ctx, device, uuid, force, reflink)
 }

@@ -67,7 +67,7 @@ type NodeServer struct { //revive:disable-line:exported
 //revive:enable-line:exported
 
 // NewNodeServer creates node server.
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, enableDynamicDiscovery bool) (*NodeServer, error) {
+func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, enableDynamicDiscovery, reflinkSupport bool) (*NodeServer, error) {
 	config, err := client.GetKubeConfig()
 	if err != nil {
 		return &NodeServer{}, err
@@ -95,7 +95,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	// Start background tasks
 	go func() {
-		if err := drive.StartController(ctx, nodeID); err != nil {
+		if err := drive.StartController(ctx, nodeID, reflinkSupport); err != nil {
 			klog.Error(err)
 		}
 	}()
