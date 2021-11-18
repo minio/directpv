@@ -24,9 +24,9 @@ import (
 	"testing"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
-	"github.com/minio/direct-csi/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -111,7 +111,7 @@ func newDirectCSIVolume(name, uid string, capacity int64, conditions []condition
 	}
 
 	return &directcsi.DirectCSIVolume{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		TypeMeta: client.DirectCSIVolumeTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Finalizers: []string{
@@ -211,7 +211,7 @@ func TestListener(t *testing.T) {
 			ctx,
 			volume,
 			metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+				TypeMeta: client.DirectCSIVolumeTypeMeta(),
 			},
 		)
 		if err != nil {
@@ -237,7 +237,7 @@ func TestListener(t *testing.T) {
 			ctx,
 			volume,
 			metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+				TypeMeta: client.DirectCSIVolumeTypeMeta(),
 			},
 		)
 		if err != nil {
@@ -280,7 +280,7 @@ func TestListener(t *testing.T) {
 			ctx,
 			volume,
 			metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+				TypeMeta: client.DirectCSIVolumeTypeMeta(),
 			},
 		)
 		if err != nil {
@@ -338,7 +338,7 @@ func TestListenerParallel(t *testing.T) {
 			{directcsi.DirectCSIVolumeConditionReady, metav1.ConditionTrue, directcsi.DirectCSIVolumeReasonReady},
 		}),
 		metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			TypeMeta: client.DirectCSIVolumeTypeMeta(),
 		},
 	)
 	if err != nil {
@@ -354,7 +354,7 @@ func TestListenerParallel(t *testing.T) {
 			{directcsi.DirectCSIVolumeConditionReady, metav1.ConditionTrue, directcsi.DirectCSIVolumeReasonReady},
 		}),
 		metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			TypeMeta: client.DirectCSIVolumeTypeMeta(),
 		},
 	)
 	if err != nil {

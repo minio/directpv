@@ -23,8 +23,11 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+<<<<<<< HEAD
 
 	"github.com/minio/direct-csi/pkg/sys"
+=======
+>>>>>>> Create package client and rearrange code
 )
 
 // SanitizeDrivePath sanitizes drive path.
@@ -44,21 +47,5 @@ func NewIdentityTopologySelector(identity string) corev1.TopologySelectorTerm {
 				Values: []string{string(NewLabelValue(identity))},
 			},
 		},
-	}
-}
-
-// DirectCSIDriveTypeMeta gets new direct-csi drive meta.
-func DirectCSIDriveTypeMeta() metav1.TypeMeta {
-	return metav1.TypeMeta{
-		APIVersion: string(DirectCSIVersionLabelKey),
-		Kind:       "DirectCSIDrive",
-	}
-}
-
-// DirectCSIVolumeTypeMeta gets new direct-csi volume meta.
-func DirectCSIVolumeTypeMeta() metav1.TypeMeta {
-	return metav1.TypeMeta{
-		APIVersion: string(DirectCSIVersionLabelKey),
-		Kind:       "DirectCSIVolume",
 	}
 }

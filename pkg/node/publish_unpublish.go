@@ -102,7 +102,7 @@ func (n *NodeServer) nodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	volumeInterface := n.directcsiClient.DirectV1beta3().DirectCSIVolumes()
 
-	vol, err := volumeInterface.Get(ctx, req.GetVolumeId(), metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()})
+	vol, err := volumeInterface.Get(ctx, req.GetVolumeId(), metav1.GetOptions{TypeMeta: client.DirectCSIVolumeTypeMeta()})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -146,7 +146,7 @@ func (n *NodeServer) nodePublishVolume(ctx context.Context, req *csi.NodePublish
 	vol.Status.ContainerPath = req.GetTargetPath()
 
 	_, err = volumeInterface.Update(ctx, vol, metav1.UpdateOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		TypeMeta: client.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		return nil, err
@@ -177,7 +177,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	directCSIClient := n.directcsiClient.DirectV1beta3()
 	vclient := directCSIClient.DirectCSIVolumes()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		TypeMeta: client.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -203,7 +203,7 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	vol.Status.ContainerPath = ""
 
 	if _, err := vclient.Update(ctx, vol, metav1.UpdateOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		TypeMeta: client.DirectCSIVolumeTypeMeta(),
 	}); err != nil {
 		return nil, err
 	}

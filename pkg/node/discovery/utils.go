@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -134,7 +135,7 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 
 	driveSync := func() error {
 		existingDrive, err := driveClient.Get(ctx, localDrive.ObjectMeta.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		})
 		if err != nil {
 			return err
@@ -156,7 +157,7 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 			message)
 
 		updateOpts := metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		}
 		_, err = driveClient.Update(ctx, existingDrive, updateOpts)
 		return err

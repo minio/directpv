@@ -59,7 +59,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 
 	createTestDrive := func(node, drive, path string, driveStatus directcsi.DriveStatus, accessTier directcsi.AccessTier) *directcsi.DirectCSIDrive {
 		csiDrive := &directcsi.DirectCSIDrive{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      drive,
 				Namespace: metav1.NamespaceNone,
@@ -113,7 +113,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 		for _, drive := range driveList {
 			drive.Spec.RequestedFormat = nil
 			if _, err := testClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				TypeMeta: client.DirectCSIDriveTypeMeta(),
 			}); err != nil {
 				return err
 			}

@@ -83,7 +83,7 @@ func (handler *volumeEventHandler) ObjectType() runtime.Object {
 func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName, volumeName string, capacity int64) error {
 	drive, err := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Get(
 		ctx, driveName, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		},
 	)
 	if err != nil {
@@ -107,7 +107,7 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName,
 
 		_, err = handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
 			ctx, drive, metav1.UpdateOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				TypeMeta: client.DirectCSIDriveTypeMeta(),
 			},
 		)
 	}
@@ -136,7 +136,7 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *directcsi
 	volume.SetFinalizers(finalizers)
 	_, err := handler.directCSIClient.DirectV1beta3().DirectCSIVolumes().Update(
 		ctx, volume, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			TypeMeta: client.DirectCSIVolumeTypeMeta(),
 		},
 	)
 
@@ -165,7 +165,7 @@ func StartController(ctx context.Context, nodeID string) error {
 func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[string]string {
 	drive, err := client.GetDirectCSIClient().DirectCSIDrives().Get(
 		ctx, volume.Status.Drive, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		},
 	)
 
@@ -201,7 +201,7 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 		return func() error {
 			volume, err := volumeClient.Get(
 				ctx, volume.Name, metav1.GetOptions{
-					TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+					TypeMeta: client.DirectCSIVolumeTypeMeta(),
 				},
 			)
 			if err != nil {
@@ -212,7 +212,7 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 			volume.SetLabels(getLabels(ctx, volume))
 			_, err = volumeClient.Update(
 				ctx, volume, metav1.UpdateOptions{
-					TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+					TypeMeta: client.DirectCSIVolumeTypeMeta(),
 				},
 			)
 			return err

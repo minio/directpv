@@ -236,7 +236,7 @@ func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.D
 
 	if _, uErr := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
 		ctx, drive, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		},
 	); uErr != nil {
 		if err == nil {
@@ -279,7 +279,7 @@ func (handler *driveEventHandler) release(ctx context.Context, drive *directcsi.
 
 	if _, uErr := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
 		ctx, drive, metav1.UpdateOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			TypeMeta: client.DirectCSIDriveTypeMeta(),
 		},
 	); uErr != nil {
 		if err == nil {

@@ -75,7 +75,7 @@ func (handler *ueventHandler) syncDrive(
 		var updated, nameChanged bool
 		if drive, updated, nameChanged = updateDriveProperties(drive, device); updated {
 			_, err := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
-				ctx, &drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+				ctx, &drive, metav1.UpdateOptions{TypeMeta: client.DirectCSIDriveTypeMeta()},
 			)
 			if err != nil {
 				klog.ErrorS(err, "unable to update drive by "+matchName, "Path", drive.Status.Path, "device.Name", device.Name)
@@ -87,7 +87,7 @@ func (handler *ueventHandler) syncDrive(
 				updateLabels := func(volumeName, driveName string) func() error {
 					return func() error {
 						volume, err := volumeInterface.Get(
-							ctx, volumeName, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+							ctx, volumeName, metav1.GetOptions{TypeMeta: client.DirectCSIVolumeTypeMeta()},
 						)
 						if err != nil {
 							return err
@@ -95,7 +95,7 @@ func (handler *ueventHandler) syncDrive(
 
 						volume.Labels[string(utils.DrivePathLabelKey)] = driveName
 						_, err = volumeInterface.Update(
-							ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+							ctx, volume, metav1.UpdateOptions{TypeMeta: client.DirectCSIVolumeTypeMeta()},
 						)
 						return err
 					}

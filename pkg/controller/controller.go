@@ -227,7 +227,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 
 		volume, err := volumeInterface.Get(
-			ctx, newVolume.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+			ctx, newVolume.Name, metav1.GetOptions{TypeMeta: client.DirectCSIVolumeTypeMeta()},
 		)
 		if err != nil {
 			return nil, status.Error(codes.NotFound, err.Error())
@@ -237,7 +237,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		volume.Finalizers = newVolume.Finalizers
 		volume.Status = newVolume.Status
 		_, err = volumeInterface.Update(
-			ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+			ctx, volume, metav1.UpdateOptions{TypeMeta: client.DirectCSIVolumeTypeMeta()},
 		)
 		if err != nil {
 			return nil, err
@@ -261,7 +261,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			"volume", name)
 
 		_, err = c.directcsiClient.DirectV1beta3().DirectCSIDrives().Update(
-			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+			ctx, drive, metav1.UpdateOptions{TypeMeta: client.DirectCSIDriveTypeMeta()},
 		)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
@@ -296,7 +296,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		TypeMeta: client.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -327,7 +327,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	vol.SetFinalizers(updatedFinalizers)
 
 	_, err = vclient.Update(ctx, vol, metav1.UpdateOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		TypeMeta: client.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "could not remove finalizer for volume [%s]: %v", vID, err)
