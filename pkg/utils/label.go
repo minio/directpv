@@ -88,3 +88,17 @@ func NewLabelValue(value string) LabelValue {
 	)
 	return result
 }
+
+func ToLabelSelector(labels map[LabelKey][]LabelValue) string {
+	selectors := []string{}
+	for key, values := range labels {
+		if len(values) != 0 {
+			result := []string{}
+			for _, value := range values {
+				result = append(result, string(value))
+			}
+			selectors = append(selectors, fmt.Sprintf("%s in (%s)", key, strings.Join(result, ",")))
+		}
+	}
+	return strings.Join(selectors, ",")
+}

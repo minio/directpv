@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -70,7 +71,7 @@ func getPodInfo(ctx context.Context, req *csi.NodePublishVolumeRequest) (podName
 		return
 	}
 
-	if pod, err := utils.GetKubeClient().CoreV1().Pods(podNS).Get(ctx, podName, metav1.GetOptions{}); err != nil {
+	if pod, err := client.GetKubeClient().CoreV1().Pods(podNS).Get(ctx, podName, metav1.GetOptions{}); err != nil {
 		klog.Errorf("unable to get pod information; name=%v, namespace=%v; %v", podName, podNS, err)
 	} else {
 		podLabels = pod.GetLabels()

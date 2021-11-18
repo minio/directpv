@@ -21,6 +21,7 @@ package installer
 import (
 	"context"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -51,7 +52,7 @@ func createServiceAccount(ctx context.Context, c *Config) error {
 		return c.postProc(serviceAccount)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().ServiceAccounts(c.namespace()).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().ServiceAccounts(c.namespace()).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -91,7 +92,7 @@ func createClusterRoleBinding(ctx context.Context, c *Config) error {
 		return c.postProc(clusterRoleBinding)
 	}
 
-	if _, err := utils.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -324,7 +325,7 @@ func createClusterRole(ctx context.Context, c *Config) error {
 		return c.postProc(clusterRole)
 	}
 
-	if _, err := utils.GetKubeClient().RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -352,19 +353,19 @@ func installRBACDefault(ctx context.Context, c *Config) error {
 }
 
 func uninstallRBACDefault(ctx context.Context, c *Config) error {
-	if err := utils.GetKubeClient().CoreV1().ServiceAccounts(c.namespace()).Delete(ctx, c.serviceAccountName(), metav1.DeleteOptions{}); err != nil {
+	if err := client.GetKubeClient().CoreV1().ServiceAccounts(c.namespace()).Delete(ctx, c.serviceAccountName(), metav1.DeleteOptions{}); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}
 
-	if err := utils.GetKubeClient().RbacV1().ClusterRoles().Delete(ctx, c.clusterRoleName(), metav1.DeleteOptions{}); err != nil {
+	if err := client.GetKubeClient().RbacV1().ClusterRoles().Delete(ctx, c.clusterRoleName(), metav1.DeleteOptions{}); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}
 
-	if err := utils.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, c.roleBindingName(), metav1.DeleteOptions{}); err != nil {
+	if err := client.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, c.roleBindingName(), metav1.DeleteOptions{}); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}

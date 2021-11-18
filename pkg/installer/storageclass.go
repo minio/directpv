@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -61,7 +62,7 @@ func createStorageClass(ctx context.Context, c *Config) error {
 	allowTopologiesWithName := utils.NewIdentityTopologySelector(c.driverIdentity())
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
-	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	gvk, err := client.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func createStorageClass(ctx context.Context, c *Config) error {
 			return c.postProc(storageClass)
 		}
 
-		if _, err := utils.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 		return c.postProc(storageClass)
@@ -128,7 +129,7 @@ func createStorageClass(ctx context.Context, c *Config) error {
 			return c.postProc(storageClass)
 		}
 
-		if _, err := utils.GetKubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 		return c.postProc(storageClass)
@@ -138,18 +139,18 @@ func createStorageClass(ctx context.Context, c *Config) error {
 }
 
 func deleteStorageClass(ctx context.Context, c *Config) error {
-	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	gvk, err := client.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
 
 	switch gvk.Version {
 	case "v1":
-		if err := utils.GetKubeClient().StorageV1().StorageClasses().Delete(ctx, c.storageClassName(), metav1.DeleteOptions{}); err != nil {
+		if err := client.GetKubeClient().StorageV1().StorageClasses().Delete(ctx, c.storageClassName(), metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	case "v1beta1":
-		if err := utils.GetKubeClient().StorageV1beta1().StorageClasses().Delete(ctx, c.storageClassName(), metav1.DeleteOptions{}); err != nil {
+		if err := client.GetKubeClient().StorageV1beta1().StorageClasses().Delete(ctx, c.storageClassName(), metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	default:

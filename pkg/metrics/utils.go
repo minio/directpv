@@ -20,6 +20,7 @@ import (
 	"context"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/fs/xfs"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -43,7 +44,7 @@ type xfsVolumeStats struct {
 type xfsVolumeStatsGetter func(context.Context, *directcsi.DirectCSIVolume) (xfsVolumeStats, error)
 
 func (c *metricsCollector) getxfsVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume) (xfsVolumeStats, error) {
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := client.GetDirectCSIClient()
 	drive, err := directCSIClient.DirectCSIDrives().Get(ctx, vol.Status.Drive, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})

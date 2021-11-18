@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -97,7 +98,7 @@ func releaseDrives(ctx context.Context, IDArgs []string) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := client.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
 		directCSIClient.DirectCSIDrives(),

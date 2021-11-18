@@ -25,6 +25,7 @@ import (
 	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -140,7 +141,7 @@ func generateSanitizedUniqueNameFrom(name string) string {
 }
 
 func deleteDeployment(ctx context.Context, identity, name string) error {
-	dClient := utils.GetKubeClient().AppsV1().Deployments(utils.SanitizeKubeResourceName(identity))
+	dClient := client.GetKubeClient().AppsV1().Deployments(utils.SanitizeKubeResourceName(identity))
 
 	getDeleteProtectionFinalizer := func() string {
 		return utils.SanitizeKubeResourceName(identity) + directCSIFinalizerDeleteProtection

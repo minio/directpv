@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/converter"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -54,7 +55,7 @@ func registerCRDs(ctx context.Context, c *Config) error {
 		crdObjs = append(crdObjs, crdObj)
 	}
 
-	crdClient := utils.GetCRDClient()
+	crdClient := client.GetCRDClient()
 	for _, crd := range crdObjs {
 		var crdObj apiextensions.CustomResourceDefinition
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(crd.(*unstructured.Unstructured).Object, &crdObj); err != nil {
@@ -121,7 +122,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		utils.UpdateLabels(existingCRD, map[utils.LabelKey]utils.LabelValue{utils.VersionLabelKey: directcsi.Version})
 		existingCRD.TypeMeta = newCRD.TypeMeta
 	} else {
-		crdClient := utils.GetCRDClient()
+		crdClient := client.GetCRDClient()
 		if _, err := crdClient.Update(ctx, existingCRD, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -205,7 +206,7 @@ func GetConversionCABundle(ctx context.Context, c *Config) ([]byte, error) {
 		return conversionCABundle, nil
 	}
 
-	secret, err := utils.GetKubeClient().
+	secret, err := client.GetKubeClient().
 		CoreV1().
 		Secrets(c.namespace()).
 		Get(ctx, conversionCACert, metav1.GetOptions{})
@@ -249,7 +250,7 @@ func unregisterCRDs(ctx context.Context) error {
 		crdNames = append(crdNames, fmt.Sprintf("%s.%s", crd, apiGroup))
 	}
 
-	crdClient := utils.GetCRDClient()
+	crdClient := client.GetCRDClient()
 	for _, crd := range crdNames {
 		if err := crdClient.Delete(ctx, crd, metav1.DeleteOptions{}); err != nil {
 			if !k8serrors.IsNotFound(err) {

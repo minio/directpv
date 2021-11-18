@@ -14,22 +14,118 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package client
 
 import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/spf13/viper"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/tools/clientcmd"
 
+	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/klog/v2"
 )
+
+// GetClientForNonCoreGroupKindVersions gets client for group/kind of given versions.
+func GetClientForNonCoreGroupKindVersions(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
+	gvk, err := GetGroupKindVersions(group, kind, versions...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	gv := &schema.GroupVersion{
+		Group:   gvk.Group,
+		Version: gvk.Version,
+	}
+
+	config, err := GetKubeConfig()
+	if err != nil {
+		klog.Fatalf("could not find client configuration: %v", err)
+	}
+	klog.V(1).Infof("obtained client config successfully")
+
+	config.GroupVersion = gv
+	config.APIPath = "/apis"
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	if config.UserAgent == "" {
+		config.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+
+	client, err := rest.RESTClientFor(config)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, gvk, nil
+}
+
+func getKubeConfig() (*rest.Config, string, error) {
+	kubeConfig := viper.GetString("kubeconfig")
+	if kubeConfig == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			klog.Infof("could not find home dir: %v", err)
+		}
+		kubeConfig = filepath.Join(home, ".kube", "config")
+	}
+
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	if err != nil {
+		if config, err = rest.InClusterConfig(); err != nil {
+			return nil, "", err
+		}
+	}
+	config.QPS = float32(MaxThreadCount / 2)
+	config.Burst = MaxThreadCount
+	return config, "", nil
+}
+
+// GetKubeConfig gets kubernetes configuration.
+func GetKubeConfig() (*rest.Config, error) {
+	config, _, err := getKubeConfig()
+	return config, err
+}
+
+// GetGroupKindVersions gets group/version/kind of given versions.
+func GetGroupKindVersions(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
+	discoveryClient := GetDiscoveryClient()
+	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
+	if err != nil {
+		klog.Errorf("could not obtain API group resources: %v", err)
+		return nil, err
+	}
+	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
+	gk := schema.GroupKind{
+		Group: group,
+		Kind:  kind,
+	}
+	mapper, err := restMapper.RESTMapping(gk, versions...)
+	if err != nil {
+		klog.Errorf("could not find valid restmapping: %v", err)
+		return nil, err
+	}
+
+	gvk := &schema.GroupVersionKind{
+		Group:   mapper.Resource.Group,
+		Version: mapper.Resource.Version,
+		Kind:    mapper.Resource.Resource,
+	}
+	return gvk, nil
+}
 
 type objectResult struct {
 	object runtime.Object
@@ -57,7 +153,7 @@ func processObjects(
 	objectCh := make(chan runtime.Object)
 	var wg sync.WaitGroup
 
-	// Start utils.MaxThreadCount workers.
+	// Start MaxThreadCount workers.
 	var errs []error
 	for i := 0; i < MaxThreadCount; i++ {
 		wg.Add(1)
@@ -99,12 +195,12 @@ func processObjects(
 		}
 
 		if dryRun {
-			if err := LogYAML(result.object); err != nil {
+			if err := utils.LogYAML(result.object); err != nil {
 				klog.Errorf("Unable to convert to YAML. %v", err)
 			}
 			continue
 		}
-		if err := WriteObject(writer, result.object); err != nil {
+		if err := utils.WriteObject(writer, result.object); err != nil {
 			return err
 		}
 
@@ -230,4 +326,20 @@ func ProcessDrives(
 		writer,
 		dryRun,
 	)
+}
+
+// DirectCSIDriveTypeMeta gets new direct-csi drive meta.
+func DirectCSIDriveTypeMeta() metav1.TypeMeta {
+	return metav1.TypeMeta{
+		APIVersion: string(utils.DirectCSIVersionLabelKey),
+		Kind:       "DirectCSIDrive",
+	}
+}
+
+// DirectCSIVolumeTypeMeta gets new direct-csi volume meta.
+func DirectCSIVolumeTypeMeta() metav1.TypeMeta {
+	return metav1.TypeMeta{
+		APIVersion: string(utils.DirectCSIVersionLabelKey),
+		Kind:       "DirectCSIVolume",
+	}
 }

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -44,7 +45,7 @@ func installDaemonsetDefault(ctx context.Context, c *Config) error {
 }
 
 func uninstallDaemonsetDefault(ctx context.Context, c *Config) error {
-	if err := utils.GetKubeClient().AppsV1().DaemonSets(c.namespace()).Delete(ctx, c.daemonsetName(), metav1.DeleteOptions{}); err != nil {
+	if err := client.GetKubeClient().AppsV1().DaemonSets(c.namespace()).Delete(ctx, c.daemonsetName(), metav1.DeleteOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}
@@ -260,7 +261,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		return c.postProc(daemonset)
 	}
 
-	if _, err := utils.GetKubeClient().AppsV1().DaemonSets(c.namespace()).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().AppsV1().DaemonSets(c.namespace()).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}

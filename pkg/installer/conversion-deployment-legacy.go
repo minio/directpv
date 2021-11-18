@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,11 +31,11 @@ func deleteConversionDeployment(ctx context.Context, identity string) error {
 }
 
 func deleteLegacyConversionSecret(ctx context.Context, identity string) error {
-	return utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, conversionWebhookSecretName, metav1.DeleteOptions{})
+	return client.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, conversionWebhookSecretName, metav1.DeleteOptions{})
 }
 
 func deleteLegacyConversionWebhookCertsSecret(ctx context.Context, identity string) error {
-	if err := utils.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, conversionWebhookCertsSecret, metav1.DeleteOptions{}); err != nil {
+	if err := client.GetKubeClient().CoreV1().Secrets(utils.SanitizeKubeResourceName(identity)).Delete(ctx, conversionWebhookCertsSecret, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil

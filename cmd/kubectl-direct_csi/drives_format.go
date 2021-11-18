@@ -23,6 +23,7 @@ import (
 	"fmt"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/spf13/cobra"
@@ -104,7 +105,7 @@ func init() {
 }
 
 func formatDrives(ctx context.Context, IDArgs []string) error {
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := client.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
 		directCSIClient.DirectCSIDrives(),

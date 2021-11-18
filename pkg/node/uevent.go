@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/uuid"
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/uevent"
@@ -49,7 +50,7 @@ func startUeventHandler(ctx context.Context, nodeID string, topology map[string]
 	klog.V(3).Info("Starting uevent handler")
 	handler := &ueventHandler{
 		nodeID:          nodeID,
-		directCSIClient: utils.GetDirectClientset(),
+		directCSIClient: client.GetDirectClientset(),
 		topology:        topology,
 	}
 	handler.processLoop(ctx)
@@ -150,13 +151,13 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 		return
 	}
 
-	resultCh, err := utils.ListDrives(
+	resultCh, err := client.ListDrives(
 		ctx,
 		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
 		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
 		nil,
 		nil,
-		utils.MaxThreadCount,
+		client.MaxThreadCount,
 	)
 	if err != nil {
 		klog.Error(err)
@@ -170,18 +171,18 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 		}
 
 		if !handler.updateDrive(ctx, result.Drive, devices) {
-			if err := utils.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), &result.Drive, true); err != nil {
+			if err := client.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), &result.Drive, true); err != nil {
 				klog.ErrorS(err, "unable to delete drive", "Name", result.Drive.Name, "Status.Path", result.Drive.Status.Path)
 			}
 		}
 	}
 
 	for _, device := range devices {
-		drive := utils.NewDirectCSIDrive(
+		drive := client.NewDirectCSIDrive(
 			uuid.New().String(),
-			utils.NewDirectCSIDriveStatus(device, handler.nodeID, handler.topology),
+			client.NewDirectCSIDriveStatus(device, handler.nodeID, handler.topology),
 		)
-		if err := utils.CreateDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), drive); err != nil {
+		if err := client.CreateDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), drive); err != nil {
 			klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
 		}
 	}
@@ -205,7 +206,7 @@ func (handler *ueventHandler) removeDrive(ctx context.Context, drive directcsi.D
 			case !errors.Is(err, os.ErrNotExist):
 				klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
 			default:
-				if err := utils.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), &drive, true); err != nil {
+				if err := client.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), &drive, true); err != nil {
 					klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
 				}
 			}
@@ -234,13 +235,13 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 	handler.syncMu.Lock()
 	defer handler.syncMu.Unlock()
 
-	resultCh, err := utils.ListDrives(
+	resultCh, err := client.ListDrives(
 		ctx,
 		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
 		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
 		[]utils.LabelValue{utils.NewLabelValue(device.Name)},
 		nil,
-		utils.MaxThreadCount,
+		client.MaxThreadCount,
 	)
 	if err != nil {
 		klog.Error(err)
@@ -273,11 +274,11 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 		return
 	}
 
-	drive := utils.NewDirectCSIDrive(
+	drive := client.NewDirectCSIDrive(
 		uuid.New().String(),
-		utils.NewDirectCSIDriveStatus(device, handler.nodeID, handler.topology),
+		client.NewDirectCSIDriveStatus(device, handler.nodeID, handler.topology),
 	)
-	if err := utils.CreateDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), drive); err != nil {
+	if err := client.CreateDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), drive); err != nil {
 		klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
 	}
 }

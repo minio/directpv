@@ -26,6 +26,7 @@ import (
 
 	"k8s.io/klog/v2"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 )
 
@@ -56,7 +57,7 @@ var pluginCmd = &cobra.Command{
 	SilenceErrors: false,
 	Version:       Version,
 	PersistentPreRunE: func(c *cobra.Command, args []string) error {
-		utils.Init()
+		client.Init()
 
 		switch outputMode {
 		case "":

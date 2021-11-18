@@ -20,13 +20,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 )
 
 func init() {
-	utils.FakeInit()
+	client.FakeInit()
 }
 
 func TestInstaller(t1 *testing.T) {
@@ -125,7 +125,7 @@ func TestInstaller(t1 *testing.T) {
 	}
 
 	for _, testVersion := range testVersions {
-		utils.SetFakeDiscoveryClient(getDiscoveryGroupsAndMethodsFn, &testVersion)
+		client.SetFakeDiscoveryClient(getDiscoveryGroupsAndMethodsFn, &testVersion)
 		ctx := context.TODO()
 		if err := Install(ctx, installConfig); err != nil {
 			t1.Fatalf("install failed: %v", err)
@@ -135,7 +135,7 @@ func TestInstaller(t1 *testing.T) {
 		if err := Uninstall(ctx, installConfig); err != nil {
 			t1.Fatalf("uninstall failed: %v", err)
 		}
-		if _, err := utils.GetKubeClient().CoreV1().Namespaces().Get(ctx, "direct-csi-min-io", metav1.GetOptions{}); err == nil {
+		if _, err := client.GetKubeClient().CoreV1().Namespaces().Get(ctx, "direct-csi-min-io", metav1.GetOptions{}); err == nil {
 			t1.Errorf("namespace not removed upon uninstallation. version: %s.%s", testVersion.Major, testVersion.Minor)
 		}
 	}

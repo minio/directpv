@@ -24,6 +24,7 @@ import (
 	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -38,7 +39,7 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListVolumes(ctx, directCSIClient.DirectCSIVolumes(), nil, nil, nil, nil, utils.MaxThreadCount)
+	resultCh, err := client.ListVolumes(ctx, directCSIClient.DirectCSIVolumes(), nil, nil, nil, nil, client.MaxThreadCount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -66,7 +67,7 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 		}
 	}()
 
-	err = utils.ProcessVolumes(
+	err = client.ProcessVolumes(
 		ctx,
 		resultCh,
 		func(volume *directcsi.DirectCSIVolume) bool {
@@ -104,7 +105,7 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 
 	defer cancelFunc()
 
-	resultCh, err := utils.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, utils.MaxThreadCount)
+	resultCh, err := client.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, client.MaxThreadCount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -132,7 +133,7 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 		}
 	}()
 
-	err = utils.ProcessDrives(
+	err = client.ProcessDrives(
 		ctx,
 		resultCh,
 		func(drive *directcsi.DirectCSIDrive) bool {
@@ -184,7 +185,7 @@ func uninstallCRDDefault(ctx context.Context, c *Config) error {
 	if !c.UninstallCRD {
 		return nil
 	}
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := client.GetDirectCSIClient()
 	if err := removeVolumes(ctx, directCSIClient, c); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}

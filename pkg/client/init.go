@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package client
 
 import (
 	"fmt"
@@ -23,6 +23,7 @@ import (
 
 	direct "github.com/minio/direct-csi/pkg/clientset"
 	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/client-go/discovery"
@@ -89,20 +90,20 @@ func Init() {
 
 	config, kubeConfig, err := getKubeConfig()
 	if err != nil {
-		fmt.Printf("%s: Could not connect to kubernetes. %s=%s\n", Bold("Error"), "KUBECONFIG", kubeConfig)
+		fmt.Printf("%s: Could not connect to kubernetes. %s=%s\n", utils.Bold("Error"), "KUBECONFIG", kubeConfig)
 		os.Exit(1)
 	}
 	klog.V(1).Infof("obtained client config successfully")
 
 	kubeClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("%s: could not initialize kube client: err=%v\n", Bold("Error"), err)
+		fmt.Printf("%s: could not initialize kube client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 
 	directClientset, err = direct.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("%s: could not initialize direct-csi client: err=%v\n", Bold("Error"), err)
+		fmt.Printf("%s: could not initialize direct-csi client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 
@@ -113,7 +114,7 @@ func Init() {
 
 	crdClientset, err := apiextensions.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("%s: could not initialize crd client: err=%v\n", Bold("Error"), err)
+		fmt.Printf("%s: could not initialize crd client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 	apiextensionsClient = crdClientset
@@ -121,13 +122,13 @@ func Init() {
 
 	discoveryClient, err = discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		fmt.Printf("%s: could not initialize discovery client: err=%v\n", Bold("Error"), err)
+		fmt.Printf("%s: could not initialize discovery client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 
 	metadataClient, err = metadata.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("%s: could not initialize metadata client: err=%v\n", Bold("Error"), err)
+		fmt.Printf("%s: could not initialize metadata client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 

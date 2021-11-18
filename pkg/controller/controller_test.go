@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -32,7 +33,7 @@ import (
 )
 
 func init() {
-	utils.FakeInit()
+	client.FakeInit()
 }
 
 const (
@@ -191,7 +192,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	}
 
 	// Fetch the drive objects
-	driveList, err := utils.GetDriveList(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil)
+	driveList, err := client.GetDriveList(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil)
 	if err != nil {
 		t.Errorf("Listing drives failed: %v", err)
 	}

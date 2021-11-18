@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/matcher"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -90,7 +91,7 @@ func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, regi
 		Rack:            rack,
 		Zone:            zone,
 		Region:          region,
-		directcsiClient: utils.GetDirectClientset(),
+		directcsiClient: client.GetDirectClientset(),
 	}
 	go serveAdmissionController(ctx) // Start admission webhook server
 	return controller, nil
@@ -242,9 +243,9 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, err
 		}
 
-		utils.Eventf(volume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v provisioned", volume.Name)
+		client.Eventf(volume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v provisioned", volume.Name)
 	} else {
-		utils.Eventf(newVolume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v is created", newVolume.Name)
+		client.Eventf(newVolume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v is created", newVolume.Name)
 	}
 
 	finalizer := directcsi.DirectCSIDriveFinalizerPrefix + req.GetName()
@@ -265,7 +266,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
 		} else {
-			utils.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
+			client.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
 		}
 	}
 

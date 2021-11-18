@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -30,7 +31,7 @@ import (
 func registerDriveValidationRules(ctx context.Context, c *Config) error {
 	driveValidatingWebhookConfig := getDriveValidatingWebhookConfig(c)
 	if !c.DryRun {
-		if _, err := utils.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(ctx, &driveValidatingWebhookConfig, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(ctx, &driveValidatingWebhookConfig, metav1.CreateOptions{}); err != nil {
 			if !apierrors.IsAlreadyExists(err) {
 				return err
 			}
@@ -104,7 +105,7 @@ func getDriveValidatingWebhookConfig(c *Config) admissionv1.ValidatingWebhookCon
 }
 
 func deleteDriveValidationRules(ctx context.Context, c *Config) error {
-	vClient := utils.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations()
+	vClient := client.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations()
 
 	getDeleteProtectionFinalizer := func() string {
 		return c.namespace() + directCSIFinalizerDeleteProtection

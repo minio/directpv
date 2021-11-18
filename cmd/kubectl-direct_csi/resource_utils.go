@@ -20,18 +20,18 @@ import (
 	"context"
 	"strings"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/client"
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
-func getDrivesByIds(ctx context.Context, ids []string) <-chan utils.ListDriveResult {
-	resultCh := make(chan utils.ListDriveResult)
+func getDrivesByIds(ctx context.Context, ids []string) <-chan client.ListDriveResult {
+	resultCh := make(chan client.ListDriveResult)
 	go func() {
 		defer close(resultCh)
-		directClient := utils.GetDirectCSIClient()
+		directClient := client.GetDirectCSIClient()
 		for _, id := range ids {
 			driveName := strings.TrimSpace(id)
 			d, err := directClient.DirectCSIDrives().Get(ctx, driveName, metav1.GetOptions{})
@@ -43,7 +43,7 @@ func getDrivesByIds(ctx context.Context, ids []string) <-chan utils.ListDriveRes
 				klog.Errorf("No resource of %s found by the name %s", bold("DirectCSIDrive"), driveName)
 				continue
 			}
-			resultCh <- utils.ListDriveResult{Drive: *d}
+			resultCh <- client.ListDriveResult{Drive: *d}
 		}
 	}()
 	return resultCh

@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/uuid"
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/sys"
@@ -46,8 +47,8 @@ type driveEventHandler struct {
 
 func newDriveEventHandler(nodeID string) *driveEventHandler {
 	return &driveEventHandler{
-		directCSIClient: utils.GetDirectClientset(),
-		kubeClient:      utils.GetKubeClient(),
+		directCSIClient: client.GetDirectClientset(),
+		kubeClient:      client.GetKubeClient(),
 		nodeID:          nodeID,
 		mounter:         &sys.DefaultDriveMounter{},
 		formatter:       &sys.DefaultDriveFormatter{},
@@ -106,13 +107,13 @@ func (handler *driveEventHandler) getFSUUID(ctx context.Context, drive *directcs
 	defer cancelFunc()
 
 	// Use new UUID if it is aleady used in another drive.
-	resultCh, err := utils.ListDrives(
+	resultCh, err := client.ListDrives(
 		ctx,
 		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
 		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
 		nil,
 		nil,
-		utils.MaxThreadCount,
+		client.MaxThreadCount,
 	)
 	if err != nil {
 		return "", err
@@ -318,7 +319,7 @@ func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.D
 }
 
 func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	return utils.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), drive, false)
+	return client.DeleteDrive(ctx, handler.directCSIClient.DirectV1beta3().DirectCSIDrives(), drive, false)
 }
 
 // StartController starts drive event controller.

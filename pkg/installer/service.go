@@ -21,6 +21,7 @@ package installer
 import (
 	"context"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -43,7 +44,7 @@ func installServiceDefault(ctx context.Context, c *Config) error {
 }
 
 func uninstallServiceDefault(ctx context.Context, c *Config) error {
-	if err := utils.GetKubeClient().CoreV1().Services(c.namespace()).Delete(ctx, c.serviceName(), metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
+	if err := client.GetKubeClient().CoreV1().Services(c.namespace()).Delete(ctx, c.serviceName(), metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
 	klog.Infof("'%s' service deleted", utils.Bold(c.Identity))
@@ -86,7 +87,7 @@ func createService(ctx context.Context, c *Config) error {
 		return c.postProc(svc)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 	return c.postProc(svc)

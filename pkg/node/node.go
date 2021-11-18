@@ -19,6 +19,7 @@ package node
 import (
 	"context"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/drive"
 	"github.com/minio/direct-csi/pkg/metrics"
@@ -36,7 +37,7 @@ import (
 
 // NewNodeServer creates node server.
 func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, enableDynamicDiscovery bool) (*NodeServer, error) {
-	config, err := utils.GetKubeConfig()
+	config, err := client.GetKubeConfig()
 	if err != nil {
 		return &NodeServer{}, err
 	}
