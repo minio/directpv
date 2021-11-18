@@ -161,8 +161,7 @@ func DeleteDrive(ctx context.Context, directCSIClient directcsiclientset.Interfa
 	volumeInterface := directCSIClient.DirectV1beta3().DirectCSIVolumes()
 	if drive.Status.DriveStatus != directcsi.DriveStatusTerminating {
 		drive.Status.DriveStatus = directcsi.DriveStatusTerminating
-		drive, err = driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: DirectCSIDriveTypeMeta()})
-		if err != nil {
+		if drive, err = driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()}); err != nil {
 			return err
 		}
 	}
@@ -188,7 +187,7 @@ func DeleteDrive(ctx context.Context, directCSIClient directcsiclientset.Interfa
 		}
 
 		drive.Finalizers = []string{}
-		_, err := driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: DirectCSIDriveTypeMeta()})
+		_, err := driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 		return err
 	case 0:
 		return nil
@@ -199,7 +198,7 @@ func DeleteDrive(ctx context.Context, directCSIClient directcsiclientset.Interfa
 			}
 			volumeName := strings.TrimPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix)
 			volume, err := volumeInterface.Get(
-				ctx, volumeName, metav1.GetOptions{TypeMeta: DirectCSIVolumeTypeMeta()},
+				ctx, volumeName, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
 			)
 			if err != nil {
 				return err
@@ -211,7 +210,7 @@ func DeleteDrive(ctx context.Context, directCSIClient directcsiclientset.Interfa
 				"[DRIVE LOST] Please refer https://github.com/minio/direct-csi/blob/master/docs/scheduling.md",
 			)
 			_, err = volumeInterface.Update(
-				ctx, volume, metav1.UpdateOptions{TypeMeta: DirectCSIVolumeTypeMeta()},
+				ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
 			)
 			if err != nil {
 				return err

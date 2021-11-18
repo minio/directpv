@@ -106,7 +106,6 @@ func canonicalNameFromPath(val string) string {
 
 func processFilteredDrives(
 	ctx context.Context,
-	driveInterface clientset.DirectCSIDriveInterface,
 	idArgs []string,
 	matchFunc func(*directcsi.DirectCSIDrive) bool,
 	applyFunc func(*directcsi.DirectCSIDrive) error,
@@ -120,7 +119,7 @@ func processFilteredDrives(
 		defer cancelFunc()
 
 		resultCh, err = client.ListDrives(ctx,
-			driveInterface,
+			client.GetLatestDirectCSIDriveClientset(),
 			nodeSelectorValues,
 			driveSelectorValues,
 			accessTierSelectorValues,
@@ -221,9 +220,9 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 	return filteredVolumes, nil
 }
 
-func defaultDriveUpdateFunc(directCSIClient clientset.DirectV1beta3Interface) func(context.Context, *directcsi.DirectCSIDrive) error {
+func defaultDriveUpdateFunc(directCSIDriveInterface clientset.DirectCSIDriveInterface) func(context.Context, *directcsi.DirectCSIDrive) error {
 	return func(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-		_, err := directCSIClient.DirectCSIDrives().Update(ctx, drive, metav1.UpdateOptions{})
+		_, err := directCSIDriveInterface.Update(ctx, drive, metav1.UpdateOptions{})
 		return err
 	}
 }

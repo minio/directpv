@@ -108,6 +108,50 @@ function do_upgrade_test() {
     uninstall_directcsi
 }
 
+function do_version_compatibility_client_test() {
+    # unmount all direct-csi mounts of previous installation if any.
+    mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl
+
+    DIRECT_CSI_CLIENT="./kubectl-direct_csi_$1"
+    DIRECT_CSI_VERSION="v$1"
+    install_directcsi
+    check_drives
+    deploy_minio
+
+    declare -A volumes
+    for volume in $("${DIRECT_CSI_CLIENT}" volumes list --status 'published' | awk '{print $1}' ); do
+        volumes["${volume}"]=
+    done
+
+    # Show output for manual debugging.
+    "${DIRECT_CSI_CLIENT}" volumes list
+
+    export DIRECT_CSI_CLIENT=./kubectl-direct_csi
+
+    # Show output for manual debugging.
+    "${DIRECT_CSI_CLIENT}" drives list --all -o wide
+
+    # Show output for manual debugging.
+    "${DIRECT_CSI_CLIENT}" volumes list --all -o wide
+
+    mapfile -t upgraded_volumes < <("${DIRECT_CSI_CLIENT}" volumes list --status published | awk '{print $1}')
+    if [[ ${#upgraded_volumes[@]} -ne ${#volumes[@]} ]]; then
+        echo "$ME: volume count is not matching in version compatibility client tests"
+        return 1
+    fi
+
+    for volume in "${upgraded_volumes[@]}"; do
+        if [[ ! ${volumes[${volume}]+_} ]]; then
+            echo "$ME: ${volume} not found in version compatibility client tests"
+            return 1
+        fi
+    done
+
+    uninstall_minio
+    uninstall_directcsi
+}
+
+
 echo "$ME: Setup environment"
 setup_lvm
 setup_luks
@@ -120,3 +164,6 @@ do_upgrade_test "1.3.6"
 
 echo "$ME: Run upgrade test from v1.4.6"
 do_upgrade_test "1.4.6"
+
+echo "$ME: Run version adaptibility test"
+do_version_compatibility_client_test "1.4.6"

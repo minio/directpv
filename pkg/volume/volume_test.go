@@ -245,7 +245,6 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 	vl := createFakeVolumeEventListener(testObjects...)
 	ctx := context.TODO()
 	directCSIClient := vl.directCSIClient.DirectV1beta3()
-
 	for _, testObj := range testObjects {
 		vObj, ok := testObj.(*directcsi.DirectCSIVolume)
 		if !ok {

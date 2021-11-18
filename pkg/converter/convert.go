@@ -53,13 +53,25 @@ func convertVolumeCRD(Object *unstructured.Unstructured, toVersion string) (*uns
 	return convertedObject, statusSucceed()
 }
 
+func MigrateList(fromList, toList *unstructured.UnstructuredList, groupVersion schema.GroupVersion) error {
+	fromList.DeepCopyInto(toList)
+	fn := func(obj runtime.Object) error {
+		cpObj := obj.DeepCopyObject()
+		if err := Migrate(cpObj.(*unstructured.Unstructured), obj.(*unstructured.Unstructured), groupVersion); err != nil {
+			return err
+		}
+		return nil
+	}
+	return toList.EachListItem(fn)
+}
+
 // Migrate function migrates unstructured object from one to another
-func Migrate(from, to *unstructured.Unstructured, groupVeraion schema.GroupVersion) error {
+func Migrate(from, to *unstructured.Unstructured, groupVersion schema.GroupVersion) error {
 	obj := from.DeepCopy()
 	if from.GetAPIVersion() == to.GetAPIVersion() {
 		return runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, to)
 	}
-	toVersion := fmt.Sprintf("%s/%s", groupVeraion.Group, groupVeraion.Version)
+	toVersion := fmt.Sprintf("%s/%s", groupVersion.Group, groupVersion.Version)
 	if err := migrate(obj, toVersion); err != nil {
 		return err
 	}
