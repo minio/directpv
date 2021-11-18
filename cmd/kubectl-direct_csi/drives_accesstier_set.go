@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/spf13/cobra"
@@ -95,7 +96,7 @@ func setAccessTier(ctx context.Context, accessTier directcsi.AccessTier) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	directCSIClient := utils.GetDirectCSIClient()
+	directCSIClient := client.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
 		directCSIClient.DirectCSIDrives(),

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package client
 
 import (
 	"context"
@@ -25,6 +25,7 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -134,12 +135,12 @@ func NewDirectCSIDrive(name string, status directcsi.DirectCSIDriveStatus) *dire
 		Status:     status,
 	}
 
-	UpdateLabels(drive, map[LabelKey]LabelValue{
-		NodeLabelKey:       NewLabelValue(status.NodeName),
-		PathLabelKey:       NewLabelValue(SanitizeDrivePath(status.Path)),
-		VersionLabelKey:    NewLabelValue(directcsi.Version),
-		CreatedByLabelKey:  DirectCSIDriverName,
-		AccessTierLabelKey: NewLabelValue(string(status.AccessTier)),
+	utils.UpdateLabels(drive, map[utils.LabelKey]utils.LabelValue{
+		utils.NodeLabelKey:       utils.NewLabelValue(status.NodeName),
+		utils.PathLabelKey:       utils.NewLabelValue(utils.SanitizeDrivePath(status.Path)),
+		utils.VersionLabelKey:    utils.NewLabelValue(directcsi.Version),
+		utils.CreatedByLabelKey:  utils.DirectCSIDriverName,
+		utils.AccessTierLabelKey: utils.NewLabelValue(string(status.AccessTier)),
 	})
 
 	return drive

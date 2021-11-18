@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -58,7 +59,7 @@ func createControllerSecret(ctx context.Context, publicCertBytes, privateKeyByte
 		return c.postProc(secret)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Secrets(c.namespace()).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().Secrets(c.namespace()).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -97,7 +98,7 @@ func createControllerService(ctx context.Context, generatedSelectorValue string,
 		return c.postProc(svc)
 	}
 
-	if _, err := utils.GetKubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -270,7 +271,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		if _, err := utils.GetKubeClient().AppsV1().Deployments(c.namespace()).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().AppsV1().Deployments(c.namespace()).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 			if !apierrors.IsAlreadyExists(err) {
 				return err
 			}
@@ -297,7 +298,7 @@ func installDeploymentDefault(ctx context.Context, c *Config) error {
 }
 
 func uninstallDeploymentDefault(ctx context.Context, c *Config) error {
-	if err := utils.GetKubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, admissionWebhookSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := client.GetKubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, admissionWebhookSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	if err := deleteDeployment(ctx, c.namespace(), c.deploymentName()); err != nil && !apierrors.IsNotFound(err) {

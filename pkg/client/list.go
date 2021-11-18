@@ -14,33 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package utils
+package client
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
-
-func toLabelSelector(labels map[LabelKey][]LabelValue) string {
-	selectors := []string{}
-	for key, values := range labels {
-		if len(values) != 0 {
-			result := []string{}
-			for _, value := range values {
-				result = append(result, string(value))
-			}
-			selectors = append(selectors, fmt.Sprintf("%s in (%s)", key, strings.Join(result, ",")))
-		}
-	}
-	return strings.Join(selectors, ",")
-}
 
 // ListDriveResult denotes list of drive result.
 type ListDriveResult struct {
@@ -49,13 +34,13 @@ type ListDriveResult struct {
 }
 
 // ListDrives lists direct-csi drives.
-func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []LabelValue, maxObjects int64) (<-chan ListDriveResult, error) {
-	labelMap := map[LabelKey][]LabelValue{
-		PathLabelKey:       drives,
-		NodeLabelKey:       nodes,
-		AccessTierLabelKey: accessTiers,
+func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []utils.LabelValue, maxObjects int64) (<-chan ListDriveResult, error) {
+	labelMap := map[utils.LabelKey][]utils.LabelValue{
+		utils.PathLabelKey:       drives,
+		utils.NodeLabelKey:       nodes,
+		utils.AccessTierLabelKey: accessTiers,
 	}
-	labelSelector := toLabelSelector(labelMap)
+	labelSelector := utils.ToLabelSelector(labelMap)
 
 	resultCh := make(chan ListDriveResult)
 	go func() {
@@ -100,7 +85,7 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 }
 
 // GetDriveList gets list of drives.
-func GetDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []LabelValue) ([]directcsi.DirectCSIDrive, error) {
+func GetDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []utils.LabelValue) ([]directcsi.DirectCSIDrive, error) {
 	resultCh, err := ListDrives(ctx, driveInterface, nodes, drives, accessTiers, MaxThreadCount)
 	if err != nil {
 		return nil, err
@@ -124,14 +109,14 @@ type ListVolumeResult struct {
 }
 
 // ListVolumes lists direct-csi volumes.
-func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNSs []LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
-	labelMap := map[LabelKey][]LabelValue{
-		DrivePathLabelKey: drives,
-		NodeLabelKey:      nodes,
-		PodNameLabelKey:   podNames,
-		PodNSLabelKey:     podNSs,
+func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNSs []utils.LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
+	labelMap := map[utils.LabelKey][]utils.LabelValue{
+		utils.DrivePathLabelKey: drives,
+		utils.NodeLabelKey:      nodes,
+		utils.PodNameLabelKey:   podNames,
+		utils.PodNSLabelKey:     podNSs,
 	}
-	labelSelector := toLabelSelector(labelMap)
+	labelSelector := utils.ToLabelSelector(labelMap)
 
 	resultCh := make(chan ListVolumeResult)
 	go func() {
@@ -177,7 +162,7 @@ func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeI
 }
 
 // GetVolumeList gets list of volumes.
-func GetVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNSs []LabelValue) ([]directcsi.DirectCSIVolume, error) {
+func GetVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNSs []utils.LabelValue) ([]directcsi.DirectCSIVolume, error) {
 	resultCh, err := ListVolumes(ctx, volumeInterface, nodes, drives, podNames, podNSs, MaxThreadCount)
 	if err != nil {
 		return nil, err

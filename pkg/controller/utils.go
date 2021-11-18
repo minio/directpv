@@ -22,9 +22,9 @@ import (
 	"math/big"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/matcher"
-	"github.com/minio/direct-csi/pkg/utils"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -86,7 +86,7 @@ func getFilteredDrives(
 	driveInterface clientset.DirectCSIDriveInterface,
 	req *csi.CreateVolumeRequest,
 ) (drives []directcsi.DirectCSIDrive, err error) {
-	resultCh, err := utils.ListDrives(ctx, driveInterface, nil, nil, nil, utils.MaxThreadCount)
+	resultCh, err := client.ListDrives(ctx, driveInterface, nil, nil, nil, client.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}

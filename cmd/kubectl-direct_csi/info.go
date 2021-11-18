@@ -25,6 +25,7 @@ import (
 	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	storagev1 "k8s.io/api/storage/v1"
@@ -50,7 +51,7 @@ var infoCmd = &cobra.Command{
 }
 
 func getInfo(ctx context.Context, args []string, quiet bool) error {
-	crdclient := utils.GetCRDClient()
+	crdclient := client.GetCRDClient()
 
 	crds, err := crdclient.List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -77,7 +78,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		return fmt.Errorf("%s: DirectCSI installation not found", bold("Error"))
 	}
 
-	client, gvk, err := utils.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
+	cln, gvk, err := client.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
@@ -86,7 +87,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 
 	if gvk.Version == "v1" {
 		result := &storagev1.CSINodeList{}
-		if err := client.Get().
+		if err := cln.Get().
 			Resource("csinodes").
 			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
 			Timeout(10 * time.Second).
@@ -108,7 +109,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	}
 	if gvk.Version == "v1beta1" {
 		result := &storagev1beta1.CSINodeList{}
-		if err := client.Get().
+		if err := cln.Get().
 			Resource(gvk.Kind).
 			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
 			Timeout(10 * time.Second).
@@ -144,7 +145,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 
 	drives, err := getFilteredDriveList(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIDrives(),
+		client.GetDirectCSIClient().DirectCSIDrives(),
 		func(drive directcsi.DirectCSIDrive) bool {
 			return drive.Status.DriveStatus == directcsi.DriveStatusInUse || drive.Status.DriveStatus == directcsi.DriveStatusReady
 		},
@@ -156,7 +157,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		return err
 	}
 
-	volumes, err := utils.GetVolumeList(ctx, utils.GetDirectCSIClient().DirectCSIVolumes(), nil, nil, nil, nil)
+	volumes, err := client.GetVolumeList(ctx, client.GetDirectCSIClient().DirectCSIVolumes(), nil, nil, nil, nil)
 	if err != nil {
 		if !quiet {
 			klog.Errorf("error getting volume list: %v", err)

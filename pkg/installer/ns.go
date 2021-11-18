@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -45,7 +46,7 @@ func installNSDefault(ctx context.Context, i *Config) error {
 	}
 
 	// Create Namespace Obj
-	if _, err := utils.GetKubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -60,7 +61,7 @@ func uninstallNSDefault(ctx context.Context, i *Config) error {
 	// Delete Namespace Obj
 	name := i.identity()
 	foregroundDeletePropagation := metav1.DeletePropagationForeground
-	if err := utils.GetKubeClient().CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{
+	if err := client.GetKubeClient().CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{
 		PropagationPolicy: &foregroundDeletePropagation,
 	}); err != nil {
 		if !k8serrors.IsNotFound(err) {

@@ -21,6 +21,7 @@ package installer
 import (
 	"context"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	policy "k8s.io/api/policy/v1beta1"
@@ -77,7 +78,7 @@ func createPodSecurityPolicy(ctx context.Context, i *Config) error {
 	}
 
 	// Create PSP Obj
-	if _, err := utils.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Create(ctx, pspObj, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Create(ctx, pspObj, metav1.CreateOptions{}); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -117,7 +118,7 @@ func createPSPClusterRoleBinding(ctx context.Context, i *Config) error {
 	}
 
 	// Create CRB Obj
-	if _, err := utils.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{}); err != nil {
+	if _, err := client.GetKubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{}); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -129,7 +130,7 @@ func createPSPClusterRoleBinding(ctx context.Context, i *Config) error {
 }
 
 func installPSPDefault(ctx context.Context, i *Config) error {
-	info, err := utils.GetGroupKindVersions("policy", "PodSecurityPolicy", "v1beta1")
+	info, err := client.GetGroupKindVersions("policy", "PodSecurityPolicy", "v1beta1")
 	if err != nil {
 		return err
 	}
@@ -147,13 +148,13 @@ func installPSPDefault(ctx context.Context, i *Config) error {
 }
 
 func uninstallPSPDefault(ctx context.Context, i *Config) error {
-	if err := utils.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, i.getPSPClusterRoleBindingName(), metav1.DeleteOptions{}); err != nil {
+	if err := client.GetKubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, i.getPSPClusterRoleBindingName(), metav1.DeleteOptions{}); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}
 
-	if err := utils.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Delete(ctx, i.getPSPName(), metav1.DeleteOptions{}); err != nil {
+	if err := client.GetKubeClient().PolicyV1beta1().PodSecurityPolicies().Delete(ctx, i.getPSPName(), metav1.DeleteOptions{}); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -85,7 +86,7 @@ func listVolumes(ctx context.Context, args []string) error {
 
 	volumeList, err := getFilteredVolumeList(
 		ctx,
-		utils.GetDirectCSIClient().DirectCSIVolumes(),
+		client.GetDirectCSIClient().DirectCSIVolumes(),
 		func(volume directcsi.DirectCSIVolume) bool {
 			return all || utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue)
 		},

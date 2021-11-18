@@ -17,13 +17,14 @@
 package utils
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"path/filepath"
 	"strings"
 
-	"github.com/minio/direct-csi/pkg/sys"
-
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/minio/direct-csi/pkg/sys"
 )
 
 // SanitizeDrivePath sanitizes drive path.

@@ -20,16 +20,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/klog/v2"
 	"os"
 	"regexp"
 	"strings"
 	"time"
 
+	"k8s.io/klog/v2"
+
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+
+	"github.com/minio/direct-csi/pkg/client"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/ellipsis"
 	"github.com/minio/direct-csi/pkg/sys"
@@ -108,7 +111,7 @@ func processFilteredDrives(
 	matchFunc func(*directcsi.DirectCSIDrive) bool,
 	applyFunc func(*directcsi.DirectCSIDrive) error,
 	processFunc func(context.Context, *directcsi.DirectCSIDrive) error, command Command) error {
-	var resultCh <-chan utils.ListDriveResult
+	var resultCh <-chan client.ListDriveResult
 	var err error
 	if len(idArgs) > 0 {
 		resultCh = getDrivesByIds(ctx, idArgs)
@@ -116,12 +119,12 @@ func processFilteredDrives(
 		ctx, cancelFunc := context.WithCancel(ctx)
 		defer cancelFunc()
 
-		resultCh, err = utils.ListDrives(ctx,
+		resultCh, err = client.ListDrives(ctx,
 			driveInterface,
 			nodeSelectorValues,
 			driveSelectorValues,
 			accessTierSelectorValues,
-			utils.MaxThreadCount)
+			client.MaxThreadCount)
 		if err != nil {
 			return err
 		}
@@ -148,7 +151,7 @@ func processFilteredDrives(
 		}
 	}()
 
-	return utils.ProcessDrives(
+	return client.ProcessDrives(
 		ctx,
 		resultCh,
 		func(drive *directcsi.DirectCSIDrive) bool {
@@ -168,12 +171,12 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListDrives(ctx,
+	resultCh, err := client.ListDrives(ctx,
 		driveInterface,
 		nodeSelectorValues,
 		driveSelectorValues,
 		accessTierSelectorValues,
-		utils.MaxThreadCount)
+		client.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}
@@ -198,13 +201,13 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListVolumes(ctx,
+	resultCh, err := client.ListVolumes(ctx,
 		volumeInterface,
 		nodeSelectorValues,
 		driveSelectorValues,
 		podNameSelectorValues,
 		podNsSelectorValues,
-		utils.MaxThreadCount)
+		client.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}

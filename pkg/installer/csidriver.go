@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	storagev1 "k8s.io/api/storage/v1"
@@ -37,7 +38,7 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 	podInfoOnMount := true
 	attachRequired := false
 
-	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	gvk, err := client.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 		}
 
 		// Create CSIDriver Obj
-		if _, err := utils.GetKubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 
@@ -104,7 +105,7 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 		}
 
 		// Create CSIDriver Obj
-		if _, err := utils.GetKubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
+		if _, err := client.GetKubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
 			return err
 		}
 
@@ -116,7 +117,7 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 }
 
 func deleteCSIDriver(ctx context.Context, c *Config) error {
-	gvk, err := utils.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+	gvk, err := client.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
@@ -124,12 +125,12 @@ func deleteCSIDriver(ctx context.Context, c *Config) error {
 	switch gvk.Version {
 	case "v1":
 		// Delete CSIDriver Obj
-		if err := utils.GetKubeClient().StorageV1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil {
+		if err := client.GetKubeClient().StorageV1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	case "v1beta1":
 		// Delete CSIDriver Obj
-		if err := utils.GetKubeClient().StorageV1beta1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil {
+		if err := client.GetKubeClient().StorageV1beta1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	default:

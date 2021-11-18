@@ -21,11 +21,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/direct-csi/pkg/client"
 )
 
 func getInstaller(config *Config) (installer, error) {
-	versionInfo, err := utils.GetDiscoveryClient().ServerVersion()
+	versionInfo, err := client.GetDiscoveryClient().ServerVersion()
 	if err != nil {
 		return nil, err
 	}

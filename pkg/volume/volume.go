@@ -22,6 +22,7 @@ import (
 	"os"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -43,8 +44,8 @@ type volumeEventHandler struct {
 
 func newVolumeEventHandler(nodeID string) *volumeEventHandler {
 	return &volumeEventHandler{
-		directCSIClient: utils.GetDirectClientset(),
-		kubeClient:      utils.GetKubeClient(),
+		directCSIClient: client.GetDirectClientset(),
+		kubeClient:      client.GetKubeClient(),
 		nodeID:          nodeID,
 	}
 }
@@ -162,7 +163,7 @@ func StartController(ctx context.Context, nodeID string) error {
 }
 
 func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[string]string {
-	drive, err := utils.GetDirectCSIClient().DirectCSIDrives().Get(
+	drive, err := client.GetDirectCSIClient().DirectCSIDrives().Get(
 		ctx, volume.Status.Drive, metav1.GetOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		},
@@ -194,7 +195,7 @@ func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[strin
 
 // SyncVolumes syncs direct-csi volume CRD.
 func SyncVolumes(ctx context.Context, nodeID string) {
-	volumeClient := utils.GetDirectCSIClient().DirectCSIVolumes()
+	volumeClient := client.GetDirectCSIClient().DirectCSIVolumes()
 
 	updateLabels := func(volume *directcsi.DirectCSIVolume) func() error {
 		return func() error {
@@ -221,13 +222,13 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := utils.ListVolumes(ctx,
+	resultCh, err := client.ListVolumes(ctx,
 		volumeClient,
 		[]utils.LabelValue{utils.NewLabelValue(nodeID)},
 		nil,
 		nil,
 		nil,
-		utils.MaxThreadCount)
+		client.MaxThreadCount)
 	if err != nil {
 		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
 		return

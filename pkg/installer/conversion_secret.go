@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -29,7 +30,7 @@ import (
 
 func createOrUpdateConversionKeyPairSecret(ctx context.Context, publicCertBytes, privateKeyBytes []byte, c *Config) error {
 
-	secretsClient := utils.GetKubeClient().CoreV1().Secrets(c.namespace())
+	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
 
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
@@ -77,7 +78,7 @@ func createOrUpdateConversionKeyPairSecret(ctx context.Context, publicCertBytes,
 
 func createOrUpdateConversionCACertSecret(ctx context.Context, caCertBytes []byte, c *Config) error {
 
-	secretsClient := utils.GetKubeClient().CoreV1().Secrets(c.namespace())
+	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
 
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
@@ -123,7 +124,7 @@ func createOrUpdateConversionCACertSecret(ctx context.Context, caCertBytes []byt
 }
 
 func checkConversionSecrets(ctx context.Context, c *Config) error {
-	secretsClient := utils.GetKubeClient().CoreV1().Secrets(c.namespace())
+	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
 	if _, err := secretsClient.Get(ctx, conversionKeyPair, metav1.GetOptions{}); err != nil {
 		return err
 	}
@@ -154,7 +155,7 @@ func createConversionWebhookSecrets(ctx context.Context, c *Config) error {
 }
 
 func deleteConversionSecrets(ctx context.Context, c *Config) error {
-	secretsClient := utils.GetKubeClient().CoreV1().Secrets(c.namespace())
+	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
 	if err := secretsClient.Delete(ctx, conversionKeyPair, metav1.DeleteOptions{}); err != nil && !k8serror.IsNotFound(err) {
 		return err
 	}
