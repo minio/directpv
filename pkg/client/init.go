@@ -37,15 +37,27 @@ import (
 const MaxThreadCount = 200
 
 var (
-	initialized         int32
-	kubeClient          kubernetes.Interface
-	directCSIClient     directcsi.DirectV1beta3Interface
-	directClientset     direct.Interface
-	apiextensionsClient apiextensions.ApiextensionsV1Interface
-	crdClient           apiextensions.CustomResourceDefinitionInterface
-	discoveryClient     discovery.DiscoveryInterface
-	metadataClient      metadata.Interface
+	initialized              int32
+	kubeClient               kubernetes.Interface
+	directCSIClient          directcsi.DirectV1beta3Interface
+	directClientset          direct.Interface
+	apiextensionsClient      apiextensions.ApiextensionsV1Interface
+	crdClient                apiextensions.CustomResourceDefinitionInterface
+	discoveryClient          discovery.DiscoveryInterface
+	metadataClient           metadata.Interface
+	directcsiDriveClientset  directcsi.DirectCSIDriveInterface
+	directcsiVolumeClientset directcsi.DirectCSIVolumeInterface
 )
+
+// GetLatestDirectCSIDriveClientset gets unversioned direct-csi drive clientset.
+func GetLatestDirectCSIDriveClientset() directcsi.DirectCSIDriveInterface {
+	return directcsiDriveClientset
+}
+
+// GetLatestDirectCSIVolumeClientset  gets unversioned direct-csi volume clientset.
+func GetLatestDirectCSIVolumeClientset() directcsi.DirectCSIVolumeInterface {
+	return directcsiVolumeClientset
+}
 
 // GetKubeClient gets kube client.
 func GetKubeClient() kubernetes.Interface {
@@ -129,6 +141,18 @@ func Init() {
 	metadataClient, err = metadata.NewForConfig(config)
 	if err != nil {
 		fmt.Printf("%s: could not initialize metadata client: err=%v\n", utils.Bold("Error"), err)
+		os.Exit(1)
+	}
+
+	directcsiDriveClientset, err = directCSIDriveAdapterForConfig(config)
+	if err != nil {
+		fmt.Printf("%s: could not initialize drive adapter client: err=%v\n", utils.Bold("Error"), err)
+		os.Exit(1)
+	}
+
+	directcsiVolumeClientset, err = directCSIVolumeAdapterForConfig(config)
+	if err != nil {
+		fmt.Printf("%s: could not initialize volume adapter client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 

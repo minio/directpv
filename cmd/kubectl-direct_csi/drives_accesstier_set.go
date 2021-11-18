@@ -96,10 +96,8 @@ func setAccessTier(ctx context.Context, accessTier directcsi.AccessTier) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	directCSIClient := client.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
-		directCSIClient.DirectCSIDrives(),
 		nil,
 		func(drive *directcsi.DirectCSIDrive) bool {
 			return drive.Status.DriveStatus != directcsi.DriveStatusUnavailable
@@ -108,7 +106,7 @@ func setAccessTier(ctx context.Context, accessTier directcsi.AccessTier) error {
 			setDriveAccessTier(drive, accessTier)
 			return nil
 		},
-		defaultDriveUpdateFunc(directCSIClient),
+		defaultDriveUpdateFunc(client.GetLatestDirectCSIDriveClientset()),
 		SetAcessTier,
 	)
 }

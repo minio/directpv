@@ -31,10 +31,10 @@ func getDrivesByIds(ctx context.Context, ids []string) <-chan client.ListDriveRe
 	resultCh := make(chan client.ListDriveResult)
 	go func() {
 		defer close(resultCh)
-		directClient := client.GetDirectCSIClient()
+		directClient := client.GetLatestDirectCSIDriveClientset()
 		for _, id := range ids {
 			driveName := strings.TrimSpace(id)
-			d, err := directClient.DirectCSIDrives().Get(ctx, driveName, metav1.GetOptions{})
+			d, err := directClient.Get(ctx, driveName, metav1.GetOptions{})
 			if err != nil {
 				if !errors.IsNotFound(err) {
 					klog.ErrorS(err, "could not get drive", driveName)

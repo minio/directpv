@@ -29,7 +29,6 @@ import (
 
 	"github.com/spf13/viper"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -106,7 +105,7 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 	discoveryClient := GetDiscoveryClient()
 	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {
-		klog.Errorf("could not obtain API group resources: %v", err)
+		klog.V(3).Infof("could not obtain API group resources: %v", err)
 		return nil, err
 	}
 	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
@@ -116,7 +115,7 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 	}
 	mapper, err := restMapper.RESTMapping(gk, versions...)
 	if err != nil {
-		klog.Errorf("could not find valid restmapping: %v", err)
+		klog.V(3).Infof("could not find valid restmapping: %v", err)
 		return nil, err
 	}
 
@@ -338,20 +337,4 @@ func ProcessDrives(
 		writer,
 		dryRun,
 	)
-}
-
-// DirectCSIDriveTypeMeta gets new direct-csi drive meta.
-func DirectCSIDriveTypeMeta() metav1.TypeMeta {
-	return metav1.TypeMeta{
-		APIVersion: string(utils.DirectCSIVersionLabelKey),
-		Kind:       "DirectCSIDrive",
-	}
-}
-
-// DirectCSIVolumeTypeMeta gets new direct-csi volume meta.
-func DirectCSIVolumeTypeMeta() metav1.TypeMeta {
-	return metav1.TypeMeta{
-		APIVersion: string(utils.DirectCSIVersionLabelKey),
-		Kind:       "DirectCSIVolume",
-	}
 }
