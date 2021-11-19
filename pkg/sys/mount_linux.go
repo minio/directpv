@@ -33,7 +33,7 @@ func SafeMount(source, target, fsType string, mountOpts []MountOption, superbloc
 	}
 
 	for _, m := range mounts {
-		if m.Mountpoint == target && m.MountRoot == source {
+		if m.Mountpoint == target && m.MountSource == source {
 			// if source is already mounted at target
 			// then do nothing
 			// NOTE:

@@ -123,7 +123,8 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 			remoteDrive, err := d.Identify(localDriveState)
 			if err == nil {
 				if err := d.syncRemoteDrive(ctx, localDriveState, remoteDrive); err != nil {
-					return err
+					klog.Errorf("Could not sync remote drive: %v and local drive: %v",
+						remoteDrive.DirectCSIDrive.Path, localDriveState.Path)
 				}
 				continue
 			}
@@ -146,12 +147,7 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 		}
 	}
 
-	// Delete the unmapped remote drives
-	if err := d.deleteUnmatchedRemoteDrives(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return d.deleteUnmatchedRemoteDrives(ctx)
 }
 
 func (d *Discovery) createNewDrive(ctx context.Context, localDriveState directcsi.DirectCSIDriveStatus) error {
