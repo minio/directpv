@@ -18,17 +18,20 @@ package discovery
 
 import (
 	"context"
+	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2"
-
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
+
+	"k8s.io/klog/v2"
 )
 
 func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) error {
@@ -37,7 +40,9 @@ func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) er
 	case directcsi.DriveStatusInUse, directcsi.DriveStatusReady:
 		directCSIDevice := sys.GetDirectCSIPath(existingDrive.Status.FilesystemUUID)
 		// verify and fix the (major, minor) if it has changed
-		if err := sys.MakeBlockFile(directCSIDevice, existingDrive.Status.MajorNumber, existingDrive.Status.MinorNumber); err != nil {
+		if err := sys.MakeBlockFile(directCSIDevice,
+			existingDrive.Status.MajorNumber,
+			existingDrive.Status.MinorNumber); err != nil {
 			return err
 		}
 
@@ -128,7 +133,8 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 			string(directcsi.DirectCSIDriveConditionInitialized),
 			utils.BoolToCondition(message == ""),
 			string(directcsi.DirectCSIDriveReasonInitialized),
-			message)
+			message,
+		)
 
 		updateOpts := metav1.UpdateOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -138,7 +144,7 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 	}
 
 	if err := retry.RetryOnConflict(retry.DefaultRetry, driveSync); err != nil {
-		if !errors.IsNotFound(err) {
+		if !kerrors.IsNotFound(err) {
 			return err
 		}
 	}
@@ -147,6 +153,10 @@ func (d *Discovery) syncDrive(ctx context.Context, localDrive *directcsi.DirectC
 }
 
 func (d *Discovery) deleteUnmatchedRemoteDrives(ctx context.Context) error {
+	// For unmatched drives, check the OS if the underlying drive is still active
+	// of if it is lost.
+	// If lost, then delete the unmapped remote drives
+	// else, leave it running
 	directCSIClient := d.directcsiClient.DirectV1beta2()
 	driveClient := directCSIClient.DirectCSIDrives()
 
@@ -154,10 +164,66 @@ func (d *Discovery) deleteUnmatchedRemoteDrives(ctx context.Context) error {
 		if remoteDrive.matched {
 			continue
 		}
+		if ok, err := d.verifyDriveLost(remoteDrive.DirectCSIDrive); !ok {
+			klog.Errorf("drive %s still active, will not delete %v", remoteDrive.Name, err)
+			continue
+		}
+
 		if err := driveClient.Delete(ctx, remoteDrive.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (d *Discovery) verifyDriveLost(drive directcsi.DirectCSIDrive) (bool, error) {
+	path := sys.GetDirectCSIPath(drive.Status.FilesystemUUID)
+
+	stat, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return true, nil
+		}
+		return false, err
+	}
+
+	if stat.Mode() != fs.ModeDevice {
+		return true, nil
+	}
+
+	mountPoint := drive.Status.Mountpoint
+
+	mounts, errM := sys.ProbeMountInfo()
+	if errM != nil {
+		return false, errM
+	}
+
+	found := false
+	for _, m := range mounts {
+		if m.Mountpoint == mountPoint {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return true, nil
+	}
+
+	fp := filepath.Join(mountPoint, ".drive_verifier")
+	f, err := os.OpenFile(fp,
+		os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return true, nil
+	}
+	defer func() {
+		f.Close()
+		os.RemoveAll(fp)
+	}()
+
+	if _, err := f.Write([]byte{0x00}); err != nil {
+		return true, nil
+	}
+	return false, nil
 }

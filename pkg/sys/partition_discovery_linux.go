@@ -95,7 +95,8 @@ func (b *BlockDevice) probeAAPMBR(ctx context.Context) ([]Partition, error) {
 		if !p.Is() {
 			continue
 		}
-		ueventInfo, partNum, err := parseUevent(partitionUeventPath(b.Devname, uint32(i+1)))
+		partNum := uint32(i + 1)
+		ueventInfo, err := parseUevent(b.Devname, partNum)
 		if err != nil {
 			klog.V(5).Info(err)
 			return nil, err
@@ -148,7 +149,8 @@ func (b *BlockDevice) probeClassicMBR(ctx context.Context) ([]Partition, error) 
 		if !p.Is() {
 			continue
 		}
-		ueventInfo, partNum, err := parseUevent(partitionUeventPath(b.Devname, uint32(i+1)))
+		partNum := uint32(i + 1)
+		ueventInfo, err := parseUevent(b.Devname, partNum)
 		if err != nil {
 			klog.V(5).Info(err)
 			return nil, err
@@ -201,12 +203,13 @@ func (b *BlockDevice) probeModernStandardMBR(ctx context.Context) ([]Partition, 
 		if !p.Is() {
 			continue
 		}
-		ueventInfo, partNum, err := parseUevent(partitionUeventPath(b.Devname, uint32(i+1)))
+		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
+		partNum := uint32(i + 1)
+		ueventInfo, err := parseUevent(b.Devname, partNum)
 		if err != nil {
 			klog.V(5).Info(err)
 			return nil, err
 		}
-		partitionPath := fmt.Sprintf("%s%s%d", b.Path, DirectCSIPartitionInfix, i+1)
 
 		part := Partition{
 			DriveInfo: &DriveInfo{
@@ -287,7 +290,8 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 		if partType == "" {
 			partType = partTypeUUID
 		}
-		ueventInfo, partNum, err := parseUevent(partitionUeventPath(b.Devname, uint32(i+1)))
+		partNum := uint32(i + 1)
+		ueventInfo, err := parseUevent(b.Devname, partNum)
 		if err != nil {
 			klog.V(5).Info(err)
 			return nil, err
@@ -318,16 +322,21 @@ func (b *BlockDevice) probeGPT(ctx context.Context) ([]Partition, error) {
 	return partitions, nil
 }
 
-func partitionUeventPath(rootDevName string, partNum uint32) string {
-	partSubPath := fmt.Sprintf("%s%d", rootDevName, partNum)
-	if strings.HasPrefix(rootDevName, "nvme") {
-		partSubPath = fmt.Sprintf("%sp%d", rootDevName, partNum)
+func partitionUeventPath(rootDevname string, partNum uint32) string {
+	// assume root device
+	if partNum == 0 {
+		return rootDevname
+	}
+
+	partSubPath := fmt.Sprintf("%s%d", rootDevname, partNum)
+	if strings.HasPrefix(rootDevname, "nvme") {
+		partSubPath = fmt.Sprintf("%sp%d", rootDevname, partNum)
 	}
 
 	return filepath.Join(
 		"/sys",
 		"block",
-		rootDevName,
+		rootDevname,
 		partSubPath,
 		"uevent",
 	)
