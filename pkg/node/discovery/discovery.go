@@ -124,7 +124,8 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 			if err == nil {
 				if err := d.syncRemoteDrive(ctx, localDriveState, remoteDrive); err != nil {
 					klog.Errorf("Could not sync remote drive: %v and local drive: %v",
-						remoteDrive.DirectCSIDrive.Path, localDriveState.Path)
+						remoteDrive.Status.Path,
+						localDriveState.Path)
 				}
 				continue
 			}

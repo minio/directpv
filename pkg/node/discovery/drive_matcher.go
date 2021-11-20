@@ -35,19 +35,13 @@ func (d *Discovery) Identify(localDriveState directcsi.DirectCSIDriveStatus) (*r
 
 func (d *Discovery) identifyDriveByAttributes(localDriveState directcsi.DirectCSIDriveStatus) (*remoteDrive, error) {
 	if selectedDrive, err := d.selectByFSUUID(localDriveState.FilesystemUUID); err == nil {
-		klog.Infof("[FSUUID] found matching drive for local drive: %s; remote drive: %s",
-			localDriveState.path, selectedDrive.Status.Path)
 		return selectedDrive, nil
 	}
 	if selectedDrive, err := d.selectByPartitionUUID(localDriveState.PartitionUUID); err == nil {
-		klog.Infof("[PARTUUID] found matching drive for local drive: %s; remote drive: %s",
-			localDriveState.path, selectedDrive.Status.Path)
 		return selectedDrive, nil
 	}
 	if selectedDrive, err := d.selectBySerialNumber(localDriveState.SerialNumber,
 		localDriveState.PartitionNum); err == nil {
-		klog.Infof("[SERIAL] found matching drive for local drive: %s; remote drive: %s",
-			localDriveState.path, selectedDrive.Status.Path)
 		return selectedDrive, nil
 	}
 	return nil, ErrNoMatchFound
