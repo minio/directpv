@@ -200,8 +200,10 @@ func processObjects(
 			}
 			continue
 		}
-		if err := utils.WriteObject(writer, result.object); err != nil {
-			return err
+		if writer != nil {
+			if err := utils.WriteObject(writer, result.object); err != nil {
+				return err
+			}
 		}
 
 		breakLoop := false
