@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -132,6 +133,15 @@ type objectResult struct {
 	err    error
 }
 
+func logYAML(obj interface{}) error {
+	yamlString, err := utils.ToYAML(obj)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%s\n---\n\n", yamlString)
+	return nil
+}
+
 func processObjects(
 	ctx context.Context,
 	resultCh <-chan objectResult,
@@ -195,7 +205,7 @@ func processObjects(
 		}
 
 		if dryRun {
-			if err := utils.LogYAML(result.object); err != nil {
+			if err := logYAML(result.object); err != nil {
 				klog.Errorf("Unable to convert to YAML. %v", err)
 			}
 			continue

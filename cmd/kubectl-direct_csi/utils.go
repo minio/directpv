@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	encodingjson "encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -89,11 +90,11 @@ func printYAML(obj interface{}) error {
 }
 
 func printJSON(obj interface{}) error {
-	j, err := utils.ToJSON(obj)
+	data, err := encodingjson.MarshalIndent(obj, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to marshal object; %w", err)
 	}
-	fmt.Println(j)
+	fmt.Println(string(data))
 	return nil
 }
 

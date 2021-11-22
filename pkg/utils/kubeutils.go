@@ -27,6 +27,66 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
+// IsCondition checks type/status/reason/message in conditions and this function used only for testing.
+func IsCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus, reason, msg string) bool {
+	for i := range statusConditions {
+		if statusConditions[i].Type == condType &&
+			statusConditions[i].Status == condStatus &&
+			statusConditions[i].Reason == reason &&
+			statusConditions[i].Message == msg {
+			return true
+		}
+	}
+	return false
+}
+
+// BoolToCondition converts boolean value to condition status.
+func BoolToCondition(val bool) metav1.ConditionStatus {
+	if val {
+		return metav1.ConditionTrue
+	}
+	return metav1.ConditionFalse
+}
+
+// RemoveFinalizer removes finalizer in object meta.
+func RemoveFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
+	removeByIndex := func(s []string, index int) []string {
+		return append(s[:index], s[index+1:]...)
+	}
+	finalizers := objectMeta.GetFinalizers()
+	for index, f := range finalizers {
+		if f == finalizer {
+			finalizers = removeByIndex(finalizers, index)
+			break
+		}
+	}
+	return finalizers
+}
+
+// UpdateCondition updates conditions of type/status/reason/message.
+func UpdateCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus, reason, msg string) {
+	for i := range statusConditions {
+		if statusConditions[i].Type == condType {
+			statusConditions[i].Status = condStatus
+			statusConditions[i].Reason = reason
+			statusConditions[i].Message = msg
+			statusConditions[i].LastTransitionTime = metav1.Now()
+			break
+		}
+	}
+}
+
+// IsConditionStatus checks type/status in conditions.
+func IsConditionStatus(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus) bool {
+	for i := range statusConditions {
+		if statusConditions[i].Type == condType &&
+			statusConditions[i].Status == condStatus {
+			return true
+		}
+	}
+	return false
+}
+
 func SetLabels(object metav1.Object, labels map[LabelKey]LabelValue) {
 	values := make(map[string]string)
 	for key, value := range labels {

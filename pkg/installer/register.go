@@ -35,11 +35,24 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/yaml"
 )
 
 var (
 	errEmptyCABundle = errors.New("CA bundle is empty")
 )
+
+func parseSingleKubeNativeFromBytes(data []byte) (runtime.Object, error) {
+	obj := map[string]interface{}{}
+	err := yaml.Unmarshal(data, &obj)
+	if err != nil {
+		return nil, err
+	}
+
+	return &unstructured.Unstructured{
+		Object: obj,
+	}, nil
+}
 
 func registerCRDs(ctx context.Context, c *Config) error {
 	crdObjs := []runtime.Object{}
@@ -48,7 +61,7 @@ func registerCRDs(ctx context.Context, c *Config) error {
 		if err != nil {
 			return err
 		}
-		crdObj, err := utils.ParseSingleKubeNativeFromBytes(crdBytes)
+		crdObj, err := parseSingleKubeNativeFromBytes(crdBytes)
 		if err != nil {
 			return err
 		}
