@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -92,22 +93,20 @@ func install(ctx context.Context, args []string) (err error) {
 	}
 	defaultAuditDir, err := utils.GetDefaultAuditDir()
 	if err != nil {
-		return fmt.Errorf("unable to get default audit directory; %w", err)
+		klog.Errorf("unable to get default audit directory : %v", err)
 	}
 	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
-		return err
+		klog.Errorf("unable to create default audit directory : %v", err)
 	}
 
-	file, err := utils.NewSafeFile(fmt.Sprintf("%v/%v-%v", defaultAuditDir, auditInstall, time.Now().UnixNano()))
+	file, err := utils.NewSafeFile(filepath.Join(defaultAuditDir, fmt.Sprintf("%v-%v", auditInstall, time.Now().UnixNano())))
 	if err != nil {
-		return fmt.Errorf("unable to get default audit directory ; %w", err)
+		klog.Errorf("unable to get audit file : %v", err)
 	}
 
 	defer func() {
-		if cerr := file.Close(); err != nil {
-			klog.Errorf("unable to close file; %w", cerr)
-		} else {
-			err = cerr
+		if cerr := file.Close(); cerr != nil {
+			klog.Errorf("unable to close file : %v", cerr)
 		}
 	}()
 

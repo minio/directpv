@@ -19,9 +19,6 @@ package installer
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
-	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/client"
@@ -47,26 +44,6 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 		return err
 	}
 
-	defaultAuditDir, err := utils.GetDefaultAuditDir()
-	if err != nil {
-		return fmt.Errorf("unable to get default audit directory; %w", err)
-	}
-	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
-		return err
-	}
-	file, err := utils.NewSafeFile(fmt.Sprintf("%v/%v-%v", defaultAuditDir, "removeVolumes", time.Now().UnixNano()))
-	if err != nil {
-		return fmt.Errorf("unable to get default audit directory ; %w", err)
-	}
-
-	defer func() {
-		if cerr := file.Close(); err != nil {
-			klog.Errorf("unable to close file; %w", cerr)
-		} else {
-			err = cerr
-		}
-	}()
-
 	err = client.ProcessVolumes(
 		ctx,
 		resultCh,
@@ -89,7 +66,7 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 			}
 			return nil
 		},
-		file,
+		nil,
 		c.DryRun,
 	)
 
@@ -112,26 +89,6 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 		}
 		return err
 	}
-
-	defaultAuditDir, err := utils.GetDefaultAuditDir()
-	if err != nil {
-		return fmt.Errorf("unable to get default audit directory; %w", err)
-	}
-	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
-		return err
-	}
-	file, err := utils.NewSafeFile(fmt.Sprintf("%v/%v-%v", defaultAuditDir, "removeDrives", time.Now().UnixNano()))
-	if err != nil {
-		return fmt.Errorf("unable to get default audit directory ; %w", err)
-	}
-
-	defer func() {
-		if cerr := file.Close(); err != nil {
-			klog.Errorf("unable to close file; %w", cerr)
-		} else {
-			err = cerr
-		}
-	}()
 
 	err = client.ProcessDrives(
 		ctx,
@@ -158,7 +115,7 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 			}
 			return nil
 		},
-		file,
+		nil,
 		c.DryRun,
 	)
 
