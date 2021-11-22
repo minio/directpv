@@ -59,7 +59,14 @@ func uninstallStorageClassDefault(ctx context.Context, c *Config) error {
 
 func createStorageClass(ctx context.Context, c *Config) error {
 	allowExpansion := false
-	allowTopologiesWithName := utils.NewIdentityTopologySelector(c.driverIdentity())
+	allowTopologiesWithName := corev1.TopologySelectorTerm{
+		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
+			{
+				Key:    string(utils.TopologyDriverIdentity),
+				Values: []string{string(utils.NewLabelValue(c.driverIdentity()))},
+			},
+		},
+	}
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
 	gvk, err := client.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")

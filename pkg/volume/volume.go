@@ -36,6 +36,17 @@ import (
 	"k8s.io/klog/v2"
 )
 
+func excludeFinalizer(finalizers []string, finalizer string) (result []string, found bool) {
+	for _, f := range finalizers {
+		if f != finalizer {
+			result = append(result, f)
+		} else {
+			found = true
+		}
+	}
+	return
+}
+
 type volumeEventHandler struct {
 	kubeClient      kubernetes.Interface
 	directCSIClient clientset.Interface
@@ -90,7 +101,7 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName,
 		return err
 	}
 
-	finalizers, found := utils.ExcludeFinalizer(
+	finalizers, found := excludeFinalizer(
 		drive.GetFinalizers(), directcsi.DirectCSIDriveFinalizerPrefix+volumeName,
 	)
 
@@ -116,7 +127,7 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName,
 }
 
 func (handler *volumeEventHandler) delete(ctx context.Context, volume *directcsi.DirectCSIVolume) error {
-	finalizers, _ := utils.ExcludeFinalizer(
+	finalizers, _ := excludeFinalizer(
 		volume.GetFinalizers(), string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
 	)
 	if len(finalizers) > 0 {

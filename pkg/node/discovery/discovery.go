@@ -18,6 +18,8 @@ package discovery
 
 import (
 	"context"
+	"path/filepath"
+	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/client"
@@ -31,6 +33,22 @@ import (
 const (
 	loopBackDeviceCount = 4
 )
+
+func getRootBlockFile(devName string) string {
+	switch {
+	case strings.HasPrefix(devName, sys.HostDevRoot):
+		return devName
+	case strings.Contains(devName, sys.DirectCSIDevRoot):
+		return getRootBlockFile(filepath.Base(devName))
+	default:
+		name := strings.ReplaceAll(
+			strings.Replace(devName, sys.DirectCSIPartitionInfix, "", 1),
+			sys.DirectCSIPartitionInfix,
+			sys.HostPartitionInfix,
+		)
+		return filepath.Join(sys.HostDevRoot, name)
+	}
+}
 
 // NewDiscovery creates drive discovery.
 func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region string) (*Discovery, error) {
@@ -94,7 +112,7 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 			return result.Err
 		}
 		// Assign decoded drive path in case this drive information converted from v1alpha1/v1beta1
-		result.Drive.Status.Path = utils.GetDrivePath(&result.Drive)
+		result.Drive.Status.Path = getRootBlockFile(result.Drive.Status.Path)
 		remoteDriveList = append(remoteDriveList, &remoteDrive{DirectCSIDrive: result.Drive})
 	}
 	d.remoteDrives = remoteDriveList

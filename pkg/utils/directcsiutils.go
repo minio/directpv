@@ -17,34 +17,20 @@
 package utils
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"path/filepath"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/minio/direct-csi/pkg/sys"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// SanitizeDrivePath sanitizes drive path.
+// SanitizeDrivePath converts older v1.3 formatted drive name to device name.
 func SanitizeDrivePath(in string) string {
 	path := strings.ReplaceAll(in, sys.DirectCSIPartitionInfix, "")
 	path = strings.ReplaceAll(path, sys.DirectCSIDevRoot+"/", "")
 	path = strings.ReplaceAll(path, sys.HostDevRoot+"/", "")
 	return filepath.Base(path)
-}
-
-// NewIdentityTopologySelector creates identity topology selector.
-func NewIdentityTopologySelector(identity string) corev1.TopologySelectorTerm {
-	return corev1.TopologySelectorTerm{
-		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
-			{
-				Key:    string(TopologyDriverIdentity),
-				Values: []string{string(NewLabelValue(identity))},
-			},
-		},
-	}
 }
 
 // DirectCSIDriveTypeMeta gets new direct-csi drive meta.

@@ -21,64 +21,31 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/mitchellh/go-homedir"
-
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/sys"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
-var ( // Default direct csi directory where direct csi audit logs are stored.
-	defaultDirectCSIDir = ".direct-csi"
-
-	// Directory contains below files for audit logs
-	auditDir = "audit"
+const (
+	defaultDirectCSIDir = ".direct-csi" // Default direct csi directory where direct csi audit logs are stored.
+	auditDir            = "audit"       // Directory contains below files for audit logs
 )
 
-// BoolToCondition converts boolean value to condition status.
-func BoolToCondition(val bool) metav1.ConditionStatus {
-	if val {
-		return metav1.ConditionTrue
+// Color print functions.
+var (
+	Bold = color.New(color.Bold).SprintFunc()
+	Red  = color.New(color.FgRed).SprintFunc()
+)
+
+// ToYAML converts value to YAML string.
+func ToYAML(obj interface{}) (string, error) {
+	data, err := yaml.Marshal(obj)
+	if err != nil {
+		return "", fmt.Errorf("unable to marshal object to YAML; %w", err)
 	}
-	return metav1.ConditionFalse
-}
-
-// DefaultIfZeroString returns string which is non empty of left or right.
-func DefaultIfZeroString(left, right string) string {
-	if left != "" {
-		return left
-	}
-	return right
-}
-
-func getRootBlockFile(devName string) string {
-	switch {
-	case strings.HasPrefix(devName, sys.HostDevRoot):
-		return devName
-	case strings.Contains(devName, sys.DirectCSIDevRoot):
-		return getRootBlockFile(filepath.Base(devName))
-	default:
-		name := strings.ReplaceAll(
-			strings.Replace(devName, sys.DirectCSIPartitionInfix, "", 1),
-			sys.DirectCSIPartitionInfix,
-			sys.HostPartitionInfix,
-		)
-		return filepath.Join(sys.HostDevRoot, name)
-	}
-}
-
-// GetDrivePath gets sanitized drive path.
-func GetDrivePath(drive *directcsi.DirectCSIDrive) string {
-	return getRootBlockFile(drive.Status.Path)
-}
-
-type SafeFile struct {
-	filename string
-	tempFile *os.File
+	return string(data), nil
 }
 
 func WriteObject(writer io.Writer, obj interface{}) error {
@@ -93,6 +60,11 @@ func WriteObject(writer io.Writer, obj interface{}) error {
 		return err
 	}
 	return nil
+}
+
+type SafeFile struct {
+	filename string
+	tempFile *os.File
 }
 
 func (safeFile *SafeFile) Write(p []byte) (int, error) {
@@ -117,20 +89,12 @@ func NewSafeFile(fileName string) (*SafeFile, error) {
 	}, nil
 }
 
-func getDirectCSIHomeDir() (string, error) {
+func GetDefaultAuditDir() (string, error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(homeDir, defaultDirectCSIDir), nil
-}
-
-func GetDefaultAuditDir() (string, error) {
-	defaultDir, err := getDirectCSIHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(defaultDir, auditDir), nil
+	return filepath.Join(homeDir, defaultDirectCSIDir, auditDir), nil
 }
 
 func OpenAuditFile(auditFile string) (*SafeFile, error) {

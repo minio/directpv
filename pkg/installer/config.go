@@ -39,6 +39,13 @@ const (
 	CSIImageLivenessProbe = "livenessprobe@sha256:928a80be4d363e0e438ff28dcdb00d8d674d3059c6149a8cda64ce6016a9a3f8"
 )
 
+func defaultIfZeroString(left, right string) string {
+	if left != "" {
+		return left
+	}
+	return right
+}
+
 type Config struct {
 	Identity string
 
@@ -113,15 +120,15 @@ func (c *Config) conversionHealthzURL() string {
 }
 
 func (i *Config) getCSIProvisionerImage() string {
-	return utils.DefaultIfZeroString(i.CSIProvisionerImage, CSIImageCSIProvisioner)
+	return defaultIfZeroString(i.CSIProvisionerImage, CSIImageCSIProvisioner)
 }
 
 func (i *Config) getNodeDriverRegistrarImage() string {
-	return utils.DefaultIfZeroString(i.NodeDriverRegistrarImage, CSIImageNodeDriverRegistrar)
+	return defaultIfZeroString(i.NodeDriverRegistrarImage, CSIImageNodeDriverRegistrar)
 }
 
 func (i *Config) getLivenessProbeImage() string {
-	return utils.DefaultIfZeroString(i.LivenessProbeImage, CSIImageLivenessProbe)
+	return defaultIfZeroString(i.LivenessProbeImage, CSIImageLivenessProbe)
 }
 
 func (i *Config) conversionWebhookDNSName() string {
@@ -174,7 +181,11 @@ func (c *Config) provisionerName() string {
 
 func (i *Config) postProc(obj interface{}) error {
 	if i.DryRun {
-		fmt.Printf("%s\n---\n", utils.MustYAML(obj))
+		yamlString, err := utils.ToYAML(obj)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s\n---\n", yamlString)
 	}
 	if i.AuditFile != nil {
 		if err := utils.WriteObject(i.AuditFile, obj); err != nil {
