@@ -133,7 +133,7 @@ func releaseDrives(ctx context.Context, IDArgs []string) error {
 			drive.Spec.RequestedFormat = nil
 			return nil
 		},
-		defaultDriveUpdateFunc(directCSIClient),
+		defaultDriveUpdateFunc(client.GetUnversionedDirectCSIDriveClientset()),
 		DriveRelease,
 	)
 }

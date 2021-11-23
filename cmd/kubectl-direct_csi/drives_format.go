@@ -105,10 +105,9 @@ func init() {
 }
 
 func formatDrives(ctx context.Context, IDArgs []string) error {
-	directCSIClient := client.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
-		directCSIClient.DirectCSIDrives(),
+		client.GetUnversionedDirectCSIDriveClientset(),
 		IDArgs,
 		func(drive *directcsi.DirectCSIDrive) bool {
 			if drive.Status.DriveStatus == directcsi.DriveStatusUnavailable {
@@ -149,7 +148,7 @@ func formatDrives(ctx context.Context, IDArgs []string) error {
 			}
 			return nil
 		},
-		defaultDriveUpdateFunc(directCSIClient),
+		defaultDriveUpdateFunc(client.GetUnversionedDirectCSIDriveClientset()),
 		Format,
 	)
 }

@@ -92,17 +92,16 @@ func unsetAccessTier(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	directCSIClient := client.GetDirectCSIClient()
 	return processFilteredDrives(
 		ctx,
-		directCSIClient.DirectCSIDrives(),
+		client.GetUnversionedDirectCSIDriveClientset(),
 		nil,
 		nil,
 		func(drive *directcsi.DirectCSIDrive) error {
 			setDriveAccessTier(drive, directcsi.AccessTierUnknown)
 			return nil
 		},
-		defaultDriveUpdateFunc(directCSIClient),
+		defaultDriveUpdateFunc(client.GetUnversionedDirectCSIDriveClientset()),
 		UnSetAcessTier,
 	)
 }

@@ -126,11 +126,6 @@ func Init() {
 		klog.Fatalf("could not initialize direct-csi client: %v", err)
 	}
 
-	directcsiDriveClientset = DirectCSIDriveAdapter(directCSIClient.RESTClient())
-	if err != nil {
-		klog.Fatalf("could not initialize direct-csi drive client: %v", err)
-	}
-
 	crdClientset, err := apiextensions.NewForConfig(config)
 	if err != nil {
 		fmt.Printf("%s: could not initialize crd client: err=%v\n", utils.Bold("Error"), err)
@@ -148,6 +143,12 @@ func Init() {
 	metadataClient, err = metadata.NewForConfig(config)
 	if err != nil {
 		fmt.Printf("%s: could not initialize metadata client: err=%v\n", utils.Bold("Error"), err)
+		os.Exit(1)
+	}
+
+	directcsiDriveClientset, err = directCSIDriveAdapterForConfig(config)
+	if err != nil {
+		fmt.Printf("%s: could not initialize drive adapter client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 
