@@ -17,10 +17,12 @@
 package utils
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mitchellh/go-homedir"
 
@@ -129,4 +131,15 @@ func GetDefaultAuditDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(defaultDir, auditDir), nil
+}
+
+func OpenAuditFile(auditFile string) (*SafeFile, error) {
+	defaultAuditDir, err := GetDefaultAuditDir()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get default audit directory ; %w", err)
+	}
+	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
+		return nil, fmt.Errorf("unable to create default audit directory : %w", err)
+	}
+	return NewSafeFile(filepath.Join(defaultAuditDir, fmt.Sprintf("%v-%v", auditFile, time.Now().UnixNano())))
 }

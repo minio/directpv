@@ -20,11 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"k8s.io/klog/v2"
 
@@ -131,22 +129,16 @@ func processFilteredDrives(
 		}
 	}
 
-	defaultAuditDir, err := utils.GetDefaultAuditDir()
+	file, err := utils.OpenAuditFile(string(command))
 	if err != nil {
-		klog.Errorf("unable to get default audit directory : %v", err)
-	}
-	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
-		klog.Errorf("unable to create default audit directory : %v", err)
-	}
-
-	file, err := utils.NewSafeFile(filepath.Join(defaultAuditDir, fmt.Sprintf("%v-%v", string(command), time.Now().UnixNano())))
-	if err != nil {
-		klog.Errorf("unable to get audit file : %v", err)
+		klog.Errorf("error in audit logging: %w", err)
 	}
 
 	defer func() {
-		if cerr := file.Close(); cerr != nil {
-			klog.Errorf("unable to close file : %v", cerr)
+		if file != nil {
+			if err := file.Close(); err != nil {
+				klog.Errorf("unable to close audit file : %w", err)
+			}
 		}
 	}()
 
