@@ -177,6 +177,15 @@ func volumeUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) erro
 		utils.CreatedByLabelKey: utils.DirectCSIControllerName,
 	})
 
+	abnormalCondition := metav1.Condition{
+		Type:               string(directv1beta3.DirectCSIVolumeConditionAbnormal),
+		Status:             metav1.ConditionFalse,
+		Message:            "",
+		Reason:             string(directv1beta3.DirectCSIVolumeReasonNormal),
+		LastTransitionTime: metav1.Now(),
+	}
+	v1beta3DirectCSIVolume.Status.Conditions = append(v1beta3DirectCSIVolume.Status.Conditions, abnormalCondition)
+
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta3DirectCSIVolume)
 	if err != nil {
 		return err

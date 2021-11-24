@@ -390,6 +390,9 @@ request:
 		t.Errorf("unexpected status.conditions = %v", directCSIVolume.Status.Conditions)
 	}
 
+	if !utils.IsCondition(directCSIVolume.Status.Conditions, string(directv1beta3.DirectCSIVolumeConditionAbnormal), metav1.ConditionFalse, string(directv1beta3.DirectCSIVolumeReasonNormal), "") {
+		t.Errorf("unexpected status.conditions = %v", directCSIVolume.Status.Conditions)
+	}
 }
 
 func TestV1beta1ToV1beta2DriveUpgrade(t *testing.T) {

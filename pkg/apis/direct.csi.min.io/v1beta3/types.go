@@ -305,6 +305,9 @@ const (
 
 	// DirectCSIVolumeConditionReady denotes "Ready" volume condition.
 	DirectCSIVolumeConditionReady DirectCSIVolumeCondition = "Ready"
+
+	// DirectCSIVolumeConditionAbnormal denotes "Abnormal" volume condition.
+	DirectCSIVolumeConditionAbnormal DirectCSIVolumeCondition = "Abnormal"
 )
 
 // DirectCSIVolumeReason denotes volume reason.
@@ -322,6 +325,12 @@ const (
 
 	// DirectCSIVolumeReasonNotReady denotes "NotReady" volume reason.
 	DirectCSIVolumeReasonNotReady DirectCSIVolumeReason = "NotReady"
+
+	// DirectCSIVolumeReasonNormal denotes "Abnormal" volume reason.
+	DirectCSIVolumeReasonNormal DirectCSIVolumeReason = "Normal"
+
+	// DirectCSIVolumeReasonAbnormal denotes "Abnormal" volume reason.
+	DirectCSIVolumeReasonAbnormal DirectCSIVolumeReason = "Abnormal"
 )
 
 // DirectCSIVolumeStatus denotes volume information.

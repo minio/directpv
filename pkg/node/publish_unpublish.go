@@ -124,7 +124,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	}
 	vol.Labels = volumeLabels
 
-	if err := checkStagingTargetPath(req.GetStagingTargetPath(), n.probeMounts); err != nil {
+	if err := checkMountPath(req.GetStagingTargetPath(), n.probeMounts); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -141,6 +141,11 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		if c.Type == string(directcsi.DirectCSIVolumeConditionPublished) {
 			conditions[i].Status = utils.BoolToCondition(true)
 			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonInUse)
+		}
+		if c.Type == string(directcsi.DirectCSIVolumeConditionAbnormal) {
+			conditions[i].Status = utils.BoolToCondition(false)
+			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonNormal)
+			conditions[i].Message = ""
 		}
 	}
 	vol.Status.ContainerPath = req.GetTargetPath()
@@ -193,6 +198,10 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonNotInUse)
 		case string(directcsi.DirectCSIVolumeConditionStaged):
 		case string(directcsi.DirectCSIVolumeConditionReady):
+		case string(directcsi.DirectCSIVolumeConditionAbnormal):
+			conditions[i].Status = utils.BoolToCondition(false)
+			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonNormal)
+			conditions[i].Message = ""
 		}
 	}
 	vol.Status.ContainerPath = ""

@@ -14,6 +14,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/gopherjs/gopherjs v0.0.0-20190328170749-bb2674552d8f // indirect
+	github.com/hashicorp/errwrap v1.0.0
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.0.5

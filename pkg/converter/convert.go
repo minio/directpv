@@ -68,16 +68,16 @@ func MigrateList(fromList, toList *unstructured.UnstructuredList, groupVersion s
 
 // Migrate function migrates unstructured object from one to another
 func Migrate(from, to *unstructured.Unstructured, groupVersion schema.GroupVersion) error {
-	obj := from.DeepCopy()
 	if from.GetAPIVersion() == groupVersion.String() {
 		from.DeepCopyInto(to)
 		return nil
 	}
+	fromCopy := from.DeepCopy()
 	toVersion := fmt.Sprintf("%s/%s", groupVersion.Group, groupVersion.Version)
-	if err := migrate(obj, toVersion); err != nil {
+	if err := migrate(fromCopy, toVersion); err != nil {
 		return err
 	}
-	return runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, to)
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(fromCopy.Object, to)
 }
 
 func migrate(object *unstructured.Unstructured, toVersion string) error {

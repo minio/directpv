@@ -18,6 +18,7 @@ package node
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
@@ -57,7 +58,25 @@ func checkDrive(drive *directcsi.DirectCSIDrive, volumeID string, probeMounts fu
 	return fmt.Errorf("drive %v is not mounted at mount point %v", drive.Name, mountPoint)
 }
 
-func checkStagingTargetPath(stagingPath string, probeMounts func() (map[string][]mount.Info, error)) error {
+func checkMountPath(mountPath string, probeMounts func() (map[string][]mount.Info, error)) error {
+
+	writeCheck := func(path string) error {
+		fp := filepath.Join(mountPath, ".drive_verifier")
+		f, err := os.OpenFile(fp,
+			os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			f.Close()
+			os.RemoveAll(fp)
+		}()
+		if _, err := f.Write([]byte{0x00}); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	mounts, err := probeMounts()
 	if err != nil {
 		return err
@@ -65,11 +84,11 @@ func checkStagingTargetPath(stagingPath string, probeMounts func() (map[string][
 
 	for _, mountInfos := range mounts {
 		for _, mountInfo := range mountInfos {
-			if mountInfo.MountPoint == stagingPath {
-				return nil
+			if mountInfo.MountPoint == mountPath {
+				return writeCheck(mountPath)
 			}
 		}
 	}
 
-	return fmt.Errorf("stagingPath %v is not mounted", stagingPath)
+	return fmt.Errorf("path %v is not mounted", mountPath)
 }

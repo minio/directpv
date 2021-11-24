@@ -20,10 +20,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/listener"
+	"github.com/minio/directpv/pkg/mount"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +37,10 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"k8s.io/klog/v2"
+)
+
+const (
+	validVolumeMountPrefix = "/var/lib/kubelet/"
 )
 
 func excludeFinalizer(finalizers []string, finalizer string) (result []string, found bool) {
@@ -235,4 +243,103 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 			klog.V(3).Infof("Error while syncing CRD versions in directpvvolume: %v", err)
 		}
 	}
+}
+
+func UpdateAbnormalVolumeCondition(ctx context.Context, volume *directcsi.DirectCSIVolume, errMessage string, abnormal bool) error {
+	volumeClient := client.GetLatestDirectCSIVolumeInterface()
+	abnormalCondReason := string(directcsi.DirectCSIVolumeReasonAbnormal)
+	if !abnormal {
+		abnormalCondReason = string(directcsi.DirectCSIVolumeReasonNormal)
+	}
+	utils.UpdateCondition(volume.Status.Conditions,
+		string(directcsi.DirectCSIVolumeConditionAbnormal),
+		utils.BoolToCondition(abnormal),
+		abnormalCondReason,
+		errMessage,
+	)
+	_, err := volumeClient.Update(
+		ctx, volume, metav1.UpdateOptions{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		},
+	)
+	return err
+}
+
+func ProcessMountEvent(ctx context.Context, nodeID, mountPoint string, mountEvent *mount.Event) {
+	// verify volume mounts
+	if !(mountEvent.Type() == mount.Detached && strings.HasPrefix(mountPoint, validVolumeMountPrefix)) {
+		return
+	}
+
+	volumeClient := client.GetLatestDirectCSIVolumeInterface()
+	getMajorMinor := func(majMin string) (major, minor uint32, err error) {
+		tokens := strings.SplitN(majMin, ":", 2)
+		if len(tokens) != 2 {
+			err = fmt.Errorf("unknown format of %v", majMin)
+			return
+		}
+
+		var major64, minor64 uint64
+		major64, err = strconv.ParseUint(tokens[0], 10, 32)
+		if err != nil {
+			return
+		}
+		major = uint32(major64)
+
+		minor64, err = strconv.ParseUint(tokens[1], 10, 32)
+		minor = uint32(minor64)
+		return
+	}
+
+	checkVolume := func(volume *directcsi.DirectCSIVolume) func() error {
+		return func() error {
+			volume, err := volumeClient.Get(
+				ctx, volume.Name, metav1.GetOptions{
+					TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+				},
+			)
+			if err != nil {
+				return err
+			}
+
+			if volume.Status.ContainerPath != "" && volume.Status.ContainerPath == mountPoint {
+				return UpdateAbnormalVolumeCondition(ctx, volume, fmt.Sprintf("containerpath %v is not mounted", volume.Status.ContainerPath), true)
+			}
+
+			return nil
+		}
+	}
+
+	majMin := mountEvent.MountInfo().MajorMinor
+	major, minor, err := getMajorMinor(majMin)
+	if err != nil {
+		klog.V(5).Infof("invalid maj:minor detected while monitoring mounts: %s error: %s", mountPoint, err.Error())
+		return
+	}
+	devName, err := sys.GetDeviceName(major, minor)
+	if err != nil {
+		klog.V(5).Infof("could not retrieve the device name from maj:min = %s, error: %s", mountPoint, err.Error())
+		return
+	}
+	resultCh, err := client.ListVolumes(ctx,
+		[]utils.LabelValue{utils.NewLabelValue(nodeID)},
+		[]utils.LabelValue{utils.NewLabelValue(devName)},
+		nil,
+		nil,
+		client.MaxThreadCount)
+	if err != nil {
+		klog.V(3).Infof("Error while fetching directcsivolumes: %v", err)
+		return
+	}
+
+	for result := range resultCh {
+		if result.Err != nil {
+			klog.V(3).Infof("Error while fetching directcsivolumes: %v", result.Err)
+			continue
+		}
+		if err := retry.RetryOnConflict(retry.DefaultRetry, checkVolume(&result.Volume)); err != nil {
+			klog.V(5).Infof("Error while checking volume mounts for %s, error: %v", result.Volume.Name, err)
+		}
+	}
+
 }

@@ -19,6 +19,7 @@ package node
 import (
 	"context"
 
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/clientset"
 	"github.com/minio/directpv/pkg/drive"
@@ -108,6 +109,12 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 
 	go metrics.ServeMetrics(ctx, nodeID, metricsPort)
 
+	go func() {
+		if err := monitorDirectCSIMounts(ctx, nodeID); err != nil {
+			klog.Error(err)
+		}
+	}()
+
 	return nodeServer, nil
 }
 
@@ -148,27 +155,43 @@ func (ns *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 		Capabilities: []*csi.NodeServiceCapability{
 			nodeCap(csi.NodeServiceCapability_RPC_GET_VOLUME_STATS),
 			nodeCap(csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME),
+			nodeCap(csi.NodeServiceCapability_RPC_VOLUME_CONDITION),
 		},
 	}, nil
 }
 
 // NodeGetVolumeStats gets node volume stats.
 func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	directCSIClient := ns.directcsiClient.DirectV1beta3()
+	vclient := directCSIClient.DirectCSIVolumes()
+	dclient := directCSIClient.DirectCSIDrives()
+
 	vID := req.GetVolumeId()
 	volumePath := req.GetVolumePath()
 
 	if volumePath == "" {
-		return &csi.NodeGetVolumeStatsResponse{}, nil
+		return nil, status.Error(codes.InvalidArgument, "missing volumepath in the request")
 	}
 
-	directCSIClient := ns.directcsiClient.DirectV1beta3()
-	vclient := directCSIClient.DirectCSIVolumes()
-	dclient := directCSIClient.DirectCSIDrives()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	for i := range vol.Status.Conditions {
+		if vol.Status.Conditions[i].Type == string(directcsi.DirectCSIVolumeConditionAbnormal) && vol.Status.Conditions[i].Status == metav1.ConditionTrue {
+			res := &csi.NodeGetVolumeStatsResponse{}
+			res.Usage = []*csi.VolumeUsage{
+				{},
+			}
+			res.VolumeCondition = &csi.VolumeCondition{
+				Abnormal: true,
+				Message:  vol.Status.Conditions[i].Message,
+			}
+			return res, nil
+		}
 	}
 
 	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
@@ -180,8 +203,9 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 
 	device, err := ns.getDevice(drive.Status.MajorNumber, drive.Status.MinorNumber)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Unable to find device for major/minor %v:%v; %v", drive.Status.MajorNumber, drive.Status.MinorNumber, err)
+		return nil, status.Errorf(codes.NotFound, "Unable to find device for major/minor %v:%v; %v", drive.Status.MajorNumber, drive.Status.MinorNumber, err)
 	}
+
 	quota, err := ns.getQuota(ctx, device, vID)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "Error while getting xfs volume stats: %v", err)
