@@ -30,7 +30,7 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
-	directcsifake "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3/fake"
+	// directcsifake "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -101,18 +101,18 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	testClientSet := clientsetfake.NewSimpleClientset(testDriveObjects...)
-	testClient := testClientSet.DirectV1beta3()
-	client.SetDirectCSIClient(testClient.(*directcsifake.FakeDirectV1beta3))
+	driveInterface := testClientSet.DirectV1beta3().DirectCSIDrives()
+	client.SetUnversionedDirectCSIDriveClientset(driveInterface)
 
 	resetDrives := func() error {
-		driveList, err := client.GetDriveList(ctx, testClient.DirectCSIDrives(), nil, nil, nil)
+		driveList, err := client.GetDriveList(ctx, driveInterface, nil, nil, nil)
 		if err != nil {
 			return err
 		}
 
 		for _, drive := range driveList {
 			drive.Spec.RequestedFormat = nil
-			if _, err := testClient.DirectCSIDrives().Update(ctx, &drive, metav1.UpdateOptions{
+			if _, err := driveInterface.Update(ctx, &drive, metav1.UpdateOptions{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(),
 			}); err != nil {
 				return err
@@ -123,7 +123,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	}
 
 	getFormattedDrives := func() ([]string, error) {
-		driveList, err := client.GetDriveList(ctx, testClient.DirectCSIDrives(), nil, nil, nil)
+		driveList, err := client.GetDriveList(ctx, driveInterface, nil, nil, nil)
 		if err != nil {
 			return []string{}, err
 		}

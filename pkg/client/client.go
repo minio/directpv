@@ -105,7 +105,6 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 	discoveryClient := GetDiscoveryClient()
 	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {
-		klog.Errorf("could not obtain API group resources: %v", err)
 		return nil, err
 	}
 	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
@@ -115,7 +114,6 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 	}
 	mapper, err := restMapper.RESTMapping(gk, versions...)
 	if err != nil {
-		klog.Errorf("could not find valid restmapping: %v", err)
 		return nil, err
 	}
 

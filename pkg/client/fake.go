@@ -18,7 +18,7 @@ package client
 
 import (
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
-	directcsifake "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3/fake"
+	directcsiclientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 
 	apiextensionsv1fake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,9 +63,8 @@ func FakeInit() {
 	initEvent(kubeClient)
 }
 
-// SetDirectCSIClient sets fake direct-csi client.
-func SetDirectCSIClient(fakeClient *directcsifake.FakeDirectV1beta3) {
-	directCSIClient = fakeClient
+func SetUnversionedDirectCSIDriveClientset(driveInterface directcsiclientset.DirectCSIDriveInterface) {
+	directcsiDriveClientset = driveInterface
 }
 
 func SetFakeDiscoveryClient(groupsAndMethodsFn fakeServerGroupsAndResourcesMethod, serverVersionInfo *version.Info) {

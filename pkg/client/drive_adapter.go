@@ -26,6 +26,7 @@ import (
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/converter"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -53,8 +54,12 @@ func directCSIDriveAdapterForConfig(config *rest.Config) (clientset.DirectCSIDri
 		directv1beta1.Version,
 		directv1alpha1.Version,
 	)
-	if err != nil {
+	if err != nil && !meta.IsNoMatchError(err) {
 		return nil, err
+	}
+	version := directcsi.Version
+	if gvk != nil {
+		version = gvk.Version
 	}
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
@@ -63,11 +68,11 @@ func directCSIDriveAdapterForConfig(config *rest.Config) (clientset.DirectCSIDri
 	dyncamicResourceClient := dynamicClient.Resource(
 		schema.GroupVersionResource{
 			Group:    directcsi.Group,
-			Version:  gvk.Version,
+			Version:  version,
 			Resource: "directcsidrives",
 		},
 	)
-	return &directCSIDriveAdapter{dynamicClient: dyncamicResourceClient}, nil
+	return &directCSIDriveAdapter{dynamicClient: dyncamicResourceClient, gvk: gvk}, nil
 }
 
 // Get takes name of the directCSIDrive, and returns the corresponding directCSIDrive object, and an error if there is any.
@@ -138,98 +143,99 @@ func (c *directCSIDriveAdapter) List(ctx context.Context, opts v1.ListOptions) (
 
 // Watch returns a watch.Interface that watches the requested directCSIDrives.
 func (c *directCSIDriveAdapter) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return nil, nil
-	// var timeout time.Duration
-	// if opts.TimeoutSeconds != nil {
-	// 	timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	// }
-	// opts.Watch = true
-	// return c.client.Get().
-	// 	Resource("directcsidrives").
-	// 	VersionedParams(&opts, scheme.ParameterCodec).
-	// 	Timeout(timeout).
-	// 	Watch(ctx)
+	opts.Watch = true
+	return c.dynamicClient.Watch(ctx, opts)
 }
 
 // Create takes the representation of a directCSIDrive and creates it.  Returns the server's representation of the directCSIDrive, and an error, if there is any.
 func (c *directCSIDriveAdapter) Create(ctx context.Context, directCSIDrive *directcsi.DirectCSIDrive, opts v1.CreateOptions) (result *directcsi.DirectCSIDrive, err error) {
-	// result = &directcsi.DirectCSIDrive{}
-	// err = c.client.Post().
-	// 	Resource("directcsidrives").
-	// 	VersionedParams(&opts, scheme.ParameterCodec).
-	// 	Body(directCSIDrive).
-	// 	Do(ctx).
-	// 	Into(result)
-	return
+	unstructured := &unstructured.Unstructured{}
+	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(directCSIDrive)
+	if err != nil {
+		return nil, err
+	}
+	unstructured.Object = convertedObj
+
+	createdUnstructuredObj, err := c.dynamicClient.Create(ctx, unstructured, opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var createdDirectCSIDrive directcsi.DirectCSIDrive
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(createdUnstructuredObj.Object, &createdDirectCSIDrive)
+	if err != nil {
+		return nil, err
+	}
+	return &createdDirectCSIDrive, nil
 }
 
 // Update takes the representation of a directCSIDrive and updates it. Returns the server's representation of the directCSIDrive, and an error, if there is any.
 func (c *directCSIDriveAdapter) Update(ctx context.Context, directCSIDrive *directcsi.DirectCSIDrive, opts v1.UpdateOptions) (result *directcsi.DirectCSIDrive, err error) {
-	// result = &directcsi.DirectCSIDrive{}
-	// err = c.client.Put().
-	// 	Resource("directcsidrives").
-	// 	Name(directCSIDrive.Name).
-	// 	VersionedParams(&opts, scheme.ParameterCodec).
-	// 	Body(directCSIDrive).
-	// 	Do(ctx).
-	// 	Into(result)
-	return
+	unstructured := &unstructured.Unstructured{}
+	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(directCSIDrive)
+	if err != nil {
+		return nil, err
+	}
+	unstructured.Object = convertedObj
+
+	updatedUnstructuredObj, err := c.dynamicClient.Update(ctx, unstructured, opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var updatedDirectCSIDrive directcsi.DirectCSIDrive
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(updatedUnstructuredObj.Object, &updatedDirectCSIDrive)
+	if err != nil {
+		return nil, err
+	}
+	return &updatedDirectCSIDrive, nil
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 func (c *directCSIDriveAdapter) UpdateStatus(ctx context.Context, directCSIDrive *directcsi.DirectCSIDrive, opts v1.UpdateOptions) (result *directcsi.DirectCSIDrive, err error) {
-	// result = &directcsi.DirectCSIDrive{}
-	// err = c.client.Put().
-	// 	Resource("directcsidrives").
-	// 	Name(directCSIDrive.Name).
-	// 	SubResource("status").
-	// 	VersionedParams(&opts, scheme.ParameterCodec).
-	// 	Body(directCSIDrive).
-	// 	Do(ctx).
-	// 	Into(result)
-	return
+	unstructured := &unstructured.Unstructured{}
+	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(directCSIDrive)
+	if err != nil {
+		return nil, err
+	}
+	unstructured.Object = convertedObj
+
+	updatedUnstructuredObj, err := c.dynamicClient.UpdateStatus(ctx, unstructured, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var updatedDirectCSIDrive directcsi.DirectCSIDrive
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(updatedUnstructuredObj.Object, &updatedDirectCSIDrive)
+	if err != nil {
+		return nil, err
+	}
+	return &updatedDirectCSIDrive, nil
 }
 
 // Delete takes name of the directCSIDrive and deletes it. Returns an error if one occurs.
 func (c *directCSIDriveAdapter) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	return nil
-	// return c.client.Delete().
-	// 	Resource("directcsidrives").
-	// 	Name(name).
-	// 	Body(&opts).
-	// 	Do(ctx).
-	// 	Error()
+	return c.dynamicClient.Delete(ctx, name, opts, "")
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *directCSIDriveAdapter) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	return nil
-	// var timeout time.Duration
-	// if listOpts.TimeoutSeconds != nil {
-	// 	timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	// }
-	// return c.client.Delete().
-	// 	Resource("directcsidrives").
-	// 	VersionedParams(&listOpts, scheme.ParameterCodec).
-	// 	Timeout(timeout).
-	// 	Body(&opts).
-	// 	Do(ctx).
-	// 	Error()
+	return c.dynamicClient.DeleteCollection(ctx, opts, listOpts)
 }
 
 // Patch applies the patch and returns the patched directCSIDrive.
 func (c *directCSIDriveAdapter) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *directcsi.DirectCSIDrive, err error) {
-	// result = &directcsi.DirectCSIDrive{}
-	// err = c.client.Patch(pt).
-	// 	Resource("directcsidrives").
-	// 	Name(name).
-	// 	SubResource(subresources...).
-	// 	VersionedParams(&opts, scheme.ParameterCodec).
-	// 	Body(data).
-	// 	Do(ctx).
-	// 	Into(result)
-	return
+	patchedUnsrtucturedObj, err := c.dynamicClient.Patch(ctx, name, pt, data, opts, subresources...)
+	if err != nil {
+		return nil, err
+	}
+	var patchedDirectCSIDrive directcsi.DirectCSIDrive
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(patchedUnsrtucturedObj.Object, &patchedDirectCSIDrive)
+	if err != nil {
+		return nil, err
+	}
+	return &patchedDirectCSIDrive, nil
 }
 
 // APIVersion returns the APIVersion this RESTClient is expected to use.

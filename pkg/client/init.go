@@ -26,7 +26,6 @@ import (
 	"github.com/minio/direct-csi/pkg/utils"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
@@ -38,17 +37,16 @@ import (
 const MaxThreadCount = 200
 
 var (
-	initialized               int32
-	kubeClient                kubernetes.Interface
-	directCSIClient           directcsi.DirectV1beta3Interface
-	directClientset           direct.Interface
-	apiextensionsClient       apiextensions.ApiextensionsV1Interface
-	crdClient                 apiextensions.CustomResourceDefinitionInterface
-	discoveryClient           discovery.DiscoveryInterface
-	metadataClient            metadata.Interface
-	directcsiDriveClientset   directcsi.DirectCSIDriveInterface
-	directcsiVolumeClientset  directcsi.DirectCSIVolumeInterface
-	directcsiGroupVersionKind *schema.GroupVersionKind
+	initialized              int32
+	kubeClient               kubernetes.Interface
+	directCSIClient          directcsi.DirectV1beta3Interface
+	directClientset          direct.Interface
+	apiextensionsClient      apiextensions.ApiextensionsV1Interface
+	crdClient                apiextensions.CustomResourceDefinitionInterface
+	discoveryClient          discovery.DiscoveryInterface
+	metadataClient           metadata.Interface
+	directcsiDriveClientset  directcsi.DirectCSIDriveInterface
+	directcsiVolumeClientset directcsi.DirectCSIVolumeInterface
 )
 
 // GetUnversionedDirectCSIDriveClientset gets unversioned direct-csi drive clientset.
