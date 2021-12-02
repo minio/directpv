@@ -28,7 +28,11 @@ export DIRECT_CSI_VERSION=
 function create_loop() {
     truncate --size="$2" "$1"
     sudo losetup --find "$1"
-    sudo losetup --noheadings --output NAME --associated "$1"
+    if [ -n "${RHEL7_TEST}" ]; then
+        sudo losetup --output NAME --associated "$1" | tail -n +2
+    else
+        sudo losetup --noheadings --output NAME --associated "$1"
+    fi
 }
 
 function setup_lvm() {
@@ -49,7 +53,11 @@ function setup_luks() {
 }
 
 function install_directcsi() {
-    "${DIRECT_CSI_CLIENT}" install --image "direct-csi:${DIRECT_CSI_VERSION}"
+    image="direct-csi:${DIRECT_CSI_VERSION}"
+    if [ -n "$1" ]; then
+        image="$1"
+    fi
+    "${DIRECT_CSI_CLIENT}" install --image "$image"
 
     required_count=4
     if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
