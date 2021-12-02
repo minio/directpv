@@ -42,7 +42,11 @@ function do_upgrade_test() {
 
     DIRECT_CSI_CLIENT="./kubectl-direct_csi_$1"
     DIRECT_CSI_VERSION="v$1"
-    install_directcsi
+    image="direct-csi:${DIRECT_CSI_VERSION}"
+    if [ -n "${RHEL7_TEST}" ]; then
+        image="direct-csi:${DIRECT_CSI_VERSION}-rhel7"
+    fi
+    install_directcsi "$image"
     check_drives
     deploy_minio
 
@@ -114,5 +118,5 @@ test_build
 echo "$ME: Run upgrade test from v1.3.6"
 do_upgrade_test "1.3.6"
 
-echo "$ME: Run upgrade test from v1.4.3"
-do_upgrade_test "1.4.3"
+echo "$ME: Run upgrade test from v1.4.6"
+do_upgrade_test "1.4.6"
