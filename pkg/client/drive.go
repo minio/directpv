@@ -208,7 +208,7 @@ func DeleteDrive(ctx context.Context, directCSIClient directcsiclientset.Interfa
 				string(directcsi.DirectCSIVolumeConditionReady),
 				metav1.ConditionFalse,
 				string(directcsi.DirectCSIVolumeReasonNotReady),
-				"[DRIVE LOST] Please refer https://github.com/minio/direct-csi/blob/master/docs/scheduling.md",
+				"[DRIVE LOST] Please refer https://github.com/minio/direct-csi/blob/master/docs/troubleshooting.md",
 			)
 			_, err = volumeInterface.Update(
 				ctx, volume, metav1.UpdateOptions{TypeMeta: DirectCSIVolumeTypeMeta()},
