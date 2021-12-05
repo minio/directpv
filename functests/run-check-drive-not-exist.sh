@@ -23,12 +23,9 @@ SCRIPT_DIR=$(dirname "$0")
 export SCRIPT_DIR
 
 if [[ $# -ne 1 ]]; then
-    echo "error: build version must be provided"
-    echo "usage: $ME <BUILD-VERSION>"
+    echo "error: DRIVE must be provided"
+    echo "usage: $ME <DRIVE>"
     exit 255
 fi
 
-BUILD_VERSION="$1"
-export BUILD_VERSION
-
-"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/tests.sh"
+"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/check-drive-exist.sh" "$@"

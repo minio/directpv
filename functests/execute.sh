@@ -16,19 +16,26 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-ME=$(basename "$0")
-export ME
+function execute() {
+    # Open /var/tmp/check.sh.xtrace for fd 3
+    exec 3>/var/tmp/check.sh.xtrace
 
-SCRIPT_DIR=$(dirname "$0")
-export SCRIPT_DIR
+    # Set PS4 to [filename:lineno]: for tracing
+    # Save all traces to fd 3
+    # Run passed command with enabled errexit/xtrace
+    PS4='+ [${BASH_SOURCE}:${FUNCNAME[0]:+${FUNCNAME[0]}():}${LINENO}]: ' BASH_XTRACEFD=3 bash -ex "$@"
+    exit_status=$?
 
-if [[ $# -ne 1 ]]; then
-    echo "error: build version must be provided"
-    echo "usage: $ME <BUILD-VERSION>"
-    exit 255
-fi
+    # Close fd 3
+    exec 3>&-
 
-BUILD_VERSION="$1"
-export BUILD_VERSION
+    if [ "$exit_status" -ne 0 ]; then
+        echo
+        echo "xtrace:"
+        tail /var/tmp/check.sh.xtrace | tac
+    fi
 
-"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/tests.sh"
+    return "$exit_status"
+}
+
+execute "$@"

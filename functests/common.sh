@@ -16,10 +16,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Enable tracing if set.
-[ -n "$BASH_XTRACEFD" ] && set -ex
+set -ex
 
+export LV_LOOP_DEVICE=
+export VG_NAME="testvg${RANDOM}"
 export LV_DEVICE=
+export LUKS_LOOP_DEVICE=
 export LUKS_DEVICE=
 export DIRECT_CSI_CLIENT=
 export DIRECT_CSI_VERSION=
@@ -36,29 +38,37 @@ function create_loop() {
 }
 
 function setup_lvm() {
-    loopdev=$(create_loop testpv.img 1G)
-    sudo pvcreate "$loopdev"
-    vgname="testvg$RANDOM"
-    sudo vgcreate "$vgname" "$loopdev"
-    sudo lvcreate --name=testlv --extents=100%FREE "$vgname"
-    LV_DEVICE=$(readlink -f "/dev/$vgname/testlv")
+    LV_LOOP_DEVICE=$(create_loop testpv.img 1G)
+    sudo pvcreate "${LV_LOOP_DEVICE}"
+    sudo vgcreate "${VG_NAME}" "${LV_LOOP_DEVICE}"
+    sudo lvcreate --name=testlv --extents=100%FREE "${VG_NAME}"
+    LV_DEVICE=$(readlink -f "/dev/${VG_NAME}/testlv")
+}
+
+function remove_lvm() {
+    sudo lvchange --quiet --activate n "${VG_NAME}/testlv"
+    sudo lvremove --quiet --yes "${VG_NAME}/testlv"
+    sudo vgremove --quiet "${VG_NAME}"
+    sudo pvremove --quiet "${LV_LOOP_DEVICE}"
+    sudo losetup --detach "${LV_LOOP_DEVICE}"
+    rm -f testpv.img
 }
 
 function setup_luks() {
-    loopdev=$(create_loop testluks.img 1G)
+    LUKS_LOOP_DEVICE=$(create_loop testluks.img 1G)
     echo "mylukspassword" > lukspassfile
-    yes YES | sudo cryptsetup luksFormat "$loopdev" lukspassfile
-    sudo cryptsetup -v luksOpen "$loopdev" myluks --key-file=lukspassfile
+    yes YES | sudo cryptsetup luksFormat "${LUKS_LOOP_DEVICE}" lukspassfile
+    sudo cryptsetup luksOpen "${LUKS_LOOP_DEVICE}" myluks --key-file=lukspassfile
     LUKS_DEVICE=$(readlink -f /dev/mapper/myluks)
 }
 
-function install_directcsi() {
-    image="direct-csi:${DIRECT_CSI_VERSION}"
-    if [ -n "$1" ]; then
-        image="$1"
-    fi
-    "${DIRECT_CSI_CLIENT}" install --image "$image"
+function remove_luks() {
+    sudo cryptsetup luksClose myluks
+    sudo losetup --detach "${LUKS_LOOP_DEVICE}"
+    rm -f testluks.img
+}
 
+function _wait_directcsi_to_start() {
     required_count=4
     if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
         required_count=7 # plus 3 for conversion deployment pods
@@ -77,6 +87,20 @@ function install_directcsi() {
             return 0
         fi
     done
+}
+
+function install_directcsi() {
+    image="direct-csi:${DIRECT_CSI_VERSION}"
+    if [ -n "$1" ]; then
+        image="$1"
+    fi
+    "${DIRECT_CSI_CLIENT}" install --image "$image"
+    _wait_directcsi_to_start
+}
+
+function install_directcsi_with_dynamic_discovery() {
+    "${DIRECT_CSI_CLIENT}" install --image "direct-csi:${DIRECT_CSI_VERSION}" --enable-dynamic-discovery
+    _wait_directcsi_to_start
 }
 
 function uninstall_directcsi() {
@@ -121,6 +145,27 @@ function check_drives() {
     "${DIRECT_CSI_CLIENT}" drives list --all
 
     check_drives_state Ready
+}
+
+# usage: check_drive_state <drive> <state>
+function check_drive_state() {
+    drive="$1"
+    state="$2"
+    "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" -o wide
+    if ! "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}.*${state}"; then
+        echo "$ME: error: ${drive} not found in ${state} state"
+        return 1
+    fi
+}
+
+# usage: check_drive_not_exist <drive>
+function check_drive_not_exist() {
+    drive="$1"
+    "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" -o wide
+    if "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}"; then
+        echo "$ME: error: ${drive} exists"
+        return 1
+    fi
 }
 
 function deploy_minio() {
