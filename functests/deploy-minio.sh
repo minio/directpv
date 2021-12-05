@@ -16,19 +16,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-ME=$(basename "$0")
-export ME
-
-SCRIPT_DIR=$(dirname "$0")
-export SCRIPT_DIR
-
-if [[ $# -ne 1 ]]; then
-    echo "error: build version must be provided"
-    echo "usage: $ME <BUILD-VERSION>"
-    exit 255
-fi
-
-BUILD_VERSION="$1"
-export BUILD_VERSION
-
-"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/tests.sh"
+set -ex
+source "${SCRIPT_DIR}/common.sh"
+cp -af functests/minio.yaml functests/minio.yaml.orig
+sed -i -e 's:80Mi:8Mi:g' functests/minio.yaml
+deploy_minio
+mv -f functests/minio.yaml.orig functests/minio.yaml

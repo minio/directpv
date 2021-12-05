@@ -16,19 +16,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-ME=$(basename "$0")
-export ME
-
-SCRIPT_DIR=$(dirname "$0")
-export SCRIPT_DIR
-
-if [[ $# -ne 1 ]]; then
-    echo "error: build version must be provided"
-    echo "usage: $ME <BUILD-VERSION>"
-    exit 255
-fi
-
-BUILD_VERSION="$1"
-export BUILD_VERSION
-
-"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/tests.sh"
+set -ex
+source "${SCRIPT_DIR}/common.sh"
+export DIRECT_CSI_CLIENT=./kubectl-direct_csi
+export DIRECT_CSI_VERSION="$BUILD_VERSION"
+install_directcsi_with_dynamic_discovery
