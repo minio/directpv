@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 )
 
 func toDirectCSIDrive(object map[string]interface{}) (*directcsi.DirectCSIDrive, error) {
@@ -170,10 +171,55 @@ func (d *directCSIInterface) List(ctx context.Context, opts metav1.ListOptions) 
 	return migratedResult.Object, items, nil
 }
 
-// Watch returns a watch.Interface that watches the requested resource objects.
-func (d *directCSIInterface) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+type watchInterfaceWrapper struct {
+	watchInterface watch.Interface
+}
+
+func (w watchInterfaceWrapper) Stop() {
+	w.watchInterface.Stop()
+}
+
+func (w watchInterfaceWrapper) ResultChan() <-chan watch.Event {
+	wrapperCh := make(chan watch.Event)
+	go func() {
+		defer close(wrapperCh)
+		resultCh := w.watchInterface.ResultChan()
+		for {
+			result, ok := <-resultCh
+			if !ok {
+				break
+			}
+			convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&result.Object)
+			if err != nil {
+				break
+			}
+			intermediateResult := &unstructured.Unstructured{Object: convertedObj}
+			finalResult := &unstructured.Unstructured{}
+			if err := converter.Migrate(intermediateResult, finalResult, schema.GroupVersion{
+				Version: directcsi.Version,
+				Group:   directcsi.Group,
+			}); err != nil {
+				klog.Infof("error while migrating: %v", err)
+				break
+			}
+
+			wrapperCh <- watch.Event{
+				Type:   result.Type,
+				Object: finalResult,
+			}
+		}
+	}()
+	return wrapperCh
+}
+
+// Watch returns a watch.Interface that watches the requested directCSIDrives.
+func (c *directCSIInterface) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
-	return d.resourceInterface.Watch(ctx, opts)
+	watcher, err := c.resourceInterface.Watch(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return watchInterfaceWrapper{watchInterface: watcher}, nil
 }
 
 // Patch applies the patch and returns the patched resource object.
