@@ -31,10 +31,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-type migrateFunc func(fromVersion, toVersion string, Object *unstructured.Unstructured) error
+type migrateFunc func(object *unstructured.Unstructured, toVersion string) error
 
 var (
-	errCRDKindNotSupported = errors.New("unsupported CRD Kind")
+	errUnsupportedCRDKind = errors.New("unsupported CRD Kind")
 )
 
 func convertDriveCRD(Object *unstructured.Unstructured, toVersion string) (*unstructured.Unstructured, metav1.Status) {
@@ -55,56 +55,52 @@ func convertVolumeCRD(Object *unstructured.Unstructured, toVersion string) (*uns
 
 func MigrateList(fromList, toList *unstructured.UnstructuredList, groupVersion schema.GroupVersion) error {
 	fromList.DeepCopyInto(toList)
-	fn := func(obj runtime.Object) error {
-		cpObj := obj.DeepCopyObject()
-		if err := Migrate(cpObj.(*unstructured.Unstructured), obj.(*unstructured.Unstructured), groupVersion); err != nil {
-			return err
-		}
-		return nil
-	}
-	return toList.EachListItem(fn)
+	return toList.EachListItem(
+		func(object runtime.Object) error {
+			objectCopy := object.DeepCopyObject()
+			return Migrate(objectCopy.(*unstructured.Unstructured), object.(*unstructured.Unstructured), groupVersion)
+		},
+	)
 }
 
 // Migrate function migrates unstructured object from one to another
 func Migrate(from, to *unstructured.Unstructured, groupVersion schema.GroupVersion) error {
-	obj := from.DeepCopy()
-	if from.GetAPIVersion() == to.GetAPIVersion() {
-		return runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, to)
+	fromCopy := from.DeepCopy()
+	if fromCopy.GetAPIVersion() != to.GetAPIVersion() {
+		toVersion := fmt.Sprintf("%s/%s", groupVersion.Group, groupVersion.Version)
+		if err := migrate(fromCopy, toVersion); err != nil {
+			return err
+		}
 	}
-	toVersion := fmt.Sprintf("%s/%s", groupVersion.Group, groupVersion.Version)
-	if err := migrate(obj, toVersion); err != nil {
-		return err
-	}
-	return runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, to)
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(fromCopy.Object, to)
 }
 
-func migrate(convertFromObject *unstructured.Unstructured, toVersion string) error {
-	fromVersion := convertFromObject.GetAPIVersion()
+func migrate(object *unstructured.Unstructured, toVersion string) error {
+	fromVersion := object.GetAPIVersion()
 	migrateFn, err := getMigrateFunc(fromVersion, toVersion)
 	if err != nil {
 		return err
 	}
 
 	// migrate the CRDs
-	if err := migrateFn(fromVersion, toVersion, convertFromObject); err != nil {
+	if err := migrateFn(object, toVersion); err != nil {
 		return err
 	}
-	convertFromObject.SetAPIVersion(toVersion)
+	object.SetAPIVersion(toVersion)
 
-	labels := convertFromObject.GetLabels()
+	labels := object.GetLabels()
 	if labels == nil {
 		labels = make(map[string]string)
 	}
 	if _, ok := labels[directcsi.Group+"/version"]; !ok {
 		labels[directcsi.Group+"/version"] = filepath.Base(fromVersion)
 	}
-	convertFromObject.SetLabels(labels)
+	object.SetLabels(labels)
 
 	return nil
 }
 
 func getMigrateFunc(fromVersion, toVersion string) (migrateFunc, error) {
-	var migrateFn migrateFunc
 	getIndex := func(version string) int {
 		for i := range supportedVersions {
 			if supportedVersions[i] == version {
@@ -114,79 +110,47 @@ func getMigrateFunc(fromVersion, toVersion string) (migrateFunc, error) {
 		return -1
 	}
 
-	shouldUpgrade := func() (bool, error) {
-		fromIndex := getIndex(fromVersion)
-		if fromIndex == -1 {
-			return false, fmt.Errorf("invalid fromVersion: %s", fromVersion)
-		}
-
-		toIndex := getIndex(toVersion)
-		if toIndex == -1 {
-			return false, fmt.Errorf("invalid toVersion: %s", toVersion)
-		}
-
-		if fromIndex == toIndex {
-			return false, fmt.Errorf("conversion from a version to itself should not call the webhook: %s", toVersion)
-		}
-
-		if fromIndex > toIndex {
-			return false, nil
-		}
-		return true, nil
+	fromIndex := getIndex(fromVersion)
+	if fromIndex == -1 {
+		return nil, fmt.Errorf("invalid fromVersion: %s", fromVersion)
 	}
 
-	upgrade, err := shouldUpgrade()
-	if err != nil {
-		return migrateFn, err
+	toIndex := getIndex(toVersion)
+	if toIndex == -1 {
+		return nil, fmt.Errorf("invalid toVersion: %s", toVersion)
 	}
 
-	migrateFn = func() migrateFunc {
-		if upgrade {
-			return upgradeObject
-		}
-		return downgradeObject
-	}()
+	if fromIndex == toIndex {
+		return nil, fmt.Errorf("conversion from a version to itself should not call the webhook: %s", toVersion)
+	}
 
-	return migrateFn, nil
+	if fromIndex > toIndex {
+		return downgradeObject, nil
+	}
+
+	return upgradeObject, nil
 }
 
-func getCRDKind(convertedObject *unstructured.Unstructured) crdKind {
-	crdKindUntyped := convertedObject.GetKind()
-	cleanKindStr := strings.ReplaceAll(crdKindUntyped, " ", "")
-	return crdKind(cleanKindStr)
+func getCRDKind(object *unstructured.Unstructured) crdKind {
+	return crdKind(strings.ReplaceAll(object.GetKind(), " ", ""))
 }
 
-func upgradeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
-	crdKind := getCRDKind(convertedObject)
-	switch crdKind {
+func upgradeObject(object *unstructured.Unstructured, toVersion string) error {
+	switch getCRDKind(object) {
 	case driveCRDKind:
-		if err := upgradeDriveObject(fromVersion, toVersion, convertedObject); err != nil {
-			return err
-		}
+		return upgradeDriveObject(object, toVersion)
 	case volumeCRDKind:
-		if err := upgradeVolumeObject(fromVersion, toVersion, convertedObject); err != nil {
-			return err
-		}
-	default:
-		return errCRDKindNotSupported
+		return upgradeVolumeObject(object, toVersion)
 	}
-
-	return nil
+	return errUnsupportedCRDKind
 }
 
-func downgradeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
-	crdKind := getCRDKind(convertedObject)
-	switch crdKind {
+func downgradeObject(object *unstructured.Unstructured, toVersion string) error {
+	switch getCRDKind(object) {
 	case driveCRDKind:
-		if err := downgradeDriveObject(fromVersion, toVersion, convertedObject); err != nil {
-			return err
-		}
+		return downgradeDriveObject(object, toVersion)
 	case volumeCRDKind:
-		if err := downgradeVolumeObject(fromVersion, toVersion, convertedObject); err != nil {
-			return err
-		}
-	default:
-		return errCRDKindNotSupported
+		return downgradeVolumeObject(object, toVersion)
 	}
-	return nil
+	return errUnsupportedCRDKind
 }

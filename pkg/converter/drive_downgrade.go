@@ -28,14 +28,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func downgradeDriveObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
-	switch fromVersion {
+func downgradeDriveObject(object *unstructured.Unstructured, toVersion string) error {
+	switch object.GetAPIVersion() {
 	case versionV1Beta3:
 		if toVersion == versionV1Beta3 {
 			klog.V(10).Info("Successfully migrated")
 			break
 		}
-		if err := driveDowngradeV1Beta3ToV1Beta2(convertedObject); err != nil {
+		if err := driveDowngradeV1Beta3ToV1Beta2(object); err != nil {
 			return err
 		}
 		fallthrough
@@ -44,7 +44,7 @@ func downgradeDriveObject(fromVersion, toVersion string, convertedObject *unstru
 			klog.V(10).Info("Successfully migrated")
 			break
 		}
-		if err := driveDowngradeV1Beta2ToV1Beta1(convertedObject); err != nil {
+		if err := driveDowngradeV1Beta2ToV1Beta1(object); err != nil {
 			return err
 		}
 		fallthrough
@@ -53,7 +53,7 @@ func downgradeDriveObject(fromVersion, toVersion string, convertedObject *unstru
 			klog.V(10).Info("Successfully migrated")
 			break
 		}
-		if err := driveDowngradeV1Beta1ToV1alpha1(convertedObject); err != nil {
+		if err := driveDowngradeV1Beta1ToV1alpha1(object); err != nil {
 			return err
 		}
 		fallthrough

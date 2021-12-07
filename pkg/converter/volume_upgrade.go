@@ -30,14 +30,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func upgradeVolumeObject(fromVersion, toVersion string, convertedObject *unstructured.Unstructured) error {
-	switch fromVersion {
+func upgradeVolumeObject(object *unstructured.Unstructured, toVersion string) error {
+	switch object.GetAPIVersion() {
 	case versionV1Alpha1:
 		if toVersion == versionV1Alpha1 {
 			klog.V(10).Info("Successfully migrated")
 			break
 		}
-		if err := volumeUpgradeV1alpha1ToV1Beta1(convertedObject); err != nil {
+		if err := volumeUpgradeV1alpha1ToV1Beta1(object); err != nil {
 			return err
 		}
 		fallthrough
@@ -46,7 +46,7 @@ func upgradeVolumeObject(fromVersion, toVersion string, convertedObject *unstruc
 			klog.V(10).Info("Successfully migrated")
 			break
 		}
-		if err := volumeUpgradeV1Beta1ToV1Beta2(convertedObject); err != nil {
+		if err := volumeUpgradeV1Beta1ToV1Beta2(object); err != nil {
 			return err
 		}
 		fallthrough
@@ -55,7 +55,7 @@ func upgradeVolumeObject(fromVersion, toVersion string, convertedObject *unstruc
 			klog.V(10).Info("Successfully migrated")
 			break
 		}
-		if err := volumeUpgradeV1Beta2ToV1Beta3(convertedObject); err != nil {
+		if err := volumeUpgradeV1Beta2ToV1Beta3(object); err != nil {
 			return err
 		}
 		fallthrough

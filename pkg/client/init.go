@@ -144,13 +144,13 @@ func Init() {
 		os.Exit(1)
 	}
 
-	directcsiDriveClientset, err = directCSIDriveAdapterForConfig(config)
+	directcsiDriveClientset, err = directCSIDriveInterfaceForConfig(config)
 	if err != nil {
 		fmt.Printf("%s: could not initialize drive adapter client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 
-	directcsiVolumeClientset, err = directCSIVolumeAdapterForConfig(config)
+	directcsiVolumeClientset, err = directCSIVolumeInterfaceForConfig(config)
 	if err != nil {
 		fmt.Printf("%s: could not initialize volume adapter client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
