@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set -ex
+set -ex -o pipefail
 
 centos7image=CentOS-7-x86_64-GenericCloud-2111.qcow2c
 baseimage="minikube-${centos7image}"
@@ -24,11 +24,11 @@ rsa_private_key="${baseimage}_rsa"
 rsa_public_key="${baseimage}_rsa.pub"
 
 function scp_cmd() {
-    scp -o GSSAPIAuthentication=no -o StrictHostKeyChecking=no -i "$rsa_private_key" -p "$@"
+    scp -v -o GSSAPIAuthentication=no -o StrictHostKeyChecking=no -i "$rsa_private_key" -p "$@"
 }
 
 function ssh_cmd() {
-    ssh -o GSSAPIAuthentication=no -o StrictHostKeyChecking=no -i "$rsa_private_key" -l root "$@"
+    ssh -v -o GSSAPIAuthentication=no -o StrictHostKeyChecking=no -i "$rsa_private_key" -l root "$@"
 }
 
 function setup_base_image() {
@@ -39,19 +39,34 @@ function setup_base_image() {
     if [ ! -f "$centos7image" ]; then
         wget "https://cloud.centos.org/centos/7/images/${centos7image}"
     fi
-    cp -af "$centos7image" "$baseimage"
+    imagefile="$baseimage"
+    if [ "${TRAVIS}" ]; then
+        imagefile="/var/lib/libvirt/images/$baseimage"
+        sudo cp "$centos7image" "$imagefile"
+        sudo chown libvirt-qemu:kvm "$imagefile"
+        sudo ls -l "$imagefile"
+    else
+        cp -af "$centos7image" "$baseimage"
+    fi
 
     if [ ! -f "$rsa_private_key" ] || [ ! -f "$rsa_public_key" ]; then
         ssh-keygen -q -f "$rsa_private_key" -N ''
     fi
 
-    sudo virt-customize -a "$baseimage" --ssh-inject "root:file:${rsa_public_key}" --root-password password:password --uninstall cloud-init --selinux-relabel
-    virt-install --name "$baseimage" --memory 4096 --vcpus 2 --disk "$baseimage" --import --os-variant centos7.0 --print-xml | cat > "${baseimage}.xml"
+    sudo virt-customize -a "$imagefile" --ssh-inject "root:file:${rsa_public_key}" --root-password password:password --uninstall cloud-init --selinux-relabel
+    sudo virt-install --name "$baseimage" --memory 4096 --vcpus 2 --disk "$imagefile" --import --os-variant centos7.0 --print-xml | cat > "${baseimage}.xml"
     sudo virsh define "${baseimage}.xml"
     sudo virsh start "${baseimage}"
     rm -f "${baseimage}.xml"
     sleep 1m
     ipaddr=$(sudo virsh domifaddr "$baseimage" | awk '$4 ~ /[0-9]$/ { split($4,a,"/"); print a[1] }')
+
+    if [ "${TRAVIS}" ]; then
+        while ! ssh_cmd "$ipaddr" true; do
+            echo "waiting for ssh access on ${ipaddr}"
+            sleep 5
+        done
+    fi
 
     cat > setup-minikube.sh <<EOF
 #!/bin/bash
@@ -94,26 +109,40 @@ function build_directcsi() {
 }
 
 function start_test_vm() {
-    cp -af "$baseimage" "${VM_IMAGE}"
-    virt-install --name "${VM_NAME}" --memory 4096 --vcpus 2 --disk "${VM_IMAGE}" --import --os-variant centos7.0 --print-xml | cat > "${VM_NAME}.xml"
+    if [ "${TRAVIS}" ]; then
+        sudo cp -a "/var/lib/libvirt/images/$baseimage" "${VM_IMAGE}"
+    else
+        cp -af "$baseimage" "${VM_IMAGE}"
+    fi
+    sudo virt-install --name "${VM_NAME}" --memory 4096 --vcpus 2 --disk "${VM_IMAGE}" --import --os-variant centos7.0 --print-xml | cat > "${VM_NAME}.xml"
     sudo virsh define "${VM_NAME}.xml"
     sudo virsh start "${VM_NAME}"
     rm -f "${VM_NAME}.xml"
     sleep 1m
     VM_IPADDR=$(sudo virsh domifaddr "${VM_NAME}" | awk '$4 ~ /[0-9]$/ { split($4,a,"/"); print a[1] }')
     export VM_IPADDR
+    if [ "${TRAVIS}" ]; then
+        while ! ssh_cmd "${VM_IPADDR}" true; do
+            echo "waiting for ssh access on ${VM_IPADDR}"
+            sleep 5
+        done
+    fi
 }
 
 function remove_test_vm() {
     sudo virsh shutdown "${VM_NAME}"
     sleep 10
     sudo virsh undefine "${VM_NAME}"
-    rm -f "${VM_IMAGE}"
+    sudo rm -f "${VM_IMAGE}"
 }
 
 function run_functional_test() {
     export VM_NAME="centos-7-directcsi-test-${BUILD_TAG}-${RANDOM}"
-    export VM_IMAGE="${VM_NAME}.qcow2c"
+    if [ "${TRAVIS}" ]; then
+        export VM_IMAGE="/var/lib/libvirt/images/${VM_NAME}.qcow2c"
+    else
+        export VM_IMAGE="${VM_NAME}.qcow2c"
+    fi
     start_test_vm
 
     scp_cmd CREDITS LICENSE centos.repo direct-csi kubectl-direct_csi Dockerfile "root@${VM_IPADDR}:"
@@ -124,10 +153,15 @@ function run_functional_test() {
 
     ssh_cmd "${VM_IPADDR}" "functests/install-directcsi.sh ${BUILD_TAG}"
 
-    qemu-img create -f qcow2 "${VM_NAME}-vdb.qcow2" 512M
+    disk_file="${PWD}/${VM_NAME}-vdb.qcow2"
+    if [ "${TRAVIS}" ]; then
+        disk_file="/var/lib/libvirt/images/${VM_NAME}-vdb.qcow2"
+    fi
+
+    sudo qemu-img create -f qcow2 "${disk_file}" 512M
     cat > vdb.xml <<EOF
 <disk type='file' device='disk'>
-  <source file='${PWD}/${VM_NAME}-vdb.qcow2'/>
+  <source file='${disk_file}'/>
   <target dev='vdb'/>
 </disk>
 EOF
@@ -164,7 +198,7 @@ EOF
     sleep 1
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Terminating"
 
-    rm -f vdb.xml "${VM_NAME}-vdb.qcow2"
+    sudo rm -f vdb.xml "${disk_file}"
 
     stop_test_vm
 }
