@@ -19,6 +19,7 @@ package node
 import (
 	"strings"
 
+	directcsiv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -45,11 +46,11 @@ func ptTypeEqual(ptType1, ptType2 string) bool {
 	}
 }
 
-func isHWInfoAvailable(drive directcsi.DirectCSIDrive) bool {
+func isHWInfoAvailable(drive *directcsi.DirectCSIDrive) bool {
 	return drive.Status.WWID != "" || drive.Status.SerialNumber != "" || drive.Status.UeventSerial != ""
 }
 
-func matchDeviceHWInfo(drive directcsi.DirectCSIDrive, device *sys.Device) bool {
+func matchDeviceHWInfo(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
 	switch {
 	case drive.Status.PartitionNum != device.Partition:
 		return false
@@ -68,11 +69,11 @@ func matchDeviceHWInfo(drive directcsi.DirectCSIDrive, device *sys.Device) bool 
 	return true
 }
 
-func isDMMDUUIDAvailable(drive directcsi.DirectCSIDrive) bool {
+func isDMMDUUIDAvailable(drive *directcsi.DirectCSIDrive) bool {
 	return drive.Status.DMUUID != "" || drive.Status.MDUUID != ""
 }
 
-func matchDeviceDMMDUUID(drive directcsi.DirectCSIDrive, device *sys.Device) bool {
+func matchDeviceDMMDUUID(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
 	switch {
 	case drive.Status.PartitionNum != device.Partition:
 		return false
@@ -85,11 +86,11 @@ func matchDeviceDMMDUUID(drive directcsi.DirectCSIDrive, device *sys.Device) boo
 	return true
 }
 
-func isPTUUIDAvailable(drive directcsi.DirectCSIDrive) bool {
+func isPTUUIDAvailable(drive *directcsi.DirectCSIDrive) bool {
 	return drive.Status.PartitionNum <= 0 && drive.Status.PartTableUUID != ""
 }
 
-func matchDevicePTUUID(drive directcsi.DirectCSIDrive, device *sys.Device) bool {
+func matchDevicePTUUID(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
 	switch {
 	case drive.Status.PartitionNum != device.Partition:
 		return false
@@ -102,11 +103,11 @@ func matchDevicePTUUID(drive directcsi.DirectCSIDrive, device *sys.Device) bool 
 	return true
 }
 
-func isPartUUIDAvailable(drive directcsi.DirectCSIDrive) bool {
+func isPartUUIDAvailable(drive *directcsi.DirectCSIDrive) bool {
 	return drive.Status.PartitionNum > 0 && drive.Status.PartitionUUID != ""
 }
 
-func matchDevicePartUUID(drive directcsi.DirectCSIDrive, device *sys.Device) bool {
+func matchDevicePartUUID(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
 	switch {
 	case drive.Status.PartitionNum != device.Partition:
 		return false
@@ -117,11 +118,11 @@ func matchDevicePartUUID(drive directcsi.DirectCSIDrive, device *sys.Device) boo
 	return true
 }
 
-func isFSUUIDAvailable(drive directcsi.DirectCSIDrive) bool {
+func isFSUUIDAvailable(drive *directcsi.DirectCSIDrive) bool {
 	return drive.Status.FilesystemUUID != "" || drive.Status.UeventFSUUID != ""
 }
 
-func matchDeviceFSUUID(drive directcsi.DirectCSIDrive, device *sys.Device) bool {
+func matchDeviceFSUUID(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
 	switch {
 	case drive.Status.PartitionNum != device.Partition:
 		return false
@@ -136,7 +137,7 @@ func matchDeviceFSUUID(drive directcsi.DirectCSIDrive, device *sys.Device) bool 
 	return true
 }
 
-func matchDeviceNameSize(drive directcsi.DirectCSIDrive, device *sys.Device) bool {
+func matchDeviceNameSize(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
 	switch {
 	case drive.Status.PartitionNum != device.Partition:
 		return false
@@ -153,7 +154,18 @@ func matchDeviceNameSize(drive directcsi.DirectCSIDrive, device *sys.Device) boo
 	return true
 }
 
-func updateDriveProperties(drive directcsi.DirectCSIDrive, device *sys.Device) (directcsi.DirectCSIDrive, bool, bool) {
+func isV1Beta1Drive(drive *directcsi.DirectCSIDrive) bool {
+	if labels := drive.GetLabels(); labels != nil {
+		return labels[string(utils.VersionLabelKey)] == directcsiv1beta1.Version
+	}
+	return false
+}
+
+func matchV1Beta1Name(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+	return drive.Status.Path == "/dev/"+device.Name
+}
+
+func updateDriveProperties(drive *directcsi.DirectCSIDrive, device *sys.Device) (bool, bool) {
 	nameChanged := false
 	updated := false
 
@@ -307,5 +319,5 @@ func updateDriveProperties(drive directcsi.DirectCSIDrive, device *sys.Device) (
 		updated = true
 	}
 
-	return drive, updated, nameChanged
+	return updated, nameChanged
 }

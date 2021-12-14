@@ -30,10 +30,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	loopBackDeviceCount = 4
-)
-
 func getRootBlockFile(devName string) string {
 	switch {
 	case strings.HasPrefix(devName, sys.HostDevRoot):
@@ -184,12 +180,7 @@ func (d *Discovery) syncRemoteDrive(ctx context.Context, localDriveState directc
 
 func (d *Discovery) findLocalDrives(ctx context.Context, loopBackOnly bool) (map[string]*sys.Device, error) {
 	if loopBackOnly {
-		// Flush the existing loopback setups
-		if err := sys.FlushLoopBackReservations(); err != nil {
-			return nil, err
-		}
-		// Reserve loopbacks
-		if err := sys.ReserveLoopbackDevices(loopBackDeviceCount); err != nil {
+		if err := sys.CreateLoopDevices(); err != nil {
 			return nil, err
 		}
 	}

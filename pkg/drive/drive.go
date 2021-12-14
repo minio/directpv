@@ -37,15 +37,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func mountDevice(device, target string, flags []string) error {
-	if err := os.MkdirAll(target, 0777); err != nil {
-		return err
-	}
-
-	klog.V(3).InfoS("mounting device", "device", device, "target", target)
-	return sys.SafeMount(device, target, "xfs", flags, "prjquota")
-}
-
 func getDevice(major, minor uint32) (string, error) {
 	name, err := sys.GetDeviceName(major, minor)
 	if err != nil {
@@ -75,7 +66,7 @@ func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler
 		reflinkSupport:  reflinkSupport,
 		getDevice:       getDevice,
 		stat:            os.Stat,
-		mountDevice:     mountDevice,
+		mountDevice:     sys.MountXFSDevice,
 		unmountDevice:   sys.UnmountDevice,
 		makeFS:          xfs.MakeFS,
 		getFreeCapacity: getFreeCapacity,
@@ -360,7 +351,13 @@ func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.D
 }
 
 func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	return client.DeleteDrive(ctx, handler.directCSIClient, drive, false)
+	return client.DeleteDrive(
+		ctx,
+		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
+		handler.directCSIClient.DirectV1beta3().DirectCSIVolumes(),
+		drive,
+		false,
+	)
 }
 
 // StartController starts drive event controller.

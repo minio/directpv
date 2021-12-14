@@ -63,7 +63,7 @@ type Config struct {
 	AdmissionControl bool
 
 	// Mode switches
-	LoopBackMode bool
+	LoopbackMode bool
 
 	// Selectors and tolerations
 	NodeSelector map[string]string
@@ -73,8 +73,7 @@ type Config struct {
 	SeccompProfile  string
 	ApparmorProfile string
 
-	// Dynamic discovery
-	DynamicDiscovery bool
+	DynamicDriveDiscovery bool
 
 	// dry-run properties
 	DryRun bool

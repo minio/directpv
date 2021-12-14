@@ -168,24 +168,29 @@ func run(ctx context.Context, args []string) error {
 			return err
 		}
 
-		discovery, err := discovery.NewDiscovery(ctx, identity, nodeID, rack, zone, region)
-		if err != nil {
-			return err
+		if !dynamicDriveDiscovery {
+			discovery, err := discovery.NewDiscovery(ctx, identity, nodeID, rack, zone, region)
+			if err != nil {
+				return err
+			}
+			if err := discovery.Init(ctx, loopbackOnly); err != nil {
+				return fmt.Errorf("error while initializing drive discovery: %v", err)
+			}
+			klog.V(3).Infof("Drive discovery finished")
+		} else {
+			klog.V(3).Infof("Enable dynamic drive change management using '--dynamic-drive-discovery' flag")
+			klog.V(3).Infof("This flag will be made default in the next major release version")
 		}
-		if err := discovery.Init(ctx, loopBackOnly); err != nil {
-			return fmt.Errorf("error while initializing drive discovery: %v", err)
-		}
-		klog.V(3).Infof("Drive discovery finished")
 
-		// Check if the volume objects are migrated and CRDs versions are in-sync
-		volume.SyncVolumes(ctx, nodeID)
-		klog.V(3).Infof("Volumes sync completed")
-
-		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, enableDynamicDiscovery, reflinkSupport)
+		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, dynamicDriveDiscovery, reflinkSupport, loopbackOnly)
 		if err != nil {
 			return err
 		}
 		klog.V(3).Infof("node server started")
+
+		// Check if the volume objects are migrated and CRDs versions are in-sync
+		volume.SyncVolumes(ctx, nodeID)
+		klog.V(3).Infof("Volumes sync completed")
 	}
 
 	var ctrlServer csi.ControllerServer

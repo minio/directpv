@@ -92,7 +92,7 @@ func TestIsHWInfoAvailable(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := isHWInfoAvailable(testCase.drive)
+		result := isHWInfoAvailable(&testCase.drive)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -145,7 +145,7 @@ func TestMatchDeviceHWInfo(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := matchDeviceHWInfo(testCase.drive, testCase.device)
+		result := matchDeviceHWInfo(&testCase.drive, testCase.device)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -176,7 +176,7 @@ func TestIsDMMDUUIDAvailable(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := isDMMDUUIDAvailable(testCase.drive)
+		result := isDMMDUUIDAvailable(&testCase.drive)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -222,7 +222,7 @@ func TestMatchDeviceDMMDUUID(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := matchDeviceDMMDUUID(testCase.drive, testCase.device)
+		result := matchDeviceDMMDUUID(&testCase.drive, testCase.device)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -250,7 +250,7 @@ func TestIsPTUUIDAvailable(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := isPTUUIDAvailable(testCase.drive)
+		result := isPTUUIDAvailable(&testCase.drive)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -296,7 +296,7 @@ func TestMatchDevicePTUUID(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := matchDevicePTUUID(testCase.drive, testCase.device)
+		result := matchDevicePTUUID(&testCase.drive, testCase.device)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -328,7 +328,7 @@ func TestIsPartUUIDAvailable(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := isPartUUIDAvailable(testCase.drive)
+		result := isPartUUIDAvailable(&testCase.drive)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -368,7 +368,7 @@ func TestMatchDevicePartUUID(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := matchDevicePartUUID(testCase.drive, testCase.device)
+		result := matchDevicePartUUID(&testCase.drive, testCase.device)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -399,7 +399,7 @@ func TestIsFSUUIDAvailable(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := isFSUUIDAvailable(testCase.drive)
+		result := isFSUUIDAvailable(&testCase.drive)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -452,7 +452,7 @@ func TestMatchDeviceFSUUID(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := matchDeviceFSUUID(testCase.drive, testCase.device)
+		result := matchDeviceFSUUID(&testCase.drive, testCase.device)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -507,7 +507,7 @@ func TestMatchDeviceNameSize(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result := matchDeviceNameSize(testCase.drive, testCase.device)
+		result := matchDeviceNameSize(&testCase.drive, testCase.device)
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
@@ -587,7 +587,9 @@ func TestUpdateDriveProperties(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result, updated, _ := updateDriveProperties(testCase.drive, testCase.device)
+		drive := testCase.drive
+		updated, _ := updateDriveProperties(&drive, testCase.device)
+		result := drive
 		if updated != testCase.expectedUpdated {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedUpdated, updated)
 		}

@@ -92,7 +92,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 	volumes = append(volumes, newHostPathVolume(volumeNameDevDir, volumePathDevDir))
 	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameDevDir, volumePathDevDir, true, true))
 
-	if c.DynamicDiscovery {
+	if c.DynamicDriveDiscovery {
 		volumes = append(volumes, newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData))
 		volumeMounts = append(volumeMounts, newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, true, true))
 	}
@@ -142,11 +142,11 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 						fmt.Sprintf("--conversion-healthz-url=%s", c.conversionHealthzURL()),
 						"--driver",
 					}
-					if c.LoopBackMode {
+					if c.LoopbackMode {
 						args = append(args, "--loopback-only")
 					}
-					if c.DynamicDiscovery {
-						args = append(args, "--enable-dynamic-discovery")
+					if c.DynamicDriveDiscovery {
+						args = append(args, "--dynamic-drive-discovery")
 					}
 					return args
 				}(),
@@ -215,7 +215,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		Tolerations:  c.Tolerations,
 	}
 
-	if c.DynamicDiscovery {
+	if c.DynamicDriveDiscovery {
 		podSpec.HostNetwork = true
 		podSpec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 	}

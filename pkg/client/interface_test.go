@@ -103,10 +103,10 @@ func TestGetDrive(t *testing.T) {
 					"direct.csi.min.io/access-tier": "Unknown",
 					"direct.csi.min.io/created-by":  "directcsi-driver",
 					"direct.csi.min.io/node":        "",
-					"direct.csi.min.io/path":        "",
+					"direct.csi.min.io/path":        "dev",
 					"direct.csi.min.io/version":     "v1alpha1",
 				}},
-				Status: directcsi.DirectCSIDriveStatus{AccessTier: "Unknown"},
+				Status: directcsi.DirectCSIDriveStatus{Path: "/dev", AccessTier: "Unknown"},
 			},
 		},
 		{
@@ -119,9 +119,10 @@ func TestGetDrive(t *testing.T) {
 					"direct.csi.min.io/access-tier": "",
 					"direct.csi.min.io/created-by":  "directcsi-driver",
 					"direct.csi.min.io/node":        "",
-					"direct.csi.min.io/path":        "",
+					"direct.csi.min.io/path":        "dev",
 					"direct.csi.min.io/version":     "v1beta1",
 				}},
+				Status: directcsi.DirectCSIDriveStatus{Path: "/dev"},
 			},
 		},
 		{
@@ -134,8 +135,9 @@ func TestGetDrive(t *testing.T) {
 					"direct.csi.min.io/access-tier": "",
 					"direct.csi.min.io/created-by":  "directcsi-driver",
 					"direct.csi.min.io/node":        "",
-					"direct.csi.min.io/path":        "",
+					"direct.csi.min.io/path":        "dev",
 					"direct.csi.min.io/version":     "v1beta2"}},
+				Status: directcsi.DirectCSIDriveStatus{Path: "/dev"},
 			},
 		},
 	}
@@ -154,7 +156,7 @@ func TestGetDrive(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(directCSIDrive, testCase.expectedDrive) {
-			t.Fatalf("case %v: result: expected: %v, got: %v", i+1, testCase.expectedDrive, directCSIDrive)
+			t.Fatalf("case %v: result: expected: %+v, got: %+v", i+1, testCase.expectedDrive, directCSIDrive)
 		}
 	}
 }
@@ -183,11 +185,11 @@ func TestListDrive(t *testing.T) {
 								"direct.csi.min.io/access-tier": "Unknown",
 								"direct.csi.min.io/created-by":  "directcsi-driver",
 								"direct.csi.min.io/node":        "",
-								"direct.csi.min.io/path":        "",
+								"direct.csi.min.io/path":        "dev",
 								"direct.csi.min.io/version":     "v1alpha1",
 							},
 						},
-						Status: directcsi.DirectCSIDriveStatus{AccessTier: "Unknown"},
+						Status: directcsi.DirectCSIDriveStatus{Path: "/dev", AccessTier: "Unknown"},
 					},
 					{
 						TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -196,11 +198,11 @@ func TestListDrive(t *testing.T) {
 								"direct.csi.min.io/access-tier": "Unknown",
 								"direct.csi.min.io/created-by":  "directcsi-driver",
 								"direct.csi.min.io/node":        "",
-								"direct.csi.min.io/path":        "",
+								"direct.csi.min.io/path":        "dev",
 								"direct.csi.min.io/version":     "v1alpha1",
 							},
 						},
-						Status: directcsi.DirectCSIDriveStatus{AccessTier: "Unknown"},
+						Status: directcsi.DirectCSIDriveStatus{Path: "/dev", AccessTier: "Unknown"},
 					},
 				},
 			},
@@ -222,10 +224,11 @@ func TestListDrive(t *testing.T) {
 								"direct.csi.min.io/access-tier": "",
 								"direct.csi.min.io/created-by":  "directcsi-driver",
 								"direct.csi.min.io/node":        "",
-								"direct.csi.min.io/path":        "",
+								"direct.csi.min.io/path":        "dev",
 								"direct.csi.min.io/version":     "v1beta1",
 							},
 						},
+						Status: directcsi.DirectCSIDriveStatus{Path: "/dev"},
 					},
 					{
 						TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -233,9 +236,10 @@ func TestListDrive(t *testing.T) {
 							"direct.csi.min.io/access-tier": "",
 							"direct.csi.min.io/created-by":  "directcsi-driver",
 							"direct.csi.min.io/node":        "",
-							"direct.csi.min.io/path":        "",
+							"direct.csi.min.io/path":        "dev",
 							"direct.csi.min.io/version":     "v1beta1",
 						}},
+						Status: directcsi.DirectCSIDriveStatus{Path: "/dev"},
 					},
 				},
 			},
@@ -256,8 +260,9 @@ func TestListDrive(t *testing.T) {
 							"direct.csi.min.io/access-tier": "",
 							"direct.csi.min.io/created-by":  "directcsi-driver",
 							"direct.csi.min.io/node":        "",
-							"direct.csi.min.io/path":        "",
+							"direct.csi.min.io/path":        "dev",
 							"direct.csi.min.io/version":     "v1beta2"}},
+						Status: directcsi.DirectCSIDriveStatus{Path: "/dev"},
 					},
 					{
 						TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -265,8 +270,9 @@ func TestListDrive(t *testing.T) {
 							"direct.csi.min.io/access-tier": "",
 							"direct.csi.min.io/created-by":  "directcsi-driver",
 							"direct.csi.min.io/node":        "",
-							"direct.csi.min.io/path":        "",
+							"direct.csi.min.io/path":        "dev",
 							"direct.csi.min.io/version":     "v1beta2"}},
+						Status: directcsi.DirectCSIDriveStatus{Path: "/dev"},
 					},
 				},
 			},
@@ -291,7 +297,7 @@ func TestListDrive(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(driveList, testCase.expectedDriveList) {
-			t.Fatalf(" result: expected: %v, got: %v", driveList, testCase.expectedDriveList)
+			t.Fatalf("case %v: result: expected: %+v, got: %+v", i+1, driveList, testCase.expectedDriveList)
 		}
 	}
 

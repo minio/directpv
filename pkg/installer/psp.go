@@ -69,7 +69,7 @@ func createPodSecurityPolicy(ctx context.Context, i *Config) error {
 		},
 	}
 
-	if i.DynamicDiscovery {
+	if i.DynamicDriveDiscovery {
 		pspObj.Spec.HostNetwork = true
 	}
 
