@@ -44,12 +44,12 @@ var (
 	image                  = "direct-csi:" + Version
 	registry               = "quay.io"
 	org                    = "minio"
-	loopBackOnly           = false
+	loopbackOnly           = false
 	nodeSelectorParameters = []string{}
 	tolerationParameters   = []string{}
 	seccompProfile         = ""
 	apparmorProfile        = ""
-	enableDynamicDiscovery = false
+	dynamicDriveDiscovery  = false
 	auditInstall           = "install"
 )
 
@@ -65,9 +65,9 @@ func init() {
 	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "set Seccomp profile")
 	installCmd.PersistentFlags().StringVarP(&apparmorProfile, "apparmor-profile", "", apparmorProfile, "set Apparmor profile")
 
-	installCmd.PersistentFlags().BoolVarP(&loopBackOnly, "loopback-only", "", loopBackOnly, "Uses 4 free loopback devices per node and treat them as DirectCSIDrive resources. This is recommended only for testing/development purposes")
+	installCmd.PersistentFlags().BoolVarP(&loopbackOnly, "loopback-only", "", loopbackOnly, "Uses 4 free loopback devices per node and treat them as DirectCSIDrive resources. This is recommended only for testing/development purposes")
 	installCmd.PersistentFlags().MarkHidden("loopback-only")
-	installCmd.PersistentFlags().BoolVarP(&enableDynamicDiscovery, "enable-dynamic-discovery", "", enableDynamicDiscovery, "Enable dynamic drive discovery")
+	installCmd.PersistentFlags().BoolVarP(&dynamicDriveDiscovery, "enable-dynamic-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery")
 }
 
 func install(ctx context.Context, args []string) (err error) {
@@ -89,6 +89,9 @@ func install(ctx context.Context, args []string) (err error) {
 		return fmt.Errorf("invalid tolerations. format of '--tolerations' must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>")
 	}
 
+	klog.Infof("Enable dynamic drive change management using " + utils.Bold("--dynamic-drive-discovery") + " flag")
+	klog.Infof("This flag will be made default in the next major release version")
+
 	file, err := utils.OpenAuditFile(auditInstall)
 	if err != nil {
 		klog.Errorf("error in audit logging: %w", err)
@@ -108,12 +111,12 @@ func install(ctx context.Context, args []string) (err error) {
 		DirectCSIContainerOrg:      org,
 		DirectCSIContainerRegistry: registry,
 		AdmissionControl:           admissionControl,
-		LoopBackMode:               loopBackOnly,
+		LoopbackMode:               loopbackOnly,
 		NodeSelector:               nodeSelector,
 		Tolerations:                tolerations,
 		SeccompProfile:             seccompProfile,
 		ApparmorProfile:            apparmorProfile,
-		DynamicDiscovery:           enableDynamicDiscovery,
+		DynamicDriveDiscovery:      dynamicDriveDiscovery,
 		DryRun:                     dryRun,
 		AuditFile:                  file,
 	}

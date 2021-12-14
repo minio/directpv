@@ -1,5 +1,3 @@
-//go:build !skip
-
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.
 //
@@ -16,26 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package loopback
+package sys
 
-import (
-	"fmt"
-	"testing"
-	"time"
-)
-
-func TestCreateLoopbackDevice(t1 *testing.T) {
-
-	loopPath, bErr := CreateLoopbackDevice()
-	if bErr != nil {
-		t1.Errorf("Cannot create fake loop device: %v", bErr)
-	}
-	fmt.Printf("Allocated Loop device: %v\n", loopPath)
-
-	time.Sleep(5 * time.Second)
-	if err := RemoveLoopDevice(loopPath); err != nil {
-		t1.Errorf("Cannot remove fake loop device: %v", err)
-	}
-	fmt.Printf("Cleaned up Loop device: %v\n", loopPath)
-
+func CreateLoopDevices() error {
+	return createLoopDevices()
 }

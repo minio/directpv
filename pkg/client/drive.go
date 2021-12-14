@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	directcsiclientset "github.com/minio/direct-csi/pkg/clientset"
 	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -155,10 +154,13 @@ func CreateDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInt
 }
 
 // DeleteDrive deletes drive CRD.
-func DeleteDrive(ctx context.Context, directCSIClient directcsiclientset.Interface, drive *directcsi.DirectCSIDrive, force bool) error {
+func DeleteDrive(
+	ctx context.Context,
+	driveInterface clientset.DirectCSIDriveInterface,
+	volumeInterface clientset.DirectCSIVolumeInterface,
+	drive *directcsi.DirectCSIDrive,
+	force bool) error {
 	var err error
-	driveInterface := directCSIClient.DirectV1beta3().DirectCSIDrives()
-	volumeInterface := directCSIClient.DirectV1beta3().DirectCSIVolumes()
 	if drive.Status.DriveStatus != directcsi.DriveStatusTerminating {
 		drive.Status.DriveStatus = directcsi.DriveStatusTerminating
 		if drive, err = driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()}); err != nil {
