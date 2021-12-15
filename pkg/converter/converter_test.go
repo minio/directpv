@@ -19,6 +19,7 @@ package converter
 import (
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -627,6 +628,10 @@ request:
 		t.Errorf("expected node label value = %s, got = %s", directCSIDrive.Status.NodeName, nodeLabelV)
 	}
 
+	if drivePathLabelV := getLabelValue(&directCSIDrive, string(utils.PathLabelKey)); drivePathLabelV != filepath.Base(directCSIDrive.Status.Path) {
+		t.Errorf("expected node label value = %s, got = %s", directCSIDrive.Status.Path, drivePathLabelV)
+	}
+
 	if createdByLabelV := getLabelValue(&directCSIDrive, string(utils.CreatedByLabelKey)); createdByLabelV != "directcsi-driver" {
 		t.Errorf("expected created-by label value = directcsi-driver, got = %s", createdByLabelV)
 	}
@@ -972,8 +977,8 @@ func TestMigrate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to convert runtime object: %v", err)
 		}
-		gv := result.GetObjectKind().GroupVersionKind().GroupVersion().String()
-		if gv != test.destObject.GetObjectKind().GroupVersionKind().GroupVersion().String() {
+		gv := result.GetObjectKind().GroupVersionKind().GroupVersion()
+		if gv != test.destObject.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("Test  %d failed wrong group version: %s, expected: %s", i+1, gv, test.groupVersion.Version)
 		}
 	}
