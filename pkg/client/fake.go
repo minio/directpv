@@ -63,12 +63,8 @@ func FakeInit() {
 	initEvent(kubeClient)
 }
 
-func SetLatestDirectCSIDriveClientset(driveInterface directcsiclientset.DirectCSIDriveInterface) {
-	directcsiDriveClientset = driveInterface
-}
-
-func SetLatestDirectCSIVolumeClientset(volumeInterface directcsiclientset.DirectCSIVolumeInterface) {
-	directcsiVolumeClientset = volumeInterface
+func SetLatestDirectCSIDriveInterface(driveInterface directcsiclientset.DirectCSIDriveInterface) {
+	latestDirectCSIDriveInterface = driveInterface
 }
 
 func SetFakeDiscoveryClient(groupsAndMethodsFn fakeServerGroupsAndResourcesMethod, serverVersionInfo *version.Info) {

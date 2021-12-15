@@ -37,26 +37,26 @@ import (
 const MaxThreadCount = 200
 
 var (
-	initialized              int32
-	kubeClient               kubernetes.Interface
-	directCSIClient          directcsi.DirectV1beta3Interface
-	directClientset          direct.Interface
-	apiextensionsClient      apiextensions.ApiextensionsV1Interface
-	crdClient                apiextensions.CustomResourceDefinitionInterface
-	discoveryClient          discovery.DiscoveryInterface
-	metadataClient           metadata.Interface
-	directcsiDriveClientset  directcsi.DirectCSIDriveInterface
-	directcsiVolumeClientset directcsi.DirectCSIVolumeInterface
+	initialized                    int32
+	kubeClient                     kubernetes.Interface
+	directCSIClient                directcsi.DirectV1beta3Interface
+	directClientset                direct.Interface
+	apiextensionsClient            apiextensions.ApiextensionsV1Interface
+	crdClient                      apiextensions.CustomResourceDefinitionInterface
+	discoveryClient                discovery.DiscoveryInterface
+	metadataClient                 metadata.Interface
+	latestDirectCSIDriveInterface  directcsi.DirectCSIDriveInterface
+	latestDirectCSIVolumeInterface directcsi.DirectCSIVolumeInterface
 )
 
-// GetLatestDirectCSIDriveClientset gets unversioned direct-csi drive clientset.
-func GetLatestDirectCSIDriveClientset() directcsi.DirectCSIDriveInterface {
-	return directcsiDriveClientset
+// GetLatestDirectCSIDriveInterface gets latest versioned direct-csi drive interface.
+func GetLatestDirectCSIDriveInterface() directcsi.DirectCSIDriveInterface {
+	return latestDirectCSIDriveInterface
 }
 
-// GetLatestDirectCSIVolumeClientset  gets unversioned direct-csi volume clientset.
-func GetLatestDirectCSIVolumeClientset() directcsi.DirectCSIVolumeInterface {
-	return directcsiVolumeClientset
+// GetLatestDirectCSIVolumeInterface gets latest versioned direct-csi volume interface.
+func GetLatestDirectCSIVolumeInterface() directcsi.DirectCSIVolumeInterface {
+	return latestDirectCSIVolumeInterface
 }
 
 // GetKubeClient gets kube client.
@@ -144,13 +144,13 @@ func Init() {
 		os.Exit(1)
 	}
 
-	directcsiDriveClientset, err = directCSIDriveInterfaceForConfig(config)
+	latestDirectCSIDriveInterface, err = directCSIDriveInterfaceForConfig(config)
 	if err != nil {
 		fmt.Printf("%s: could not initialize drive adapter client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 
-	directcsiVolumeClientset, err = directCSIVolumeInterfaceForConfig(config)
+	latestDirectCSIVolumeInterface, err = directCSIVolumeInterfaceForConfig(config)
 	if err != nil {
 		fmt.Printf("%s: could not initialize volume adapter client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
