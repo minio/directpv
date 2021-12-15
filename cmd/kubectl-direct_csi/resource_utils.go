@@ -31,7 +31,7 @@ func getDrivesByIds(ctx context.Context, ids []string) <-chan client.ListDriveRe
 	resultCh := make(chan client.ListDriveResult)
 	go func() {
 		defer close(resultCh)
-		directClient := client.GetLatestDirectCSIDriveClientset()
+		directClient := client.GetLatestDirectCSIDriveInterface()
 		for _, id := range ids {
 			driveName := strings.TrimSpace(id)
 			d, err := directClient.Get(ctx, driveName, metav1.GetOptions{})

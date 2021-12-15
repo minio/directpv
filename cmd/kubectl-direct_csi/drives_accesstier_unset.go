@@ -100,7 +100,7 @@ func unsetAccessTier(ctx context.Context) error {
 			setDriveAccessTier(drive, directcsi.AccessTierUnknown)
 			return nil
 		},
-		defaultDriveUpdateFunc(client.GetLatestDirectCSIDriveClientset()),
+		defaultDriveUpdateFunc(client.GetLatestDirectCSIDriveInterface()),
 		UnSetAcessTier,
 	)
 }

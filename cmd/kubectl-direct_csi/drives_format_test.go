@@ -100,7 +100,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	defer cancelFunc()
 	testClientSet := clientsetfake.NewSimpleClientset(testDriveObjects...)
 	driveInterface := testClientSet.DirectV1beta3().DirectCSIDrives()
-	client.SetLatestDirectCSIDriveClientset(driveInterface)
+	client.SetLatestDirectCSIDriveInterface(driveInterface)
 
 	resetDrives := func() error {
 		driveList, err := client.GetDriveList(ctx, driveInterface, nil, nil, nil)

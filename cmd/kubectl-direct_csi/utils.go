@@ -119,7 +119,7 @@ func processFilteredDrives(
 		defer cancelFunc()
 
 		resultCh, err = client.ListDrives(ctx,
-			client.GetLatestDirectCSIDriveClientset(),
+			client.GetLatestDirectCSIDriveInterface(),
 			nodeSelectorValues,
 			driveSelectorValues,
 			accessTierSelectorValues,

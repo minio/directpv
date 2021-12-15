@@ -147,7 +147,7 @@ func formatDrives(ctx context.Context, IDArgs []string) error {
 			}
 			return nil
 		},
-		defaultDriveUpdateFunc(client.GetLatestDirectCSIDriveClientset()),
+		defaultDriveUpdateFunc(client.GetLatestDirectCSIDriveInterface()),
 		Format,
 	)
 }

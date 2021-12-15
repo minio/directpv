@@ -145,7 +145,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 
 	drives, err := getFilteredDriveList(
 		ctx,
-		client.GetLatestDirectCSIDriveClientset(),
+		client.GetLatestDirectCSIDriveInterface(),
 		func(drive directcsi.DirectCSIDrive) bool {
 			return drive.Status.DriveStatus == directcsi.DriveStatusInUse || drive.Status.DriveStatus == directcsi.DriveStatusReady
 		},
@@ -157,7 +157,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		return err
 	}
 
-	volumes, err := client.GetVolumeList(ctx, client.GetLatestDirectCSIVolumeClientset(), nil, nil, nil, nil)
+	volumes, err := client.GetVolumeList(ctx, client.GetLatestDirectCSIVolumeInterface(), nil, nil, nil, nil)
 	if err != nil {
 		if !quiet {
 			klog.Errorf("error getting volume list: %v", err)
