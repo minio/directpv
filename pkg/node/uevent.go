@@ -162,7 +162,7 @@ func (handler *ueventHandler) updateDrive(ctx context.Context, drive *directcsi.
 	case isV1Beta1Drive(drive):
 		return handler.syncDrive(ctx, devices, drive, matchV1Beta1Name, "v1beta1 drive name")
 	default:
-		return false
+		return handler.syncDrive(ctx, devices, drive, matchDeviceNameSize, "Device name and size")
 	}
 }
 
