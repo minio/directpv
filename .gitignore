@@ -7,3 +7,4 @@ direct-csi
 !direct-csi/
 kubectl-direct_csi
 !kubectl-direct_csi/
+*.qcow2*
