@@ -60,11 +60,18 @@ func FakeInit() {
 	_ = metav1.AddMetaToScheme(scheme)
 	metadataClient = metadatafake.NewSimpleMetadataClient(scheme)
 
+	latestDirectCSIDriveInterface = directClientset.DirectV1beta3().DirectCSIDrives()
+	latestDirectCSIVolumeInterface = directClientset.DirectV1beta3().DirectCSIVolumes()
+
 	initEvent(kubeClient)
 }
 
 func SetLatestDirectCSIDriveInterface(driveInterface directcsiclientset.DirectCSIDriveInterface) {
 	latestDirectCSIDriveInterface = driveInterface
+}
+
+func SetLatestDirectCSIVolumeInterface(volumeInterface directcsiclientset.DirectCSIVolumeInterface) {
+	latestDirectCSIVolumeInterface = volumeInterface
 }
 
 func SetFakeDiscoveryClient(groupsAndMethodsFn fakeServerGroupsAndResourcesMethod, serverVersionInfo *version.Info) {

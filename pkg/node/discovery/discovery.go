@@ -92,7 +92,6 @@ func (d *Discovery) readRemoteDrives(ctx context.Context) error {
 	defer cancelFunc()
 
 	resultCh, err := client.ListDrives(ctx,
-		d.directcsiClient.DirectV1beta3().DirectCSIDrives(),
 		[]utils.LabelValue{utils.NewLabelValue(d.NodeID)},
 		nil,
 		nil,
@@ -167,11 +166,7 @@ func (d *Discovery) Init(ctx context.Context, loopBackOnly bool) error {
 }
 
 func (d *Discovery) createNewDrive(ctx context.Context, localDriveState directcsi.DirectCSIDriveStatus) error {
-	return client.CreateDrive(
-		ctx,
-		d.directcsiClient.DirectV1beta3().DirectCSIDrives(),
-		client.NewDirectCSIDrive(uuid.New().String(), localDriveState),
-	)
+	return client.CreateDrive(ctx, client.NewDirectCSIDrive(uuid.New().String(), localDriveState))
 }
 
 func (d *Discovery) syncRemoteDrive(ctx context.Context, localDriveState directcsi.DirectCSIDriveStatus, remoteDrive *remoteDrive) error {

@@ -28,11 +28,8 @@ import (
 )
 
 func TestGetDriveList(t *testing.T) {
-	drives, err := GetDriveList(
-		context.TODO(),
-		clientsetfake.NewSimpleClientset().DirectV1beta3().DirectCSIDrives(),
-		nil, nil, nil,
-	)
+	SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset().DirectV1beta3().DirectCSIDrives())
+	drives, err := GetDriveList(context.TODO(), nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -46,11 +43,8 @@ func TestGetDriveList(t *testing.T) {
 			objects, &directcsi.DirectCSIDrive{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("drive-%v", i)}},
 		)
 	}
-	drives, err = GetDriveList(
-		context.TODO(),
-		clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIDrives(),
-		nil, nil, nil,
-	)
+	SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIDrives())
+	drives, err = GetDriveList(context.TODO(), nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -60,11 +54,8 @@ func TestGetDriveList(t *testing.T) {
 }
 
 func TestGetVolumeList(t *testing.T) {
-	volumes, err := GetVolumeList(
-		context.TODO(),
-		clientsetfake.NewSimpleClientset().DirectV1beta3().DirectCSIVolumes(),
-		nil, nil, nil, nil,
-	)
+	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset().DirectV1beta3().DirectCSIVolumes())
+	volumes, err := GetVolumeList(context.TODO(), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -78,11 +69,9 @@ func TestGetVolumeList(t *testing.T) {
 			objects, &directcsi.DirectCSIVolume{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("volume-%v", i)}},
 		)
 	}
-	volumes, err = GetVolumeList(
-		context.TODO(),
-		clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIVolumes(),
-		nil, nil, nil, nil,
-	)
+
+	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIVolumes())
+	volumes, err = GetVolumeList(context.TODO(), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -178,7 +178,6 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 
 	resultCh, err := client.ListDrives(
 		ctx,
-		client.GetLatestDirectCSIDriveInterface(),
 		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
 		nil,
 		nil,
@@ -201,8 +200,7 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 				mountDrive(ctx, &result.Drive)
 			}
 		} else {
-			err := client.DeleteDrive(ctx, client.GetLatestDirectCSIDriveInterface(), client.GetLatestDirectCSIVolumeInterface(), &result.Drive, true)
-			if err != nil {
+			if err := client.DeleteDrive(ctx, &result.Drive, true); err != nil {
 				klog.ErrorS(err, "unable to delete drive", "Name", result.Drive.Name, "Status.Path", result.Drive.Status.Path)
 			}
 		}
@@ -221,7 +219,7 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 
 		err := retry.RetryOnConflict(
 			retry.DefaultRetry,
-			func() error { return client.CreateDrive(ctx, client.GetLatestDirectCSIDriveInterface(), drive) },
+			func() error { return client.CreateDrive(ctx, drive) },
 		)
 		if err != nil {
 			klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
@@ -247,8 +245,7 @@ func (handler *ueventHandler) removeDrive(ctx context.Context, drive *directcsi.
 			case !errors.Is(err, os.ErrNotExist):
 				klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
 			default:
-				err := client.DeleteDrive(ctx, client.GetLatestDirectCSIDriveInterface(), client.GetLatestDirectCSIVolumeInterface(), drive, true)
-				if err != nil {
+				if err := client.DeleteDrive(ctx, drive, true); err != nil {
 					klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
 				}
 			}
@@ -279,7 +276,6 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 
 	resultCh, err := client.ListDrives(
 		ctx,
-		client.GetLatestDirectCSIDriveInterface(),
 		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
 		[]utils.LabelValue{utils.NewLabelValue(device.Name)},
 		nil,
@@ -325,7 +321,7 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 		uuid.New().String(),
 		client.NewDirectCSIDriveStatus(device, handler.nodeID, handler.topology),
 	)
-	if err := client.CreateDrive(ctx, client.GetLatestDirectCSIDriveInterface(), drive); err != nil {
+	if err := client.CreateDrive(ctx, drive); err != nil {
 		klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
 	}
 }

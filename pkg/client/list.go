@@ -20,7 +20,6 @@ import (
 	"context"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +33,7 @@ type ListDriveResult struct {
 }
 
 // ListDrives lists direct-csi drives.
-func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []utils.LabelValue, maxObjects int64) (<-chan ListDriveResult, error) {
+func ListDrives(ctx context.Context, nodes, drives, accessTiers []utils.LabelValue, maxObjects int64) (<-chan ListDriveResult, error) {
 	labelMap := map[utils.LabelKey][]utils.LabelValue{
 		utils.PathLabelKey:       drives,
 		utils.NodeLabelKey:       nodes,
@@ -61,7 +60,7 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 			LabelSelector: labelSelector,
 		}
 		for {
-			result, err := driveInterface.List(ctx, options)
+			result, err := latestDirectCSIDriveInterface.List(ctx, options)
 			if err != nil {
 				send(ListDriveResult{Err: err})
 				return
@@ -85,8 +84,8 @@ func ListDrives(ctx context.Context, driveInterface clientset.DirectCSIDriveInte
 }
 
 // GetDriveList gets list of drives.
-func GetDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, nodes, drives, accessTiers []utils.LabelValue) ([]directcsi.DirectCSIDrive, error) {
-	resultCh, err := ListDrives(ctx, driveInterface, nodes, drives, accessTiers, MaxThreadCount)
+func GetDriveList(ctx context.Context, nodes, drives, accessTiers []utils.LabelValue) ([]directcsi.DirectCSIDrive, error) {
+	resultCh, err := ListDrives(ctx, nodes, drives, accessTiers, MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +108,7 @@ type ListVolumeResult struct {
 }
 
 // ListVolumes lists direct-csi volumes.
-func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNSs []utils.LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
+func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs []utils.LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
 	labelMap := map[utils.LabelKey][]utils.LabelValue{
 		utils.DrivePathLabelKey: drives,
 		utils.NodeLabelKey:      nodes,
@@ -138,7 +137,7 @@ func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeI
 		}
 
 		for {
-			result, err := volumeInterface.List(ctx, options)
+			result, err := latestDirectCSIVolumeInterface.List(ctx, options)
 			if err != nil {
 				send(ListVolumeResult{Err: err})
 				return
@@ -162,8 +161,8 @@ func ListVolumes(ctx context.Context, volumeInterface clientset.DirectCSIVolumeI
 }
 
 // GetVolumeList gets list of volumes.
-func GetVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, nodes, drives, podNames, podNSs []utils.LabelValue) ([]directcsi.DirectCSIVolume, error) {
-	resultCh, err := ListVolumes(ctx, volumeInterface, nodes, drives, podNames, podNSs, MaxThreadCount)
+func GetVolumeList(ctx context.Context, nodes, drives, podNames, podNSs []utils.LabelValue) ([]directcsi.DirectCSIVolume, error) {
+	resultCh, err := ListVolumes(ctx, nodes, drives, podNames, podNSs, MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}

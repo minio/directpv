@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,7 +28,6 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 )
 
 const (
@@ -43,11 +43,10 @@ const (
 )
 
 func createFakeVolumeEventListener(objects ...runtime.Object) *volumeEventHandler {
-	return &volumeEventHandler{
-		kubeClient:      kubernetesfake.NewSimpleClientset(),
-		directCSIClient: clientsetfake.NewSimpleClientset(objects...),
-		nodeID:          testNodeName,
-	}
+	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(objects...).DirectV1beta3()
+	client.SetLatestDirectCSIDriveInterface(fakeDirectCSIClient.DirectCSIDrives())
+	client.SetLatestDirectCSIVolumeInterface(fakeDirectCSIClient.DirectCSIVolumes())
+	return &volumeEventHandler{nodeID: testNodeName}
 }
 
 func TestVolumeEventHandlerHandle(t *testing.T) {
@@ -153,15 +152,12 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 
 	vl := createFakeVolumeEventListener(testObjects...)
 	ctx := context.TODO()
-	directCSIClient := vl.directCSIClient.DirectV1beta3()
 	for _, testObj := range testObjects {
 		vObj, ok := testObj.(*directcsi.DirectCSIVolume)
 		if !ok {
 			continue
 		}
-		newObj, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vObj.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-		})
+		newObj, vErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, vObj.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()})
 		if vErr != nil {
 			t.Fatalf("Error while getting the drive object: %+v", vErr)
 		}
@@ -177,9 +173,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		}
 	}
 
-	driveObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, testDriveName, metav1.GetOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(),
-	})
+	driveObj, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, testDriveName, metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 	if dErr != nil {
 		t.Fatalf("Error while getting the drive object: %+v", dErr)
 	}
@@ -244,15 +238,12 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 
 	vl := createFakeVolumeEventListener(testObjects...)
 	ctx := context.TODO()
-	directCSIClient := vl.directCSIClient.DirectV1beta3()
 	for _, testObj := range testObjects {
 		vObj, ok := testObj.(*directcsi.DirectCSIVolume)
 		if !ok {
 			continue
 		}
-		newObj, vErr := directCSIClient.DirectCSIVolumes().Get(ctx, vObj.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-		})
+		newObj, vErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, vObj.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()})
 		if vErr != nil {
 			t.Fatalf("Error while getting the drive object: %+v", vErr)
 		}
