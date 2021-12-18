@@ -78,14 +78,14 @@ func (safeFile *SafeFile) Close() error {
 	return os.Rename(safeFile.tempFile.Name(), safeFile.filename)
 }
 
-func NewSafeFile(fileName string) (*SafeFile, error) {
-	tempFile, err := os.CreateTemp("", "safefile.")
+func NewSafeFile(filename string) (*SafeFile, error) {
+	tempFile, err := os.CreateTemp(filepath.Dir(filename), "safefile.")
 	if err != nil {
 		return nil, err
 	}
 	return &SafeFile{
 		tempFile: tempFile,
-		filename: fileName,
+		filename: filename,
 	}, nil
 }
 
