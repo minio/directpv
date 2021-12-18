@@ -24,13 +24,13 @@ import (
 	"testing"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
-	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 )
 
 const (
@@ -39,8 +39,6 @@ const (
 
 func createFakeDriveEventListener() *driveEventHandler {
 	return &driveEventHandler{
-		kubeClient:      kubernetesfake.NewSimpleClientset(),
-		directCSIClient: clientsetfake.NewSimpleClientset(),
 		nodeID:          testNodeID,
 		getDevice:       func(major, minor uint32) (string, error) { return "", nil },
 		stat:            func(name string) (os.FileInfo, error) { return nil, nil },
@@ -171,15 +169,12 @@ func TestDriveFormat(t *testing.T) {
 
 	// Step 1: Construct fake drive listener
 	dl := createFakeDriveEventListener()
-	dl.directCSIClient = clientsetfake.NewSimpleClientset(testDriveObjs...)
-	directCSIClient := dl.directCSIClient.DirectV1beta3()
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObjs...).DirectV1beta3().DirectCSIDrives())
 
 	for i, tObj := range testDriveObjs {
 		dObj := tObj.(*directcsi.DirectCSIDrive)
 		// Step 2: Get the object
-		newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, dObj.Name, metav1.GetOptions{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-		})
+		newObj, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, dObj.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 		if dErr != nil {
 			t.Fatalf("Error while getting the drive object: %+v", dErr)
 		}
@@ -198,7 +193,7 @@ func TestDriveFormat(t *testing.T) {
 		}
 
 		// Step 5: Get the latest version of the object
-		csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, newObj.Name, metav1.GetOptions{
+		csiDrive, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, newObj.Name, metav1.GetOptions{
 			TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		})
 		if dErr != nil {
@@ -300,14 +295,13 @@ func TestDriveDelete(t *testing.T) {
 	}
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	dl.directCSIClient = clientsetfake.NewSimpleClientset(&testCases[0].driveObject, &testCases[1].driveObject)
-	directCSIClient := dl.directCSIClient.DirectV1beta3()
+	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(&testCases[0].driveObject, &testCases[1].driveObject).DirectV1beta3()
+	client.SetLatestDirectCSIDriveInterface(fakeDirectCSIClient.DirectCSIDrives())
+	client.SetLatestDirectCSIVolumeInterface(fakeDirectCSIClient.DirectCSIVolumes())
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, tt.driveObject.Name, metav1.GetOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
-			})
+			newObj, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, tt.driveObject.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 			if dErr != nil {
 				t.Fatalf("Error while getting the drive object: %+v", dErr)
 			}
@@ -318,9 +312,7 @@ func TestDriveDelete(t *testing.T) {
 				t.Errorf("Error while invoking the update listener: %+v", err)
 			}
 
-			csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, newObj.Name, metav1.GetOptions{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
-			})
+			csiDrive, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, newObj.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 			if dErr != nil {
 				t.Fatalf("Error while fetching the drive object: %+v", dErr)
 			}
@@ -386,12 +378,9 @@ func TestDriveRelease(t *testing.T) {
 
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	dl.directCSIClient = clientsetfake.NewSimpleClientset(&driveObject)
-	directCSIClient := dl.directCSIClient.DirectV1beta3()
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(&driveObject).DirectV1beta3().DirectCSIDrives())
 
-	newObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, "test-drive", metav1.GetOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(),
-	})
+	newObj, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, "test-drive", metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 	if dErr != nil {
 		t.Fatalf("Error while getting the drive object: %+v", dErr)
 	}
@@ -400,9 +389,7 @@ func TestDriveRelease(t *testing.T) {
 		t.Errorf("Error while invoking the update listener: %+v", err)
 	}
 
-	csiDrive, dErr := directCSIClient.DirectCSIDrives().Get(ctx, "test-drive", metav1.GetOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(),
-	})
+	csiDrive, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, "test-drive", metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 	if dErr != nil {
 		t.Fatalf("Error while fetching the drive object: %+v", dErr)
 	}
@@ -483,12 +470,11 @@ func TestInUseDriveDeletion(t *testing.T) {
 
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	dl.directCSIClient = clientsetfake.NewSimpleClientset(&driveObject, &volumeObject)
-	directCSIClient := dl.directCSIClient.DirectV1beta3()
+	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(&driveObject, &volumeObject).DirectV1beta3()
+	client.SetLatestDirectCSIDriveInterface(fakeDirectCSIClient.DirectCSIDrives())
+	client.SetLatestDirectCSIVolumeInterface(fakeDirectCSIClient.DirectCSIVolumes())
 
-	driveObj, dErr := directCSIClient.DirectCSIDrives().Get(ctx, "test-drive", metav1.GetOptions{
-		TypeMeta: utils.DirectCSIDriveTypeMeta(),
-	})
+	driveObj, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, "test-drive", metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 	if dErr != nil {
 		t.Fatalf("Error while getting the drive object: %+v", dErr)
 	}
@@ -499,9 +485,7 @@ func TestInUseDriveDeletion(t *testing.T) {
 		t.Errorf("Error while invoking the delete listener: %+v", err)
 	}
 
-	volumeObj, volErr := directCSIClient.DirectCSIVolumes().Get(ctx, "test-volume", metav1.GetOptions{
-		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-	})
+	volumeObj, volErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, "test-volume", metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()})
 	if volErr != nil {
 		t.Fatalf("Error while getting the volume object: %+v", volErr)
 	}

@@ -156,7 +156,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	drive, err := selectDrive(ctx, c.directcsiClient.DirectV1beta3().DirectCSIDrives(), req)
+	drive, err := selectDrive(ctx, req)
 	if err != nil {
 		return nil, err
 	}

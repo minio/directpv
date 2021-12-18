@@ -21,7 +21,6 @@ import (
 	"net/http"
 
 	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/klog/v2"
@@ -31,29 +30,17 @@ import (
 )
 
 func newMetricsCollector(nodeID string) (*metricsCollector, error) {
-	config, err := client.GetKubeConfig()
-	if err != nil {
-		return &metricsCollector{}, err
-	}
-
-	directClientset, err := clientset.NewForConfig(config)
-	if err != nil {
-		return &metricsCollector{}, err
-	}
-
 	mc := &metricsCollector{
-		desc:            prometheus.NewDesc("directcsi_stats", "Statistics exposed by DirectCSI", nil, nil),
-		nodeID:          nodeID,
-		directcsiClient: directClientset,
+		desc:   prometheus.NewDesc("directcsi_stats", "Statistics exposed by DirectCSI", nil, nil),
+		nodeID: nodeID,
 	}
 	prometheus.MustRegister(mc)
 	return mc, nil
 }
 
 type metricsCollector struct {
-	desc            *prometheus.Desc
-	nodeID          string
-	directcsiClient clientset.Interface
+	desc   *prometheus.Desc
+	nodeID string
 }
 
 // Describe sends the super-set of all possible descriptors of metrics
@@ -75,7 +62,6 @@ func (c *metricsCollector) volumeStatsEmitter(
 
 	resultCh, err := client.ListVolumes(
 		ctx,
-		c.directcsiClient.DirectV1beta3().DirectCSIVolumes(),
 		[]utils.LabelValue{utils.NewLabelValue(c.nodeID)},
 		nil,
 		nil,

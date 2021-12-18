@@ -33,7 +33,6 @@ import (
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 
 	"github.com/minio/direct-csi/pkg/client"
-	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/ellipsis"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
@@ -119,7 +118,6 @@ func processFilteredDrives(
 		defer cancelFunc()
 
 		resultCh, err = client.ListDrives(ctx,
-			client.GetLatestDirectCSIDriveInterface(),
 			nodeSelectorValues,
 			driveSelectorValues,
 			accessTierSelectorValues,
@@ -158,12 +156,11 @@ func processFilteredDrives(
 	)
 }
 
-func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, filterFunc func(directcsi.DirectCSIDrive) bool) ([]directcsi.DirectCSIDrive, error) {
+func getFilteredDriveList(ctx context.Context, filterFunc func(directcsi.DirectCSIDrive) bool) ([]directcsi.DirectCSIDrive, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
 	resultCh, err := client.ListDrives(ctx,
-		driveInterface,
 		nodeSelectorValues,
 		driveSelectorValues,
 		accessTierSelectorValues,
@@ -188,12 +185,11 @@ func getFilteredDriveList(ctx context.Context, driveInterface clientset.DirectCS
 	return filteredDrives, nil
 }
 
-func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.DirectCSIVolumeInterface, filterFunc func(directcsi.DirectCSIVolume) bool) ([]directcsi.DirectCSIVolume, error) {
+func getFilteredVolumeList(ctx context.Context, filterFunc func(directcsi.DirectCSIVolume) bool) ([]directcsi.DirectCSIVolume, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
 	resultCh, err := client.ListVolumes(ctx,
-		volumeInterface,
 		nodeSelectorValues,
 		driveSelectorValues,
 		podNameSelectorValues,
@@ -220,9 +216,9 @@ func getFilteredVolumeList(ctx context.Context, volumeInterface clientset.Direct
 	return filteredVolumes, nil
 }
 
-func defaultDriveUpdateFunc(directCSIDriveInterface clientset.DirectCSIDriveInterface) func(context.Context, *directcsi.DirectCSIDrive) error {
+func defaultDriveUpdateFunc() func(context.Context, *directcsi.DirectCSIDrive) error {
 	return func(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-		_, err := directCSIDriveInterface.Update(ctx, drive, metav1.UpdateOptions{})
+		_, err := client.GetLatestDirectCSIDriveInterface().Update(ctx, drive, metav1.UpdateOptions{})
 		return err
 	}
 }

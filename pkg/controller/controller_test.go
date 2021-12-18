@@ -148,6 +148,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	cl := createFakeController()
 	cl.directcsiClient = clientsetfake.NewSimpleClientset(testDriveObjects...)
 	directCSIClient := cl.directcsiClient.DirectV1beta3()
+	client.SetLatestDirectCSIDriveInterface(directCSIClient.DirectCSIDrives())
 
 	for _, cvReq := range createVolumeRequests {
 		volName := cvReq.GetName()
@@ -191,7 +192,8 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	}
 
 	// Fetch the drive objects
-	driveList, err := client.GetDriveList(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil)
+	client.SetLatestDirectCSIDriveInterface(directCSIClient.DirectCSIDrives())
+	driveList, err := client.GetDriveList(ctx, nil, nil, nil)
 	if err != nil {
 		t.Errorf("Listing drives failed: %v", err)
 	}

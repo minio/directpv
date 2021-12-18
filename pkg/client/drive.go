@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -148,22 +147,21 @@ func NewDirectCSIDrive(name string, status directcsi.DirectCSIDriveStatus) *dire
 }
 
 // CreateDrive creates drive CRD.
-func CreateDrive(ctx context.Context, driveInterface clientset.DirectCSIDriveInterface, drive *directcsi.DirectCSIDrive) error {
-	_, err := driveInterface.Create(ctx, drive, metav1.CreateOptions{})
+func CreateDrive(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+	_, err := latestDirectCSIDriveInterface.Create(ctx, drive, metav1.CreateOptions{})
 	return err
 }
 
 // DeleteDrive deletes drive CRD.
 func DeleteDrive(
 	ctx context.Context,
-	driveInterface clientset.DirectCSIDriveInterface,
-	volumeInterface clientset.DirectCSIVolumeInterface,
 	drive *directcsi.DirectCSIDrive,
 	force bool) error {
 	var err error
 	if drive.Status.DriveStatus != directcsi.DriveStatusTerminating {
 		drive.Status.DriveStatus = directcsi.DriveStatusTerminating
-		if drive, err = driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()}); err != nil {
+		drive, err = latestDirectCSIDriveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
+		if err != nil {
 			return err
 		}
 	}
@@ -174,7 +172,7 @@ func DeleteDrive(
 				klog.Errorf("unable to unmount %v; %v", path.Join(sys.MountRoot, drive.Status.FilesystemUUID), err)
 			}
 		}
-		return driveInterface.Delete(ctx, drive.Name, metav1.DeleteOptions{})
+		return latestDirectCSIDriveInterface.Delete(ctx, drive.Name, metav1.DeleteOptions{})
 	}
 
 	finalizers := drive.GetFinalizers()
@@ -189,7 +187,7 @@ func DeleteDrive(
 		}
 
 		drive.Finalizers = []string{}
-		_, err := driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
+		_, err := latestDirectCSIDriveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 		return err
 	case 0:
 		return nil
@@ -199,7 +197,7 @@ func DeleteDrive(
 				continue
 			}
 			volumeName := strings.TrimPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix)
-			volume, err := volumeInterface.Get(
+			volume, err := latestDirectCSIVolumeInterface.Get(
 				ctx, volumeName, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
 			)
 			if err != nil {
@@ -211,7 +209,7 @@ func DeleteDrive(
 				string(directcsi.DirectCSIVolumeReasonNotReady),
 				"[DRIVE LOST] Please refer https://github.com/minio/direct-csi/blob/master/docs/troubleshooting.md",
 			)
-			_, err = volumeInterface.Update(
+			_, err = latestDirectCSIVolumeInterface.Update(
 				ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
 			)
 			if err != nil {

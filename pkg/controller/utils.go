@@ -23,7 +23,6 @@ import (
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/client"
-	clientset "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/matcher"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -81,12 +80,8 @@ func matchDrive(drive directcsi.DirectCSIDrive, req *csi.CreateVolumeRequest) bo
 	return len(req.GetAccessibilityRequirements().GetPreferred()) == 0 && len(req.GetAccessibilityRequirements().GetRequisite()) == 0
 }
 
-func getFilteredDrives(
-	ctx context.Context,
-	driveInterface clientset.DirectCSIDriveInterface,
-	req *csi.CreateVolumeRequest,
-) (drives []directcsi.DirectCSIDrive, err error) {
-	resultCh, err := client.ListDrives(ctx, driveInterface, nil, nil, nil, client.MaxThreadCount)
+func getFilteredDrives(ctx context.Context, req *csi.CreateVolumeRequest) (drives []directcsi.DirectCSIDrive, err error) {
+	resultCh, err := client.ListDrives(ctx, nil, nil, nil, client.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +103,8 @@ func getFilteredDrives(
 	return drives, nil
 }
 
-func selectDrive(
-	ctx context.Context,
-	driveInterface clientset.DirectCSIDriveInterface,
-	req *csi.CreateVolumeRequest,
-) (*directcsi.DirectCSIDrive, error) {
-	drives, err := getFilteredDrives(ctx, driveInterface, req)
+func selectDrive(ctx context.Context, req *csi.CreateVolumeRequest) (*directcsi.DirectCSIDrive, error) {
+	drives, err := getFilteredDrives(ctx, req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

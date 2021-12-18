@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/client"
 	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -131,7 +130,7 @@ func releaseDrives(ctx context.Context, IDArgs []string) error {
 			drive.Spec.RequestedFormat = nil
 			return nil
 		},
-		defaultDriveUpdateFunc(client.GetLatestDirectCSIDriveInterface()),
+		defaultDriveUpdateFunc(),
 		DriveRelease,
 	)
 }

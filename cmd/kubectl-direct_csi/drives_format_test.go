@@ -103,7 +103,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	client.SetLatestDirectCSIDriveInterface(driveInterface)
 
 	resetDrives := func() error {
-		driveList, err := client.GetDriveList(ctx, driveInterface, nil, nil, nil)
+		driveList, err := client.GetDriveList(ctx, nil, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -121,7 +121,7 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 	}
 
 	getFormattedDrives := func() ([]string, error) {
-		driveList, err := client.GetDriveList(ctx, driveInterface, nil, nil, nil)
+		driveList, err := client.GetDriveList(ctx, nil, nil, nil)
 		if err != nil {
 			return []string{}, err
 		}

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/client"
 	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
 	"github.com/minio/direct-csi/pkg/utils"
 
@@ -34,8 +35,6 @@ import (
 	dto "github.com/prometheus/client_model/go"
 	"k8s.io/klog/v2"
 )
-
-type metricType string
 
 const (
 	testNodeName   = "test-node-1"
@@ -48,16 +47,19 @@ const (
 	mb20 = 20 * MB
 	mb30 = 30 * MB
 	mb10 = 10 * MB
+)
 
+type metricType string
+
+const (
 	metricStatsBytesUsed  metricType = "directcsi_stats_bytes_used"
 	metricStatsBytesTotal metricType = "directcsi_stats_bytes_total"
 )
 
 func createFakeMetricsCollector() *metricsCollector {
 	return &metricsCollector{
-		desc:            prometheus.NewDesc("directcsi_stats", "Statistics exposed by DirectCSI", nil, nil),
-		nodeID:          testNodeName,
-		directcsiClient: fakedirect.NewSimpleClientset(),
+		desc:   prometheus.NewDesc("directcsi_stats", "Statistics exposed by DirectCSI", nil, nil),
+		nodeID: testNodeName,
 	}
 }
 
@@ -118,8 +120,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	fmc := createFakeMetricsCollector()
-	fmc.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
-	directCSIClient := fmc.directcsiClient.DirectV1beta3()
+	client.SetLatestDirectCSIVolumeInterface(fakedirect.NewSimpleClientset(testObjects...).DirectV1beta3().DirectCSIVolumes())
 
 	metricChan := make(chan prometheus.Metric)
 	noOfMetricsExposedPerVolume := 2
@@ -145,7 +146,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 				mt := metricType(getFQNameFromDesc(metric.Desc().String()))
 				switch mt {
 				case metricStatsBytesUsed:
-					volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, volumeName, metav1.GetOptions{
+					volObj, gErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, volumeName, metav1.GetOptions{
 						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 					})
 					if gErr != nil {
@@ -155,7 +156,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 						t.Errorf("Expected Used capacity: %v But got %v", int64(volObj.Status.UsedCapacity), int64(*metricOut.Gauge.Value))
 					}
 				case metricStatsBytesTotal:
-					volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, volumeName, metav1.GetOptions{
+					volObj, gErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, volumeName, metav1.GetOptions{
 						TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 					})
 					if gErr != nil {

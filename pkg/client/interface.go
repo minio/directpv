@@ -39,6 +39,11 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// GetLatestDirectCSIRESTClient gets REST client of the latest direct-csi.
+func GetLatestDirectCSIRESTClient() rest.Interface {
+	return GetDirectClientset().DirectV1beta3().RESTClient()
+}
+
 func toDirectCSIDrive(object map[string]interface{}) (*directcsi.DirectCSIDrive, error) {
 	var drive directcsi.DirectCSIDrive
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(object, &drive); err != nil {

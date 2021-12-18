@@ -25,7 +25,6 @@ import (
 	"github.com/google/uuid"
 	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/clientset"
 	"github.com/minio/direct-csi/pkg/fs/xfs"
 	"github.com/minio/direct-csi/pkg/listener"
 	"github.com/minio/direct-csi/pkg/sys"
@@ -46,8 +45,6 @@ func getDevice(major, minor uint32) (string, error) {
 }
 
 type driveEventHandler struct {
-	directCSIClient clientset.Interface
-	kubeClient      kubernetes.Interface
 	nodeID          string
 	reflinkSupport  bool
 	getDevice       func(major, minor uint32) (string, error)
@@ -60,8 +57,6 @@ type driveEventHandler struct {
 
 func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler {
 	return &driveEventHandler{
-		directCSIClient: client.GetDirectClientset(),
-		kubeClient:      client.GetKubeClient(),
 		nodeID:          nodeID,
 		reflinkSupport:  reflinkSupport,
 		getDevice:       getDevice,
@@ -84,7 +79,7 @@ func (handler *driveEventHandler) ListerWatcher() cache.ListerWatcher {
 	}
 
 	return cache.NewFilteredListWatchFromClient(
-		handler.directCSIClient.DirectV1beta3().RESTClient(),
+		client.GetLatestDirectCSIRESTClient(),
 		"DirectCSIDrives",
 		"",
 		optionsModifier,
@@ -92,7 +87,7 @@ func (handler *driveEventHandler) ListerWatcher() cache.ListerWatcher {
 }
 
 func (handler *driveEventHandler) KubeClient() kubernetes.Interface {
-	return handler.kubeClient
+	return client.GetKubeClient()
 }
 
 func (handler *driveEventHandler) Name() string {
@@ -126,7 +121,6 @@ func (handler *driveEventHandler) getFSUUID(ctx context.Context, drive *directcs
 	// Use new UUID if it is aleady used in another drive.
 	resultCh, err := client.ListDrives(
 		ctx,
-		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
 		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
 		nil,
 		nil,
@@ -260,7 +254,7 @@ func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.D
 		drive.Spec.RequestedFormat = nil
 	}
 
-	_, uerr := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
+	_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
 		ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
 	)
 	if uerr != nil {
@@ -308,7 +302,7 @@ func (handler *driveEventHandler) release(ctx context.Context, drive *directcsi.
 		message,
 	)
 
-	_, uerr := handler.directCSIClient.DirectV1beta3().DirectCSIDrives().Update(
+	_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
 		ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
 	)
 	if uerr != nil {
@@ -351,13 +345,7 @@ func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.D
 }
 
 func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	return client.DeleteDrive(
-		ctx,
-		handler.directCSIClient.DirectV1beta3().DirectCSIDrives(),
-		handler.directCSIClient.DirectV1beta3().DirectCSIVolumes(),
-		drive,
-		false,
-	)
+	return client.DeleteDrive(ctx, drive, false)
 }
 
 // StartController starts drive event controller.

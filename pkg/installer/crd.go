@@ -36,7 +36,7 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := client.ListVolumes(ctx, directCSIClient.DirectCSIVolumes(), nil, nil, nil, nil, client.MaxThreadCount)
+	resultCh, err := client.ListVolumes(ctx, nil, nil, nil, nil, client.MaxThreadCount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -82,7 +82,7 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 
 	defer cancelFunc()
 
-	resultCh, err := client.ListDrives(ctx, directCSIClient.DirectCSIDrives(), nil, nil, nil, client.MaxThreadCount)
+	resultCh, err := client.ListDrives(ctx, nil, nil, nil, client.MaxThreadCount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
