@@ -1,3 +1,5 @@
+//go:build !linux
+
 // This file is part of MinIO Direct CSI
 // Copyright (c) 2021 MinIO, Inc.
 //
@@ -14,24 +16,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package loopback
+package sys
 
-const (
-	// DirectCSIBackFileRoot denotes loopback root.
-	DirectCSIBackFileRoot = "/var/lib/direct-csi/loop"
-	loopDeviceFormat      = "/dev/loop%d"
-	loopControlPath       = "/dev/loop-control"
-	nameSize              = 64
-	keySize               = 32
-
-	// Syscalls
-	ctlAdd      = 0x4C80
-	ctlRemove   = 0x4C81
-	ctlGetFree  = 0x4C82
-	setFD       = 0x4C00
-	clrFD       = 0x4C01
-	setStatus64 = 0x4C04
-	getStatus64 = 0x4C05
-
-	oneMB = 1048576
+import (
+	"fmt"
+	"runtime"
 )
+
+func createLoopDevices() error {
+	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+}

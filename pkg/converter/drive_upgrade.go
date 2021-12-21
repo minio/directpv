@@ -17,16 +17,36 @@
 package converter
 
 import (
+	"path/filepath"
+	"strings"
+
 	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
 	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
 	directv1beta3 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/direct-csi/pkg/sys"
 	"github.com/minio/direct-csi/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 )
+
+func convertV1Beta1V1Beta2DeviceName(devName string) string {
+	switch {
+	case strings.HasPrefix(devName, sys.HostDevRoot):
+		return devName
+	case strings.Contains(devName, sys.DirectCSIDevRoot):
+		return convertV1Beta1V1Beta2DeviceName(filepath.Base(devName))
+	default:
+		name := strings.ReplaceAll(
+			strings.Replace(devName, sys.DirectCSIPartitionInfix, "", 1),
+			sys.DirectCSIPartitionInfix,
+			sys.HostPartitionInfix,
+		)
+		return filepath.Join(sys.HostDevRoot, name)
+	}
+}
 
 func upgradeDriveObject(object *unstructured.Unstructured, toVersion string) error {
 	switch object.GetAPIVersion() {
@@ -112,9 +132,10 @@ func driveUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error
 	}
 
 	v1beta2DirectCSIDrive.TypeMeta = v1beta1DirectCSIDrive.TypeMeta
+	v1beta2DirectCSIDrive.Status.Path = convertV1Beta1V1Beta2DeviceName(v1beta1DirectCSIDrive.Status.Path)
 	utils.UpdateLabels(&v1beta2DirectCSIDrive, map[utils.LabelKey]utils.LabelValue{
 		utils.NodeLabelKey:       utils.NewLabelValue(v1beta1DirectCSIDrive.Status.NodeName),
-		utils.PathLabelKey:       utils.NewLabelValue(v1beta1DirectCSIDrive.Status.Path),
+		utils.PathLabelKey:       utils.NewLabelValue(filepath.Base(v1beta2DirectCSIDrive.Status.Path)),
 		utils.CreatedByLabelKey:  utils.DirectCSIDriverName,
 		utils.AccessTierLabelKey: utils.NewLabelValue(string(v1beta1DirectCSIDrive.Status.AccessTier)),
 	})
@@ -146,9 +167,10 @@ func driveUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) error
 	}
 
 	v1beta3DirectCSIDrive.TypeMeta = v1beta2DirectCSIDrive.TypeMeta
+	v1beta3DirectCSIDrive.Status.Path = convertV1Beta1V1Beta2DeviceName(v1beta2DirectCSIDrive.Status.Path)
 	utils.UpdateLabels(&v1beta3DirectCSIDrive, map[utils.LabelKey]utils.LabelValue{
 		utils.NodeLabelKey:       utils.NewLabelValue(v1beta2DirectCSIDrive.Status.NodeName),
-		utils.PathLabelKey:       utils.NewLabelValue(v1beta2DirectCSIDrive.Status.Path),
+		utils.PathLabelKey:       utils.NewLabelValue(filepath.Base(v1beta3DirectCSIDrive.Status.Path)),
 		utils.CreatedByLabelKey:  utils.DirectCSIDriverName,
 		utils.AccessTierLabelKey: utils.NewLabelValue(string(v1beta2DirectCSIDrive.Status.AccessTier)),
 	})

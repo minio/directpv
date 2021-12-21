@@ -67,7 +67,7 @@ type NodeServer struct { //revive:disable-line:exported
 //revive:enable-line:exported
 
 // NewNodeServer creates node server.
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, enableDynamicDiscovery, reflinkSupport bool) (*NodeServer, error) {
+func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, dynamicDriveDiscovery, reflinkSupport, loopbackOnly bool) (*NodeServer, error) {
 	config, err := client.GetKubeConfig()
 	if err != nil {
 		return &NodeServer{}, err
@@ -93,7 +93,32 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		setQuota:        xfs.SetQuota,
 	}
 
-	// Start background tasks
+	if dynamicDriveDiscovery {
+		handler := &ueventHandler{
+			nodeID: nodeID,
+			topology: map[string]string{
+				string(utils.TopologyDriverIdentity): identity,
+				string(utils.TopologyDriverRack):     rack,
+				string(utils.TopologyDriverZone):     zone,
+				string(utils.TopologyDriverRegion):   region,
+				string(utils.TopologyDriverNode):     nodeID,
+			},
+			dynamicDriveDiscovery: dynamicDriveDiscovery,
+			loopbackOnly:          loopbackOnly,
+		}
+		if loopbackOnly {
+			if err := sys.CreateLoopDevices(); err != nil {
+				return nil, err
+			}
+		}
+
+		klog.V(3).Info("Doing initial drive sync up")
+		handler.syncDrives(ctx)
+
+		// Start background tasks
+		go handler.processLoop(ctx)
+	}
+
 	go func() {
 		if err := drive.StartController(ctx, nodeID, reflinkSupport); err != nil {
 			klog.Error(err)
@@ -107,17 +132,6 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 	}()
 
 	go metrics.ServeMetrics(ctx, nodeID)
-	if enableDynamicDiscovery {
-		go startUeventHandler(
-			ctx, nodeID, map[string]string{
-				string(utils.TopologyDriverIdentity): identity,
-				string(utils.TopologyDriverRack):     rack,
-				string(utils.TopologyDriverZone):     zone,
-				string(utils.TopologyDriverRegion):   region,
-				string(utils.TopologyDriverNode):     nodeID,
-			},
-		)
-	}
 
 	return nodeServer, nil
 }

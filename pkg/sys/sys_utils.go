@@ -17,16 +17,9 @@
 package sys
 
 import (
-	"errors"
-	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"k8s.io/klog/v2"
-
-	"github.com/minio/direct-csi/pkg/sys/loopback"
 )
 
 func getBlockFile(devName string) string {
@@ -96,54 +89,6 @@ func splitDevAndPartNum(s string) (string, int) {
 		return str, numVal
 	}
 	return str, 0
-}
-
-// FlushLoopBackReservations does umount/detach/remove loopback devices and associated files.
-func FlushLoopBackReservations() error {
-	flushLoopDevice := func(loopDevName string) error {
-		blockFile := getBlockFile(loopDevName)
-		// umount
-		if err := UnmountDevice(blockFile); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		// Remove loop device
-		loopFilePath := getRootBlockFile(loopDevName)
-		if err := loopback.RemoveLoopDevice(loopFilePath); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		// Remove direct-csi (loop)device file
-		if err := os.Remove(blockFile); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		return nil
-	}
-
-	files, err := os.ReadDir(loopback.DirectCSIBackFileRoot)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return fmt.Errorf("error while reading (%s): %v", loopback.DirectCSIBackFileRoot, err)
-	}
-	for _, file := range files {
-		loopDevName := file.Name() // filebase
-		if err := flushLoopDevice(loopDevName); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// ReserveLoopbackDevices creates loopback devices.
-func ReserveLoopbackDevices(devCount int) error {
-	for i := 1; i <= devCount; i++ {
-		dev, err := loopback.CreateLoopbackDevice()
-		if err != nil {
-			return err
-		}
-		klog.V(2).Infof("Successfully created loopback device %v", dev)
-	}
-	return nil
 }
 
 func isFATFSType(fsType string) bool {

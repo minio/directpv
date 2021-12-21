@@ -16,6 +16,12 @@
 
 package sys
 
+import (
+	"os"
+
+	"k8s.io/klog/v2"
+)
+
 // Mount mounts device to target using fsType, flags and superBlockFlags.
 func Mount(device, target, fsType string, flags []string, superBlockFlags string) error {
 	return mount(device, target, fsType, flags, superBlockFlags)
@@ -44,4 +50,14 @@ func SafeUnmount(target string, force, detach, expire bool) error {
 // UnmountDevice unmounts all mounts of device.
 func UnmountDevice(device string) error {
 	return unmountDevice(device)
+}
+
+// MountXFSDevice mounts device having XFS filesystem into target.
+func MountXFSDevice(device, target string, flags []string) error {
+	if err := os.MkdirAll(target, 0777); err != nil {
+		return err
+	}
+
+	klog.V(3).InfoS("mounting device", "device", device, "target", target)
+	return SafeMount(device, target, "xfs", flags, "prjquota")
 }
