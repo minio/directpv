@@ -19,7 +19,7 @@
 package main
 
 import (
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 

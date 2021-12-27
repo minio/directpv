@@ -35,8 +35,8 @@ export GO111MODULE=on
 
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   github.com/minio/direct-csi/cmd/direct-csi
+   github.com/minio/directpv/cmd/direct-csi
 
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   github.com/minio/direct-csi/cmd/kubectl-direct_csi
+   github.com/minio/directpv/cmd/kubectl-direct_csi

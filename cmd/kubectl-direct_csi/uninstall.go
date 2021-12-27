@@ -18,9 +18,10 @@ package main
 
 import (
 	"context"
+
 	"github.com/spf13/cobra"
 
-	"github.com/minio/direct-csi/pkg/installer"
+	"github.com/minio/directpv/pkg/installer"
 
 	"k8s.io/klog/v2"
 )

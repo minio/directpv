@@ -21,8 +21,8 @@ package installer
 import (
 	"context"
 
-	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

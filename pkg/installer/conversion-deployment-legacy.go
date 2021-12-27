@@ -19,8 +19,8 @@ package installer
 import (
 	"context"
 
-	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/utils"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -21,9 +21,9 @@ import (
 	"os"
 	"sync/atomic"
 
-	direct "github.com/minio/direct-csi/pkg/clientset"
-	directcsi "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/utils"
+	direct "github.com/minio/directpv/pkg/clientset"
+	directcsi "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/utils"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/client-go/discovery"

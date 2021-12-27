@@ -24,11 +24,11 @@ import (
 	"io"
 	"os"
 
-	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
-	"github.com/minio/direct-csi/pkg/fs/ext4"
-	"github.com/minio/direct-csi/pkg/fs/fat32"
-	"github.com/minio/direct-csi/pkg/fs/swap"
-	"github.com/minio/direct-csi/pkg/fs/xfs"
+	fserrors "github.com/minio/directpv/pkg/fs/errors"
+	"github.com/minio/directpv/pkg/fs/ext4"
+	"github.com/minio/directpv/pkg/fs/fat32"
+	"github.com/minio/directpv/pkg/fs/swap"
+	"github.com/minio/directpv/pkg/fs/xfs"
 )
 
 // FS denotes filesystem interface.

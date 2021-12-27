@@ -23,12 +23,12 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	fakedirect "github.com/minio/direct-csi/pkg/clientset/fake"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

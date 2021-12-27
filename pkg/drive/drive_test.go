@@ -23,11 +23,11 @@ import (
 	"reflect"
 	"testing"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/client"
-	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
-	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/utils"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/client"
+	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
+	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"

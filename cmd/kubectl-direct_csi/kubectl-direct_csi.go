@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/utils"
 
 	"k8s.io/klog/v2"
 )

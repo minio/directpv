@@ -19,14 +19,14 @@ package node
 import (
 	"context"
 
-	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/clientset"
-	"github.com/minio/direct-csi/pkg/drive"
-	"github.com/minio/direct-csi/pkg/fs/xfs"
-	"github.com/minio/direct-csi/pkg/metrics"
-	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/utils"
-	"github.com/minio/direct-csi/pkg/volume"
+	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/clientset"
+	"github.com/minio/directpv/pkg/drive"
+	"github.com/minio/directpv/pkg/fs/xfs"
+	"github.com/minio/directpv/pkg/metrics"
+	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/volume"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 

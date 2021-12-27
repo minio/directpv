@@ -20,8 +20,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/utils"
 
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"

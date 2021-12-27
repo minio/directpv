@@ -21,7 +21,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/minio/direct-csi/pkg/client"
+	"github.com/minio/directpv/pkg/client"
 )
 
 func getInstaller(config *Config) (installer, error) {

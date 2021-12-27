@@ -20,7 +20,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/minio/direct-csi/pkg/client"
+	"github.com/minio/directpv/pkg/client"
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

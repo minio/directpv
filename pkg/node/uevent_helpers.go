@@ -19,10 +19,10 @@ package node
 import (
 	"strings"
 
-	directcsiv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/utils"
+	directcsiv1beta1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/utils"
 )
 
 func isDOSPTType(ptType string) bool {

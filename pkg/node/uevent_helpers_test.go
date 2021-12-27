@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"testing"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/sys"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/sys"
 )
 
 func TestIsDOSPTType(t *testing.T) {

@@ -89,8 +89,8 @@ function build_directcsi() {
     export BUILD_TAG
 
     export CGO_ENABLED=0 GO111MODULE=on
-    go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/direct-csi/cmd/direct-csi
-    go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/direct-csi/cmd/kubectl-direct_csi
+    go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/direct-csi
+    go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/kubectl-direct_csi
 }
 
 function start_test_vm() {

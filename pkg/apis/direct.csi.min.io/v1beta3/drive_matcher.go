@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/minio/direct-csi/pkg/matcher"
+	"github.com/minio/directpv/pkg/matcher"
 )
 
 func SupportedStatusSelectorValues() []string {

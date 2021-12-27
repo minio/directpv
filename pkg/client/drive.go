@@ -22,9 +22,9 @@ import (
 	"path"
 	"strings"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/sys"
-	"github.com/minio/direct-csi/pkg/utils"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -179,7 +179,7 @@ func DeleteDrive(
 	switch len(finalizers) {
 	case 1:
 		if finalizers[0] != directcsi.DirectCSIDriveFinalizerDataProtection {
-			return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/direct-csi/issues")
+			return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/directpv/issues")
 		}
 
 		if err := sys.SafeUnmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID), false, false, false); err != nil {
@@ -207,7 +207,7 @@ func DeleteDrive(
 				string(directcsi.DirectCSIVolumeConditionReady),
 				metav1.ConditionFalse,
 				string(directcsi.DirectCSIVolumeReasonNotReady),
-				"[DRIVE LOST] Please refer https://github.com/minio/direct-csi/blob/master/docs/troubleshooting.md",
+				"[DRIVE LOST] Please refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md",
 			)
 			_, err = latestDirectCSIVolumeInterface.Update(
 				ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},

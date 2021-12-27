@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

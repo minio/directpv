@@ -26,8 +26,8 @@ import (
 
 	"k8s.io/klog/v2"
 
-	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/utils"
 )
 
 // Version is kubectl direct-csi version.

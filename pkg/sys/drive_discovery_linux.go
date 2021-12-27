@@ -31,12 +31,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/minio/direct-csi/pkg/blockdev"
-	"github.com/minio/direct-csi/pkg/blockdev/parttable"
-	"github.com/minio/direct-csi/pkg/fs"
-	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
-	"github.com/minio/direct-csi/pkg/sys/smart"
-	"github.com/minio/direct-csi/pkg/uevent"
+	"github.com/minio/directpv/pkg/blockdev"
+	"github.com/minio/directpv/pkg/blockdev/parttable"
+	"github.com/minio/directpv/pkg/fs"
+	fserrors "github.com/minio/directpv/pkg/fs/errors"
+	"github.com/minio/directpv/pkg/sys/smart"
+	"github.com/minio/directpv/pkg/uevent"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )

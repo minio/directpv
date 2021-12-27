@@ -17,7 +17,7 @@
 package v1beta2
 
 import (
-	"github.com/minio/direct-csi/pkg/matcher"
+	"github.com/minio/directpv/pkg/matcher"
 )
 
 // MatchStatus does volume's condition status with given status list.

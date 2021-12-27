@@ -19,12 +19,12 @@ package client
 import (
 	"context"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1alpha1"
-	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
-	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/converter"
-	"github.com/minio/direct-csi/pkg/utils"
+	directv1alpha1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1alpha1"
+	directv1beta1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta1"
+	directv1beta2 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/converter"
+	"github.com/minio/directpv/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

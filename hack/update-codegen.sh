@@ -49,7 +49,7 @@ function install_controller_tools() {
 install_code_generator
 install_controller_tools
 
-REPOSITORY=github.com/minio/direct-csi
+REPOSITORY=github.com/minio/directpv
 SCRIPT_ROOT=$(cd "$(dirname "$0")"; pwd -P)
 PROJECT_ROOT=$(cd "${SCRIPT_ROOT}/.."; pwd -P)
 

@@ -22,8 +22,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/minio/direct-csi/pkg/installer"
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/installer"
+	"github.com/minio/directpv/pkg/utils"
 
 	"k8s.io/klog/v2"
 )

@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"testing"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	clientsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )

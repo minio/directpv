@@ -19,9 +19,9 @@ package node
 import (
 	"context"
 
-	directsetfake "github.com/minio/direct-csi/pkg/clientset/fake"
-	"github.com/minio/direct-csi/pkg/fs/xfs"
-	"github.com/minio/direct-csi/pkg/sys"
+	directsetfake "github.com/minio/directpv/pkg/clientset/fake"
+	"github.com/minio/directpv/pkg/fs/xfs"
+	"github.com/minio/directpv/pkg/sys"
 )
 
 const (

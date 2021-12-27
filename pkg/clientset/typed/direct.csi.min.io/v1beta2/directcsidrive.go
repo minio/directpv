@@ -22,8 +22,8 @@ import (
 	"context"
 	"time"
 
-	v1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	scheme "github.com/minio/direct-csi/pkg/clientset/scheme"
+	v1beta2 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2"
+	scheme "github.com/minio/directpv/pkg/clientset/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
