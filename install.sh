@@ -7,7 +7,7 @@ if [ "${DEBUG}" = 1 ]; then
 fi
 
 INSTALL_DIRECT_CSI_VERSION=1.0.0
-INSTALL_DIRECT_CSI_GITHUB_URL="https://github.com/minio/direct-csi"
+INSTALL_DIRECT_CSI_GITHUB_URL="https://github.com/minio/directpv"
 
 # info logs the given argument at info log level.
 info() {
@@ -23,7 +23,7 @@ warn() {
 fatal() {
     echo "[ERROR] " "$@" >&2
     if [ -n "${SUFFIX}" ]; then
-        echo "[ALT] Please visit 'https://github.com/minio/direct-csi/releases' directly and download the latest direct-csi_${SUFFIX}" >&2
+        echo "[ALT] Please visit 'https://github.com/minio/directpv/releases' directly and download the latest direct-csi_${SUFFIX}" >&2
     fi
     exit 1
 }

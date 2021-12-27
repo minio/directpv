@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/minio/direct-csi/pkg/blockdev/parttable"
+	"github.com/minio/directpv/pkg/blockdev/parttable"
 )
 
 func isUUIDZero(uuid [16]byte) bool {

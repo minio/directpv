@@ -22,7 +22,7 @@ import (
 	"context"
 	"fmt"
 
-	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
+	fserrors "github.com/minio/directpv/pkg/fs/errors"
 )
 
 // Quota denotes XFS quota information.

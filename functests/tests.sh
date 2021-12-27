@@ -33,7 +33,7 @@ function test_build() {
 }
 
 function do_upgrade_test() {
-    wget --quiet --output-document="kubectl-direct_csi_$1" "https://github.com/minio/direct-csi/releases/download/v$1/kubectl-direct_csi_$1_linux_amd64"
+    wget --quiet --output-document="kubectl-direct_csi_$1" "https://github.com/minio/directpv/releases/download/v$1/kubectl-direct_csi_$1_linux_amd64"
     chmod a+x "kubectl-direct_csi_$1"
 
     # unmount all direct-csi mounts of previous installation if any.

@@ -21,9 +21,9 @@ import (
 	"crypto/rand"
 	"math/big"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/client"
-	"github.com/minio/direct-csi/pkg/matcher"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/matcher"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"

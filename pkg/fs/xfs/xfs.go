@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"io"
 
-	fserrors "github.com/minio/direct-csi/pkg/fs/errors"
+	fserrors "github.com/minio/directpv/pkg/fs/errors"
 )
 
 // UUID2String converts UUID to string.

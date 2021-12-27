@@ -20,7 +20,7 @@ jobs:
         run: |
           echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
           mkdir -p "$(go env GOPATH)/src/github.com/minio/"
-          ln -s "$PWD" "$(go env GOPATH)/src/github.com/minio/direct-csi"
+          ln -s "$PWD" "$(go env GOPATH)/src/github.com/minio/directpv"
           echo "VERSION=$(git describe --tags --always --dirty)" >> $GITHUB_ENV
 
       - name: Build binaries
@@ -28,8 +28,8 @@ jobs:
           CGO_ENABLED: 0
           GO111MODULE: on
         run: |
-          go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/direct-csi/cmd/direct-csi
-          go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/direct-csi/cmd/kubectl-direct_csi
+          go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/directpv/cmd/direct-csi
+          go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/directpv/cmd/kubectl-direct_csi
           echo "BUILD_TAG=v0.0.0-$(./direct-csi --version)" >> $GITHUB_ENV
 
       - name: Build docker image

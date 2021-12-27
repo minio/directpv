@@ -19,8 +19,8 @@
 package v1beta3
 
 import (
-	v1beta3 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/clientset/scheme"
+	v1beta3 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/clientset/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

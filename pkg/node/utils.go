@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	directcsi "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
-	"github.com/minio/direct-csi/pkg/matcher"
-	"github.com/minio/direct-csi/pkg/sys"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/matcher"
+	"github.com/minio/directpv/pkg/sys"
 )
 
 func checkDrive(drive *directcsi.DirectCSIDrive, volumeID string, probeMounts func() (map[string][]sys.MountInfo, error)) error {

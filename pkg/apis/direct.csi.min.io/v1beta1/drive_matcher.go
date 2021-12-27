@@ -17,7 +17,7 @@
 package v1beta1
 
 import (
-	"github.com/minio/direct-csi/pkg/matcher"
+	"github.com/minio/directpv/pkg/matcher"
 )
 
 // MatchGlob does glob match of nodes/drives/statuses with drive's NodeName/Path/DriveStatus.

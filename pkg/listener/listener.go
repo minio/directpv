@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/utils"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

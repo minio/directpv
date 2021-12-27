@@ -24,7 +24,7 @@ package v1beta2
 import (
 	unsafe "unsafe"
 
-	v1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
+	v1beta1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"

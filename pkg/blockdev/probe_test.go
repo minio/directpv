@@ -25,9 +25,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/minio/direct-csi/pkg/blockdev/gpt"
-	"github.com/minio/direct-csi/pkg/blockdev/mbr"
-	"github.com/minio/direct-csi/pkg/blockdev/parttable"
+	"github.com/minio/directpv/pkg/blockdev/gpt"
+	"github.com/minio/directpv/pkg/blockdev/mbr"
+	"github.com/minio/directpv/pkg/blockdev/parttable"
 )
 
 type testPartTable struct {

@@ -25,7 +25,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/minio/direct-csi/pkg/blockdev/parttable"
+	"github.com/minio/directpv/pkg/blockdev/parttable"
 )
 
 // ErrGPTProtectiveMBR denotes GPT protected MBR found error.

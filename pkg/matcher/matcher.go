@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/mb0/glob"
-	"github.com/minio/direct-csi/pkg/sys"
+	"github.com/minio/directpv/pkg/sys"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

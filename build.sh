@@ -22,8 +22,8 @@ SCRIPT_ROOT="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 GID=$(id -g)
 
 docker_run=( docker run -u "${UID}:${GID}" -e HOME=/go/home \
-                    -v "${SCRIPT_ROOT}:/go/src/github.com/minio/direct-csi" \
-                    -w /go/src/github.com/minio/direct-csi \
+                    -v "${SCRIPT_ROOT}:/go/src/github.com/minio/directpv" \
+                    -w /go/src/github.com/minio/directpv \
                     --entrypoint hack/build-without-docker.sh golang:1.17 )
 [ -t 1 ] && docker_run+=( --interactive --tty )
 

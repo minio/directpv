@@ -30,14 +30,14 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDrive":        schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDrive(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveList":    schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveList(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveSpec":    schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveSpec(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveStatus":  schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveStatus(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolume":       schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolume(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolumeList":   schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolumeList(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolumeStatus": schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolumeStatus(ref),
-		"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.RequestedFormat":       schema_pkg_apis_directcsiminio_v1beta2_RequestedFormat(ref),
+		"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDrive":        schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDrive(ref),
+		"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveList":    schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveList(ref),
+		"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveSpec":    schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveSpec(ref),
+		"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveStatus":  schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveStatus(ref),
+		"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolume":       schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolume(ref),
+		"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolumeList":   schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolumeList(ref),
+		"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolumeStatus": schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolumeStatus(ref),
+		"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.RequestedFormat":       schema_pkg_apis_directcsiminio_v1beta2_RequestedFormat(ref),
 	}
 }
 
@@ -71,13 +71,13 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDrive(ref common.ReferenceC
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveSpec"),
+							Ref:     ref("github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveStatus"),
+							Ref:     ref("github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveStatus"),
 						},
 					},
 				},
@@ -85,7 +85,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDrive(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveSpec", "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveSpec", "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDriveStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -124,7 +124,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveList(ref common.Refere
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDrive"),
+										Ref:     ref("github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDrive"),
 									},
 								},
 							},
@@ -135,7 +135,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveList(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDrive", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIDrive", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -148,7 +148,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveSpec(ref common.Refere
 				Properties: map[string]spec.Schema{
 					"requestedFormat": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.RequestedFormat"),
+							Ref: ref("github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.RequestedFormat"),
 						},
 					},
 					"directCSIOwned": {
@@ -179,7 +179,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIDriveSpec(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.RequestedFormat"},
+			"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.RequestedFormat"},
 	}
 }
 
@@ -402,7 +402,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolume(ref common.Reference
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolumeStatus"),
+							Ref:     ref("github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolumeStatus"),
 						},
 					},
 				},
@@ -410,7 +410,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolume(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolumeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolumeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -449,7 +449,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolumeList(ref common.Refer
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolume"),
+										Ref:     ref("github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolume"),
 									},
 								},
 							},
@@ -460,7 +460,7 @@ func schema_pkg_apis_directcsiminio_v1beta2_DirectCSIVolumeList(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolume", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2.DirectCSIVolume", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 

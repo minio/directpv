@@ -17,6 +17,6 @@
 // +k8s:deepcopy-gen=package,register
 // +k8s:openapi-gen=true
 // +groupName=direct.csi.min.io
-// +k8s:conversion-gen=github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1
+// +k8s:conversion-gen=github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta1
 
 package v1beta2

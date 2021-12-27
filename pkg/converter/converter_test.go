@@ -22,9 +22,9 @@ import (
 	"strings"
 	"testing"
 
-	directv1beta1 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta1"
-	directv1beta2 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta2"
-	directv1beta3 "github.com/minio/direct-csi/pkg/apis/direct.csi.min.io/v1beta3"
+	directv1beta1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta1"
+	directv1beta2 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2"
+	directv1beta3 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	json1 "k8s.io/apimachinery/pkg/util/json"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/utils"
 )
 
 func getLabelValue(obj metav1.Object, key string) string {

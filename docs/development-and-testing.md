@@ -21,7 +21,7 @@ docker push quay.io/<QUAY_USERNAME>/csi-node-driver-registrar
 4. Make sure `csi-provisioner`, `livenessprobe` and `csi-node-driver-registrar` repositories are `public` in your `quay.io` account.
 5. Go to your direct-csi project root.
 ```bash
-$ cd $GOPATH/src/github.com/minio/direct-csi
+$ cd $GOPATH/src/github.com/minio/directpv
 ```
 6. Hack, hack, hack...
 7. Run go build

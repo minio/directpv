@@ -21,10 +21,10 @@ package clientset
 import (
 	"fmt"
 
-	directv1alpha1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
-	directv1beta1 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta1"
-	directv1beta2 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
-	directv1beta3 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta3"
+	directv1alpha1 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1alpha1"
+	directv1beta1 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta1"
+	directv1beta2 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta2"
+	directv1beta3 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

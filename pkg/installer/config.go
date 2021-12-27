@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/minio/direct-csi/pkg/utils"
+	"github.com/minio/directpv/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
 )

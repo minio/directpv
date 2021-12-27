@@ -19,7 +19,7 @@
 package fake
 
 import (
-	v1beta2 "github.com/minio/direct-csi/pkg/clientset/typed/direct.csi.min.io/v1beta2"
+	v1beta2 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta2"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

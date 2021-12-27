@@ -13,4 +13,4 @@ The following recording demonstrates the version upgrade path.
 
 [![asciicast](https://asciinema.org/a/2Stv8ugsQg72rWOEWlLUVNWrV.svg)](https://asciinema.org/a/2Stv8ugsQg72rWOEWlLUVNWrV)
 
-NOTE: For the users who don't prefer krew, Please find the latest images in [releases](https://github.com/minio/direct-csi/releases).
+NOTE: For the users who don't prefer krew, Please find the latest images in [releases](https://github.com/minio/directpv/releases).
