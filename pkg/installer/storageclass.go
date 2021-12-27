@@ -36,28 +36,34 @@ var (
 )
 
 func installStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := createStorageClass(ctx, c); err != nil {
+	if err := createStorageClass(ctx, c, c.storageClassNameDirectCSI()); err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-
+	if err := createStorageClass(ctx, c, c.storageClassNameDirectPV()); err != nil {
+		if !k8serrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
 	if !c.DryRun {
 		klog.Infof("'%s' storageclass created", utils.Bold(c.Identity))
 	}
-
 	return nil
 }
 
 func uninstallStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := deleteStorageClass(ctx, c); err != nil && !k8serrors.IsNotFound(err) {
+	if err := deleteStorageClass(ctx, c, c.storageClassNameDirectCSI()); err != nil && !k8serrors.IsNotFound(err) {
+		return err
+	}
+	if err := deleteStorageClass(ctx, c, c.storageClassNameDirectPV()); err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
 	klog.Infof("'%s' storageclass deleted", utils.Bold(c.Identity))
 	return nil
 }
 
-func createStorageClass(ctx context.Context, c *Config) error {
+func createStorageClass(ctx context.Context, c *Config, name string) error {
 	allowExpansion := false
 	allowTopologiesWithName := corev1.TopologySelectorTerm{
 		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
@@ -82,7 +88,7 @@ func createStorageClass(ctx context.Context, c *Config) error {
 		storageClass := &storagev1.StorageClass{
 			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1", Kind: "StorageClass"},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        c.storageClassName(),
+				Name:        name,
 				Namespace:   metav1.NamespaceNone,
 				Annotations: defaultAnnotations,
 				Labels:      defaultLabels,
@@ -114,7 +120,7 @@ func createStorageClass(ctx context.Context, c *Config) error {
 		storageClass := &storagev1beta1.StorageClass{
 			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1beta1", Kind: "StorageClass"},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        c.storageClassName(),
+				Name:        name,
 				Namespace:   metav1.NamespaceNone,
 				Annotations: defaultAnnotations,
 				Labels:      defaultLabels,
@@ -145,7 +151,7 @@ func createStorageClass(ctx context.Context, c *Config) error {
 	}
 }
 
-func deleteStorageClass(ctx context.Context, c *Config) error {
+func deleteStorageClass(ctx context.Context, c *Config, name string) error {
 	gvk, err := client.GetGroupKindVersions("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
@@ -153,11 +159,11 @@ func deleteStorageClass(ctx context.Context, c *Config) error {
 
 	switch gvk.Version {
 	case "v1":
-		if err := client.GetKubeClient().StorageV1().StorageClasses().Delete(ctx, c.storageClassName(), metav1.DeleteOptions{}); err != nil {
+		if err := client.GetKubeClient().StorageV1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	case "v1beta1":
-		if err := client.GetKubeClient().StorageV1beta1().StorageClasses().Delete(ctx, c.storageClassName(), metav1.DeleteOptions{}); err != nil {
+		if err := client.GetKubeClient().StorageV1beta1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	default:

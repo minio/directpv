@@ -17,6 +17,7 @@ require (
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.0.5
+	github.com/jteeuwen/go-bindata v3.0.7+incompatible // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mattn/go-isatty v0.0.13 // indirect
