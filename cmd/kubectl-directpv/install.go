@@ -51,11 +51,13 @@ var (
 	apparmorProfile        = ""
 	dynamicDriveDiscovery  = false
 	auditInstall           = "install"
+	imagePullSecrets       = []string{}
 )
 
 func init() {
 	installCmd.PersistentFlags().BoolVarP(&installCRD, "crd", "c", installCRD, "register crds along with installation")
 	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "DirectPV image")
+	installCmd.PersistentFlags().StringSliceVarP(&imagePullSecrets, "image-pull-secrets", "", imagePullSecrets, "image pull secrets to be set in pod specs")
 	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "registry where DirectPV images are available")
 	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "organization name where DirectPV images are available")
 	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on DirectPV admission controller")
@@ -121,6 +123,7 @@ func install(ctx context.Context, args []string) (err error) {
 		DynamicDriveDiscovery:      dynamicDriveDiscovery,
 		DryRun:                     dryRun,
 		AuditFile:                  file,
+		ImagePullSecrets:           imagePullSecrets,
 	}
 
 	return installer.Install(ctx, installConfig)

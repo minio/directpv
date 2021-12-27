@@ -128,6 +128,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: c.serviceAccountName(),
 		Volumes:            volumes,
+		ImagePullSecrets:   c.getImagePullSecrets(),
 		Containers: []corev1.Container{
 			{
 				Name:  csiProvisionerContainerName,
