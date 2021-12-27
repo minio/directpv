@@ -102,6 +102,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		HostIPC:            true,
 		HostPID:            true,
 		Volumes:            volumes,
+		ImagePullSecrets:   c.getImagePullSecrets(),
 		Containers: []corev1.Container{
 			{
 				Name:  nodeDriverRegistrarContainerName,

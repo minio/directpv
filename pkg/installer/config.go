@@ -85,6 +85,9 @@ type Config struct {
 	// Audit
 	AuditFile *utils.SafeFile
 
+	// Image pull secrets
+	ImagePullSecrets []string
+
 	// internal
 	conversionWebhookCaBundle []byte
 	validationWebhookCaBundle []byte
@@ -180,6 +183,16 @@ func (c *Config) driverIdentity() string {
 
 func (c *Config) provisionerName() string {
 	return c.identity()
+}
+
+func (c *Config) getImagePullSecrets() []corev1.LocalObjectReference {
+	var localObjectReferences []corev1.LocalObjectReference
+	for _, imagePullReferentName := range c.ImagePullSecrets {
+		localObjectReferences = append(localObjectReferences, corev1.LocalObjectReference{
+			Name: imagePullReferentName,
+		})
+	}
+	return localObjectReferences
 }
 
 func (i *Config) postProc(obj interface{}) error {
