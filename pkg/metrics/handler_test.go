@@ -52,8 +52,8 @@ const (
 type metricType string
 
 const (
-	metricStatsBytesUsed  metricType = "directcsi_stats_bytes_used"
-	metricStatsBytesTotal metricType = "directcsi_stats_bytes_total"
+	metricStatsBytesUsed  metricType = "directpv_stats_bytes_used"
+	metricStatsBytesTotal metricType = "directpv_stats_bytes_total"
 )
 
 func createFakeMetricsCollector() *metricsCollector {

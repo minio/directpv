@@ -4,11 +4,11 @@ title: Driver Specification
 
 ## Driver Specification
 
-### CSIDriver
+### PVDriver
 
 | Key               | Value                     |
 |-------------------|---------------------------|
-| `name`            | `direct-csi-min-io`       |
+| `name`            | `direct-pv-min-io`       |
 | `podInfoOnMount`  | `true`                    |
 | `attachRequired`  | `false`                   |
 | `modes`           | `Persistent`, `Ephemeral` |
@@ -17,24 +17,24 @@ title: Driver Specification
 
 | Key                 | Value                    |
 |---------------------|--------------------------|
-| `name`              | `direct-csi-min-io`      |
-| `provisioner`       | `direct-csi-min-io`      |
+| `name`              | `direct-pv-min-io`      |
+| `provisioner`       | `direct-pv-min-io`      |
 | `reclaimPolicy`     | `Retain`                 |
 | `volumeBindingMode` | `WaitForFirstConsumer`   |
 
-### DirectCSIDrive CRD
+### DirectPVDrive CRD
 
 | Key          | Value                 |
 | -------------|-----------------------|
-| `name`       | `directcsidrive`      |
-| `apigroup`   | `direct.csi.min.io`   |
+| `name`       | `directpvdrive`      |
+| `apigroup`   | `direct.pv.min.io`   |
 
-### DirectCSIVolume CRD
+### DirectPVVolume CRD
 
 | Key          | Value                 |
 | -------------|-----------------------|
-| `name`       | `directcsivolume`     |
-| `apigroup`   | `direct.csi.min.io`   |
+| `name`       | `directpvvolume`     |
+| `apigroup`   | `direct.pv.min.io`   |
 
 
 ### Driver RBAC 
@@ -48,11 +48,11 @@ title: Driver Specification
 |  (core)  | `persistentvolumeclaims`   | `get`, `list`, `watch`|
 | `apiextensions.k8s.io` | `customresourcedefinitions` | `get`, `list`, `watch`, `create`, `update`, `delete` |
 | `coordination.k8s.io` | `leases` | `get`, `list`, `watch`, `update`, `delete`, `create` |
-| `direct.csi.min.io` | `directcsidrives` | `get`, `list`, `watch`, `create`, `update`, `delete` |
-| `direct.csi.min.io` | `directcsivolumes` | `get`, `list`, `watch`, `create`, `update`, `delete` |
+| `direct.pv.min.io` | `directpvdrives` | `get`, `list`, `watch`, `create`, `update`, `delete` |
+| `direct.pv.min.io` | `directpvvolumes` | `get`, `list`, `watch`, `create`, `update`, `delete` |
 | `snapshot.storage.k8s.io` | `volumesnapshotcontents` | `get`, `list` |
 | `snapshot.storage.k8s.io` | `volumesnapshots` | `get`, `list` |
-| `storage.k8s.io` | `csinodes` | `get`, `list`, `watch` |
+| `storage.k8s.io` | `pvnodes` | `get`, `list`, `watch` |
 | `storage.k8s.io` | `storageclasses` | `get`, `list`, `watch` |
 | `storage.k8s.io` | `volumeattachments` | `get`, `list`, `watch` |
 
