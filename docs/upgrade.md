@@ -5,9 +5,9 @@ title: Upgrade
 Version Upgrade
 ---------------
 
-### Guidelines to upgrade to the latest DirectCSI version
+### Guidelines to upgrade to the latest Directpv version
 
-DirectCSI version upgrades are seameless and transparent. The resources will be upgraded automatically when you run the latest version over the existing resources. The latest version of DirectCSI should be available in [krew](https://github.com/kubernetes-sigs/krew-index). For more details on the installation, Please refer the [Installation guidelines](./installation.md).
+DirectPV version upgrades are seameless and transparent. The resources will be upgraded automatically when you run the latest version over the existing resources. The latest version of Directpv should be available in [krew](https://github.com/kubernetes-sigs/krew-index). For more details on the installation, Please refer the [Installation guidelines](./installation.md).
 
 The following recording demonstrates the version upgrade path.
 

@@ -34,25 +34,25 @@ $ ./build.sh
 ```
 9. Run docker build to tag image.
 ```bash
-$ docker build -t quay.io/<QUAY_USERNAME>/direct-csi:<NEW_BUILD_TAG> .
+$ docker build -t quay.io/<QUAY_USERNAME>/directpv:<NEW_BUILD_TAG> .
 ```
 10. Push newly created image to your `quay.io` account.
 ```bash
-$ docker push quay.io/<QUAY_USERNAME>/direct-csi:<NEW_BUILD_TAG>
+$ docker push quay.io/<QUAY_USERNAME>/directpv:<NEW_BUILD_TAG>
 ```
-11. Make sure `direct-csi` repository is `public` in your `quay.io` account.
-12. Install direct-csi.
+11. Make sure `directpv` repository is `public` in your `quay.io` account.
+12. Install directpv.
 ```bash
-$ ./kubectl-direct_csi --kubeconfig <PATH-TO-KUBECONFIG-FILE> install \
---image direct-csi:<NEW_BUILD_TAG> --org <QUAY_USERNAME> --registry quay.io
+$ ./kubectl-directpv --kubeconfig <PATH-TO-KUBECONFIG-FILE> install \
+--image directpv:<NEW_BUILD_TAG> --org <QUAY_USERNAME> --registry quay.io
 ```
-13. Check running direct-csi
+13. Check running directpv
 ```bash
-$ ./kubectl-direct_csi --kubeconfig <PATH-TO-KUBECONFIG-FILE> info
+$ ./kubectl-directpv --kubeconfig <PATH-TO-KUBECONFIG-FILE> info
 
-$ ./kubectl-direct_csi --kubeconfig <PATH-TO-KUBECONFIG-FILE> drives list
+$ ./kubectl-directpv --kubeconfig <PATH-TO-KUBECONFIG-FILE> drives list
 ```
 
 ## Loopback Devices
 
-DirectCSI can automatically provision loopback devices for setups where extra drives are not available. The loopback interface is intended for use with automated testing and continuous integration, and is not recommended for use in regular development or production environments. Some operating systems, such as macOS, place limits on the number of loop devices and can cause DirectCSI to hang while attempting to provision persistent volumes. This issue is particularly noticeable on Kubernetes deployment tools like `kind` or `minikube`, where the deployed infrastructure takes up most if not all of the available loop devices and prevents DirectCSI from provisioning drives entirely.
+DirectPV can automatically provision loopback devices for setups where extra drives are not available. The loopback interface is intended for use with automated testing and continuous integration, and is not recommended for use in regular development or production environments. Some operating systems, such as macOS, place limits on the number of loop devices and can cause DirectPV to hang while attempting to provision persistent volumes. This issue is particularly noticeable on Kubernetes deployment tools like `kind` or `minikube`, where the deployed infrastructure takes up most if not all of the available loop devices and prevents DirectPV from provisioning drives entirely.

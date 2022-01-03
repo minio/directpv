@@ -5,12 +5,12 @@ title: Metrics
 Monitoring guidelines
 ----------------------
 
-DirectCSI nodes export Prometheus compatible metrics data by exposing a metrics endpoint at /direct-csi/metrics. Users looking to monitor their tenants can point Prometheus configuration to scrape data from this endpoint.
+DirectPV nodes export Prometheus compatible metrics data by exposing a metrics endpoint at /directpv/metrics. Users looking to monitor their tenants can point Prometheus configuration to scrape data from this endpoint.
 
-DirectCSI node server exports the following metrics
+DirectPV node server exports the following metrics
 
-- directcsi_stats_bytes_used
-- directcsi_stats_bytes_total
+- directpv_stats_bytes_used
+- directpv_stats_bytes_total
 
 These metrics are categorized by labels ['tenant', 'volumeID', 'node']. These metrics will be representing the volume stats of the published volumes.
 
@@ -20,13 +20,13 @@ Please apply the following Prometheus config to scrape the metrics exposed.
 global:
   scrape_interval: 15s
   external_labels:
-    monitor: 'directcsi-monitor'
+    monitor: 'directpv-monitor'
 
 scrape_configs:
 
-- job_name: 'directcsi-metrics'
+- job_name: 'directpv-metrics'
   scheme: http
-  metrics_path: /direct-csi/metrics
+  metrics_path: /directpv/metrics
   authorization:
     credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
 
@@ -73,11 +73,11 @@ For example, use the following promQL to query the volume stats.
 - To filter out the volumes scheduled in `node-3` node :-
 
 ```
-directcsi_stats_bytes_total{node="node-3"}
+directpv_stats_bytes_total{node="node-3"}
 ```
 
 - To filter out the volumes of tenant `tenant-1` scheduled in `node-5` node :-
 
 ```
-directcsi_stats_bytes_used{tenant="tenant-1", node="node-5"}
+directpv_stats_bytes_used{tenant="tenant-1", node="node-5"}
 ```

@@ -14,7 +14,7 @@ Whenever there is a security update you just need to upgrade to the latest versi
 
 ## Reporting a Vulnerability
 
-All security bugs in [minio/direct-csi](https://github,com/minio/direct-csi) (or other minio/* repositories)
+All security bugs in [minio/directpv](https://github,com/minio/directpv) (or other minio/* repositories)
 should be reported by email to security@min.io. Your email will be acknowledged within 48 hours,
 and you'll receive a more detailed response to your email within 72 hours indicating the next steps
 in handling your report.
