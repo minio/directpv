@@ -34,32 +34,32 @@ import (
 
 var releaseDrivesCmd = &cobra.Command{
 	Use:   "release",
-	Short: "release drives from the DirectCSI cluster",
+	Short: "release drives from the DirectPV cluster",
 	Long:  "",
 	Example: `
  # Release all drives in the cluster
- $ kubectl direct-csi drives release --all
+ $ kubectl directpv drives release --all
  
  # Release the 'sdf' drives in all nodes
- $ kubectl direct-csi drives release --drives '/dev/sdf'
+ $ kubectl directpv drives release --drives '/dev/sdf'
 
  # Release the selective drives using ellipses notation for drive paths
- $ kubectl direct-csi drives release --drives '/dev/sd{a...z}'
+ $ kubectl directpv drives release --drives '/dev/sd{a...z}'
  
  # Release the drives from selective nodes using ellipses notation for node names
- $ kubectl direct-csi drives release --nodes 'directcsi-{1...3}'
+ $ kubectl directpv drives release --nodes 'directpv-{1...3}'
  
  # Release all drives from a particular node
- $ kubectl direct-csi drives release --nodes=directcsi-1
+ $ kubectl directpv drives release --nodes=directpv-1
  
  # Release all drives based on the access-tier set [hot|cold|warm]
- $ kubectl direct-csi drives release --access-tier=hot
+ $ kubectl directpv drives release --access-tier=hot
  
  # Combine multiple parameters using multi-arg
- $ kubectl direct-csi drives release --nodes=directcsi-1 --nodes=othernode-2 --status=available
+ $ kubectl directpv drives release --nodes=directpv-1 --nodes=othernode-2 --status=available
  
  # Combine multiple parameters using csv
- $ kubectl direct-csi drives release --nodes=directcsi-1,othernode-2 --status=ready
+ $ kubectl directpv drives release --nodes=directpv-1,othernode-2 --status=ready
  `,
 	RunE: func(c *cobra.Command, args []string) error {
 		if !all {

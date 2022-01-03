@@ -35,27 +35,27 @@ import (
 
 var listVolumesCmd = &cobra.Command{
 	Use:   "list",
-	Short: "list volumes in the DirectCSI cluster",
+	Short: "list volumes in the DirectPV cluster",
 	Long:  "",
 	Example: `
 
 # List all staged and published volumes
-$ kubectl direct-csi volumes ls --status=staged,published
+$ kubectl directpv volumes ls --status=staged,published
 
 # List all volumes from a particular node
-$ kubectl direct-csi volumes ls --nodes=directcsi-1
+$ kubectl directpv volumes ls --nodes=directcsi-1
 
 # Combine multiple filters using csv
-$ kubectl direct-csi vol ls --nodes=directcsi-1,directcsi-2 --status=staged --drives=/dev/nvme0n1
+$ kubectl directpv vol ls --nodes=directcsi-1,directcsi-2 --status=staged --drives=/dev/nvme0n1
 
 # List all published volumes by pod name
-$ kubectl direct-csi volumes ls --status=published --pod-name=minio-{1...3}
+$ kubectl directpv volumes ls --status=published --pod-name=minio-{1...3}
 
 # List all published volumes by pod namespace
-$ kubectl direct-csi volumes ls --status=published --pod-namespace=tenant-{1...3}
+$ kubectl directpv volumes ls --status=published --pod-namespace=tenant-{1...3}
 
 # List all volumes provisioned based on drive and volume ellipses
-$ kubectl direct-csi volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
+$ kubectl directpv volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
 
 `,
 	RunE: func(c *cobra.Command, args []string) error {

@@ -30,7 +30,7 @@ import (
 
 var installCmd = &cobra.Command{
 	Use:           "install",
-	Short:         "Install direct-csi in k8s cluster",
+	Short:         "Install directpv in k8s cluster",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
@@ -41,7 +41,7 @@ var installCmd = &cobra.Command{
 var (
 	installCRD             = false
 	admissionControl       = false
-	image                  = "direct-csi:" + Version
+	image                  = "directpv:" + Version
 	registry               = "quay.io"
 	org                    = "minio"
 	loopbackOnly           = false

@@ -38,41 +38,41 @@ var (
 
 var formatDrivesCmd = &cobra.Command{
 	Use:   "format",
-	Short: "format drives in the DirectCSI cluster",
+	Short: "format drives in the DirectPV cluster",
 	Long:  "",
 	Example: `
 # Format all available drives in the cluster
-$ kubectl direct-csi drives format --all
+$ kubectl directpv drives format --all
 
 # Format the 'sdf' drives in all nodes
-$ kubectl direct-csi drives format --drives '/dev/sdf'
+$ kubectl directpv drives format --drives '/dev/sdf'
 
 # Format the selective drives using ellipses notation for drive paths
-$ kubectl direct-csi drives format --drives '/dev/sd{a...z}'
+$ kubectl directpv drives format --drives '/dev/sd{a...z}'
 
 # Format the drives from selective nodes using ellipses notation for node names
-$ kubectl direct-csi drives format --nodes 'directcsi-{1...3}'
+$ kubectl directpv drives format --nodes 'directcsi-{1...3}'
 
 # Format all drives from a particular node
-$ kubectl direct-csi drives format --nodes=directcsi-1
+$ kubectl directpv drives format --nodes=directpv-1
 
 # Format all drives based on the access-tier set [hot|cold|warm]
-$ kubectl direct-csi drives format --access-tier=hot
+$ kubectl directpv drives format --access-tier=hot
 
 # Combine multiple parameters using multi-arg
-$ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=available
+$ kubectl directpv drives format --nodes=directpv-1 --nodes=othernode-2 --status=available
 
 # Combine multiple parameters using csv
-$ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=available
+$ kubectl directpv drives format --nodes=directpv-1,othernode-2 --status=available
 
 # Combine multiple parameters using ellipses notations
-$ kubectl direct-csi drives format --nodes "directcsi-{3...4}" --drives "/dev/xvd{b...f}"
+$ kubectl directpv drives format --nodes "directpv-{3...4}" --drives "/dev/xvd{b...f}"
 
 # Format a drive by it's drive-id
-$ kubectl direct-csi drives format <drive_id>
+$ kubectl directpv drives format <drive_id>
 
 # Format more than one drive by their drive-ids
-$ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
+$ kubectl directpv drives format <drive_id_1> <drive_id_2>
 `,
 	RunE: func(c *cobra.Command, args []string) error {
 		if !all {

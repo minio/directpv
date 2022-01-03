@@ -30,7 +30,7 @@ var driveStatusList []directcsi.DriveStatus
 
 var drivesCmd = &cobra.Command{
 	Use:   "drives",
-	Short: "Manage Drives on DirectCSI",
+	Short: "Manage Drives on DirectPV",
 	Long:  "",
 	Aliases: []string{
 		"drive",
@@ -57,6 +57,7 @@ func validateDriveSelectors() (err error) {
 }
 
 func init() {
+	// drivesCmd.SetUsageTemplate("kubectl ashish")
 	drivesCmd.AddCommand(listDrivesCmd)
 	drivesCmd.AddCommand(formatDrivesCmd)
 	drivesCmd.AddCommand(drivesAccessTierCmd)

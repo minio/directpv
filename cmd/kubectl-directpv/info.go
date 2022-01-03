@@ -42,7 +42,7 @@ import (
 
 var infoCmd = &cobra.Command{
 	Use:           "info",
-	Short:         "Info about direct-csi installation",
+	Short:         "Info about directpv installation",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {

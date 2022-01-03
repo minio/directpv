@@ -32,29 +32,29 @@ import (
 
 var accessTierUnset = &cobra.Command{
 	Use:   "unset",
-	Short: "remove the access-tier tag from the DirectCSI drive(s)",
+	Short: "remove the access-tier tag from the DirectPV drive(s)",
 	Long:  "",
 	Example: `
-# Unsets the 'access-tier' tag on all the 'Available' DirectCSI drives 
-$ kubectl direct-csi drives access-tier unset --all
+# Unsets the 'access-tier' tag on all the 'Available' DirectPV drives 
+$ kubectl directpv drives access-tier unset --all
 
 # Unsets the 'access-tier' based on the tier value set
-$ kubectl direct-csi drives access-tier unset --access-tier=warm
+$ kubectl directpv drives access-tier unset --access-tier=warm
 
 # Unsets the 'access-tier' on selective drives using ellipses notation for drive paths
-$ kubectl direct-csi drives access-tier unset --drives '/dev/sd{a...z}'
+$ kubectl directpv drives access-tier unset --drives '/dev/sd{a...z}'
 
 # Unsets the 'access-tier' on drives from selective nodes using ellipses notation for node names
-$ kubectl direct-csi drives access-tier unset --nodes 'directcsi-{1...3}'
+$ kubectl directpv drives access-tier unset --nodes 'directcsi-{1...3}'
 
 # Unsets the 'access-tier' tag on all the drives from a particular node
-$ kubectl direct-csi drives access-tier unset --nodes=directcsi-1
+$ kubectl directpv drives access-tier unset --nodes=directcsi-1
 
 # Combine multiple parameters using multi-arg
-$ kubectl direct-csi drives access-tier unset --nodes=directcsi-1 --nodes=othernode-2 --status=ready
+$ kubectl directpv drives access-tier unset --nodes=directpv-1 --nodes=othernode-2 --status=ready
 
 # Combine multiple parameters using csv
-$ kubectl direct-csi drives access-tier unset --nodes=directcsi-1,othernode-2 --access-tier=hot
+$ kubectl directpv drives access-tier unset --nodes=directpv-1,othernode-2 --access-tier=hot
 `,
 	RunE: func(c *cobra.Command, _ []string) error {
 		if !all {

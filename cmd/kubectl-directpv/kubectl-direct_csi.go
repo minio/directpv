@@ -43,7 +43,7 @@ func main() {
 		os.Exit(1)
 	}()
 
-	if filepath.Base(os.Args[0]) == "kubectl-direct_csi" {
+	if filepath.Base(os.Args[0]) == "kubectl-directpv" {
 		fmt.Println(utils.Bold(utils.Yellow("WARNING")), "plugin `direct-csi` will be deprecated in v2.3, please use `directpv` plugin instead")
 	}
 

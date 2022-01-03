@@ -24,7 +24,7 @@ import (
 
 var unreleaseDrivesCmd = &cobra.Command{
 	Use:   "unrelease",
-	Short: "unrelease drives in the DirectCSI cluster",
+	Short: "unrelease drives in the DirectPV cluster",
 	Long:  "",
 	RunE: func(c *cobra.Command, args []string) error {
 		return nil

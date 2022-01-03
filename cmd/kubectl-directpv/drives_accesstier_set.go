@@ -32,29 +32,29 @@ import (
 
 var accessTierSet = &cobra.Command{
 	Use:   "set [hot|cold|warm]",
-	Short: "tag DirectCSI drive(s) based on their access-tiers [hot,cold,warm]",
+	Short: "tag DirectPV drive(s) based on their access-tiers [hot,cold,warm]",
 	Long:  "",
 	Example: `
-# Sets the 'access-tier:cold' tag to all the 'Available' DirectCSI drives 
-$ kubectl direct-csi drives access-tier set cold --all
+# Sets the 'access-tier:cold' tag to all the 'Available' DirectPV drives 
+$ kubectl directpv drives access-tier set cold --all
 
 # Sets the 'access-tier:warm' tag to 'sdf' drives in all nodes
-$ kubectl direct-csi drives access-tier set warm --drives '/dev/sdf'
+$ kubectl directpv drives access-tier set warm --drives '/dev/sdf'
 
 # Sets the 'access-tier:hot' tag to selective drives using ellipses notation for drive paths
-$ kubectl direct-csi drives access-tier set hot --drives '/dev/sd{a...z}'
+$ kubectl directpv drives access-tier set hot --drives '/dev/sd{a...z}'
 
 # Sets the 'access-tier:hot' tag to drives from selective nodes using ellipses notation for node names
-$ kubectl direct-csi drives access-tier set hot --nodes 'directcsi-{1...3}'
+$ kubectl directpv drives access-tier set hot --nodes 'directpv-{1...3}'
 
 # Sets the 'access-tier:hot' tag to all drives from a particular node
-$ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1
+$ kubectl directpv drives access-tier set hot --nodes=directpv-1
 
 # Combine multiple parameters using multi-arg
-$ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1 --nodes=othernode-2 --status=ready
+$ kubectl directpv drives access-tier set hot --nodes=directpv-1 --nodes=othernode-2 --status=ready
 
 # Combine multiple parameters using csv
-$ kubectl direct-csi drives access-tier set hot --nodes=directcsi-1,othernode-2 --status=ready
+$ kubectl directpv drives access-tier set hot --nodes=directpv-1,othernode-2 --status=ready
 `,
 	RunE: func(c *cobra.Command, args []string) error {
 		if !all {

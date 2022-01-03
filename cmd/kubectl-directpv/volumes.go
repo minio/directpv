@@ -28,7 +28,7 @@ var podNameSelectorValues, podNsSelectorValues []utils.LabelValue
 
 var volumesCmd = &cobra.Command{
 	Use:   "volumes",
-	Short: "Mangage Volumes on DirectCSI",
+	Short: "Mangage Volumes on DirectPV",
 	Long:  "",
 	Aliases: []string{
 		"volume",
