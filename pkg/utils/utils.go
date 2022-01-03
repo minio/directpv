@@ -35,9 +35,9 @@ const (
 
 // Color print functions.
 var (
-	Bold = color.New(color.Bold).SprintFunc()
-	Red  = color.New(color.FgRed).SprintFunc()
-	Yellow  = color.New(color.FgYellow).SprintFunc()
+	Bold   = color.New(color.Bold).SprintFunc()
+	Red    = color.New(color.FgRed).SprintFunc()
+	Yellow = color.New(color.FgYellow).SprintFunc()
 )
 
 // ToYAML converts value to YAML string.
