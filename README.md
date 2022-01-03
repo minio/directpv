@@ -21,7 +21,7 @@ kubectl directpv install
 kubectl directpv drives ls
 # choose all the drives that directpv should manage and format them
 kubectl directpv drives format --drives $DRIVE_SELECTOR_ELLIPSES --nodes $NODE_SELECTOR_ELLIPSES
-# 'direct-pv-min-io' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates
+# 'directpv-min-io' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates
 ```
 
 For more information, please visit our [documentation](./docs/index.md).
@@ -53,7 +53,7 @@ The high consistency and performance benefits of Directpv come with the limitati
 
 ### LICENSE
 
-Use of `direct-pv` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
+Use of `directpv` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
 
 Security
 ---------

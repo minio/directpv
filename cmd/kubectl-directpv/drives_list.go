@@ -37,36 +37,36 @@ import (
 
 var listDrivesCmd = &cobra.Command{
 	Use:   "list",
-	Short: "list drives in the DirectCSI cluster",
+	Short: binaryNameTransform("list drives in the {{ . }} cluster"),
 	Long:  "",
-	Example: `
+	Example: binaryNameTransform(`
 # List all drives
-$ kubectl direct-csi drives ls
+$ kubectl {{ . }} drives ls
 
 # List all drives (including 'unavailable' drives)
-$ kubectl direct-csi drives ls --all
+$ kubectl {{ . }} drives ls --all
 
 # Filter all ready drives 
-$ kubectl direct-csi drives ls --status=ready
+$ kubectl {{ . }} drives ls --status=ready
 
 # Filter all drives from a particular node
-$ kubectl direct-csi drives ls --nodes=directcsi-1
+$ kubectl {{ . }} drives ls --nodes=direct-1
 
 # Combine multiple filters using multi-arg
-$ kubectl direct-csi drives ls --nodes=directcsi-1 --nodes=othernode-2 --status=available
+$ kubectl {{ . }} drives ls --nodes=direct-1 --nodes=othernode-2 --status=available
 
 # Combine multiple filters using csv
-$ kubectl direct-csi drives ls --nodes=directcsi-1,othernode-2 --status=ready
+$ kubectl {{ . }} drives ls --nodes=direct-1,othernode-2 --status=ready
 
 # Filter all drives based on access-tier
-$ kubectl direct-csi drives drives ls --access-tier="hot"
+$ kubectl {{ . }} drives drives ls --access-tier="hot"
 
 # Filter all drives with access-tier being set
-$ kubectl direct-csi drives drives ls --access-tier="*"
+$ kubectl {{ . }} drives drives ls --access-tier="*"
 
 # Filter drives by ellipses notation for drive paths and nodes
-$ kubectl direct-csi drives ls --drives='/dev/xvd{a...d}' --nodes='node-{1...4}'
-`,
+$ kubectl {{ . }} drives ls --drives='/dev/xvd{a...d}' --nodes='node-{1...4}'
+`),
 	RunE: func(c *cobra.Command, args []string) error {
 		if err := validateDriveSelectors(); err != nil {
 			return err

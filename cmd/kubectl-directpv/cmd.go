@@ -20,6 +20,10 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
+	"path/filepath"
+	"strings"
+	"text/template"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -30,7 +34,7 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 )
 
-// Version is kubectl direct-csi version.
+// Version is kubectl directpv version.
 var Version string
 
 // flags
@@ -43,15 +47,27 @@ var (
 	wide       = false
 	json       = false
 	yaml       = false
+
+	binaryName = func() string {
+		base := filepath.Base(os.Args[0])
+		return strings.ReplaceAll(strings.ReplaceAll(base, "kubectl-", ""), "_", "-")
+	}
+	binaryNameTransform = func(text string) string {
+		transformed := &strings.Builder{}
+		if err := template.Must(template.
+			New("").Parse(text)).Execute(transformed, binaryName()); err != nil {
+			panic(err)
+		}
+		return transformed.String()
+	}
 )
 
 var drives, nodes, driveGlobs, nodeGlobs []string
 var driveSelectorValues, nodeSelectorValues []utils.LabelValue
-
 var printer func(interface{}) error
 
 var pluginCmd = &cobra.Command{
-	Use:           "directpv",
+	Use:           binaryName(),
 	Short:         "Kubectl Plugin for managing Direct Persistent Volumes",
 	SilenceUsage:  true,
 	SilenceErrors: false,

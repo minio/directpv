@@ -24,12 +24,12 @@ import (
 
 var unreleaseDrivesCmd = &cobra.Command{
 	Use:   "unrelease",
-	Short: "unrelease drives in the DirectCSI cluster",
+	Short: binaryNameTransform("unrelease drives in the {{ . }} cluster"),
 	Long:  "",
 	RunE: func(c *cobra.Command, args []string) error {
 		return nil
 	},
-	Deprecated:            "please use `kubectl direct-csi drives release` which will umount and make the drives `Available`",
+	Deprecated:            binaryNameTransform("please use `kubectl {{ . }} drives release` which will umount and make the drives `Available`"),
 	Aliases:               []string{},
 	Hidden:                true,
 	DisableFlagsInUseLine: true,

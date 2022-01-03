@@ -34,33 +34,33 @@ import (
 
 var releaseDrivesCmd = &cobra.Command{
 	Use:   "release",
-	Short: "release drives from the DirectCSI cluster",
+	Short: binaryNameTransform("release drives from the {{ . }} cluster"),
 	Long:  "",
-	Example: `
+	Example: binaryNameTransform(`
  # Release all drives in the cluster
- $ kubectl direct-csi drives release --all
+ $ kubectl {{ . }} drives release --all
  
  # Release the 'sdf' drives in all nodes
- $ kubectl direct-csi drives release --drives '/dev/sdf'
+ $ kubectl {{ . }} drives release --drives '/dev/sdf'
 
  # Release the selective drives using ellipses notation for drive paths
- $ kubectl direct-csi drives release --drives '/dev/sd{a...z}'
+ $ kubectl {{ . }} drives release --drives '/dev/sd{a...z}'
  
  # Release the drives from selective nodes using ellipses notation for node names
- $ kubectl direct-csi drives release --nodes 'directcsi-{1...3}'
+ $ kubectl {{ . }} drives release --nodes 'directcsi-{1...3}'
  
  # Release all drives from a particular node
- $ kubectl direct-csi drives release --nodes=directcsi-1
+ $ kubectl {{ . }} drives release --nodes=directcsi-1
  
  # Release all drives based on the access-tier set [hot|cold|warm]
- $ kubectl direct-csi drives release --access-tier=hot
+ $ kubectl {{ . }} drives release --access-tier=hot
  
  # Combine multiple parameters using multi-arg
- $ kubectl direct-csi drives release --nodes=directcsi-1 --nodes=othernode-2 --status=available
+ $ kubectl {{ . }} drives release --nodes=direct-1 --nodes=othernode-2 --status=available
  
  # Combine multiple parameters using csv
- $ kubectl direct-csi drives release --nodes=directcsi-1,othernode-2 --status=ready
- `,
+ $ kubectl {{ . }} drives release --nodes=direct-1,othernode-2 --status=ready
+ `),
 	RunE: func(c *cobra.Command, args []string) error {
 		if !all {
 			if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {

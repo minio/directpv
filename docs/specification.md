@@ -8,7 +8,7 @@ title: Driver Specification
 
 | Key               | Value                     |
 |-------------------|---------------------------|
-| `name`            | `direct-pv-min-io`       |
+| `name`            | `directpv-min-io`       |
 | `podInfoOnMount`  | `true`                    |
 | `attachRequired`  | `false`                   |
 | `modes`           | `Persistent`, `Ephemeral` |
@@ -17,8 +17,8 @@ title: Driver Specification
 
 | Key                 | Value                    |
 |---------------------|--------------------------|
-| `name`              | `direct-pv-min-io`      |
-| `provisioner`       | `direct-pv-min-io`      |
+| `name`              | `directpv-min-io`      |
+| `provisioner`       | `directpv-min-io`      |
 | `reclaimPolicy`     | `Retain`                 |
 | `volumeBindingMode` | `WaitForFirstConsumer`   |
 

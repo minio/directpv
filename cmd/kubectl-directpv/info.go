@@ -42,7 +42,7 @@ import (
 
 var infoCmd = &cobra.Command{
 	Use:           "info",
-	Short:         "Info about direct-csi installation",
+	Short:         binaryNameTransform("Info about {{ . }} installation"),
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
@@ -72,10 +72,11 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		}
 	}
 	if !(drivesFound && volumesFound) {
+		formatter := binaryNameTransform("%s: {{ . }} installation not found")
 		if !quiet {
-			return fmt.Errorf("%s: DirectCSI installation not found", bold("Error"))
+			return fmt.Errorf(formatter, bold("Error"))
 		}
-		return fmt.Errorf("%s: DirectCSI installation not found", bold("Error"))
+		return fmt.Errorf(formatter, bold("Error"))
 	}
 
 	cln, gvk, err := client.GetClientForNonCoreGroupKindVersions("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
@@ -131,16 +132,17 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	}
 
 	if gvk.Version == "v1alpha1" {
-		return errors.New("this version of CSINode is not supported by direct-csi")
+		return errors.New(binaryNameTransform("this version of CSINode is not supported by {{ . }}"))
 	}
 
 	if len(nodeList) == 0 {
 		if !quiet {
-			fmt.Printf("%s: DirectCSI installation %s found\n", red(bold("ERR")), "NOT")
-			fmt.Println()
-			fmt.Printf("run '%s' to get started\n", bold("kubectl direct-csi install"))
+			fmt.Printf(binaryNameTransform("%s: {{ . }} installation %s found\n\n"),
+				red(bold("ERR")), "NOT")
+			fmt.Printf("run '%s' to get started\n",
+				bold(binaryNameTransform("kubectl {{ . }} install")))
 		}
-		return fmt.Errorf("DirectCSI installation not found")
+		return fmt.Errorf(binaryNameTransform("{{ . }} installation not found"))
 	}
 
 	drives, err := getFilteredDriveList(

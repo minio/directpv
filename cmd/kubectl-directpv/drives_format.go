@@ -38,42 +38,42 @@ var (
 
 var formatDrivesCmd = &cobra.Command{
 	Use:   "format",
-	Short: "format drives in the DirectCSI cluster",
+	Short: binaryNameTransform("format drives in the {{ . }} cluster"),
 	Long:  "",
-	Example: `
+	Example: binaryNameTransform(`
 # Format all available drives in the cluster
-$ kubectl direct-csi drives format --all
+$ kubectl {{ . }} drives format --all
 
 # Format the 'sdf' drives in all nodes
-$ kubectl direct-csi drives format --drives '/dev/sdf'
+$ kubectl {{ . }} drives format --drives '/dev/sdf'
 
 # Format the selective drives using ellipses notation for drive paths
-$ kubectl direct-csi drives format --drives '/dev/sd{a...z}'
+$ kubectl {{ . }} drives format --drives '/dev/sd{a...z}'
 
 # Format the drives from selective nodes using ellipses notation for node names
-$ kubectl direct-csi drives format --nodes 'directcsi-{1...3}'
+$ kubectl {{ . }} drives format --nodes 'direct-{1...3}'
 
 # Format all drives from a particular node
-$ kubectl direct-csi drives format --nodes=directcsi-1
+$ kubectl {{ . }} drives format --nodes=direct-1
 
 # Format all drives based on the access-tier set [hot|cold|warm]
-$ kubectl direct-csi drives format --access-tier=hot
+$ kubectl {{ . }} drives format --access-tier=hot
 
 # Combine multiple parameters using multi-arg
-$ kubectl direct-csi drives format --nodes=directcsi-1 --nodes=othernode-2 --status=available
+$ kubectl {{ . }} drives format --nodes=direct-1 --nodes=othernode-2 --status=available
 
 # Combine multiple parameters using csv
-$ kubectl direct-csi drives format --nodes=directcsi-1,othernode-2 --status=available
+$ kubectl {{ . }} drives format --nodes=direct-1,othernode-2 --status=available
 
 # Combine multiple parameters using ellipses notations
-$ kubectl direct-csi drives format --nodes "directcsi-{3...4}" --drives "/dev/xvd{b...f}"
+$ kubectl {{ . }} drives format --nodes "direct-{3...4}" --drives "/dev/xvd{b...f}"
 
 # Format a drive by it's drive-id
-$ kubectl direct-csi drives format <drive_id>
+$ kubectl {{ . }} drives format <drive_id>
 
 # Format more than one drive by their drive-ids
-$ kubectl direct-csi drives format <drive_id_1> <drive_id_2>
-`,
+$ kubectl {{ . }} drives format <drive_id_1> <drive_id_2>
+`),
 	RunE: func(c *cobra.Command, args []string) error {
 		if !all {
 			if len(drives) == 0 && len(nodes) == 0 && len(accessTiers) == 0 && len(args) == 0 {
@@ -131,7 +131,7 @@ func formatDrives(ctx context.Context, IDArgs []string) error {
 			}
 
 			if drive.Status.DriveStatus == directcsi.DriveStatusReleased {
-				klog.Errorf("%s is in 'released' state. Use 'kubectl direct-csi drives unrelease --drive %s --nodes %s' before formatting",
+				klog.Errorf(binaryNameTransform("%s is in 'released' state. Use 'kubectl {{ . }} drives unrelease --drive %s --nodes %s' before formatting"),
 					utils.Bold(driveAddr), path, drive.Status.NodeName)
 				return false
 			}

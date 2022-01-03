@@ -28,7 +28,7 @@ import (
 
 var uninstallCmd = &cobra.Command{
 	Use:          "uninstall",
-	Short:        "Uninstall direct-csi in k8s cluster",
+	Short:        binaryNameTransform("Uninstall {{ . }} in k8s cluster"),
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
 		return uninstall(c.Context(), args)

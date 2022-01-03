@@ -32,30 +32,30 @@ import (
 
 var accessTierUnset = &cobra.Command{
 	Use:   "unset",
-	Short: "remove the access-tier tag from the DirectCSI drive(s)",
+	Short: binaryNameTransform("remove the access-tier tag from the {{ . }} drive(s)"),
 	Long:  "",
-	Example: `
-# Unsets the 'access-tier' tag on all the 'Available' DirectCSI drives 
-$ kubectl direct-csi drives access-tier unset --all
+	Example: binaryNameTransform(`
+# Unsets the 'access-tier' tag on all the 'Available' {{ . }} drives 
+$ kubectl {{ . }} drives access-tier unset --all
 
 # Unsets the 'access-tier' based on the tier value set
-$ kubectl direct-csi drives access-tier unset --access-tier=warm
+$ kubectl {{ . }} drives access-tier unset --access-tier=warm
 
 # Unsets the 'access-tier' on selective drives using ellipses notation for drive paths
-$ kubectl direct-csi drives access-tier unset --drives '/dev/sd{a...z}'
+$ kubectl {{ . }} drives access-tier unset --drives '/dev/sd{a...z}'
 
 # Unsets the 'access-tier' on drives from selective nodes using ellipses notation for node names
-$ kubectl direct-csi drives access-tier unset --nodes 'directcsi-{1...3}'
+$ kubectl {{ . }} drives access-tier unset --nodes 'directcsi-{1...3}'
 
 # Unsets the 'access-tier' tag on all the drives from a particular node
-$ kubectl direct-csi drives access-tier unset --nodes=directcsi-1
+$ kubectl {{ . }} drives access-tier unset --nodes=directcsi-1
 
 # Combine multiple parameters using multi-arg
-$ kubectl direct-csi drives access-tier unset --nodes=directcsi-1 --nodes=othernode-2 --status=ready
+$ kubectl {{ . }} drives access-tier unset --nodes=directcsi-1 --nodes=othernode-2 --status=ready
 
 # Combine multiple parameters using csv
-$ kubectl direct-csi drives access-tier unset --nodes=directcsi-1,othernode-2 --access-tier=hot
-`,
+$ kubectl {{ . }} drives access-tier unset --nodes=directcsi-1,othernode-2 --access-tier=hot
+`),
 	RunE: func(c *cobra.Command, _ []string) error {
 		if !all {
 			if len(drives) == 0 && len(nodes) == 0 && len(status) == 0 && len(accessTiers) == 0 {

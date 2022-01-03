@@ -7,10 +7,6 @@ direct-csi
 !direct-csi/
 kubectl-direct_csi
 !kubectl-direct_csi/
-direct-pv
-!direct-pv/
-kubectl-direct_pv
-!kubectl-direct_pv/
 *.qcow2*
 directpv
 !directpv/
