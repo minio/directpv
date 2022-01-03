@@ -30,7 +30,7 @@ Usage:
   kubectl-directpv uninstall [flags]
 
 Flags:
-  -c, --crd    unregister direct.pv.min.io group crds
+  -c, --crd    unregister directpv.min.io group crds
   -h, --help   help for uninstall
 
 Global Flags:
@@ -225,21 +225,21 @@ Flags:
 ```sh
 $ kubectl -n directpv-min-io get pods
 NAME                                 READY   STATUS    RESTARTS   AGE
-direct-pv-min-io-2hcmc              3/3     Running   0          6s
-direct-pv-min-io-79bc887cff-5rxzj   2/2     Running   0          6s
-direct-pv-min-io-79bc887cff-hpzzx   2/2     Running   0          6s
-direct-pv-min-io-79bc887cff-pf98s   2/2     Running   0          6s
-direct-pv-min-io-l2hq8              3/3     Running   0          6s
-direct-pv-min-io-mfv4h              3/3     Running   0          6s
-direct-pv-min-io-zq486              3/3     Running   0          6s
+directpv-min-io-2hcmc              3/3     Running   0          6s
+directpv-min-io-79bc887cff-5rxzj   2/2     Running   0          6s
+directpv-min-io-79bc887cff-hpzzx   2/2     Running   0          6s
+directpv-min-io-79bc887cff-pf98s   2/2     Running   0          6s
+directpv-min-io-l2hq8              3/3     Running   0          6s
+directpv-min-io-mfv4h              3/3     Running   0          6s
+directpv-min-io-zq486              3/3     Running   0          6s
 ```
 
  - Check if directpvdrives and directpvvolumes CRDs are registered
 
 ```sh
 $ kubectl get crd | grep directpv
-directpvdrives.direct.pv.min.io                     2020-12-23T03:01:13Z
-directpvvolumes.direct.pv.min.io                    2020-12-23T03:01:13Z
+directpvdrives.directpv.min.io                     2020-12-23T03:01:13Z
+directpvvolumes.directpv.min.io                    2020-12-23T03:01:13Z
 ```
 
  - Check if Directpv drives are discovered. Atleast 1 drive should be in `Ready` or `InUse` for volumes to be provisioned
@@ -265,7 +265,7 @@ $ kubectl directpv drives list --all
  - Check if volumes are being provisioned correctly
 
 ```sh
-# Create a volumeClaimTemplate that refers to direct-pv-min-io driver
+# Create a volumeClaimTemplate that refers to directpv-min-io driver
 $ cat minio.yaml | grep -C 10 direct.pv.min.io
   volumeClaimTemplates: # This is the specification in which you reference the StorageClass
   - metadata:

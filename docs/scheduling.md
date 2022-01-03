@@ -27,13 +27,13 @@ kubectl directpv drives access-tier set hot|cold|warm [FLAGS]
 kubectl directpv drives format --access-tier=hot|cold|warm
 ```
 
-#### Step 3: Set the 'direct-pv-min-io/access-tier' parameter in storage class definition
+#### Step 3: Set the 'directpv-min-io/access-tier' parameter in storage class definition
 
 Create a storage class with the following parameter set
 
 ```
 parameters:
-  direct-pv-min-io/access-tier: warm|hot|cold
+  directpv-min-io/access-tier: warm|hot|cold
 ```
 
 #### Step 4: Deploy the workload with the corresponding storage class name set

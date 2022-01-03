@@ -90,9 +90,9 @@ This will show information about the drives formatted and added to directpv.
 
 After running this installation:
 
- - storage class named `direct-pv-min-io` is created
- - `direct-pv-min-io` can be specified in `PodSpec.VolumeClaimTemplates` to provision DirectPV volumes
- - example statefulset using direct-pv can be found [here](../minio.yaml#L61) 
+ - storage class named `directpv-min-io` is created
+ - `directpv-min-io` can be specified in `PodSpec.VolumeClaimTemplates` to provision DirectPV volumes
+ - example statefulset using directpv can be found [here](../minio.yaml#L61) 
  - optional: view the [driver specification](./specification.md)
 <!-- - view the [usage guide](./usage-guide.md) -->
 

@@ -35,29 +35,29 @@ import (
 
 var listVolumesCmd = &cobra.Command{
 	Use:   "list",
-	Short: "list volumes in the DirectCSI cluster",
+	Short: binaryNameTransform("list volumes in the {{ . }} cluster"),
 	Long:  "",
-	Example: `
+	Example: binaryNameTransform(`
 
 # List all staged and published volumes
-$ kubectl direct-csi volumes ls --status=staged,published
+$ kubectl {{ . }} volumes ls --status=staged,published
 
 # List all volumes from a particular node
-$ kubectl direct-csi volumes ls --nodes=directcsi-1
+$ kubectl {{ . }} volumes ls --nodes=direct-1
 
 # Combine multiple filters using csv
-$ kubectl direct-csi vol ls --nodes=directcsi-1,directcsi-2 --status=staged --drives=/dev/nvme0n1
+$ kubectl {{ . }} vol ls --nodes=direct-1,direct-2 --status=staged --drives=/dev/nvme0n1
 
 # List all published volumes by pod name
-$ kubectl direct-csi volumes ls --status=published --pod-name=minio-{1...3}
+$ kubectl {{ . }} volumes ls --status=published --pod-name=minio-{1...3}
 
 # List all published volumes by pod namespace
-$ kubectl direct-csi volumes ls --status=published --pod-namespace=tenant-{1...3}
+$ kubectl {{ . }} volumes ls --status=published --pod-namespace=tenant-{1...3}
 
 # List all volumes provisioned based on drive and volume ellipses
-$ kubectl direct-csi volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
+$ kubectl {{ . }} volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
 
-`,
+`),
 	RunE: func(c *cobra.Command, args []string) error {
 		if err := validateVolumeSelectors(); err != nil {
 			return err

@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -52,14 +53,14 @@ var (
 )
 
 var driverCmd = &cobra.Command{
-	Use:   os.Args[0],
+	Use:   filepath.Base(os.Args[0]),
 	Short: "CSI driver for provisioning from JBOD(s) directly",
 	Long: fmt.Sprintf(`
 This Container Storage Interface (CSI) driver provides just a bunch of drives (JBODs) as volumes consumable within containers. This driver does not manage the lifecycle of the data or the backing of the disk itself. It only acts as the middle-man between a drive and a container runtime.
 
 This driver is rack, region and zone aware i.e., a workload requesting volumes with constraints on rack, region or zone will be scheduled to run only within the constraints. This is useful for requesting volumes that need to be within a specified failure domain (rack, region or zone)
 
-For more information, use '%s man [sched | examples | ...]'
+For more information, use '%s --help'
 `, os.Args[0]),
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
