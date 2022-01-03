@@ -171,7 +171,7 @@ func (c *Config) storageClassNameDirectCSI() string {
 }
 
 func (c *Config) storageClassNameDirectPV() string {
-	return "direct-pv-min-io"
+	return "directpv-min-io"
 }
 
 func (c *Config) driverIdentity() string {
