@@ -1,4 +1,4 @@
-DirectCSI
+DirectPV
 ----------
 
 ![build](https://github.com/minio/directpv/workflows/Go/badge.svg) ![license](https://img.shields.io/badge/license-AGPL%20V3-blue) 
@@ -17,8 +17,8 @@ Here is the ***extremely*** quickstart:
 
 ```sh
 kubectl krew install direct-csi
-kubectl direct-csi install
-kubectl direct-csi drives ls
+kubectl directpv install
+kubectl directpv drives ls
 # choose all the drives that direct-csi should manage and format them
 kubectl direct-csi drives format --drives $DRIVE_SELECTOR_ELLIPSES --nodes $NODE_SELECTOR_ELLIPSES
 # 'direct-csi-min-io' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates

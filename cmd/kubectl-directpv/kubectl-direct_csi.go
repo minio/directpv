@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -41,6 +42,10 @@ func main() {
 		<-time.After(1 * time.Second)
 		os.Exit(1)
 	}()
+
+	if filepath.Base(os.Args[0]) == "kubectl-direct_csi" {
+		fmt.Println(utils.Bold(utils.Yellow("WARNING")), "plugin `direct-csi` will be deprecated in v2.3, please use `directpv` plugin instead")
+	}
 
 	if err := Execute(ctx); err != nil {
 		fmt.Println(utils.Bold(utils.Red("ERROR")), err)

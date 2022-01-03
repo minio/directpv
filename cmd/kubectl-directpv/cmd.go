@@ -51,8 +51,8 @@ var driveSelectorValues, nodeSelectorValues []utils.LabelValue
 var printer func(interface{}) error
 
 var pluginCmd = &cobra.Command{
-	Use:           "direct-csi",
-	Short:         "Plugin for managing Direct CSI drives and volumes",
+	Use:           "directpv",
+	Short:         "Kubectl Plugin for managing Direct Persistent Volumes",
 	SilenceUsage:  true,
 	SilenceErrors: false,
 	Version:       Version,

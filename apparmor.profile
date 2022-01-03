@@ -1,6 +1,6 @@
 #include <tunables/global>
 
-profile direct-csi flags=(attach_disconnected,mediate_deleted) {
+profile directpv flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
   network,
@@ -35,6 +35,7 @@ profile direct-csi flags=(attach_disconnected,mediate_deleted) {
 
   # allow direct-csi directory to be writeable
   /var/lib/direct-csi/** w,
+  /var/lib/directpv/** w,
   /var/lib/kubelet/** w,
   /csi/** w,
 
