@@ -16,12 +16,12 @@ Historically, these datastores relied on Kubernetes-provided HostPath and LocalP
 Here is the ***extremely*** quickstart:
 
 ```sh
-kubectl krew install direct-csi
+kubectl krew install directpv
 kubectl directpv install
 kubectl directpv drives ls
-# choose all the drives that direct-csi should manage and format them
-kubectl direct-csi drives format --drives $DRIVE_SELECTOR_ELLIPSES --nodes $NODE_SELECTOR_ELLIPSES
-# 'direct-csi-min-io' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates
+# choose all the drives that directpv should manage and format them
+kubectl directpv drives format --drives $DRIVE_SELECTOR_ELLIPSES --nodes $NODE_SELECTOR_ELLIPSES
+# 'direct-pv-min-io' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates
 ```
 
 For more information, please visit our [documentation](./docs/index.md).
@@ -30,7 +30,7 @@ For more information, please visit our [documentation](./docs/index.md).
 
 [LocalVolume](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) provisioner also allows direct access to the storage medium. However, it requires manual management of drives and volumes - i.e. it does not support dynamic provisioning of volumes, storage management or dynamic scheduling of pods on nodes with available volumes. 
 
-DirectCSI on the other hand, supports dynamic provisioning of volumes, performs allocation of volumes based on storage capacity, and schedules pods to run on nodes which have most capacity available. 
+Directpv on the other hand, supports dynamic provisioning of volumes, performs allocation of volumes based on storage capacity, and schedules pods to run on nodes which have most capacity available. 
 
 ### How is it different from HostPath volume?
 
@@ -39,9 +39,9 @@ DirectCSI on the other hand, supports dynamic provisioning of volumes, performs 
 HostPath volumes cannot be provisioned and managed via PVC resources. It is always provisioned either manually as a PV or directly specified in the PodSpec. 
 
 
-### Limitations of DirectCSI
+### Limitations of Directpv
 
-The high consistency and performance benefits of DirectCSI come with the limitation that once provisioned, volumes cannot be moved to other nodes i.e. volumes are sticky to nodes.
+The high consistency and performance benefits of Directpv come with the limitation that once provisioned, volumes cannot be moved to other nodes i.e. volumes are sticky to nodes.
 
 
 ### References
@@ -53,7 +53,7 @@ The high consistency and performance benefits of DirectCSI come with the limitat
 
 ### LICENSE
 
-Use of `direct-csi` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
+Use of `direct-pv` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
 
 Security
 ---------
