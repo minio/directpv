@@ -242,7 +242,7 @@ directpvdrives.directpv.min.io                     2020-12-23T03:01:13Z
 directpvvolumes.directpv.min.io                    2020-12-23T03:01:13Z
 ```
 
- - Check if Directpv drives are discovered. Atleast 1 drive should be in `Ready` or `InUse` for volumes to be provisioned
+ - Check if DirectPV drives are discovered. Atleast 1 drive should be in `Ready` or `InUse` for volumes to be provisioned
 
 
 ```sh

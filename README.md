@@ -30,7 +30,7 @@ For more information, please visit our [documentation](./docs/index.md).
 
 [LocalVolume](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) provisioner also allows direct access to the storage medium. However, it requires manual management of drives and volumes - i.e. it does not support dynamic provisioning of volumes, storage management or dynamic scheduling of pods on nodes with available volumes. 
 
-Directpv on the other hand, supports dynamic provisioning of volumes, performs allocation of volumes based on storage capacity, and schedules pods to run on nodes which have most capacity available. 
+DirectPV on the other hand, supports dynamic provisioning of volumes, performs allocation of volumes based on storage capacity, and schedules pods to run on nodes which have most capacity available. 
 
 ### How is it different from HostPath volume?
 
@@ -39,9 +39,9 @@ Directpv on the other hand, supports dynamic provisioning of volumes, performs a
 HostPath volumes cannot be provisioned and managed via PVC resources. It is always provisioned either manually as a PV or directly specified in the PodSpec. 
 
 
-### Limitations of Directpv
+### Limitations of DirectPV
 
-The high consistency and performance benefits of Directpv come with the limitation that once provisioned, volumes cannot be moved to other nodes i.e. volumes are sticky to nodes.
+The high consistency and performance benefits of DirectPV come with the limitation that once provisioned, volumes cannot be moved to other nodes i.e. volumes are sticky to nodes.
 
 
 ### References
