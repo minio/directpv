@@ -47,6 +47,7 @@ var (
 	wide       = false
 	json       = false
 	yaml       = false
+	noHeaders  = false
 
 	binaryName = func() string {
 		base := filepath.Base(os.Args[0])
@@ -117,8 +118,16 @@ func init() {
 	pluginCmd.PersistentFlags().StringVarP(&outputMode, "output", "o", outputMode,
 		"output format should be one of wide|json|yaml or empty")
 	pluginCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "", dryRun, "prints the installation yaml")
+	pluginCmd.PersistentFlags().BoolVarP(&noHeaders, "no-headers", "", noHeaders, "disables table headers")
 
 	pluginCmd.PersistentFlags().MarkHidden("alsologtostderr")
+	pluginCmd.PersistentFlags().MarkHidden("add_dir_header")
+	pluginCmd.PersistentFlags().MarkHidden("log_file")
+	pluginCmd.PersistentFlags().MarkHidden("log_file_max_size")
+	pluginCmd.PersistentFlags().MarkHidden("one_output")
+	pluginCmd.PersistentFlags().MarkHidden("skip_headers")
+	pluginCmd.PersistentFlags().MarkHidden("skip_log_headers")
+	pluginCmd.PersistentFlags().MarkHidden("v")
 	pluginCmd.PersistentFlags().MarkHidden("log_backtrace_at")
 	pluginCmd.PersistentFlags().MarkHidden("log_dir")
 	pluginCmd.PersistentFlags().MarkHidden("logtostderr")

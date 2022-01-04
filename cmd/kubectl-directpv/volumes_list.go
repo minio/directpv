@@ -124,7 +124,9 @@ func listVolumes(ctx context.Context, args []string) error {
 	text.DisableColors()
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(headers)
+	if !noHeaders {
+		t.AppendHeader(headers)
+	}
 
 	style := table.StyleColoredDark
 	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}

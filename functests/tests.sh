@@ -94,7 +94,7 @@ function do_upgrade_test() {
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" volumes list --all -o wide
 
-    mapfile -t upgraded_volumes < <("${DIRECT_CSI_CLIENT}" volumes list --status published | awk '{print $1}')
+    mapfile -t upgraded_volumes < <("${DIRECT_CSI_CLIENT}" volumes list --status published | grep -v WARNING | awk '{print $1}')
     if [[ ${#upgraded_volumes[@]} -ne ${#volumes[@]} ]]; then
         echo "$ME: volume count is not matching in version compatibility client tests"
         return 1
@@ -117,7 +117,7 @@ function do_upgrade_test() {
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" volumes list --all -o wide
 
-    mapfile -t upgraded_volumes < <("${DIRECT_CSI_CLIENT}" volumes list --status published | awk '{print $1}')
+    mapfile -t upgraded_volumes < <("${DIRECT_CSI_CLIENT}" volumes list --status published | grep -v WARNING | awk '{print $1}')
     if [[ ${#upgraded_volumes[@]} -ne ${#volumes[@]} ]]; then
         echo "$ME: volume count is not matching after upgrade"
         return 1
