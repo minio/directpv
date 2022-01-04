@@ -10,9 +10,9 @@ DirectCSI runs with elevated privileges, which are needed for reading block devi
 | mount       | CAP_SYS_ADMIN               | privileged: true     | Seccomp & Apparmor        |
 | umount      | CAP_SYS_ADMIN               | privileged: true     | Seccomp & Apparmor        |
 
-The [Apparmor profile](./apparmor.profile) restricts mounts/unmounts to directories specified [here](#file-permissions). In addition, it prevents execution of all binaries in direct-csi pods except ones listed [here](#external-binary-execution).
+The [Apparmor profile](./apparmor.profile) restricts mounts/unmounts to directories specified [here](#file-permissions). In addition, it prevents execution of all binaries in DirectPV pods except ones listed [here](#external-binary-execution).
 
-The [Seccomp profile](./seccomp.json) restricts syscalls to the minimum required by direct-csi.
+The [Seccomp profile](./seccomp.json) restricts syscalls to the minimum required by DirectPV.
 
 ### Host Access
 

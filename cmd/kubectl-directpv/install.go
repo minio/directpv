@@ -41,7 +41,7 @@ var installCmd = &cobra.Command{
 var (
 	installCRD             = false
 	admissionControl       = false
-	image                  = "direct-csi:" + Version
+	image                  = "directpv:" + Version
 	registry               = "quay.io"
 	org                    = "minio"
 	loopbackOnly           = false
@@ -55,10 +55,10 @@ var (
 
 func init() {
 	installCmd.PersistentFlags().BoolVarP(&installCRD, "crd", "c", installCRD, "register crds along with installation")
-	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "direct-csi image")
-	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "registry where direct-csi images are available")
-	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "organization name where direct-csi images are available")
-	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on direct-csi admission controller")
+	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "DirectPV image")
+	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "registry where DirectPV images are available")
+	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "organization name where DirectPV images are available")
+	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on DirectPV admission controller")
 	installCmd.PersistentFlags().MarkDeprecated("crd", "Will be removed in version 1.5 or greater")
 	installCmd.PersistentFlags().StringSliceVarP(&nodeSelectorParameters, "node-selector", "n", nodeSelectorParameters, "node selector parameters")
 	installCmd.PersistentFlags().StringSliceVarP(&tolerationParameters, "tolerations", "t", tolerationParameters, "tolerations parameters")
@@ -89,8 +89,10 @@ func install(ctx context.Context, args []string) (err error) {
 		return fmt.Errorf("invalid tolerations. format of '--tolerations' must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>")
 	}
 
-	klog.Infof("Enable dynamic drive change management using " + utils.Bold("--dynamic-drive-discovery") + " flag")
-	klog.Infof("This flag will be made default in the next major release version")
+	if !dynamicDriveDiscovery {
+		klog.Infof("Enable dynamic drive change management using " + utils.Bold("--enable-dynamic-discovery") + " flag")
+		klog.Infof("This flag will be made default in the next major release version")
+	}
 
 	file, err := utils.OpenAuditFile(auditInstall)
 	if err != nil {

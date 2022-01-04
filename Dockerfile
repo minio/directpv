@@ -2,6 +2,7 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:8.5
 
 WORKDIR /
 
+COPY directpv /directpv
 COPY CREDITS /licenses/CREDITS
 COPY LICENSE /licenses/LICENSE
 
@@ -15,6 +16,4 @@ RUN \
     microdnf clean all && \
     rm -f /etc/yum.repos.d/CentOS.repo
 
-COPY direct-csi direct-csi
-
-ENTRYPOINT ["/direct-csi"]
+ENTRYPOINT ["/directpv"]

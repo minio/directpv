@@ -23,7 +23,7 @@ warn() {
 fatal() {
     echo "[ERROR] " "$@" >&2
     if [ -n "${SUFFIX}" ]; then
-        echo "[ALT] Please visit 'https://github.com/minio/directpv/releases' directly and download the latest direct-csi_${SUFFIX}" >&2
+        echo "[ALT] Please visit 'https://github.com/minio/directpv/releases' directly and download the latest directpv-${SUFFIX}" >&2
     fi
     exit 1
 }
