@@ -24,27 +24,26 @@ BUILD_VERSION=$(git describe --tags --always --dirty)
 "${SCRIPT_DIR}/update-codegen.sh"
 
 export CGO_ENABLED=0
+export GO111MODULE=on
 
-go get -u github.com/jteeuwen/go-bindata/...
+go install -v github.com/jteeuwen/go-bindata/go-bindata@latest
 go-bindata -pkg installer -o "${SCRIPT_DIR}/../pkg/installer/crd_bindata.go" "${SCRIPT_DIR}/../config/crd/..."
 gofmt -s -w "${SCRIPT_DIR}/../pkg/installer/crd_bindata.go"
 
 "${SCRIPT_DIR}/add-license-header.sh"
 
-export GO111MODULE=on
+go build -tags "osusergo netgo static_build" \
+   -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
+   ./cmd/direct-csi -o direct-csi
 
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   github.com/minio/directpv/cmd/direct-csi
+   ./cmd/directpv -o directpv
 
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   github.com/minio/directpv/cmd/directpv
+   ./cmd/kubectl-directpv -o kubectl-directpv
 
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   github.com/minio/directpv/cmd/kubectl-directpv
-
-go build -tags "osusergo netgo static_build" \
-   -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   github.com/minio/directpv/cmd/kubectl-direct_csi
+   ./cmd/kubectl-direct_csi -o kubectl-direct_csi

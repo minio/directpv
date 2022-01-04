@@ -194,7 +194,7 @@ function uninstall_minio() {
     "${DIRECT_CSI_CLIENT}" volumes ls
 
     while true; do
-        count=$("${DIRECT_CSI_CLIENT}" volumes ls | grep -v WARNING| wc -l)
+        count=$("${DIRECT_CSI_CLIENT}" volumes ls | grep -cv WARNING)
         if [[ $count -eq 1 ]]; then
             break
         fi
