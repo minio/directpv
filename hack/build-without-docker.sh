@@ -34,16 +34,20 @@ gofmt -s -w "${SCRIPT_DIR}/../pkg/installer/crd_bindata.go"
 
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   ./cmd/direct-csi -o direct-csi
+   -o direct-csi
+   ./cmd/direct-csi
 
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   ./cmd/directpv -o directpv
+   -o directpv
+   ./cmd/directpv
 
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   ./cmd/kubectl-directpv -o kubectl-directpv
+   -o kubectl-directpv
+   ./cmd/kubectl-directpv
 
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
-   ./cmd/kubectl-direct_csi -o kubectl-direct_csi
+   -o kubectl-direct_csi
+   ./cmd/kubectl-direct_csi

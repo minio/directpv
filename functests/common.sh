@@ -68,7 +68,7 @@ function remove_luks() {
     rm -f testluks.img
 }
 
-function _wait_directcsi_to_start() {
+function _wait_directpv_to_start() {
     required_count=4
     if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
         required_count=7 # plus 3 for conversion deployment pods
@@ -77,7 +77,7 @@ function _wait_directcsi_to_start() {
     while [[ $running_count -lt $required_count ]]; do
         echo "$ME: waiting for $(( required_count - running_count )) direct-csi pods to come up"
         sleep $(( required_count - running_count ))
-        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv-min-io | wc -l)
     done
 
     while true; do
@@ -89,21 +89,21 @@ function _wait_directcsi_to_start() {
     done
 }
 
-function install_directcsi() {
+function install_directpv() {
     image="direct-csi:${DIRECT_CSI_VERSION}"
     if [ -n "$1" ]; then
         image="$1"
     fi
     "${DIRECT_CSI_CLIENT}" install --image "$image"
-    _wait_directcsi_to_start
+    _wait_directpv_to_start
 }
 
-function install_directcsi_with_dynamic_discovery() {
-    "${DIRECT_CSI_CLIENT}" install --image "direct-csi:${DIRECT_CSI_VERSION}" --enable-dynamic-discovery
-    _wait_directcsi_to_start
+function install_directpv_with_dynamic_discovery() {
+    "${DIRECT_CSI_CLIENT}" install --image "directpv:${DIRECT_CSI_VERSION}" --enable-dynamic-discovery
+    _wait_directpv_to_start
 }
 
-function uninstall_directcsi() {
+function uninstall_directpv() {
     "${DIRECT_CSI_CLIENT}" uninstall  --crd --force
 
     pending=4
@@ -113,7 +113,7 @@ function uninstall_directcsi() {
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} direct-csi pods to go down"
         sleep ${pending}
-        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
+        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv-min-io | wc -l)
     done
 
     wait_namespace_removal
@@ -219,7 +219,7 @@ function wait_namespace_removal() {
     while true; do
         echo "$ME: waiting for direct-csi-min-io namespace to be removed"
         sleep 5
-        if ! kubectl get namespace direct-csi-min-io --no-headers | grep -q .; then
+        if ! kubectl get namespace directpv-min-io --no-headers | grep -q .; then
             return 0
         fi
     done

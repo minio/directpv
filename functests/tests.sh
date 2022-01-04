@@ -28,7 +28,7 @@ function test_build() {
     deploy_minio
     uninstall_minio
     uninstall_directcsi
-    # Check uninstall succeeds even if direct-csi is completely gone.
+    # Check uninstall succeeds even if directpv is completely gone.
     "${DIRECT_CSI_CLIENT}" uninstall --crd --force
 }
 
@@ -36,14 +36,14 @@ function do_upgrade_test() {
     wget --quiet --output-document="kubectl-direct_csi_$1" "https://github.com/minio/directpv/releases/download/v$1/kubectl-direct_csi_$1_linux_amd64"
     chmod a+x "kubectl-direct_csi_$1"
 
-    # unmount all direct-csi mounts of previous installation if any.
-    mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl
+    # unmount all directpv mounts of previous installation if any.
+    mount | awk '/directpv/ {print $3}' | xargs sudo umount -fl
 
     DIRECT_CSI_CLIENT="./kubectl-direct_csi_$1"
     DIRECT_CSI_VERSION="v$1"
-    image="direct-csi:${DIRECT_CSI_VERSION}"
+    image="directpv:${DIRECT_CSI_VERSION}"
     if [ -n "${RHEL7_TEST}" ]; then
-        image="direct-csi:${DIRECT_CSI_VERSION}-rhel7"
+        image="directpv:${DIRECT_CSI_VERSION}-rhel7"
     fi
     install_directcsi "$image"
     check_drives
@@ -71,13 +71,13 @@ function do_upgrade_test() {
     fi
 
     while [[ $pending -gt ${wait_count} ]]; do
-        echo "$ME: waiting for ${pending} direct-csi pods to go down"
+        echo "$ME: waiting for ${pending} directpv pods to go down"
         sleep ${pending}
-        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
+        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv-min-io | wc -l)
     done
 
     # Show output for manual debugging.
-    kubectl get pods -n direct-csi-min-io
+    kubectl get pods -n directpv-min-io
 
     if [[ $1 != "1.3.6" ]]; then
         wait_namespace_removal
@@ -147,7 +147,9 @@ do_upgrade_test "1.3.6"
 echo "$ME: Run upgrade test from v1.4.6"
 do_upgrade_test "1.4.6"
 
-# unmount all direct-csi mounts of previous installation if any.
+# unmount all directpv mounts of previous installation if any.
+mount | awk '/directpv/ {print $3}' | xargs sudo umount -fl
 mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl
+
 remove_luks
 remove_lvm
