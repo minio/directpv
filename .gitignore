@@ -12,3 +12,4 @@ directpv
 !directpv/
 kubectl-directpv
 !kubectl-directpv/
+vdb.xml
