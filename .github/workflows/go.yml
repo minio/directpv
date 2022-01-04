@@ -53,7 +53,7 @@ jobs:
           go test -v ./... -tags skip -coverprofile="codecov-coverage.txt" -covermode=atomic
           ./build.sh
           curl -s https://codecov.io/bash | bash -s -- -f "codecov-coverage.txt" -F ubuntu-latest
-          docker build . -t "direct-csi:latest"
+          docker build . -t "directpv:latest"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2

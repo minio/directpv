@@ -43,6 +43,7 @@ profile directpv flags=(attach_disconnected,mediate_deleted) {
   /usr/sbin/mkfs ix,
   /usr/sbin/mkfs.xfs ix,
   /direct-csi ix,
+  /directpv ix,
 
   deny /bin/sh mrwklx,
   deny /bin/bash mrwklx,

@@ -89,7 +89,7 @@ function build_directcsi() {
     export BUILD_TAG
 
     export CGO_ENABLED=0 GO111MODULE=on
-    go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/direct-csi
+    go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/directpv
     go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/kubectl-direct_csi
 }
 
@@ -117,7 +117,7 @@ function run_functional_test() {
     start_test_vm
 
     scp_cmd CREDITS LICENSE centos.repo direct-csi kubectl-direct_csi Dockerfile "root@${VM_IPADDR}:"
-    ssh_cmd "${VM_IPADDR}" "docker build -t quay.io/minio/direct-csi:${BUILD_TAG} -f Dockerfile ."
+    ssh_cmd "${VM_IPADDR}" "docker build -t quay.io/minio/directpv:${BUILD_TAG} -f Dockerfile ."
     ssh_cmd "${VM_IPADDR}" "minikube start --driver=none"
     scp_cmd -r functests "root@${VM_IPADDR}:"
     ssh_cmd "${VM_IPADDR}" "RHEL7_TEST=1 functests/run.sh ${BUILD_TAG}"
