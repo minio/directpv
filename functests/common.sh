@@ -194,7 +194,8 @@ function uninstall_minio() {
     "${DIRECT_CSI_CLIENT}" volumes ls
 
     while true; do
-        count=$("${DIRECT_CSI_CLIENT}" volumes ls | grep -v WARNING| wc -l)
+        count=$("${DIRECT_CSI_CLIENT}" volumes ls | grep -vc WARNING)
+        # Includes Header line and WARNING line for deprecation notice
         if [[ $count -eq 1 ]]; then
             break
         fi

@@ -69,10 +69,11 @@ For more information, use '%s --help'
 			return nil
 		}
 
-		client.Init()
 		if !controller && !driver {
 			return fmt.Errorf("one among [--controller, --driver] should be set")
 		}
+
+		client.Init()
 		return run(c.Context(), args)
 	},
 }

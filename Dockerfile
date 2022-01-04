@@ -1,14 +1,9 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:8.5
 
-ARG BINARY
-
 WORKDIR /
 
-COPY ${BINARY} /${BINARY}
 COPY CREDITS /licenses/CREDITS
 COPY LICENSE /licenses/LICENSE
-
-ENV BINARY ${BINARY}
 
 RUN microdnf update --nodocs
 
@@ -20,4 +15,6 @@ RUN \
     microdnf clean all && \
     rm -f /etc/yum.repos.d/CentOS.repo
 
-ENTRYPOINT ["/bin/sh", "-c", "/${BINARY}"]
+COPY direct-csi direct-csi
+
+ENTRYPOINT ["/direct-csi"]

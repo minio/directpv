@@ -185,7 +185,9 @@ func listDrives(ctx context.Context, args []string) error {
 	text.DisableColors()
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row(headers))
+	if !noHeaders {
+		t.AppendHeader(table.Row(headers))
+	}
 
 	style := table.StyleColoredDark
 	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
