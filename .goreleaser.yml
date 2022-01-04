@@ -1,11 +1,11 @@
-project_name: direct-csi
+project_name: directpv
 
 release:
    name_template: "Release version {{.Version}}"
 
    github:
     owner: minio
-    name: direct-csi
+    name: directpv
 
    extra_files:
      - glob: "*.minisig"
@@ -19,6 +19,26 @@ before:
 builds:
   -
     main: ./cmd/direct-csi
+    id: direct-csi
+    binary: direct-csi
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - ppc64le
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+      - -tags="osusergo netgo static_build"
+    ldflags:
+      - -s -w -X main.Version={{ .Tag }}
+
+  -
+    main: ./cmd/directpv
+    id: directpv
+    binary: directpv
     goos:
       - linux
     goarch:
@@ -58,6 +78,31 @@ builds:
     hooks:
       post: ./package.sh {{ .Path }}
 
+  -
+    main: ./cmd/kubectl-directpv
+    id: kubectl-directpv
+    binary: kubectl-directpv
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - ppc64le
+    ignore:
+      - goos: windows
+        goarch: arm64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+      - -tags="osusergo netgo static_build"
+    ldflags:
+      - -s -w -X main.Version={{ .Tag }}
+    hooks:
+      post: ./package.sh {{ .Path }}
+
 archives:
   -
     allow_different_binary_count: true
@@ -71,6 +116,8 @@ dockers:
   - "quay.io/minio/direct-csi:{{ .Tag }}-amd64"
   use: buildx
   goarch: amd64
+  ids:
+    - direct-csi
   dockerfile: Dockerfile
   extra_files:
     - LICENSE
@@ -78,10 +125,13 @@ dockers:
     - centos.repo
   build_flag_templates:
   - "--platform=linux/amd64"
+  - "--build-arg=BINARY=direct-csi"
 - image_templates:
   - "quay.io/minio/direct-csi:{{ .Tag }}-ppc64le"
   use: buildx
   goarch: ppc64le
+  ids:
+    - direct-csi
   dockerfile: Dockerfile
   extra_files:
     - LICENSE
@@ -89,10 +139,13 @@ dockers:
     - centos.repo
   build_flag_templates:
   - "--platform=linux/ppc64le"
+  - "--build-arg=BINARY=direct-csi"
 - image_templates:
   - "quay.io/minio/direct-csi:{{ .Tag }}-arm64"
   use: buildx
   goarch: arm64
+  ids:
+    - direct-csi
   dockerfile: Dockerfile
   extra_files:
     - LICENSE
@@ -100,6 +153,49 @@ dockers:
     - centos.repo
   build_flag_templates:
   - "--platform=linux/arm64"
+  - "--build-arg=BINARY=direct-csi"
+- image_templates:
+  - "quay.io/minio/directpv:{{ .Tag }}-amd64"
+  use: buildx
+  goarch: amd64
+  ids:
+    - directpv
+  dockerfile: Dockerfile
+  extra_files:
+    - LICENSE
+    - CREDITS
+    - centos.repo
+  build_flag_templates:
+  - "--platform=linux/amd64"
+  - "--build-arg=BINARY=directpv"
+- image_templates:
+  - "quay.io/minio/directpv:{{ .Tag }}-ppc64le"
+  use: buildx
+  goarch: ppc64le
+  ids:
+    - directpv
+  dockerfile: Dockerfile
+  extra_files:
+    - LICENSE
+    - CREDITS
+    - centos.repo
+  build_flag_templates:
+  - "--platform=linux/ppc64le"
+  - "--build-arg=BINARY=directpv"
+- image_templates:
+  - "quay.io/minio/directpv:{{ .Tag }}-arm64"
+  use: buildx
+  goarch: arm64
+  ids:
+    - directpv
+  dockerfile: Dockerfile
+  extra_files:
+    - LICENSE
+    - CREDITS
+    - centos.repo
+  build_flag_templates:
+  - "--platform=linux/arm64"
+  - "--build-arg=BINARY=directpv"
 docker_manifests:
 - name_template: quay.io/minio/direct-csi:{{ .Tag }}
   image_templates:
@@ -111,3 +207,13 @@ docker_manifests:
   - quay.io/minio/direct-csi:{{ .Tag }}-amd64
   - quay.io/minio/direct-csi:{{ .Tag }}-arm64
   - quay.io/minio/direct-csi:{{ .Tag }}-ppc64le
+- name_template: quay.io/minio/directpv:{{ .Tag }}
+  image_templates:
+  - quay.io/minio/directpv:{{ .Tag }}-amd64
+  - quay.io/minio/directpv:{{ .Tag }}-arm64
+  - quay.io/minio/directpv:{{ .Tag }}-ppc64le
+- name_template: quay.io/minio/directpv:latest
+  image_templates:
+  - quay.io/minio/directpv:{{ .Tag }}-amd64
+  - quay.io/minio/directpv:{{ .Tag }}-arm64
+  - quay.io/minio/directpv:{{ .Tag }}-ppc64le
