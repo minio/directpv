@@ -161,7 +161,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
-	klog.V(4).InfoS("Selected DirectCSI drive",
+	klog.V(4).InfoS("Selected DirectPV drive",
 		"drive-name", drive.Name,
 		"node", drive.Status.NodeName,
 		"volume", name)
@@ -255,7 +255,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		drive.Status.DriveStatus = directcsi.DriveStatusInUse
 		drive.SetFinalizers(append(drive.GetFinalizers(), finalizer))
 
-		klog.V(4).InfoS("Reserving DirectCSI drive",
+		klog.V(4).InfoS("Reserving DirectPV drive",
 			"drive-name", drive.Name,
 			"node", drive.Status.NodeName,
 			"volume", name)

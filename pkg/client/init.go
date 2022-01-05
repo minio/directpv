@@ -19,7 +19,10 @@ package client
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync/atomic"
+	"text/template"
 
 	direct "github.com/minio/directpv/pkg/clientset"
 	directcsi "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta3"
@@ -47,6 +50,19 @@ var (
 	metadataClient                 metadata.Interface
 	latestDirectCSIDriveInterface  directcsi.DirectCSIDriveInterface
 	latestDirectCSIVolumeInterface directcsi.DirectCSIVolumeInterface
+
+	binaryName = func() string {
+		base := filepath.Base(os.Args[0])
+		return strings.ReplaceAll(strings.ReplaceAll(base, "kubectl-", ""), "_", "-")
+	}
+	binaryNameTransform = func(text string) string {
+		transformed := &strings.Builder{}
+		if err := template.Must(template.
+			New("").Parse(text)).Execute(transformed, binaryName()); err != nil {
+			panic(err)
+		}
+		return transformed.String()
+	}
 )
 
 // GetLatestDirectCSIDriveInterface gets latest versioned direct-csi drive interface.
@@ -115,13 +131,13 @@ func Init() {
 
 	directClientset, err = direct.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("%s: could not initialize direct-csi client: err=%v\n", utils.Bold("Error"), err)
+		fmt.Printf(binaryNameTransform("%s: could not initialize {{ . }} client: err=%v\n"), utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 
 	directCSIClient, err = directcsi.NewForConfig(config)
 	if err != nil {
-		klog.Fatalf("could not initialize direct-csi client: %v", err)
+		klog.Fatalf(binaryNameTransform("could not initialize {{ . }} client: %v"), err)
 	}
 
 	crdClientset, err := apiextensions.NewForConfig(config)

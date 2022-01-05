@@ -221,18 +221,18 @@ func SyncVolumes(ctx context.Context, nodeID string) {
 		nil,
 		client.MaxThreadCount)
 	if err != nil {
-		klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
+		klog.V(3).Infof("Error while syncing CRD versions in directpvvolume: %v", err)
 		return
 	}
 
 	for result := range resultCh {
 		if result.Err != nil {
-			klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
+			klog.V(3).Infof("Error while syncing CRD versions in directpvvolume: %v", err)
 			return
 		}
 
 		if err := retry.RetryOnConflict(retry.DefaultRetry, updateLabels(&result.Volume)); err != nil {
-			klog.V(3).Infof("Error while syncing CRD versions in directcsivolume: %v", err)
+			klog.V(3).Infof("Error while syncing CRD versions in directpvvolume: %v", err)
 		}
 	}
 }

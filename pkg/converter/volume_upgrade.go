@@ -79,7 +79,7 @@ func volumeUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) err
 		return err
 	}
 
-	klog.V(10).Infof("Converting directcsivolume:%v volume to v1beta1", v1alpha1DirectCSIVolume.Name)
+	klog.V(10).Infof("Converting directpvvolume:%v volume to v1beta1", v1alpha1DirectCSIVolume.Name)
 
 	var v1beta1DirectCSIVolume directv1beta1.DirectCSIVolume
 	if err := directv1beta1.Convert_v1alpha1_DirectCSIVolume_To_v1beta1_DirectCSIVolume(&v1alpha1DirectCSIVolume, &v1beta1DirectCSIVolume, nil); err != nil {
@@ -132,7 +132,7 @@ func volumeUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) erro
 		return err
 	}
 
-	klog.V(10).Infof("Converting directcsivolume:%v to v1beta2", v1beta1DirectCSIVolume.Name)
+	klog.V(10).Infof("Converting directpvvolume:%v to v1beta2", v1beta1DirectCSIVolume.Name)
 
 	var v1beta2DirectCSIVolume directv1beta2.DirectCSIVolume
 	if err := directv1beta2.Convert_v1beta1_DirectCSIVolume_To_v1beta2_DirectCSIVolume(&v1beta1DirectCSIVolume, &v1beta2DirectCSIVolume, nil); err != nil {
@@ -164,7 +164,7 @@ func volumeUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) erro
 		return err
 	}
 
-	klog.V(10).Infof("Converting directcsivolume:%v to v1beta3", v1beta2DirectCSIVolume.Name)
+	klog.V(10).Infof("Converting directpvvolume:%v to v1beta3", v1beta2DirectCSIVolume.Name)
 
 	var v1beta3DirectCSIVolume directv1beta3.DirectCSIVolume
 	if err := directv1beta3.Convert_v1beta2_DirectCSIVolume_To_v1beta3_DirectCSIVolume(&v1beta2DirectCSIVolume, &v1beta3DirectCSIVolume, nil); err != nil {
