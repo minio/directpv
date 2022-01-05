@@ -69,7 +69,7 @@ func (c *metricsCollector) volumeStatsEmitter(
 		client.MaxThreadCount,
 	)
 	if err != nil {
-		klog.V(3).Infof("Error while listing DirectCSI Volumes: %v", err)
+		klog.V(3).Infof("Error while listing DirectPV Volumes: %v", err)
 		return
 	}
 

@@ -71,7 +71,7 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 	)
 
 	if errors.Is(err, errForceRequired) {
-		klog.Errorf("Cannot unregister DirectCSIVolume CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
+		klog.Errorf("Cannot unregister DirectPVVolume CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
 	}
 
 	return err
@@ -120,7 +120,7 @@ func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3In
 	)
 
 	if errors.Is(err, errForceRequired) {
-		klog.Errorf("Cannot unregister DirectCSIDrive CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
+		klog.Errorf("Cannot unregister DirectPVDrive CRDs. Please use `%s` to delete the resources", utils.Bold("--force"))
 	}
 
 	return err

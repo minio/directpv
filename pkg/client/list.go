@@ -44,7 +44,7 @@ func ListDrives(ctx context.Context, nodes, drives, accessTiers []utils.LabelVal
 	resultCh := make(chan ListDriveResult)
 	go func() {
 		defer close(resultCh)
-		klog.V(5).InfoS("Listing DirectCSIDrives", "limit", maxObjects, "selectors", labelSelector)
+		klog.V(5).InfoS("Listing DirectPVDrives", "limit", maxObjects, "selectors", labelSelector)
 
 		send := func(result ListDriveResult) bool {
 			select {
@@ -120,7 +120,7 @@ func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs []utils.La
 	resultCh := make(chan ListVolumeResult)
 	go func() {
 		defer close(resultCh)
-		klog.V(5).InfoS("Listing DirectCSIVolumes", "limit", maxObjects, "selectors", labelSelector)
+		klog.V(5).InfoS("Listing DirectPVVolumes", "limit", maxObjects, "selectors", labelSelector)
 
 		send := func(result ListVolumeResult) bool {
 			select {

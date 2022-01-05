@@ -96,7 +96,7 @@ func driveUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) erro
 		return err
 	}
 
-	klog.V(10).Infof("Converting directcsidrive: %v to v1beta1", v1alpha1DirectCSIDrive.Name)
+	klog.V(10).Infof("Converting directpvdrive: %v to v1beta1", v1alpha1DirectCSIDrive.Name)
 
 	var v1beta1DirectCSIDrive directv1beta1.DirectCSIDrive
 	if err := directv1beta1.Convert_v1alpha1_DirectCSIDrive_To_v1beta1_DirectCSIDrive(&v1alpha1DirectCSIDrive, &v1beta1DirectCSIDrive, nil); err != nil {
@@ -124,7 +124,7 @@ func driveUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error
 		return err
 	}
 
-	klog.V(10).Infof("Converting directcsidrive: %v to v1beta2", v1beta1DirectCSIDrive.Name)
+	klog.V(10).Infof("Converting directpvdrive: %v to v1beta2", v1beta1DirectCSIDrive.Name)
 
 	var v1beta2DirectCSIDrive directv1beta2.DirectCSIDrive
 	if err := directv1beta2.Convert_v1beta1_DirectCSIDrive_To_v1beta2_DirectCSIDrive(&v1beta1DirectCSIDrive, &v1beta2DirectCSIDrive, nil); err != nil {
@@ -159,7 +159,7 @@ func driveUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) error
 		return err
 	}
 
-	klog.V(10).Infof("Converting directcsidrive: %v to v1beta3", v1beta2DirectCSIDrive.Name)
+	klog.V(10).Infof("Converting directpvdrive: %v to v1beta3", v1beta2DirectCSIDrive.Name)
 
 	var v1beta3DirectCSIDrive directv1beta3.DirectCSIDrive
 	if err := directv1beta3.Convert_v1beta2_DirectCSIDrive_To_v1beta3_DirectCSIDrive(&v1beta2DirectCSIDrive, &v1beta3DirectCSIDrive, nil); err != nil {
