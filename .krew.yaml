@@ -1,0 +1,42 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: directpv
+spec:
+  version: {{ .TagName }}
+  homepage: https://github.com/minio/directpv
+  shortDescription: Deploys and manages the lifecycle of DirectPV CSI driver
+  description: |
+    Deploys and manages the lifecycle of DirectPV CSI
+    driver - A CSI for dynamically provisioning direct persistent volumes.
+  platforms:
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: amd64
+    {{addURIAndSha https://github.com/minio/directpv/releases/download/{{ .TagName }}/kubectl-directpv_darwin_amd64.zip .TagName | indent 6 }}
+    bin: kubectl-directpv
+  - selector:
+      matchLabels:
+        os: darwin
+        arch: arm64
+    {{addURIAndSha https://github.com/minio/directpv/releases/download/{{ .TagName }}/kubectl-directpv_darwin_arm64.zip .TagName | indent 6 }}
+    bin: kubectl-directpv
+  - selector:
+      matchLabels:
+        os: linux
+        arch: amd64
+    {{addURIAndSha https://github.com/minio/directpv/releases/download/{{ .TagName }}/kubectl-directpv_linux_amd64.zip .TagName | indent 6 }}
+    bin: kubectl-directpv
+  - selector:
+      matchLabels:
+        os: linux
+        arch: arm64
+    {{addURIAndSha https://github.com/minio/directpv/releases/download/{{ .TagName }}/kubectl-directpv_linux_arm64.zip .TagName | indent 6 }}
+    bin: kubectl-directpv
+  - selector:
+      matchLabels:
+        os: windows
+        arch: amd64
+    {{addURIAndSha https://github.com/minio/directpv/releases/download/{{ .TagName }}/kubectl-directpv_windows_amd64.zip .TagName | indent 6 }}
+    bin: kubectl-directpv.exe
