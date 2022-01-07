@@ -1,61 +1,88 @@
 DirectPV
 ----------
 
-![build](https://github.com/minio/directpv/workflows/Go/badge.svg) ![license](https://img.shields.io/badge/license-AGPL%20V3-blue) 
+DirectPV is a CSI driver for [Direct Attached Storage](https://en.wikipedia.org/wiki/Direct-attached_storage). In a simpler sense, it is a distributed persistent volume manager, and not a storage system like SAN or NAS. It is useful to *discover, format, mount, schedule and monitor* drives across servers. Since Kubernetes `hostPath` and `local` PVs are statically provisioned and limited in functionality, DirectPV was created to address this limitation. 
 
-DirectPV is a [CSI driver](https://kubernetes-csi.github.io/docs/introduction.html) for dynamically provisioning direct persistent volumes. 
+Distributed data stores such as object storage, databases and message queues are designed for direct attached storage, and they handle high availability and data durability by themselves. Running them on traditional SAN or NAS based CSI drivers (Network PV) adds yet another layer of replication/erasure coding and extra network hops in the data path. This additional layer of disaggregation results in increased-complexity and poor performance.
 
-![Architecture Diagram](https://github.com/minio/directpv/blob/master/docs/screenshots/architecture.png?raw=true)
+![Architecture Diagram](https://github.com/minio/directpv/blob/master/docs/images/architecture.png?raw=true)
 
-Modern distributed datastores such as MinIO, Elastic, Cassandra, and MongoDB are designed to for locally attached drives (Local PV). These data services handle high availability and data durability by themselves. Running them on traditional SAN or NAS based CSI drivers (Network PV) adds yet another layer of replication/erasure coding and extra network hops in the datapath. This additional layer of disaggregation results in increased-complexity and poor performance.
+### Architecture
 
-Historically, these datastores relied on Kubernetes-provided HostPath and LocalPV for using locally attached drives. Local and Host Path Volume drivers are manual, static and ephemeral, introducing management complexity. 
+DirectPV is designed to be lightweight and scalable to 10s of 1000s of drives. It is made up of three components - **Controller, Node Driver, UI**
 
-### QuickStart
+![DirectPV Architecture](https://github.com/minio/directpv/blob/master/docs/images/directpv_architecture.png)
 
-Here is the ***extremely*** quickstart:
+##### Controller
+
+When a volume claim is made, the controller provisions volumes uniformly from a pool free drives. DirectPV is aware of pod's affinity constraints, and allocates volumes from drives local to pods. Note that only one active instance of controller runs per cluster.
+
+##### Node Driver
+
+Node Driver implements the volume management functions such as discovery, format, mount, and monitoring of drives on the nodes. One instance of node driver runs on each of the storage servers. 
+
+##### UI
+
+Storage Administrators can use the kubectl CLI plugin to select, manage and monitor drives. Web based UI is currently under development. 
+
+### Installation
 
 ```sh
+# Install kubectl directpv plugin
 kubectl krew install directpv
+
+# Use the plugin to install directpv in your kubernetes cluster
 kubectl directpv install
+
+# Ensure directpv has successfully started
+kubectl directpv info
+
+# List available drives in your cluster
 kubectl directpv drives ls
-# choose all the drives that directpv should manage and format them
-kubectl directpv drives format --drives $DRIVE_SELECTOR_ELLIPSES --nodes $NODE_SELECTOR_ELLIPSES
-# 'directpv-min-io' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates
+
+# Select drives that directpv should manage and format
+kubectl directpv drives format --drives /dev/sd{a...f} --nodes directpv-{1...4}
+
+# 'directpv' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates
 ```
 
-For more information, please visit our [documentation](./docs/index.md).
+For air-gapped setups and advanced installations, please refer to the [Installation Guide](./docs/installation.md).
 
-### How is it different from LocalVolume provisioner?
+### Upgrade
 
-[LocalVolume](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/) provisioner also allows direct access to the storage medium. However, it requires manual management of drives and volumes - i.e. it does not support dynamic provisioning of volumes, storage management or dynamic scheduling of pods on nodes with available volumes. 
+DirectPV version upgrades are seameless and transparent. Simply uninstall an existing version of directpv and install with a newer version to upgrade.
 
-DirectPV on the other hand, supports dynamic provisioning of volumes, performs allocation of volumes based on storage capacity, and schedules pods to run on nodes which have most capacity available. 
+```
+# Uninstall directpv
+kubectl directpv uninstall 
 
-### How is it different from HostPath volume?
+# Download latest krew plugin
+kubectl krew upgrade directpv
 
-[HostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath) volume also allows direct access to the storage medium. However, it only supports ephemeral volumes. i.e. pod scheduling is not tied to volume provisioning. Therefore, if a pod is rescheduled or restarted, it might end up on a node where the data is not available. However, since HostPath volumes are ephemeral, pod startup will go on without raising any errors.
+# Install using new plugin
+kubectl directpv install
+```
 
-HostPath volumes cannot be provisioned and managed via PVC resources. It is always provisioned either manually as a PV or directly specified in the PodSpec. 
+### Security
 
-
-### Limitations of DirectPV
-
-The high consistency and performance benefits of DirectPV come with the limitation that once provisioned, volumes cannot be moved to other nodes i.e. volumes are sticky to nodes.
-
-
-### References
-
- - [Installation](./docs/installation.md)
- - [Upgrade](./docs/upgrade.md)
- - [CLI reference](./docs/cli.md)
- - [Development and Testing](./docs/development-and-testing.md)
-
-### LICENSE
-
-Use of `directpv` driver is governed by the GNU AGPLv3 license that can be found in the [LICENSE](./LICENSE) file.
-
-Security
----------
+Please review the [security checklist](./security-checklist.md) before deploying to production.
 
 **Important**: Report security issues to security@min.io. Please do not report security issues here.
+
+### Additional Resources
+
+- [Developer Guide](./docs/development-and-testing.md)
+- [Installation Guide](./docs/installation.md)
+- [Monitoring & Metrics](./docs/metrics.md)
+- [Security Guide](./docs/security.md)
+- [Troubleshooting Guide](./docs/troubleshooting.md)
+
+### Join Community
+
+DirectPV is a MinIO project. You can contact the authors over the slack channel:
+
+- [MinIO Slack](https://join.slack.com/t/minio/shared_invite/zt-wjdzimbo-apoPb9jEi5ssl2iedx6MoA)
+
+### License
+
+DirectPV is released under GNU AGPLv3 license. Please refer to the LICENSE document for a complete copy of the license.
