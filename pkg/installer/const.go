@@ -44,7 +44,7 @@ const (
 	volumeNameMountpointDir          = "mountpoint-dir"
 	volumeNameRegistrationDir        = "registration-dir"
 	volumeNamePluginDir              = "plugins-dir"
-	volumeNameCSIRootDir             = "direct-csi-common-root"
+	volumeNameCSIRootDir             = "directpv-common-root"
 	csiRootPath                      = "/var/lib/direct-csi/"
 	nodeDriverRegistrarContainerName = "node-driver-registrar"
 	healthZContainerPortName         = "healthz"
@@ -60,31 +60,31 @@ const (
 	admissionWebhookSecretName     = "validationwebhookcerts"
 	admissionControllerWebhookPort = 20443
 	admissionControllerWebhookName = "validatinghook"
-	validationControllerName       = "directcsi-validation-controller"
+	validationControllerName       = "directpv-validation-controller"
 	admissionControllerCertsDir    = "admission-webhook-certs"
 	admissionCertsDir              = "/etc/admission/certs"
 	csiProvisionerContainerName    = "csi-provisioner"
-	admissionWehookDNSName         = "directcsi-validation-controller.direct-csi-min-io.svc"
+	admissionWehookDNSName         = "directpv-validation-controller.directpv-min-io.svc"
 
 	// validation rules
 	validationWebhookConfigName = "drive.validation.controller"
 
 	// Common
-	volumeNameSocketDir                = "socket-dir"
-	directCSISelector                  = "selector.direct.csi.min.io"
-	directCSIContainerName             = "direct-csi"
-	kubeNodeNameEnvVar                 = "KUBE_NODE_NAME"
-	endpointEnvVarCSI                  = "CSI_ENDPOINT"
-	kubeletDirPath                     = "/var/lib/kubelet"
-	directCSIPluginName                = "kubectl-direct-csi"
-	conversionWebhookPortName          = "convwebhook"
-	conversionWebhookPort              = 30443
-	selectorValueEnabled               = "enabled"
-	conversionCADir                    = "/etc/conversion/CAs"
-	conversionCertsDir                 = "/etc/conversion/certs"
-	webhookSelector                    = "selector.direct.csi.min.io.webhook"
-	healthZContainerPortPath           = "/healthz"
-	directCSIFinalizerDeleteProtection = "/delete-protection"
+	volumeNameSocketDir               = "socket-dir"
+	directPVSelector                  = "selector.directpv.min.io"
+	directPVContainerName             = "directpv"
+	kubeNodeNameEnvVar                = "KUBE_NODE_NAME"
+	endpointEnvVarCSI                 = "CSI_ENDPOINT"
+	kubeletDirPath                    = "/var/lib/kubelet"
+	directPVPluginName                = "kubectl-directpv"
+	conversionWebhookPortName         = "convwebhook"
+	conversionWebhookPort             = 30443
+	selectorValueEnabled              = "enabled"
+	conversionCADir                   = "/etc/conversion/CAs"
+	conversionCertsDir                = "/etc/conversion/certs"
+	webhookSelector                   = "selector.directpv.min.io.webhook"
+	healthZContainerPortPath          = "/healthz"
+	directPVFinalizerDeleteProtection = "/delete-protection"
 
 	// debug log level default
 	logLevel = 3

@@ -96,7 +96,7 @@ func getDriveValidatingWebhookConfig(c *Config) admissionv1.ValidatingWebhookCon
 			Namespace:   c.namespace(),
 			Annotations: defaultAnnotations,
 			Labels:      defaultLabels,
-			Finalizers:  []string{c.namespace() + directCSIFinalizerDeleteProtection},
+			Finalizers:  []string{c.namespace() + directPVFinalizerDeleteProtection},
 		},
 		Webhooks: getValidatingWebhooks(),
 	}
@@ -108,7 +108,7 @@ func deleteDriveValidationRules(ctx context.Context, c *Config) error {
 	vClient := client.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations()
 
 	getDeleteProtectionFinalizer := func() string {
-		return c.namespace() + directCSIFinalizerDeleteProtection
+		return c.namespace() + directPVFinalizerDeleteProtection
 	}
 
 	clearFinalizers := func() error {

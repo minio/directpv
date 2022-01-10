@@ -49,10 +49,10 @@ func defaultIfZeroString(left, right string) string {
 type Config struct {
 	Identity string
 
-	// DirectCSIContainerImage properties
-	DirectCSIContainerImage    string
-	DirectCSIContainerOrg      string
-	DirectCSIContainerRegistry string
+	// DirectPVContainerImage properties
+	DirectPVContainerImage    string
+	DirectPVContainerOrg      string
+	DirectPVContainerRegistry string
 
 	// CSIImage properties
 	CSIProvisionerImage      string
@@ -131,7 +131,7 @@ func (i *Config) getLivenessProbeImage() string {
 }
 
 func (i *Config) conversionWebhookDNSName() string {
-	return strings.Join([]string{i.identity(), i.namespace(), "svc"}, ".") // "direct-csi-min-io.direct-csi-min-io.svc"
+	return strings.Join([]string{i.identity(), i.namespace(), "svc"}, ".") // "directpv-min-io.directpv-min-io.svc"
 }
 
 func (c *Config) csiDriverName() string {

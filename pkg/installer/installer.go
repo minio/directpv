@@ -60,7 +60,7 @@ func Install(ctx context.Context, config *Config) error {
 		return err
 	}
 	if !config.DryRun {
-		if err := deleteLegacyConversionDeployment(ctx, config.Identity); err != nil {
+		if err := deleteLegacyConversionDeployment(ctx, "direct-csi-min-io"); err != nil {
 			return err
 		}
 	}
@@ -79,7 +79,7 @@ func Uninstall(ctx context.Context, config *Config) error {
 		return err
 	}
 	if !config.DryRun {
-		if err := deleteLegacyConversionDeployment(ctx, config.Identity); err != nil {
+		if err := deleteLegacyConversionDeployment(ctx, "direct-csi-min-io"); err != nil {
 			return err
 		}
 	}

@@ -89,7 +89,7 @@ func createControllerService(ctx context.Context, generatedSelectorValue string,
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{admissionWebhookPort},
 			Selector: map[string]string{
-				directCSISelector: generatedSelectorValue,
+				directPVSelector: generatedSelectorValue,
 			},
 		},
 	}
@@ -110,11 +110,11 @@ func createDeployment(ctx context.Context, c *Config) error {
 	var replicas int32 = 3
 	privileged := true
 	volumes := []corev1.Volume{
-		newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", c.deploymentName()))),
+		newHostPathVolume(volumeNameSocketDir, newDirectPVPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", c.deploymentName()))),
 		newSecretVolume(conversionCACert, conversionCACert),
 		newSecretVolume(conversionKeyPair, conversionKeyPair),
 	}
-	directCSIVolumeMounts := []corev1.VolumeMount{
+	directPVVolumeMounts := []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, "/csi", false, false),
 		newVolumeMount(conversionCACert, conversionCADir, false, false),
 		newVolumeMount(conversionKeyPair, conversionCertsDir, false, false),
@@ -122,7 +122,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 
 	if c.AdmissionControl {
 		volumes = append(volumes, newSecretVolume(admissionControllerCertsDir, admissionWebhookSecretName))
-		directCSIVolumeMounts = append(directCSIVolumeMounts, newVolumeMount(admissionControllerCertsDir, admissionCertsDir, false, false))
+		directPVVolumeMounts = append(directPVVolumeMounts, newVolumeMount(admissionControllerCertsDir, admissionCertsDir, false, false))
 	}
 
 	podSpec := corev1.PodSpec{
@@ -131,7 +131,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 		Containers: []corev1.Container{
 			{
 				Name:  csiProvisionerContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getCSIProvisionerImage()),
+				Image: filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.getCSIProvisionerImage()),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
@@ -169,8 +169,8 @@ func createDeployment(ctx context.Context, c *Config) error {
 				},
 			},
 			{
-				Name:  directCSIContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
+				Name:  directPVContainerName,
+				Image: filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.DirectPVContainerImage),
 				Args: []string{
 					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", c.deploymentName()),
@@ -216,7 +216,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 						Value: "unix:///csi/csi.sock",
 					},
 				},
-				VolumeMounts: directCSIVolumeMounts,
+				VolumeMounts: directPVVolumeMounts,
 			},
 		},
 	}
@@ -248,17 +248,17 @@ func createDeployment(ctx context.Context, c *Config) error {
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
-			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directPVSelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      c.deploymentName(),
 					Namespace: c.namespace(),
 					Annotations: map[string]string{
-						createdByLabel: directCSIPluginName,
+						createdByLabel: directPVPluginName,
 					},
 					Labels: map[string]string{
-						directCSISelector: generatedSelectorValue,
-						webhookSelector:   selectorValueEnabled,
+						directPVSelector: generatedSelectorValue,
+						webhookSelector:  selectorValueEnabled,
 					},
 				},
 				Spec: podSpec,
@@ -267,7 +267,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 		Status: appsv1.DeploymentStatus{},
 	}
 	deployment.ObjectMeta.Finalizers = []string{
-		c.namespace() + directCSIFinalizerDeleteProtection,
+		c.namespace() + directPVFinalizerDeleteProtection,
 	}
 
 	if !c.DryRun {

@@ -36,7 +36,7 @@ var Version string
 
 // flags
 var (
-	identity              = "direct-csi-min-io"
+	identity              = "directpv-min-io"
 	nodeID                = ""
 	rack                  = "default"
 	zone                  = "default"
@@ -96,13 +96,13 @@ func init() {
 	flag.Set("logtostderr", "true")
 
 	driverCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "path to kubeconfig")
-	driverCmd.Flags().StringVarP(&identity, "identity", "i", identity, "identity of this direct-csi")
-	driverCmd.Flags().BoolVarP(&showVersion, "version", "", showVersion, "version of direct-csi")
-	driverCmd.Flags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which direct-csi is listening")
-	driverCmd.Flags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which direct-csi is running")
-	driverCmd.Flags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this direct-csi is running")
-	driverCmd.Flags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this direct-csi is running")
-	driverCmd.Flags().StringVarP(&region, "region", "", region, "identity of the region in which this direct-csi is running")
+	driverCmd.Flags().StringVarP(&identity, "identity", "i", identity, "identity of this directpv")
+	driverCmd.Flags().BoolVarP(&showVersion, "version", "", showVersion, "version of directpv")
+	driverCmd.Flags().StringVarP(&endpoint, "endpoint", "e", endpoint, "endpoint at which directpv is listening")
+	driverCmd.Flags().StringVarP(&nodeID, "node-id", "n", nodeID, "identity of the node in which directpv is running")
+	driverCmd.Flags().StringVarP(&rack, "rack", "", rack, "identity of the rack in which this directpv is running")
+	driverCmd.Flags().StringVarP(&zone, "zone", "", zone, "identity of the zone in which this directpv is running")
+	driverCmd.Flags().StringVarP(&region, "region", "", region, "identity of the region in which this directpv is running")
 	driverCmd.Flags().StringVarP(&procfs, "procfs", "", procfs, "path to host /proc for accessing mount information")
 	driverCmd.Flags().BoolVarP(&controller, "controller", "", controller, "running in controller mode")
 	driverCmd.Flags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")

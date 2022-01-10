@@ -37,7 +37,7 @@ func TestWriteObject(t *testing.T) {
 		Name:      SanitizeKubeResourceName("direct.csi.min.io"),
 		Namespace: SanitizeKubeResourceName("direct.csi.min.io"),
 		Annotations: map[string]string{
-			string(CreatedByLabelKey): "kubectl/direct-csi",
+			string(CreatedByLabelKey): "kubectl/directpv",
 		},
 		Labels: map[string]string{
 			"app":  "direct.csi.min.io",
@@ -79,15 +79,15 @@ func TestNewSafeFile(t *testing.T) {
 	dirname, _ := os.UserHomeDir()
 	timeinNs := time.Now().UnixNano()
 	homeDir, _ := homedir.Dir()
-	filepath.Join(homeDir, ".direct-csi")
-	defaultDirname := filepath.Join(homeDir, ".direct-csi")
+	filepath.Join(homeDir, ".directpv")
+	defaultDirname := filepath.Join(homeDir, ".directpv")
 	testCases := []struct {
 		input       string
 		output      *SafeFile
 		errReturned bool
 	}{
 		{
-			input: fmt.Sprintf("%v/%v-%v", dirname+"/.direct-csi", "audit/"+"install", timeinNs),
+			input: fmt.Sprintf("%v/%v-%v", dirname+"/.directpv", "audit/"+"install", timeinNs),
 			output: &SafeFile{
 				filename: fmt.Sprintf("%v/%v-%v", defaultDirname, "audit/"+"install", timeinNs),
 				tempFile: tempFile,

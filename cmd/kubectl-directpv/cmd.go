@@ -40,7 +40,7 @@ var Version string
 // flags
 var (
 	kubeconfig = ""
-	identity   = "direct.csi.min.io"
+	identity   = "directpv-min-io"
 	dryRun     = false
 	//output modes
 	outputMode = ""
