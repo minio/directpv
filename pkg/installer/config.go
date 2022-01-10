@@ -167,11 +167,11 @@ func (i *Config) roleBindingName() string {
 }
 
 func (c *Config) storageClassNameDirectCSI() string {
-	return c.identity()
+	return "direct-csi-min-io"
 }
 
 func (c *Config) storageClassNameDirectPV() string {
-	return "directpv-min-io"
+	return c.identity()
 }
 
 func (c *Config) driverIdentity() string {

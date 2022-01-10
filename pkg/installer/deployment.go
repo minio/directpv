@@ -110,7 +110,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 	var replicas int32 = 3
 	privileged := true
 	volumes := []corev1.Volume{
-		newHostPathVolume(volumeNameSocketDir, newDirectPVPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", c.deploymentName()))),
+		newHostPathVolume(volumeNameSocketDir, newDirectPVPluginsSocketDir(kubeletDirPath, "direct-csi-min-io-controller")),
 		newSecretVolume(conversionCACert, conversionCACert),
 		newSecretVolume(conversionKeyPair, conversionKeyPair),
 	}
@@ -173,7 +173,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 				Image: filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.DirectPVContainerImage),
 				Args: []string{
 					fmt.Sprintf("-v=%d", logLevel),
-					fmt.Sprintf("--identity=%s", c.deploymentName()),
+					"--identity=direct-csi-min-io",
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					fmt.Sprintf("--conversion-healthz-url=%s", c.conversionHealthzURL()),
 					"--controller",

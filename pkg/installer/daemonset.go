@@ -69,7 +69,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 	}
 
 	volumes := []corev1.Volume{
-		newHostPathVolume(volumeNameSocketDir, newDirectPVPluginsSocketDir(kubeletDirPath, c.daemonsetName())),
+		newHostPathVolume(volumeNameSocketDir, newDirectPVPluginsSocketDir(kubeletDirPath, "direct-csi-min-io")),
 		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
 		newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
 		newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
@@ -110,7 +110,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 					fmt.Sprintf("--v=%d", logLevel),
 					"--csi-address=unix:///csi/csi.sock",
 					fmt.Sprintf("--kubelet-registration-path=%s",
-						newDirectPVPluginsSocketDir(kubeletDirPath, c.daemonsetName())+"/csi.sock"),
+						newDirectPVPluginsSocketDir(kubeletDirPath, "direct-csi-min-io")+"/csi.sock"),
 				},
 				Env: []corev1.EnvVar{
 					{
@@ -135,7 +135,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				Image: filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.DirectPVContainerImage),
 				Args: func() []string {
 					args := []string{
-						fmt.Sprintf("--identity=%s", c.daemonsetName()),
+						"--identity=direct-csi-min-io",
 						fmt.Sprintf("-v=%d", logLevel),
 						fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 						fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),

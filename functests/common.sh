@@ -70,14 +70,16 @@ function remove_luks() {
 
 function _wait_directcsi_to_start() {
     required_count=4
-    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
+    ns="directpv-min-io"
+    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.6" ]]; then
         required_count=7 # plus 3 for conversion deployment pods
+        ns="direct-csi-min-io"
     fi
     running_count=0
     while [[ $running_count -lt $required_count ]]; do
-        echo "$ME: waiting for $(( required_count - running_count )) direct-csi pods to come up"
+        echo "$ME: waiting for $(( required_count - running_count )) directpv pods to come up"
         sleep $(( required_count - running_count ))
-        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace="${ns}" | wc -l)
     done
 
     while true; do
@@ -110,13 +112,15 @@ function uninstall_directcsi() {
     "${DIRECT_CSI_CLIENT}" uninstall  --crd --force
 
     pending=4
-    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
+    ns="directpv-min-io"
+    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.6" ]]; then
         pending=7 # plus 3 for conversion deployment pods
+        ns="direct-csi-min-io"
     fi
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} direct-csi pods to go down"
         sleep ${pending}
-        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
+        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace="${ns}" | wc -l)
     done
 
     wait_namespace_removal

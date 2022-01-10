@@ -101,7 +101,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == strings.ReplaceAll(identity, ".", "-") {
+				if driver.Name == "direct-csi-min-io" {
 					nodeList = append(nodeList, csiNode.Name)
 					break
 				}
@@ -123,7 +123,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == strings.ReplaceAll(identity, ".", "-") {
+				if driver.Name == "direct-csi-min-io" {
 					nodeList = append(nodeList, csiNode.Name)
 					break
 				}

@@ -36,7 +36,7 @@ var Version string
 
 // flags
 var (
-	identity              = "directpv-min-io"
+	identity              = "direct-csi-min-io"
 	nodeID                = ""
 	rack                  = "default"
 	zone                  = "default"
