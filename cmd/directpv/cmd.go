@@ -50,6 +50,7 @@ var (
 	showVersion           = false
 	conversionHealthzURL  = ""
 	dynamicDriveDiscovery = false
+	dynamicDriveHandler   = false
 	metricsPort           = 10443
 )
 
@@ -70,8 +71,12 @@ For more information, use '%s --help'
 			return nil
 		}
 
-		if !controller && !driver {
-			return fmt.Errorf("one among [--controller, --driver] should be set")
+		switch {
+		case controller:
+		case driver:
+		case dynamicDriveHandler:
+		default:
+			return fmt.Errorf("one among [--controller, --driver, --dynamic-drive-handler] should be set")
 		}
 
 		client.Init()
@@ -110,6 +115,7 @@ func init() {
 	driverCmd.Flags().BoolVarP(&loopbackOnly, "loopback-only", "", loopbackOnly, "Create and use loopback devices (FOR TESTING ONLY)")
 	driverCmd.Flags().StringVarP(&conversionHealthzURL, "conversion-healthz-url", "", conversionHealthzURL, "The URL of the conversion webhook healthz endpoint")
 	driverCmd.Flags().BoolVarP(&dynamicDriveDiscovery, "dynamic-drive-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery (disabled by default)")
+	driverCmd.Flags().BoolVarP(&dynamicDriveHandler, "dynamic-drive-handler", "", dynamicDriveHandler, "running in dynamic drive handler mode")
 	driverCmd.Flags().IntVarP(&metricsPort, "metrics-port", "", metricsPort, "Metrics port for scraping. default is 10443")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")

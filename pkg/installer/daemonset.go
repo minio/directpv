@@ -225,6 +225,40 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 	if c.DynamicDriveDiscovery {
 		podSpec.HostNetwork = true
 		podSpec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
+		args := []string{
+			fmt.Sprintf("--identity=%s", c.daemonsetName()),
+			fmt.Sprintf("-v=%d", logLevel),
+			fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
+			fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
+			"--dynamic-drive-handler",
+		}
+		if c.LoopbackMode {
+			args = append(args, "--loopback-only")
+		}
+		podSpec.Containers = append(podSpec.Containers, corev1.Container{
+			Name:            directPVDriveDiscoveryContainerName,
+			Image:           filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
+			Args:            args,
+			SecurityContext: securityContext,
+			Env: []corev1.EnvVar{
+				{
+					Name: kubeNodeNameEnvVar,
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{
+							APIVersion: "v1",
+							FieldPath:  "spec.nodeName",
+						},
+					},
+				},
+			},
+			TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+			TerminationMessagePath:   "/var/log/driver-termination-log",
+			VolumeMounts: []corev1.VolumeMount{
+				newVolumeMount(volumeNameSysDir, volumePathSysDir, true, true),
+				newVolumeMount(volumeNameDevDir, volumePathDevDir, true, true),
+				newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, true, true),
+			},
+		})
 	}
 
 	annotations := map[string]string{
