@@ -5,7 +5,7 @@ DirectPV
 
 DirectPV is a [CSI driver](https://kubernetes-csi.github.io/docs/introduction.html) for dynamically provisioning direct persistent volumes. 
 
-![Architecture Diagram](./architecture.png)
+![Architecture Diagram](https://github.com/minio/directpv/blob/master/docs/screenshots/architecture.png?raw=true)
 
 Modern distributed datastores such as MinIO, Elastic, Cassandra, and MongoDB are designed to for locally attached drives (Local PV). These data services handle high availability and data durability by themselves. Running them on traditional SAN or NAS based CSI drivers (Network PV) adds yet another layer of replication/erasure coding and extra network hops in the datapath. This additional layer of disaggregation results in increased-complexity and poor performance.
 
