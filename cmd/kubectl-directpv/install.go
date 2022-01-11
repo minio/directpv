@@ -30,7 +30,7 @@ import (
 
 var installCmd = &cobra.Command{
 	Use:           "install",
-	Short:         binaryNameTransform("Install {{ . }} in k8s cluster"),
+	Short:         utils.BinaryNameTransform("Install {{ . }} in k8s cluster"),
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {

@@ -18,9 +18,11 @@ package utils
 
 import (
 	"fmt"
+	"html/template"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
@@ -35,9 +37,21 @@ const (
 
 // Color print functions.
 var (
-	Bold   = color.New(color.Bold).SprintFunc()
-	Red    = color.New(color.FgRed).SprintFunc()
-	Yellow = color.New(color.FgYellow).SprintFunc()
+	Bold       = color.New(color.Bold).SprintFunc()
+	Red        = color.New(color.FgRed).SprintFunc()
+	Yellow     = color.New(color.FgYellow).SprintFunc()
+	BinaryName = func() string {
+		base := filepath.Base(os.Args[0])
+		return strings.ReplaceAll(strings.ReplaceAll(base, "kubectl-", ""), "_", "-")
+	}
+	BinaryNameTransform = func(text string) string {
+		transformed := &strings.Builder{}
+		if err := template.Must(template.
+			New("").Parse(text)).Execute(transformed, BinaryName()); err != nil {
+			panic(err)
+		}
+		return transformed.String()
+	}
 )
 
 // ToYAML converts value to YAML string.

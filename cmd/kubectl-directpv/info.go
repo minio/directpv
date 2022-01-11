@@ -42,7 +42,7 @@ import (
 
 var infoCmd = &cobra.Command{
 	Use:           "info",
-	Short:         binaryNameTransform("Info about {{ . }} installation"),
+	Short:         utils.BinaryNameTransform("Info about {{ . }} installation"),
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
@@ -72,7 +72,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		}
 	}
 	if !(drivesFound && volumesFound) {
-		formatter := binaryNameTransform("%s: {{ . }} installation not found")
+		formatter := utils.BinaryNameTransform("%s: {{ . }} installation not found")
 		if !quiet {
 			return fmt.Errorf(formatter, bold("Error"))
 		}
@@ -132,17 +132,17 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 	}
 
 	if gvk.Version == "v1alpha1" {
-		return errors.New(binaryNameTransform("this version of CSINode is not supported by {{ . }}"))
+		return errors.New(utils.BinaryNameTransform("this version of CSINode is not supported by {{ . }}"))
 	}
 
 	if len(nodeList) == 0 {
 		if !quiet {
-			fmt.Printf(binaryNameTransform("%s: {{ . }} installation %s found\n\n"),
+			fmt.Printf(utils.BinaryNameTransform("%s: {{ . }} installation %s found\n\n"),
 				red(bold("ERR")), "NOT")
 			fmt.Printf("run '%s' to get started\n",
-				bold(binaryNameTransform("kubectl {{ . }} install")))
+				bold(utils.BinaryNameTransform("kubectl {{ . }} install")))
 		}
-		return fmt.Errorf(binaryNameTransform("{{ . }} installation not found"))
+		return fmt.Errorf(utils.BinaryNameTransform("{{ . }} installation not found"))
 	}
 
 	drives, err := getFilteredDriveList(

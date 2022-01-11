@@ -34,9 +34,9 @@ import (
 
 var releaseDrivesCmd = &cobra.Command{
 	Use:   "release",
-	Short: binaryNameTransform("release drives from the {{ . }} cluster"),
+	Short: utils.BinaryNameTransform("release drives from the {{ . }} cluster"),
 	Long:  "",
-	Example: binaryNameTransform(`
+	Example: utils.BinaryNameTransform(`
  # Release all drives in the cluster
  $ kubectl {{ . }} drives release --all
  

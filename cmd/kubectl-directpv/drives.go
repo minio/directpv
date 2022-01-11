@@ -30,7 +30,7 @@ var driveStatusList []directcsi.DriveStatus
 
 var drivesCmd = &cobra.Command{
 	Use:   "drives",
-	Short: binaryNameTransform("Manage Drives in {{ . }} cluster"),
+	Short: utils.BinaryNameTransform("Manage Drives in {{ . }} cluster"),
 	Long:  "",
 	Aliases: []string{
 		"drive",

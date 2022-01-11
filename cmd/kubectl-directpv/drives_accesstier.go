@@ -19,12 +19,13 @@
 package main
 
 import (
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
 var drivesAccessTierCmd = &cobra.Command{
 	Use:   "access-tier",
-	Short: binaryNameTransform("tag/untag {{ . }} drives based on their access-tiers"),
+	Short: utils.BinaryNameTransform("tag/untag {{ . }} drives based on their access-tiers"),
 	Long:  "",
 	Aliases: []string{
 		"accesstier",
