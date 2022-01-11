@@ -70,21 +70,22 @@ const (
 	validationWebhookConfigName = "drive.validation.controller"
 
 	// Common
-	volumeNameSocketDir                = "socket-dir"
-	directCSISelector                  = "selector.direct.csi.min.io"
-	directCSIContainerName             = "direct-csi"
-	kubeNodeNameEnvVar                 = "KUBE_NODE_NAME"
-	endpointEnvVarCSI                  = "CSI_ENDPOINT"
-	kubeletDirPath                     = "/var/lib/kubelet"
-	directCSIPluginName                = "kubectl-direct-csi"
-	conversionWebhookPortName          = "convwebhook"
-	conversionWebhookPort              = 30443
-	selectorValueEnabled               = "enabled"
-	conversionCADir                    = "/etc/conversion/CAs"
-	conversionCertsDir                 = "/etc/conversion/certs"
-	webhookSelector                    = "selector.direct.csi.min.io.webhook"
-	healthZContainerPortPath           = "/healthz"
-	directCSIFinalizerDeleteProtection = "/delete-protection"
+	volumeNameSocketDir                 = "socket-dir"
+	directCSISelector                   = "selector.direct.csi.min.io"
+	directCSIContainerName              = "direct-csi"
+	directPVDriveDiscoveryContainerName = "directpv-drive-discovery"
+	kubeNodeNameEnvVar                  = "KUBE_NODE_NAME"
+	endpointEnvVarCSI                   = "CSI_ENDPOINT"
+	kubeletDirPath                      = "/var/lib/kubelet"
+	directCSIPluginName                 = "kubectl-direct-csi"
+	conversionWebhookPortName           = "convwebhook"
+	conversionWebhookPort               = 30443
+	selectorValueEnabled                = "enabled"
+	conversionCADir                     = "/etc/conversion/CAs"
+	conversionCertsDir                  = "/etc/conversion/certs"
+	webhookSelector                     = "selector.direct.csi.min.io.webhook"
+	healthZContainerPortPath            = "/healthz"
+	directCSIFinalizerDeleteProtection  = "/delete-protection"
 
 	// debug log level default
 	logLevel = 3

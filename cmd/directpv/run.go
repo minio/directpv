@@ -144,6 +144,10 @@ func checkXFS(ctx context.Context) (bool, error) {
 }
 
 func run(ctx context.Context, args []string) error {
+	// Start dynamic drive handler container.
+	if dynamicDriveHandler {
+		return node.StartDynamicDriveHandler(ctx, identity, nodeID, rack, zone, region, loopbackOnly)
+	}
 
 	// Start conversion webserver
 	if err := converter.ServeConversionWebhook(ctx); err != nil {
@@ -169,6 +173,9 @@ func run(ctx context.Context, args []string) error {
 		}
 
 		if !dynamicDriveDiscovery {
+			klog.V(3).Infof("Enable dynamic drive change management using '--dynamic-drive-discovery' flag")
+			klog.V(3).Infof("This flag will be made default in the next major release version")
+
 			discovery, err := discovery.NewDiscovery(ctx, identity, nodeID, rack, zone, region)
 			if err != nil {
 				return err
@@ -177,9 +184,6 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("error while initializing drive discovery: %v", err)
 			}
 			klog.V(3).Infof("Drive discovery finished")
-		} else {
-			klog.V(3).Infof("Enable dynamic drive change management using '--dynamic-drive-discovery' flag")
-			klog.V(3).Infof("This flag will be made default in the next major release version")
 		}
 
 		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, dynamicDriveDiscovery, reflinkSupport, loopbackOnly, metricsPort)

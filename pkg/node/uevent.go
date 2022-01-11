@@ -373,7 +373,7 @@ func (handler *ueventHandler) get(ctx context.Context) (map[string]string, error
 	}
 }
 
-func (handler *ueventHandler) processLoop(ctx context.Context) {
+func (handler *ueventHandler) processLoop(ctx context.Context) error {
 	syncFunc := func() {
 		ticker := time.NewTicker(10 * time.Minute)
 		defer ticker.Stop()
@@ -390,7 +390,7 @@ func (handler *ueventHandler) processLoop(ctx context.Context) {
 
 	if !handler.dynamicDriveDiscovery {
 		syncFunc()
-		return // This never happens.
+		return nil // This never happens.
 	}
 
 	go syncFunc()
@@ -401,7 +401,7 @@ func (handler *ueventHandler) processLoop(ctx context.Context) {
 		event, err := handler.get(ctx)
 		if err != nil {
 			klog.Error(err)
-			return
+			return err
 		}
 
 		if sys.LoopRegexp.MatchString(path.Base(event["DEVPATH"])) {
@@ -417,4 +417,29 @@ func (handler *ueventHandler) processLoop(ctx context.Context) {
 
 		handler.processEvent(ctx, device, event["ACTION"])
 	}
+}
+
+func StartDynamicDriveHandler(ctx context.Context, identity, nodeID, rack, zone, region string, loopbackOnly bool) error {
+	handler := &ueventHandler{
+		nodeID: nodeID,
+		topology: map[string]string{
+			string(utils.TopologyDriverIdentity): identity,
+			string(utils.TopologyDriverRack):     rack,
+			string(utils.TopologyDriverZone):     zone,
+			string(utils.TopologyDriverRegion):   region,
+			string(utils.TopologyDriverNode):     nodeID,
+		},
+		dynamicDriveDiscovery: true,
+		loopbackOnly:          loopbackOnly,
+	}
+	if loopbackOnly {
+		if err := sys.CreateLoopDevices(); err != nil {
+			return err
+		}
+	}
+
+	klog.V(3).Info("Doing initial drive sync up")
+	handler.syncDrives(ctx)
+
+	return handler.processLoop(ctx)
 }
