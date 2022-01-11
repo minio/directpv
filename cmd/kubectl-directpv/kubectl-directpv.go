@@ -47,7 +47,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if "direct-csi" == binaryName() {
+	if "direct-csi" == utils.BinaryName() {
 		fmt.Println(utils.Bold(utils.Yellow("WARNING")), "plugin `direct-csi` will be deprecated in v2.3, please use `directpv` plugin instead")
 	}
 }

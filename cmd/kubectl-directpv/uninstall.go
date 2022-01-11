@@ -22,13 +22,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/minio/directpv/pkg/installer"
-
+	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/klog/v2"
 )
 
 var uninstallCmd = &cobra.Command{
 	Use:          "uninstall",
-	Short:        binaryNameTransform("Uninstall {{ . }} in k8s cluster"),
+	Short:        utils.BinaryNameTransform("Uninstall {{ . }} in k8s cluster"),
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
 		return uninstall(c.Context(), args)

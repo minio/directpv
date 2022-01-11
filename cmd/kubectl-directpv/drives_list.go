@@ -37,9 +37,9 @@ import (
 
 var listDrivesCmd = &cobra.Command{
 	Use:   "list",
-	Short: binaryNameTransform("list drives in the {{ . }} cluster"),
+	Short: utils.BinaryNameTransform("list drives in the {{ . }} cluster"),
 	Long:  "",
-	Example: binaryNameTransform(`
+	Example: utils.BinaryNameTransform(`
 # List all drives
 $ kubectl {{ . }} drives ls
 

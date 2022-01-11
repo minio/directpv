@@ -32,9 +32,9 @@ import (
 
 var accessTierSet = &cobra.Command{
 	Use:   "set [hot|cold|warm]",
-	Short: binaryNameTransform("tag {{ . }} drive(s) based on their access-tiers [hot,cold,warm]"),
+	Short: utils.BinaryNameTransform("tag {{ . }} drive(s) based on their access-tiers [hot,cold,warm]"),
 	Long:  "",
-	Example: binaryNameTransform(`
+	Example: utils.BinaryNameTransform(`
 # Sets the 'access-tier:cold' tag to all the 'Available' {{ . }} drives 
 $ kubectl {{ . }} drives access-tier set cold --all
 

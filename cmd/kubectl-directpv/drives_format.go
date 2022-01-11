@@ -38,9 +38,9 @@ var (
 
 var formatDrivesCmd = &cobra.Command{
 	Use:   "format",
-	Short: binaryNameTransform("format drives in the {{ . }} cluster"),
+	Short: utils.BinaryNameTransform("format drives in the {{ . }} cluster"),
 	Long:  "",
-	Example: binaryNameTransform(`
+	Example: utils.BinaryNameTransform(`
 # Format all available drives in the cluster
 $ kubectl {{ . }} drives format --all
 
@@ -131,7 +131,7 @@ func formatDrives(ctx context.Context, IDArgs []string) error {
 			}
 
 			if drive.Status.DriveStatus == directcsi.DriveStatusReleased {
-				klog.Errorf(binaryNameTransform("%s is in 'released' state. Use 'kubectl {{ . }} drives unrelease --drive %s --nodes %s' before formatting"),
+				klog.Errorf(utils.BinaryNameTransform("%s is in 'released' state. Use 'kubectl {{ . }} drives unrelease --drive %s --nodes %s' before formatting"),
 					utils.Bold(driveAddr), path, drive.Status.NodeName)
 				return false
 			}

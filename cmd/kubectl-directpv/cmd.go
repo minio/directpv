@@ -20,10 +20,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"os"
-	"path/filepath"
-	"strings"
-	"text/template"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -48,19 +44,6 @@ var (
 	json       = false
 	yaml       = false
 	noHeaders  = false
-
-	binaryName = func() string {
-		base := filepath.Base(os.Args[0])
-		return strings.ReplaceAll(strings.ReplaceAll(base, "kubectl-", ""), "_", "-")
-	}
-	binaryNameTransform = func(text string) string {
-		transformed := &strings.Builder{}
-		if err := template.Must(template.
-			New("").Parse(text)).Execute(transformed, binaryName()); err != nil {
-			panic(err)
-		}
-		return transformed.String()
-	}
 )
 
 var drives, nodes, driveGlobs, nodeGlobs []string
@@ -68,7 +51,7 @@ var driveSelectorValues, nodeSelectorValues []utils.LabelValue
 var printer func(interface{}) error
 
 var pluginCmd = &cobra.Command{
-	Use:           binaryName(),
+	Use:           utils.BinaryName(),
 	Short:         "Kubectl Plugin for managing Direct Persistent Volumes",
 	SilenceUsage:  true,
 	SilenceErrors: false,

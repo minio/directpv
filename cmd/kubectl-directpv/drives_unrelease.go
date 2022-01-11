@@ -19,17 +19,18 @@
 package main
 
 import (
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
 var unreleaseDrivesCmd = &cobra.Command{
 	Use:   "unrelease",
-	Short: binaryNameTransform("unrelease drives in the {{ . }} cluster"),
+	Short: utils.BinaryNameTransform("unrelease drives in the {{ . }} cluster"),
 	Long:  "",
 	RunE: func(c *cobra.Command, args []string) error {
 		return nil
 	},
-	Deprecated:            binaryNameTransform("please use `kubectl {{ . }} drives release` which will umount and make the drives `Available`"),
+	Deprecated:            utils.BinaryNameTransform("please use `kubectl {{ . }} drives release` which will umount and make the drives `Available`"),
 	Aliases:               []string{},
 	Hidden:                true,
 	DisableFlagsInUseLine: true,

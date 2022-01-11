@@ -35,9 +35,9 @@ import (
 
 var listVolumesCmd = &cobra.Command{
 	Use:   "list",
-	Short: binaryNameTransform("list volumes in the {{ . }} cluster"),
+	Short: utils.BinaryNameTransform("list volumes in the {{ . }} cluster"),
 	Long:  "",
-	Example: binaryNameTransform(`
+	Example: utils.BinaryNameTransform(`
 
 # List all staged and published volumes
 $ kubectl {{ . }} volumes ls --status=staged,published

@@ -32,9 +32,9 @@ import (
 
 var accessTierUnset = &cobra.Command{
 	Use:   "unset",
-	Short: binaryNameTransform("remove the access-tier tag from the {{ . }} drive(s)"),
+	Short: utils.BinaryNameTransform("remove the access-tier tag from the {{ . }} drive(s)"),
 	Long:  "",
-	Example: binaryNameTransform(`
+	Example: utils.BinaryNameTransform(`
 # Unsets the 'access-tier' tag on all the 'Available' {{ . }} drives 
 $ kubectl {{ . }} drives access-tier unset --all
 
