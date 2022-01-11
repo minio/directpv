@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# This file is part of MinIO Direct CSI
+# This file is part of MinIO Direct PV
 # Copyright (c) 2021 MinIO, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,5 +18,5 @@
 
 set -ex
 source "${SCRIPT_DIR}/common.sh"
-export DIRECT_CSI_CLIENT=./kubectl-direct_csi
+export DIRECTPV_CLIENT=./kubectl-directpv
 check_drive_not_exist "$1"

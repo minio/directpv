@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# This file is part of MinIO Direct CSI
+# This file is part of MinIO Direct PV
 # Copyright (c) 2021 MinIO, Inc.
 #
 # This program is free software: you can redistribute it and/or modify

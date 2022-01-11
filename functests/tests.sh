@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# This file is part of MinIO Direct CSI
+# This file is part of MinIO Direct PV
 # Copyright (c) 2021 MinIO, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -21,15 +21,15 @@ set -ex
 source "${SCRIPT_DIR}/common.sh"
 
 function test_build() {
-    DIRECT_CSI_CLIENT=./kubectl-direct_csi
-    DIRECT_CSI_VERSION="$BUILD_VERSION"
-    install_directcsi
+    DIRECTPV_CLIENT=./kubectl-directpv
+    DIRECTPV_VERSION="$BUILD_VERSION"
+    install_directpv
     check_drives
     deploy_minio
     uninstall_minio
-    uninstall_directcsi
+    uninstall_directpv
     # Check uninstall succeeds even if direct-csi is completely gone.
-    "${DIRECT_CSI_CLIENT}" uninstall --crd --force
+    "${DIRECTPV_CLIENT}" uninstall --crd --force
 }
 
 function do_upgrade_test() {
@@ -39,29 +39,29 @@ function do_upgrade_test() {
     # unmount all direct-csi mounts of previous installation if any.
     mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl
 
-    DIRECT_CSI_CLIENT="./kubectl-direct_csi_$1"
-    DIRECT_CSI_VERSION="v$1"
-    image="direct-csi:${DIRECT_CSI_VERSION}"
+    DIRECTPV_CLIENT="./kubectl-direct_csi_$1"
+    DIRECTPV_VERSION="v$1"
+    image="direct-csi:${DIRECTPV_VERSION}"
     if [ -n "${RHEL7_TEST}" ]; then
-        image="direct-csi:${DIRECT_CSI_VERSION}-rhel7"
+        image="direct-csi:${DIRECTPV_VERSION}-rhel7"
     fi
-    install_directcsi "$image"
+    install_directpv "$image"
     check_drives
     deploy_minio
 
     declare -A volumes
-    for volume in $( "${DIRECT_CSI_CLIENT}" volumes list --status published | awk '{print $1}' ); do
+    for volume in $( "${DIRECTPV_CLIENT}" volumes list --status published | awk '{print $1}' ); do
         volumes["${volume}"]=
     done
 
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" volumes list
+    "${DIRECTPV_CLIENT}" volumes list
 
     if [[ $1 == "1.3.6" ]]; then
-        "${DIRECT_CSI_CLIENT}" uninstall
+        "${DIRECTPV_CLIENT}" uninstall
     else
         # Check version compatibility client.
-        ./kubectl-direct_csi uninstall
+        ./kubectl-directpv uninstall
     fi
 
     pending=7
@@ -83,18 +83,18 @@ function do_upgrade_test() {
         wait_namespace_removal
     fi
 
-    export DIRECT_CSI_CLIENT=./kubectl-direct_csi
-    export DIRECT_CSI_VERSION="${BUILD_VERSION}"
+    export DIRECTPV_CLIENT=./kubectl-directpv
+    export DIRECTPV_VERSION="${BUILD_VERSION}"
 
     # Check version compatibility client.
 
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" drives list --all -o wide
+    "${DIRECTPV_CLIENT}" drives list --all -o wide
 
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" volumes list --all -o wide
+    "${DIRECTPV_CLIENT}" volumes list --all -o wide
 
-    mapfile -t upgraded_volumes < <("${DIRECT_CSI_CLIENT}" volumes list --status published | awk '!/WARNING/ {print $1}')
+    mapfile -t upgraded_volumes < <("${DIRECTPV_CLIENT}" volumes list --status published | awk '!/WARNING/ {print $1}')
     if [[ ${#upgraded_volumes[@]} -ne ${#volumes[@]} ]]; then
         echo "$ME: volume count is not matching in version compatibility client tests"
         return 1
@@ -107,17 +107,17 @@ function do_upgrade_test() {
         fi
     done
 
-    install_directcsi
+    install_directpv
 
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" drives list --all -o wide
+    "${DIRECTPV_CLIENT}" drives list --all -o wide
 
     check_drives_state InUse
 
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" volumes list --all -o wide
+    "${DIRECTPV_CLIENT}" volumes list --all -o wide
 
-    mapfile -t upgraded_volumes < <("${DIRECT_CSI_CLIENT}" volumes list --status published | awk '!/WARNING/ {print $1}')
+    mapfile -t upgraded_volumes < <("${DIRECTPV_CLIENT}" volumes list --status published | awk '!/WARNING/ {print $1}')
     if [[ ${#upgraded_volumes[@]} -ne ${#volumes[@]} ]]; then
         echo "$ME: volume count is not matching after upgrade"
         return 1
@@ -131,7 +131,7 @@ function do_upgrade_test() {
     done
 
     uninstall_minio
-    uninstall_directcsi
+    uninstall_directpv
 }
 
 echo "$ME: Setup environment"

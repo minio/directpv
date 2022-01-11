@@ -6,8 +6,8 @@ if [ "${DEBUG}" = 1 ]; then
     set -x
 fi
 
-INSTALL_DIRECT_CSI_VERSION=1.0.0
-INSTALL_DIRECT_CSI_GITHUB_URL="https://github.com/minio/directpv"
+INSTALL_DIRECTPV_VERSION=1.0.0
+INSTALL_DIRECTPV_GITHUB_URL="https://github.com/minio/directpv"
 
 # info logs the given argument at info log level.
 info() {
@@ -56,8 +56,8 @@ setup_arch() {
 # and cleans up when done.
 setup_tmp() {
     TMP_DIR=$(mktemp -d -t directcsi-install.XXXXXXXXXX)
-    TMP_CHECKSUMS=${TMP_DIR}/direct-csi_${INSTALL_DIRECT_CSI_VERSION}_checksums.txt
-    TMP_BINARY=${TMP_DIR}/kubectl-direct_csi_${INSTALL_DIRECT_CSI_VERSION}_${SUFFIX}
+    TMP_CHECKSUMS=${TMP_DIR}/direct-csi_${INSTALL_DIRECTPV_VERSION}_checksums.txt
+    TMP_BINARY=${TMP_DIR}/kubectl-direct_csi_${INSTALL_DIRECTPV_VERSION}_${SUFFIX}
     cleanup() {
         code=$?
         set +e
@@ -109,7 +109,7 @@ download() {
 
 # download_checksums downloads hash from github url.
 download_checksums() {
-    CHECKSUMS_URL=${INSTALL_DIRECT_CSI_GITHUB_URL}/releases/download/v${INSTALL_DIRECT_CSI_VERSION}/direct-csi_${INSTALL_DIRECT_CSI_VERSION}_checksums.txt
+    CHECKSUMS_URL=${INSTALL_DIRECTPV_GITHUB_URL}/releases/download/v${INSTALL_DIRECTPV_VERSION}/direct-csi_${INSTALL_DIRECTPV_VERSION}_checksums.txt
     info "downloading checksums at ${CHECKSUMS_URL}"
     download "${TMP_CHECKSUMS}" "${CHECKSUMS_URL}"
     CHECKSUM_EXPECTED=$(grep "kubectl-direct_csi" "${TMP_CHECKSUMS}" | awk '{print $1}')
@@ -117,7 +117,7 @@ download_checksums() {
 
 # download_tarball downloads binary from github url.
 download_binary() {
-    BINARY_URL=${INSTALL_DIRECT_CSI_GITHUB_URL}/releases/download/v${INSTALL_DIRECT_CSI_VERSION}/kubectl-direct_csi_${INSTALL_DIRECT_CSI_VERSION}_${SUFFIX}
+    BINARY_URL=${INSTALL_DIRECTPV_GITHUB_URL}/releases/download/v${INSTALL_DIRECTPV_VERSION}/kubectl-direct_csi_${INSTALL_DIRECTPV_VERSION}_${SUFFIX}
     info "downloading binary at ${BINARY_URL}"
     download "${TMP_BINARY}" "${BINARY_URL}"
 }
@@ -143,7 +143,7 @@ do_install() {
     verify_downloader curl || verify_downloader wget || fatal "can not find curl or wget for downloading files"
 
     setup_tmp
-    info "installing direct-csi plugin v${INSTALL_DIRECT_CSI_VERSION}"
+    info "installing direct-csi plugin v${INSTALL_DIRECTPV_VERSION}"
 
     download_checksums
     download_binary

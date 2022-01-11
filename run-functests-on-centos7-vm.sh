@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# This file is part of MinIO Direct CSI
+# This file is part of MinIO Direct PV
 # Copyright (c) 2021 MinIO, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -90,7 +90,7 @@ function build_directcsi() {
 
     export CGO_ENABLED=0 GO111MODULE=on
     go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/directpv
-    go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/kubectl-direct_csi
+    go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/kubectl-directpv
 }
 
 function start_test_vm() {
@@ -112,17 +112,17 @@ function remove_test_vm() {
 }
 
 function run_functional_test() {
-    export VM_NAME="centos-7-directcsi-test-${BUILD_TAG}-${RANDOM}"
+    export VM_NAME="centos-7-directpv-test-${BUILD_TAG}-${RANDOM}"
     export VM_IMAGE="${VM_NAME}.qcow2c"
     start_test_vm
 
-    scp_cmd CREDITS LICENSE centos.repo direct-csi kubectl-direct_csi Dockerfile "root@${VM_IPADDR}:"
+    scp_cmd CREDITS LICENSE centos.repo directpv kubectl-directpv Dockerfile "root@${VM_IPADDR}:"
     ssh_cmd "${VM_IPADDR}" "docker build -t quay.io/minio/directpv:${BUILD_TAG} -f Dockerfile ."
     ssh_cmd "${VM_IPADDR}" "minikube start --driver=none"
     scp_cmd -r functests "root@${VM_IPADDR}:"
     ssh_cmd "${VM_IPADDR}" "RHEL7_TEST=1 functests/run.sh ${BUILD_TAG}"
 
-    ssh_cmd "${VM_IPADDR}" "functests/install-directcsi.sh ${BUILD_TAG}"
+    ssh_cmd "${VM_IPADDR}" "functests/install-directpv.sh ${BUILD_TAG}"
 
     qemu-img create -f qcow2 "${VM_NAME}-vdb.qcow2" 512M
     cat > vdb.xml <<EOF
@@ -144,7 +144,7 @@ EOF
     sudo virsh attach-device "${VM_NAME}" vdb.xml --live
     sleep 1
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Available"
-    ssh_cmd "${VM_IPADDR}" "./kubectl-direct_csi drive format --drives /dev/vdb"
+    ssh_cmd "${VM_IPADDR}" "./kubectl-directpv drive format --drives /dev/vdb"
     sleep 1
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Ready"
     sudo virsh detach-device "${VM_NAME}" vdb.xml --live
@@ -155,7 +155,7 @@ EOF
     sudo virsh attach-device "${VM_NAME}" vdb.xml --live
     sleep 1
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Available"
-    ssh_cmd "${VM_IPADDR}" "./kubectl-direct_csi drive format --drives /dev/vdb"
+    ssh_cmd "${VM_IPADDR}" "./kubectl-directpv drive format --drives /dev/vdb"
     sleep 1
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Ready"
     ssh_cmd "${VM_IPADDR}" "functests/run-deploy-minio.sh"

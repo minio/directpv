@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# This file is part of MinIO Direct CSI
+# This file is part of MinIO Direct PV
 # Copyright (c) 2021 MinIO, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,8 +23,8 @@ export VG_NAME="testvg${RANDOM}"
 export LV_DEVICE=
 export LUKS_LOOP_DEVICE=
 export LUKS_DEVICE=
-export DIRECT_CSI_CLIENT=
-export DIRECT_CSI_VERSION=
+export DIRECTPV_CLIENT=
+export DIRECTPV_VERSION=
 
 # usage: create_loop <newfile> <size>
 function create_loop() {
@@ -68,53 +68,53 @@ function remove_luks() {
     rm -f testluks.img
 }
 
-function _wait_directcsi_to_start() {
+function _wait_directpv_to_start() {
     required_count=4
-    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
+    if [[ "$DIRECTPV_VERSION" == "v1.3.6" ]] || [[ "$DIRECTPV_VERSION" == "v1.4.3" ]]; then
         required_count=7 # plus 3 for conversion deployment pods
     fi
     running_count=0
     while [[ $running_count -lt $required_count ]]; do
-        echo "$ME: waiting for $(( required_count - running_count )) direct-csi pods to come up"
+        echo "$ME: waiting for $(( required_count - running_count )) directpv pods to come up"
         sleep $(( required_count - running_count ))
         running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
     done
 
     while true; do
-        echo "$ME: waiting for direct-csi to come up"
+        echo "$ME: waiting for directpv to come up"
         sleep 5
-        if "${DIRECT_CSI_CLIENT}" info; then
+        if "${DIRECTPV_CLIENT}" info; then
             return 0
         fi
     done
 }
 
-function install_directcsi() {
-    image="directpv:${DIRECT_CSI_VERSION}"
-    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
-        image="direct-csi:${DIRECT_CSI_VERSION}"
+function install_directpv() {
+    image="directpv:${DIRECTPV_VERSION}"
+    if [[ "$DIRECTPV_VERSION" == "v1.3.6" ]] || [[ "$DIRECTPV_VERSION" == "v1.4.3" ]]; then
+        image="direct-csi:${DIRECTPV_VERSION}"
     fi
     if [ -n "$1" ]; then
         image="$1"
     fi
-    "${DIRECT_CSI_CLIENT}" install --image "$image"
-    _wait_directcsi_to_start
+    "${DIRECTPV_CLIENT}" install --image "$image"
+    _wait_directpv_to_start
 }
 
-function install_directcsi_with_dynamic_discovery() {
-    "${DIRECT_CSI_CLIENT}" install --image "directpv:${DIRECT_CSI_VERSION}" --enable-dynamic-discovery
-    _wait_directcsi_to_start
+function install_directpv_with_dynamic_discovery() {
+    "${DIRECTPV_CLIENT}" install --image "directpv:${DIRECTPV_VERSION}" --enable-dynamic-discovery
+    _wait_directpv_to_start
 }
 
-function uninstall_directcsi() {
-    "${DIRECT_CSI_CLIENT}" uninstall  --crd --force
+function uninstall_directpv() {
+    "${DIRECTPV_CLIENT}" uninstall  --crd --force
 
     pending=4
-    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
+    if [[ "$DIRECTPV_VERSION" == "v1.3.6" ]] || [[ "$DIRECTPV_VERSION" == "v1.4.3" ]]; then
         pending=7 # plus 3 for conversion deployment pods
     fi
     while [[ $pending -gt 0 ]]; do
-        echo "$ME: waiting for ${pending} direct-csi pods to go down"
+        echo "$ME: waiting for ${pending} directpv pods to go down"
         sleep ${pending}
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
     done
@@ -125,12 +125,12 @@ function uninstall_directcsi() {
 # usage: check_drives_state <state>
 function check_drives_state() {
     state="$1"
-    if ! "${DIRECT_CSI_CLIENT}" drives list --drives="${LV_DEVICE}" | grep -q -e "${LV_DEVICE}.*${state}"; then
+    if ! "${DIRECTPV_CLIENT}" drives list --drives="${LV_DEVICE}" | grep -q -e "${LV_DEVICE}.*${state}"; then
         echo "$ME: error: LVM device ${LV_DEVICE} not found in ${state} state"
         return 1
     fi
 
-    if ! "${DIRECT_CSI_CLIENT}" drives list --drives="${LUKS_DEVICE}" | grep -q -e "${LUKS_DEVICE}.*${state}"; then
+    if ! "${DIRECTPV_CLIENT}" drives list --drives="${LUKS_DEVICE}" | grep -q -e "${LUKS_DEVICE}.*${state}"; then
         echo "$ME: error: LUKS device ${LUKS_DEVICE} not found in ${state} state"
         return 1
     fi
@@ -138,14 +138,14 @@ function check_drives_state() {
 
 function check_drives() {
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" drives list --all
+    "${DIRECTPV_CLIENT}" drives list --all
 
     check_drives_state Available
-    "${DIRECT_CSI_CLIENT}" drives format --all --force
+    "${DIRECTPV_CLIENT}" drives format --all --force
     sleep 5
 
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" drives list --all
+    "${DIRECTPV_CLIENT}" drives list --all
 
     check_drives_state Ready
 }
@@ -154,8 +154,8 @@ function check_drives() {
 function check_drive_state() {
     drive="$1"
     state="$2"
-    "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" -o wide
-    if ! "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}.*${state}"; then
+    "${DIRECTPV_CLIENT}" drives list --drives="${drive}" -o wide
+    if ! "${DIRECTPV_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}.*${state}"; then
         echo "$ME: error: ${drive} not found in ${state} state"
         return 1
     fi
@@ -164,8 +164,8 @@ function check_drive_state() {
 # usage: check_drive_not_exist <drive>
 function check_drive_not_exist() {
     drive="$1"
-    "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" -o wide
-    if "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}"; then
+    "${DIRECTPV_CLIENT}" drives list --drives="${drive}" -o wide
+    if "${DIRECTPV_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}"; then
         echo "$ME: error: ${drive} exists"
         return 1
     fi
@@ -194,10 +194,10 @@ function uninstall_minio() {
 
     kubectl delete pvc --all
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" volumes ls
+    "${DIRECTPV_CLIENT}" volumes ls
 
     while true; do
-        count=$("${DIRECT_CSI_CLIENT}" volumes ls | awk '!/WARNING/ {count++} END {print count}')
+        count=$("${DIRECTPV_CLIENT}" volumes ls | awk '!/WARNING/ {count++} END {print count}')
         # Includes Header line and WARNING line for deprecation notice
         if [[ $count -eq 1 ]]; then
             break
@@ -207,10 +207,10 @@ function uninstall_minio() {
     done
 
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" drives ls --all
+    "${DIRECTPV_CLIENT}" drives ls --all
 
     while true; do
-        count=$("${DIRECT_CSI_CLIENT}" drives ls | grep -c InUse || true)
+        count=$("${DIRECTPV_CLIENT}" drives ls | grep -c InUse || true)
         if [[ $count -eq 0 ]]; then
             break
         fi
