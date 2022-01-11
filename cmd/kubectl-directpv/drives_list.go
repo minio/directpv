@@ -228,11 +228,15 @@ func listDrives(ctx context.Context, args []string) error {
 				}
 			}
 		}
+		var allocatedCapacity int64
+		if status == directcsi.DriveStatusInUse {
+			allocatedCapacity = d.Status.AllocatedCapacity
+		}
 
 		output := []interface{}{
 			drive,
 			printableBytes(d.Status.TotalCapacity),
-			printableBytes(d.Status.AllocatedCapacity),
+			printableBytes(allocatedCapacity),
 			printableString(d.Status.Filesystem),
 			volumes,
 			d.Status.NodeName,
