@@ -1,7 +1,7 @@
 //go:build !linux
 
-// This file is part of MinIO Direct CSI
-// Copyright (c) 2021 MinIO, Inc.
+// This file is part of MinIO DirectPV
+// Copyright (c) 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -17,6 +17,11 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package sys
+
+import (
+	"fmt"
+	"runtime"
+)
 
 func getFreeCapacity(path string) (uint64, error) {
 	return 0, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
