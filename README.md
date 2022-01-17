@@ -7,6 +7,11 @@ DirectPV is a CSI driver for [Direct Attached Storage](https://en.wikipedia.org/
 
 Distributed data stores such as object storage, databases and message queues are designed for direct attached storage, and they handle high availability and data durability by themselves. Running them on traditional SAN or NAS based CSI drivers (Network PV) adds yet another layer of replication/erasure coding and extra network hops in the data path. This additional layer of disaggregation results in increased-complexity and poor performance.
 
+_Try it out_
+```
+curl -s https://raw.githubusercontent.com/minio/directpv/master/install-script.sh | bash
+```
+
 ![Architecture Diagram](https://github.com/minio/directpv/blob/master/docs/images/architecture.png?raw=true)
 
 ### Architecture
