@@ -11,7 +11,7 @@ Distributed data stores such as object storage, databases and message queues are
 
 DirectPV is designed to be lightweight and scalable to 10s of 1000s of drives. It is made up of three components - **Controller, Node Driver, UI**
 
-![DirectPV Architecture](https://github.com/minio/directpv/blob/master/docs/images/directpv_architecture.png)
+![DirectPV Architecture](https://github.com/minio/directpv/blob/master/docs/images/directpv_architecture.png?raw=true)
 
 ##### Controller
 
