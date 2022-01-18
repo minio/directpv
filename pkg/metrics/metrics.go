@@ -25,10 +25,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const port = "80"
-
 // ServeMetrics starts metrics service.
-func ServeMetrics(ctx context.Context, nodeID string) {
+func ServeMetrics(ctx context.Context, nodeID string, port int) {
 
 	server := &http.Server{
 		Handler: metricsHandler(nodeID),
@@ -40,7 +38,7 @@ func ServeMetrics(ctx context.Context, nodeID string) {
 		panic(lErr)
 	}
 
-	klog.V(2).Infof("Starting metrics exporter in port: %s", port)
+	klog.V(2).Infof("Starting metrics exporter in port: %d", port)
 	if err := server.Serve(listener); err != nil {
 		klog.Errorf("Failed to listen and serve metrics server: %v", err)
 		if err != http.ErrServerClosed {

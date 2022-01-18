@@ -100,4 +100,8 @@ const (
 	createdByLabel = "created-by"
 	appNameLabel   = "application-name"
 	appTypeLabel   = "application-type"
+
+	// metrics
+	metricsPortName = "metrics"
+	metricsPort     = 10443
 )
