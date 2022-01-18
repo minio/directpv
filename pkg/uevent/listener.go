@@ -151,7 +151,7 @@ func (listener *Listener) Get(ctx context.Context) (map[string]string, error) {
 
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("cancelled by context; %w", ctx.Err())
+			return nil, fmt.Errorf("canceled by context; %w", ctx.Err())
 		case <-listener.closeCh:
 			return nil, errClosedListener
 		case <-waitCh:

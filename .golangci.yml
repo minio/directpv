@@ -4,11 +4,33 @@ run:
     - ".*crd_bindata.go$"
 
 linters-settings:
+  # goheader:
+  #   values:
+  #     regexp:
+  #       copyright-holder: Copyright \(c\) (20\d\d\-20\d\d)|({{year}})
+  #   template-path: .license.tmpl
   golint:
     min-confidence: 0
 
   misspell:
     locale: US
+
+linters:
+  enable:
+    - typecheck
+    - goimports
+    - goheader
+    - misspell
+    - govet
+    - ineffassign
+    - gosimple
+    - deadcode
+    - structcheck
+    - gomodguard
+    - gofmt
+    - unused
+    - structcheck
+    - varcheck
 
 issues:
   exclude-use-default: false
