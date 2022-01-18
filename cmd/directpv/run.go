@@ -182,7 +182,7 @@ func run(ctx context.Context, args []string) error {
 			klog.V(3).Infof("This flag will be made default in the next major release version")
 		}
 
-		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, dynamicDriveDiscovery, reflinkSupport, loopbackOnly)
+		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, dynamicDriveDiscovery, reflinkSupport, loopbackOnly, metricsPort)
 		if err != nil {
 			return err
 		}

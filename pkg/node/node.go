@@ -67,7 +67,7 @@ type NodeServer struct { //revive:disable-line:exported
 //revive:enable-line:exported
 
 // NewNodeServer creates node server.
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, dynamicDriveDiscovery, reflinkSupport, loopbackOnly bool) (*NodeServer, error) {
+func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, dynamicDriveDiscovery, reflinkSupport, loopbackOnly bool, metricsPort int) (*NodeServer, error) {
 	config, err := client.GetKubeConfig()
 	if err != nil {
 		return &NodeServer{}, err
@@ -131,7 +131,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		}
 	}()
 
-	go metrics.ServeMetrics(ctx, nodeID)
+	go metrics.ServeMetrics(ctx, nodeID, metricsPort)
 
 	return nodeServer, nil
 }
@@ -158,7 +158,7 @@ func (ns *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 // NodeGetCapabilities gets node capabilities.
 func (ns *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	nodeCap := func(cap csi.NodeServiceCapability_RPC_Type) *csi.NodeServiceCapability {
-		klog.V(2).Infof("Using node capability %v", cap)
+		klog.V(5).Infof("Using node capability %v", cap)
 
 		return &csi.NodeServiceCapability{
 			Type: &csi.NodeServiceCapability_Rpc{

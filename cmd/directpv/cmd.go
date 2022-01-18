@@ -50,6 +50,7 @@ var (
 	showVersion           = false
 	conversionHealthzURL  = ""
 	dynamicDriveDiscovery = false
+	metricsPort           = 10443
 )
 
 var driverCmd = &cobra.Command{
@@ -109,6 +110,7 @@ func init() {
 	driverCmd.Flags().BoolVarP(&loopbackOnly, "loopback-only", "", loopbackOnly, "Create and use loopback devices (FOR TESTING ONLY)")
 	driverCmd.Flags().StringVarP(&conversionHealthzURL, "conversion-healthz-url", "", conversionHealthzURL, "The URL of the conversion webhook healthz endpoint")
 	driverCmd.Flags().BoolVarP(&dynamicDriveDiscovery, "dynamic-drive-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery (disabled by default)")
+	driverCmd.Flags().IntVarP(&metricsPort, "metrics-port", "", metricsPort, "Metrics port for scraping. default is 10443")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")

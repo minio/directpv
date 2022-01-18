@@ -140,6 +140,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 						fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 						fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
 						fmt.Sprintf("--conversion-healthz-url=%s", c.conversionHealthzURL()),
+						fmt.Sprintf("--metrics-port=%d", metricsPort),
 						"--driver",
 					}
 					if c.LoopbackMode {
@@ -178,6 +179,11 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 					{
 						ContainerPort: conversionWebhookPort,
 						Name:          conversionWebhookPortName,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						ContainerPort: metricsPort,
+						Name:          metricsPortName,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
