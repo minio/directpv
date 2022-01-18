@@ -756,7 +756,7 @@ func createDevice(event map[string]string) (device *Device, err error) {
 	switch event["ACTION"] {
 	case uevent.Add, uevent.Change:
 		// Older kernels like in CentOS 7 does not send all information about the device,
-		// hence read relavent data from /run/udev/data/b<major>:<minor>
+		// hence read relevant data from /run/udev/data/b<major>:<minor>
 		info, err := readRunUdevData(major, minor)
 		if err != nil {
 			return nil, err

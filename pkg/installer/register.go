@@ -139,7 +139,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		if _, err := crdClient.Update(ctx, existingCRD, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
-		klog.V(5).Infof("'%s' CRD succesfully updated to '%s'", existingCRD.Name, utils.Bold(directcsi.Version))
+		klog.V(5).Infof("'%s' CRD successfully updated to '%s'", existingCRD.Name, utils.Bold(directcsi.Version))
 	}
 
 	return c.postProc(existingCRD)

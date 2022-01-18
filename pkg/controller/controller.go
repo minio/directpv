@@ -250,8 +250,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	finalizer := directcsi.DirectCSIDriveFinalizerPrefix + req.GetName()
 	if !matcher.StringIn(drive.Finalizers, finalizer) {
-		drive.Status.FreeCapacity = drive.Status.FreeCapacity - size
-		drive.Status.AllocatedCapacity = drive.Status.AllocatedCapacity + size
+		drive.Status.FreeCapacity -= size
+		drive.Status.AllocatedCapacity += size
 		drive.Status.DriveStatus = directcsi.DriveStatusInUse
 		drive.SetFinalizers(append(drive.GetFinalizers(), finalizer))
 
@@ -302,7 +302,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		if errors.IsNotFound(err) {
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		return nil, status.Errorf(codes.NotFound, "could not retreive volume [%s]: %v", vID, err)
+		return nil, status.Errorf(codes.NotFound, "could not retrieve volume [%s]: %v", vID, err)
 	}
 
 	// Do not proceed if the volume hasn't been unpublished or unstaged

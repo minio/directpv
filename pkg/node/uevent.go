@@ -346,7 +346,7 @@ func (handler *ueventHandler) startListener(ctx context.Context) (err error) {
 		ticker.Reset(backoff.Step())
 		select {
 		case <-ctx.Done():
-			return errors.New("cancelled by context")
+			return errors.New("canceled by context")
 		case <-ticker.C:
 		}
 	}

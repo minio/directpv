@@ -24,8 +24,8 @@ var (
 	// ErrPartTableNotFound denotes partition table not found error.
 	ErrPartTableNotFound = errors.New("partition table not found")
 
-	// ErrCancelled denotes cancelled by context error.
-	ErrCancelled = errors.New("cancelled by context")
+	// ErrCancelled denotes canceled by context error.
+	ErrCancelled = errors.New("canceled by context")
 )
 
 // PartType denotes partition type.
