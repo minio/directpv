@@ -18,25 +18,42 @@
 
 echo "Installing direct PV"
 
-if [[ $kv -eq 0 ]]; then
+if [[ $kv = 0 ]]; then
     echo "kubectl found"
 else
-    echo "Please install kubectl"
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    chmod +x kubectl
+    mkdir -p ~/.local/bin/kubectl
+    mv ./kubectl ~/.local/bin/kubectl
+    echo "kubectl installed"
+fi
+# Install krew if not found
+if [[ $krew-version = 0 ]]; then
+    echo "krew found"
+else
+    set -x; cd "$(mktemp -d)" &&
+    curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew.tar.gz" &&
+    tar zxvf krew.tar.gz &&
+    KREW=./krew-"$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed -e 's/x86_64/amd64/' -e 's/arm.*$/arm/')" &&
+    "$KREW" install krew
+    export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+    echo "krew installed"
 fi
 # Install kubectl directpv plugin
-if [[ $krew -eq 0 ]]; then
+if [[ $krew = 0 ]]; then
     echo "Installed kubectl directpv plugin"
 else
-    echo "Please install krew"
+    echo "Problem in installing krew DirectPV plugin"
 fi
 
 # Use the plugin to install directpv in your kubernetes cluster
-if [[ $install -eq 0 ]]; then
-    echo "DirectPv installed successfully!"
+if [[ $install = 0 ]]; then
+    echo "DirectPV installed successfully!"
 else
     echo "Please install krew"
 fi
 
 kv="kubectl version"
+krew-version="kubectl krew version"
 krew="kubectl krew install directpv"
 install="kubectl directpv install"
