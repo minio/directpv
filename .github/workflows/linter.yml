@@ -31,7 +31,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.42.1
+          version: v1.43.0
 
           # Optional: working directory, useful for monorepos
           # working-directory: somedir
