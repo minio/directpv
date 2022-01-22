@@ -27,6 +27,7 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/fs/xfs"
 	"github.com/minio/directpv/pkg/listener"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,8 +62,8 @@ func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler
 		reflinkSupport:  reflinkSupport,
 		getDevice:       getDevice,
 		stat:            os.Stat,
-		mountDevice:     sys.MountXFSDevice,
-		unmountDevice:   sys.UnmountDevice,
+		mountDevice:     mount.MountXFSDevice,
+		unmountDevice:   mount.UnmountDevice,
 		makeFS:          xfs.MakeFS,
 		getFreeCapacity: getFreeCapacity,
 	}

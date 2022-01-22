@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/utils"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
@@ -144,8 +144,8 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	directCSIClient := ns.directcsiClient.DirectV1beta3()
 
 	// Publish volume test
-	ns.probeMounts = func() (map[string][]sys.MountInfo, error) {
-		return map[string][]sys.MountInfo{"0:0": {{MountPoint: testStagingPath}}}, nil
+	ns.probeMounts = func() (map[string][]mount.Info, error) {
+		return map[string][]mount.Info{"0:0": {{MountPoint: testStagingPath}}}, nil
 	}
 	_, err := ns.NodePublishVolume(ctx, &publishVolumeRequest)
 	if err != nil {

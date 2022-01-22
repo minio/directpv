@@ -35,6 +35,7 @@ import (
 	"github.com/minio/directpv/pkg/blockdev/parttable"
 	"github.com/minio/directpv/pkg/fs"
 	fserrors "github.com/minio/directpv/pkg/fs/errors"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys/smart"
 	"github.com/minio/directpv/pkg/uevent"
 	"golang.org/x/sys/unix"
@@ -568,7 +569,7 @@ func getCapacity(device *Device) (totalCapacity, freeCapacity uint64) {
 	return
 }
 
-func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos map[string][]MountInfo, mountPointsMap map[string][]string) error {
+func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos map[string][]mount.Info, mountPointsMap map[string][]string) error {
 	if _, found := CDROMs[device.Name]; found {
 		device.ReadOnly = true
 		device.Removable = true
@@ -580,7 +581,7 @@ func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos 
 		device.MountPoints = mountPointsMap[majorMinor]
 		if len(device.MountPoints) > 0 {
 			device.FirstMountPoint = mountInfos[majorMinor][0].MountPoint
-			device.FirstMountOptions = mountInfos[majorMinor][0].mountOptions
+			device.FirstMountOptions = mountInfos[majorMinor][0].MountOptions
 		}
 
 		var err error
@@ -687,11 +688,11 @@ func getSwaps() (map[string]struct{}, error) {
 	return devices, nil
 }
 
-func getMountPoints(mountInfos map[string][]MountInfo) (map[string][]string, error) {
+func getMountPoints(mountInfos map[string][]mount.Info) (map[string][]string, error) {
 	mountPointsMap := map[string][]string{}
 	for _, mounts := range mountInfos {
 		for _, mount := range mounts {
-			mountPointsMap[mount.majorMinor] = append(mountPointsMap[mount.majorMinor], mount.MountPoint)
+			mountPointsMap[mount.MajorMinor] = append(mountPointsMap[mount.MajorMinor], mount.MountPoint)
 		}
 	}
 
@@ -718,7 +719,7 @@ func probeDevices() (devices map[string]*Device, err error) {
 		return nil, err
 	}
 
-	mountInfos, err := ProbeMounts()
+	mountInfos, err := mount.Probe()
 	if err != nil {
 		return nil, err
 	}
@@ -801,7 +802,7 @@ func createDevice(event map[string]string) (device *Device, err error) {
 		return nil, err
 	}
 
-	mountInfos, err := ProbeMounts()
+	mountInfos, err := mount.Probe()
 	if err != nil {
 		return nil, err
 	}

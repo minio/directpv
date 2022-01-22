@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 
@@ -168,7 +169,7 @@ func DeleteDrive(
 
 	if force {
 		if drive.Status.FilesystemUUID != "" && drive.Status.DriveStatus != directcsi.DriveStatusInUse {
-			if err := sys.Unmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID), true, true, false); err != nil {
+			if err := mount.Unmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID), true, true, false); err != nil {
 				klog.Errorf("unable to unmount %v; %v", path.Join(sys.MountRoot, drive.Status.FilesystemUUID), err)
 			}
 		}
@@ -182,7 +183,7 @@ func DeleteDrive(
 			return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/directpv/issues")
 		}
 
-		if err := sys.SafeUnmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID), false, false, false); err != nil {
+		if err := mount.SafeUnmount(path.Join(sys.MountRoot, drive.Status.FilesystemUUID), false, false, false); err != nil {
 			return err
 		}
 

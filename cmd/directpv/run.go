@@ -32,6 +32,7 @@ import (
 	"github.com/minio/directpv/pkg/converter"
 	"github.com/minio/directpv/pkg/fs/xfs"
 	id "github.com/minio/directpv/pkg/identity"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/node/discovery"
 	"github.com/minio/directpv/pkg/sys"
@@ -133,14 +134,14 @@ func checkXFS(ctx context.Context) (bool, error) {
 		}
 	}()
 
-	if err = sys.Mount(loopDevice.Path(), mountPoint, "xfs", nil, ""); err != nil {
+	if err = mount.Mount(loopDevice.Path(), mountPoint, "xfs", nil, ""); err != nil {
 		if errors.Is(err, syscall.EINVAL) {
 			err = nil
 		}
 		return false, err
 	}
 
-	return true, sys.Unmount(mountPoint, true, true, false)
+	return true, mount.Unmount(mountPoint, true, true, false)
 }
 
 func run(ctx context.Context, args []string) error {

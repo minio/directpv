@@ -66,12 +66,3 @@ type Device struct {
 	FirstMountPoint   string
 	FirstMountOptions []string
 }
-
-// MountInfo is a device mount information.
-type MountInfo struct {
-	majorMinor   string
-	MountPoint   string
-	mountOptions []string
-	fsType       string
-	fsSubType    string
-}

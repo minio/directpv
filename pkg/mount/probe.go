@@ -14,9 +14,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package mount
 
-// ProbeMounts probes mount information from /proc/1/mountinfo.
-func ProbeMounts() (map[string][]MountInfo, error) {
-	return probeMounts("/proc/1/mountinfo")
+const (
+	// mountInfoProcFile holds information about mounts
+	mountInfoProcFile = "/proc/1/mountinfo"
+)
+
+// Info is a device mount information.
+type Info struct {
+	MajorMinor   string
+	MountPoint   string
+	MountOptions []string
+	fsType       string
+	fsSubType    string
+}
+
+// Probe probes mount information from /proc/1/mountinfo.
+func Probe() (map[string][]Info, error) {
+	return probe(mountInfoProcFile)
 }
