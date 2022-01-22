@@ -21,7 +21,7 @@ import (
 
 	directsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/fs/xfs"
-	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/mount"
 )
 
 const (
@@ -36,8 +36,8 @@ func createFakeNodeServer() *NodeServer {
 		Zone:            "test-zone",
 		Region:          "test-region",
 		directcsiClient: directsetfake.NewSimpleClientset(),
-		probeMounts: func() (map[string][]sys.MountInfo, error) {
-			return map[string][]sys.MountInfo{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt"}}}, nil
+		probeMounts: func() (map[string][]mount.Info, error) {
+			return map[string][]mount.Info{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt"}}}, nil
 		},
 		getDevice:     func(major, minor uint32) (string, error) { return "", nil },
 		safeBindMount: func(source, target string, recursive, readOnly bool) error { return nil },

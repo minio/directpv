@@ -19,7 +19,7 @@ package discovery
 import (
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/clientset"
-	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/mount"
 )
 
 type remoteDrive struct {
@@ -33,5 +33,5 @@ type Discovery struct {
 	directcsiClient clientset.Interface
 	remoteDrives    []*remoteDrive
 	driveTopology   map[string]string
-	mounts          map[string][]sys.MountInfo
+	mounts          map[string][]mount.Info
 }

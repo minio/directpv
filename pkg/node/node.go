@@ -24,6 +24,7 @@ import (
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/fs/xfs"
 	"github.com/minio/directpv/pkg/metrics"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/volume"
@@ -37,7 +38,7 @@ import (
 )
 
 func safeBindMount(source, target string, recursive, readOnly bool) error {
-	return sys.SafeBindMount(source, target, "xfs", recursive, readOnly, "prjquota")
+	return mount.SafeBindMount(source, target, "xfs", recursive, readOnly, "prjquota")
 }
 
 func getDevice(major, minor uint32) (string, error) {
@@ -56,7 +57,7 @@ type NodeServer struct { //revive:disable-line:exported
 	Zone            string
 	Region          string
 	directcsiClient clientset.Interface
-	probeMounts     func() (map[string][]sys.MountInfo, error)
+	probeMounts     func() (map[string][]mount.Info, error)
 	getDevice       func(major, minor uint32) (string, error)
 	safeBindMount   func(source, target string, recursive, readOnly bool) error
 	safeUnmount     func(target string, force, detach, expire bool) error
@@ -85,10 +86,10 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		Zone:            zone,
 		Region:          region,
 		directcsiClient: directClientset,
-		probeMounts:     sys.ProbeMounts,
+		probeMounts:     mount.Probe,
 		getDevice:       getDevice,
 		safeBindMount:   safeBindMount,
-		safeUnmount:     sys.SafeUnmount,
+		safeUnmount:     mount.SafeUnmount,
 		getQuota:        xfs.GetQuota,
 		setQuota:        xfs.SetQuota,
 	}

@@ -16,12 +16,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package mount
 
 import (
 	"fmt"
 	"syscall"
 
+	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
 
@@ -76,7 +77,7 @@ func unmount(target string, force, detach, expire bool) error {
 }
 
 func isMounted(target string) (bool, error) {
-	mountInfos, err := ProbeMounts()
+	mountInfos, err := Probe()
 	if err != nil {
 		return false, err
 	}
@@ -137,13 +138,21 @@ func safeUnmount(target string, force, detach, expire bool) error {
 	return unmount(target, force, detach, expire)
 }
 
+func getDeviceMajorMinor(device string) (major, minor uint32, err error) {
+	stat := syscall.Stat_t{}
+	if err = syscall.Stat(device, &stat); err == nil {
+		major, minor = uint32(unix.Major(stat.Rdev)), uint32(unix.Minor(stat.Rdev))
+	}
+	return
+}
+
 func unmountDevice(device string) error {
-	major, minor, err := GetMajorMinor(device)
+	major, minor, err := getDeviceMajorMinor(device)
 	if err != nil {
 		return err
 	}
 
-	mountInfos, err := ProbeMounts()
+	mountInfos, err := Probe()
 	if err != nil {
 		return err
 	}

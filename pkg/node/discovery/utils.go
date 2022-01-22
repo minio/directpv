@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 
@@ -32,7 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (d *Discovery) getMountInfo(major, minor uint32) []sys.MountInfo {
+func (d *Discovery) getMountInfo(major, minor uint32) []mount.Info {
 	return d.mounts[fmt.Sprintf("%v:%v", major, minor)]
 }
 
@@ -54,7 +55,7 @@ func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) er
 			if err != nil {
 				return err
 			}
-			if err = sys.Mount("/dev/"+name, mountTarget, "xfs", nil, "prjquota"); err != nil {
+			if err = mount.Mount("/dev/"+name, mountTarget, "xfs", nil, "prjquota"); err != nil {
 				return err
 			}
 			existingDrive.Status.Mountpoint = mountTarget

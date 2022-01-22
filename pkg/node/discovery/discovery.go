@@ -24,6 +24,7 @@ import (
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/clientset"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 
@@ -83,7 +84,7 @@ func NewDiscovery(ctx context.Context, identity, nodeID, rack, zone, region stri
 }
 
 func (d *Discovery) readMounts() (err error) {
-	d.mounts, err = sys.ProbeMounts()
+	d.mounts, err = mount.Probe()
 	return
 }
 

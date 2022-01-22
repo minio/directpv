@@ -22,10 +22,11 @@ import (
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/matcher"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 )
 
-func checkDrive(drive *directcsi.DirectCSIDrive, volumeID string, probeMounts func() (map[string][]sys.MountInfo, error)) error {
+func checkDrive(drive *directcsi.DirectCSIDrive, volumeID string, probeMounts func() (map[string][]mount.Info, error)) error {
 	if drive.Status.DriveStatus != directcsi.DriveStatusInUse {
 		return fmt.Errorf("drive %v is not in InUse state", drive.Name)
 	}
@@ -56,7 +57,7 @@ func checkDrive(drive *directcsi.DirectCSIDrive, volumeID string, probeMounts fu
 	return fmt.Errorf("drive %v is not mounted at mount point %v", drive.Name, mountPoint)
 }
 
-func checkStagingTargetPath(stagingPath string, probeMounts func() (map[string][]sys.MountInfo, error)) error {
+func checkStagingTargetPath(stagingPath string, probeMounts func() (map[string][]mount.Info, error)) error {
 	mounts, err := probeMounts()
 	if err != nil {
 		return err

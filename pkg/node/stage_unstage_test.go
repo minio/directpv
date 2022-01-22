@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -74,12 +74,12 @@ func TestNodeStageVolume(t *testing.T) {
 	testCases := []struct {
 		req       *csi.NodeStageVolumeRequest
 		drive     *directcsi.DirectCSIDrive
-		mountInfo map[string][]sys.MountInfo
+		mountInfo map[string][]mount.Info
 	}{
 		{case1Req, case1Drive, nil},
 		{case1Req, case2Drive, nil},
-		{case1Req, case3Drive, map[string][]sys.MountInfo{"1:0": {}}},
-		{case1Req, case3Drive, map[string][]sys.MountInfo{"0:0": {}}},
+		{case1Req, case3Drive, map[string][]mount.Info{"1:0": {}}},
+		{case1Req, case3Drive, map[string][]mount.Info{"0:0": {}}},
 	}
 
 	for i, testCase := range testCases {
@@ -95,7 +95,7 @@ func TestNodeStageVolume(t *testing.T) {
 
 		nodeServer := createFakeNodeServer()
 		nodeServer.directcsiClient = fakedirect.NewSimpleClientset(volume, testCase.drive)
-		nodeServer.probeMounts = func() (map[string][]sys.MountInfo, error) {
+		nodeServer.probeMounts = func() (map[string][]mount.Info, error) {
 			return testCase.mountInfo, nil
 		}
 		_, err := nodeServer.NodeStageVolume(context.TODO(), testCase.req)

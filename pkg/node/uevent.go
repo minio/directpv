@@ -29,6 +29,7 @@ import (
 	"github.com/google/uuid"
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/uevent"
 	"github.com/minio/directpv/pkg/utils"
@@ -44,7 +45,7 @@ func mountDrive(ctx context.Context, drive *directcsi.DirectCSIDrive) {
 	if drive.Spec.RequestedFormat != nil {
 		flags = drive.Spec.RequestedFormat.MountOptions
 	}
-	err := sys.MountXFSDevice(drive.Status.Path, target, flags)
+	err := mount.MountXFSDevice(drive.Status.Path, target, flags)
 	if err == nil {
 		return
 	}

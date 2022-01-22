@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package mount
 
 import (
 	"bufio"
@@ -28,7 +28,7 @@ import (
 	"strings"
 )
 
-func probeMounts(filename string) (map[string][]MountInfo, error) {
+func probe(filename string) (map[string][]Info, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func probeMounts(filename string) (map[string][]MountInfo, error) {
 	defer file.Close()
 	reader := bufio.NewReader(file)
 
-	mountPointsMap := map[string][]MountInfo{}
+	mountPointsMap := map[string][]Info{}
 	for {
 		s, err := reader.ReadString('\n')
 		if err != nil {
@@ -76,10 +76,10 @@ func probeMounts(filename string) (map[string][]MountInfo, error) {
 
 		mountPointsMap[majorMinor] = append(
 			mountPointsMap[majorMinor],
-			MountInfo{
-				majorMinor:   majorMinor,
+			Info{
+				MajorMinor:   majorMinor,
 				MountPoint:   mountPoint,
-				mountOptions: mountOptions,
+				MountOptions: mountOptions,
 				fsType:       fsType,
 				fsSubType:    fsSubType,
 			},
