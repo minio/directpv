@@ -24,6 +24,7 @@ const (
 
 	// rbac
 	clusterRoleVerbList   = "list"
+	clusterRoleVerbUse    = "use"
 	clusterRoleVerbGet    = "get"
 	clusterRoleVerbWatch  = "watch"
 	clusterRoleVerbCreate = "create"

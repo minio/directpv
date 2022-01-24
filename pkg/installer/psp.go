@@ -22,6 +22,7 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 
+	corev1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
 	rbac "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 )
 
 func createPodSecurityPolicy(ctx context.Context, i *Config) error {
+
 	pspObj := &policy.PodSecurityPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policy/v1beta1",
@@ -42,9 +44,11 @@ func createPodSecurityPolicy(ctx context.Context, i *Config) error {
 			Labels:      defaultLabels,
 		},
 		Spec: policy.PodSecurityPolicySpec{
-			Privileged: true,
-			HostPID:    true,
-			HostIPC:    true,
+			Privileged:          true,
+			HostPID:             true,
+			HostIPC:             true,
+			AllowedCapabilities: []corev1.Capability{policy.AllowAllCapabilities},
+			Volumes:             []policy.FSType{policy.HostPath},
 			AllowedHostPaths: []policy.AllowedHostPath{
 				{PathPrefix: "/proc", ReadOnly: true},
 				{PathPrefix: "/sys", ReadOnly: true},

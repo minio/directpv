@@ -128,6 +128,11 @@ func createClusterRole(ctx context.Context, c *Config) error {
 				},
 			},
 			{
+				Verbs:     []string{clusterRoleVerbUse},
+				Resources: []string{"podsecuritypolicies"},
+				APIGroups: []string{"policy"},
+			},
+			{
 				Verbs: []string{
 					clusterRoleVerbGet,
 					clusterRoleVerbList,
