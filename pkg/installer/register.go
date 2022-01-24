@@ -111,20 +111,27 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		return err
 	}
 
+	var versionEntryFound bool
 	if existingCRDStorageVersion != directcsi.Version {
 		// Set all the existing versions to false
 		func() {
 			for i := range existingCRD.Spec.Versions {
-				existingCRD.Spec.Versions[i].Storage = false
+				if existingCRD.Spec.Versions[i].Name != directcsi.Version {
+					existingCRD.Spec.Versions[i].Storage = false
+				} else {
+					existingCRD.Spec.Versions[i].Storage = true
+					versionEntryFound = true
+				}
 			}
 		}()
 
-		latestVersionObject, err := getLatestCRDVersionObject(newCRD)
-		if err != nil {
-			return err
+		if !versionEntryFound {
+			latestVersionObject, err := getLatestCRDVersionObject(newCRD)
+			if err != nil {
+				return err
+			}
+			existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 		}
-
-		existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 	}
 
 	if err := setConversionWebhook(ctx, existingCRD, c); err != nil {
