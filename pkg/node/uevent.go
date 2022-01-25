@@ -19,6 +19,7 @@ package node
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -78,6 +79,183 @@ type ueventHandler struct {
 	dynamicDriveDiscovery bool
 	loopbackOnly          bool
 	syncMu                sync.Mutex
+}
+
+func (handler *ueventHandler) updateDriveProperties(ctx context.Context, drive *directcsi.DirectCSIDrive, device *sys.Device) (mountFlag bool) {
+	mountFlag = true
+	updated, nameChanged := updateDriveProperties(drive, device)
+	if !updated {
+		return
+	}
+
+	_, err := client.GetLatestDirectCSIDriveInterface().Update(
+		ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+	)
+	if err != nil {
+		klog.ErrorS(err, "unable to update drive", "Path", drive.Status.Path, "device.Name", device.Name)
+		mountFlag = false
+		return
+	}
+
+	if !nameChanged {
+		return
+	}
+
+	volumeInterface := client.GetLatestDirectCSIVolumeInterface()
+
+	updateLabels := func(volumeName, driveName string) func() error {
+		return func() error {
+			volume, err := volumeInterface.Get(
+				ctx, volumeName, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+			)
+			if err != nil {
+				return err
+			}
+
+			volume.Labels[string(utils.DrivePathLabelKey)] = driveName
+			_, err = volumeInterface.Update(
+				ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+			)
+			return err
+		}
+	}
+
+	for _, finalizer := range drive.GetFinalizers() {
+		if !strings.HasPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix) {
+			continue
+		}
+
+		volumeName := strings.TrimPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix)
+		go func() {
+			err := retry.RetryOnConflict(retry.DefaultRetry, updateLabels(volumeName, utils.SanitizeDrivePath(drive.Status.Path)))
+			if err != nil {
+				klog.ErrorS(err, "unable to update volume %v", volumeName)
+			}
+		}()
+	}
+
+	return
+}
+
+func (handler *ueventHandler) syncDrives(ctx context.Context) error {
+	handler.syncMu.Lock()
+	defer handler.syncMu.Unlock()
+
+	devices, err := sys.ProbeDevices()
+	if err != nil {
+		klog.ErrorS(err, "unable to probe devices")
+		return nil
+	}
+
+	drives, err := client.GetDriveList(
+		ctx,
+		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
+		nil,
+		nil,
+	)
+	if err != nil {
+		klog.Error(err)
+		return nil
+	}
+
+	for _, device := range devices {
+		indices := matchDrives(drives, device)
+		switch len(indices) {
+		case 0:
+		case 1:
+			delete(devices, device.Name)
+			i := indices[0]
+			drive := &drives[i]
+			drives = append(drives[:i], drives[i+1:]...)
+			if handler.updateDriveProperties(ctx, drive, device) {
+				switch drive.Status.DriveStatus {
+				case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
+					mountDrive(ctx, drive)
+				}
+			}
+		default:
+			driveNames := []string{}
+			drivePaths := []string{}
+			for _, i := range indices {
+				driveNames = append(driveNames, drives[i].Name)
+				drivePaths = append(drivePaths, drives[i].Status.Path)
+			}
+			return fmt.Errorf("duplicate drives found; Name=%v, Status.Path=%v", driveNames, drivePaths)
+		}
+	}
+
+	// Remove any unmatched drive objects found.
+	for _, drive := range drives {
+		if err := client.DeleteDrive(ctx, &drive, true); err != nil {
+			klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
+		}
+	}
+
+	// Add any unmatched i.e. new devices found.
+	for _, device := range devices {
+		if !handler.loopbackOnly && sys.LoopRegexp.MatchString(device.Name) {
+			klog.V(5).InfoS("loopback device is ignored", "Name", device.Name)
+			continue
+		}
+
+		drive := client.NewDirectCSIDrive(
+			uuid.New().String(),
+			client.NewDirectCSIDriveStatus(device, handler.nodeID, handler.topology),
+		)
+
+		err := retry.RetryOnConflict(
+			retry.DefaultRetry,
+			func() error { return client.CreateDrive(ctx, drive) },
+		)
+		if err != nil {
+			klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
+		}
+	}
+
+	return nil
+}
+
+func (handler *ueventHandler) removeDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, devices map[string]*sys.Device) {
+	for _, device := range devices {
+		remove := func(matchFunc func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool) {
+			if !matchFunc(drive, device) {
+				// This device and drive do not match by properties WRT match function.
+				// Try next device.
+				return
+			}
+
+			delete(devices, device.Name)
+
+			_, err := os.Stat(drive.Status.Path)
+			switch {
+			case err == nil:
+				klog.ErrorS(os.ErrExist, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
+			case !errors.Is(err, os.ErrNotExist):
+				klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
+			default:
+				if err := client.DeleteDrive(ctx, drive, true); err != nil {
+					klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
+				}
+			}
+		}
+
+		switch {
+		case isHWInfoAvailable(drive):
+			remove(matchDeviceHWInfo)
+		case isDMMDUUIDAvailable(drive):
+			remove(matchDeviceDMMDUUID)
+		case isPTUUIDAvailable(drive):
+			remove(matchDevicePTUUID)
+		case isPartUUIDAvailable(drive):
+			remove(matchDevicePartUUID)
+		case isFSUUIDAvailable(drive):
+			remove(matchDeviceFSUUID)
+		default:
+			remove(func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+				return drive.Status.Path == "/dev/"+device.Name && drive.Status.DriveStatus != directcsi.DriveStatusInUse
+			})
+		}
+	}
 }
 
 func (handler *ueventHandler) syncDrive(
@@ -166,112 +344,6 @@ func (handler *ueventHandler) updateDrive(ctx context.Context, drive *directcsi.
 		return handler.syncDrive(ctx, devices, drive, matchV1Beta1Name, "v1beta1 drive name")
 	default:
 		return handler.syncDrive(ctx, devices, drive, matchDeviceNameSize, "Device name and size")
-	}
-}
-
-func (handler *ueventHandler) syncDrives(ctx context.Context) {
-	handler.syncMu.Lock()
-	defer handler.syncMu.Unlock()
-
-	devices, err := sys.ProbeDevices()
-	if err != nil {
-		klog.ErrorS(err, "unable to probe devices")
-		return
-	}
-
-	resultCh, err := client.ListDrives(
-		ctx,
-		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
-		nil,
-		nil,
-		client.MaxThreadCount,
-	)
-	if err != nil {
-		klog.Error(err)
-		return
-	}
-
-	for result := range resultCh {
-		if result.Err != nil {
-			klog.Error(result.Err)
-			return
-		}
-
-		if matched, updated := handler.updateDrive(ctx, &result.Drive, devices); matched {
-			switch result.Drive.Status.DriveStatus {
-			case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
-				if updated {
-					mountDrive(ctx, &result.Drive)
-				}
-			}
-		} else {
-			if err := client.DeleteDrive(ctx, &result.Drive, true); err != nil {
-				klog.ErrorS(err, "unable to delete drive", "Name", result.Drive.Name, "Status.Path", result.Drive.Status.Path)
-			}
-		}
-	}
-
-	for _, device := range devices {
-		if !handler.loopbackOnly && sys.LoopRegexp.MatchString(device.Name) {
-			klog.V(5).InfoS("loopback device is ignored", "Name", device.Name)
-			continue
-		}
-
-		drive := client.NewDirectCSIDrive(
-			uuid.New().String(),
-			client.NewDirectCSIDriveStatus(device, handler.nodeID, handler.topology),
-		)
-
-		err := retry.RetryOnConflict(
-			retry.DefaultRetry,
-			func() error { return client.CreateDrive(ctx, drive) },
-		)
-		if err != nil {
-			klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
-		}
-	}
-}
-
-func (handler *ueventHandler) removeDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, devices map[string]*sys.Device) {
-	for _, device := range devices {
-		remove := func(matchFunc func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool) {
-			if !matchFunc(drive, device) {
-				// This device and drive do not match by properties WRT match function.
-				// Try next device.
-				return
-			}
-
-			delete(devices, device.Name)
-
-			_, err := os.Stat(drive.Status.Path)
-			switch {
-			case err == nil:
-				klog.ErrorS(os.ErrExist, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
-			case !errors.Is(err, os.ErrNotExist):
-				klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
-			default:
-				if err := client.DeleteDrive(ctx, drive, true); err != nil {
-					klog.ErrorS(err, "unable to delete drive", "Name", drive.Name, "Status.Path", drive.Status.Path)
-				}
-			}
-		}
-
-		switch {
-		case isHWInfoAvailable(drive):
-			remove(matchDeviceHWInfo)
-		case isDMMDUUIDAvailable(drive):
-			remove(matchDeviceDMMDUUID)
-		case isPTUUIDAvailable(drive):
-			remove(matchDevicePTUUID)
-		case isPartUUIDAvailable(drive):
-			remove(matchDevicePartUUID)
-		case isFSUUIDAvailable(drive):
-			remove(matchDeviceFSUUID)
-		default:
-			remove(func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
-				return drive.Status.Path == "/dev/"+device.Name && drive.Status.DriveStatus != directcsi.DriveStatusInUse
-			})
-		}
 	}
 }
 
@@ -390,7 +462,9 @@ func (handler *ueventHandler) processLoop(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				handler.syncDrives(ctx)
+				if err := handler.syncDrives(ctx); err != nil {
+					klog.ErrorS(err, "unable to sync drives")
+				}
 			}
 		}
 	}
@@ -446,7 +520,31 @@ func StartDynamicDriveHandler(ctx context.Context, identity, nodeID, rack, zone,
 	}
 
 	klog.V(3).Info("Doing initial drive sync up")
-	handler.syncDrives(ctx)
+	if err := handler.syncDrives(ctx); err != nil {
+		return err
+	}
 
 	return handler.processLoop(ctx)
+}
+
+func SyncDrives(ctx context.Context, identity, nodeID, rack, zone, region string, loopbackOnly bool) error {
+	handler := &ueventHandler{
+		nodeID: nodeID,
+		topology: map[string]string{
+			string(utils.TopologyDriverIdentity): identity,
+			string(utils.TopologyDriverRack):     rack,
+			string(utils.TopologyDriverZone):     zone,
+			string(utils.TopologyDriverRegion):   region,
+			string(utils.TopologyDriverNode):     nodeID,
+		},
+		dynamicDriveDiscovery: true,
+		loopbackOnly:          loopbackOnly,
+	}
+	if loopbackOnly {
+		if err := sys.CreateLoopDevices(); err != nil {
+			return err
+		}
+	}
+
+	return handler.syncDrives(ctx)
 }

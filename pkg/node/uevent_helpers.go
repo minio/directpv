@@ -321,3 +321,40 @@ func updateDriveProperties(drive *directcsi.DirectCSIDrive, device *sys.Device) 
 
 	return updated, nameChanged
 }
+
+func matchDrives(drives []directcsi.DirectCSIDrive, device *sys.Device) (indices []int) {
+	for i, drive := range drives {
+		switch {
+		case isHWInfoAvailable(&drive):
+			if matchDeviceHWInfo(&drive, device) {
+				indices = append(indices, i)
+			}
+		case isDMMDUUIDAvailable(&drive):
+			if matchDeviceDMMDUUID(&drive, device) {
+				indices = append(indices, i)
+			}
+		case isPTUUIDAvailable(&drive):
+			if matchDevicePTUUID(&drive, device) {
+				indices = append(indices, i)
+			}
+		case isPartUUIDAvailable(&drive):
+			if matchDevicePartUUID(&drive, device) {
+				indices = append(indices, i)
+			}
+		case isFSUUIDAvailable(&drive):
+			if matchDeviceFSUUID(&drive, device) {
+				indices = append(indices, i)
+			}
+		case isV1Beta1Drive(&drive):
+			if matchV1Beta1Name(&drive, device) {
+				indices = append(indices, i)
+			}
+		default:
+			if matchDeviceNameSize(&drive, device) {
+				indices = append(indices, i)
+			}
+		}
+	}
+
+	return indices
+}
