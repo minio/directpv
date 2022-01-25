@@ -112,10 +112,10 @@ Here is a shell script to Copy-Paste into your terminal to do the above steps:
 # set this to private registry URL (the URL should NOT include http or https)
 if [ -z $PRIVATE_REGISTRY_URL ]; then "PRIVATE_REGISTRY_URL env var should be set"; fi
 
-image[0]=quay.io/minio/csi-node-driver-registrar:v2.2.0-go1.17
-image[1]=quay.io/minio/csi-provisioner:v2.2.0-go1.17
-image[2]=quay.io/minio/livenessprobe:v2.2.0-go1.17
-image[3]=quay.io/minio/directpv:$(curl -s "https://api.github.com/repos/minio/directpv/releases/latest" | grep tag_name | sed -E 's/.*"([^"]+)".*/\1/')
+images[0]=quay.io/minio/csi-node-driver-registrar:v2.2.0-go1.17
+images[1]=quay.io/minio/csi-provisioner:v2.2.0-go1.17
+images[2]=quay.io/minio/livenessprobe:v2.2.0-go1.17
+images[3]=quay.io/minio/directpv:$(curl -s "https://api.github.com/repos/minio/directpv/releases/latest" | grep tag_name | sed -E 's/.*"([^"]+)".*/\1/')
 
 function privatize(){ echo $1 | sed "s#quay.io#${PRIVATE_REGISTRY_URL}#g"; }
 function pull_tag_push(){ docker pull $1 &&  docker tag $1 $2 && docker push $2; }
