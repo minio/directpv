@@ -38,7 +38,7 @@ func installDaemonsetDefault(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		klog.Infof("'%s' daemonset created", utils.Bold(c.Identity))
+		klog.Infof("'%s' daemonset created", utils.Bold(c.daemonsetName()))
 	}
 
 	return nil
@@ -51,7 +51,7 @@ func uninstallDaemonsetDefault(ctx context.Context, c *Config) error {
 		}
 
 	}
-	klog.Infof("'%s' daemonset deleted", utils.Bold(c.Identity))
+	klog.Infof("'%s' daemonset deleted", utils.Bold(c.daemonsetName()))
 	return nil
 }
 
@@ -69,7 +69,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 	}
 
 	volumes := []corev1.Volume{
-		newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, c.daemonsetName())),
+		newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, c.identity())),
 		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
 		newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
 		newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
@@ -106,12 +106,12 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		Containers: []corev1.Container{
 			{
 				Name:  nodeDriverRegistrarContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getNodeDriverRegistrarImage()),
+				Image: filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.getNodeDriverRegistrarImage()),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--csi-address=unix:///csi/csi.sock",
 					fmt.Sprintf("--kubelet-registration-path=%s",
-						newDirectCSIPluginsSocketDir(kubeletDirPath, c.daemonsetName())+"/csi.sock"),
+						newDirectCSIPluginsSocketDir(kubeletDirPath, c.identity())+"/csi.sock"),
 				},
 				Env: []corev1.EnvVar{
 					{
@@ -132,11 +132,11 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
 			},
 			{
-				Name:  directCSIContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
+				Name:  directPVContainerName,
+				Image: filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.DirectPVContainerImage),
 				Args: func() []string {
 					args := []string{
-						fmt.Sprintf("--identity=%s", c.daemonsetName()),
+						fmt.Sprintf("--identity=%s", c.identity()),
 						fmt.Sprintf("-v=%d", logLevel),
 						fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 						fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
@@ -206,7 +206,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			},
 			{
 				Name:  livenessProbeContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getLivenessProbeImage()),
+				Image: filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.getLivenessProbeImage()),
 				Args: []string{
 					"--csi-address=/csi/csi.sock",
 					"--health-port=9898",
@@ -237,7 +237,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		}
 		podSpec.Containers = append(podSpec.Containers, corev1.Container{
 			Name:            directPVDriveDiscoveryContainerName,
-			Image:           filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
+			Image:           filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.DirectPVContainerImage),
 			Args:            args,
 			SecurityContext: securityContext,
 			Env: []corev1.EnvVar{
@@ -262,10 +262,10 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 	}
 
 	annotations := map[string]string{
-		createdByLabel: directCSIPluginName,
+		createdByLabel: directPVPluginName,
 	}
 	if c.ApparmorProfile != "" {
-		annotations["container.apparmor.security.beta.kubernetes.io/direct-csi"] = c.ApparmorProfile
+		annotations["container.apparmor.security.beta.kubernetes.io/directpv"] = c.ApparmorProfile
 	}
 
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(c.daemonsetName())
@@ -281,15 +281,15 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			Labels:      defaultLabels,
 		},
 		Spec: appsv1.DaemonSetSpec{
-			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directPVSelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        c.daemonsetName(),
 					Namespace:   c.namespace(),
 					Annotations: annotations,
 					Labels: map[string]string{
-						directCSISelector: generatedSelectorValue,
-						webhookSelector:   selectorValueEnabled,
+						directPVSelector: generatedSelectorValue,
+						webhookSelector:  selectorValueEnabled,
 					},
 				},
 				Spec: podSpec,

@@ -47,7 +47,7 @@ func installStorageClassDefault(ctx context.Context, c *Config) error {
 		}
 	}
 	if !c.DryRun {
-		klog.Infof("'%s' storageclass created", utils.Bold(c.Identity))
+		klog.Infof("'%s' storageclass created", utils.Bold(c.storageClassNameDirectPV()))
 	}
 	return nil
 }
@@ -59,7 +59,7 @@ func uninstallStorageClassDefault(ctx context.Context, c *Config) error {
 	if err := deleteStorageClass(ctx, c, c.storageClassNameDirectPV()); err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
-	klog.Infof("'%s' storageclass deleted", utils.Bold(c.Identity))
+	klog.Infof("'%s' storageclass deleted", utils.Bold(c.storageClassNameDirectPV()))
 	return nil
 }
 

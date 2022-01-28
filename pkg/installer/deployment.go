@@ -89,7 +89,7 @@ func createControllerService(ctx context.Context, generatedSelectorValue string,
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{admissionWebhookPort},
 			Selector: map[string]string{
-				directCSISelector: generatedSelectorValue,
+				directPVSelector: generatedSelectorValue,
 			},
 		},
 	}
@@ -110,7 +110,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 	var replicas int32 = 3
 	privileged := true
 	volumes := []corev1.Volume{
-		newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", c.deploymentName()))),
+		newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", c.identity()))),
 		newSecretVolume(conversionCACert, conversionCACert),
 		newSecretVolume(conversionKeyPair, conversionKeyPair),
 	}
@@ -132,7 +132,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 		Containers: []corev1.Container{
 			{
 				Name:  csiProvisionerContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getCSIProvisionerImage()),
+				Image: filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.getCSIProvisionerImage()),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
@@ -170,11 +170,11 @@ func createDeployment(ctx context.Context, c *Config) error {
 				},
 			},
 			{
-				Name:  directCSIContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
+				Name:  directPVContainerName,
+				Image: filepath.Join(c.DirectPVContainerRegistry, c.DirectPVContainerOrg, c.DirectPVContainerImage),
 				Args: []string{
 					fmt.Sprintf("-v=%d", logLevel),
-					fmt.Sprintf("--identity=%s", c.deploymentName()),
+					fmt.Sprintf("--identity=%s", c.identity()),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 					fmt.Sprintf("--conversion-healthz-url=%s", c.conversionHealthzURL()),
 					"--controller",
@@ -249,17 +249,17 @@ func createDeployment(ctx context.Context, c *Config) error {
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
-			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directCSISelector, generatedSelectorValue),
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, directPVSelector, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      c.deploymentName(),
 					Namespace: c.namespace(),
 					Annotations: map[string]string{
-						createdByLabel: directCSIPluginName,
+						createdByLabel: directPVPluginName,
 					},
 					Labels: map[string]string{
-						directCSISelector: generatedSelectorValue,
-						webhookSelector:   selectorValueEnabled,
+						directPVSelector: generatedSelectorValue,
+						webhookSelector:  selectorValueEnabled,
 					},
 				},
 				Spec: podSpec,
@@ -268,7 +268,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 		Status: appsv1.DeploymentStatus{},
 	}
 	deployment.ObjectMeta.Finalizers = []string{
-		c.namespace() + directCSIFinalizerDeleteProtection,
+		c.namespace() + directPVFinalizerDeleteProtection,
 	}
 
 	if !c.DryRun {
@@ -292,7 +292,7 @@ func installDeploymentDefault(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		klog.Infof("'%s' deployment created", utils.Bold(c.Identity))
+		klog.Infof("'%s' deployment created", utils.Bold(c.deploymentName()))
 	}
 
 	return nil
@@ -305,7 +305,7 @@ func uninstallDeploymentDefault(ctx context.Context, c *Config) error {
 	if err := deleteDeployment(ctx, c.namespace(), c.deploymentName()); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	klog.Infof("'%s' controller deployment deleted", utils.Bold(c.Identity))
+	klog.Infof("'%s' controller deployment deleted", utils.Bold(c.deploymentName()))
 
 	return nil
 }

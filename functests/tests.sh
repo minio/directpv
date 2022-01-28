@@ -57,12 +57,8 @@ function do_upgrade_test() {
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" volumes list
 
-    if [[ $1 == "1.3.6" ]]; then
-        "${DIRECT_CSI_CLIENT}" uninstall
-    else
-        # Check version compatibility client.
-        ./kubectl-direct_csi uninstall
-    fi
+    # uninstall directcsi
+    "${DIRECT_CSI_CLIENT}" uninstall
 
     pending=7
     wait_count=0

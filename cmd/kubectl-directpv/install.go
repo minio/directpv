@@ -110,20 +110,20 @@ func install(ctx context.Context, args []string) (err error) {
 	}()
 
 	installConfig := &installer.Config{
-		Identity:                   identity,
-		DirectCSIContainerImage:    image,
-		DirectCSIContainerOrg:      org,
-		DirectCSIContainerRegistry: registry,
-		AdmissionControl:           admissionControl,
-		LoopbackMode:               loopbackOnly,
-		NodeSelector:               nodeSelector,
-		Tolerations:                tolerations,
-		SeccompProfile:             seccompProfile,
-		ApparmorProfile:            apparmorProfile,
-		DynamicDriveDiscovery:      dynamicDriveDiscovery,
-		DryRun:                     dryRun,
-		AuditFile:                  file,
-		ImagePullSecrets:           imagePullSecrets,
+		Identity:                  identity,
+		DirectPVContainerImage:    image,
+		DirectPVContainerOrg:      org,
+		DirectPVContainerRegistry: registry,
+		AdmissionControl:          admissionControl,
+		LoopbackMode:              loopbackOnly,
+		NodeSelector:              nodeSelector,
+		Tolerations:               tolerations,
+		SeccompProfile:            seccompProfile,
+		ApparmorProfile:           apparmorProfile,
+		DynamicDriveDiscovery:     dynamicDriveDiscovery,
+		DryRun:                    dryRun,
+		AuditFile:                 file,
+		ImagePullSecrets:          imagePullSecrets,
 	}
 
 	return installer.Install(ctx, installConfig)

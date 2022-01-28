@@ -35,7 +35,7 @@ scrape_configs:
 
   relabel_configs:
   - source_labels: [__meta_kubernetes_namespace]
-    regex: "direct-csi-(.+)"
+    regex: "directpv-(.+)"
     action: keep
   - source_labels: [__meta_kubernetes_pod_controller_kind]
     regex: "DaemonSet"

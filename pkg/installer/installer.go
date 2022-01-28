@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/minio/directpv/pkg/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func getInstaller(config *Config) (installer, error) {
@@ -63,6 +64,9 @@ func Install(ctx context.Context, config *Config) error {
 		if err := deleteLegacyConversionDeployment(ctx, config.Identity); err != nil {
 			return err
 		}
+		if err := deleteNS(ctx, directCSIIdentity); err != nil {
+			return err
+		}
 	}
 	return installer.Install(ctx)
 }
@@ -74,6 +78,12 @@ func Uninstall(ctx context.Context, config *Config) error {
 	if err := config.validate(); err != nil {
 		return err
 	}
+
+	// Check if the legacy ns 'direct-csi-min-io' is found
+	if _, err := client.GetKubeClient().CoreV1().Namespaces().Get(ctx, "direct-csi-min-io", metav1.GetOptions{}); err == nil {
+		config.isLegacyInstallation = true
+	}
+
 	installer, err := getInstaller(config)
 	if err != nil {
 		return err

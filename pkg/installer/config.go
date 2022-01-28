@@ -37,6 +37,12 @@ const (
 
 	// quay.io/minio/livenessprobe:v2.2.0-go1.17
 	CSIImageLivenessProbe = "livenessprobe@sha256:928a80be4d363e0e438ff28dcdb00d8d674d3059c6149a8cda64ce6016a9a3f8"
+
+	// directpv identity
+	directPVIdentity = "directpv-min-io"
+
+	// direct-csi identity
+	directCSIIdentity = "direct-csi-min-io"
 )
 
 func defaultIfZeroString(left, right string) string {
@@ -49,10 +55,10 @@ func defaultIfZeroString(left, right string) string {
 type Config struct {
 	Identity string
 
-	// DirectCSIContainerImage properties
-	DirectCSIContainerImage    string
-	DirectCSIContainerOrg      string
-	DirectCSIContainerRegistry string
+	// DirectPVContainerImage properties
+	DirectPVContainerImage    string
+	DirectPVContainerOrg      string
+	DirectPVContainerRegistry string
 
 	// CSIImage properties
 	CSIProvisionerImage      string
@@ -91,6 +97,7 @@ type Config struct {
 	// internal
 	conversionWebhookCaBundle []byte
 	validationWebhookCaBundle []byte
+	isLegacyInstallation      bool
 }
 
 type installer interface {
@@ -106,11 +113,17 @@ func (c *Config) validate() error {
 }
 
 func (i *Config) namespace() string {
-	return utils.SanitizeKubeResourceName(i.Identity)
+	if i.isLegacyInstallation {
+		return directCSIIdentity
+	}
+	return directPVIdentity
 }
 
 func (i *Config) serviceName() string {
-	return utils.SanitizeKubeResourceName(i.Identity)
+	if i.isLegacyInstallation {
+		return directCSIIdentity
+	}
+	return directPVIdentity
 }
 
 func (i *Config) identity() string {
@@ -118,7 +131,10 @@ func (i *Config) identity() string {
 }
 
 func (c *Config) conversionHealthzURL() string {
-	return getConversionHealthzURL(c.identity())
+	if c.isLegacyInstallation {
+		return getConversionHealthzURL(directCSIIdentity)
+	}
+	return getConversionHealthzURL(directPVIdentity)
 }
 
 func (i *Config) getCSIProvisionerImage() string {
@@ -134,7 +150,11 @@ func (i *Config) getLivenessProbeImage() string {
 }
 
 func (i *Config) conversionWebhookDNSName() string {
-	return strings.Join([]string{i.identity(), i.namespace(), "svc"}, ".") // "direct-csi-min-io.direct-csi-min-io.svc"
+	identity := directPVIdentity
+	if i.isLegacyInstallation {
+		identity = directCSIIdentity
+	}
+	return strings.Join([]string{identity, i.namespace(), "svc"}, ".") // "directpv-min-io.directpv-min-io.svc"
 }
 
 func (c *Config) csiDriverName() string {
@@ -142,31 +162,53 @@ func (c *Config) csiDriverName() string {
 }
 
 func (c *Config) daemonsetName() string {
-	return c.identity()
+	if c.isLegacyInstallation {
+		return directCSIIdentity
+	}
+	return directPVIdentity
 }
 
 func (c *Config) deploymentName() string {
-	return c.identity()
+	if c.isLegacyInstallation {
+		return directCSIIdentity
+	}
+	return directPVIdentity
 }
 
 func (i *Config) getPSPName() string {
-	return i.identity()
+	if i.isLegacyInstallation {
+		return directCSIIdentity
+	}
+	return directPVIdentity
 }
 
 func (i *Config) getPSPClusterRoleBindingName() string {
-	return utils.SanitizeKubeResourceName("psp-" + i.identity())
+	identity := directPVIdentity
+	if i.isLegacyInstallation {
+		identity = directCSIIdentity
+	}
+	return utils.SanitizeKubeResourceName("psp-" + identity)
 }
 
 func (i *Config) serviceAccountName() string {
-	return i.identity()
+	if i.isLegacyInstallation {
+		return directCSIIdentity
+	}
+	return directPVIdentity
 }
 
 func (i *Config) clusterRoleName() string {
-	return i.identity()
+	if i.isLegacyInstallation {
+		return directCSIIdentity
+	}
+	return directPVIdentity
 }
 
 func (i *Config) roleBindingName() string {
-	return i.identity()
+	if i.isLegacyInstallation {
+		return directCSIIdentity
+	}
+	return directPVIdentity
 }
 
 func (c *Config) storageClassNameDirectCSI() string {
@@ -174,7 +216,7 @@ func (c *Config) storageClassNameDirectCSI() string {
 }
 
 func (c *Config) storageClassNameDirectPV() string {
-	return "directpv-min-io"
+	return directPVIdentity
 }
 
 func (c *Config) driverIdentity() string {

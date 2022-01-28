@@ -349,7 +349,7 @@ func installRBACDefault(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		klog.Infof("'%s' rbac created", utils.Bold(c.Identity))
+		klog.Infof("'%s' rbac created", utils.Bold(c.clusterRoleName()))
 	}
 
 	return nil
@@ -374,7 +374,7 @@ func uninstallRBACDefault(ctx context.Context, c *Config) error {
 		}
 	}
 
-	klog.Infof("'%s' rbac roles deleted", utils.Bold(c.Identity))
+	klog.Infof("'%s' rbac roles deleted", utils.Bold(c.clusterRoleName()))
 
 	return nil
 }

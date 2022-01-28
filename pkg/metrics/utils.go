@@ -86,7 +86,7 @@ func publishVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume, ch 
 
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(
-			prometheus.BuildFQName("directcsi", "stats", "bytes_used"),
+			prometheus.BuildFQName("directpv", "stats", "bytes_used"),
 			"Total number of bytes used by the volume",
 			[]string{"tenant", "volumeID", "node"}, nil),
 		prometheus.GaugeValue,
@@ -95,7 +95,7 @@ func publishVolumeStats(ctx context.Context, vol *directcsi.DirectCSIVolume, ch 
 
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(
-			prometheus.BuildFQName("directcsi", "stats", "bytes_total"),
+			prometheus.BuildFQName("directpv", "stats", "bytes_total"),
 			"Total number of bytes allocated to the volume",
 			[]string{"tenant", "volumeID", "node"}, nil),
 		prometheus.GaugeValue,

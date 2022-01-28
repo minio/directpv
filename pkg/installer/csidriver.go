@@ -147,7 +147,7 @@ func installCSIDriverDefault(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		klog.Infof("'%s' csidriver created", utils.Bold(c.Identity))
+		klog.Infof("'%s' csidriver created", utils.Bold(c.csiDriverName()))
 	}
 
 	return nil
@@ -157,7 +157,7 @@ func uninstallCSIDriverDefault(ctx context.Context, c *Config) error {
 	if err := deleteCSIDriver(ctx, c); err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
-	klog.Infof("'%s' csidriver deleted", utils.Bold(c.Identity))
+	klog.Infof("'%s' csidriver deleted", utils.Bold(c.csiDriverName()))
 
 	return nil
 }

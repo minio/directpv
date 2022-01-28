@@ -29,7 +29,7 @@ import (
 )
 
 func installNSDefault(ctx context.Context, i *Config) error {
-	name := i.identity()
+	name := i.namespace()
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Namespace"},
 		ObjectMeta: metav1.ObjectMeta{
@@ -52,14 +52,12 @@ func installNSDefault(ctx context.Context, i *Config) error {
 		}
 	}
 
-	klog.Infof("'%s' namespace created", utils.Bold(i.Identity))
+	klog.Infof("'%s' namespace created", utils.Bold(name))
 
 	return i.postProc(ns)
 }
 
-func uninstallNSDefault(ctx context.Context, i *Config) error {
-	// Delete Namespace Obj
-	name := i.identity()
+func deleteNS(ctx context.Context, name string) error {
 	foregroundDeletePropagation := metav1.DeletePropagationForeground
 	if err := client.GetKubeClient().CoreV1().Namespaces().Delete(ctx, name, metav1.DeleteOptions{
 		PropagationPolicy: &foregroundDeletePropagation,
@@ -68,8 +66,17 @@ func uninstallNSDefault(ctx context.Context, i *Config) error {
 			return err
 		}
 	}
+	return nil
+}
 
-	klog.Infof("'%s' namespace deleted", utils.Bold(i.Identity))
+func uninstallNSDefault(ctx context.Context, i *Config) error {
+	// Delete Namespace Obj
+	name := i.namespace()
+	if err := deleteNS(ctx, name); err != nil {
+		return err
+	}
+
+	klog.Infof("'%s' namespace deleted", utils.Bold(name))
 
 	return nil
 }

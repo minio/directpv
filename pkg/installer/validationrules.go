@@ -96,7 +96,7 @@ func getDriveValidatingWebhookConfig(c *Config) admissionv1.ValidatingWebhookCon
 			Namespace:   c.namespace(),
 			Annotations: defaultAnnotations,
 			Labels:      defaultLabels,
-			Finalizers:  []string{c.namespace() + directCSIFinalizerDeleteProtection},
+			Finalizers:  []string{c.namespace() + directPVFinalizerDeleteProtection},
 		},
 		Webhooks: getValidatingWebhooks(),
 	}
@@ -108,7 +108,7 @@ func deleteDriveValidationRules(ctx context.Context, c *Config) error {
 	vClient := client.GetKubeClient().AdmissionregistrationV1().ValidatingWebhookConfigurations()
 
 	getDeleteProtectionFinalizer := func() string {
-		return c.namespace() + directCSIFinalizerDeleteProtection
+		return c.namespace() + directPVFinalizerDeleteProtection
 	}
 
 	clearFinalizers := func() error {
@@ -144,7 +144,7 @@ func installValidationRulesDefault(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		klog.Infof("'%s' validation rules registered", utils.Bold(c.Identity))
+		klog.Infof("'%s' validation rules registered", utils.Bold(directPVIdentity))
 	}
 
 	return nil
@@ -154,6 +154,6 @@ func uninstallValidationRulesDefault(ctx context.Context, c *Config) error {
 	if err := deleteDriveValidationRules(ctx, c); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	klog.Infof("'%s' validation rules removed", utils.Bold(c.Identity))
+	klog.Infof("'%s' validation rules removed", utils.Bold(directPVIdentity))
 	return nil
 }

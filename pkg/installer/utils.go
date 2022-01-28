@@ -35,10 +35,10 @@ import (
 
 var (
 	defaultLabels = map[string]string{ // labels
-		appNameLabel: "direct.csi.min.io",
+		appNameLabel: "directpv.min.io",
 		appTypeLabel: "CSIDriver",
 
-		string(utils.CreatedByLabelKey): directCSIPluginName,
+		string(utils.CreatedByLabelKey): directPVPluginName,
 		string(utils.VersionLabelKey):   directcsi.Version,
 	}
 
@@ -65,12 +65,12 @@ func newDirectCSIPluginsSocketDir(kubeletDir, name string) string {
 }
 
 func getConversionWebhookDNSName(identity string) string {
-	return strings.Join([]string{utils.SanitizeKubeResourceName(identity), utils.SanitizeKubeResourceName(identity), "svc"}, ".") // "direct-csi-min-io.direct-csi-min-io.svc"
+	return strings.Join([]string{utils.SanitizeKubeResourceName(identity), utils.SanitizeKubeResourceName(identity), "svc"}, ".") // "directpv-min-io.directpv-min-io.svc"
 }
 
 func getConversionHealthzURL(identity string) (conversionWebhookURL string) {
 	conversionWebhookDNSName := getConversionWebhookDNSName(identity)
-	conversionWebhookURL = fmt.Sprintf("https://%s:%d%s", conversionWebhookDNSName, conversionWebhookPort, healthZContainerPortPath) // https://direct-csi-min-io.direct-csi-min-io.svc:30443/healthz
+	conversionWebhookURL = fmt.Sprintf("https://%s:%d%s", conversionWebhookDNSName, conversionWebhookPort, healthZContainerPortPath) // https://directpv-min-io.directpv-min-io.svc:30443/healthz
 	return
 }
 
@@ -144,7 +144,7 @@ func deleteDeployment(ctx context.Context, identity, name string) error {
 	dClient := client.GetKubeClient().AppsV1().Deployments(utils.SanitizeKubeResourceName(identity))
 
 	getDeleteProtectionFinalizer := func() string {
-		return utils.SanitizeKubeResourceName(identity) + directCSIFinalizerDeleteProtection
+		return utils.SanitizeKubeResourceName(identity) + directPVFinalizerDeleteProtection
 	}
 
 	clearFinalizers := func(name string) error {

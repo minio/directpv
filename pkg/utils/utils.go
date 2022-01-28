@@ -31,8 +31,8 @@ import (
 )
 
 const (
-	defaultDirectCSIDir = ".direct-csi" // Default direct csi directory where direct csi audit logs are stored.
-	auditDir            = "audit"       // Directory contains below files for audit logs
+	defaultDirectPVDir = ".directpv" // Default directpv directory where directpv audit logs are stored.
+	auditDir           = "audit"     // Directory contains below files for audit logs
 )
 
 // Color print functions.
@@ -109,7 +109,7 @@ func GetDefaultAuditDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(homeDir, defaultDirectCSIDir, auditDir), nil
+	return filepath.Join(homeDir, defaultDirectPVDir, auditDir), nil
 }
 
 func OpenAuditFile(auditFile string) (*SafeFile, error) {

@@ -31,7 +31,7 @@ import (
 
 func newMetricsCollector(nodeID string) (*metricsCollector, error) {
 	mc := &metricsCollector{
-		desc:   prometheus.NewDesc("directcsi_stats", "Statistics exposed by DirectCSI", nil, nil),
+		desc:   prometheus.NewDesc("directpv_stats", "Statistics exposed by DirectPV", nil, nil),
 		nodeID: nodeID,
 	}
 	prometheus.MustRegister(mc)

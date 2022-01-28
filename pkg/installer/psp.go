@@ -126,7 +126,7 @@ func createPSPClusterRoleBinding(ctx context.Context, i *Config) error {
 		}
 	}
 
-	klog.Infof("'%s' podsecuritypolicy created", utils.Bold(i.Identity))
+	klog.Infof("'%s' podsecuritypolicy created", utils.Bold(i.getPSPName()))
 
 	return i.postProc(crb)
 }
@@ -162,7 +162,7 @@ func uninstallPSPDefault(ctx context.Context, i *Config) error {
 		}
 	}
 
-	klog.Infof("'%s' pod security policy removed", utils.Bold(i.Identity))
+	klog.Infof("'%s' pod security policy removed", utils.Bold(i.getPSPName()))
 
 	return nil
 }

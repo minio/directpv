@@ -167,7 +167,7 @@ func installConversionSecretDefault(ctx context.Context, c *Config) error {
 		return err
 	}
 	if !c.DryRun {
-		klog.Infof("'%s' conversion webhook secrets created", utils.Bold(c.Identity))
+		klog.Infof("'%s' conversion webhook secrets created", utils.Bold(directPVIdentity))
 	}
 	return nil
 }
@@ -176,6 +176,6 @@ func uninstallConversionSecretDefault(ctx context.Context, c *Config) error {
 	if err := deleteConversionSecrets(ctx, c); err != nil && !k8serror.IsNotFound(err) {
 		return err
 	}
-	klog.Infof("'%s' conversion secrets deleted", utils.Bold(c.Identity))
+	klog.Infof("'%s' conversion secrets deleted", utils.Bold(directPVIdentity))
 	return nil
 }

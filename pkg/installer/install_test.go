@@ -31,18 +31,18 @@ func init() {
 
 func TestInstaller(t1 *testing.T) {
 	installConfig := &Config{
-		Identity:                   "direct-csi-min-io",
-		DirectCSIContainerImage:    "test-image",
-		DirectCSIContainerOrg:      "test-org",
-		DirectCSIContainerRegistry: "test-registry",
-		AdmissionControl:           false,
-		LoopbackMode:               false,
-		NodeSelector:               nil,
-		Tolerations:                nil,
-		SeccompProfile:             "",
-		ApparmorProfile:            "",
-		DynamicDriveDiscovery:      true,
-		DryRun:                     false,
+		Identity:                  "direct-csi-min-io",
+		DirectPVContainerImage:    "test-image",
+		DirectPVContainerOrg:      "test-org",
+		DirectPVContainerRegistry: "test-registry",
+		AdmissionControl:          false,
+		LoopbackMode:              false,
+		NodeSelector:              nil,
+		Tolerations:               nil,
+		SeccompProfile:            "",
+		ApparmorProfile:           "",
+		DynamicDriveDiscovery:     true,
+		DryRun:                    false,
 	}
 
 	getDiscoveryGroupsAndMethodsFn := func() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {

@@ -36,7 +36,7 @@ func installServiceDefault(ctx context.Context, c *Config) error {
 		}
 	}
 	if !c.DryRun {
-		klog.Infof("'%s' service created", utils.Bold(c.Identity))
+		klog.Infof("'%s' service created", utils.Bold(c.serviceName()))
 	}
 	return nil
 }
@@ -45,7 +45,7 @@ func uninstallServiceDefault(ctx context.Context, c *Config) error {
 	if err := client.GetKubeClient().CoreV1().Services(c.namespace()).Delete(ctx, c.serviceName(), metav1.DeleteOptions{}); err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
-	klog.Infof("'%s' service deleted", utils.Bold(c.Identity))
+	klog.Infof("'%s' service deleted", utils.Bold(c.serviceName()))
 	return nil
 }
 
