@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/minio/directpv/pkg/client"
+	"k8s.io/klog/v2"
 )
 
 func trimMinorVersion(minor string) (string, error) {
@@ -69,6 +70,11 @@ func getInstaller(config *Config) (installer, error) {
 			return newV1Dot21(config), nil
 		case "22":
 			return newV1Dot22(config), nil
+		case "23":
+			return newV1Dot23(config), nil
+		default:
+			klog.Warningf("running on experimental version of kubernetes v1.%s. This version is not officially supported yet.", minor)
+			return newDefaultInstaller(config), nil
 		}
 	}
 

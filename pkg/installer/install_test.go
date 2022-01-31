@@ -121,6 +121,15 @@ func TestInstaller(t1 *testing.T) {
 			Major: "1",
 			Minor: "22",
 		},
+		{
+			Major: "1",
+			Minor: "23",
+		},
+		// experimental version
+		{
+			Major: "1",
+			Minor: "24+",
+		},
 	}
 
 	for _, testVersion := range testVersions {
