@@ -156,8 +156,14 @@ do_upgrade_test "1.3.6"
 echo "$ME: Run upgrade test from v1.4.6"
 do_upgrade_test "1.4.6"
 
-echo "$ME: Run upgrade test from v2.0.9"
-do_upgrade_test "2.0.9"
+# kubernetes version 1.22+ is not supported in directpv:v2.0.9
+# skipping v2.0.9 upgrade test for v1.22+ versions
+minor=$(kubectl version -o json | jq .serverVersion.minor)
+minor=$(echo "$minor" | tr -d '"')
+if [ "$minor" -lt 23 ]; then
+    echo "$ME: Run upgrade test from v2.0.9"
+    do_upgrade_test "2.0.9"
+fi
 
 # unmount all direct-csi mounts of previous installation if any.
 mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl
