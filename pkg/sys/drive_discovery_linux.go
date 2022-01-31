@@ -425,6 +425,9 @@ func newDevice(event map[string]string, name string, major, minor int, virtual b
 	device.WWID = event["ID_WWN"]
 	device.Model = event["ID_MODEL"]
 	device.UeventSerial = event["ID_SERIAL_SHORT"]
+	// if device.UeventSerial == "" {
+	// 	device.UeventSerial = event["ID_SERIAL"]
+	// }
 	device.Vendor = event["ID_VENDOR"]
 	device.DMName = event["DM_NAME"]
 	device.DMUUID = event["DM_UUID"]

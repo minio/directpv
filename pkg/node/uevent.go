@@ -166,7 +166,13 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) error {
 			delete(devices, device.Name)
 			i := indices[0]
 			drive := &drives[i]
+			for _, d := range drives {
+				klog.Errorf("DEBUG::: before remove: drive.Status.Path: %v", d.Status.Path)
+			}
 			drives = append(drives[:i], drives[i+1:]...)
+			for _, d := range drives {
+				klog.Errorf("DEBUG::: after remove: drive.Status.Path: %v", d.Status.Path)
+			}
 			if handler.updateDriveProperties(ctx, drive, device) {
 				switch drive.Status.DriveStatus {
 				case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
@@ -454,7 +460,7 @@ func (handler *ueventHandler) get(ctx context.Context) (map[string]string, error
 
 func (handler *ueventHandler) processLoop(ctx context.Context) error {
 	syncFunc := func() {
-		ticker := time.NewTicker(10 * time.Minute)
+		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -496,6 +502,7 @@ func (handler *ueventHandler) processLoop(ctx context.Context) error {
 			continue
 		}
 
+		klog.InfoS("processing uevent", "ACTION", event["ACTION"], "DEVPATH", event["DEVPATH"], "event", event)
 		handler.processEvent(ctx, device, event["ACTION"])
 	}
 }

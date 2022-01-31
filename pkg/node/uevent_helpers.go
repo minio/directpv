@@ -23,6 +23,7 @@ import (
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
+	"k8s.io/klog/v2"
 )
 
 func isDOSPTType(ptType string) bool {
@@ -327,30 +328,37 @@ func matchDrives(drives []directcsi.DirectCSIDrive, device *sys.Device) (indices
 		switch {
 		case isHWInfoAvailable(&drive):
 			if matchDeviceHWInfo(&drive, device) {
+				klog.Errorf("DEBUG:: matchDeviceHWInfo(): drive.Status.Path=%v, device.Name=%v", drive.Status.Path, device.Name)
 				indices = append(indices, i)
 			}
 		case isDMMDUUIDAvailable(&drive):
 			if matchDeviceDMMDUUID(&drive, device) {
+				klog.Errorf("DEBUG:: matchDeviceDMMDUUID(): drive.Status.Path=%v, device.Name=%v", drive.Status.Path, device.Name)
 				indices = append(indices, i)
 			}
 		case isPTUUIDAvailable(&drive):
 			if matchDevicePTUUID(&drive, device) {
+				klog.Errorf("DEBUG:: matchDevicePTUUID(): drive.Status.Path=%v, device.Name=%v", drive.Status.Path, device.Name)
 				indices = append(indices, i)
 			}
 		case isPartUUIDAvailable(&drive):
 			if matchDevicePartUUID(&drive, device) {
+				klog.Errorf("DEBUG:: matchDevicePartUUID(): drive.Status.Path=%v, device.Name=%v", drive.Status.Path, device.Name)
 				indices = append(indices, i)
 			}
 		case isFSUUIDAvailable(&drive):
 			if matchDeviceFSUUID(&drive, device) {
+				klog.Errorf("DEBUG:: matchDeviceFSUUID(): drive.Status.Path=%v, device.Name=%v", drive.Status.Path, device.Name)
 				indices = append(indices, i)
 			}
 		case isV1Beta1Drive(&drive):
 			if matchV1Beta1Name(&drive, device) {
+				klog.Errorf("DEBUG:: matchV1Beta1Name(): drive.Status.Path=%v, device.Name=%v", drive.Status.Path, device.Name)
 				indices = append(indices, i)
 			}
 		default:
 			if matchDeviceNameSize(&drive, device) {
+				klog.Errorf("DEBUG:: matchDeviceNameSize(): drive.Status.Path=%v, device.Name=%v", drive.Status.Path, device.Name)
 				indices = append(indices, i)
 			}
 		}
