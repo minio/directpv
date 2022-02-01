@@ -20,6 +20,7 @@ import (
 	"context"
 
 	directsetfake "github.com/minio/directpv/pkg/clientset/fake"
+	"github.com/minio/directpv/pkg/fs"
 	"github.com/minio/directpv/pkg/fs/xfs"
 	"github.com/minio/directpv/pkg/mount"
 )
@@ -27,6 +28,21 @@ import (
 const (
 	testNodeName = "test-node"
 )
+
+type fakeXFS struct{}
+
+func (fxfs *fakeXFS) ID() string {
+	return ""
+}
+func (fxfs *fakeXFS) Type() string {
+	return "xfs"
+}
+func (fxfs *fakeXFS) TotalCapacity() uint64 {
+	return uint64(0)
+}
+func (fxfs *fakeXFS) FreeCapacity() uint64 {
+	return uint64(0)
+}
 
 func createFakeNodeServer() *NodeServer {
 	return &NodeServer{
@@ -46,5 +62,8 @@ func createFakeNodeServer() *NodeServer {
 			return &xfs.Quota{}, nil
 		},
 		setQuota: func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error) { return nil },
+		fsProbe: func(ctx context.Context, device string) (fs fs.FS, err error) {
+			return &fakeXFS{}, nil
+		},
 	}
 }

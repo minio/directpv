@@ -22,6 +22,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -121,4 +122,23 @@ func OpenAuditFile(auditFile string) (*SafeFile, error) {
 		return nil, fmt.Errorf("unable to create default audit directory : %w", err)
 	}
 	return NewSafeFile(filepath.Join(defaultAuditDir, fmt.Sprintf("%v-%v", auditFile, time.Now().UnixNano())))
+}
+
+func GetMajorMinorFromStr(majMin string) (major, minor uint32, err error) {
+	tokens := strings.SplitN(majMin, ":", 2)
+	if len(tokens) != 2 {
+		err = fmt.Errorf("unknown format of %v", majMin)
+		return
+	}
+
+	var major64, minor64 uint64
+	major64, err = strconv.ParseUint(tokens[0], 10, 32)
+	if err != nil {
+		return
+	}
+	major = uint32(major64)
+
+	minor64, err = strconv.ParseUint(tokens[1], 10, 32)
+	minor = uint32(minor64)
+	return
 }
