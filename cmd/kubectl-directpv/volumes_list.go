@@ -163,7 +163,13 @@ func listVolumes(ctx context.Context, args []string) error {
 		}
 		t.AppendRow(row)
 	}
-
+	t.SortBy(
+		[]table.SortBy{
+			{
+				Name: "PODNAMESPACE",
+				Mode: table.Asc,
+			},
+		})
 	t.Render()
 	return nil
 }
