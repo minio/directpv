@@ -86,7 +86,7 @@ func (handler *ueventHandler) syncDrive(
 	drive *directcsi.DirectCSIDrive,
 	matchFunc func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool,
 	matchName string,
-) bool {
+) (matched bool, CRDUpdated bool) {
 	for _, device := range devices {
 		if !matchFunc(drive, device) {
 			// This device and drive do not match by properties WRT match function.
@@ -97,12 +97,14 @@ func (handler *ueventHandler) syncDrive(
 		delete(devices, device.Name)
 
 		var updated, nameChanged bool
+		CRDUpdated = true
 		if updated, nameChanged = updateDriveProperties(drive, device); updated {
 			_, err := client.GetLatestDirectCSIDriveInterface().Update(
 				ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
 			)
 			if err != nil {
 				klog.ErrorS(err, "unable to update drive by "+matchName, "Path", drive.Status.Path, "device.Name", device.Name)
+				CRDUpdated = false
 			}
 
 			if err == nil && nameChanged {
@@ -141,14 +143,14 @@ func (handler *ueventHandler) syncDrive(
 			}
 		}
 
-		return true
+		return true, CRDUpdated
 	}
 
 	// None of devices match.
-	return false
+	return false, false
 }
 
-func (handler *ueventHandler) updateDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, devices map[string]*sys.Device) bool {
+func (handler *ueventHandler) updateDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, devices map[string]*sys.Device) (bool, bool) {
 	switch {
 	case isHWInfoAvailable(drive):
 		return handler.syncDrive(ctx, devices, drive, matchDeviceHWInfo, "hardware IDs")
@@ -195,10 +197,12 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 			return
 		}
 
-		if handler.updateDrive(ctx, &result.Drive, devices) {
+		if matched, updated := handler.updateDrive(ctx, &result.Drive, devices); matched {
 			switch result.Drive.Status.DriveStatus {
 			case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
-				mountDrive(ctx, &result.Drive)
+				if updated {
+					mountDrive(ctx, &result.Drive)
+				}
 			}
 		} else {
 			if err := client.DeleteDrive(ctx, &result.Drive, true); err != nil {
@@ -300,10 +304,12 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 		if action == uevent.Remove {
 			handler.removeDrive(ctx, drive, devices)
 		} else {
-			if handler.updateDrive(ctx, drive, devices) {
+			if matched, updated := handler.updateDrive(ctx, drive, devices); matched {
 				switch result.Drive.Status.DriveStatus {
 				case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
-					mountDrive(ctx, &result.Drive)
+					if updated {
+						mountDrive(ctx, &result.Drive)
+					}
 				}
 			}
 		}
