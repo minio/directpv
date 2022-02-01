@@ -22,7 +22,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -80,159 +79,34 @@ type ueventHandler struct {
 	syncMu                sync.Mutex
 }
 
-func (handler *ueventHandler) syncDrive(
-	ctx context.Context,
-	devices map[string]*sys.Device,
-	drive *directcsi.DirectCSIDrive,
-	matchFunc func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool,
-	matchName string,
-) (matched bool, CRDUpdated bool) {
-	for _, device := range devices {
-		if !matchFunc(drive, device) {
-			// This device and drive do not match by properties WRT match function.
-			// Try next device.
-			continue
-		}
-
-		delete(devices, device.Name)
-
-		var updated, nameChanged bool
-		CRDUpdated = true
-		if updated, nameChanged = updateDriveProperties(drive, device); updated {
-			_, err := client.GetLatestDirectCSIDriveInterface().Update(
-				ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
-			)
-			if err != nil {
-				klog.ErrorS(err, "unable to update drive by "+matchName, "Path", drive.Status.Path, "device.Name", device.Name)
-				CRDUpdated = false
-			}
-
-			if err == nil && nameChanged {
-				volumeInterface := client.GetLatestDirectCSIVolumeInterface()
-
-				updateLabels := func(volumeName, driveName string) func() error {
-					return func() error {
-						volume, err := volumeInterface.Get(
-							ctx, volumeName, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
-						)
-						if err != nil {
-							return err
-						}
-
-						volume.Labels[string(utils.DrivePathLabelKey)] = driveName
-						_, err = volumeInterface.Update(
-							ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
-						)
-						return err
-					}
-				}
-
-				for _, finalizer := range drive.GetFinalizers() {
-					if !strings.HasPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix) {
-						continue
-					}
-
-					volumeName := strings.TrimPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix)
-					go func() {
-						err := retry.RetryOnConflict(retry.DefaultRetry, updateLabels(volumeName, utils.SanitizeDrivePath(drive.Status.Path)))
-						if err != nil {
-							klog.ErrorS(err, "unable to update volume %v", volumeName)
-						}
-					}()
-				}
-			}
-		}
-
-		return true, CRDUpdated
-	}
-
-	// None of devices match.
-	return false, false
-}
-
-func (handler *ueventHandler) updateDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, devices map[string]*sys.Device) (bool, bool) {
-	switch {
-	case isHWInfoAvailable(drive):
-		return handler.syncDrive(ctx, devices, drive, matchDeviceHWInfo, "hardware IDs")
-	case isDMMDUUIDAvailable(drive):
-		return handler.syncDrive(ctx, devices, drive, matchDeviceDMMDUUID, "DM/MD UUIDs")
-	case isPTUUIDAvailable(drive):
-		return handler.syncDrive(ctx, devices, drive, matchDevicePTUUID, "Partition Table UUID")
-	case isPartUUIDAvailable(drive):
-		return handler.syncDrive(ctx, devices, drive, matchDevicePartUUID, "Partition UUID")
-	case isFSUUIDAvailable(drive):
-		return handler.syncDrive(ctx, devices, drive, matchDeviceFSUUID, "Fileystem UUIDs")
-	case isV1Beta1Drive(drive):
-		return handler.syncDrive(ctx, devices, drive, matchV1Beta1Name, "v1beta1 drive name")
-	default:
-		return handler.syncDrive(ctx, devices, drive, matchDeviceNameSize, "Device name and size")
-	}
-}
-
 func (handler *ueventHandler) syncDrives(ctx context.Context) {
 	handler.syncMu.Lock()
 	defer handler.syncMu.Unlock()
-
-	devices, err := sys.ProbeDevices()
-	if err != nil {
-		klog.ErrorS(err, "unable to probe devices")
-		return
-	}
-
-	resultCh, err := client.ListDrives(
-		ctx,
-		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
-		nil,
-		nil,
-		client.MaxThreadCount,
-	)
-	if err != nil {
-		klog.Error(err)
-		return
-	}
-
-	for result := range resultCh {
-		if result.Err != nil {
-			klog.Error(result.Err)
-			return
-		}
-
-		if matched, updated := handler.updateDrive(ctx, &result.Drive, devices); matched {
-			switch result.Drive.Status.DriveStatus {
-			case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
-				if updated {
-					mountDrive(ctx, &result.Drive)
-				}
-			}
-		} else {
-			if err := client.DeleteDrive(ctx, &result.Drive, true); err != nil {
-				klog.ErrorS(err, "unable to delete drive", "Name", result.Drive.Name, "Status.Path", result.Drive.Status.Path)
-			}
-		}
-	}
-
-	for _, device := range devices {
-		if !handler.loopbackOnly && sys.LoopRegexp.MatchString(device.Name) {
-			klog.V(5).InfoS("loopback device is ignored", "Name", device.Name)
-			continue
-		}
-
-		drive := client.NewDirectCSIDrive(
-			uuid.New().String(),
-			client.NewDirectCSIDriveStatus(device, handler.nodeID, handler.topology),
-		)
-
-		err := retry.RetryOnConflict(
-			retry.DefaultRetry,
-			func() error { return client.CreateDrive(ctx, drive) },
-		)
-		if err != nil {
-			klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
-		}
+	if err := syncDrives(ctx, handler.nodeID, handler.loopbackOnly, handler.topology); err != nil {
+		klog.ErrorS(err, "unable to sync drives")
 	}
 }
 
-func (handler *ueventHandler) removeDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, devices map[string]*sys.Device) {
+func updateDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, devices map[string]*sys.Device) (bool, bool) {
+	switch {
+	case isHWInfoAvailable(drive):
+		return syncDrive(ctx, devices, drive, matchDeviceHWInfo, "hardware IDs")
+	case isDMMDUUIDAvailable(drive):
+		return syncDrive(ctx, devices, drive, matchDeviceDMMDUUID, "DM/MD UUIDs")
+	case isPTUUIDAvailable(drive):
+		return syncDrive(ctx, devices, drive, matchDevicePTUUID, "Partition Table UUID")
+	case isPartUUIDAvailable(drive):
+		return syncDrive(ctx, devices, drive, matchDevicePartUUID, "Partition UUID")
+	case isFSUUIDAvailable(drive):
+		return syncDrive(ctx, devices, drive, matchDeviceFSUUID, "Fileystem UUIDs")
+	case isV1Beta1Drive(drive):
+		return syncDrive(ctx, devices, drive, matchV1Beta1Name, "v1beta1 drive name")
+	default:
+		return syncDrive(ctx, devices, drive, matchDeviceNameSize, "Device name and size")
+	}
+}
+
+func removeDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, devices map[string]*sys.Device) {
 	for _, device := range devices {
 		remove := func(matchFunc func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool) {
 			if !matchFunc(drive, device) {
@@ -302,9 +176,9 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 		drive := &result.Drive
 
 		if action == uevent.Remove {
-			handler.removeDrive(ctx, drive, devices)
+			removeDrive(ctx, drive, devices)
 		} else {
-			if matched, updated := handler.updateDrive(ctx, drive, devices); matched {
+			if matched, updated := updateDrive(ctx, drive, devices); matched {
 				switch result.Drive.Status.DriveStatus {
 				case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
 					if updated {
@@ -439,14 +313,6 @@ func StartDynamicDriveHandler(ctx context.Context, identity, nodeID, rack, zone,
 		dynamicDriveDiscovery: true,
 		loopbackOnly:          loopbackOnly,
 	}
-	if loopbackOnly {
-		if err := sys.CreateLoopDevices(); err != nil {
-			return err
-		}
-	}
-
-	klog.V(3).Info("Doing initial drive sync up")
-	handler.syncDrives(ctx)
 
 	return handler.processLoop(ctx)
 }

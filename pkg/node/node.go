@@ -94,6 +94,24 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		setQuota:        xfs.SetQuota,
 	}
 
+	if dynamicDriveDiscovery {
+		if loopbackOnly {
+			if err := sys.CreateLoopDevices(); err != nil {
+				return nil, err
+			}
+		}
+		topology := map[string]string{
+			string(utils.TopologyDriverIdentity): identity,
+			string(utils.TopologyDriverRack):     rack,
+			string(utils.TopologyDriverZone):     zone,
+			string(utils.TopologyDriverRegion):   region,
+			string(utils.TopologyDriverNode):     nodeID,
+		}
+		if err := syncDrives(ctx, nodeID, loopbackOnly, topology); err != nil {
+			return nil, err
+		}
+	}
+
 	go func() {
 		if err := drive.StartController(ctx, nodeID, reflinkSupport); err != nil {
 			klog.Error(err)
