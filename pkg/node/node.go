@@ -19,6 +19,8 @@ package node
 import (
 	"context"
 
+	"github.com/minio/directpv/pkg/fs"
+
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/clientset"
 	"github.com/minio/directpv/pkg/drive"
@@ -63,6 +65,7 @@ type NodeServer struct { //revive:disable-line:exported
 	safeUnmount     func(target string, force, detach, expire bool) error
 	getQuota        func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error)
 	setQuota        func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error)
+	fsProbe         func(ctx context.Context, device string) (fs fs.FS, err error)
 }
 
 //revive:enable-line:exported
@@ -92,6 +95,7 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		safeUnmount:     mount.SafeUnmount,
 		getQuota:        xfs.GetQuota,
 		setQuota:        xfs.SetQuota,
+		fsProbe:         fs.Probe,
 	}
 
 	go func() {

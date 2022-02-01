@@ -67,7 +67,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if err := checkDrive(drive, req.GetVolumeId(), n.probeMounts); err != nil {
+	if err := n.checkDrive(ctx, drive, req.GetVolumeId()); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

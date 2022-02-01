@@ -198,6 +198,9 @@ func TestStageUnstageVolume(t *testing.T) {
 	ns.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
 	directCSIClient := ns.directcsiClient.DirectV1beta3()
 	hostPath := filepath.Join(testMountPointDir, testVolumeName50MB)
+	ns.probeMounts = func() (map[string][]mount.Info, error) {
+		return map[string][]mount.Info{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt", MajorMinor: "0:0"}}}, nil
+	}
 
 	// Stage Volume test
 	_, err = ns.NodeStageVolume(ctx, &stageVolumeRequest)
