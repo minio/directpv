@@ -17,11 +17,17 @@
 package node
 
 import (
+	"context"
+	"errors"
 	"reflect"
 	"testing"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/client"
+	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestIsDOSPTType(t *testing.T) {
@@ -672,6 +678,164 @@ func TestUpdateDriveProperties(t *testing.T) {
 		}
 		if result.Status.Master != testCase.expectedResult.Status.Master {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult.Status.Master, result.Status.Master)
+		}
+	}
+}
+
+func TestMountDrive(t *testing.T) {
+	testCases := []struct {
+		drive                    *directcsi.DirectCSIDrive
+		mountFn                  func(device, target string, flags []string) error
+		expectedMountpoint       string
+		expectedInitializedState metav1.ConditionStatus
+	}{
+		// Mounted already
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "fsuuid",
+					Path:           "/dev/path",
+					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(directcsi.DirectCSIDriveConditionOwned),
+							Status: metav1.ConditionTrue,
+							Reason: string(directcsi.DirectCSIDriveReasonAdded),
+						},
+						{
+							Type:    string(directcsi.DirectCSIDriveConditionMounted),
+							Status:  metav1.ConditionTrue,
+							Message: "",
+							Reason:  string(directcsi.DirectCSIDriveReasonNotAdded),
+						},
+						{
+							Type:    string(directcsi.DirectCSIDriveConditionFormatted),
+							Status:  metav1.ConditionTrue,
+							Message: "xfs",
+							Reason:  string(directcsi.DirectCSIDriveReasonNotAdded),
+						},
+						{
+							Type:    string(directcsi.DirectCSIDriveConditionInitialized),
+							Status:  metav1.ConditionTrue,
+							Message: "initialized",
+							Reason:  string(directcsi.DirectCSIDriveReasonInitialized),
+						},
+					},
+				},
+			},
+			mountFn: func(device, target string, flags []string) error {
+				return nil
+			},
+			expectedMountpoint:       "/var/lib/direct-csi/mnt/fsuuid",
+			expectedInitializedState: metav1.ConditionTrue,
+		},
+		// Successfully mounted
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "fsuuid",
+					Path:           "/dev/path",
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(directcsi.DirectCSIDriveConditionOwned),
+							Status: metav1.ConditionTrue,
+							Reason: string(directcsi.DirectCSIDriveReasonAdded),
+						},
+						{
+							Type:    string(directcsi.DirectCSIDriveConditionMounted),
+							Status:  metav1.ConditionTrue,
+							Message: "",
+							Reason:  string(directcsi.DirectCSIDriveReasonNotAdded),
+						},
+						{
+							Type:    string(directcsi.DirectCSIDriveConditionFormatted),
+							Status:  metav1.ConditionTrue,
+							Message: "xfs",
+							Reason:  string(directcsi.DirectCSIDriveReasonNotAdded),
+						},
+						{
+							Type:    string(directcsi.DirectCSIDriveConditionInitialized),
+							Status:  metav1.ConditionFalse,
+							Message: "initialized",
+							Reason:  string(directcsi.DirectCSIDriveReasonInitialized),
+						},
+					},
+				},
+			},
+			mountFn: func(device, target string, flags []string) error {
+				return nil
+			},
+			expectedMountpoint:       "/var/lib/direct-csi/mnt/fsuuid",
+			expectedInitializedState: metav1.ConditionTrue,
+		},
+		// Mount failed
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "fsuuid",
+					Path:           "/dev/path",
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(directcsi.DirectCSIDriveConditionOwned),
+							Status: metav1.ConditionTrue,
+							Reason: string(directcsi.DirectCSIDriveReasonAdded),
+						},
+						{
+							Type:    string(directcsi.DirectCSIDriveConditionMounted),
+							Status:  metav1.ConditionTrue,
+							Message: "",
+							Reason:  string(directcsi.DirectCSIDriveReasonNotAdded),
+						},
+						{
+							Type:    string(directcsi.DirectCSIDriveConditionFormatted),
+							Status:  metav1.ConditionTrue,
+							Message: "xfs",
+							Reason:  string(directcsi.DirectCSIDriveReasonNotAdded),
+						},
+						{
+							Type:    string(directcsi.DirectCSIDriveConditionInitialized),
+							Status:  metav1.ConditionTrue,
+							Message: "initialized",
+							Reason:  string(directcsi.DirectCSIDriveReasonInitialized),
+						},
+					},
+				},
+			},
+			mountFn: func(device, target string, flags []string) error {
+				return errors.New("error")
+			},
+			expectedMountpoint:       "",
+			expectedInitializedState: metav1.ConditionFalse,
+		},
+	}
+
+	ctx := context.TODO()
+	for i, testCase := range testCases {
+		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testCase.drive).DirectV1beta3().DirectCSIDrives())
+		mountDrive(ctx, testCase.drive, testCase.mountFn)
+		drive, err := client.GetLatestDirectCSIDriveInterface().Get(
+			ctx, testCase.drive.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+		)
+		if err != nil {
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
+		}
+		if drive.Status.Mountpoint != testCase.expectedMountpoint {
+			t.Fatalf("case %v: expected mountpoint: %v but got: %v", i+1, testCase.expectedMountpoint, drive.Status.Mountpoint)
+		}
+		if !utils.IsConditionStatus(drive.Status.Conditions, string(directcsi.DirectCSIDriveConditionInitialized), testCase.expectedInitializedState) {
+			t.Fatalf("case %v: unexpected initializedstate", i+1)
 		}
 	}
 }

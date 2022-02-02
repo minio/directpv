@@ -39,29 +39,40 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func mountDrive(ctx context.Context, drive *directcsi.DirectCSIDrive) {
-	target := filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID)
-	var flags []string
-	if drive.Spec.RequestedFormat != nil {
-		flags = drive.Spec.RequestedFormat.MountOptions
-	}
-	err := mount.MountXFSDevice(drive.Status.Path, target, flags)
-	if err == nil {
-		return
-	}
-
-	klog.ErrorS(err, "unable to mount drive", "Status.Path", drive.Status.Path, "Target", target, "Flags", flags)
-	utils.UpdateCondition(
-		drive.Status.Conditions,
-		string(directcsi.DirectCSIDriveConditionInitialized),
-		utils.BoolToCondition(false),
-		string(directcsi.DirectCSIDriveReasonInitialized),
-		err.Error(),
-	)
+func mountDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, mountFn func(device, dest string, mountflags []string) error) {
 	driveInterface := client.GetLatestDirectCSIDriveInterface()
-	err = retry.RetryOnConflict(
+	err := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() (err error) {
+			drive, err := driveInterface.Get(
+				ctx, drive.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+			)
+			if err != nil {
+				return err
+			}
+			target := filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID)
+			var flags []string
+			if drive.Spec.RequestedFormat != nil {
+				flags = drive.Spec.RequestedFormat.MountOptions
+			}
+			message := ""
+			err = mountFn(drive.Status.Path, target, flags)
+			if err == nil {
+				if drive.Status.Mountpoint == target && utils.IsConditionStatus(drive.Status.Conditions, string(directcsi.DirectCSIDriveConditionInitialized), metav1.ConditionTrue) {
+					return nil
+				}
+				drive.Status.Mountpoint = target
+			} else {
+				klog.ErrorS(err, "unable to mount drive", "Status.Path", drive.Status.Path, "Target", target, "Flags", flags)
+				message = err.Error()
+			}
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionInitialized),
+				utils.BoolToCondition(message == ""),
+				string(directcsi.DirectCSIDriveReasonInitialized),
+				message,
+			)
 			_, err = driveInterface.Update(ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 			return err
 		},
@@ -201,7 +212,7 @@ func (handler *ueventHandler) syncDrives(ctx context.Context) {
 			switch result.Drive.Status.DriveStatus {
 			case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
 				if updated {
-					mountDrive(ctx, &result.Drive)
+					mountDrive(ctx, &result.Drive, mount.MountXFSDevice)
 				}
 			}
 		} else {
@@ -308,7 +319,7 @@ func (handler *ueventHandler) processEvent(ctx context.Context, device *sys.Devi
 				switch result.Drive.Status.DriveStatus {
 				case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
 					if updated {
-						mountDrive(ctx, &result.Drive)
+						mountDrive(ctx, &result.Drive, mount.MountXFSDevice)
 					}
 				}
 			}
