@@ -193,7 +193,7 @@ func updateDriveProperties(drive *directcsi.DirectCSIDrive, device *sys.Device) 
 		updated = true
 	}
 
-	if drive.Status.Mountpoint != device.FirstMountPoint {
+	if device.FirstMountPoint != "" && drive.Status.Mountpoint != device.FirstMountPoint {
 		drive.Status.Mountpoint = device.FirstMountPoint
 		drive.Status.MountOptions = device.FirstMountOptions
 		updated = true
