@@ -71,7 +71,7 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	path := filepath.Join(utils.GetDirectCSISystemPath(), drive.Name, vID)
+	path := filepath.Join(drive.Status.Mountpoint, vID)
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return nil, err
 	}
