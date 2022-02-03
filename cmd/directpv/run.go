@@ -236,9 +236,6 @@ func run(ctxMain context.Context, args []string) error {
 		}
 		klog.V(3).Infof("node server started")
 
-		// Check if the volume objects are migrated and CRDs versions are in-sync
-		volume.SyncVolumes(ctx, nodeID)
-		klog.V(3).Infof("volumes sync completed")
 	}
 
 	var ctrlServer csi.ControllerServer

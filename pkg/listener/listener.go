@@ -361,7 +361,7 @@ func (listener *Listener) Run(ctx context.Context) error {
 		listener.handler.KubeClient().CoreV1(),
 		listener.handler.KubeClient().CoordinationV1(),
 		resourcelock.ResourceLockConfig{
-			Identity:      utils.SanitizeKubeResourceName(id),
+			Identity: utils.SanitizeKubeResourceName(id),
 			EventRecorder: eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{
 				Component: leader,
 			}),
