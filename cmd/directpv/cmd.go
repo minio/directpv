@@ -114,8 +114,8 @@ func init() {
 	driverCmd.Flags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
 	driverCmd.Flags().BoolVarP(&loopbackOnly, "loopback-only", "", loopbackOnly, "Create and use loopback devices (FOR TESTING ONLY)")
 	driverCmd.Flags().StringVarP(&conversionHealthzURL, "conversion-healthz-url", "", conversionHealthzURL, "The URL of the conversion webhook healthz endpoint")
-	driverCmd.Flags().BoolVarP(&dynamicDriveDiscovery, "dynamic-drive-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery (disabled by default)")
-	driverCmd.Flags().BoolVarP(&dynamicDriveHandler, "dynamic-drive-handler", "", dynamicDriveHandler, "running in dynamic drive handler mode")
+	driverCmd.Flags().BoolVarP(&dynamicDriveDiscovery, "dynamic-drive-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery (disabled by default) (experimental)")
+	driverCmd.Flags().BoolVarP(&dynamicDriveHandler, "dynamic-drive-handler", "", dynamicDriveHandler, "running in dynamic drive handler mode (experimental)")
 	driverCmd.Flags().IntVarP(&metricsPort, "metrics-port", "", metricsPort, "Metrics port for scraping. default is 10443")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")

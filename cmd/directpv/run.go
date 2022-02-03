@@ -147,6 +147,7 @@ func checkXFS(ctx context.Context) (bool, error) {
 func run(ctx context.Context, args []string) error {
 	// Start dynamic drive handler container.
 	if dynamicDriveHandler {
+		klog.Warning("dynamic-discovery feature is strictly experimental and NOT production ready yet")
 		return node.StartDynamicDriveHandler(ctx, identity, nodeID, rack, zone, region, loopbackOnly)
 	}
 
@@ -185,6 +186,8 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("error while initializing drive discovery: %v", err)
 			}
 			klog.V(3).Infof("Drive discovery finished")
+		} else {
+			klog.Warning("dynamic-discovery feature is strictly experimental and NOT production ready yet")
 		}
 
 		nodeSrv, err = node.NewNodeServer(ctx, identity, nodeID, rack, zone, region, dynamicDriveDiscovery, reflinkSupport, loopbackOnly, metricsPort)
