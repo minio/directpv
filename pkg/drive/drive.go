@@ -37,14 +37,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func getDevice(major, minor uint32) (string, error) {
-	name, err := sys.GetDeviceName(major, minor)
-	if err != nil {
-		return "", err
-	}
-	return "/dev/" + name, nil
-}
-
 type driveEventHandler struct {
 	nodeID          string
 	reflinkSupport  bool
@@ -356,6 +348,19 @@ func StartController(ctx context.Context, nodeID string, reflinkSupport bool) er
 		return err
 	}
 
-	listener := listener.NewListener(newDriveEventHandler(nodeID, reflinkSupport), "drive-controller", hostname, 40)
+	listener := listener.NewListener(
+		newDriveEventHandler(nodeID, reflinkSupport),
+		"drive-controller",
+		hostname,
+		40,
+	)
 	return listener.Run(ctx)
+}
+
+func getDevice(major, minor uint32) (string, error) {
+	name, err := sys.GetDeviceName(major, minor)
+	if err != nil {
+		return "", err
+	}
+	return "/dev/" + name, nil
 }
