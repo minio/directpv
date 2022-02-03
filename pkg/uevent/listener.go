@@ -47,40 +47,6 @@ var (
 	errClosedListener = errors.New("closed listener")
 )
 
-func parse(msg []byte) (map[string]string, error) {
-	if !bytes.HasPrefix(msg, []byte(libudev)) {
-		return nil, errors.New("libudev signature not found")
-	}
-
-	// magic number is stored in network byte order.
-	if magic := binary.BigEndian.Uint32(msg[8:]); magic != libudevMagic {
-		return nil, fmt.Errorf("libudev magic mismatch; expected: %v, got: %v", libudevMagic, magic)
-	}
-
-	offset := int(msg[16])
-	if offset < 17 {
-		return nil, fmt.Errorf("payload offset %v is not more than 17", offset)
-	}
-	if offset > len(msg) {
-		return nil, fmt.Errorf("payload offset %v beyond message length %v", offset, len(msg))
-	}
-
-	fields := bytes.Split(msg[offset:], fieldDelimiter)
-	event := map[string]string{}
-	for _, field := range fields {
-		if len(field) == 0 {
-			continue
-		}
-		switch tokens := strings.SplitN(string(field), "=", 2); len(tokens) {
-		case 1:
-			event[tokens[0]] = ""
-		case 2:
-			event[tokens[0]] = tokens[1]
-		}
-	}
-	return event, nil
-}
-
 type key struct {
 	name string
 	err  error
@@ -94,6 +60,58 @@ type Listener struct {
 	eventMap map[string]map[string]string
 	keys     []key
 	waitCh   chan struct{}
+
+	handler UEventHandler
+}
+
+type UEventHandler interface {
+	Handle(context.Context, map[string]string) error
+}
+
+func NewListener(handler UEventHandler) (*Listener, error) {
+	sockfd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW, syscall.NETLINK_KOBJECT_UEVENT)
+	if err != nil {
+		return nil, err
+	}
+
+	err = syscall.Bind(sockfd, &syscall.SockaddrNetlink{
+		Family: syscall.AF_NETLINK,
+		Pid:    uint32(os.Getpid()),
+		Groups: 2,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	listener := &Listener{
+		closeCh:  make(chan struct{}),
+		sockfd:   sockfd,
+		eventMap: map[string]map[string]string{},
+		handler:  handler,
+	}
+	return listener, nil
+}
+
+func (listener *Listener) Run(ctx context.Context) error {
+	for {
+		event, waitCh, err := listener.get(ctx)
+		switch {
+		case err != nil:
+			return err
+		case event != nil:
+			if err := listener.handler.Handle(ctx, event); err != nil {
+				// push it to end of queue
+			}
+		default:
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-listener.closeCh:
+				return errClosedListener
+			case <-waitCh:
+			}
+		}
+	}
 }
 
 func (listener *Listener) Close() error {
@@ -104,7 +122,7 @@ func (listener *Listener) Close() error {
 	return nil
 }
 
-func (listener *Listener) get() (map[string]string, <-chan struct{}, error) {
+func (listener *Listener) get(ctx context.Context) (map[string]string, <-chan struct{}, error) {
 	listener.mutex.Lock()
 	defer listener.mutex.Unlock()
 
@@ -115,6 +133,10 @@ func (listener *Listener) get() (map[string]string, <-chan struct{}, error) {
 	var event map[string]string
 	var found bool
 	for !found {
+		if ctx.Err() != nil {
+			return nil, nil, ctx.Err()
+		}
+
 		if len(listener.keys) == 0 {
 			break
 		}
@@ -137,26 +159,6 @@ func (listener *Listener) get() (map[string]string, <-chan struct{}, error) {
 		listener.waitCh = waitCh
 	}
 	return nil, waitCh, nil
-}
-
-func (listener *Listener) Get(ctx context.Context) (map[string]string, error) {
-	for {
-		event, waitCh, err := listener.get()
-		switch {
-		case err != nil:
-			return nil, err
-		case event != nil:
-			return event, nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("canceled by context; %w", ctx.Err())
-		case <-listener.closeCh:
-			return nil, errClosedListener
-		case <-waitCh:
-		}
-	}
 }
 
 func (listener *Listener) set(event map[string]string, err error) {
@@ -231,45 +233,52 @@ func (listener *Listener) read() (map[string]string, error) {
 	}
 }
 
-func (listener *Listener) start() {
-	go func() {
-		defer listener.Close()
-		for {
-			select {
-			case <-listener.closeCh:
-				return
-			default:
-				event, err := listener.read()
-				listener.set(event, err)
-				if err != nil {
-					klog.Error(err)
-					return
-				}
+func (listener *Listener) Start() error {
+	for {
+		select {
+		case <-listener.closeCh:
+			return nil
+		default:
+			event, err := listener.read()
+			if err != nil {
+				klog.Error(err)
+				return err
 			}
+			listener.set(event, err)
 		}
-	}()
+	}
 }
 
-func StartListener() (*Listener, error) {
-	sockfd, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW, syscall.NETLINK_KOBJECT_UEVENT)
-	if err != nil {
-		return nil, err
+func parse(msg []byte) (map[string]string, error) {
+	if !bytes.HasPrefix(msg, []byte(libudev)) {
+		return nil, errors.New("libudev signature not found")
 	}
 
-	err = syscall.Bind(sockfd, &syscall.SockaddrNetlink{
-		Family: syscall.AF_NETLINK,
-		Pid:    uint32(os.Getpid()),
-		Groups: 2,
-	})
-	if err != nil {
-		return nil, err
+	// magic number is stored in network byte order.
+	if magic := binary.BigEndian.Uint32(msg[8:]); magic != libudevMagic {
+		return nil, fmt.Errorf("libudev magic mismatch; expected: %v, got: %v", libudevMagic, magic)
 	}
 
-	listener := &Listener{
-		closeCh:  make(chan struct{}),
-		sockfd:   sockfd,
-		eventMap: map[string]map[string]string{},
+	offset := int(msg[16])
+	if offset < 17 {
+		return nil, fmt.Errorf("payload offset %v is not more than 17", offset)
 	}
-	listener.start()
-	return listener, nil
+	if offset > len(msg) {
+		return nil, fmt.Errorf("payload offset %v beyond message length %v", offset, len(msg))
+	}
+
+	fields := bytes.Split(msg[offset:], fieldDelimiter)
+	event := map[string]string{}
+	for _, field := range fields {
+		if len(field) == 0 {
+			continue
+		}
+		switch tokens := strings.SplitN(string(field), "=", 2); len(tokens) {
+		case 1:
+			event[tokens[0]] = ""
+		case 2:
+			event[tokens[0]] = tokens[1]
+		}
+	}
+	return event, nil
 }
