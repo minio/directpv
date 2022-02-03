@@ -69,7 +69,7 @@ func init() {
 
 	installCmd.PersistentFlags().BoolVarP(&loopbackOnly, "loopback-only", "", loopbackOnly, "Uses 4 free loopback devices per node and treat them as DirectCSIDrive resources. This is recommended only for testing/development purposes")
 	installCmd.PersistentFlags().MarkHidden("loopback-only")
-	installCmd.PersistentFlags().BoolVarP(&dynamicDriveDiscovery, "enable-dynamic-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery")
+	installCmd.PersistentFlags().BoolVarP(&dynamicDriveDiscovery, "enable-dynamic-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery (experimental)")
 }
 
 func install(ctx context.Context, args []string) (err error) {
@@ -93,8 +93,8 @@ func install(ctx context.Context, args []string) (err error) {
 
 	if !dynamicDriveDiscovery {
 		klog.Infof("Enable dynamic drive change management using " + utils.Bold("--enable-dynamic-discovery") + " flag")
-		klog.Infof("This flag will be made default in the next major release version")
 	}
+	klog.Warning("dynamic-discovery feature is strictly experimental and NOT production ready yet")
 
 	file, err := utils.OpenAuditFile(auditInstall)
 	if err != nil {
