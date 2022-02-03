@@ -73,7 +73,7 @@ func NewNodeServer(ctx context.Context,
 	identity, nodeID, rack, zone, region string,
 	dynamicDriveDiscovery, reflinkSupport, loopbackOnly bool,
 	metricsPort int) (*NodeServer, error) {
-	
+
 	config, err := client.GetKubeConfig()
 	if err != nil {
 		return &NodeServer{}, err
