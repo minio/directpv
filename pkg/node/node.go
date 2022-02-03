@@ -23,13 +23,11 @@ import (
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/clientset"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/fs/xfs"
 	"github.com/minio/directpv/pkg/metrics"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -71,7 +69,11 @@ type NodeServer struct { //revive:disable-line:exported
 //revive:enable-line:exported
 
 // NewNodeServer creates node server.
-func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region string, dynamicDriveDiscovery, reflinkSupport, loopbackOnly bool, metricsPort int) (*NodeServer, error) {
+func NewNodeServer(ctx context.Context,
+	identity, nodeID, rack, zone, region string,
+	dynamicDriveDiscovery, reflinkSupport, loopbackOnly bool,
+	metricsPort int) (*NodeServer, error) {
+	
 	config, err := client.GetKubeConfig()
 	if err != nil {
 		return &NodeServer{}, err
@@ -97,18 +99,6 @@ func NewNodeServer(ctx context.Context, identity, nodeID, rack, zone, region str
 		setQuota:        xfs.SetQuota,
 		fsProbe:         fs.Probe,
 	}
-
-	go func() {
-		if err := drive.StartController(ctx, nodeID, reflinkSupport); err != nil {
-			klog.Error(err)
-		}
-	}()
-
-	go func() {
-		if err := volume.StartController(ctx, nodeID); err != nil {
-			klog.Error(err)
-		}
-	}()
 
 	go metrics.ServeMetrics(ctx, nodeID, metricsPort)
 
