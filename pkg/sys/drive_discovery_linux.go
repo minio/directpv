@@ -37,31 +37,13 @@ import (
 	fserrors "github.com/minio/directpv/pkg/fs/errors"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys/smart"
-	"github.com/minio/directpv/pkg/uevent"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
 
 const (
 	defaultBlockSize = 512
-	runUdevData      = "/run/udev/data"
 )
-
-func isUdevDataReadable() bool {
-	dir, err := os.Open(runUdevData)
-	if err != nil {
-		klog.V(5).Infof("%v", err)
-		return false
-	}
-
-	defer dir.Close()
-	if _, err = dir.Readdirnames(1); err != nil {
-		klog.V(5).Infof("%v", err)
-		return false
-	}
-
-	return true
-}
 
 func getDeviceMajorMinor(device string) (major, minor uint32, err error) {
 	stat := syscall.Stat_t{}
@@ -69,50 +51,6 @@ func getDeviceMajorMinor(device string) (major, minor uint32, err error) {
 		major, minor = uint32(unix.Major(stat.Rdev)), uint32(unix.Minor(stat.Rdev))
 	}
 	return
-}
-
-func normalizeUUID(uuid string) string {
-	if u := strings.ReplaceAll(strings.ReplaceAll(uuid, ":", ""), "-", ""); len(u) > 20 {
-		uuid = fmt.Sprintf("%v-%v-%v-%v-%v", u[:8], u[8:12], u[12:16], u[16:20], u[20:])
-	}
-	return uuid
-}
-
-func parseRunUdevDataFile(r io.Reader) (map[string]string, error) {
-	reader := bufio.NewReader(r)
-	event := map[string]string{}
-	for {
-		s, err := reader.ReadString('\n')
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return nil, err
-		}
-
-		if !strings.HasPrefix(s, "E:") {
-			continue
-		}
-
-		tokens := strings.SplitN(s, "=", 2)
-		key := strings.TrimPrefix(tokens[0], "E:")
-		switch len(tokens) {
-		case 1:
-			event[key] = ""
-		case 2:
-			event[key] = strings.TrimSpace(tokens[1])
-		}
-	}
-	return event, nil
-}
-
-func readRunUdevData(major, minor int) (map[string]string, error) {
-	file, err := os.Open(fmt.Sprintf("%v/b%v:%v", runUdevData, major, minor))
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	return parseRunUdevDataFile(file)
 }
 
 func readFirstLine(filename string, errorIfNotExist bool) (string, error) {
@@ -237,7 +175,7 @@ func getDMUUID(name string) (string, error) {
 
 func getMDUUID(name string) (string, error) {
 	uuid, err := readFirstLine("/sys/class/block/"+name+"/md/uuid", false)
-	return normalizeUUID(uuid), err
+	return NormalizeUUID(uuid), err
 }
 
 func getVirtual(name string) (bool, error) {
@@ -442,36 +380,31 @@ func probeDevicesFromSysfs() (devices map[string]*Device, err error) {
 	return devices, nil
 }
 
-func newDevice(event map[string]string, name string, major, minor int, virtual bool) (device *Device, err error) {
+func NewDevice(udevData *UDevData) (device *Device, err error) {
+	name := filepath.Base(udevData.Path)
+	if name == "" {
+		return nil, fmt.Errorf("udevData does not have valid DEVPATH %v", udevData.Path)
+	}
 	device = &Device{
-		Name:    name,
-		Major:   major,
-		Minor:   minor,
-		Virtual: virtual,
+		Name:         name,
+		Major:        udevData.Major,
+		Minor:        udevData.Minor,
+		Virtual:      strings.Contains(udevData.Path, "/virtual/"),
+		Partition:    udevData.Partition,
+		WWID:         udevData.WWID,
+		Model:        udevData.Model,
+		UeventSerial: udevData.UeventSerial,
+		Vendor:       udevData.Vendor,
+		DMName:       udevData.DMName,
+		DMUUID:       udevData.DMUUID,
+		MDUUID:       udevData.MDUUID,
+		PTUUID:       udevData.PTUUID,
+		PTType:       udevData.PTUUID,
+		PartUUID:     udevData.PartUUID,
+		UeventFSUUID: udevData.UeventFSUUID,
+		FSType:       udevData.FSType,
+		FSUUID:       udevData.FSUUID,
 	}
-
-	if value, found := event["ID_PART_ENTRY_NUMBER"]; found {
-		if device.Partition, err = strconv.Atoi(value); err != nil {
-			return nil, err
-		}
-	}
-
-	device.WWID = event["ID_WWN"]
-	device.Model = event["ID_MODEL"]
-	device.UeventSerial = event["ID_SERIAL_SHORT"]
-	device.Vendor = event["ID_VENDOR"]
-	device.DMName = event["DM_NAME"]
-	device.DMUUID = event["DM_UUID"]
-	device.MDUUID = normalizeUUID(event["MD_UUID"])
-	device.PTUUID = event["ID_PART_TABLE_UUID"]
-	device.PTType = event["ID_PART_TABLE_TYPE"]
-	device.PartUUID = event["ID_PART_ENTRY_UUID"]
-	device.UeventFSUUID = event["ID_FS_UUID"]
-	device.FSType = event["ID_FS_TYPE"]
-
-	device.FSUUID = device.UeventFSUUID
-	serial, _ := getSerial("/dev/" + name)
-	device.Serial = serial
 
 	return device, nil
 }
@@ -803,89 +736,65 @@ func probeDevices() (devices map[string]*Device, err error) {
 	return devices, nil
 }
 
-func createDevice(event map[string]string) (device *Device, err error) {
-	name := filepath.Base(event["DEVPATH"])
-	if name == "" {
-		return nil, fmt.Errorf("event does not have valid DEVPATH %v", event["DEVPATH"])
-	}
-
-	major, err := strconv.Atoi(event["MAJOR"])
-	if err != nil {
-		return nil, err
-	}
-
-	minor, err := strconv.Atoi(event["MINOR"])
-	if err != nil {
-		return nil, err
-	}
-
-	switch event["ACTION"] {
-	case uevent.Add, uevent.Change:
-		// Older kernels like in CentOS 7 does not send all information about the device,
-		// hence read relevant data from /run/udev/data/b<major>:<minor>
-		info, err := readRunUdevData(major, minor)
-		if err != nil {
-			return nil, err
-		}
-		for key, value := range info {
-			if _, found := event[key]; !found {
-				event[key] = value
-			}
-		}
-	}
-
-	if device, err = newDevice(event, name, major, minor, strings.Contains(event["DEVPATH"], "/virtual/")); err != nil {
-		return nil, err
-	}
-
-	if event["ACTION"] == uevent.Remove {
-		return device, nil
+func (device *Device) localProbe() (err error) {
+	if device.Serial, err = getSerial(device.Name); err != nil {
+		return err
 	}
 
 	if device.Removable, err = getRemovable(device.Name); err != nil {
-		return nil, err
+		return err
 	}
 
 	if device.ReadOnly, err = getReadOnly(device.Name); err != nil {
-		return nil, err
+		return err
 	}
 
 	if device.Size, err = getSize(device.Name); err != nil {
-		return nil, err
+		return err
 	}
 
 	if device.Partition <= 0 {
-		names, err := getPartitions(name)
+		names, err := getPartitions(device.Name)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		device.Partitioned = len(names) > 0
 	}
 
 	CDROMs, err := getCDROMs()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	mountInfos, err := mount.Probe()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	mountPointsMap, err := getMountPoints(mountInfos)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	swaps, err := getSwaps()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if err = updateFSInfo(device, CDROMs, swaps, mountInfos, mountPointsMap); err != nil {
-		return nil, err
+		return err
 	}
 
+	return nil
+}
+
+func createDevice(udevData *UDevData) (device *Device, err error) {
+	if device, err = NewDevice(udevData); err != nil {
+		return nil, err
+	}
+	if err := device.localProbe(); err != nil {
+		return nil, err
+	}
 	return device, nil
 }
 

@@ -34,4 +34,6 @@ const (
 
 	// MinSupportedDeviceSize is minimum supported size for default XFS filesystem.
 	MinSupportedDeviceSize = 16 * 1024 * 1024 // 16 MiB
+
+	runUdevData = "/run/udev/data"
 )
