@@ -16,18 +16,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package uevent
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 )
 
-func createLoopDevices() error {
+func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
-}
-
-// IsLoopBackDevice checks if the device is a loopback or not
-func IsLoopBackDevice(devPath string) bool {
-	return false
 }

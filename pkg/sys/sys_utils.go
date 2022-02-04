@@ -17,6 +17,7 @@
 package sys
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -121,4 +122,11 @@ func FSTypeEqual(fsType1, fsType2 string) bool {
 	default:
 		return false
 	}
+}
+
+func NormalizeUUID(uuid string) string {
+	if u := strings.ReplaceAll(strings.ReplaceAll(uuid, ":", ""), "-", ""); len(u) > 20 {
+		uuid = fmt.Sprintf("%v-%v-%v-%v-%v", u[:8], u[8:12], u[12:16], u[16:20], u[20:])
+	}
+	return uuid
 }
