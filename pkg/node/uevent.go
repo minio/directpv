@@ -96,7 +96,7 @@ func (d *driveEventHandler) add(ctx context.Context,
 func (d *driveEventHandler) findMatchingDrive() {
 }
 
-func (d *driveEventHandler) Handle(ctx context.Context, event map[string]string) error {
+func (d *driveEventHandler) Handle(ctx context.Context, device *sys.Device) error {
 
 	if sys.LoopRegexp.MatchString(path.Base(event["DEVPATH"])) {
 		klog.V(5).InfoS(
