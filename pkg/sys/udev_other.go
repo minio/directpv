@@ -23,11 +23,6 @@ import (
 	"runtime"
 )
 
-func createLoopDevices() error {
-	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
-}
-
-// IsLoopBackDevice checks if the device is a loopback or not
-func IsLoopBackDevice(devPath string) bool {
-	return false
+func ReadRunUdevDataFile(major, minor int) (map[string]string, error) {
+	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

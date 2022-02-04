@@ -187,7 +187,7 @@ func (d *Discovery) findLocalDrives(ctx context.Context, loopBackOnly bool) (map
 	}
 
 	for name := range devices {
-		if (sys.LoopRegexp.MatchString(name) && !loopBackOnly) || devices[name].Size == 0 {
+		if (sys.IsLoopBackDevice(name) && !loopBackOnly) || devices[name].Size == 0 {
 			delete(devices, name)
 		}
 	}

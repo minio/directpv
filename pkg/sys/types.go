@@ -16,9 +16,25 @@
 
 package sys
 
-import "regexp"
-
-var LoopRegexp = regexp.MustCompile("^loop[0-9]*")
+type UDevData struct {
+	Path         string
+	Major        int
+	Minor        int
+	Partition    int
+	WWID         string
+	Model        string
+	UeventSerial string
+	Vendor       string
+	DMName       string
+	DMUUID       string
+	MDUUID       string
+	PTUUID       string
+	PTType       string
+	PartUUID     string
+	UeventFSUUID string
+	FSType       string
+	FSUUID       string
+}
 
 // Device is a block device information.
 type Device struct {

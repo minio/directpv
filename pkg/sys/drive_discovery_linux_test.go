@@ -596,7 +596,7 @@ func TestNewDevice(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		result, err := newDevice(testCase.event, testCase.name, testCase.major, testCase.minor, testCase.virtual)
+		result, err := NewDevice(testCase.event, testCase.name, testCase.major, testCase.minor, testCase.virtual)
 		if err != nil {
 			t.Fatalf("case %v: unexpected error %v", i+1, err)
 		}

@@ -21,6 +21,8 @@ package sys
 import (
 	"errors"
 	"os"
+	"path"
+	"strings"
 
 	"gopkg.in/freddierice/go-losetup.v1"
 	"k8s.io/klog/v2"
@@ -81,4 +83,9 @@ func createLoopDevices() error {
 	}
 
 	return nil
+}
+
+// IsLoopBackDevice checks if the device is a loopback or not
+func IsLoopBackDevice(devPath string) bool {
+	return strings.HasPrefix(path.Base(devPath), "loop")
 }

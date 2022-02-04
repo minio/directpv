@@ -26,20 +26,11 @@ const (
 	maxBackOff     = 10 * time.Minute
 )
 
-type deviceEvent struct {
-	created time.Time
-	devPath string
-	action  string
-	backOff time.Duration
-	popped  bool
-	timer   *time.Timer
-}
-
-func newDeviceEvent(devPath, action string) *deviceEvent {
+func newDeviceEvent(devPath string, eventAction action) *deviceEvent {
 	return &deviceEvent{
 		created: time.Now().UTC(),
 		devPath: devPath,
-		action:  action,
+		action:  eventAction,
 	}
 }
 
