@@ -17,18 +17,12 @@
 package uevent
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
-	"fmt"
 	"os"
-	"strings"
-	"sync"
-	"sync/atomic"
 	"syscall"
 
-	"k8s.io/klog/v2"
+	"github.com/minio/directpv/pkg/sys"
 )
 
 const (
@@ -44,12 +38,6 @@ var (
 	errNonDeviceEvent = errors.New("Uevent is not for a block device")
 	errEmptyBuf       = errors.New("buffer is empty")
 )
-
-type deviceEvent struct {
-	path  string
-	major int
-	minor int
-}
 
 type listener struct {
 	sockfd      int
