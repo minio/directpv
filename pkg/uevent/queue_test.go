@@ -262,15 +262,15 @@ func TestEventQueueBackOffParallel(t *testing.T) {
 	}
 }
 
-// Just to increase code coverage
-func TestTimerString(t *testing.T) {
-	timer := timeAfterFunc(1, func() {})
-	expectedResult := "timer{1ns}"
-	result := timer.String()
-	if result != expectedResult {
-		t.Fatalf("expected: %v, got: %v", expectedResult, result)
-	}
-}
+// // Just to increase code coverage
+// func TestTimerString(t *testing.T) {
+// 	timer := timeAfterFunc(1, func() {})
+// 	expectedResult := "timer{1ns}"
+// 	result := timer.String()
+// 	if result != expectedResult {
+// 		t.Fatalf("expected: %v, got: %v", expectedResult, result)
+// 	}
+// }
 
 // Just to increase code coverage
 func TestDeviceEventString(t *testing.T) {
