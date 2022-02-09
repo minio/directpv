@@ -19,7 +19,6 @@ package uevent
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -28,55 +27,12 @@ const (
 	maxBackOff     = 10 * time.Minute
 )
 
-type timer struct {
-	duration     time.Duration
-	stopCh       chan struct{}
-	callbackFunc func()
-	elapsedFlag  *int32
-}
-
-func (t timer) String() string {
-	return fmt.Sprintf("timer{%v}", t.duration)
-}
-
-func (t *timer) stop() {
-	close(t.stopCh)
-}
-
-func (t *timer) start() {
-	go func() {
-		select {
-		case <-t.stopCh:
-			return
-		case <-time.After(t.duration):
-			atomic.AddInt32(t.elapsedFlag, 1)
-			t.callbackFunc()
-		}
-	}()
-}
-
-func (t *timer) elapsed() bool {
-	return atomic.LoadInt32(t.elapsedFlag) != 0
-}
-
-func timeAfterFunc(duration time.Duration, callbackFunc func()) *timer {
-	var i32 int32
-	timer := &timer{
-		duration:     duration,
-		stopCh:       make(chan struct{}),
-		callbackFunc: callbackFunc,
-		elapsedFlag:  &i32,
-	}
-	timer.start()
-	return timer
-}
-
 type deviceEvent struct {
 	created time.Time
 	devPath string
 	action  string
 	backOff time.Duration
-	timer   *timer
+	timer   *time.Timer
 }
 
 func newDeviceEvent(devPath, action string) *deviceEvent {
@@ -92,23 +48,22 @@ func (d deviceEvent) String() string {
 }
 
 type eventQueue struct {
-	events       map[string]*deviceEvent
-	keys         []string
-	cond         *sync.Cond
-	timers       []*timer
-	stopTimersCh chan struct{}
+	events map[string]*deviceEvent
+	mutex  sync.Mutex
+	keyCh  chan string
+	keys   sync.Map
 }
 
 func newEventQueue() *eventQueue {
 	return &eventQueue{
 		events: map[string]*deviceEvent{},
-		cond:   sync.NewCond(&sync.Mutex{}),
+		keyCh:  make(chan string, 16384),
 	}
 }
 
 func (e *eventQueue) set(event *deviceEvent, addBackOff bool) {
-	e.cond.L.Lock()
-	defer e.cond.L.Unlock()
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 
 	if existingEvent, found := e.events[event.devPath]; found && existingEvent.created.After(event.created) {
 		// skip given event as existing event is the latest
@@ -116,7 +71,7 @@ func (e *eventQueue) set(event *deviceEvent, addBackOff bool) {
 	}
 
 	if event.timer != nil {
-		event.timer.stop()
+		event.timer.Stop()
 	}
 
 	if addBackOff {
@@ -129,22 +84,23 @@ func (e *eventQueue) set(event *deviceEvent, addBackOff bool) {
 				event.backOff = maxBackOff
 			}
 		}
-		event.timer = timeAfterFunc(event.backOff, func() { e.cond.Signal() })
+		event.timer = time.AfterFunc(
+			event.backOff,
+			func() {
+				if _, loaded := e.keys.LoadOrStore(event.devPath, struct{}{}); !loaded {
+					e.keyCh <- event.devPath
+				}
+			},
+		)
 	}
 
 	e.events[event.devPath] = event
-	found := false
-	for _, key := range e.keys {
-		if key == event.devPath {
-			found = true
-			break
+
+	if !addBackOff {
+		if _, loaded := e.keys.LoadOrStore(event.devPath, struct{}{}); !loaded {
+			e.keyCh <- event.devPath
 		}
 	}
-	if !found {
-		e.keys = append(e.keys, event.devPath)
-	}
-
-	e.cond.Signal()
 }
 
 func (e *eventQueue) push(event *deviceEvent) {
@@ -155,42 +111,27 @@ func (e *eventQueue) pushBackOff(event *deviceEvent) {
 	e.set(event, true)
 }
 
-func (e *eventQueue) get() (event *deviceEvent) {
-	e.cond.L.Lock()
-	defer e.cond.L.Unlock()
+func (e *eventQueue) get(key string) *deviceEvent {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 
-	var keys []string
-	for i, key := range e.keys {
-		ev, found := e.events[key]
-		if !found {
-			continue
-		}
-
-		if ev.timer == nil || ev.timer.elapsed() {
-			keys = append(keys, e.keys[i+1:]...)
-			event = ev
-			break
-		}
-
-		keys = append(keys, key)
-	}
-	e.keys = keys
-
-	switch {
-	case event != nil:
-		delete(e.events, event.devPath)
-	default:
-		e.cond.Wait()
+	if event, found := e.events[key]; found {
+		delete(e.events, key)
+		return event
 	}
 
-	return event
+	return nil
 }
 
 func (e *eventQueue) pop() *deviceEvent {
-	for {
-		event := e.get()
+	for key := range e.keyCh {
+		e.keys.LoadAndDelete(key)
+		event := e.get(key)
 		if event != nil {
 			return event
 		}
 	}
+
+	// This happens only if e.keyCh is closed.
+	return nil
 }
