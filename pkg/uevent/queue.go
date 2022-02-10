@@ -32,7 +32,7 @@ type deviceEvent struct {
 	devPath string
 	action  string
 	backOff time.Duration
-	timer   *time.Timer
+	popped bool
 }
 
 func newDeviceEvent(devPath, action string) *deviceEvent {
@@ -44,7 +44,8 @@ func newDeviceEvent(devPath, action string) *deviceEvent {
 }
 
 func (d deviceEvent) String() string {
-	return fmt.Sprintf("{created:%v, devPath:%v, action:%v, timer:%v}", d.created, d.devPath, d.action, d.timer)
+	return fmt.Sprintf("{created:%v, devPath:%v, action:%v}",
+		d.created, d.devPath, d.action)
 }
 
 type eventQueue struct {
@@ -61,17 +62,45 @@ func newEventQueue() *eventQueue {
 	}
 }
 
-func (e *eventQueue) set(event *deviceEvent, addBackOff bool) {
+// pkg/node/devicehandler.go
+// type handler interface{
+//   Add()
+//   Update()
+//   Delete()
+// }
+// 
+// pkg/udev/uevent/listener.go
+// ev := q.pop()
+// if err := handle(ev); err != nil {
+//   q.push(ev)
+// }
+// 
+func (e *eventQueue) push(event *deviceEvent) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
-	if existingEvent, found := e.events[event.devPath]; found && existingEvent.created.After(event.created) {
-		// skip given event as existing event is the latest
-		return
-	}
+	addBackoff = event.popped
 
-	if event.timer != nil {
-		event.timer.Stop()
+	existingEvent, found := e.events[event.devPath]
+	if found {
+		// existing event created after incoming event
+		if existingEvent.created.After(event.created) {
+			// skip
+			return
+		}
+		// existing event has backoff
+		if existingEvent.timer != nil {
+			// latest event preempts older event
+			if !addBackoff {
+				// if we stopped the timer, and 
+				// prevented the push to keyCh
+				if existingEvent.timer.Stop() {
+					e.keyCh <- event.devPath
+				}
+			}
+		}
+		e.events[event.devPath] = event
+		return
 	}
 
 	if addBackOff {
@@ -87,51 +116,26 @@ func (e *eventQueue) set(event *deviceEvent, addBackOff bool) {
 		event.timer = time.AfterFunc(
 			event.backOff,
 			func() {
-				if _, loaded := e.keys.LoadOrStore(event.devPath, struct{}{}); !loaded {
-					e.keyCh <- event.devPath
-				}
+				e.keyCh <- event.devPath
 			},
 		)
+	} else {
+		e.keyCh <- event.devPath
 	}
-
 	e.events[event.devPath] = event
-
-	if !addBackOff {
-		if _, loaded := e.keys.LoadOrStore(event.devPath, struct{}{}); !loaded {
-			e.keyCh <- event.devPath
-		}
-	}
 }
 
-func (e *eventQueue) push(event *deviceEvent) {
-	e.set(event, false)
-}
-
-func (e *eventQueue) pushBackOff(event *deviceEvent) {
-	e.set(event, true)
-}
-
-func (e *eventQueue) get(key string) *deviceEvent {
+func (e *eventQueue) pop() *deviceEvent {
+	key := <-e.keyCh
+	
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
 	if event, found := e.events[key]; found {
 		delete(e.events, key)
+		event.popped = true
 		return event
 	}
-
-	return nil
-}
-
-func (e *eventQueue) pop() *deviceEvent {
-	for key := range e.keyCh {
-		e.keys.LoadAndDelete(key)
-		event := e.get(key)
-		if event != nil {
-			return event
-		}
-	}
-
-	// This happens only if e.keyCh is closed.
-	return nil
+	
+	panic("queue should also find event")
 }
