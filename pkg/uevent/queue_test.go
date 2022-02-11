@@ -22,10 +22,30 @@ import (
 	"testing"
 )
 
+func checkResults(t *testing.T, results []*deviceEvent, expectedResults ...*deviceEvent) {
+	if len(results) != len(expectedResults) {
+		t.Fatalf("results count: expected: %v, got: %v", len(expectedResults), len(results))
+	}
+
+	for _, expectedResult := range expectedResults {
+		found := false
+		for _, result := range results {
+			if found = reflect.DeepEqual(expectedResult, result); found {
+				break
+			}
+		}
+
+		if !found {
+			t.Fatalf("expected result %v not found in %v", expectedResult, results)
+		}
+	}
+}
+
 func TestEventQueue(t *testing.T) {
 	queue := newEventQueue()
 
 	var expectedResult1, expectedResult2, result *deviceEvent
+	var results []*deviceEvent
 
 	// single event push and pop
 	expectedResult1 = newDeviceEvent("sda", "remove")
@@ -51,31 +71,28 @@ func TestEventQueue(t *testing.T) {
 	queue.push(newDeviceEvent("sda", "change"))
 	expectedResult1 = newDeviceEvent("sda", "remove")
 	queue.push(expectedResult1)
-	result = queue.pop()
-	if !reflect.DeepEqual(expectedResult1, result) {
-		t.Fatalf("expected: %v, got: %v", expectedResult1, result)
+	results = []*deviceEvent{
+		queue.pop(),
+		queue.pop(),
 	}
-	result = queue.pop()
-	if !reflect.DeepEqual(expectedResult2, result) {
-		t.Fatalf("expected: %v, got: %v", expectedResult2, result)
-	}
+	checkResults(t, results, expectedResult1, expectedResult2)
 
 	// with/without backoff pushes and second pop returns backoff pushed event
 	expectedResult2 = newDeviceEvent("sda", "change")
-	queue.pushBackOff(expectedResult2)
+	queue.push(expectedResult2)
 	expectedResult1 = newDeviceEvent("sdb", "remove")
 	queue.push(expectedResult1)
-	result = queue.pop()
-	if !reflect.DeepEqual(expectedResult1, result) {
-		t.Fatalf("expected: %v, got: %v", expectedResult1, result)
+	results = []*deviceEvent{
+		queue.pop(),
+		queue.pop(),
 	}
-	result = queue.pop()
-	if !reflect.DeepEqual(expectedResult2, result) {
-		t.Fatalf("expected: %v, got: %v", expectedResult2, result)
-	}
+	checkResults(t, results, expectedResult1, expectedResult2)
 
 	// the latest event replaces backoff push
-	queue.pushBackOff(newDeviceEvent("sda", "change"))
+	expectedResult1 = newDeviceEvent("sda", "change")
+	queue.push(expectedResult1)
+	expectedResult1 = queue.pop()
+	queue.push(expectedResult1) // backoff added
 	expectedResult1 = newDeviceEvent("sda", "remove")
 	queue.push(expectedResult1)
 	result = queue.pop()
@@ -86,7 +103,9 @@ func TestEventQueue(t *testing.T) {
 	// the latest event with backoff replaces older event
 	queue.push(newDeviceEvent("sda", "change"))
 	expectedResult1 = newDeviceEvent("sda", "remove")
-	queue.pushBackOff(expectedResult1)
+	queue.push(expectedResult1)
+	expectedResult1 = queue.pop()
+	queue.push(expectedResult1)
 	result = queue.pop()
 	if !reflect.DeepEqual(expectedResult1, result) {
 		t.Fatalf("expected: %v, got: %v", expectedResult1, result)
@@ -95,8 +114,8 @@ func TestEventQueue(t *testing.T) {
 	// the latest event is not replaced by older event
 	oldEvent := newDeviceEvent("sda", "change")
 	expectedResult1 = newDeviceEvent("sda", "remove")
-	queue.pushBackOff(expectedResult1)
-	queue.pushBackOff(oldEvent)
+	queue.push(expectedResult1)
+	queue.push(oldEvent)
 	result = queue.pop()
 	if !reflect.DeepEqual(expectedResult1, result) {
 		t.Fatalf("expected: %v, got: %v", expectedResult1, result)
@@ -106,61 +125,59 @@ func TestEventQueue(t *testing.T) {
 func TestEventQueueBackOff(t *testing.T) {
 	queue := newEventQueue()
 
-	var expectedResult1, expectedResult2, result *deviceEvent
+	var expectedResult1, expectedResult2 *deviceEvent
+	var results []*deviceEvent
 
 	// all events with backoff
 	expectedResult1 = newDeviceEvent("sda", "remove")
-	queue.pushBackOff(expectedResult1)
+	queue.push(expectedResult1)
+	expectedResult1 = queue.pop()
+	queue.push(expectedResult1) // backoff added
 	expectedResult2 = newDeviceEvent("sdb", "remove")
-	queue.pushBackOff(expectedResult2)
-	var results []*deviceEvent
-	results = append(results, queue.pop())
-	results = append(results, queue.pop())
-	if len(results) != 2 {
-		t.Fatalf("expected: 2, got: %v of %v", len(results), results)
+	queue.push(expectedResult2)
+	expectedResult2 = queue.pop()
+	queue.push(expectedResult2) // backoff added
+	results = []*deviceEvent{
+		queue.pop(),
+		queue.pop(),
 	}
-	if !reflect.DeepEqual(expectedResult1, results[0]) && !reflect.DeepEqual(expectedResult1, results[1]) {
-		t.Fatalf("expected result %v not found in %v", expectedResult1, results)
-	}
-	if !reflect.DeepEqual(expectedResult2, results[0]) && !reflect.DeepEqual(expectedResult2, results[1]) {
-		t.Fatalf("expected result %v not found in %v", expectedResult2, results)
-	}
+	checkResults(t, results, expectedResult1, expectedResult2)
 
 	// all events with different backoff
-	expectedResult2 = newDeviceEvent("sdb", "remove")
-	queue.pushBackOff(expectedResult2)
-	queue.pushBackOff(expectedResult2) // increase backoff
-	expectedResult1 = newDeviceEvent("sda", "remove")
-	queue.pushBackOff(expectedResult1)
-	result = queue.pop()
-	if !reflect.DeepEqual(expectedResult1, result) {
-		t.Fatalf("expected: %v, got: %v", expectedResult1, result)
-	}
-	result = queue.pop()
-	if !reflect.DeepEqual(expectedResult2, result) {
-		t.Fatalf("expected: %v, got: %v", expectedResult2, result)
-	}
-
-	// all events with backoff resetted by non-backoff event
-	expectedResult1 = newDeviceEvent("sda", "remove")
-	queue.pushBackOff(expectedResult1)
-	expectedResult2 = newDeviceEvent("sdb", "remove")
-	queue.pushBackOff(expectedResult2)
-	queue.pushBackOff(expectedResult2) // increase backoff
-	result = queue.pop()
-	if !reflect.DeepEqual(expectedResult1, result) {
-		t.Fatalf("expected: %v, got: %v", expectedResult1, result)
-	}
 	expectedResult1 = newDeviceEvent("sda", "remove")
 	queue.push(expectedResult1)
-	result = queue.pop()
-	if !reflect.DeepEqual(expectedResult1, result) {
-		t.Fatalf("expected: %v, got: %v", expectedResult1, result)
+	expectedResult1 = queue.pop()
+	queue.push(expectedResult1) // backoff added
+	expectedResult2 = newDeviceEvent("sdb", "remove")
+	queue.push(expectedResult2)
+	expectedResult2 = queue.pop()
+	queue.push(expectedResult2) // backoff added
+	expectedResult2 = queue.pop()
+	queue.push(expectedResult2) // backoff added
+	results = []*deviceEvent{
+		queue.pop(),
+		queue.pop(),
 	}
-	result = queue.pop()
-	if !reflect.DeepEqual(expectedResult2, result) {
-		t.Fatalf("expected: %v, got: %v", expectedResult2, result)
+	checkResults(t, results, expectedResult1, expectedResult2)
+
+	// all events with backoff resetted by new event
+	expectedResult1 = newDeviceEvent("sda", "remove")
+	queue.push(expectedResult1)
+	expectedResult1 = queue.pop()
+	queue.push(expectedResult1) // backoff added
+	expectedResult2 = newDeviceEvent("sdb", "remove")
+	queue.push(expectedResult2)
+	expectedResult2 = queue.pop()
+	queue.push(expectedResult2) // backoff added
+	expectedResult2 = queue.pop()
+	queue.push(expectedResult2) // backoff added
+	expectedResult1 = newDeviceEvent("sda", "remove")
+	queue.push(expectedResult1)
+	results = []*deviceEvent{
+		queue.pop(),
+		queue.pop(),
 	}
+	checkResults(t, results, expectedResult1, expectedResult2)
 }
 
 func TestEventQueueParallel(t *testing.T) {
@@ -198,17 +215,7 @@ func TestEventQueueParallel(t *testing.T) {
 
 	wg.Wait()
 
-	if len(results) != 2 {
-		t.Fatalf("expected: 2, got: %v of %v", len(results), results)
-	}
-
-	if !reflect.DeepEqual(expectedResult1, results[0]) && !reflect.DeepEqual(expectedResult1, results[1]) {
-		t.Fatalf("expected result %v not found in %v", expectedResult1, results)
-	}
-
-	if !reflect.DeepEqual(expectedResult2, results[0]) && !reflect.DeepEqual(expectedResult2, results[1]) {
-		t.Fatalf("expected result %v not found in %v", expectedResult2, results)
-	}
+	checkResults(t, results, expectedResult1, expectedResult2)
 }
 
 func TestEventQueueBackOffParallel(t *testing.T) {
@@ -220,16 +227,18 @@ func TestEventQueueBackOffParallel(t *testing.T) {
 	var results []*deviceEvent
 	var resultsMutex sync.Mutex
 
-	push := func(event *deviceEvent, increaseBackoff int) {
+	push := func(event *deviceEvent) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			queue.pushBackOff(event)
-			for i := 0; i < increaseBackoff; i++ {
-				queue.pushBackOff(event)
-			}
+			queue.push(event)
+			event = queue.pop()
+			queue.push(event) // backoff added
 		}()
 	}
+	push(expectedResult1)
+	push(expectedResult2)
+	wg.Wait()
 
 	pop := func() {
 		wg.Add(1)
@@ -241,43 +250,9 @@ func TestEventQueueBackOffParallel(t *testing.T) {
 			resultsMutex.Unlock()
 		}()
 	}
-
-	push(expectedResult1, 0)
-	push(expectedResult2, 2)
 	pop()
 	pop()
-
 	wg.Wait()
 
-	if len(results) != 2 {
-		t.Fatalf("expected: 2, got: %v of %v", len(results), results)
-	}
-
-	if !reflect.DeepEqual(expectedResult1, results[0]) && !reflect.DeepEqual(expectedResult1, results[1]) {
-		t.Fatalf("expected result %v not found in %v", expectedResult1, results)
-	}
-
-	if !reflect.DeepEqual(expectedResult2, results[0]) && !reflect.DeepEqual(expectedResult2, results[1]) {
-		t.Fatalf("expected result %v not found in %v", expectedResult2, results)
-	}
-}
-
-// // Just to increase code coverage
-// func TestTimerString(t *testing.T) {
-// 	timer := timeAfterFunc(1, func() {})
-// 	expectedResult := "timer{1ns}"
-// 	result := timer.String()
-// 	if result != expectedResult {
-// 		t.Fatalf("expected: %v, got: %v", expectedResult, result)
-// 	}
-// }
-
-// Just to increase code coverage
-func TestDeviceEventString(t *testing.T) {
-	event := newDeviceEvent("sda", "remove")
-	expectedResult := "{created:" + event.created.String() + ", devPath:sda, action:remove, timer:<nil>}"
-	result := event.String()
-	if result != expectedResult {
-		t.Fatalf("expected: %v, got: %v", expectedResult, result)
-	}
+	checkResults(t, results, expectedResult1, expectedResult2)
 }
