@@ -49,15 +49,15 @@ func (d deviceEvent) String() string {
 		d.created, d.devPath, d.action)
 }
 
-type eventStore struct {
+type eventQueue struct {
 	events map[string]*deviceEvent
 	mutex  sync.Mutex
 	keyCh  chan string
 	keys   sync.Map
 }
 
-func newEventStore() *eventStore {
-	return &eventStore{
+func newEventQueue() *eventQueue {
+	return &eventQueue{
 		events: map[string]*deviceEvent{},
 		keyCh:  make(chan string, 16384),
 	}
@@ -76,7 +76,7 @@ func newEventStore() *eventStore {
 //   q.push(ev)
 // }
 //
-func (e *eventStore) push(event *deviceEvent) {
+func (e *eventQueue) push(event *deviceEvent) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
@@ -125,7 +125,7 @@ func (e *eventStore) push(event *deviceEvent) {
 	e.events[event.devPath] = event
 }
 
-func (e *eventStore) pop() *deviceEvent {
+func (e *eventQueue) pop() *deviceEvent {
 	key := <-e.keyCh
 
 	e.mutex.Lock()
