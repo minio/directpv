@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/container-storage-interface/spec v1.3.0
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.0+incompatible
 	github.com/dswarbrick/smart v0.0.0-20190505152634-909a45200d6d
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fatih/color v1.12.0
@@ -17,7 +17,6 @@ require (
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.0.5
-	github.com/jteeuwen/go-bindata v3.0.7+incompatible // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mattn/go-isatty v0.0.13 // indirect
