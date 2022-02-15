@@ -59,7 +59,7 @@ type eventQueue struct {
 func newEventQueue() *eventQueue {
 	return &eventQueue{
 		events: map[string]*deviceEvent{},
-		keyCh:  make(chan string, 256),
+		keyCh:  make(chan string, 16384),
 	}
 }
 
@@ -76,18 +76,34 @@ func newEventQueue() *eventQueue {
 //   q.push(ev)
 // }
 //
-
-func (e *eventQueue) set(event *deviceEvent) (existingEvent *deviceEvent, found bool) {
+func (e *eventQueue) push(event *deviceEvent) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
-	existingEvent, found = e.events[event.devPath]
+	existingEvent, found := e.events[event.devPath]
 	if found {
+		// existing event created after incoming event
 		if existingEvent.created.After(event.created) {
-			// Skip as passed event is older.
-			return nil, found
+			// skip
+			return
 		}
-	} else if event.popped {
+
+		// existing event has backoff
+		if existingEvent.timer != nil {
+			// latest event preempts older event
+			if !event.popped {
+				// if we stopped the timer, and
+				// prevented the push to keyCh
+				if existingEvent.timer.Stop() {
+					e.keyCh <- event.devPath
+				}
+			}
+		}
+		e.events[event.devPath] = event
+		return
+	}
+
+	if event.popped {
 		switch event.backOff {
 		case 0:
 			event.backOff = defaultBackOff
@@ -103,39 +119,10 @@ func (e *eventQueue) set(event *deviceEvent) (existingEvent *deviceEvent, found 
 				e.keyCh <- event.devPath
 			},
 		)
+	} else {
+		e.keyCh <- event.devPath
 	}
-
 	e.events[event.devPath] = event
-	return existingEvent, found
-}
-
-func (e *eventQueue) push(event *deviceEvent) {
-	existingEvent, found := e.set(event)
-
-	if !found {
-		if !event.popped {
-			// As incoming event does not exist and it is new, send key to the channel
-			e.keyCh <- event.devPath
-		}
-		return
-	}
-
-	if existingEvent == nil {
-		// As existing event is newer than incoming event and not replaced by incoming event
-		return
-	}
-
-	if !event.popped {
-		if existingEvent.timer != nil {
-			if existingEvent.timer.Stop() {
-				// As incoming event is new and existing event has a timer and
-				// we were able to stop the timer, send key to keyCh.
-				e.keyCh <- event.devPath
-			}
-			// As we are not able to stop the timer i.e. the timer already elapsed,
-			// the callback function in the timer sends key to keyCh.
-		}
-	}
 }
 
 func (e *eventQueue) pop() *deviceEvent {
