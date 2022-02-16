@@ -17,7 +17,6 @@
 package uevent
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -44,11 +43,6 @@ func newDeviceEvent(devPath, action string) *deviceEvent {
 	}
 }
 
-func (d deviceEvent) String() string {
-	return fmt.Sprintf("{created:%v, devPath:%v, action:%v}",
-		d.created, d.devPath, d.action)
-}
-
 type eventQueue struct {
 	events map[string]*deviceEvent
 	mutex  sync.Mutex
@@ -63,19 +57,6 @@ func newEventQueue() *eventQueue {
 	}
 }
 
-// pkg/node/devicehandler.go
-// type handler interface{
-//   Add()
-//   Update()
-//   Delete()
-// }
-//
-// pkg/udev/uevent/listener.go
-// ev := q.pop()
-// if err := handle(ev); err != nil {
-//   q.push(ev)
-// }
-//
 func (e *eventQueue) push(event *deviceEvent) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
