@@ -20,9 +20,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/minio/directpv/pkg/client"
 )
+
+func trimMinorVersion(minor string) (string, error) {
+	i := strings.IndexFunc(minor, func(r rune) bool { return r < '0' || r > '9' })
+	if i < 0 {
+		return minor, nil
+	}
+
+	m := minor[:i]
+	_, err := strconv.Atoi(m)
+	if err != nil {
+		return "", err
+	}
+
+	return m, nil
+}
 
 func getInstaller(config *Config) (installer, error) {
 	versionInfo, err := client.GetDiscoveryClient().ServerVersion()
@@ -30,8 +47,18 @@ func getInstaller(config *Config) (installer, error) {
 		return nil, err
 	}
 
+	minor := versionInfo.Minor
+	if strings.Contains(versionInfo.GitVersion, "-eks-") {
+		// Do trimming only for EKS.
+		// Refer https://github.com/aws/containers-roadmap/issues/1404
+		minor, err = trimMinorVersion(versionInfo.Minor)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if versionInfo.Major == "1" {
-		switch versionInfo.Minor {
+		switch minor {
 		case "18":
 			return newV1Dot18(config), nil
 		case "19":
