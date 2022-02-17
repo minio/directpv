@@ -30,8 +30,12 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func ReadRunUdevDataFile(major, minor int) (map[string]string, error) {
-	file, err := os.Open(fmt.Sprintf("%v/b%v:%v", runUdevData, major, minor))
+func ReadRunUdevDataByMajorMinor(major, minor int) (map[string]string, error) {
+	return ReadRunUdevDataFile(fmt.Sprintf("%v/b%v:%v", runUdevData, major, minor))
+}
+
+func ReadRunUdevDataFile(filename string) (map[string]string, error) {
+	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +45,7 @@ func ReadRunUdevDataFile(major, minor int) (map[string]string, error) {
 }
 
 func readRunUdevData(major, minor int) (*UDevData, error) {
-	data, err := ReadRunUdevDataFile(major, minor)
+	data, err := ReadRunUdevDataByMajorMinor(major, minor)
 	if err != nil {
 		return nil, err
 	}

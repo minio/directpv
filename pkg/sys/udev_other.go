@@ -23,6 +23,10 @@ import (
 	"runtime"
 )
 
-func ReadRunUdevDataFile(major, minor int) (map[string]string, error) {
+func ReadRunUdevDataByMajorMinor(major, minor int) (map[string]string, error) {
+	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+}
+
+func ReadRunUdevDataFile(filename string) (map[string]string, error) {
 	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
