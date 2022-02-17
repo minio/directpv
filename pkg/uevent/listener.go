@@ -17,12 +17,12 @@
 package uevent
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -228,7 +228,7 @@ func (dEvent *deviceEvent) collectUDevData() error {
 	case Add, Change:
 		// Older kernels like in CentOS 7 does not send all information about the device,
 		// hence read relevant data from /run/udev/data/b<major>:<minor>
-		runUdevDataMap, err := sys.ReadRunUdevDataFile(dEvent.udevData.Major, dEvent.udevData.Minor)
+		runUdevDataMap, err := sys.ReadRunUdevDataByMajorMinor(dEvent.udevData.Major, dEvent.udevData.Minor)
 		if err != nil {
 			return err
 		}
@@ -387,6 +387,50 @@ func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error 
 		} else if dEvent.udevData.FSUUID != runUdevData.FSUUID {
 			return errValueMismatch(dEvent.udevData.FSUUID, "FSUUID", dEvent.udevData.FSUUID, runUdevData.FSUUID)
 		}
+	}
+
+	return nil
+}
+
+func (l *listener) sync() error {
+	dir, err := os.Open("/run/udev/data")
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+
+	names, err := dir.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+
+	for _, name := range names {
+		if !strings.HasPrefix(name, "b:") {
+			continue
+		}
+
+		filename := filepath.Join("/run/udev/data", name)
+		data, err := sys.ReadRunUdevDataFile(filename)
+		if err != nil {
+			return err
+		}
+		runUdevData, err := mapToUdevData(data)
+		if err != nil {
+			return err
+		}
+
+		event := &deviceEvent{
+			created:  time.Now().UTC(),
+			action:   Change,
+			udevData: runUdevData,
+			devPath:  runUdevData.Path,
+		}
+
+		if err = event.fillMissingUdevData(runUdevData); err != nil {
+			return err
+		}
+
+		l.eventQueue.push(event)
 	}
 
 	return nil
