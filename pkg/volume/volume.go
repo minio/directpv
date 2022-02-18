@@ -55,21 +55,7 @@ func newVolumeEventHandler(nodeID string) *volumeEventHandler {
 }
 
 func (handler *volumeEventHandler) ListerWatcher() cache.ListerWatcher {
-	labelSelector := ""
-	if handler.nodeID != "" {
-		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabelKey, utils.NewLabelValue(handler.nodeID))
-	}
-
-	optionsModifier := func(options *metav1.ListOptions) {
-		options.LabelSelector = labelSelector
-	}
-
-	return cache.NewFilteredListWatchFromClient(
-		client.GetLatestDirectCSIRESTClient(),
-		"DirectCSIVolumes",
-		"",
-		optionsModifier,
-	)
+	return utils.VolumesListerWatcher(handler.nodeID)
 }
 
 func (handler *volumeEventHandler) KubeClient() kubernetes.Interface {
