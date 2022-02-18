@@ -180,7 +180,6 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		PartUUID:     dEvent.udevData.PartUUID,
 		UeventFSUUID: dEvent.udevData.UeventFSUUID,
 		FSType:       dEvent.udevData.FSType,
-		FSUUID:       dEvent.udevData.FSUUID,
 	}
 
 	ok, err := l.indexer.validateDevice(device)
