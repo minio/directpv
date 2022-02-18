@@ -55,7 +55,7 @@ func newVolumeEventHandler(nodeID string) *volumeEventHandler {
 }
 
 func (handler *volumeEventHandler) ListerWatcher() cache.ListerWatcher {
-	return utils.VolumesListerWatcher(handler.nodeID)
+	return client.VolumesListerWatcher(handler.nodeID)
 }
 
 func (handler *volumeEventHandler) KubeClient() kubernetes.Interface {

@@ -62,7 +62,7 @@ func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler
 }
 
 func (handler *driveEventHandler) ListerWatcher() cache.ListerWatcher {
-	return utils.DrivesListerWatcher(handler.nodeID)
+	return client.DrivesListerWatcher(handler.nodeID)
 }
 
 func (handler *driveEventHandler) KubeClient() kubernetes.Interface {
