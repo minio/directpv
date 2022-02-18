@@ -62,21 +62,7 @@ func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler
 }
 
 func (handler *driveEventHandler) ListerWatcher() cache.ListerWatcher {
-	labelSelector := ""
-	if handler.nodeID != "" {
-		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabelKey, utils.NewLabelValue(handler.nodeID))
-	}
-
-	optionsModifier := func(options *metav1.ListOptions) {
-		options.LabelSelector = labelSelector
-	}
-
-	return cache.NewFilteredListWatchFromClient(
-		client.GetLatestDirectCSIRESTClient(),
-		"DirectCSIDrives",
-		"",
-		optionsModifier,
-	)
+	return utils.DrivesListerWatcher(handler.nodeID)
 }
 
 func (handler *driveEventHandler) KubeClient() kubernetes.Interface {
