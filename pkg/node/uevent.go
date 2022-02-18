@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
 
@@ -28,10 +27,6 @@ import (
 	"github.com/minio/directpv/pkg/uevent"
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/klog/v2"
-)
-
-var (
-	errNoMatchFound = errors.New("no matching drive found")
 )
 
 func RunDynamicDriveHandler(ctx context.Context,
@@ -58,56 +53,6 @@ type driveEventHandler struct {
 }
 
 func (d *driveEventHandler) Add(ctx context.Context, device *sys.Device) error {
-	return d.handleUpdate(ctx, device)
-}
-
-func (d *driveEventHandler) Change(ctx context.Context, device *sys.Device) error {
-	return d.handleUpdate(ctx, device)
-}
-
-func (d *driveEventHandler) Remove(ctx context.Context, device *sys.Device) error {
-	drive, err := d.findMatchingDrive(ctx, device)
-	switch {
-	case errors.Is(err, errNoMatchFound):
-		klog.V(3).InfoS(
-			"matching drive not found",
-			"ACTION", uevent.Remove,
-			"DEVICE", device.Name)
-		return nil
-	case err == nil:
-		return d.remove(ctx, device, drive)
-	default:
-		return err
-	}
-}
-
-func (d *driveEventHandler) handleUpdate(ctx context.Context, device *sys.Device) error {
-	drive, err := d.findMatchingDrive(ctx, device)
-	switch {
-	case errors.Is(err, errNoMatchFound):
-		return d.add(ctx, device)
-	case err == nil:
-		return d.update(ctx, device, drive)
-	default:
-		return err
-	}
-}
-
-func (d *driveEventHandler) remove(ctx context.Context,
-	device *sys.Device,
-	drive *directcsi.DirectCSIDrive) error {
-
-	return nil
-}
-
-func (d *driveEventHandler) update(ctx context.Context,
-	device *sys.Device,
-	drive *directcsi.DirectCSIDrive) error {
-
-	return nil
-}
-
-func (d *driveEventHandler) add(ctx context.Context, device *sys.Device) error {
 	drive := client.NewDirectCSIDrive(
 		uuid.New().String(),
 		client.NewDirectCSIDriveStatus(device, d.nodeID, d.topology),
@@ -119,18 +64,10 @@ func (d *driveEventHandler) add(ctx context.Context, device *sys.Device) error {
 	return err
 }
 
-func (d *driveEventHandler) findMatchingDrive(ctx context.Context, device *sys.Device) (*directcsi.DirectCSIDrive, error) {
-	drives, err := client.GetDriveList(
-		ctx,
-		[]utils.LabelValue{utils.NewLabelValue(d.nodeID)},
-		[]utils.LabelValue{utils.NewLabelValue(device.Name)},
-		nil,
-	)
-	if err != nil {
-		klog.ErrorS(err, "error while fetching drive list")
-		return nil, err
-	}
-	//  todo: run matching algorithm to find matching drive
-	//  note: return `errNoMatchFound` if no match is found
-	return &drives[0], errNoMatchFound
+func (d *driveEventHandler) Change(ctx context.Context, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
+	return nil
+}
+
+func (d *driveEventHandler) Remove(ctx context.Context, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
+	return nil
 }

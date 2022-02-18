@@ -16,6 +16,8 @@
 
 package sys
 
+import "path/filepath"
+
 type UDevData struct {
 	Path         string
 	Major        int
@@ -82,4 +84,8 @@ type Device struct {
 	MountPoints       []string
 	FirstMountPoint   string
 	FirstMountOptions []string
+}
+
+func (d Device) DevPath() string {
+	return filepath.Join("/dev", d.Name)
 }

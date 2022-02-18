@@ -27,42 +27,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
-func DrivesListerWatcher(nodeID string) cache.ListerWatcher {
-	labelSelector := ""
-	if nodeID != "" {
-		labelSelector = fmt.Sprintf("%s=%s", NodeLabelKey, NewLabelValue(nodeID))
-	}
-
-	optionsModifier := func(options *metav1.ListOptions) {
-		options.LabelSelector = labelSelector
-	}
-
-	return cache.NewFilteredListWatchFromClient(
-		client.GetLatestDirectCSIRESTClient(),
-		"DirectCSIDrives",
-		"",
-		optionsModifier,
-	)
-}
-
-func VolumesListerWatcher(nodeID string) cache.ListerWatcher {
-	labelSelector := ""
-	if nodeID != "" {
-		labelSelector = fmt.Sprintf("%s=%s", NodeLabelKey, NewLabelValue(nodeID))
-	}
-
-	optionsModifier := func(options *metav1.ListOptions) {
-		options.LabelSelector = labelSelector
-	}
-
-	return cache.NewFilteredListWatchFromClient(
-		client.GetLatestDirectCSIRESTClient(),
-		"DirectCSIVolumes",
-		"",
-		optionsModifier,
-	)
-}
-
 // IsCondition checks type/status/reason/message in conditions and this function used only for testing.
 func IsCondition(statusConditions []metav1.Condition, condType string, condStatus metav1.ConditionStatus, reason, msg string) bool {
 	for i := range statusConditions {
