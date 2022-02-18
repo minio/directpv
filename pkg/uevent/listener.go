@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/sys"
 	"k8s.io/klog/v2"
 )
@@ -57,8 +58,8 @@ var (
 
 type DeviceUEventHandler interface {
 	Add(context.Context, *sys.Device) error
-	Change(context.Context, *sys.Device) error
-	Remove(context.Context, *sys.Device) error
+	Change(context.Context, *sys.Device, *directcsi.DirectCSIDrive) error
+	Remove(context.Context, *sys.Device, *directcsi.DirectCSIDrive) error
 }
 
 type listener struct {
@@ -106,7 +107,7 @@ func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error 
 		handler:    handler,
 		eventQueue: newEventQueue(),
 		nodeID:     nodeID,
-		indexer:    newIndexer(ctx, resyncPeriod),
+		indexer:    newIndexer(ctx, nodeID, resyncPeriod),
 	}
 
 	go listener.processEvents(ctx)
@@ -156,52 +157,82 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		return nil
 	}
 
-	name := filepath.Base(udevData.Path)
+	name := filepath.Base(dEvent.udevData.Path)
 	if name == "" {
-		return fmt.Errorf("udevData does not have valid DEVPATH %v", udevData.Path)
+		return fmt.Errorf("udevData does not have valid DEVPATH %v", dEvent.udevData.Path)
 	}
 
-	device = &sys.Device{
+	device := &sys.Device{
 		Name:         name,
-		Major:        udevData.Major,
-		Minor:        udevData.Minor,
-		Virtual:      strings.Contains(udevData.Path, "/virtual/"),
-		Partition:    udevData.Partition,
-		WWID:         udevData.WWID,
-		Model:        udevData.Model,
-		UeventSerial: udevData.UeventSerial,
-		Vendor:       udevData.Vendor,
-		DMName:       udevData.DMName,
-		DMUUID:       udevData.DMUUID,
-		MDUUID:       udevData.MDUUID,
-		PTUUID:       udevData.PTUUID,
-		PTType:       udevData.PTUUID,
-		PartUUID:     udevData.PartUUID,
-		UeventFSUUID: udevData.UeventFSUUID,
-		FSType:       udevData.FSType,
-		FSUUID:       udevData.FSUUID,
+		Major:        dEvent.udevData.Major,
+		Minor:        dEvent.udevData.Minor,
+		Virtual:      strings.Contains(dEvent.udevData.Path, "/virtual/"),
+		Partition:    dEvent.udevData.Partition,
+		WWID:         dEvent.udevData.WWID,
+		Model:        dEvent.udevData.Model,
+		UeventSerial: dEvent.udevData.UeventSerial,
+		Vendor:       dEvent.udevData.Vendor,
+		DMName:       dEvent.udevData.DMName,
+		DMUUID:       dEvent.udevData.DMUUID,
+		MDUUID:       dEvent.udevData.MDUUID,
+		PTUUID:       dEvent.udevData.PTUUID,
+		PTType:       dEvent.udevData.PTType,
+		PartUUID:     dEvent.udevData.PartUUID,
+		UeventFSUUID: dEvent.udevData.UeventFSUUID,
+		FSType:       dEvent.udevData.FSType,
+		FSUUID:       dEvent.udevData.FSUUID,
 	}
 
-	if ok := listener.indexer.validateDevice(device); ok {
+	ok, err := l.indexer.validateDevice(device)
+	if err != nil {
+		return err
+	}
+	if ok {
 		return nil
 	}
 
 	if err := device.ProbeHostInfo(); err != nil {
 		// if drive is deleted
-		if !errors.Is(fs.ErrNotExist()) {
+		if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 	}
 
 	switch dEvent.action {
-	case Add:
-		return l.handler.Add(ctx, device)
-	case Change:
-		return l.handler.Change(ctx, device, listener.indexer.getDeviceCRD(device))
+	case Add, Change:
+		return l.processUpdate(ctx, device)
 	case Remove:
-		return l.handler.Remove(ctx, device, listener.indexer.getDeviceCRD(device))
+		return l.processRemove(ctx, device)
 	default:
 		return fmt.Errorf("invalid device action: %s", dEvent.action)
+	}
+}
+
+func (l *listener) processUpdate(ctx context.Context, device *sys.Device) error {
+	drive, err := l.indexer.getMatchingDrive(device)
+	switch {
+	case errors.Is(err, errNoMatchFound):
+		return l.handler.Add(ctx, device)
+	case err == nil:
+		return l.handler.Change(ctx, device, drive)
+	default:
+		return err
+	}
+}
+
+func (l *listener) processRemove(ctx context.Context, device *sys.Device) error {
+	drive, err := l.indexer.getMatchingDrive(device)
+	switch {
+	case errors.Is(err, errNoMatchFound):
+		klog.V(3).InfoS(
+			"matching drive not found",
+			"ACTION", Remove,
+			"DEVICE", device.Name)
+		return nil
+	case err == nil:
+		return l.handler.Remove(ctx, device, drive)
+	default:
+		return err
 	}
 }
 
@@ -247,17 +278,17 @@ func (dEvent *deviceEvent) collectUDevData() error {
 	}
 }
 
-func (dEvent *deviceEvent) toDevice() (*sys.Device, error) {
-	switch dEvent.action {
-	case Add, Change:
-		return sys.CreateDevice(dEvent.udevData)
-	case Remove:
-		// Removed device cannot be probed locally
-		return sys.NewDevice(dEvent.udevData)
-	default:
-		return nil, fmt.Errorf("invalid device action: %s", dEvent.action)
-	}
-}
+// func (dEvent *deviceEvent) toDevice() (*sys.Device, error) {
+// 	switch dEvent.action {
+// 	case Add, Change:
+// 		return sys.CreateDevice(dEvent.udevData)
+// 	case Remove:
+// 		// Removed device cannot be probed locally
+// 		return sys.NewDevice(dEvent.udevData)
+// 	default:
+// 		return nil, fmt.Errorf("invalid device action: %s", dEvent.action)
+// 	}
+// }
 
 func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error {
 	errValueMismatch := func(path, key string, expected, found interface{}) error {

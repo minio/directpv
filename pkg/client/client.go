@@ -27,8 +27,11 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"k8s.io/client-go/tools/cache"
+
 	"github.com/spf13/viper"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -336,5 +339,41 @@ func ProcessDrives(
 		},
 		writer,
 		dryRun,
+	)
+}
+
+func DrivesListerWatcher(nodeID string) cache.ListerWatcher {
+	labelSelector := ""
+	if nodeID != "" {
+		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabelKey, utils.NewLabelValue(nodeID))
+	}
+
+	optionsModifier := func(options *metav1.ListOptions) {
+		options.LabelSelector = labelSelector
+	}
+
+	return cache.NewFilteredListWatchFromClient(
+		GetLatestDirectCSIRESTClient(),
+		"DirectCSIDrives",
+		"",
+		optionsModifier,
+	)
+}
+
+func VolumesListerWatcher(nodeID string) cache.ListerWatcher {
+	labelSelector := ""
+	if nodeID != "" {
+		labelSelector = fmt.Sprintf("%s=%s", utils.NodeLabelKey, utils.NewLabelValue(nodeID))
+	}
+
+	optionsModifier := func(options *metav1.ListOptions) {
+		options.LabelSelector = labelSelector
+	}
+
+	return cache.NewFilteredListWatchFromClient(
+		GetLatestDirectCSIRESTClient(),
+		"DirectCSIVolumes",
+		"",
+		optionsModifier,
 	)
 }

@@ -722,7 +722,7 @@ func probeDevices() (devices map[string]*Device, err error) {
 	return devices, nil
 }
 
-func (device *Device) localProbe() (err error) {
+func (device *Device) ProbeHostInfo() (err error) {
 	if device.Serial, err = getSerial(device.Name); err != nil {
 		return err
 	}
@@ -778,7 +778,7 @@ func createDevice(udevData *UDevData) (device *Device, err error) {
 	if device, err = NewDevice(udevData); err != nil {
 		return nil, err
 	}
-	if err := device.localProbe(); err != nil {
+	if err := device.ProbeHostInfo(); err != nil {
 		return nil, err
 	}
 	return device, nil
