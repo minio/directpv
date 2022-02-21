@@ -277,29 +277,17 @@ func (dEvent *deviceEvent) collectUDevData() error {
 	}
 }
 
-// func (dEvent *deviceEvent) toDevice() (*sys.Device, error) {
-// 	switch dEvent.action {
-// 	case Add, Change:
-// 		return sys.CreateDevice(dEvent.udevData)
-// 	case Remove:
-// 		// Removed device cannot be probed locally
-// 		return sys.NewDevice(dEvent.udevData)
-// 	default:
-// 		return nil, fmt.Errorf("invalid device action: %s", dEvent.action)
-// 	}
-// }
+func errValueMismatch(path, key string, expected, found interface{}) error {
+	return fmt.Errorf(
+		"value mismatch for path %s. expected '%s': %v, received: %v",
+		path,
+		key,
+		expected,
+		found,
+	)
+}
 
 func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error {
-	errValueMismatch := func(path, key string, expected, found interface{}) error {
-		return fmt.Errorf(
-			"value mismatch for path %s. expected '%s': %v, received: %v",
-			path,
-			key,
-			expected,
-			found,
-		)
-	}
-
 	// check for consistent fields
 	if dEvent.udevData.Path != runUdevData.Path {
 		return errValueMismatch(dEvent.udevData.Path, "path", dEvent.udevData.Path, runUdevData.Path)
