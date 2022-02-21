@@ -23,50 +23,11 @@ import (
 	"net"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/minio/directpv/pkg/sys"
 )
-
-func TestParse(t *testing.T) {
-	header := append([]byte(libudev), 0xfe, 0xed, 0xca, 0xfe, 0, 0, 0, 0)
-
-	case3Msg := append(header, 16)
-	case4Msg := append(header, 18)
-	case5Msg := append(header, 17)
-	case6Msg := append(header, 17, 'a')
-	case7Msg := append(header, 17, 'a', '=', '1')
-	case8Msg := append(header, 17, 0, 'a', 0, 'b', '=', '1', 0)
-
-	testCases := []struct {
-		msg            []byte
-		expectedResult map[string]string
-		expectErr      bool
-	}{
-		{nil, nil, true},
-		{[]byte(libudev + "1234"), nil, true},
-		{case3Msg, nil, true},
-		{case4Msg, nil, true},
-		{case5Msg, map[string]string{}, false},
-		{case6Msg, map[string]string{"a": ""}, false},
-		{case7Msg, map[string]string{"a": "1"}, false},
-		{case8Msg, map[string]string{"a": "", "b": "1"}, false},
-	}
-
-	for i, testCase := range testCases {
-		result, err := parse(testCase.msg)
-		if testCase.expectErr {
-			if err == nil {
-				t.Fatalf("case %v: expected error; but succeeded", i+1)
-			}
-			continue
-		}
-
-		if !reflect.DeepEqual(result, testCase.expectedResult) {
-			t.Fatalf("case %v: expected: %+v; got: %+v", i+1, testCase.expectedResult, result)
-		}
-	}
-}
 
 func setupTestServer() (socketName string, listener net.Listener, serverConn, clientConn net.Conn, sockfd int, err error) {
 	defer func() {
@@ -127,69 +88,216 @@ func getHeader() []byte {
 	return append(header, pad...)
 }
 
-func TestListenerGet(t *testing.T) {
-	socketName, listener, serverConn, clientConn, sockfd, err := setupTestServer()
-	if err != nil {
-		t.Fatal(err)
-	}
+// func TestListenerGet(t *testing.T) {
+// 	socketName, listener, serverConn, clientConn, sockfd, err := setupTestServer()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	defer func() {
-		clientConn.Close()
-		serverConn.Close()
-		listener.Close()
-		os.Remove(socketName)
-	}()
+// 	defer func() {
+// 		clientConn.Close()
+// 		serverConn.Close()
+// 		listener.Close()
+// 		os.Remove(socketName)
+// 	}()
 
-	eventListener := &Listener{
-		closeCh:  make(chan struct{}),
-		sockfd:   sockfd,
-		eventMap: map[string]map[string]string{},
-	}
-	eventListener.start()
-	defer eventListener.Close()
+// 	eventListener := &Listener{
+// 		closeCh:  make(chan struct{}),
+// 		sockfd:   sockfd,
+// 		eventMap: map[string]map[string]string{},
+// 	}
+// 	eventListener.start()
+// 	defer eventListener.Close()
 
-	case1Msg := append(getHeader(), []byte(strings.Join(
-		[]string{
-			".ID_FS_TYPE_NEW=",
-			"ACTION=change",
-			"DEVNAME=/dev/loop0",
-			"DEVPATH=/devices/virtual/block/loop0",
-			"DEVTYPE=disk",
-			"ID_FS_TYPE=",
-			"MAJOR=7",
-			"MINOR=0",
-			"SEQNUM=17050",
-			"SUBSYSTEM=block",
-			"TAGS=:systemd:",
-			"USEC_INITIALIZED=132131168299",
+// 	case1Msg := append(getHeader(), []byte(strings.Join(
+// 		[]string{
+// 			".ID_FS_TYPE_NEW=",
+// 			"ACTION=change",
+// 			"DEVNAME=/dev/loop0",
+// 			"DEVPATH=/devices/virtual/block/loop0",
+// 			"DEVTYPE=disk",
+// 			"ID_FS_TYPE=",
+// 			"MAJOR=7",
+// 			"MINOR=0",
+// 			"SEQNUM=17050",
+// 			"SUBSYSTEM=block",
+// 			"TAGS=:systemd:",
+// 			"USEC_INITIALIZED=132131168299",
+// 		},
+// 		string(fieldDelimiter),
+// 	))...)
+// 	case1Result := map[string]string{
+// 		".ID_FS_TYPE_NEW":  "",
+// 		"ACTION":           "change",
+// 		"DEVNAME":          "/dev/loop0",
+// 		"DEVPATH":          "/devices/virtual/block/loop0",
+// 		"DEVTYPE":          "disk",
+// 		"ID_FS_TYPE":       "",
+// 		"MAJOR":            "7",
+// 		"MINOR":            "0",
+// 		"SEQNUM":           "17050",
+// 		"SUBSYSTEM":        "block",
+// 		"TAGS":             ":systemd:",
+// 		"USEC_INITIALIZED": "132131168299",
+// 	}
+
+// 	if _, err := serverConn.Write(case1Msg); err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// 	result, err := eventListener.Get(context.TODO())
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+
+// 	if !reflect.DeepEqual(result, case1Result) {
+// 		t.Fatalf("result: expected: %v; got: %v", case1Result, result)
+// 	}
+// }
+// fillMissingUdevData(runUdevData *sys.UDevData) error {
+
+// Path         string
+// Major        int
+// Minor        int
+// Partition    int
+// WWID         string
+// Model        string
+// UeventSerial string
+// Vendor       string
+// DMName       string
+// DMUUID       string
+// MDUUID       string
+// PTUUID       string
+// PTType       string
+// PartUUID     string
+// UeventFSUUID string
+// FSType       string
+// FSUUID       string
+
+// type deviceEvent struct {
+// 	created time.Time
+// 	action  action
+// 	devPath string
+// 	backOff time.Duration
+// 	popped  bool
+// 	timer   *time.Timer
+
+// 	udevData *sys.UDevData
+// }
+
+func TestFillMissingUdevData(t *testing.T) {
+	testCases := []struct {
+		ueventUDevData   *sys.UDevData
+		runUDevData      *sys.UDevData
+		expectedUDevData *sys.UDevData
+		expectedErr      error
+	}{
+		{
+			ueventUDevData: &sys.UDevData{
+				Path:      "/dev/nvmen1p1",
+				Major:     202,
+				Minor:     1,
+				Partition: 1,
+			},
+			runUDevData: &sys.UDevData{
+				Path:         "/dev/nvmen1p1",
+				Major:        202,
+				Minor:        1,
+				Partition:    1,
+				WWID:         "wwid",
+				Model:        "model",
+				UeventSerial: "serial",
+				Vendor:       "vendor",
+				DMName:       "dm-name",
+				DMUUID:       "dm-uuid",
+				PTUUID:       "ptuuid",
+				PTType:       "pttype",
+				PartUUID:     "part-uuid",
+				UeventFSUUID: "fsuuid",
+				FSType:       "xfs",
+			},
+			expectedUDevData: &sys.UDevData{
+				Path:         "/dev/nvmen1p1",
+				Major:        202,
+				Minor:        1,
+				Partition:    1,
+				WWID:         "wwid",
+				Model:        "model",
+				UeventSerial: "serial",
+				Vendor:       "vendor",
+				DMName:       "dm-name",
+				DMUUID:       "dm-uuid",
+				PTUUID:       "ptuuid",
+				PTType:       "pttype",
+				PartUUID:     "part-uuid",
+				UeventFSUUID: "fsuuid",
+				FSType:       "xfs",
+			},
+			expectedErr: nil,
 		},
-		string(fieldDelimiter),
-	))...)
-	case1Result := map[string]string{
-		".ID_FS_TYPE_NEW":  "",
-		"ACTION":           "change",
-		"DEVNAME":          "/dev/loop0",
-		"DEVPATH":          "/devices/virtual/block/loop0",
-		"DEVTYPE":          "disk",
-		"ID_FS_TYPE":       "",
-		"MAJOR":            "7",
-		"MINOR":            "0",
-		"SEQNUM":           "17050",
-		"SUBSYSTEM":        "block",
-		"TAGS":             ":systemd:",
-		"USEC_INITIALIZED": "132131168299",
+		{
+			ueventUDevData: &sys.UDevData{
+				Path:      "/dev/nvmen1p1",
+				Major:     202,
+				Minor:     1,
+				Partition: 1,
+			},
+			runUDevData: &sys.UDevData{
+				Path:      "/dev/nvmen1p1",
+				Major:     203,
+				Minor:     1,
+				Partition: 1,
+			},
+			expectedUDevData: &sys.UDevData{
+				Path:      "/dev/nvmen1p1",
+				Major:     202,
+				Minor:     1,
+				Partition: 1,
+			},
+			expectedErr: errValueMismatch("/dev/nvmen1p1", "major", 202, 203),
+		},
+		{
+			ueventUDevData: &sys.UDevData{
+				Path:      "/dev/nvmen1p1",
+				Major:     202,
+				Minor:     1,
+				Partition: 1,
+			},
+			runUDevData: &sys.UDevData{
+				Path:      "/dev/nvmen1p1",
+				Major:     202,
+				Minor:     2,
+				Partition: 1,
+			},
+			expectedUDevData: &sys.UDevData{
+				Path:      "/dev/nvmen1p1",
+				Major:     202,
+				Minor:     1,
+				Partition: 1,
+			},
+			expectedErr: errValueMismatch("/dev/nvmen1p1", "minor", 1, 2),
+		},
 	}
 
-	if _, err := serverConn.Write(case1Msg); err != nil {
-		t.Fatal(err)
-	}
+	for i, testCase := range testCases {
+		dE := &deviceEvent{
+			udevData: testCase.ueventUDevData,
+		}
+		err := dE.fillMissingUdevData(testCase.runUDevData)
+		if err != nil {
+			if testCase.expectedErr == nil {
+				t.Fatalf("case %v: unexpected error: %v", i, err)
+			} else {
+				if err.Error() != testCase.expectedErr.Error() {
+					t.Errorf("case %v: Expected err: %v but got %v", i, testCase.expectedErr, err)
+				}
+			}
+		} else if testCase.expectedErr != nil {
+			t.Errorf("case %v: Expected err: %v but got nil", i, testCase.expectedErr)
+		}
 
-	result, err := eventListener.Get(context.TODO())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !reflect.DeepEqual(result, case1Result) {
-		t.Fatalf("result: expected: %v; got: %v", case1Result, result)
+		if !reflect.DeepEqual(dE.udevData, testCase.expectedUDevData) {
+			t.Errorf("case %v: Expected udevdata: %v, got: %v", i, testCase.expectedUDevData, dE.udevData)
+		}
 	}
 }
