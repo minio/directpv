@@ -39,7 +39,7 @@ func mapToUdevData(eventMap map[string]string) (*sys.UDevData, error) {
 	}
 
 	var partition int
-	if value, found := eventMap["ID_PART_ENTRY_NUMBER"]; found {
+	if value, found := eventMap["ID_PART_ENTRY_NUMBER"]; found && value != "" {
 		partition, err = strconv.Atoi(value)
 		if err != nil {
 			return nil, err
