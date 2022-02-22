@@ -18,11 +18,7 @@ package uevent
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
-	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
@@ -42,7 +38,7 @@ type indexer struct {
 }
 
 func newIndexer(ctx context.Context, nodeID string, resyncPeriod time.Duration) *indexer {
-	store := cache.NewStore(directCSIDriveKeyFunc)
+	store := cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
 
 	lw := client.DrivesListerWatcher(nodeID)
 	reflector := cache.NewReflector(lw, &directcsi.DirectCSIDrive{}, store, resyncPeriod)
@@ -55,78 +51,77 @@ func newIndexer(ctx context.Context, nodeID string, resyncPeriod time.Duration) 
 	}
 }
 
-func directCSIDriveKeyFunc(obj interface{}) (string, error) {
-	directCSIDrive, ok := obj.(*directcsi.DirectCSIDrive)
-	if !ok {
-		return "", errNotDirectCSIDriveObject
-	}
-	return getDirectCSIDriveKey(directCSIDrive), nil
-}
-
-func getDirectCSIDriveKey(directCSIDrive *directcsi.DirectCSIDrive) string {
-	data := []byte(
-		strings.Join(
-			[]string{
-				directCSIDrive.Status.NodeName,
-				directCSIDrive.Status.Path,
-				strconv.FormatUint(uint64(directCSIDrive.Status.MajorNumber), 10),
-				strconv.FormatUint(uint64(directCSIDrive.Status.MinorNumber), 10),
-				strconv.Itoa(directCSIDrive.Status.PartitionNum),
-				directCSIDrive.Status.WWID,
-				directCSIDrive.Status.ModelNumber,
-				directCSIDrive.Status.UeventSerial,
-				directCSIDrive.Status.Vendor,
-				directCSIDrive.Status.DMName,
-				directCSIDrive.Status.DMUUID,
-				directCSIDrive.Status.MDUUID,
-				directCSIDrive.Status.PartTableUUID,
-				directCSIDrive.Status.PartTableType,
-				directCSIDrive.Status.PartitionUUID,
-				directCSIDrive.Status.Filesystem,
-				directCSIDrive.Status.UeventFSUUID,
-			},
-			"-",
-		),
-	)
-	return fmt.Sprintf("%x", sha256.Sum256(data))
-}
-
-func (i *indexer) deriveDirectCSIDriveKey(device *sys.Device) string {
-	data := []byte(
-		strings.Join(
-			[]string{
-				i.nodeID,
-				device.DevPath(),
-				strconv.Itoa(device.Major),
-				strconv.Itoa(device.Minor),
-				strconv.Itoa(device.Partition),
-				device.WWID,
-				device.Model,
-				device.UeventSerial,
-				device.Vendor,
-				device.DMName,
-				device.DMUUID,
-				device.MDUUID,
-				device.PTUUID,
-				device.PTType,
-				device.PartUUID,
-				device.FSType,
-				device.UeventFSUUID,
-			},
-			"-",
-		),
-	)
-	return fmt.Sprintf("%x", sha256.Sum256(data))
-}
-
 func (i *indexer) validateDevice(device *sys.Device) (bool, error) {
-	key := i.deriveDirectCSIDriveKey(device)
-	_, exists, err := i.store.GetByKey(key)
-	return exists, err
+	if device.UeventFSUUID == "" {
+		return false, nil
+	}
+
+	filteredDrives, err := i.filterDrivesByUEventFSUUID(device.UeventFSUUID)
+	if err != nil {
+		return false, err
+	}
+
+	if len(filteredDrives) != 1 {
+		// To-Do: handle if more than one drive is found for a given path and node
+		return false, nil
+	}
+
+	directCSIDrive := filteredDrives[0]
+
+	if directCSIDrive.Status.Path != device.DevPath() {
+		return false, nil
+	}
+	if directCSIDrive.Status.MajorNumber != uint32(device.Major) {
+		return false, nil
+	}
+	if directCSIDrive.Status.MinorNumber != uint32(device.Minor) {
+		return false, nil
+	}
+	if directCSIDrive.Status.Virtual != device.Virtual {
+		return false, nil
+	}
+	if directCSIDrive.Status.PartitionNum != device.Partition {
+		return false, nil
+	}
+	if directCSIDrive.Status.WWID != device.WWID {
+		return false, nil
+	}
+	if directCSIDrive.Status.ModelNumber != device.Model {
+		return false, nil
+	}
+	if directCSIDrive.Status.UeventSerial != device.UeventSerial {
+		return false, nil
+	}
+	if directCSIDrive.Status.Vendor != device.Vendor {
+		return false, nil
+	}
+	if directCSIDrive.Status.DMName != device.DMName {
+		return false, nil
+	}
+	if directCSIDrive.Status.DMUUID != device.DMUUID {
+		return false, nil
+	}
+	if directCSIDrive.Status.MDUUID != device.MDUUID {
+		return false, nil
+	}
+	if directCSIDrive.Status.PartTableUUID != device.PTUUID {
+		return false, nil
+	}
+	if directCSIDrive.Status.PartTableType != device.PTType {
+		return false, nil
+	}
+	if directCSIDrive.Status.PartitionUUID != device.PartUUID {
+		return false, nil
+	}
+	if directCSIDrive.Status.Filesystem != device.FSType {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (i *indexer) getMatchingDrive(device *sys.Device) (*directcsi.DirectCSIDrive, error) {
-	filteredDrives, err := i.filterDrivesByPath(device.DevPath())
+	filteredDrives, err := i.filterDrivesByUEventFSUUID(device.UeventFSUUID)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +129,7 @@ func (i *indexer) getMatchingDrive(device *sys.Device) (*directcsi.DirectCSIDriv
 	return filteredDrives[0], errNoMatchFound
 }
 
-func (i *indexer) filterDrivesByPath(path string) ([]*directcsi.DirectCSIDrive, error) {
+func (i *indexer) filterDrivesByUEventFSUUID(fsuuid string) ([]*directcsi.DirectCSIDrive, error) {
 	objects := i.store.List()
 	filteredDrives := []*directcsi.DirectCSIDrive{}
 	for _, obj := range objects {
@@ -145,7 +140,7 @@ func (i *indexer) filterDrivesByPath(path string) ([]*directcsi.DirectCSIDrive, 
 		if directCSIDrive.Status.NodeName != i.nodeID {
 			continue
 		}
-		if directCSIDrive.Status.Path != path {
+		if directCSIDrive.Status.UeventFSUUID != fsuuid {
 			continue
 		}
 		filteredDrives = append(filteredDrives, directCSIDrive)
