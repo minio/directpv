@@ -40,6 +40,9 @@ func (d *Discovery) identifyDriveByAttributes(localDriveState directcsi.DirectCS
 	if selectedDrive, err := d.selectByPartitionUUID(localDriveState.PartitionUUID); err == nil {
 		return selectedDrive, nil
 	}
+	if selectedDrive, err := d.selectByWWID(localDriveState.WWID, localDriveState.PartitionNum); err == nil {
+		return selectedDrive, nil
+	}
 	return nil, errNoMatchFound
 }
 
@@ -64,6 +67,20 @@ func (d *Discovery) selectByPartitionUUID(partUUID string) (*remoteDrive, error)
 	}
 	for i, remoteDrive := range d.remoteDrives {
 		if !remoteDrive.matched && remoteDrive.Status.PartitionUUID == partUUID {
+			d.remoteDrives[i].matched = true
+			return d.remoteDrives[i], nil
+		}
+	}
+	return nil, errNoMatchFound
+}
+
+func (d *Discovery) selectByWWID(wwid string, partitionNum int) (*remoteDrive, error) {
+	if wwid == "" {
+		// No wwid available to match
+		return nil, errNoMatchFound
+	}
+	for i, remoteDrive := range d.remoteDrives {
+		if !remoteDrive.matched && remoteDrive.Status.WWID == wwid && remoteDrive.Status.PartitionNum == partitionNum {
 			d.remoteDrives[i].matched = true
 			return d.remoteDrives[i], nil
 		}
