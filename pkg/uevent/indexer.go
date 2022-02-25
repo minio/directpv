@@ -29,7 +29,6 @@ import (
 
 var (
 	errNotDirectCSIDriveObject = errors.New("not a directcsidrive object")
-	errNoMatchFound            = errors.New("no matching drive found")
 )
 
 type indexer struct {
@@ -121,12 +120,11 @@ func (i *indexer) validateDevice(device *sys.Device) (bool, error) {
 }
 
 func (i *indexer) getMatchingDrive(device *sys.Device) (*directcsi.DirectCSIDrive, error) {
-	filteredDrives, err := i.filterDrivesByUEventFSUUID(device.UeventFSUUID)
+	drives, err := i.listDrives()
 	if err != nil {
 		return nil, err
 	}
-	// To-Do/Fix-me: run matching algorithm to find matching drive
-	return filteredDrives[0], errNoMatchFound
+	return runMatcher(drives, device)
 }
 
 func (i *indexer) filterDrivesByUEventFSUUID(fsuuid string) ([]*directcsi.DirectCSIDrive, error) {
@@ -146,4 +144,20 @@ func (i *indexer) filterDrivesByUEventFSUUID(fsuuid string) ([]*directcsi.Direct
 		filteredDrives = append(filteredDrives, directCSIDrive)
 	}
 	return filteredDrives, nil
+}
+
+func (i *indexer) listDrives() ([]*directcsi.DirectCSIDrive, error) {
+	objects := i.store.List()
+	drives := []*directcsi.DirectCSIDrive{}
+	for _, obj := range objects {
+		directCSIDrive, ok := obj.(*directcsi.DirectCSIDrive)
+		if !ok {
+			return nil, errNotDirectCSIDriveObject
+		}
+		if directCSIDrive.Status.NodeName != i.nodeID {
+			continue
+		}
+		drives = append(drives, directCSIDrive)
+	}
+	return drives, nil
 }

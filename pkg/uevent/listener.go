@@ -41,6 +41,8 @@ const (
 	Add    action = "add"
 	Change action = "change"
 	Remove action = "remove"
+	// internal
+	Sync action = "sync"
 )
 
 var (
@@ -190,13 +192,14 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 
 	if err := device.ProbeHostInfo(); err != nil {
 		// if drive is deleted
+		// FIXME: should we ignore errNotExist event for update, add and sync?
 		if !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 	}
 
 	switch dEvent.action {
-	case Add, Change:
+	case Add, Change, Sync:
 		return l.processUpdate(ctx, device)
 	case Remove:
 		return l.processRemove(ctx, device)
@@ -253,7 +256,7 @@ func (l *listener) getNextDeviceUEvent(ctx context.Context) (*deviceEvent, error
 
 func (dEvent *deviceEvent) collectUDevData() error {
 	switch dEvent.action {
-	case Add, Change:
+	case Add, Change, Sync:
 		// Older kernels like in CentOS 7 does not send all information about the device,
 		// hence read relevant data from /run/udev/data/b<major>:<minor>
 		runUdevDataMap, err := sys.ReadRunUdevDataByMajorMinor(dEvent.udevData.Major, dEvent.udevData.Minor)
@@ -299,19 +302,6 @@ func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error 
 	if dEvent.udevData.Partition != runUdevData.Partition {
 		return errValueMismatch(dEvent.udevData.Path, "partitionnum", dEvent.udevData.Partition, runUdevData.Partition)
 	}
-
-	// Alternate pattern :-
-	//
-	// if runUdevData.WWID != "" {
-	// 	switch dEvent.udevData.WWID {
-	// 	case "":
-	// 		dEvent.udevData.WWID = runUdevData.WWID
-	// 	case runUdevData.WWID:
-	// 	default:
-	// 		errValueMismatch(dEvent.udevData.WWID, "WWID", dEvent.udevData.WWID, runUdevData.WWID)
-	// 	}
-	// }
-	//
 
 	if runUdevData.WWID != "" {
 		if dEvent.udevData.WWID == "" {
@@ -437,13 +427,9 @@ func (l *listener) sync() error {
 
 		event := &deviceEvent{
 			created:  time.Now().UTC(),
-			action:   Change,
+			action:   Sync,
 			udevData: runUdevData,
 			devPath:  runUdevData.Path,
-		}
-
-		if err = event.fillMissingUdevData(runUdevData); err != nil {
-			return err
 		}
 
 		l.eventQueue.push(event)
