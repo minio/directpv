@@ -65,66 +65,7 @@ func (i *indexer) validateDevice(device *sys.Device) (bool, error) {
 		return false, nil
 	}
 
-	directCSIDrive := filteredDrives[0]
-
-	if directCSIDrive.Status.Path != device.DevPath() {
-		return false, nil
-	}
-	if directCSIDrive.Status.MajorNumber != uint32(device.Major) {
-		return false, nil
-	}
-	if directCSIDrive.Status.MinorNumber != uint32(device.Minor) {
-		return false, nil
-	}
-	if directCSIDrive.Status.Virtual != device.Virtual {
-		return false, nil
-	}
-	if directCSIDrive.Status.PartitionNum != device.Partition {
-		return false, nil
-	}
-	if directCSIDrive.Status.WWID != device.WWID {
-		return false, nil
-	}
-	if directCSIDrive.Status.ModelNumber != device.Model {
-		return false, nil
-	}
-	if directCSIDrive.Status.UeventSerial != device.UeventSerial {
-		return false, nil
-	}
-	if directCSIDrive.Status.Vendor != device.Vendor {
-		return false, nil
-	}
-	if directCSIDrive.Status.DMName != device.DMName {
-		return false, nil
-	}
-	if directCSIDrive.Status.DMUUID != device.DMUUID {
-		return false, nil
-	}
-	if directCSIDrive.Status.MDUUID != device.MDUUID {
-		return false, nil
-	}
-	if directCSIDrive.Status.PartTableUUID != device.PTUUID {
-		return false, nil
-	}
-	if directCSIDrive.Status.PartTableType != device.PTType {
-		return false, nil
-	}
-	if directCSIDrive.Status.PartitionUUID != device.PartUUID {
-		return false, nil
-	}
-	if directCSIDrive.Status.Filesystem != device.FSType {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (i *indexer) getMatchingDrive(device *sys.Device) (*directcsi.DirectCSIDrive, error) {
-	drives, err := i.listDrives()
-	if err != nil {
-		return nil, err
-	}
-	return runMatcher(drives, device)
+	return validateNonHostInfo(filteredDrives[0], device), nil
 }
 
 func (i *indexer) filterDrivesByUEventFSUUID(fsuuid string) ([]*directcsi.DirectCSIDrive, error) {

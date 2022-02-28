@@ -198,41 +198,56 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		}
 	}
 
+	drives, err := l.indexer.listDrives()
+	if err != nil {
+		return err
+	}
+
 	switch dEvent.action {
 	case Add, Change, Sync:
-		return l.processUpdate(ctx, device)
+		return l.processUpdate(ctx, drives, device)
 	case Remove:
-		return l.processRemove(ctx, device)
+		return l.processRemove(ctx, drives, device)
 	default:
 		return fmt.Errorf("invalid device action: %s", dEvent.action)
 	}
 }
 
-func (l *listener) processUpdate(ctx context.Context, device *sys.Device) error {
-	drive, err := l.indexer.getMatchingDrive(device)
-	switch {
-	case errors.Is(err, errNoMatchFound):
+// noMatch        matchResult = "nomatch"
+// 	tooManyMatches matchResult = "toomanymatches"
+// 	changed        matchResult = "changed"
+// 	noChange       matchResult = "nochange"
+func (l *listener) processUpdate(ctx context.Context, drives []*directcsi.DirectCSIDrive, device *sys.Device) error {
+	drive, matchResult := runMatcher(drives, device)
+	switch matchResult {
+	case noMatch:
 		return l.handler.Add(ctx, device)
-	case err == nil:
+	case changed:
 		return l.handler.Change(ctx, device, drive)
+	case noChange:
+		return nil
+	case tooManyMatches:
+		return fmt.Errorf("too many matches found for device %s while processing UPDATE", device.DevPath())
 	default:
-		return err
+		return fmt.Errorf("invalid match result: %v", matchResult)
 	}
 }
 
-func (l *listener) processRemove(ctx context.Context, device *sys.Device) error {
-	drive, err := l.indexer.getMatchingDrive(device)
-	switch {
-	case errors.Is(err, errNoMatchFound):
+func (l *listener) processRemove(ctx context.Context, drives []*directcsi.DirectCSIDrive, device *sys.Device) error {
+	drive, matchResult := runMatcher(drives, device)
+	switch matchResult {
+	case noMatch:
 		klog.V(3).InfoS(
 			"matching drive not found",
 			"ACTION", Remove,
 			"DEVICE", device.Name)
 		return nil
-	case err == nil:
+	case changed, noChange:
 		return l.handler.Remove(ctx, device, drive)
+	case tooManyMatches:
+		return fmt.Errorf("too many matches found for device %s while processing DELETE", device.DevPath())
 	default:
-		return err
+		return fmt.Errorf("invalid match result: %v", matchResult)
 	}
 }
 

@@ -17,8 +17,10 @@
 package uevent
 
 import (
+	"reflect"
 	"strconv"
 
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/sys"
 )
 
@@ -64,4 +66,106 @@ func mapToUdevData(eventMap map[string]string) (*sys.UDevData, error) {
 		UeventFSUUID: eventMap["ID_FS_UUID"],
 		FSType:       eventMap["ID_FS_TYPE"],
 	}, nil
+}
+
+func validateNonHostInfo(directCSIDrive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+	if directCSIDrive.Status.UeventFSUUID != device.UeventFSUUID {
+		return false
+	}
+	if directCSIDrive.Status.Path != device.DevPath() {
+		return false
+	}
+	if directCSIDrive.Status.MajorNumber != uint32(device.Major) {
+		return false
+	}
+	if directCSIDrive.Status.MinorNumber != uint32(device.Minor) {
+		return false
+	}
+	if directCSIDrive.Status.Virtual != device.Virtual {
+		return false
+	}
+	if directCSIDrive.Status.PartitionNum != device.Partition {
+		return false
+	}
+	if directCSIDrive.Status.WWID != device.WWID {
+		return false
+	}
+	if directCSIDrive.Status.ModelNumber != device.Model {
+		return false
+	}
+	if directCSIDrive.Status.UeventSerial != device.UeventSerial {
+		return false
+	}
+	if directCSIDrive.Status.Vendor != device.Vendor {
+		return false
+	}
+	if directCSIDrive.Status.DMName != device.DMName {
+		return false
+	}
+	if directCSIDrive.Status.DMUUID != device.DMUUID {
+		return false
+	}
+	if directCSIDrive.Status.MDUUID != device.MDUUID {
+		return false
+	}
+	if directCSIDrive.Status.PartTableUUID != device.PTUUID {
+		return false
+	}
+	if directCSIDrive.Status.PartTableType != device.PTType {
+		return false
+	}
+	if directCSIDrive.Status.PartitionUUID != device.PartUUID {
+		return false
+	}
+	if directCSIDrive.Status.Filesystem != device.FSType {
+		return false
+	}
+	return true
+}
+
+func validateHostInfo(directCSIDrive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+	if directCSIDrive.Status.Mountpoint != device.FirstMountPoint {
+		return false
+	}
+	if !reflect.DeepEqual(directCSIDrive.Status.MountOptions, device.FirstMountOptions) {
+		return false
+	}
+	if directCSIDrive.Status.FilesystemUUID != device.FSUUID {
+		return false
+	}
+	if directCSIDrive.Status.Partitioned != device.Partitioned {
+		return false
+	}
+	if directCSIDrive.Status.SwapOn != device.SwapOn {
+		return false
+	}
+	if directCSIDrive.Status.Master != device.Master {
+		return false
+	}
+	if directCSIDrive.Status.ReadOnly != device.ReadOnly {
+		return false
+	}
+	if directCSIDrive.Status.RootPartition != device.Name {
+		return false
+	}
+	if directCSIDrive.Status.SerialNumber != device.Serial {
+		return false
+	}
+	if directCSIDrive.Status.AllocatedCapacity != int64(device.Size-device.FreeCapacity) {
+		return false
+	}
+	if directCSIDrive.Status.FreeCapacity != int64(device.FreeCapacity) {
+		return false
+	}
+	if directCSIDrive.Status.TotalCapacity != int64(device.Size) {
+		return false
+	}
+	if directCSIDrive.Status.PhysicalBlockSize != int64(device.PhysicalBlockSize) {
+		return false
+	}
+	if directCSIDrive.Status.LogicalBlockSize != int64(device.LogicalBlockSize) {
+		return false
+	}
+
+	return true
 }
