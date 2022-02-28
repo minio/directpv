@@ -17,17 +17,14 @@
 package uevent
 
 import (
-	"errors"
-
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/sys"
+	"k8s.io/klog/v2"
 )
 
-var (
-	errNoMatchFound = errors.New("no matching drive found")
-)
-
-type matchFn func(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool)
+// If the corresponding field is empty in the drive, return consider
+// Else, return True if matched or False if not matched
+type matchFn func(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error)
 
 type matchResult string
 
@@ -38,37 +35,70 @@ const (
 	noChange       matchResult = "nochange"
 )
 
+// prioritiy based matchers
 var matchers = []matchFn{
-	fsUUIDMatcher,
-	ueventFSUUIDMatcher,
-	serialNumberMatcher,
+	// HW matchers
+	partitionNumberMatcher,
 	ueventSerialNumberMatcher,
 	wwidMatcher,
 	modelNumberMatcher,
 	vendorMatcher,
-	partitionNumberMatcher,
+	// SW matchers
+	partitionTableUUIDMatcher,
+	partitionUUIDMatcher,
 	dmUUIDMatcher,
 	mdUUIDMatcher,
-	partitionUUIDMatcher,
-	partitionTableUUIDMatcher,
+	filesystemMatcher,
+	ueventFSUUIDMatcher,
+	// legacy matchers
+	fsUUIDMatcher,
+	serialNumberMatcher,
+	// size matchers
 	logicalBlocksizeMatcher,
 	physicalBlocksizeMatcher,
-	filesystemMatcher,
 	totalCapacityMatcher,
 	allocatedCapacityMatcher,
-	mountMatcher,
 }
 
+// ------------------------
+// - Run the list of matchers on the list of drives
+// - Match function SHOULD return matched (100% match) and considered (if the field is empty) results
+// - If MORE THAN ONE matching drive is found, pass the matching drives to the next matching function in the priority list
+//   If NO matching drive is found
+//      AND If the considered list is empty, return the empty list (NEW DRIVE).
+//          Else, pass the considered list to the next matching function in the priority list
+//   (NOTE: the returning results can be more than one incase of duplicate/identical drives)
+// ------------------------
 func runMatcher(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*directcsi.DirectCSIDrive, matchResult) {
-	matchedDrives := getMatchingDrives(drives, device)
-	switch len(matchedDrives) {
-	case 1:
-		if validateNonHostInfo(matchedDrives[0], device) && validateHostInfo(matchedDrives[0], device) {
-			return matchedDrives[0], noChange
+	var matchedDrives, consideredDrives []*directcsi.DirectCSIDrive
+	var matched, updated bool
+	for _, matchFn := range matchers {
+		if len(drives) == 0 {
+			break
 		}
-		return matchedDrives[0], changed
+		matchedDrives, consideredDrives = match(drives, device, matchFn)
+		switch {
+		case len(matchedDrives) > 0:
+			if len(matchedDrives) == 1 {
+				matched = true
+			}
+			drives = matchedDrives
+		default:
+			if len(consideredDrives) == 1 && matched {
+				updated = true
+			}
+			drives = consideredDrives
+		}
+	}
+
+	switch len(drives) {
 	case 0:
 		return nil, noMatch
+	case 1:
+		if updated {
+			return drives[0], changed
+		}
+		return drives[0], noChange
 	default:
 		// handle too many matches
 		//
@@ -84,139 +114,109 @@ func runMatcher(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*direct
 	}
 }
 
-func getMatchingDrives(drives []*directcsi.DirectCSIDrive, device *sys.Device) []*directcsi.DirectCSIDrive {
-	matchedDrives := drives
-	var cont bool
-	for _, matchFn := range matchers {
-		matchedDrives, cont = match(matchedDrives, device, matchFn)
-		if !cont {
-			break
-		}
-	}
-	return matchedDrives
-}
-
-func match(drives []*directcsi.DirectCSIDrive, device *sys.Device, matchFn matchFn) ([]*directcsi.DirectCSIDrive, bool) {
-	var matchedDrives []*directcsi.DirectCSIDrive
+// ------------------------
+// - Run the list of drives over the provided match function
+// - If matched, append the drive to the matched list
+// - If considered, append the the drive to the considered list
+// ------------------------
+func match(drives []*directcsi.DirectCSIDrive, device *sys.Device, matchFn matchFn) ([]*directcsi.DirectCSIDrive, []*directcsi.DirectCSIDrive) {
+	var matchedDrives, consideredDrives []*directcsi.DirectCSIDrive
 	for _, drive := range drives {
-		if match, cont := matchFn(drive, device); match {
-			if !cont {
-				// concluded that this is the mactching drive (100% match)
-				return []*directcsi.DirectCSIDrive{
-					drive,
-				}, false
-			}
+		match, consider, err := matchFn(drive, device)
+		if err != nil {
+			klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
+			continue
+		}
+		if match {
 			matchedDrives = append(matchedDrives, drive)
+		} else if consider {
+			consideredDrives = append(consideredDrives, drive)
 		}
 	}
-	return matchedDrives, true
+	return matchedDrives, consideredDrives
 }
 
-// Alternative approach :-
-//
-// func getMatchingDrives(drives []*directcsi.DirectCSIDrive, device *sys.Device) (matchedDrives []*directcsi.DirectCSIDrive) {
-// 	for _, drive := range drives {
-// 		for _, matchFn := range matchers {
-// 			match, cont := matchFn(drive, device)
-// 			if cont {
-// 				continue
-// 			}
-// 			if match {
-// 				matchedDrives = append(matchedDrives, drive)
-// 			}
-// 			break
-// 		}
-// 	}
-// 	return
-// }
-//
-
-func fsUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func fsUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func ueventFSUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func ueventFSUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func serialNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func serialNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func ueventSerialNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func ueventSerialNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func wwidMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func wwidMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func modelNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func modelNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func vendorMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func vendorMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func partitionNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func partitionNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func dmUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func dmUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func mdUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func mdUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func partitionUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func partitionUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func partitionTableUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func partitionTableUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func logicalBlocksizeMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func logicalBlocksizeMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func physicalBlocksizeMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func physicalBlocksizeMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func filesystemMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func filesystemMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func totalCapacityMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func totalCapacityMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
 
-func allocatedCapacityMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
-	// To-Do: impelement matcher function
-	return
-}
-
-func mountMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
+func allocatedCapacityMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
 	// To-Do: impelement matcher function
 	return
 }
