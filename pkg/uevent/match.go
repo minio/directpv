@@ -18,7 +18,6 @@ package uevent
 
 import (
 	"errors"
-	"fmt"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/sys"
@@ -29,6 +28,15 @@ var (
 )
 
 type matchFn func(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool)
+
+type matchResult string
+
+const (
+	noMatch        matchResult = "nomatch"
+	tooManyMatches matchResult = "toomanymatches"
+	changed        matchResult = "changed"
+	noChange       matchResult = "nochange"
+)
 
 var matchers = []matchFn{
 	fsUUIDMatcher,
@@ -51,13 +59,16 @@ var matchers = []matchFn{
 	mountMatcher,
 }
 
-func runMatcher(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*directcsi.DirectCSIDrive, error) {
+func runMatcher(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*directcsi.DirectCSIDrive, matchResult) {
 	matchedDrives := getMatchingDrives(drives, device)
 	switch len(matchedDrives) {
 	case 1:
-		return matchedDrives[0], nil
+		if validateNonHostInfo(matchedDrives[0], device) && validateHostInfo(matchedDrives[0], device) {
+			return matchedDrives[0], noChange
+		}
+		return matchedDrives[0], changed
 	case 0:
-		return nil, errNoMatchFound
+		return nil, noMatch
 	default:
 		// handle too many matches
 		//
@@ -69,25 +80,56 @@ func runMatcher(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*direct
 		// case 3: A duplicate drive (due to any bug)
 		//
 		// ToDo: make these drives invalid / decide based on drive status / calculate ranks and decide
-		return nil, fmt.Errorf("device %s has too many matches", device.Name)
+		return nil, tooManyMatches
 	}
 }
 
-func getMatchingDrives(drives []*directcsi.DirectCSIDrive, device *sys.Device) (matchedDrives []*directcsi.DirectCSIDrive) {
-	for _, drive := range drives {
-		for _, matchFn := range matchers {
-			match, cont := matchFn(drive, device)
-			if cont {
-				continue
-			}
-			if match {
-				matchedDrives = append(matchedDrives, drive)
-			}
+func getMatchingDrives(drives []*directcsi.DirectCSIDrive, device *sys.Device) []*directcsi.DirectCSIDrive {
+	matchedDrives := drives
+	var cont bool
+	for _, matchFn := range matchers {
+		matchedDrives, cont = match(matchedDrives, device, matchFn)
+		if !cont {
 			break
 		}
 	}
-	return
+	return matchedDrives
 }
+
+func match(drives []*directcsi.DirectCSIDrive, device *sys.Device, matchFn matchFn) ([]*directcsi.DirectCSIDrive, bool) {
+	var matchedDrives []*directcsi.DirectCSIDrive
+	for _, drive := range drives {
+		if match, cont := matchFn(drive, device); match {
+			if !cont {
+				// concluded that this is the mactching drive (100% match)
+				return []*directcsi.DirectCSIDrive{
+					drive,
+				}, false
+			}
+			matchedDrives = append(matchedDrives, drive)
+		}
+	}
+	return matchedDrives, true
+}
+
+// Alternative approach :-
+//
+// func getMatchingDrives(drives []*directcsi.DirectCSIDrive, device *sys.Device) (matchedDrives []*directcsi.DirectCSIDrive) {
+// 	for _, drive := range drives {
+// 		for _, matchFn := range matchers {
+// 			match, cont := matchFn(drive, device)
+// 			if cont {
+// 				continue
+// 			}
+// 			if match {
+// 				matchedDrives = append(matchedDrives, drive)
+// 			}
+// 			break
+// 		}
+// 	}
+// 	return
+// }
+//
 
 func fsUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, cont bool) {
 	// To-Do: impelement matcher function
