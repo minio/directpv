@@ -213,10 +213,6 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 	}
 }
 
-// noMatch        matchResult = "nomatch"
-// 	tooManyMatches matchResult = "toomanymatches"
-// 	changed        matchResult = "changed"
-// 	noChange       matchResult = "nochange"
 func (l *listener) processUpdate(ctx context.Context, drives []*directcsi.DirectCSIDrive, device *sys.Device) error {
 	drive, matchResult := runMatcher(drives, device)
 	switch matchResult {
