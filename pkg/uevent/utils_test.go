@@ -71,3 +71,88 @@ func TestMapToEventData(t *testing.T) {
 		t.Fatalf("expected udevdata: %v, got: %v", udevData, expectedUEventData)
 	}
 }
+
+func TestGetRootBlockPath(t1 *testing.T) {
+
+	testCases := []struct {
+		name     string
+		devName  string
+		rootFile string
+	}{
+		{
+			name:     "test1",
+			devName:  "/dev/xvdb",
+			rootFile: "/dev/xvdb",
+		},
+		{
+			name:     "test2",
+			devName:  "/dev/xvdb1",
+			rootFile: "/dev/xvdb1",
+		},
+		{
+			name:     "test3",
+			devName:  "/var/lib/direct-csi/devices/xvdb",
+			rootFile: "/dev/xvdb",
+		},
+		{
+			name:     "test4",
+			devName:  "/var/lib/direct-csi/devices/xvdb-part-3",
+			rootFile: "/dev/xvdb3",
+		},
+		{
+			name:     "test5",
+			devName:  "/var/lib/direct-csi/devices/xvdb-part-15",
+			rootFile: "/dev/xvdb15",
+		},
+		{
+			name:     "test6",
+			devName:  "/var/lib/direct-csi/devices/nvmen1p-part-4",
+			rootFile: "/dev/nvmen1p4",
+		},
+		{
+			name:     "test7",
+			devName:  "/var/lib/direct-csi/devices/nvmen12p-part-11",
+			rootFile: "/dev/nvmen12p11",
+		},
+		{
+			name:     "test8",
+			devName:  "/var/lib/direct-csi/devices/loop0",
+			rootFile: "/dev/loop0",
+		},
+		{
+			name:     "test9",
+			devName:  "/var/lib/direct-csi/devices/loop-part-5",
+			rootFile: "/dev/loop5",
+		},
+		{
+			name:     "test10",
+			devName:  "/var/lib/direct-csi/devices/loop-part-12",
+			rootFile: "/dev/loop12",
+		},
+		{
+			name:     "test11",
+			devName:  "loop12",
+			rootFile: "/dev/loop12",
+		},
+		{
+			name:     "test12",
+			devName:  "loop0",
+			rootFile: "/dev/loop0",
+		},
+		{
+			name:     "test13",
+			devName:  "/var/lib/direct-csi/devices/nvmen-part-1-part-4",
+			rootFile: "/dev/nvmen1p4",
+		},
+	}
+
+	for _, tt := range testCases {
+		t1.Run(tt.name, func(t1 *testing.T) {
+			rootFile := getRootBlockPath(tt.devName)
+			if rootFile != tt.rootFile {
+				t1.Errorf("Test case name %s: Expected root file = (%s) got: %s", tt.name, tt.rootFile, rootFile)
+			}
+		})
+	}
+
+}
