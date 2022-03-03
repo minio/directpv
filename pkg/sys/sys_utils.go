@@ -50,21 +50,6 @@ func makeBlockDeviceName(devName string) string {
 	return strings.Join([]string{dName, partNumStr}, DirectCSIPartitionInfix)
 }
 
-func getRootBlockFile(devName string) string {
-	if strings.Contains(devName, DirectCSIDevRoot) {
-		return getRootBlockFile(filepath.Base(devName))
-	}
-	if strings.HasPrefix(devName, HostDevRoot) {
-		return devName
-	}
-	return filepath.Join(HostDevRoot, makeRootDeviceName(devName))
-}
-
-func makeRootDeviceName(devName string) string {
-	cleanPrefix := strings.Replace(devName, DirectCSIPartitionInfix, "", 1)
-	return strings.ReplaceAll(cleanPrefix, DirectCSIPartitionInfix, HostPartitionInfix)
-}
-
 func splitDevAndPartNum(s string) (string, int) {
 	possibleNum := strings.Builder{}
 	toRet := strings.Builder{}
