@@ -36,7 +36,7 @@ const (
 )
 
 // prioritiy based matchers
-var matchers = []matchFn{
+var stageOneMatchers = []matchFn{
 	// HW matchers
 	partitionNumberMatcher,
 	ueventSerialNumberMatcher,
@@ -50,7 +50,7 @@ var matchers = []matchFn{
 	mdUUIDMatcher,
 	filesystemMatcher,
 	ueventFSUUIDMatcher,
-	// legacy matchers
+	// v1beta2 matchers
 	fsUUIDMatcher,
 	serialNumberMatcher,
 	// size matchers
@@ -58,6 +58,12 @@ var matchers = []matchFn{
 	physicalBlocksizeMatcher,
 	totalCapacityMatcher,
 	allocatedCapacityMatcher,
+}
+
+// stageTwoMatchers are the conslusive matchers for more than one matching drives
+var stageTwoMatchers = []matchFn{
+	majMinMatcher,
+	pathMatcher,
 }
 
 // ------------------------
@@ -69,14 +75,22 @@ var matchers = []matchFn{
 //          Else, pass the considered list to the next matching function in the priority list
 //   (NOTE: the returning results can be more than one incase of duplicate/identical drives)
 // ------------------------
-func runMatcher(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*directcsi.DirectCSIDrive, matchResult) {
+func runMatchers(drives []*directcsi.DirectCSIDrive,
+	device *sys.Device,
+	stageOneMatchers, stageTwoMatchers []matchFn) (*directcsi.DirectCSIDrive, matchResult) {
 	var matchedDrives, consideredDrives []*directcsi.DirectCSIDrive
 	var matched, updated bool
-	for _, matchFn := range matchers {
+	var err error
+
+	for _, matchFn := range stageOneMatchers {
 		if len(drives) == 0 {
 			break
 		}
-		matchedDrives, consideredDrives = match(drives, device, matchFn)
+		matchedDrives, consideredDrives, err = match(drives, device, matchFn)
+		if err != nil {
+			klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
+			continue
+		}
 		switch {
 		case len(matchedDrives) > 0:
 			if len(matchedDrives) == 1 {
@@ -91,6 +105,17 @@ func runMatcher(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*direct
 		}
 	}
 
+	if len(drives) > 1 {
+		for _, matchFn := range stageTwoMatchers {
+			// run identity matcher for more than one matched drives
+			drives, _, err = match(drives, device, matchFn)
+			if err != nil {
+				klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
+				continue
+			}
+		}
+	}
+
 	switch len(drives) {
 	case 0:
 		return nil, noMatch
@@ -100,18 +125,25 @@ func runMatcher(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*direct
 		}
 		return drives[0], noChange
 	default:
-		// handle too many matches
-		//
-		// case 1: It is possible to have an empty/partial drive (&directCSIDrive.Status{Path: /dev/sdb0, "", "", "", ...})
-		//         to match  with a correct match
-
-		// case 2: A terminating drive and an actual drive can be matched with the single device
-		//
-		// case 3: A duplicate drive (due to any bug)
-		//
-		// ToDo: make these drives invalid / decide based on drive status / calculate ranks and decide
 		return nil, tooManyMatches
 	}
+}
+
+func majMinMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
+	if drive.Status.MajorNumber != uint32(device.Major) {
+		return false, false, nil
+	}
+	if drive.Status.MinorNumber != uint32(device.Minor) {
+		return false, false, nil
+	}
+	return true, true, nil
+}
+
+func pathMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
+	if getRootBlockPath(drive.Status.Path) != device.DevPath() {
+		return false, false, nil
+	}
+	return true, true, nil
 }
 
 // ------------------------
@@ -119,13 +151,17 @@ func runMatcher(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*direct
 // - If matched, append the drive to the matched list
 // - If considered, append the the drive to the considered list
 // ------------------------
-func match(drives []*directcsi.DirectCSIDrive, device *sys.Device, matchFn matchFn) ([]*directcsi.DirectCSIDrive, []*directcsi.DirectCSIDrive) {
+func match(drives []*directcsi.DirectCSIDrive,
+	device *sys.Device,
+	matchFn matchFn) ([]*directcsi.DirectCSIDrive, []*directcsi.DirectCSIDrive, error) {
 	var matchedDrives, consideredDrives []*directcsi.DirectCSIDrive
 	for _, drive := range drives {
+		if drive.Status.DriveStatus == directcsi.DriveStatusTerminating {
+			continue
+		}
 		match, consider, err := matchFn(drive, device)
 		if err != nil {
-			klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
-			continue
+			return nil, nil, err
 		}
 		if match {
 			matchedDrives = append(matchedDrives, drive)
@@ -133,7 +169,7 @@ func match(drives []*directcsi.DirectCSIDrive, device *sys.Device, matchFn match
 			consideredDrives = append(consideredDrives, drive)
 		}
 	}
-	return matchedDrives, consideredDrives
+	return matchedDrives, consideredDrives, nil
 }
 
 func fsUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {

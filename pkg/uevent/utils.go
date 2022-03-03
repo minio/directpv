@@ -17,7 +17,9 @@
 package uevent
 
 import (
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/minio/directpv/pkg/sys"
 )
@@ -64,4 +66,20 @@ func mapToUdevData(eventMap map[string]string) (*sys.UDevData, error) {
 		UeventFSUUID: eventMap["ID_FS_UUID"],
 		FSType:       eventMap["ID_FS_TYPE"],
 	}, nil
+}
+
+func getRootBlockPath(devName string) string {
+	switch {
+	case strings.HasPrefix(devName, sys.HostDevRoot):
+		return devName
+	case strings.Contains(devName, sys.DirectCSIDevRoot):
+		return getRootBlockPath(filepath.Base(devName))
+	default:
+		name := strings.ReplaceAll(
+			strings.Replace(devName, sys.DirectCSIPartitionInfix, "", 1),
+			sys.DirectCSIPartitionInfix,
+			sys.HostPartitionInfix,
+		)
+		return filepath.Join(sys.HostDevRoot, name)
+	}
 }

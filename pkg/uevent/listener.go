@@ -202,19 +202,36 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 	if err != nil {
 		return err
 	}
+	drive, matchResult := runMatchers(drives, device, stageOneMatchers, stageTwoMatchers)
 
 	switch dEvent.action {
-	case Add, Change, Sync:
-		return l.processUpdate(ctx, drives, device)
+	case Add:
+		return l.processAdd(ctx, matchResult, device, drive)
+	case Change, Sync:
+		return l.processUpdate(ctx, matchResult, device, drive)
 	case Remove:
-		return l.processRemove(ctx, drives, device)
+		return l.processRemove(ctx, matchResult, device, drive)
 	default:
 		return fmt.Errorf("invalid device action: %s", dEvent.action)
 	}
 }
 
-func (l *listener) processUpdate(ctx context.Context, drives []*directcsi.DirectCSIDrive, device *sys.Device) error {
-	drive, matchResult := runMatcher(drives, device)
+func (l *listener) processAdd(ctx context.Context, matchResult matchResult, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
+	switch matchResult {
+	case noMatch:
+		return l.handler.Add(ctx, device)
+	case changed, noChange:
+		klog.V(3).Infof("ignoring ADD action for the device %s as the corresponding drive match %s is found", device.DevPath(), drive.Name)
+		return nil
+	case tooManyMatches:
+		klog.V(3).Infof("ignoring ADD action as too many matches are found for the device %s", device.DevPath())
+		return nil
+	default:
+		return fmt.Errorf("invalid match result: %v", matchResult)
+	}
+}
+
+func (l *listener) processUpdate(ctx context.Context, matchResult matchResult, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
 	switch matchResult {
 	case noMatch:
 		return l.handler.Add(ctx, device)
@@ -229,8 +246,7 @@ func (l *listener) processUpdate(ctx context.Context, drives []*directcsi.Direct
 	}
 }
 
-func (l *listener) processRemove(ctx context.Context, drives []*directcsi.DirectCSIDrive, device *sys.Device) error {
-	drive, matchResult := runMatcher(drives, device)
+func (l *listener) processRemove(ctx context.Context, matchResult matchResult, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
 	switch matchResult {
 	case noMatch:
 		klog.V(3).InfoS(
