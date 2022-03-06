@@ -25,6 +25,7 @@ import (
 	directv1beta1 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta1"
 	directv1beta2 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta2"
 	directv1beta3 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta3"
+	directv1beta4 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta4"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -36,6 +37,7 @@ type Interface interface {
 	DirectV1beta1() directv1beta1.DirectV1beta1Interface
 	DirectV1beta2() directv1beta2.DirectV1beta2Interface
 	DirectV1beta3() directv1beta3.DirectV1beta3Interface
+	DirectV1beta4() directv1beta4.DirectV1beta4Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -46,6 +48,7 @@ type Clientset struct {
 	directV1beta1  *directv1beta1.DirectV1beta1Client
 	directV1beta2  *directv1beta2.DirectV1beta2Client
 	directV1beta3  *directv1beta3.DirectV1beta3Client
+	directV1beta4  *directv1beta4.DirectV1beta4Client
 }
 
 // DirectV1alpha1 retrieves the DirectV1alpha1Client
@@ -66,6 +69,11 @@ func (c *Clientset) DirectV1beta2() directv1beta2.DirectV1beta2Interface {
 // DirectV1beta3 retrieves the DirectV1beta3Client
 func (c *Clientset) DirectV1beta3() directv1beta3.DirectV1beta3Interface {
 	return c.directV1beta3
+}
+
+// DirectV1beta4 retrieves the DirectV1beta4Client
+func (c *Clientset) DirectV1beta4() directv1beta4.DirectV1beta4Interface {
+	return c.directV1beta4
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -105,6 +113,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.directV1beta4, err = directv1beta4.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
@@ -121,6 +133,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.directV1beta1 = directv1beta1.NewForConfigOrDie(c)
 	cs.directV1beta2 = directv1beta2.NewForConfigOrDie(c)
 	cs.directV1beta3 = directv1beta3.NewForConfigOrDie(c)
+	cs.directV1beta4 = directv1beta4.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -133,6 +146,7 @@ func New(c rest.Interface) *Clientset {
 	cs.directV1beta1 = directv1beta1.New(c)
 	cs.directV1beta2 = directv1beta2.New(c)
 	cs.directV1beta3 = directv1beta3.New(c)
+	cs.directV1beta4 = directv1beta4.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

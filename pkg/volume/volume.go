@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/listener"
 	"github.com/minio/directpv/pkg/utils"

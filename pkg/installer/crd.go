@@ -20,9 +20,9 @@ import (
 	"context"
 	"errors"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
-	clientset "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta3"
+	clientset "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/utils"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,7 +32,7 @@ import (
 
 var errForceRequired = errors.New("force option required to remove the CRD resources")
 
-func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3Interface, c *Config) error {
+func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta4Interface, c *Config) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -77,7 +77,7 @@ func removeVolumes(ctx context.Context, directCSIClient clientset.DirectV1beta3I
 	return err
 }
 
-func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta3Interface, c *Config) error {
+func removeDrives(ctx context.Context, directCSIClient clientset.DirectV1beta4Interface, c *Config) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	defer cancelFunc()

@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/sys"
@@ -844,7 +844,7 @@ func TestMountDrive(t *testing.T) {
 
 	ctx := context.TODO()
 	for i, testCase := range testCases {
-		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testCase.drive).DirectV1beta3().DirectCSIDrives())
+		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testCase.drive).DirectV1beta4().DirectCSIDrives())
 		mountDrive(ctx, testCase.drive, testCase.mountFn)
 		drive, err := client.GetLatestDirectCSIDriveInterface().Get(
 			ctx, testCase.drive.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},

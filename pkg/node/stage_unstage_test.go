@@ -27,7 +27,7 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -196,7 +196,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	ctx := context.TODO()
 	ns := createFakeNodeServer()
 	ns.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
-	directCSIClient := ns.directcsiClient.DirectV1beta3()
+	directCSIClient := ns.directcsiClient.DirectV1beta4()
 	hostPath := filepath.Join(testMountPointDir, testVolumeName50MB)
 	ns.probeMounts = func() (map[string][]mount.MountInfo, error) {
 		return map[string][]mount.MountInfo{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt", MajorMinor: "0:0"}}}, nil
