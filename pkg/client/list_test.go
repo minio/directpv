@@ -21,14 +21,14 @@ import (
 	"fmt"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestGetDriveList(t *testing.T) {
-	SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset().DirectV1beta3().DirectCSIDrives())
+	SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset().DirectV1beta4().DirectCSIDrives())
 	drives, err := GetDriveList(context.TODO(), nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -43,7 +43,7 @@ func TestGetDriveList(t *testing.T) {
 			objects, &directcsi.DirectCSIDrive{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("drive-%v", i)}},
 		)
 	}
-	SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIDrives())
+	SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta4().DirectCSIDrives())
 	drives, err = GetDriveList(context.TODO(), nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -54,7 +54,7 @@ func TestGetDriveList(t *testing.T) {
 }
 
 func TestGetVolumeList(t *testing.T) {
-	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset().DirectV1beta3().DirectCSIVolumes())
+	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset().DirectV1beta4().DirectCSIVolumes())
 	volumes, err := GetVolumeList(context.TODO(), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -70,7 +70,7 @@ func TestGetVolumeList(t *testing.T) {
 		)
 	}
 
-	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta3().DirectCSIVolumes())
+	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta4().DirectCSIVolumes())
 	volumes, err = GetVolumeList(context.TODO(), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

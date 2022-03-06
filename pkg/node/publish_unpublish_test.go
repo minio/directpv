@@ -25,7 +25,7 @@ import (
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/utils"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -141,7 +141,7 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	ctx := context.TODO()
 	ns := createFakeNodeServer()
 	ns.directcsiClient = fakedirect.NewSimpleClientset(testVol)
-	directCSIClient := ns.directcsiClient.DirectV1beta3()
+	directCSIClient := ns.directcsiClient.DirectV1beta4()
 
 	// Publish volume test
 	ns.probeMounts = func() (map[string][]mount.MountInfo, error) {

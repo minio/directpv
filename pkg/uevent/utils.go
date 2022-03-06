@@ -18,9 +18,11 @@ package uevent
 
 import (
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/sys"
 	"k8s.io/klog/v2"
 )
@@ -39,6 +41,22 @@ func getRootBlockPath(devName string) string {
 		)
 		return filepath.Join(sys.HostDevRoot, name)
 	}
+}
+
+func ValidateMountInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
+	// check primary mount
+	if device.FirstMountPoint != directCSIDrive.Status.Mountpoint {
+		return false
+	}
+	// check primary mountoptions
+	deviceMountOptions := device.FirstMountOptions
+	sort.Strings(deviceMountOptions)
+	driveMountOptions := directCSIDrive.Status.MountOptions
+	sort.Strings(driveMountOptions)
+	if !reflect.DeepEqual(deviceMountOptions, driveMountOptions) {
+		return false
+	}
+	return true
 }
 
 func ValidateUDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
@@ -69,6 +87,10 @@ func ValidateUDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDri
 	}
 	if directCSIDrive.Status.UeventSerial != device.UeventSerial {
 		klog.V(3).Infof("[%s] ueventserial mismatch: %v -> %v", device.Name, directCSIDrive.Status.UeventSerial, device.UeventSerial)
+		return false
+	}
+	if directCSIDrive.Status.SerialNumberLong != device.SerialLong {
+		klog.V(3).Infof("[%s] SerialLong mismatch: %v -> %v", device.Name, directCSIDrive.Status.SerialNumberLong, device.SerialLong)
 		return false
 	}
 	if directCSIDrive.Status.Vendor != device.Vendor {
@@ -104,7 +126,11 @@ func ValidateUDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDri
 		return false
 	}
 	if directCSIDrive.Status.UeventFSUUID != device.UeventFSUUID {
-		klog.V(3).Infof("[%s] mismatch ueventfsuuid %v - %v", device.Name, directCSIDrive.Status.UeventFSUUID, device.UeventFSUUID)
+		klog.V(3).Infof("[%s] mismatch ueventfsuuid: %v - %v", device.Name, directCSIDrive.Status.UeventFSUUID, device.UeventFSUUID)
+		return false
+	}
+	if directCSIDrive.Status.PCIPath != device.PCIPath {
+		klog.V(3).Infof("[%s] PCIPath mismatch: %v -> %v", device.Name, directCSIDrive.Status.PCIPath, device.PCIPath)
 		return false
 	}
 

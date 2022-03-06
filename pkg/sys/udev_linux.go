@@ -108,18 +108,20 @@ func MapToUdevData(eventMap map[string]string) (*UDevData, error) {
 	}
 
 	return &UDevData{
-		Partition:    partition,
-		WWID:         eventMap["ID_WWN"],
-		Model:        eventMap["ID_MODEL"],
-		UeventSerial: eventMap["ID_SERIAL_SHORT"],
-		Vendor:       eventMap["ID_VENDOR"],
-		DMName:       eventMap["DM_NAME"],
-		DMUUID:       eventMap["DM_UUID"],
-		MDUUID:       NormalizeUUID(eventMap["MD_UUID"]),
-		PTUUID:       eventMap["ID_PART_TABLE_UUID"],
-		PTType:       eventMap["ID_PART_TABLE_TYPE"],
-		PartUUID:     eventMap["ID_PART_ENTRY_UUID"],
-		UeventFSUUID: eventMap["ID_FS_UUID"],
-		FSType:       eventMap["ID_FS_TYPE"],
+		Partition:        partition,
+		WWID:             eventMap["ID_WWN"],
+		Model:            eventMap["ID_MODEL"],
+		UeventSerial:     eventMap["ID_SERIAL_SHORT"],
+		Vendor:           eventMap["ID_VENDOR"],
+		DMName:           eventMap["DM_NAME"],
+		DMUUID:           eventMap["DM_UUID"],
+		MDUUID:           NormalizeUUID(eventMap["MD_UUID"]),
+		PTUUID:           eventMap["ID_PART_TABLE_UUID"],
+		PTType:           eventMap["ID_PART_TABLE_TYPE"],
+		PartUUID:         eventMap["ID_PART_ENTRY_UUID"],
+		UeventFSUUID:     eventMap["ID_FS_UUID"],
+		FSType:           eventMap["ID_FS_TYPE"],
+		UeventSerialLong: eventMap["ID_SERIAL"],
+		PCIPath:          eventMap["ID_PATH"],
 	}, nil
 }

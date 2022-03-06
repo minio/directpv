@@ -126,5 +126,5 @@ func IsDeviceUnavailable(device *Device) bool {
 		device.Partitioned ||
 		device.Master != "" ||
 		len(device.Holders) > 0 ||
-		len(device.MountPoints) > 0
+		device.FirstMountPoint != ""
 }

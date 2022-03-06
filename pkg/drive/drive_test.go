@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/sys"
@@ -183,7 +183,7 @@ func TestDriveFormat(t *testing.T) {
 
 	// Step 1: Construct fake drive listener
 	dl := createFakeDriveEventListener()
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObjs...).DirectV1beta3().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObjs...).DirectV1beta4().DirectCSIDrives())
 
 	for i, tObj := range testDriveObjs {
 		dObj := tObj.(*directcsi.DirectCSIDrive)
@@ -309,7 +309,7 @@ func TestDriveDelete(t *testing.T) {
 	}
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(&testCases[0].driveObject, &testCases[1].driveObject).DirectV1beta3()
+	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(&testCases[0].driveObject, &testCases[1].driveObject).DirectV1beta4()
 	client.SetLatestDirectCSIDriveInterface(fakeDirectCSIClient.DirectCSIDrives())
 	client.SetLatestDirectCSIVolumeInterface(fakeDirectCSIClient.DirectCSIVolumes())
 
@@ -399,7 +399,7 @@ func TestDriveRelease(t *testing.T) {
 
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(&driveObject).DirectV1beta3().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(&driveObject).DirectV1beta4().DirectCSIDrives())
 
 	newObj, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, "test-drive", metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()})
 	if dErr != nil {
@@ -491,7 +491,7 @@ func TestInUseDriveDeletion(t *testing.T) {
 
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(&driveObject, &volumeObject).DirectV1beta3()
+	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(&driveObject, &volumeObject).DirectV1beta4()
 	client.SetLatestDirectCSIDriveInterface(fakeDirectCSIClient.DirectCSIDrives())
 	client.SetLatestDirectCSIVolumeInterface(fakeDirectCSIClient.DirectCSIVolumes())
 

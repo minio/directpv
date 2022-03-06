@@ -56,7 +56,7 @@ PROJECT_ROOT=$(cd "${SCRIPT_ROOT}/.."; pwd -P)
 # Remove old generated code
 rm -rf "${PROJECT_ROOT}/config/crd" "${PROJECT_ROOT}/pkg/clientset"
 
-versions=(v1alpha1 v1beta1 v1beta2 v1beta3)
+versions=(v1alpha1 v1beta1 v1beta2 v1beta3 v1beta4)
 
 # Prefix ${REPOSITORY}/pkg/apis/direct.csi.min.io/ to each versions.
 arr=("${versions[@]/#/$REPOSITORY/pkg/apis/direct.csi.min.io/}")
