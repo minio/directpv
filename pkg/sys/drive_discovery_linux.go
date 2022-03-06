@@ -213,7 +213,7 @@ func getCapacity(device *Device) (totalCapacity, freeCapacity uint64) {
 	return
 }
 
-func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos map[string][]mount.MountInfo, mountPointsMap map[string][]string) error {
+func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}) error {
 	if _, found := CDROMs[device.Name]; found {
 		device.ReadOnly = true
 		device.Removable = true
@@ -222,12 +222,6 @@ func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos 
 
 	majorMinor := fmt.Sprintf("%v:%v", device.Major, device.Minor)
 	if _, found := swaps[majorMinor]; !found {
-		device.MountPoints = mountPointsMap[majorMinor]
-		if len(device.MountPoints) > 0 {
-			device.FirstMountPoint = mountInfos[majorMinor][0].MountPoint
-			device.FirstMountOptions = mountInfos[majorMinor][0].MountOptions
-		}
-
 		var err error
 		if device.PhysicalBlockSize, device.LogicalBlockSize, err = getBlockSizes("/dev/" + device.Name); device.Size > 0 && err != nil {
 			return err
@@ -386,22 +380,12 @@ func (device *Device) ProbeDevInfo() (err error) {
 			return err
 		}
 
-		mountInfos, err := mount.Probe()
-		if err != nil {
-			return err
-		}
-
-		mountPointsMap, err := getMountPoints(mountInfos)
-		if err != nil {
-			return err
-		}
-
 		swaps, err := getSwaps()
 		if err != nil {
 			return err
 		}
 
-		if err = updateFSInfo(device, CDROMs, swaps, mountInfos, mountPointsMap); err != nil {
+		if err = updateFSInfo(device, CDROMs, swaps); err != nil {
 			return err
 		}
 	}

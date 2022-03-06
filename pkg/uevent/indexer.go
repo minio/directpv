@@ -21,7 +21,7 @@ import (
 	"errors"
 	"time"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	"k8s.io/client-go/tools/cache"
 )

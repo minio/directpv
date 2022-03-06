@@ -25,7 +25,7 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -43,7 +43,7 @@ const (
 )
 
 func createFakeVolumeEventListener(objects ...runtime.Object) *volumeEventHandler {
-	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(objects...).DirectV1beta3()
+	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(objects...).DirectV1beta4()
 	client.SetLatestDirectCSIDriveInterface(fakeDirectCSIClient.DirectCSIDrives())
 	client.SetLatestDirectCSIVolumeInterface(fakeDirectCSIClient.DirectCSIVolumes())
 	return &volumeEventHandler{nodeID: testNodeName}

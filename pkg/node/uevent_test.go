@@ -21,7 +21,7 @@ import (
 	"sync"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/sys"
@@ -283,7 +283,7 @@ func TestAddHandler(t *testing.T) {
 	ctx := context.TODO()
 	handler := createDriveEventHandler()
 	for i, testCase := range testCases {
-		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset().DirectV1beta3().DirectCSIDrives())
+		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset().DirectV1beta4().DirectCSIDrives())
 
 		if err := handler.Add(ctx, testCase.device); err != nil {
 			t.Fatalf("case %d could not create drive: %v", i, err)
@@ -484,7 +484,7 @@ func TestAddHandlerWithRace(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset().DirectV1beta3().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset().DirectV1beta4().DirectCSIDrives())
 	ctx := context.TODO()
 	handler := createDriveEventHandler()
 	for _, device := range devices {
@@ -834,7 +834,7 @@ func TestUpdateHandler(t *testing.T) {
 	ctx := context.TODO()
 	handler := createDriveEventHandler()
 	for i, testCase := range testCases {
-		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testCase.drive).DirectV1beta3().DirectCSIDrives())
+		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testCase.drive).DirectV1beta4().DirectCSIDrives())
 
 		if err := handler.Update(ctx, testCase.device, testCase.drive); err != nil {
 			t.Fatalf("case %d could not create drive: %v", i, err)

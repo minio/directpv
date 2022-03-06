@@ -82,7 +82,7 @@ function _wait_directcsi_to_start() {
 
     while true; do
         echo "$ME: waiting for direct-csi to come up"
-        sleep 5
+        sleep 10
         if "${DIRECT_CSI_CLIENT}" info; then
             return 0
         fi
@@ -142,7 +142,7 @@ function check_drives() {
 
     check_drives_state Available
     "${DIRECT_CSI_CLIENT}" drives format --all --force
-    sleep 35
+    sleep 5
 
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" drives list --all

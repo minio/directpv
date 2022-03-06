@@ -37,7 +37,6 @@ const (
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -122,46 +121,32 @@ type DirectCSIDriveStatus struct {
 	// +optional
 	MinorNumber uint32 `json:"minorNumber,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	UeventSerial string `json:"ueventSerial,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	UeventFSUUID string `json:"ueventFSUUID,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	WWID string `json:"wwid,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	Vendor string `json:"vendor,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	DMName string `json:"dmName,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	DMUUID string `json:"dmUUID,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	MDUUID string `json:"mdUUID,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	PartTableUUID string `json:"partTableUUID,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	PartTableType string `json:"partTableType,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	Virtual bool `json:"virtual,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	ReadOnly bool `json:"readOnly,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	Partitioned bool `json:"partitioned,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	SwapOn bool `json:"swapOn,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	Master string `json:"master,omitempty"`
 	// +patchMergeKey=type
 	// +patchStrategy=merge
@@ -293,7 +278,6 @@ type DirectCSIVolumeList struct {
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

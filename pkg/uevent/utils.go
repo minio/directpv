@@ -18,9 +18,11 @@ package uevent
 
 import (
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/sys"
 	"k8s.io/klog/v2"
 )
@@ -39,6 +41,23 @@ func getRootBlockPath(devName string) string {
 		)
 		return filepath.Join(sys.HostDevRoot, name)
 	}
+}
+
+func ValidateMountInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
+	if len(device.MountInfos) > 0 {
+		if directCSIDrive.Status.Mountpoint != device.MountInfos[0].MountPoint {
+			return false
+		}
+		deviceMountOptions := device.MountInfos[0].MountOptions
+		sort.Strings(deviceMountOptions)
+		driveMountOptions := directCSIDrive.Status.MountOptions
+		sort.Strings(driveMountOptions)
+		if !reflect.DeepEqual(deviceMountOptions, driveMountOptions) {
+			return false
+		}
+
+	}
+	return true
 }
 
 func ValidateUDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {

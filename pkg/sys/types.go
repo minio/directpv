@@ -16,23 +16,29 @@
 
 package sys
 
-import "path/filepath"
+import (
+	"path/filepath"
+
+	"github.com/minio/directpv/pkg/mount"
+)
 
 type UDevData struct {
-	Partition    int
-	WWID         string
-	Model        string
-	UeventSerial string
-	Vendor       string
-	DMName       string
-	DMUUID       string
-	MDUUID       string
-	PTUUID       string
-	PTType       string
-	PartUUID     string
-	UeventFSUUID string
-	FSType       string
-	FSUUID       string
+	Partition        int
+	WWID             string
+	Model            string
+	UeventSerial     string
+	Vendor           string
+	DMName           string
+	DMUUID           string
+	MDUUID           string
+	PTUUID           string
+	PTType           string
+	PartUUID         string
+	UeventFSUUID     string
+	FSType           string
+	FSUUID           string
+	PCIPath          string
+	UeventSerialLong string
 }
 
 // Device is a block device information.
@@ -47,20 +53,22 @@ type Device struct {
 	Hidden    bool
 
 	// Populated from /run/udev/data/b<Major>:<Minor>
-	Size      uint64
-	Partition int
-	WWID      string
-	Model     string
-	Serial    string
-	Vendor    string
-	DMName    string
-	DMUUID    string
-	MDUUID    string
-	PTUUID    string
-	PTType    string
-	PartUUID  string
-	FSUUID    string
-	FSType    string
+	Size       uint64
+	Partition  int
+	WWID       string
+	Model      string
+	Serial     string
+	Vendor     string
+	DMName     string
+	DMUUID     string
+	MDUUID     string
+	PTUUID     string
+	PTType     string
+	PartUUID   string
+	FSUUID     string
+	FSType     string
+	PCIPath    string
+	SerialLong string
 
 	UeventSerial string
 	UeventFSUUID string
@@ -78,9 +86,10 @@ type Device struct {
 	SwapOn            bool
 
 	// Populated from /proc/1/mountinfo
-	MountPoints       []string
+	MountPoints       []string // Deprecating in favour of MountInfos
 	FirstMountPoint   string
 	FirstMountOptions []string
+	MountInfos        []mount.MountInfo
 }
 
 func (d Device) DevPath() string {

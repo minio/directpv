@@ -27,7 +27,8 @@ import (
 	"syscall"
 	"time"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/klog/v2"
@@ -223,6 +224,12 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		return fmt.Errorf("udevData does not have valid DEVPATH %v", dEvent.devPath)
 	}
 
+	mountInfosAll, err := mount.Probe()
+	if err != nil {
+		return err
+	}
+	majorMinor := mount.MajorMinor(dEvent.major, dEvent.minor)
+
 	device := &sys.Device{
 		Name:         filepath.Base(dEvent.devPath),
 		Major:        dEvent.major,
@@ -241,6 +248,9 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		PartUUID:     dEvent.udevData.PartUUID,
 		UeventFSUUID: dEvent.udevData.UeventFSUUID,
 		FSType:       dEvent.udevData.FSType,
+		PCIPath:      dEvent.udevData.PCIPath,
+		SerialLong:   dEvent.udevData.UeventSerialLong,
+		MountInfos:   mountInfosAll[majorMinor],
 	}
 
 	if dEvent.action != Remove {
@@ -292,6 +302,7 @@ func (l *listener) validateDevice(device *sys.Device) (bool, error) {
 	filteredDrive := filteredDrives[0]
 
 	return !isFormatRequested(filteredDrive) &&
+		ValidateMountInfo(device, filteredDrive) &&
 		ValidateUDevInfo(device, filteredDrive) &&
 		validateSysInfo(device, filteredDrive), nil
 }
