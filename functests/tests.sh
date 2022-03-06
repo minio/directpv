@@ -42,9 +42,15 @@ function do_upgrade_test() {
     DIRECT_CSI_CLIENT="./kubectl-direct_csi_$1"
     DIRECT_CSI_VERSION="v$1"
     image="direct-csi:${DIRECT_CSI_VERSION}"
+
     if [ -n "${RHEL7_TEST}" ]; then
         image="direct-csi:${DIRECT_CSI_VERSION}-rhel7"
     fi
+
+    if [[ $1 > "2.0.0" ]]; then
+        image="directpv:${DIRECT_CSI_VERSION}"
+    fi
+
     install_directcsi "$image"
     check_drives
     deploy_minio
@@ -146,6 +152,9 @@ do_upgrade_test "1.3.6"
 
 echo "$ME: Run upgrade test from v1.4.6"
 do_upgrade_test "1.4.6"
+
+echo "$ME: Run upgrade test from v2.0.9"
+do_upgrade_test "2.0.9"
 
 # unmount all direct-csi mounts of previous installation if any.
 mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl

@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/matcher"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
@@ -119,8 +119,8 @@ func getDriveUUID(nodeID string, device *sys.Device) string {
 				device.WWID,
 				device.UeventSerial,
 				device.DMUUID,
-				// FIXME: device.UeventSerialLong,
-				// FIXME: device.PCIPath,
+				device.SerialLong,
+				device.PCIPath,
 			},
 			"",
 		),

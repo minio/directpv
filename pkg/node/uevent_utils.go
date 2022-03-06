@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
@@ -61,8 +61,7 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	updatedDrive.Status.MinorNumber = uint32(device.Minor)
 	updatedDrive.Status.Path = device.DevPath()
 	updatedDrive.Status.LogicalBlockSize = int64(device.LogicalBlockSize)
-	updatedDrive.Status.MountOptions = device.FirstMountOptions
-	updatedDrive.Status.Mountpoint = device.FirstMountPoint
+
 	updatedDrive.Status.DMName = device.DMName
 	updatedDrive.Status.ReadOnly = device.ReadOnly
 	updatedDrive.Status.RootPartition = device.Name
@@ -72,6 +71,20 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	updatedDrive.Status.PartTableUUID = device.PTUUID
 	updatedDrive.Status.PartTableType = device.PTType
 	updatedDrive.Status.Partitioned = device.Partitioned
+	updatedDrive.Status.PCIPath = device.PCIPath
+
+	// populate mount infos
+	updatedDrive.Status.MountOptions = device.FirstMountOptions
+	updatedDrive.Status.Mountpoint = device.FirstMountPoint
+	// other mounts
+	var otherMountsInfo []directcsi.OtherMountsInfo
+	for _, mountInfo := range device.OtherMountsInfo {
+		otherMountsInfo = append(otherMountsInfo, directcsi.OtherMountsInfo{
+			Mountpoint:   mountInfo.MountPoint,
+			MountOptions: mountInfo.MountOptions,
+		})
+	}
+	updatedDrive.Status.OtherMountsInfo = otherMountsInfo
 
 	// fill hwinfo only if it is empty
 	if updatedDrive.Status.PartitionUUID == "" {
@@ -94,6 +107,9 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	}
 	if updatedDrive.Status.SerialNumber == "" {
 		updatedDrive.Status.SerialNumber = device.Serial
+	}
+	if updatedDrive.Status.SerialNumberLong == "" {
+		updatedDrive.Status.SerialNumberLong = device.SerialLong
 	}
 	if updatedDrive.Status.UeventSerial == "" {
 		updatedDrive.Status.UeventSerial = device.UeventSerial

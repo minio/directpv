@@ -17,6 +17,7 @@
 package mount
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -100,4 +101,9 @@ func ValidDirectPVMounts(mountPoints []string) bool {
 		}
 	}
 	return false
+}
+
+// MajorMinor provides the identifier for a drive based on Major and Minor number
+func MajorMinor(major, minor int) string {
+	return fmt.Sprintf("%v:%v", major, minor)
 }

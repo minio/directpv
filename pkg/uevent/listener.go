@@ -27,7 +27,7 @@ import (
 	"syscall"
 	"time"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/klog/v2"
@@ -241,10 +241,15 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		PartUUID:     dEvent.udevData.PartUUID,
 		UeventFSUUID: dEvent.udevData.UeventFSUUID,
 		FSType:       dEvent.udevData.FSType,
+		PCIPath:      dEvent.udevData.PCIPath,
+		SerialLong:   dEvent.udevData.UeventSerialLong,
 	}
 
 	if dEvent.action != Remove {
 		if err := device.ProbeSysInfo(); err != nil {
+			return err
+		}
+		if err := device.ProbeMountInfo(); err != nil {
 			return err
 		}
 		ok, err := l.validateDevice(device)
@@ -292,6 +297,7 @@ func (l *listener) validateDevice(device *sys.Device) (bool, error) {
 	filteredDrive := filteredDrives[0]
 
 	return !isFormatRequested(filteredDrive) &&
+		ValidateMountInfo(device, filteredDrive) &&
 		ValidateUDevInfo(device, filteredDrive) &&
 		validateSysInfo(device, filteredDrive), nil
 }
@@ -438,6 +444,13 @@ func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error 
 			return errValueMismatch(dEvent.devPath, "UeventSerial", dEvent.udevData.UeventSerial, runUdevData.UeventSerial)
 		}
 	}
+	if runUdevData.UeventSerialLong != "" {
+		if dEvent.udevData.UeventSerialLong == "" {
+			dEvent.udevData.UeventSerialLong = runUdevData.UeventSerialLong
+		} else if dEvent.udevData.UeventSerialLong != runUdevData.UeventSerialLong {
+			return errValueMismatch(dEvent.devPath, "UeventSerialLong", dEvent.udevData.UeventSerialLong, runUdevData.UeventSerialLong)
+		}
+	}
 	if runUdevData.Vendor != "" {
 		if dEvent.udevData.Vendor == "" {
 			dEvent.udevData.Vendor = runUdevData.Vendor
@@ -506,6 +519,13 @@ func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error 
 			dEvent.udevData.FSUUID = runUdevData.FSUUID
 		} else if dEvent.udevData.FSUUID != runUdevData.FSUUID {
 			return errValueMismatch(dEvent.devPath, "FSUUID", dEvent.udevData.FSUUID, runUdevData.FSUUID)
+		}
+	}
+	if runUdevData.PCIPath != "" {
+		if dEvent.udevData.PCIPath == "" {
+			dEvent.udevData.PCIPath = runUdevData.PCIPath
+		} else if dEvent.udevData.PCIPath != runUdevData.PCIPath {
+			return errValueMismatch(dEvent.devPath, "PCIPath", dEvent.udevData.PCIPath, runUdevData.PCIPath)
 		}
 	}
 

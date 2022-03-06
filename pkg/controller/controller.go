@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/clientset"
 	"github.com/minio/directpv/pkg/matcher"
@@ -220,7 +220,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	utils.UpdateLabels(newVolume, labels)
 
-	volumeInterface := c.directcsiClient.DirectV1beta3().DirectCSIVolumes()
+	volumeInterface := c.directcsiClient.DirectV1beta4().DirectCSIVolumes()
 	if _, err := volumeInterface.Create(ctx, newVolume, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.Internal, "could not create volume %s; %v", name, err)
@@ -260,7 +260,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			"node", drive.Status.NodeName,
 			"volume", name)
 
-		_, err = c.directcsiClient.DirectV1beta3().DirectCSIDrives().Update(
+		_, err = c.directcsiClient.DirectV1beta4().DirectCSIDrives().Update(
 			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
 		)
 		if err != nil {
@@ -292,7 +292,7 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
 
-	directCSIClient := c.directcsiClient.DirectV1beta3()
+	directCSIClient := c.directcsiClient.DirectV1beta4()
 	vclient := directCSIClient.DirectCSIVolumes()
 
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{

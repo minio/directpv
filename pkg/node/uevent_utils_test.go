@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/sys"
@@ -1424,8 +1424,8 @@ func TestSyncVolumeLabels(t *testing.T) {
 	}
 
 	ctx := context.TODO()
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObjects...).DirectV1beta3().DirectCSIDrives())
-	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObjects...).DirectV1beta3().DirectCSIVolumes())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObjects...).DirectV1beta4().DirectCSIDrives())
+	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObjects...).DirectV1beta4().DirectCSIVolumes())
 
 	if err := syncVolumeLabels(ctx, testDriveObjects[0].(*directcsi.DirectCSIDrive)); err != nil {
 		t.Fatalf("could not set volume labels: %v", err)

@@ -22,7 +22,8 @@ import (
 	directv1alpha1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1alpha1"
 	directv1beta1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta1"
 	directv1beta2 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2"
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directv1beta3 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/converter"
 	"github.com/minio/directpv/pkg/utils"
 
@@ -41,7 +42,7 @@ import (
 
 // GetLatestDirectCSIRESTClient gets REST client of the latest direct-csi.
 func GetLatestDirectCSIRESTClient() rest.Interface {
-	return GetDirectClientset().DirectV1beta3().RESTClient()
+	return GetDirectClientset().DirectV1beta4().RESTClient()
 }
 
 func toDirectCSIDrive(object map[string]interface{}) (*directcsi.DirectCSIDrive, error) {
@@ -70,6 +71,7 @@ func directCSIInterfaceForConfig(config *rest.Config, kind, resource string) (*d
 		directcsi.Group,
 		kind,
 		directcsi.Version,
+		directv1beta3.Version,
 		directv1beta2.Version,
 		directv1beta1.Version,
 		directv1alpha1.Version,
