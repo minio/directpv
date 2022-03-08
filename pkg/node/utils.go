@@ -18,9 +18,12 @@ package node
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"path/filepath"
+	"strings"
 
+	"github.com/google/uuid"
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/matcher"
 	"github.com/minio/directpv/pkg/mount"
@@ -106,4 +109,38 @@ func checkStagingTargetPath(stagingPath string, probeMounts func() (map[string][
 	}
 
 	return fmt.Errorf("stagingPath %v is not mounted", stagingPath)
+}
+
+func getDriveUUID(nodeID string, device *sys.Device) string {
+	data := []byte(
+		strings.Join(
+			[]string{
+				nodeID,
+				device.WWID,
+				device.UeventSerial,
+				// FIXME: device.UeventSerialLong,
+				// FIXME: device.PCIPath,
+			},
+			"-",
+		),
+	)
+	h := sha256.Sum256(data)
+	return uuid.UUID{
+		h[0],
+		h[1],
+		h[2],
+		h[3],
+		h[4],
+		h[5],
+		h[6],
+		h[7],
+		h[8],
+		h[9],
+		h[10],
+		h[11],
+		h[12],
+		h[13],
+		h[14],
+		h[15],
+	}.String()
 }
