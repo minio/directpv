@@ -91,7 +91,7 @@ func (n *NodeServer) checkDrive(ctx context.Context, drive *directcsi.DirectCSID
 	return fmt.Errorf("drive %v is not mounted at mount point %v", drive.Name, mountPoint)
 }
 
-func checkStagingTargetPath(stagingPath string, probeMounts func() (map[string][]mount.Info, error)) error {
+func checkStagingTargetPath(stagingPath string, probeMounts func() (map[string][]mount.MountInfo, error)) error {
 	mounts, err := probeMounts()
 	if err != nil {
 		return err

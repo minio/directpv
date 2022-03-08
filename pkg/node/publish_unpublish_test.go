@@ -144,8 +144,8 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	directCSIClient := ns.directcsiClient.DirectV1beta3()
 
 	// Publish volume test
-	ns.probeMounts = func() (map[string][]mount.Info, error) {
-		return map[string][]mount.Info{"0:0": {{MountPoint: testStagingPath}}}, nil
+	ns.probeMounts = func() (map[string][]mount.MountInfo, error) {
+		return map[string][]mount.MountInfo{"0:0": {{MountPoint: testStagingPath}}}, nil
 	}
 	_, err := ns.NodePublishVolume(ctx, &publishVolumeRequest)
 	if err != nil {
