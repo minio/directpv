@@ -19,13 +19,12 @@ package node
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/uevent"
 	"github.com/minio/directpv/pkg/utils"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 )
 
@@ -54,14 +53,17 @@ type driveEventHandler struct {
 
 func (d *driveEventHandler) Add(ctx context.Context, device *sys.Device) error {
 	drive := client.NewDirectCSIDrive(
-		uuid.New().String(),
+		getDriveUUID(d.nodeID, device),
 		client.NewDirectCSIDriveStatus(device, d.nodeID, d.topology),
 	)
 	err := client.CreateDrive(ctx, drive)
 	if err != nil {
-		klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
+		if !errors.IsAlreadyExists(err) {
+			klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
+			return err
+		}
 	}
-	return err
+	return nil
 }
 
 func (d *driveEventHandler) Change(ctx context.Context, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
