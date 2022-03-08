@@ -57,7 +57,7 @@ type NodeServer struct { //revive:disable-line:exported
 	Zone            string
 	Region          string
 	directcsiClient clientset.Interface
-	probeMounts     func() (map[string][]mount.Info, error)
+	probeMounts     func() (map[string][]mount.MountInfo, error)
 	getDevice       func(major, minor uint32) (string, error)
 	safeBindMount   func(source, target string, recursive, readOnly bool) error
 	safeUnmount     func(target string, force, detach, expire bool) error

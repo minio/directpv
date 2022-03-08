@@ -74,12 +74,12 @@ func TestNodeStageVolume(t *testing.T) {
 	testCases := []struct {
 		req       *csi.NodeStageVolumeRequest
 		drive     *directcsi.DirectCSIDrive
-		mountInfo map[string][]mount.Info
+		mountInfo map[string][]mount.MountInfo
 	}{
 		{case1Req, case1Drive, nil},
 		{case1Req, case2Drive, nil},
-		{case1Req, case3Drive, map[string][]mount.Info{"1:0": {}}},
-		{case1Req, case3Drive, map[string][]mount.Info{"0:0": {}}},
+		{case1Req, case3Drive, map[string][]mount.MountInfo{"1:0": {}}},
+		{case1Req, case3Drive, map[string][]mount.MountInfo{"0:0": {}}},
 	}
 
 	for i, testCase := range testCases {
@@ -95,7 +95,7 @@ func TestNodeStageVolume(t *testing.T) {
 
 		nodeServer := createFakeNodeServer()
 		nodeServer.directcsiClient = fakedirect.NewSimpleClientset(volume, testCase.drive)
-		nodeServer.probeMounts = func() (map[string][]mount.Info, error) {
+		nodeServer.probeMounts = func() (map[string][]mount.MountInfo, error) {
 			return testCase.mountInfo, nil
 		}
 		_, err := nodeServer.NodeStageVolume(context.TODO(), testCase.req)
@@ -198,8 +198,8 @@ func TestStageUnstageVolume(t *testing.T) {
 	ns.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
 	directCSIClient := ns.directcsiClient.DirectV1beta3()
 	hostPath := filepath.Join(testMountPointDir, testVolumeName50MB)
-	ns.probeMounts = func() (map[string][]mount.Info, error) {
-		return map[string][]mount.Info{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt", MajorMinor: "0:0"}}}, nil
+	ns.probeMounts = func() (map[string][]mount.MountInfo, error) {
+		return map[string][]mount.MountInfo{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt", MajorMinor: "0:0"}}}, nil
 	}
 
 	// Stage Volume test

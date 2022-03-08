@@ -21,8 +21,8 @@ const (
 	mountInfoProcFile = "/proc/1/mountinfo"
 )
 
-// Info is a device mount information.
-type Info struct {
+// MountInfo is a device mount information.
+type MountInfo struct {
 	MajorMinor   string
 	MountPoint   string
 	MountOptions []string
@@ -31,6 +31,6 @@ type Info struct {
 }
 
 // Probe probes mount information from /proc/1/mountinfo.
-func Probe() (map[string][]Info, error) {
+func Probe() (map[string][]MountInfo, error) {
 	return probe(mountInfoProcFile)
 }

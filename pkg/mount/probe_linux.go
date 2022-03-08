@@ -28,7 +28,7 @@ import (
 	"strings"
 )
 
-func probe(filename string) (map[string][]Info, error) {
+func probe(filename string) (map[string][]MountInfo, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func probe(filename string) (map[string][]Info, error) {
 	defer file.Close()
 	reader := bufio.NewReader(file)
 
-	mountPointsMap := map[string][]Info{}
+	mountPointsMap := map[string][]MountInfo{}
 	for {
 		s, err := reader.ReadString('\n')
 		if err != nil {
@@ -76,7 +76,7 @@ func probe(filename string) (map[string][]Info, error) {
 
 		mountPointsMap[majorMinor] = append(
 			mountPointsMap[majorMinor],
-			Info{
+			MountInfo{
 				MajorMinor:   majorMinor,
 				MountPoint:   mountPoint,
 				MountOptions: mountOptions,
