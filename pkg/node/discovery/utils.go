@@ -33,7 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (d *Discovery) getMountInfo(major, minor uint32) []mount.Info {
+func (d *Discovery) getMountInfo(major, minor uint32) []mount.MountInfo {
 	return d.mounts[fmt.Sprintf("%v:%v", major, minor)]
 }
 
