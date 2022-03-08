@@ -549,7 +549,7 @@ func getCapacity(device *Device) (totalCapacity, freeCapacity uint64) {
 	return
 }
 
-func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos map[string][]mount.Info, mountPointsMap map[string][]string) error {
+func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos map[string][]mount.MountInfo, mountPointsMap map[string][]string) error {
 	if _, found := CDROMs[device.Name]; found {
 		device.ReadOnly = true
 		device.Removable = true
@@ -668,7 +668,7 @@ func getSwaps() (map[string]struct{}, error) {
 	return devices, nil
 }
 
-func getMountPoints(mountInfos map[string][]mount.Info) (map[string][]string, error) {
+func getMountPoints(mountInfos map[string][]mount.MountInfo) (map[string][]string, error) {
 	mountPointsMap := map[string][]string{}
 	for _, mounts := range mountInfos {
 		for _, mount := range mounts {
