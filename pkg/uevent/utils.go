@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/sys"
 )
 
@@ -82,4 +83,61 @@ func getRootBlockPath(devName string) string {
 		)
 		return filepath.Join(sys.HostDevRoot, name)
 	}
+}
+
+func validateDevice(device *sys.Device, filteredDrives []*directcsi.DirectCSIDrive) bool {
+	if len(filteredDrives) != 1 {
+		return false
+	}
+	directCSIDrive := filteredDrives[0]
+	if directCSIDrive.Status.Path != device.DevPath() {
+		return false
+	}
+	if directCSIDrive.Status.MajorNumber != uint32(device.Major) {
+		return false
+	}
+	if directCSIDrive.Status.MinorNumber != uint32(device.Minor) {
+		return false
+	}
+	if directCSIDrive.Status.Virtual != device.Virtual {
+		return false
+	}
+	if directCSIDrive.Status.PartitionNum != device.Partition {
+		return false
+	}
+	if directCSIDrive.Status.WWID != device.WWID {
+		return false
+	}
+	if directCSIDrive.Status.ModelNumber != device.Model {
+		return false
+	}
+	if directCSIDrive.Status.UeventSerial != device.UeventSerial {
+		return false
+	}
+	if directCSIDrive.Status.Vendor != device.Vendor {
+		return false
+	}
+	if directCSIDrive.Status.DMName != device.DMName {
+		return false
+	}
+	if directCSIDrive.Status.DMUUID != device.DMUUID {
+		return false
+	}
+	if directCSIDrive.Status.MDUUID != device.MDUUID {
+		return false
+	}
+	if directCSIDrive.Status.PartTableUUID != device.PTUUID {
+		return false
+	}
+	if directCSIDrive.Status.PartTableType != device.PTType {
+		return false
+	}
+	if directCSIDrive.Status.PartitionUUID != device.PartUUID {
+		return false
+	}
+	if directCSIDrive.Status.Filesystem != device.FSType {
+		return false
+	}
+
+	return true
 }
