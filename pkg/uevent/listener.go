@@ -46,15 +46,26 @@ const (
 )
 
 var (
-	errNonDeviceEvent = errors.New("event is not for a block device")
-	errInvalidDevPath = errors.New("devpath not found in the event")
-	pageSize          = os.Getpagesize()
-	fieldDelimiter    = []byte{0}
-
-	errEmptyBuf  = errors.New("buffer is empty")
-	errShortRead = errors.New("short read")
-
-	resyncPeriod = 60 * time.Second
+	pageSize       = os.Getpagesize()
+	fieldDelimiter = []byte{0}
+	resyncPeriod   = 60 * time.Second
+	// errors
+	errEmptyBuf            = errors.New("buffer is empty")
+	errShortRead           = errors.New("short read")
+	errNonDeviceEvent      = errors.New("event is not for a block device")
+	errInvalidDevPath      = errors.New("devpath not found in the event")
+	errTooManyMatchesFound = func(device *sys.Device, action action) error {
+		return fmt.Errorf("too many matches found for device %s while processing %s", device.DevPath(), action)
+	}
+	errValueMismatch = func(path, key string, expected, found interface{}) error {
+		return fmt.Errorf(
+			"value mismatch for path %s. expected '%s': %v, received: %v",
+			path,
+			key,
+			expected,
+			found,
+		)
+	}
 )
 
 type DeviceUEventHandler interface {
@@ -182,7 +193,7 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		FSType:       dEvent.udevData.FSType,
 	}
 
-	ok, err := l.indexer.validateDevice(device)
+	ok, err := l.validateDevice(device)
 	if err != nil {
 		return err
 	}
@@ -216,7 +227,22 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 	}
 }
 
-func (l *listener) processAdd(ctx context.Context, matchResult matchResult, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
+func (l *listener) validateDevice(device *sys.Device) (bool, error) {
+	if device.UeventFSUUID == "" {
+		// do the full probe for available and unavailable drives
+		return false, nil
+	}
+	filteredDrives, err := l.indexer.filterDrivesByUEventFSUUID(device.UeventFSUUID)
+	if err != nil {
+		return false, err
+	}
+	return validateDevice(device, filteredDrives), nil
+}
+
+func (l *listener) processAdd(ctx context.Context,
+	matchResult matchResult,
+	device *sys.Device,
+	drive *directcsi.DirectCSIDrive) error {
 	switch matchResult {
 	case noMatch:
 		return l.handler.Add(ctx, device)
@@ -224,14 +250,16 @@ func (l *listener) processAdd(ctx context.Context, matchResult matchResult, devi
 		klog.V(3).Infof("ignoring ADD action for the device %s as the corresponding drive match %s is found", device.DevPath(), drive.Name)
 		return nil
 	case tooManyMatches:
-		klog.V(3).Infof("ignoring ADD action as too many matches are found for the device %s", device.DevPath())
-		return nil
+		return errTooManyMatchesFound(device, Add)
 	default:
 		return fmt.Errorf("invalid match result: %v", matchResult)
 	}
 }
 
-func (l *listener) processUpdate(ctx context.Context, matchResult matchResult, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
+func (l *listener) processUpdate(ctx context.Context,
+	matchResult matchResult,
+	device *sys.Device,
+	drive *directcsi.DirectCSIDrive) error {
 	switch matchResult {
 	case noMatch:
 		return l.handler.Add(ctx, device)
@@ -240,13 +268,16 @@ func (l *listener) processUpdate(ctx context.Context, matchResult matchResult, d
 	case noChange:
 		return nil
 	case tooManyMatches:
-		return fmt.Errorf("too many matches found for device %s while processing UPDATE", device.DevPath())
+		return errTooManyMatchesFound(device, Change)
 	default:
 		return fmt.Errorf("invalid match result: %v", matchResult)
 	}
 }
 
-func (l *listener) processRemove(ctx context.Context, matchResult matchResult, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
+func (l *listener) processRemove(ctx context.Context,
+	matchResult matchResult,
+	device *sys.Device,
+	drive *directcsi.DirectCSIDrive) error {
 	switch matchResult {
 	case noMatch:
 		klog.V(3).InfoS(
@@ -257,7 +288,7 @@ func (l *listener) processRemove(ctx context.Context, matchResult matchResult, d
 	case changed, noChange:
 		return l.handler.Remove(ctx, device, drive)
 	case tooManyMatches:
-		return fmt.Errorf("too many matches found for device %s while processing DELETE", device.DevPath())
+		return errTooManyMatchesFound(device, Remove)
 	default:
 		return fmt.Errorf("invalid match result: %v", matchResult)
 	}
@@ -303,16 +334,6 @@ func (dEvent *deviceEvent) collectUDevData() error {
 	default:
 		return fmt.Errorf("invalid device action: %s", dEvent.action)
 	}
-}
-
-func errValueMismatch(path, key string, expected, found interface{}) error {
-	return fmt.Errorf(
-		"value mismatch for path %s. expected '%s': %v, received: %v",
-		path,
-		key,
-		expected,
-		found,
-	)
 }
 
 func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error {
