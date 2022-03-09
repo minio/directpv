@@ -39,6 +39,17 @@ func TestGetFilteredDrives(t *testing.T) {
 				Name:       "drive-1",
 				Finalizers: []string{directcsi.DirectCSIDriveFinalizerPrefix + "volume-1"},
 			},
+			Status: directcsi.DirectCSIDriveStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 	}
 	case2Objects := []runtime.Object{&case2Result[0]}
@@ -47,17 +58,50 @@ func TestGetFilteredDrives(t *testing.T) {
 	case3Result := []directcsi.DirectCSIDrive{
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusReady},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusReady,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusInUse},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusInUse,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 	}
 	case3Objects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusAvailable},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&case3Result[0],
 		&case3Result[1],
@@ -67,17 +111,52 @@ func TestGetFilteredDrives(t *testing.T) {
 	case4Result := []directcsi.DirectCSIDrive{
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusReady, FreeCapacity: 4 * GiB},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus:  directcsi.DriveStatusReady,
+				FreeCapacity: 4 * GiB,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusInUse, FreeCapacity: 2 * GiB},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus:  directcsi.DriveStatusInUse,
+				FreeCapacity: 2 * GiB,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 	}
 	case4Objects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusAvailable},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&case4Result[0],
 		&case4Result[1],
@@ -87,17 +166,54 @@ func TestGetFilteredDrives(t *testing.T) {
 	case5Result := []directcsi.DirectCSIDrive{
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusReady, FreeCapacity: 4 * GiB, Filesystem: "xfs"},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus:  directcsi.DriveStatusReady,
+				FreeCapacity: 4 * GiB,
+				Filesystem:   "xfs",
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 	}
 	case5Objects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusAvailable},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusInUse, FreeCapacity: 2 * GiB, Filesystem: "ext4"},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus:  directcsi.DriveStatusInUse,
+				FreeCapacity: 2 * GiB,
+				Filesystem:   "ext4",
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&case5Result[0],
 	}
@@ -110,17 +226,51 @@ func TestGetFilteredDrives(t *testing.T) {
 	case6Result := []directcsi.DirectCSIDrive{
 		{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusReady, AccessTier: directcsi.AccessTierHot},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusReady,
+				AccessTier:  directcsi.AccessTierHot,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 	}
 	case6Objects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusAvailable},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusInUse},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusInUse,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&case6Result[0],
 	}
@@ -135,17 +285,48 @@ func TestGetFilteredDrives(t *testing.T) {
 			Status: directcsi.DirectCSIDriveStatus{
 				DriveStatus: directcsi.DriveStatusReady,
 				Topology:    map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
 			},
 		},
 	}
 	case7Objects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusAvailable},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusInUse},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusInUse,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&case7Result[0],
 	}
@@ -162,19 +343,48 @@ func TestGetFilteredDrives(t *testing.T) {
 			Status: directcsi.DirectCSIDriveStatus{
 				DriveStatus: directcsi.DriveStatusReady,
 				Topology:    map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"},
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
 			},
 		},
 	}
 	case8Objects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusAvailable},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
 			Status: directcsi.DirectCSIDriveStatus{
 				DriveStatus: directcsi.DriveStatusInUse,
 				Topology:    map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
 			},
 		},
 		&case8Result[0],
@@ -189,12 +399,32 @@ func TestGetFilteredDrives(t *testing.T) {
 	case9Objects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusAvailable},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
 		},
 		&directcsi.DirectCSIDrive{
 			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
 			Status: directcsi.DirectCSIDriveStatus{
 				DriveStatus: directcsi.DriveStatusReady,
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIDriveConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIDriveReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
 			},
 		},
 	}
@@ -202,6 +432,100 @@ func TestGetFilteredDrives(t *testing.T) {
 		Name: "volume-1",
 		AccessibilityRequirements: &csi.TopologyRequirement{
 			Preferred: []*csi.Topology{{Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"}}},
+			Requisite: []*csi.Topology{{Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"}}},
+		},
+	}
+
+	case10Result := []directcsi.DirectCSIDrive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusReady,
+				Topology:    map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"},
+				Conditions: []metav1.Condition{
+					{
+						Type:    string(directcsi.DirectCSIDriveConditionReady),
+						Status:  metav1.ConditionTrue,
+						Message: "",
+						Reason:  string(directcsi.DirectCSIDriveReasonReady),
+					},
+				},
+			},
+		},
+	}
+	case10Objects := []runtime.Object{
+		&directcsi.DirectCSIDrive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:    string(directcsi.DirectCSIDriveConditionReady),
+						Status:  metav1.ConditionTrue,
+						Message: "",
+						Reason:  string(directcsi.DirectCSIDriveReasonReady),
+					},
+				},
+			},
+		},
+		&directcsi.DirectCSIDrive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusInUse,
+				Topology:    map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"},
+				Conditions: []metav1.Condition{
+					{
+						Type:    string(directcsi.DirectCSIDriveConditionReady),
+						Status:  metav1.ConditionFalse,
+						Message: "",
+						Reason:  string(directcsi.DirectCSIDriveReasonNotReady),
+					},
+				},
+			},
+		},
+		&case10Result[0],
+	}
+	case10Request := &csi.CreateVolumeRequest{
+		Name: "volume-1",
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Requisite: []*csi.Topology{{Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"}}},
+		},
+	}
+
+	case11Objects := []runtime.Object{
+		&directcsi.DirectCSIDrive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:    string(directcsi.DirectCSIDriveConditionReady),
+						Status:  metav1.ConditionFalse,
+						Message: "",
+						Reason:  string(directcsi.DirectCSIDriveReasonReady),
+					},
+				},
+			},
+		},
+		&directcsi.DirectCSIDrive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusInUse,
+				Topology:    map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"},
+				Conditions: []metav1.Condition{
+					{
+						Type:    string(directcsi.DirectCSIDriveConditionReady),
+						Status:  metav1.ConditionFalse,
+						Message: "",
+						Reason:  string(directcsi.DirectCSIDriveReasonNotReady),
+					},
+				},
+			},
+		},
+	}
+	case11Request := &csi.CreateVolumeRequest{
+		Name: "volume-1",
+		AccessibilityRequirements: &csi.TopologyRequirement{
 			Requisite: []*csi.Topology{{Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"}}},
 		},
 	}
@@ -220,6 +544,8 @@ func TestGetFilteredDrives(t *testing.T) {
 		{case7Objects, case7Request, case7Result},
 		{case8Objects, case8Request, case8Result},
 		{case9Objects, case9Request, nil},
+		{case10Objects, case10Request, case10Result},
+		{case11Objects, case11Request, nil},
 	}
 
 	for i, testCase := range testCases {

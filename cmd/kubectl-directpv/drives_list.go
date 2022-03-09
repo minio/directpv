@@ -215,7 +215,7 @@ func listDrives(ctx context.Context, args []string) error {
 		msg := ""
 		for _, c := range d.Status.Conditions {
 			switch c.Type {
-			case string(directcsi.DirectCSIDriveConditionInitialized), string(directcsi.DirectCSIDriveConditionOwned):
+			case string(directcsi.DirectCSIDriveConditionInitialized), string(directcsi.DirectCSIDriveConditionOwned), string(directcsi.DirectCSIDriveConditionReady):
 				if c.Status != metav1.ConditionTrue {
 					msg = c.Message
 					if msg != "" {
