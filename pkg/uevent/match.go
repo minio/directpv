@@ -24,7 +24,7 @@ import (
 
 // If the corresponding field is empty in the drive, return consider
 // Else, return True if matched or False if not matched
-type matchFn func(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error)
+type matchFn func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error)
 
 type matchResult string
 
@@ -48,7 +48,7 @@ var stageOneMatchers = []matchFn{
 	partitionUUIDMatcher,
 	dmUUIDMatcher,
 	mdUUIDMatcher,
-	filesystemMatcher,
+	fileSystemTypeMatcher,
 	ueventFSUUIDMatcher,
 	// v1beta2 matchers
 	fsUUIDMatcher,
@@ -57,7 +57,6 @@ var stageOneMatchers = []matchFn{
 	logicalBlocksizeMatcher,
 	physicalBlocksizeMatcher,
 	totalCapacityMatcher,
-	allocatedCapacityMatcher,
 }
 
 // stageTwoMatchers are the conslusive matchers for more than one matching drives
@@ -129,7 +128,7 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 	}
 }
 
-func majMinMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
+func majMinMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
 	if drive.Status.MajorNumber != uint32(device.Major) {
 		return false, false, nil
 	}
@@ -139,7 +138,7 @@ func majMinMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match b
 	return true, true, nil
 }
 
-func pathMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
+func pathMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
 	if getRootBlockPath(drive.Status.Path) != device.DevPath() {
 		return false, false, nil
 	}
@@ -159,7 +158,7 @@ func match(drives []*directcsi.DirectCSIDrive,
 		if drive.Status.DriveStatus == directcsi.DriveStatusTerminating {
 			continue
 		}
-		match, consider, err := matchFn(drive, device)
+		match, consider, err := matchFn(device, drive)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -172,87 +171,176 @@ func match(drives []*directcsi.DirectCSIDrive,
 	return matchedDrives, consideredDrives, nil
 }
 
-func fsUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func partitionNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return drive.Status.PartitionNum == device.Partition, false, nil
 }
 
-func ueventFSUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func ueventSerialNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return immutablePropertyMatcher(device.UeventSerial, drive.Status.UeventSerial)
 }
 
-func serialNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func wwidMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return immutablePropertyMatcher(device.WWID, drive.Status.WWID)
 }
 
-func ueventSerialNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func modelNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return immutablePropertyMatcher(device.Model, drive.Status.ModelNumber)
 }
 
-func wwidMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func vendorMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return immutablePropertyMatcher(device.Vendor, drive.Status.Vendor)
 }
 
-func modelNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func partitionUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return immutablePropertyMatcher(device.PartUUID, drive.Status.PartitionUUID)
 }
 
-func vendorMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func dmUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return immutablePropertyMatcher(device.DMUUID, drive.Status.DMUUID)
 }
 
-func partitionNumberMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func mdUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return immutablePropertyMatcher(device.MDUUID, drive.Status.MDUUID)
 }
 
-func dmUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func partitionTableUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return immutablePropertyMatcher(device.PartUUID, drive.Status.PartTableUUID)
 }
 
-func mdUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+// Refer https://go.dev/play/p/zuaURPArfcL
+// ###################################### Truth table Hardware Matcher ####################################
+//	| alpha | beta |				Match 						|			Not-Match 					  |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   0	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   0	|   1  |				XXXXXXX     	            | match=false, consider=false, err = nil  |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   1	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   1	|   1  |	match=true, consider=false, err = nil   | match=false, consider=false, err = nil  |
+//  |-------|------|--------------------------------------------|-----------------------------------------|
+
+func immutablePropertyMatcher(alpha string, beta string) (bool, bool, error) {
+	var match, consider bool
+	var err error
+	switch {
+	case alpha == "" && beta == "":
+		consider = true
+	case alpha == "" && beta != "":
+	case alpha != "" && beta == "":
+		consider = true
+	case alpha != "" && beta != "":
+		if alpha == beta {
+			match = true
+		}
+	}
+	return match, consider, err
 }
 
-func partitionUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func ueventFSUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return fsPropertyMatcher(device.UeventFSUUID, drive.Status.UeventFSUUID)
 }
 
-func partitionTableUUIDMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func fsUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return fsPropertyMatcher(device.FSUUID, drive.Status.FilesystemUUID)
 }
 
-func logicalBlocksizeMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func serialNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return fsPropertyMatcher(device.Serial, drive.Status.SerialNumber)
 }
 
-func physicalBlocksizeMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func fileSystemTypeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return fsPropertyMatcher(device.FSType, drive.Status.Filesystem)
 }
 
-func filesystemMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+// Refer https://go.dev/play/p/zuaURPArfcL
+// ###################################### Truth table Hardware Matcher ####################################
+//	| alpha | beta |				Match 						|			Not-Match 					  |
+//	|-------|------|--------------------------------------------|------------------------------------------
+// 	|   0	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   0	|   1  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   1	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   1	|   1  |	match=true, consider=false, err = nil   | match=false, consider=true , err = nil  |
+//  |-------|------|--------------------------------------------|------------------------------------------
+
+func fsPropertyMatcher(alpha string, beta string) (bool, bool, error) {
+	var match, consider bool
+	var err error
+	switch {
+	case alpha == "" && beta == "":
+		consider = true
+	case alpha == "" && beta != "":
+		consider = true
+	case alpha != "" && beta == "":
+		consider = true
+	case alpha != "" && beta != "":
+		if alpha == beta {
+			match = true
+		} else {
+			consider = true
+		}
+	}
+	return match, consider, err
 }
 
-func totalCapacityMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func logicalBlocksizeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return sizeMatcher(int64(device.LogicalBlockSize), drive.Status.LogicalBlockSize)
 }
 
-func allocatedCapacityMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) (match bool, consider bool, err error) {
-	// To-Do: impelement matcher function
-	return
+func totalCapacityMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	return sizeMatcher(int64(device.TotalCapacity), drive.Status.TotalCapacity)
+}
+
+func sizeMatcher(alpha int64, beta int64) (bool, bool, error) {
+	var match, consider bool
+	var err error
+	switch {
+	case alpha == 0 && beta == 0:
+		consider = true
+	case alpha == 0 && beta != 0:
+		consider = true
+	case alpha != 0 && beta == 0:
+		consider = true
+	case alpha != 0 && beta != 0:
+		if alpha == beta {
+			match = true
+		} else {
+			consider = true
+		}
+	}
+	return match, consider, err
+}
+
+// Refer https://go.dev/play/p/zuaURPArfcL
+// ###################################### Truth table Hardware Matcher ####################################
+//	| alpha | beta |				Match 						|			Not-Match 					  |
+//	|-------|------|--------------------------------------------|------------------------------------------
+// 	|   0	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   0	|   1  |				XXXXXXX           			| match=false, consider=true, err = nil   |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   1	|   0  |				XXXXXXX 					| match=false, consider=true, err = nil   |
+//	|-------|------|--------------------------------------------|-----------------------------------------|
+// 	|   1	|   1  |	match=true, consider=false, err = nil   | match=false, consider=fals , err = nil  |
+//  |-------|------|--------------------------------------------|-----------------------------------------|
+
+func physicalBlocksizeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	var match, consider bool
+	var err error
+	switch {
+	case int64(device.PhysicalBlockSize) == 0 && drive.Status.PhysicalBlockSize == 0:
+		consider = true
+	case int64(device.PhysicalBlockSize) == 0 && drive.Status.PhysicalBlockSize != 0:
+		consider = true
+	case int64(device.PhysicalBlockSize) != 0 && drive.Status.PhysicalBlockSize == 0:
+		consider = true
+	case int64(device.PhysicalBlockSize) != 0 && drive.Status.PhysicalBlockSize != 0:
+		if int64(device.PhysicalBlockSize) == drive.Status.PhysicalBlockSize {
+			match = true
+		}
+	}
+	return match, consider, err
 }
