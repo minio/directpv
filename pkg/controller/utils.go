@@ -24,6 +24,8 @@ import (
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/matcher"
+	"github.com/minio/directpv/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -31,6 +33,14 @@ import (
 )
 
 func matchDrive(drive directcsi.DirectCSIDrive, req *csi.CreateVolumeRequest) bool {
+	// Match drive only if it is Ready
+	if utils.IsConditionStatus(
+		drive.Status.Conditions,
+		string(directcsi.DirectCSIDriveConditionReady),
+		metav1.ConditionFalse) {
+		return false
+	}
+
 	// Match drive only in Ready or InUse state.
 	switch drive.Status.DriveStatus {
 	case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:

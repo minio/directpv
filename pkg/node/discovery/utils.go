@@ -55,7 +55,7 @@ func (d *Discovery) verifyDriveMount(existingDrive *directcsi.DirectCSIDrive) er
 			if err != nil {
 				return err
 			}
-			if err = mount.Mount("/dev/"+name, mountTarget, "xfs", nil, "prjquota"); err != nil {
+			if err = mount.Mount("/dev/"+name, mountTarget, "xfs", nil, mount.MountOptPrjQuota); err != nil {
 				return err
 			}
 			existingDrive.Status.Mountpoint = mountTarget
