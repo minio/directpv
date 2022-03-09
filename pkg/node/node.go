@@ -38,7 +38,7 @@ import (
 )
 
 func safeBindMount(source, target string, recursive, readOnly bool) error {
-	return mount.SafeBindMount(source, target, "xfs", recursive, readOnly, "prjquota")
+	return mount.SafeBindMount(source, target, "xfs", recursive, readOnly, mount.MountOptPrjQuota)
 }
 
 func getDevice(major, minor uint32) (string, error) {

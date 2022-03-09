@@ -70,7 +70,7 @@ var (
 
 type DeviceUEventHandler interface {
 	Add(context.Context, *sys.Device) error
-	Change(context.Context, *sys.Device, *directcsi.DirectCSIDrive) error
+	Update(context.Context, *sys.Device, *directcsi.DirectCSIDrive) error
 	Remove(context.Context, *sys.Device, *directcsi.DirectCSIDrive) error
 }
 
@@ -264,7 +264,7 @@ func (l *listener) processUpdate(ctx context.Context,
 	case noMatch:
 		return l.handler.Add(ctx, device)
 	case changed:
-		return l.handler.Change(ctx, device, drive)
+		return l.handler.Update(ctx, device, drive)
 	case noChange:
 		return nil
 	case tooManyMatches:

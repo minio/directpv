@@ -22,6 +22,11 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const (
+	// MountOptPrjQuota option for project quota
+	MountOptPrjQuota = "prjquota"
+)
+
 // Mount mounts device to target using fsType, flags and superBlockFlags.
 func Mount(device, target, fsType string, flags []string, superBlockFlags string) error {
 	return mount(device, target, fsType, flags, superBlockFlags)
@@ -59,5 +64,5 @@ func MountXFSDevice(device, target string, flags []string) error {
 	}
 
 	klog.V(3).InfoS("mounting device", "device", device, "target", target)
-	return SafeMount(device, target, "xfs", flags, "prjquota")
+	return SafeMount(device, target, "xfs", flags, MountOptPrjQuota)
 }

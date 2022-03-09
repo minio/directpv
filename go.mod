@@ -33,6 +33,7 @@ require (
 	github.com/smartystreets/assertions v1.1.1 // indirect
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/viper v1.8.1
+	go.uber.org/multierr v1.6.0
 	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
 	golang.org/x/sys v0.0.0-20210510120138-977fb7262007
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
