@@ -21,8 +21,8 @@ import (
 	"testing"
 )
 
-func testProbeCast1Result() map[string][]Info {
-	return map[string][]Info{
+func testProbeCast1Result() map[string][]MountInfo {
+	return map[string][]MountInfo{
 		"0:12": {
 			{MajorMinor: "0:12", MountPoint: "/sys/kernel/tracing", MountOptions: []string{"nodev", "noexec", "nosuid", "relatime", "rw"}, fsType: "tracefs"},
 		},
@@ -107,8 +107,8 @@ func testProbeCast1Result() map[string][]Info {
 	}
 }
 
-func testProbeCast2Result() map[string][]Info {
-	return map[string][]Info{
+func testProbeCast2Result() map[string][]MountInfo {
+	return map[string][]MountInfo{
 		"0:11": {
 			{MajorMinor: "0:11", MountPoint: "/sys/kernel/tracing", MountOptions: []string{"nodev", "noexec", "nosuid", "relatime", "rw"}, fsType: "tracefs"},
 		},
@@ -263,8 +263,8 @@ func testProbeCast2Result() map[string][]Info {
 	}
 }
 
-func testProbeCast3Result() map[string][]Info {
-	return map[string][]Info{
+func testProbeCast3Result() map[string][]MountInfo {
+	return map[string][]MountInfo{
 		"0:101": {
 			{MajorMinor: "0:101", MountPoint: "/var/lib/kubelet/pods/3594fe81-84c4-415c-9b28-f9bdb136e0c0/volumes/kubernetes.io~secret/conversion-webhook-certs", MountOptions: []string{"relatime", "rw"}, fsType: "tmpfs"},
 		},
@@ -521,7 +521,7 @@ func testProbeCast3Result() map[string][]Info {
 func TestProbe(t *testing.T) {
 	testCases := []struct {
 		filename       string
-		expectedResult map[string][]Info
+		expectedResult map[string][]MountInfo
 	}{
 		{"mountinfo.testdata1", testProbeCast1Result()},
 		{"mountinfo.testdata2", testProbeCast2Result()},

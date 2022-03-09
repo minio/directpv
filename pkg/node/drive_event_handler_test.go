@@ -76,7 +76,7 @@ func TestAddHandler(t *testing.T) {
 	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset().DirectV1beta3().DirectCSIDrives())
 	ctx := context.TODO()
 	handler := createDriveEventHandler()
-	if err := handler.add(ctx, device); err != nil {
+	if err := handler.Add(ctx, device); err != nil {
 		t.Fatalf("could not create drive: %v", err)
 	}
 
