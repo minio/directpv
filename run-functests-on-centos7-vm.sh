@@ -116,7 +116,7 @@ function run_functional_test() {
     export VM_IMAGE="${VM_NAME}.qcow2c"
     start_test_vm
 
-    scp_cmd CREDITS LICENSE centos.repo direct-csi kubectl-direct_csi Dockerfile "root@${VM_IPADDR}:"
+    scp_cmd CREDITS LICENSE centos.repo directpv kubectl-directpv Dockerfile "root@${VM_IPADDR}:"
     ssh_cmd "${VM_IPADDR}" "docker build -t quay.io/minio/directpv:${BUILD_TAG} -f Dockerfile ."
     ssh_cmd "${VM_IPADDR}" "minikube start --driver=none"
     scp_cmd -r functests "root@${VM_IPADDR}:"
