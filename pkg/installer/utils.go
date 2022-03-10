@@ -101,16 +101,12 @@ func newSecretVolume(name, secretName string) corev1.Volume {
 	}
 }
 
-func newVolumeMount(name, path string, bidirectional, readOnly bool) corev1.VolumeMount {
-	mountProp := corev1.MountPropagationNone
-	if bidirectional {
-		mountProp = corev1.MountPropagationBidirectional
-	}
+func newVolumeMount(name, path string, mountPropogation corev1.MountPropagationMode, readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:             name,
 		ReadOnly:         readOnly,
 		MountPath:        path,
-		MountPropagation: &mountProp,
+		MountPropagation: &mountPropogation,
 	}
 }
 
