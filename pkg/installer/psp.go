@@ -46,7 +46,7 @@ func createPodSecurityPolicy(ctx context.Context, i *Config) error {
 		Spec: policy.PodSecurityPolicySpec{
 			Privileged:          true,
 			HostPID:             true,
-			HostIPC:             true,
+			HostIPC:             false,
 			AllowedCapabilities: []corev1.Capability{policy.AllowAllCapabilities},
 			Volumes:             []policy.FSType{policy.HostPath},
 			AllowedHostPaths: []policy.AllowedHostPath{

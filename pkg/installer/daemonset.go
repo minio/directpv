@@ -99,7 +99,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: c.serviceAccountName(),
-		HostIPC:            true,
+		HostIPC:            false,
 		HostPID:            true,
 		Volumes:            volumes,
 		ImagePullSecrets:   c.getImagePullSecrets(),
