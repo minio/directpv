@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,6 +51,7 @@ const (
 
 var (
 	errInvalidConversionHealthzURL = errors.New("the `--conversion-webhook-healthz-url` flag is unset/empty")
+	errMountFailure                = errors.New("could not mount the drive")
 )
 
 func waitForConversionWebhook() error {
@@ -101,31 +101,32 @@ func waitForConversionWebhook() error {
 	return nil
 }
 
-func checkXFS(ctx context.Context) (bool, error) {
+func checkXFS(ctx context.Context, reflinkSupport bool) error {
 	mountPoint, err := os.MkdirTemp("", "xfs.check.mnt.")
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer os.Remove(mountPoint)
 
 	file, err := os.CreateTemp("", "xfs.check.file.")
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer os.Remove(file.Name())
 	file.Close()
 
 	if err = os.Truncate(file.Name(), sys.MinSupportedDeviceSize); err != nil {
-		return false, err
+		return err
 	}
 
-	if err = xfs.MakeFS(ctx, file.Name(), uuid.New().String(), false, true); err != nil {
-		return false, err
+	if err = xfs.MakeFS(ctx, file.Name(), uuid.New().String(), false, reflinkSupport); err != nil {
+		klog.V(3).ErrorS(err, "failed to format", "reflink", reflinkSupport)
+		return err
 	}
 
 	loopDevice, err := losetup.Attach(file.Name(), 0, false)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	defer func() {
@@ -135,13 +136,11 @@ func checkXFS(ctx context.Context) (bool, error) {
 	}()
 
 	if err = mount.Mount(loopDevice.Path(), mountPoint, "xfs", nil, ""); err != nil {
-		if errors.Is(err, syscall.EINVAL) {
-			err = nil
-		}
-		return false, err
+		klog.V(3).ErrorS(err, "failed to mount", "reflink", reflinkSupport)
+		return errMountFailure
 	}
 
-	return true, mount.Unmount(mountPoint, true, true, false)
+	return mount.Unmount(mountPoint, true, true, false)
 }
 
 func run(ctx context.Context, args []string) error {
@@ -169,9 +168,22 @@ func run(ctx context.Context, args []string) error {
 
 	var nodeSrv csi.NodeServer
 	if driver {
-		reflinkSupport, err := checkXFS(ctx)
-		if err != nil {
-			return err
+
+		var reflinkSupport bool
+		// try with reflink enabled
+		if err := checkXFS(ctx, true); err == nil {
+			reflinkSupport = true
+			klog.V(3).Infof("enabled reflink while formatting")
+		} else {
+			if !errors.Is(err, errMountFailure) {
+				return err
+			}
+			// try with reflink disabled
+			if err := checkXFS(ctx, false); err != nil {
+				return err
+			}
+			reflinkSupport = false
+			klog.V(3).Infof("disabled reflink while formatting")
 		}
 
 		if !dynamicDriveDiscovery {
