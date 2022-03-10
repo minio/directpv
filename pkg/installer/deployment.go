@@ -115,14 +115,14 @@ func createDeployment(ctx context.Context, c *Config) error {
 		newSecretVolume(conversionKeyPair, conversionKeyPair),
 	}
 	directCSIVolumeMounts := []corev1.VolumeMount{
-		newVolumeMount(volumeNameSocketDir, "/csi", false, false),
-		newVolumeMount(conversionCACert, conversionCADir, false, false),
-		newVolumeMount(conversionKeyPair, conversionCertsDir, false, false),
+		newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
+		newVolumeMount(conversionCACert, conversionCADir, corev1.MountPropagationNone, false),
+		newVolumeMount(conversionKeyPair, conversionCertsDir, corev1.MountPropagationNone, false),
 	}
 
 	if c.AdmissionControl {
 		volumes = append(volumes, newSecretVolume(admissionControllerCertsDir, admissionWebhookSecretName))
-		directCSIVolumeMounts = append(directCSIVolumeMounts, newVolumeMount(admissionControllerCertsDir, admissionCertsDir, false, false))
+		directCSIVolumeMounts = append(directCSIVolumeMounts, newVolumeMount(admissionControllerCertsDir, admissionCertsDir, corev1.MountPropagationNone, false))
 	}
 
 	podSpec := corev1.PodSpec{
@@ -148,7 +148,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", false, false),
+					newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/controller-provisioner-termination-log",

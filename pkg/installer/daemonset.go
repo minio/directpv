@@ -78,28 +78,28 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		newSecretVolume(conversionKeyPair, conversionKeyPair),
 	}
 	volumeMounts := []corev1.VolumeMount{
-		newVolumeMount(volumeNameSocketDir, "/csi", false, false),
-		newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", true, false),
-		newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", true, false),
-		newVolumeMount(volumeNameCSIRootDir, csiRootPath, true, false),
-		newVolumeMount(conversionCACert, conversionCADir, false, false),
-		newVolumeMount(conversionKeyPair, conversionCertsDir, false, false),
+		newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
+		newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", corev1.MountPropagationBidirectional, false),
+		newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", corev1.MountPropagationBidirectional, false),
+		newVolumeMount(volumeNameCSIRootDir, csiRootPath, corev1.MountPropagationBidirectional, false),
+		newVolumeMount(conversionCACert, conversionCADir, corev1.MountPropagationNone, false),
+		newVolumeMount(conversionKeyPair, conversionCertsDir, corev1.MountPropagationNone, false),
 	}
 
 	volumes = append(volumes, newHostPathVolume(volumeNameSysDir, volumePathSysDir))
-	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameSysDir, volumePathSysDir, true, true))
+	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameSysDir, volumePathSysDir, corev1.MountPropagationBidirectional, true))
 
 	volumes = append(volumes, newHostPathVolume(volumeNameDevDir, volumePathDevDir))
-	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameDevDir, volumePathDevDir, true, true))
+	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameDevDir, volumePathDevDir, corev1.MountPropagationHostToContainer, true))
 
 	if c.DynamicDriveDiscovery {
 		volumes = append(volumes, newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData))
-		volumeMounts = append(volumeMounts, newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, true, true))
+		volumeMounts = append(volumeMounts, newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, corev1.MountPropagationBidirectional, true))
 	}
 
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: c.serviceAccountName(),
-		HostIPC:            true,
+		HostIPC:            false,
 		HostPID:            true,
 		Volumes:            volumes,
 		ImagePullSecrets:   c.getImagePullSecrets(),
@@ -125,8 +125,8 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 					},
 				},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", false, false),
-					newVolumeMount(volumeNameRegistrationDir, "/registration", false, false),
+					newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
+					newVolumeMount(volumeNameRegistrationDir, "/registration", corev1.MountPropagationNone, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
@@ -214,7 +214,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-liveness-termination-log",
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", false, false),
+					newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
 				},
 			},
 		},
@@ -254,9 +254,9 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 			TerminationMessagePath:   "/var/log/driver-termination-log",
 			VolumeMounts: []corev1.VolumeMount{
-				newVolumeMount(volumeNameSysDir, volumePathSysDir, true, true),
-				newVolumeMount(volumeNameDevDir, volumePathDevDir, true, true),
-				newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, true, true),
+				newVolumeMount(volumeNameSysDir, volumePathSysDir, corev1.MountPropagationBidirectional, true),
+				newVolumeMount(volumeNameDevDir, volumePathDevDir, corev1.MountPropagationHostToContainer, true),
+				newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, corev1.MountPropagationBidirectional, true),
 			},
 		})
 	}

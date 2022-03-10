@@ -21,7 +21,6 @@ DirectCSI needs the following host access
 | Path       | Notes                                                        |
 |------------|--------------------------------------------------------------|
 | HostPID    | This is required to detect mount status of managed drives    |
-| HostIPC    | This is required to communicate with Kubelet                 |
 
 ### File Permissions
 
