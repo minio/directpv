@@ -349,7 +349,8 @@ func getAllDevices() (devices map[string]*Device, err error) {
 	devices = map[string]*Device{}
 	for _, name := range names {
 		if device, err = probeDevice(name); err != nil {
-			return nil, err
+			klog.V(3).Infof("couldn't probe device: %s due to error: %v", name, err)
+			continue
 		}
 		devices[name] = device
 	}
@@ -387,7 +388,8 @@ func updatePartTableInfo(devices map[string]*Device) error {
 			case errors.Is(err, parttable.ErrPartTableNotFound):
 			case strings.Contains(strings.ToLower(err.Error()), "no medium found"):
 			default:
-				return err
+				klog.V(3).Infof("couldn't probe parttable for device %s due to error %v", name, err)
+				continue
 			}
 		}
 
@@ -400,7 +402,8 @@ func updatePartTableInfo(devices map[string]*Device) error {
 
 		partitions, err := getPartitions(name)
 		if err != nil {
-			return err
+			klog.V(3).Infof("couldn't get partitions for device %s due to error %v", name, err)
+			continue
 		}
 		devices[name].Partitioned = len(partitions) > 0
 		for _, partition := range partitions {
@@ -416,7 +419,8 @@ func updatePartTableInfo(devices map[string]*Device) error {
 
 		slaves, err := getSlaves(name)
 		if err != nil {
-			return err
+			klog.V(3).Infof("couldn't get info for device %s due to error %v", name, err)
+			continue
 		}
 		for _, slave := range slaves {
 			devices[slave].Master = name
@@ -525,36 +529,43 @@ func probeDevicesFromUdev() (devices map[string]*Device, err error) {
 		if !hidden {
 			major, minor, err := getMajorMinor(name)
 			if err != nil {
-				return nil, err
+				klog.V(3).Infof("couldn't get maj:min of device %s due to error %v", name, err)
+				continue
 			}
 
 			virtual, err := getVirtual(name)
 			if err != nil {
-				return nil, err
+				klog.V(3).Infof("couldn't get virtual info of device %s due to error %v", name, err)
+				continue
 			}
 
 			event, err := readRunUdevData(major, minor)
 			if err != nil {
-				return nil, err
+				klog.V(3).Infof("couldn't get udevinfo of device %s due to error %v", name, err)
+				continue
 			}
 
 			device, err = newDevice(event, name, major, minor, virtual)
 			if err != nil {
-				return nil, err
+				klog.V(3).Infof("couldn't construct new device %s due to error %v", name, err)
+				continue
 			}
 		} else {
 			device = &Device{Hidden: true}
 		}
 
 		if device.Size, err = getSize(name); err != nil {
-			return nil, err
+			klog.V(3).Infof("couldn't get size info of device %s due to error %v", name, err)
+			continue
 		}
 
 		if device.Removable, err = getRemovable(name); err != nil {
-			return nil, err
+			klog.V(3).Infof("couldn't get removable info of device %s due to error %v", name, err)
+			continue
 		}
 		if device.ReadOnly, err = getReadOnly(name); err != nil {
-			return nil, err
+			klog.V(3).Infof("couldn't get readonly info of device %s due to error %v", name, err)
+			continue
 		}
 
 		devices[name] = device
