@@ -47,7 +47,13 @@ func isDirectCSIMount(mountPoints []string) bool {
 // NewDirectCSIDriveStatus creates direct CSI drive status.
 func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[string]string) directcsi.DirectCSIDriveStatus {
 	driveStatus := directcsi.DriveStatusAvailable
-	if device.Size < sys.MinSupportedDeviceSize || device.ReadOnly || device.Partitioned || device.SwapOn || device.Master != "" || !isDirectCSIMount(device.MountPoints) {
+	if device.Size < sys.MinSupportedDeviceSize ||
+		device.SwapOn ||
+		device.Hidden ||
+		device.ReadOnly ||
+		device.Partitioned ||
+		device.Master != "" ||
+		!isDirectCSIMount(device.MountPoints) {
 		driveStatus = directcsi.DriveStatusUnavailable
 	}
 

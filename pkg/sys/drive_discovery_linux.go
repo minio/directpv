@@ -248,6 +248,14 @@ func getVirtual(name string) (bool, error) {
 	return strings.HasPrefix(absPath, "/sys/devices/virtual/block/"), nil
 }
 
+func getHidden(name string) bool {
+	// errors ignored since real devices do not have <sys>/hidden
+	// borrow idea from 'lsblk'
+	// https://github.com/util-linux/util-linux/commit/c8487d854ba5cf5bfcae78d8e5af5587e7622351
+	v, _ := readFirstLine("/sys/class/block/"+name+"/hidden", false)
+	return v == "1"
+}
+
 func getPartitions(name string) ([]string, error) {
 	names, err := readdirnames("/sys/block/"+name, false)
 	if err != nil {
@@ -278,14 +286,22 @@ func readSysClassBlock() ([]string, error) {
 
 func probeDevice(name string) (device *Device, err error) {
 	device = &Device{Name: name}
-	if device.Major, device.Minor, err = getMajorMinor(name); err != nil {
-		return nil, err
+	device.Hidden = getHidden(name)
+	// hidden devices do not have major,minor value.
+	if !device.Hidden {
+		device.Major, device.Minor, err = getMajorMinor(name)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if device.Size, err = getSize(name); err != nil {
 		return nil, err
 	}
-	if device.Partition, err = getPartition(name); err != nil {
-		return nil, err
+	// hidden devices do not have parititions.
+	if !device.Hidden {
+		if device.Partition, err = getPartition(name); err != nil {
+			return nil, err
+		}
 	}
 	if device.Removable, err = getRemovable(name); err != nil {
 		return nil, err
@@ -305,17 +321,20 @@ func probeDevice(name string) (device *Device, err error) {
 	if device.Vendor, err = getVendor(name); err != nil {
 		return nil, err
 	}
-	if device.DMName, err = getDMName(name); err != nil {
-		return nil, err
-	}
-	if device.DMUUID, err = getDMUUID(name); err != nil {
-		return nil, err
-	}
-	if device.MDUUID, err = getMDUUID(name); err != nil {
-		return nil, err
-	}
-	if device.Virtual, err = getVirtual(name); err != nil {
-		return nil, err
+	// hidden devices do not have dmname, dmuuid, mduuid and virtual links.
+	if !device.Hidden {
+		if device.DMName, err = getDMName(name); err != nil {
+			return nil, err
+		}
+		if device.DMUUID, err = getDMUUID(name); err != nil {
+			return nil, err
+		}
+		if device.MDUUID, err = getMDUUID(name); err != nil {
+			return nil, err
+		}
+		if device.Virtual, err = getVirtual(name); err != nil {
+			return nil, err
+		}
 	}
 	return device, nil
 }
@@ -351,6 +370,17 @@ func updatePartTableInfo(devices map[string]*Device) error {
 	}
 
 	for _, name := range names {
+		device, ok := devices[name]
+		if !ok {
+			klog.V(3).Infof("device name %s present in /sys/block missing from /sys/class/block probe, ignoring", name)
+			continue
+		}
+
+		if device.Hidden {
+			// No partitions for hidden devices.
+			continue
+		}
+
 		partTable, err := probePartTable(name)
 		if devices[name].Size > 0 && err != nil {
 			switch {
@@ -449,6 +479,17 @@ func updateRelationship(devices map[string]*Device) error {
 	}
 
 	for _, name := range names {
+		device, ok := devices[name]
+		if !ok {
+			klog.V(3).Infof("device name %s present in /sys/block missing from udev probe, ignoring", name)
+			continue
+		}
+
+		if device.Hidden {
+			// No partitions for hidden devices.
+			continue
+		}
+
 		partitions, err := getPartitions(name)
 		if err != nil {
 			return err
@@ -479,24 +520,30 @@ func probeDevicesFromUdev() (devices map[string]*Device, err error) {
 
 	devices = map[string]*Device{}
 	for _, name := range names {
-		major, minor, err := getMajorMinor(name)
-		if err != nil {
-			return nil, err
-		}
+		hidden := getHidden(name)
+		var device *Device
+		if !hidden {
+			major, minor, err := getMajorMinor(name)
+			if err != nil {
+				return nil, err
+			}
 
-		virtual, err := getVirtual(name)
-		if err != nil {
-			return nil, err
-		}
+			virtual, err := getVirtual(name)
+			if err != nil {
+				return nil, err
+			}
 
-		event, err := readRunUdevData(major, minor)
-		if err != nil {
-			return nil, err
-		}
+			event, err := readRunUdevData(major, minor)
+			if err != nil {
+				return nil, err
+			}
 
-		device, err := newDevice(event, name, major, minor, virtual)
-		if err != nil {
-			return nil, err
+			device, err = newDevice(event, name, major, minor, virtual)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			device = &Device{Hidden: true}
 		}
 
 		if device.Size, err = getSize(name); err != nil {
@@ -730,6 +777,10 @@ func probeDevices() (devices map[string]*Device, err error) {
 	}
 
 	for _, device := range devices {
+		if device.Hidden {
+			// No FS information needed for hidden devices
+			continue
+		}
 		if err = updateFSInfo(device, CDROMs, swaps, mountInfos, mountPointsMap); err != nil {
 			return nil, err
 		}
