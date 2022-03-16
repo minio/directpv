@@ -94,6 +94,12 @@ func (d *driveEventHandler) Update(ctx context.Context, device *sys.Device, driv
 	return err
 }
 
-func (d *driveEventHandler) Remove(ctx context.Context, device *sys.Device, drive *directcsi.DirectCSIDrive) error {
-	return nil
+func (d *driveEventHandler) Remove(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+	utils.UpdateCondition(drive.Status.Conditions,
+		string(directcsi.DirectCSIDriveConditionReady),
+		metav1.ConditionFalse,
+		string(directcsi.DirectCSIDriveReasonLost),
+		"drive is removed")
+	_, err := client.GetLatestDirectCSIDriveInterface().Update(ctx, drive, metav1.UpdateOptions{})
+	return err
 }
