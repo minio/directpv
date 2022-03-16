@@ -71,7 +71,7 @@ var (
 type DeviceUEventHandler interface {
 	Add(context.Context, *sys.Device) error
 	Update(context.Context, *sys.Device, *directcsi.DirectCSIDrive) error
-	Remove(context.Context, *sys.Device, *directcsi.DirectCSIDrive) error
+	Remove(context.Context, *directcsi.DirectCSIDrive) error
 }
 
 type listener struct {
@@ -286,7 +286,7 @@ func (l *listener) processRemove(ctx context.Context,
 			"DEVICE", device.Name)
 		return nil
 	case changed, noChange:
-		return l.handler.Remove(ctx, device, drive)
+		return l.handler.Remove(ctx, drive)
 	case tooManyMatches:
 		return errTooManyMatchesFound(device, Remove)
 	default:
