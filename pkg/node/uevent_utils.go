@@ -127,6 +127,9 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	}
 	updatedDrive.Status.FreeCapacity = updatedDrive.Status.TotalCapacity - updatedDrive.Status.AllocatedCapacity
 
+	// check and update if the requests succeeded
+	checkAndUpdateConditions(updatedDrive)
+
 	return updatedDrive
 }
 
@@ -256,4 +259,78 @@ func validDirectPVMountOpts(deviceMountOpts []string) bool {
 		}
 	}
 	return true
+}
+
+func checkAndUpdateConditions(drive *directcsi.DirectCSIDrive) {
+	switch {
+	// Check if formatting request suceeded, If so, update the status fields
+	case drive.Spec.RequestedFormat != nil && drive.Status.DriveStatus == directcsi.DriveStatusAvailable:
+		if drive.Status.Mountpoint == filepath.Join(sys.MountRoot, drive.Name) {
+			drive.Finalizers = []string{directcsi.DirectCSIDriveFinalizerDataProtection}
+			drive.Status.DriveStatus = directcsi.DriveStatusReady
+			drive.Spec.RequestedFormat = nil
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionOwned),
+				metav1.ConditionTrue,
+				string(directcsi.DirectCSIDriveReasonAdded),
+				"",
+			)
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionMounted),
+				metav1.ConditionTrue,
+				string(directcsi.DirectCSIDriveReasonAdded),
+				"",
+			)
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionFormatted),
+				metav1.ConditionTrue,
+				string(directcsi.DirectCSIDriveReasonAdded),
+				"",
+			)
+		}
+	// Check if release request succeeded
+	case drive.Status.DriveStatus == directcsi.DriveStatusReleased:
+		if drive.Status.Mountpoint == "" {
+			drive.Status.DriveStatus = directcsi.DriveStatusAvailable
+			drive.Finalizers = []string{}
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionMounted),
+				metav1.ConditionFalse,
+				string(directcsi.DirectCSIDriveReasonAdded),
+				"",
+			)
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionOwned),
+				metav1.ConditionFalse,
+				string(directcsi.DirectCSIDriveReasonAdded),
+				"",
+			)
+		}
+	default:
+		mountCondition := utils.BoolToCondition(drive.Status.Mountpoint != "")
+		formattedCondition := utils.BoolToCondition(drive.Status.Filesystem != "")
+		if !utils.IsConditionStatus(drive.Status.Conditions, string(directcsi.DirectCSIDriveConditionMounted), mountCondition) {
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionMounted),
+				mountCondition,
+				string(directcsi.DirectCSIDriveReasonAdded),
+				"",
+			)
+		}
+		if !utils.IsConditionStatus(drive.Status.Conditions, string(directcsi.DirectCSIDriveConditionFormatted), formattedCondition) {
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionFormatted),
+				formattedCondition,
+				string(directcsi.DirectCSIDriveReasonAdded),
+				"",
+			)
+		}
+	}
 }
