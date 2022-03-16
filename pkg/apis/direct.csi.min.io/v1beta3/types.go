@@ -208,6 +208,9 @@ const (
 
 	// DirectCSIDriveReasonReady denotes "Ready" drive reason.
 	DirectCSIDriveReasonReady DirectCSIDriveReason = "Ready"
+
+	// DirectCSIDriveReasonLost denotes "Lost" drive reason.
+	DirectCSIDriveReasonLost DirectCSIDriveReason = "Lost"
 )
 
 // DirectCSIDriveMessage denotes drive message.
