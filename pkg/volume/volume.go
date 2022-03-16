@@ -30,24 +30,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/retry"
-
-	"k8s.io/klog/v2"
 )
-
-func excludeFinalizer(finalizers []string, finalizer string) (result []string, found bool) {
-	for _, f := range finalizers {
-		if f != finalizer {
-			result = append(result, f)
-		} else {
-			found = true
-		}
-	}
-	return
-}
 
 type volumeEventHandler struct {
 	nodeID string
+}
+
+// StartController starts volume controller.
+func StartController(ctx context.Context, nodeID string) error {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+
+	listener := listener.NewListener(newVolumeEventHandler(nodeID), "volume-controller", hostname, 40)
+	return listener.Run(ctx)
 }
 
 func newVolumeEventHandler(nodeID string) *volumeEventHandler {
@@ -68,6 +65,39 @@ func (handler *volumeEventHandler) Name() string {
 
 func (handler *volumeEventHandler) ObjectType() runtime.Object {
 	return &directcsi.DirectCSIVolume{}
+}
+
+func (handler *volumeEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
+	if args.Event == listener.DeleteEvent {
+		return handler.delete(ctx, args.Object.(*directcsi.DirectCSIVolume))
+	}
+	return nil
+}
+
+func (handler *volumeEventHandler) delete(ctx context.Context, volume *directcsi.DirectCSIVolume) error {
+	finalizers, _ := excludeFinalizer(
+		volume.GetFinalizers(), string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
+	)
+	if len(finalizers) > 0 {
+		return fmt.Errorf("waiting for the volume to be released before cleaning up")
+	}
+
+	// Remove associated directory of the volume.
+	if err := os.RemoveAll(volume.Status.HostPath); err != nil {
+		return err
+	}
+
+	// Release volume from associated drive.
+	if err := handler.releaseVolume(ctx, volume.Status.Drive, volume.Name, volume.Status.TotalCapacity); err != nil {
+		return err
+	}
+
+	volume.SetFinalizers(finalizers)
+	_, err := client.GetLatestDirectCSIVolumeInterface().Update(
+		ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+	)
+
+	return err
 }
 
 func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName, volumeName string, capacity int64) error {
@@ -102,123 +132,13 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName,
 	return err
 }
 
-func (handler *volumeEventHandler) delete(ctx context.Context, volume *directcsi.DirectCSIVolume) error {
-	finalizers, _ := excludeFinalizer(
-		volume.GetFinalizers(), string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
-	)
-	if len(finalizers) > 0 {
-		return fmt.Errorf("waiting for the volume to be released before cleaning up")
-	}
-
-	// Remove associated directory of the volume.
-	if err := os.RemoveAll(volume.Status.HostPath); err != nil {
-		return err
-	}
-
-	// Release volume from associated drive.
-	if err := handler.releaseVolume(ctx, volume.Status.Drive, volume.Name, volume.Status.TotalCapacity); err != nil {
-		return err
-	}
-
-	volume.SetFinalizers(finalizers)
-	_, err := client.GetLatestDirectCSIVolumeInterface().Update(
-		ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
-	)
-
-	return err
-}
-
-func (handler *volumeEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
-	if args.Event == listener.DeleteEvent {
-		return handler.delete(ctx, args.Object.(*directcsi.DirectCSIVolume))
-	}
-
-	return nil
-}
-
-// StartController starts volume controller.
-func StartController(ctx context.Context, nodeID string) error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-
-	listener := listener.NewListener(newVolumeEventHandler(nodeID), "volume-controller", hostname, 40)
-	return listener.Run(ctx)
-}
-
-func getLabels(ctx context.Context, volume *directcsi.DirectCSIVolume) map[string]string {
-	drive, err := client.GetLatestDirectCSIDriveInterface().Get(
-		ctx, volume.Status.Drive, metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
-	)
-
-	var driveName, drivePath string
-	if err == nil {
-		finalizer := directcsi.DirectCSIDriveFinalizerPrefix + volume.Name
-		for _, f := range drive.GetFinalizers() {
-			if f == finalizer {
-				driveName, drivePath = drive.Name, drive.Status.Path
-				break
-			}
+func excludeFinalizer(finalizers []string, finalizer string) (result []string, found bool) {
+	for _, f := range finalizers {
+		if f != finalizer {
+			result = append(result, f)
+		} else {
+			found = true
 		}
 	}
-
-	labels := volume.GetLabels()
-	if labels == nil {
-		labels = make(map[string]string)
-	}
-
-	labels[string(utils.NodeLabelKey)] = string(utils.NewLabelValue(volume.Status.NodeName))
-	labels[string(utils.DrivePathLabelKey)] = string(utils.NewLabelValue(utils.SanitizeDrivePath(drivePath)))
-	labels[string(utils.DriveLabelKey)] = string(utils.NewLabelValue(driveName))
-	labels[string(utils.CreatedByLabelKey)] = utils.DirectCSIControllerName
-
-	return labels
-}
-
-// SyncVolumes syncs direct-csi volume CRD.
-func SyncVolumes(ctx context.Context, nodeID string) {
-	updateLabels := func(volume *directcsi.DirectCSIVolume) func() error {
-		return func() error {
-			volumeClient := client.GetLatestDirectCSIVolumeInterface()
-			volume, err := volumeClient.Get(
-				ctx, volume.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
-			)
-			if err != nil {
-				return err
-			}
-
-			// update labels
-			volume.SetLabels(getLabels(ctx, volume))
-			_, err = volumeClient.Update(
-				ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
-			)
-			return err
-		}
-	}
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh, err := client.ListVolumes(ctx,
-		[]utils.LabelValue{utils.NewLabelValue(nodeID)},
-		nil,
-		nil,
-		nil,
-		client.MaxThreadCount)
-	if err != nil {
-		klog.V(3).Infof("Error while syncing CRD versions in directpvvolume: %v", err)
-		return
-	}
-
-	for result := range resultCh {
-		if result.Err != nil {
-			klog.V(3).Infof("Error while syncing CRD versions in directpvvolume: %v", err)
-			return
-		}
-
-		if err := retry.RetryOnConflict(retry.DefaultRetry, updateLabels(&result.Volume)); err != nil {
-			klog.V(3).Infof("Error while syncing CRD versions in directpvvolume: %v", err)
-		}
-	}
+	return
 }
