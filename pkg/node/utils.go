@@ -77,7 +77,7 @@ func (n *NodeServer) checkDrive(ctx context.Context, drive *directcsi.DirectCSID
 		return fmt.Errorf("mount information not found for major/minor %v of drive %v", majorMinor, drive.Name)
 	}
 
-	mountPoint := filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID)
+	mountPoint := filepath.Join(sys.MountRoot, drive.Name)
 	for _, mountInfo := range mountInfos {
 		if mountInfo.MountPoint == mountPoint {
 			probedFSUUID, err := probeXFSUUID(mountInfo.MajorMinor)
