@@ -18,11 +18,11 @@ package drive
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/google/uuid"
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/fs/xfs"
@@ -37,6 +37,11 @@ import (
 	"k8s.io/klog/v2"
 )
 
+var (
+	errNotMounted          = errors.New("drive not mounted")
+	errInvalidMountOptions = errors.New("invalid mount options")
+)
+
 type driveEventHandler struct {
 	nodeID          string
 	reflinkSupport  bool
@@ -48,16 +53,31 @@ type driveEventHandler struct {
 	getFreeCapacity func(path string) (uint64, error)
 }
 
+// StartController starts drive event controller.
+func StartController(ctx context.Context, nodeID string, reflinkSupport bool) error {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
+	}
+
+	listener := listener.NewListener(
+		newDriveEventHandler(nodeID, reflinkSupport),
+		"drive-controller",
+		hostname,
+		40,
+	)
+	return listener.Run(ctx)
+}
+
 func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler {
 	return &driveEventHandler{
-		nodeID:          nodeID,
-		reflinkSupport:  reflinkSupport,
-		getDevice:       getDevice,
-		stat:            os.Stat,
-		mountDevice:     mount.MountXFSDevice,
-		unmountDevice:   mount.UnmountDevice,
-		makeFS:          xfs.MakeFS,
-		getFreeCapacity: getFreeCapacity,
+		nodeID:         nodeID,
+		reflinkSupport: reflinkSupport,
+		getDevice:      getDevice,
+		stat:           os.Stat,
+		mountDevice:    mount.MountXFSDevice,
+		unmountDevice:  mount.UnmountDevice,
+		makeFS:         xfs.MakeFS,
 	}
 }
 
@@ -79,7 +99,9 @@ func (handler *driveEventHandler) ObjectType() runtime.Object {
 
 func (handler *driveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
 	switch args.Event {
-	case listener.AddEvent, listener.UpdateEvent:
+	case listener.AddEvent:
+		return handler.add(ctx, args.Object.(*directcsi.DirectCSIDrive))
+	case listener.UpdateEvent:
 		return handler.update(ctx, args.Object.(*directcsi.DirectCSIDrive))
 	case listener.DeleteEvent:
 		return handler.delete(ctx, args.Object.(*directcsi.DirectCSIDrive))
@@ -87,160 +109,109 @@ func (handler *driveEventHandler) Handle(ctx context.Context, args listener.Even
 	return nil
 }
 
-func (handler *driveEventHandler) getFSUUID(ctx context.Context, drive *directcsi.DirectCSIDrive) (string, error) {
-	if drive.Status.FilesystemUUID == "" ||
-		drive.Status.FilesystemUUID == "00000000-0000-0000-0000-000000000000" ||
-		len(drive.Status.FilesystemUUID) != 36 {
-		return uuid.New().String(), nil
-	}
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	// Use new UUID if it is aleady used in another drive.
-	resultCh, err := client.ListDrives(
-		ctx,
-		[]utils.LabelValue{utils.NewLabelValue(handler.nodeID)},
-		nil,
-		nil,
-		client.MaxThreadCount,
-	)
-	if err != nil {
-		return "", err
-	}
-
-	for result := range resultCh {
-		if result.Err != nil {
-			return "", result.Err
+func (handler *driveEventHandler) add(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+	err := verifyHostStateForDrive(drive)
+	switch err {
+	case nil:
+		switch {
+		case isFormatRequested(drive):
+			return handler.format(ctx, drive)
+		case drive.Status.DriveStatus == directcsi.DriveStatusReleased:
+			return handler.release(ctx, drive)
+		default:
+			return nil
 		}
-
-		if result.Drive.Name != drive.Name && result.Drive.Status.FilesystemUUID == drive.Status.FilesystemUUID {
-			return uuid.New().String(), nil
-		}
+	case errNotMounted:
+		return handler.mountDrive(ctx, drive, false)
+	case errInvalidMountOptions:
+		return handler.mountDrive(ctx, drive, true)
+	case os.ErrNotExist:
+		return handler.lost(ctx, drive)
+	default:
+		return err
 	}
 
-	return drive.Status.FilesystemUUID, nil
+}
+
+func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+	err := verifyHostStateForDrive(drive)
+	switch err {
+	case nil:
+		switch {
+		case isFormatRequested(drive):
+			return handler.format(ctx, drive)
+		case drive.Status.DriveStatus == directcsi.DriveStatusReleased:
+			return handler.release(ctx, drive)
+		default:
+			return nil
+		}
+	case os.ErrNotExist:
+		return handler.lost(ctx, drive)
+	default:
+		return err
+	}
+}
+
+func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+	return nil
 }
 
 func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.DirectCSIDrive) (err error) {
-	fsUUID, err := handler.getFSUUID(ctx, drive)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-	drive.Status.FilesystemUUID = fsUUID
-
-	if drive.Status.DriveStatus == directcsi.DriveStatusInUse {
-		err = fmt.Errorf("formatting drive %v in InUse state is not allowed", drive.Name)
-		klog.Error(err)
-		return err
-	}
-
 	device, err := handler.getDevice(drive.Status.MajorNumber, drive.Status.MinorNumber)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
+
+	// stat check
 	if _, err := handler.stat(device); err != nil {
 		err = fmt.Errorf("unable to read device %v of major/minor %v:%v; %w", device, drive.Status.MajorNumber, drive.Status.MinorNumber, err)
 		klog.Error(err)
 		return err
 	}
 
-	target := filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID)
-	mountOpts := drive.Spec.RequestedFormat.MountOptions
-	force := drive.Spec.RequestedFormat.Force
-	mounted := drive.Status.Mountpoint != ""
-	formatted := drive.Status.Filesystem != ""
-
-	if err == nil && (!formatted || force) {
-		if mounted {
-			if err = handler.unmountDevice(device); err != nil {
-				klog.Errorf("failed to unmount drive %s; %w", drive.Name, err)
-			} else {
-				drive.Status.Mountpoint = ""
-				mounted = false
-			}
-		}
-
-		if err == nil {
-			if err = handler.makeFS(ctx, drive.Status.Path, drive.Status.FilesystemUUID, force, handler.reflinkSupport); err != nil {
-				klog.Errorf("failed to format drive %s; %w", drive.Name, err)
-			} else {
-				drive.Status.Filesystem = "xfs"
-				drive.Status.AllocatedCapacity = 0
-				formatted = true
-			}
-		}
+	// validate request
+	if drive.Status.Filesystem != "" && !drive.Spec.RequestedFormat.Force {
+		err = fmt.Errorf("drive already has an FS %s. Please set `--force`", drive.Status.Filesystem)
 	}
 
-	if err == nil && formatted && !mounted {
-		if err = handler.mountDevice(device, target, mountOpts); err != nil {
-			klog.Error("failed to mount drive %s; %w", drive.Name, err)
-		} else {
-			drive.Status.Mountpoint = target
-			drive.Status.MountOptions = mountOpts
-			freeCapacity := uint64(0)
-			if freeCapacity, err = handler.getFreeCapacity(drive.Status.Mountpoint); err != nil {
-				klog.Errorf("unable to get free capacity of %v; %v", drive.Status.Mountpoint, err)
-			} else {
-				mounted = true
-				drive.Status.FreeCapacity = int64(freeCapacity)
-				drive.Status.AllocatedCapacity = drive.Status.TotalCapacity - drive.Status.FreeCapacity
-			}
-		}
-	}
-
-	message := ""
-	if err != nil {
-		message = err.Error()
-	}
-	utils.UpdateCondition(
-		drive.Status.Conditions,
-		string(directcsi.DirectCSIDriveConditionOwned),
-		utils.BoolToCondition(formatted && mounted),
-		string(directcsi.DirectCSIDriveReasonAdded),
-		message,
-	)
-
-	message = string(directcsi.DirectCSIDriveMessageNotMounted)
-	if mounted {
-		message = string(directcsi.DirectCSIDriveMessageMounted)
-	}
-	utils.UpdateCondition(
-		drive.Status.Conditions,
-		string(directcsi.DirectCSIDriveConditionMounted),
-		utils.BoolToCondition(mounted),
-		string(directcsi.DirectCSIDriveReasonAdded),
-		message,
-	)
-
-	message = string(directcsi.DirectCSIDriveMessageNotFormatted)
-	if formatted {
-		message = string(directcsi.DirectCSIDriveMessageFormatted)
-	}
-	utils.UpdateCondition(
-		drive.Status.Conditions,
-		string(directcsi.DirectCSIDriveConditionFormatted),
-		utils.BoolToCondition(formatted),
-		string(directcsi.DirectCSIDriveReasonAdded),
-		message,
-	)
-
+	filesystemUUID := getFSUUIDFromDrive(drive)
+	// umount the drive if mounted
 	if err == nil {
-		drive.Finalizers = []string{directcsi.DirectCSIDriveFinalizerDataProtection}
-		drive.Status.DriveStatus = directcsi.DriveStatusReady
-		drive.Spec.RequestedFormat = nil
+		err = handler.unmountDevice(device)
+		if err != nil {
+			klog.Errorf("failed to umount drive %s; %w", drive.Name, err)
+		}
+	}
+	// format the drive
+	if err == nil {
+		err = handler.makeFS(ctx, drive.Status.Path, filesystemUUID, drive.Spec.RequestedFormat.Force, handler.reflinkSupport)
+		if err != nil {
+			klog.Errorf("failed to format drive %s; %w", drive.Name, err)
+		}
+	}
+	// mount the drive
+	if err == nil {
+		target := filepath.Join(sys.MountRoot, drive.Name)
+		err = handler.mountDevice(device, target, drive.Spec.RequestedFormat.MountOptions)
+		if err != nil {
+			klog.Errorf("failed to mount drive %s; %w", drive.Name, err)
+		}
 	}
 
-	_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
-		ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
-	)
-	if uerr != nil {
-		if err == nil {
+	if err != nil {
+		utils.UpdateCondition(
+			drive.Status.Conditions,
+			string(directcsi.DirectCSIDriveConditionOwned),
+			metav1.ConditionFalse,
+			string(directcsi.DirectCSIDriveReasonAdded),
+			err.Error(),
+		)
+		_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
+			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+		)
+		if uerr != nil && err == nil {
 			err = uerr
-		} else {
-			klog.V(5).ErrorS(err, "unable to update drive", "name", drive.Name)
 		}
 	}
 
@@ -253,100 +224,62 @@ func (handler *driveEventHandler) release(ctx context.Context, drive *directcsi.
 		klog.Error(err)
 		return err
 	}
-	if err = handler.unmountDevice(device); err != nil {
-		err = fmt.Errorf("failed to release drive %s; %w", drive.Name, err)
-		klog.Error(err)
-	} else {
-		drive.Status.DriveStatus = directcsi.DriveStatusAvailable
-		drive.Finalizers = []string{}
+	err = handler.unmountDevice(device)
+	if err != nil {
+		klog.Errorf("failed to release drive %s; %w", drive.Name, err)
 		utils.UpdateCondition(
 			drive.Status.Conditions,
-			string(directcsi.DirectCSIDriveConditionMounted),
+			string(directcsi.DirectCSIDriveConditionOwned),
 			metav1.ConditionFalse,
 			string(directcsi.DirectCSIDriveReasonAdded),
-			"",
+			fmt.Sprintf("failed to release drive: %s", err.Error()),
 		)
-	}
-
-	message := ""
-	if err != nil {
-		message = err.Error()
-	}
-
-	utils.UpdateCondition(
-		drive.Status.Conditions,
-		string(directcsi.DirectCSIDriveConditionOwned),
-		metav1.ConditionFalse,
-		string(directcsi.DirectCSIDriveReasonAdded),
-		message,
-	)
-
-	_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
-		ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
-	)
-	if uerr != nil {
-		if err == nil {
+		_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
+			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+		)
+		if uerr != nil && err == nil {
 			err = uerr
-		} else {
-			klog.V(5).ErrorS(err, "unable to update drive", "name", drive.Name)
 		}
 	}
-
 	return err
 }
 
-func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	klog.V(5).Infof("drive update called on %s", drive.Name)
-
-	// Release the drive
-	if drive.Status.DriveStatus == directcsi.DriveStatusReleased {
-		klog.V(3).Infof("releasing drive %s", drive.Name)
-		return handler.release(ctx, drive)
-	}
-
-	// Format the drive
-	if drive.Spec.DirectCSIOwned && drive.Spec.RequestedFormat != nil {
-		klog.V(3).Infof("owning and formatting drive %s", drive.Name)
-
-		switch drive.Status.DriveStatus {
-		case directcsi.DriveStatusAvailable:
-			return handler.format(ctx, drive)
-		case directcsi.DriveStatusReleased,
-			directcsi.DriveStatusUnavailable,
-			directcsi.DriveStatusReady,
-			directcsi.DriveStatusTerminating,
-			directcsi.DriveStatusInUse:
-			klog.V(3).Infof("rejecting to format drive %s due to %s", drive.Name, drive.Status.DriveStatus)
-		}
-	}
-
-	return nil
-}
-
-func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	return client.DeleteDrive(ctx, drive, false)
-}
-
-// StartController starts drive event controller.
-func StartController(ctx context.Context, nodeID string, reflinkSupport bool) error {
-	hostname, err := os.Hostname()
+func (handler *driveEventHandler) mountDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, remount bool) error {
+	device, err := handler.getDevice(drive.Status.MajorNumber, drive.Status.MinorNumber)
 	if err != nil {
+		klog.Error(err)
 		return err
 	}
-
-	listener := listener.NewListener(
-		newDriveEventHandler(nodeID, reflinkSupport),
-		"drive-controller",
-		hostname,
-		40,
-	)
-	return listener.Run(ctx)
+	if remount {
+		err = handler.unmountDevice(device)
+		if err != nil {
+			klog.Errorf("failed to umount drive %s; %w", drive.Name, err)
+		}
+	}
+	if err == nil {
+		target := filepath.Join(sys.MountRoot, drive.Name)
+		err = handler.mountDevice(device, target, drive.Spec.RequestedFormat.MountOptions)
+		if err != nil {
+			klog.Errorf("failed to mount drive %s; %w", drive.Name, err)
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionOwned),
+				metav1.ConditionFalse,
+				string(directcsi.DirectCSIDriveReasonAdded),
+				fmt.Sprintf("failed to mount drive: %s", err.Error()),
+			)
+			_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
+				ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+			)
+			if uerr != nil && err == nil {
+				err = uerr
+			}
+		}
+	}
+	return err
 }
 
-func getDevice(major, minor uint32) (string, error) {
-	name, err := sys.GetDeviceName(major, minor)
-	if err != nil {
-		return "", err
-	}
-	return "/dev/" + name, nil
+// FixMe: To be implemented
+func (handler *driveEventHandler) lost(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+	return errors.New("not implemented")
 }
