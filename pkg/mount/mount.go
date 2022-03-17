@@ -25,6 +25,8 @@ import (
 const (
 	// MountOptPrjQuota option for project quota
 	MountOptPrjQuota = "prjquota"
+	// rw option for project quota
+	MountOptRW = "rw"
 )
 
 // Mount mounts device to target using fsType, flags and superBlockFlags.
@@ -69,7 +71,7 @@ func MountXFSDevice(device, target string, flags []string) error {
 
 func ValidDirectPVMountOpts(deviceMountOpts []string) bool {
 	expectedMountOpts := []string{
-		MountOptPrjQuota,
+		MountOptRW,
 	}
 	for _, expectedMountOpt := range expectedMountOpts {
 		foundExpectedOpt := false

@@ -145,6 +145,9 @@ func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error 
 }
 
 func (l *listener) startSync(ctx context.Context) {
+	if err := l.sync(); err != nil {
+		klog.Errorf("error while sycing: %v", err)
+	}
 	syncTicker := time.NewTicker(syncInterval)
 	defer syncTicker.Stop()
 	for {
@@ -482,11 +485,11 @@ func (l *listener) sync() error {
 	}
 
 	for _, name := range names {
-		if !strings.HasPrefix(name, "b:") {
+		if !strings.HasPrefix(name, "b") {
 			continue
 		}
 
-		major, minor, err := utils.GetMajorMinorFromStr(strings.TrimPrefix(name, "b:"))
+		major, minor, err := utils.GetMajorMinorFromStr(strings.TrimPrefix(name, "b"))
 		if err != nil {
 			klog.V(5).Infof("error while parsing maj:min for file: %s: %v", name, err)
 			continue
