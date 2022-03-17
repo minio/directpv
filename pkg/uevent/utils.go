@@ -40,7 +40,7 @@ func getRootBlockPath(devName string) string {
 	}
 }
 
-func validateDevice(device *sys.Device, filteredDrives []*directcsi.DirectCSIDrive) bool {
+func ValidateDevice(device *sys.Device, filteredDrives []*directcsi.DirectCSIDrive) bool {
 	if len(filteredDrives) != 1 {
 		return false
 	}
@@ -91,6 +91,9 @@ func validateDevice(device *sys.Device, filteredDrives []*directcsi.DirectCSIDri
 		return false
 	}
 	if directCSIDrive.Status.Filesystem != device.FSType {
+		return false
+	}
+	if directCSIDrive.Status.UeventFSUUID != device.UeventFSUUID {
 		return false
 	}
 
