@@ -31,10 +31,10 @@ import (
 )
 
 func ReadRunUdevDataByMajorMinor(major, minor int) (map[string]string, error) {
-	return ReadRunUdevDataFile(fmt.Sprintf("%v/b%v:%v", runUdevData, major, minor))
+	return readRunUdevDataFile(fmt.Sprintf("%v/b%v:%v", runUdevData, major, minor))
 }
 
-func ReadRunUdevDataFile(filename string) (map[string]string, error) {
+func readRunUdevDataFile(filename string) (map[string]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func readRunUdevData(major, minor int) (*UDevData, error) {
 		return nil, err
 	}
 
-	return mapToUdevData(data)
+	return MapToUdevData(data)
 }
 
 func isUdevDataReadable() bool {
@@ -97,22 +97,8 @@ func parseRunUdevDataFile(r io.Reader) (map[string]string, error) {
 	return event, nil
 }
 
-func mapToUdevData(eventMap map[string]string) (*UDevData, error) {
-	path := eventMap["DEVPATH"]
-	if path == "" {
-		return nil, fmt.Errorf("invalid path: %s", path)
-	}
-
-	major, err := strconv.Atoi(eventMap["MAJOR"])
-	if err != nil {
-		return nil, err
-	}
-
-	minor, err := strconv.Atoi(eventMap["MINOR"])
-	if err != nil {
-		return nil, err
-	}
-
+func MapToUdevData(eventMap map[string]string) (*UDevData, error) {
+	var err error
 	var partition int
 	if value, found := eventMap["ID_PART_ENTRY_NUMBER"]; found {
 		partition, err = strconv.Atoi(value)
@@ -122,9 +108,6 @@ func mapToUdevData(eventMap map[string]string) (*UDevData, error) {
 	}
 
 	return &UDevData{
-		Path:         path,
-		Major:        major,
-		Minor:        minor,
 		Partition:    partition,
 		WWID:         eventMap["ID_WWN"],
 		Model:        eventMap["ID_MODEL"],

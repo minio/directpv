@@ -18,56 +18,11 @@ package uevent
 
 import (
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/sys"
 )
-
-func mapToUdevData(eventMap map[string]string) (*sys.UDevData, error) {
-	path := eventMap["DEVPATH"]
-	if path == "" {
-		return nil, errInvalidDevPath
-	}
-
-	major, err := strconv.Atoi(eventMap["MAJOR"])
-	if err != nil {
-		return nil, err
-	}
-
-	minor, err := strconv.Atoi(eventMap["MINOR"])
-	if err != nil {
-		return nil, err
-	}
-
-	var partition int
-	if value, found := eventMap["ID_PART_ENTRY_NUMBER"]; found && value != "" {
-		partition, err = strconv.Atoi(value)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &sys.UDevData{
-		Path:         path,
-		Major:        major,
-		Minor:        minor,
-		Partition:    partition,
-		WWID:         eventMap["ID_WWN"],
-		Model:        eventMap["ID_MODEL"],
-		UeventSerial: eventMap["ID_SERIAL_SHORT"],
-		Vendor:       eventMap["ID_VENDOR"],
-		DMName:       eventMap["DM_NAME"],
-		DMUUID:       eventMap["DM_UUID"],
-		MDUUID:       sys.NormalizeUUID(eventMap["MD_UUID"]),
-		PTUUID:       eventMap["ID_PART_TABLE_UUID"],
-		PTType:       eventMap["ID_PART_TABLE_TYPE"],
-		PartUUID:     eventMap["ID_PART_ENTRY_UUID"],
-		UeventFSUUID: eventMap["ID_FS_UUID"],
-		FSType:       eventMap["ID_FS_TYPE"],
-	}, nil
-}
 
 func getRootBlockPath(devName string) string {
 	switch {

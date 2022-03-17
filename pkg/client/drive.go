@@ -53,6 +53,7 @@ func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[str
 		device.ReadOnly ||
 		device.Partitioned ||
 		device.Master != "" ||
+		len(device.Holders) > 0 ||
 		!isDirectCSIMount(device.MountPoints) {
 		driveStatus = directcsi.DriveStatusUnavailable
 	}
