@@ -19,7 +19,6 @@ package sys
 import (
 	"reflect"
 	"testing"
-	//	"github.com/minio/directpv/pkg/sys"
 )
 
 func TestIsFATFSType(t *testing.T) {

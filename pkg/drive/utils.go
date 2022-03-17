@@ -25,7 +25,6 @@ import (
 	"github.com/google/uuid"
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/mount"
-	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/uevent"
 	"github.com/minio/directpv/pkg/utils"
@@ -33,8 +32,7 @@ import (
 )
 
 var (
-	errInvalidDevPath     = errors.New("devpath not found in the event")
-	errDriveValueMismatch = errors.New("Drive value mismatch")
+	errDriveValueMismatch = errors.New("drive value mismatch")
 )
 
 func isFormatRequested(drive *directcsi.DirectCSIDrive) bool {
@@ -83,10 +81,10 @@ func verifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 		return fmt.Errorf("path mismatch. Expected %s got %s", filepath.Base(drive.Status.Path), devName)
 	}
 
-	if !utils.IsCondition(drive.Status.Conditions,
+	if utils.IsConditionStatus(drive.Status.Conditions,
 		string(directcsi.DirectCSIDriveConditionReady),
-		metav1.ConditionFalse, string(directcsi.DirectCSIDriveReasonLost), "") {
-		return fmt.Errorf("drive is lost = %v", drive.Status.Conditions)
+		metav1.ConditionFalse) {
+		return fmt.Errorf("drive %s is not ready", drive.Name)
 	}
 
 	runUdevDataMap, err := sys.ReadRunUdevDataByMajorMinor(int(drive.Status.MajorNumber), int(drive.Status.MinorNumber))
@@ -117,7 +115,7 @@ func verifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 		FSType:       runUdevData.FSType,
 	}
 
-	if !uevent.ValidateDevice(device, []*directcsi.DirectCSIDrive{drive}) {
+	if !uevent.ValidateDevice(device, drive) {
 		return errDriveValueMismatch
 	}
 
@@ -128,7 +126,7 @@ func verifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 			return err
 		}
 		if mounted {
-			if !node.ValidDirectPVMountOpts(drive.Status.MountOptions) {
+			if !mount.ValidDirectPVMountOpts(drive.Status.MountOptions) {
 				return errInvalidMountOptions
 			}
 
