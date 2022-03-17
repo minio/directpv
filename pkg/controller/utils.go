@@ -41,6 +41,11 @@ func matchDrive(drive directcsi.DirectCSIDrive, req *csi.CreateVolumeRequest) bo
 		return false
 	}
 
+	// skip terminating drives
+	if !drive.GetDeletionTimestamp().IsZero() {
+		return false
+	}
+
 	// Match drive only in Ready or InUse state.
 	switch drive.Status.DriveStatus {
 	case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
