@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -34,7 +33,6 @@ import (
 	id "github.com/minio/directpv/pkg/identity"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/node"
-	"github.com/minio/directpv/pkg/node/discovery"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils/grpc"
 	"github.com/minio/directpv/pkg/volume"
@@ -150,8 +148,13 @@ func run(ctxMain context.Context, args []string) error {
 
 	// Start dynamic drive handler container.
 	if dynamicDriveHandler {
-		klog.Warning("dynamic-discovery feature is strictly experimental and NOT production ready yet")
-		return node.StartDynamicDriveHandler(ctx, identity, nodeID, rack, zone, region, loopbackOnly)
+		return node.RunDynamicDriveHandler(ctx,
+			identity,
+			nodeID,
+			rack,
+			zone,
+			region,
+			loopbackOnly)
 	}
 
 	// Start conversion webserver
@@ -188,22 +191,6 @@ func run(ctxMain context.Context, args []string) error {
 			}
 			reflinkSupport = false
 			klog.V(3).Infof("disabled reflink while formatting")
-		}
-
-		if !dynamicDriveDiscovery {
-			//klog.V(3).Infof("Enable dynamic drive change management using '--dynamic-drive-discovery' flag")
-			//klog.V(3).Infof("This flag will be made default in the next major release version")
-
-			discovery, err := discovery.NewDiscovery(ctx, identity, nodeID, rack, zone, region)
-			if err != nil {
-				return err
-			}
-			if err := discovery.Init(ctx, loopbackOnly); err != nil {
-				return fmt.Errorf("error while initializing drive discovery: %v", err)
-			}
-			klog.V(3).Infof("Drive discovery finished")
-		} else {
-			klog.Warning("dynamic-discovery feature is strictly experimental and NOT production ready yet")
 		}
 
 		go func() {

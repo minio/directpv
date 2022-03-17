@@ -19,9 +19,6 @@ package sys
 import "path/filepath"
 
 type UDevData struct {
-	Path         string
-	Major        int
-	Minor        int
 	Partition    int
 	WWID         string
 	Model        string
@@ -69,8 +66,8 @@ type Device struct {
 	UeventFSUUID string
 
 	// Computed
-	Parent      string
 	Master      string
+	Holders     []string
 	Partitioned bool
 
 	// Populated by reading device
