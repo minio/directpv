@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
@@ -279,7 +280,49 @@ func (handler *driveEventHandler) mountDrive(ctx context.Context, drive *directc
 	return err
 }
 
-// FixMe: To be implemented
 func (handler *driveEventHandler) lost(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	return errors.New("not implemented")
+	// Set the drive ready condition as false if not set
+	if !utils.IsConditionStatus(drive.Status.Conditions, string(directcsi.DirectCSIDriveConditionReady), metav1.ConditionFalse) {
+		utils.UpdateCondition(drive.Status.Conditions,
+			string(directcsi.DirectCSIDriveConditionReady),
+			metav1.ConditionFalse,
+			string(directcsi.DirectCSIDriveReasonLost),
+			"drive is removed")
+		_, err := client.GetLatestDirectCSIDriveInterface().Update(
+			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+		)
+		if err != nil {
+			return err
+		}
+	}
+	// update the volume conditions to be not ready
+	if drive.Status.DriveStatus == directcsi.DriveStatusInUse {
+		volumeInterface := client.GetLatestDirectCSIVolumeInterface()
+		for _, finalizer := range drive.GetFinalizers() {
+			if !strings.HasPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix) {
+				continue
+			}
+			volumeName := strings.TrimPrefix(finalizer, directcsi.DirectCSIDriveFinalizerPrefix)
+			volume, err := volumeInterface.Get(
+				ctx, volumeName, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+			)
+			if err != nil {
+				return err
+			}
+			utils.UpdateCondition(volume.Status.Conditions,
+				string(directcsi.DirectCSIVolumeConditionReady),
+				metav1.ConditionFalse,
+				string(directcsi.DirectCSIVolumeReasonNotReady),
+				"[DRIVE LOST]",
+			)
+			_, err = volumeInterface.Update(
+				ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+			)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
