@@ -28,6 +28,7 @@ import (
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/klog/v2"
 )
 
@@ -49,6 +50,7 @@ var (
 	pageSize       = os.Getpagesize()
 	fieldDelimiter = []byte{0}
 	resyncPeriod   = 60 * time.Second
+	syncInterval   = 30 * time.Second
 	// errors
 	errEmptyBuf            = errors.New("buffer is empty")
 	errShortRead           = errors.New("short read")
@@ -88,6 +90,8 @@ type listener struct {
 type deviceEvent struct {
 	created time.Time
 	action  action
+	major   int
+	minor   int
 	devPath string
 	backOff time.Duration
 	popped  bool
@@ -122,6 +126,8 @@ func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error 
 		indexer:    newIndexer(ctx, nodeID, resyncPeriod),
 	}
 
+	go listener.startSync(ctx)
+
 	go listener.processEvents(ctx)
 
 	for {
@@ -134,6 +140,22 @@ func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error 
 				return err
 			}
 			listener.eventQueue.push(dEvent)
+		}
+	}
+}
+
+func (l *listener) startSync(ctx context.Context) {
+	syncTicker := time.NewTicker(syncInterval)
+	defer syncTicker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			klog.Error(ctx.Err())
+			return
+		case <-syncTicker.C:
+			if err := l.sync(); err != nil {
+				klog.Errorf("error while sycing: %v", err)
+			}
 		}
 	}
 }
@@ -161,7 +183,7 @@ func (l *listener) processEvents(ctx context.Context) {
 }
 
 func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
-	if sys.IsLoopBackDevice(dEvent.udevData.Path) {
+	if sys.IsLoopBackDevice(dEvent.devPath) {
 		klog.V(5).InfoS(
 			"loopback device is ignored",
 			"ACTION", dEvent.action,
@@ -169,15 +191,15 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		return nil
 	}
 
-	if dEvent.udevData.Path == "" {
-		return fmt.Errorf("udevData does not have valid DEVPATH %v", dEvent.udevData.Path)
+	if dEvent.devPath == "" {
+		return fmt.Errorf("udevData does not have valid DEVPATH %v", dEvent.devPath)
 	}
 
 	device := &sys.Device{
-		Name:         filepath.Base(dEvent.udevData.Path),
-		Major:        dEvent.udevData.Major,
-		Minor:        dEvent.udevData.Minor,
-		Virtual:      strings.Contains(dEvent.udevData.Path, "/virtual/"),
+		Name:         filepath.Base(dEvent.devPath),
+		Major:        dEvent.major,
+		Minor:        dEvent.minor,
+		Virtual:      strings.Contains(dEvent.devPath, "/virtual/"),
 		Partition:    dEvent.udevData.Partition,
 		WWID:         dEvent.udevData.WWID,
 		Model:        dEvent.udevData.Model,
@@ -315,13 +337,20 @@ func (l *listener) getNextDeviceUEvent(ctx context.Context) (*deviceEvent, error
 func (dEvent *deviceEvent) collectUDevData() error {
 	switch dEvent.action {
 	case Add, Change, Sync:
-		// Older kernels like in CentOS 7 does not send all information about the device,
-		// hence read relevant data from /run/udev/data/b<major>:<minor>
-		runUdevDataMap, err := sys.ReadRunUdevDataByMajorMinor(dEvent.udevData.Major, dEvent.udevData.Minor)
+		devName, err := sys.GetDeviceName(uint32(dEvent.major), uint32(dEvent.minor))
 		if err != nil {
 			return err
 		}
-		runUdevData, err := mapToUdevData(runUdevDataMap)
+		if filepath.Base(dEvent.devPath) != devName {
+			return fmt.Errorf("path mismatch. Expected %s got %s", filepath.Base(dEvent.devPath), devName)
+		}
+		// Older kernels like in CentOS 7 does not send all information about the device,
+		// hence read relevant data from /run/udev/data/b<major>:<minor>
+		runUdevDataMap, err := sys.ReadRunUdevDataByMajorMinor(dEvent.major, dEvent.minor)
+		if err != nil {
+			return err
+		}
+		runUdevData, err := sys.MapToUdevData(runUdevDataMap)
 		if err != nil {
 			return err
 		}
@@ -337,109 +366,100 @@ func (dEvent *deviceEvent) collectUDevData() error {
 }
 
 func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error {
-	// check for consistent fields
-	if dEvent.udevData.Path != runUdevData.Path {
-		return errValueMismatch(dEvent.udevData.Path, "path", dEvent.udevData.Path, runUdevData.Path)
-	}
-	if dEvent.udevData.Major != runUdevData.Major {
-		return errValueMismatch(dEvent.udevData.Path, "major", dEvent.udevData.Major, runUdevData.Major)
-	}
-	if dEvent.udevData.Minor != runUdevData.Minor {
-		return errValueMismatch(dEvent.udevData.Path, "minor", dEvent.udevData.Minor, runUdevData.Minor)
-	}
+	// // check for consistent fields
 	if dEvent.udevData.Partition != runUdevData.Partition {
-		return errValueMismatch(dEvent.udevData.Path, "partitionnum", dEvent.udevData.Partition, runUdevData.Partition)
+		return errValueMismatch(dEvent.devPath, "partitionnum", dEvent.udevData.Partition, runUdevData.Partition)
 	}
 
 	if runUdevData.WWID != "" {
 		if dEvent.udevData.WWID == "" {
 			dEvent.udevData.WWID = runUdevData.WWID
 		} else if dEvent.udevData.WWID != runUdevData.WWID {
-			return errValueMismatch(dEvent.udevData.Path, "WWID", dEvent.udevData.WWID, runUdevData.WWID)
+			return errValueMismatch(dEvent.devPath, "WWID", dEvent.udevData.WWID, runUdevData.WWID)
 		}
 	}
 	if runUdevData.Model != "" {
 		if dEvent.udevData.Model == "" {
 			dEvent.udevData.Model = runUdevData.Model
 		} else if dEvent.udevData.Model != runUdevData.Model {
-			return errValueMismatch(dEvent.udevData.Path, "Model", dEvent.udevData.Model, runUdevData.Model)
+			return errValueMismatch(dEvent.devPath, "Model", dEvent.udevData.Model, runUdevData.Model)
 		}
 	}
 	if runUdevData.UeventSerial != "" {
 		if dEvent.udevData.UeventSerial == "" {
 			dEvent.udevData.UeventSerial = runUdevData.UeventSerial
 		} else if dEvent.udevData.UeventSerial != runUdevData.UeventSerial {
-			return errValueMismatch(dEvent.udevData.Path, "UeventSerial", dEvent.udevData.UeventSerial, runUdevData.UeventSerial)
+			return errValueMismatch(dEvent.devPath, "UeventSerial", dEvent.udevData.UeventSerial, runUdevData.UeventSerial)
 		}
 	}
 	if runUdevData.Vendor != "" {
 		if dEvent.udevData.Vendor == "" {
 			dEvent.udevData.Vendor = runUdevData.Vendor
 		} else if dEvent.udevData.Vendor != runUdevData.Vendor {
-			return errValueMismatch(dEvent.udevData.Path, "Vendor", dEvent.udevData.Vendor, runUdevData.Vendor)
+			return errValueMismatch(dEvent.devPath, "Vendor", dEvent.udevData.Vendor, runUdevData.Vendor)
 		}
 	}
 	if runUdevData.DMName != "" {
 		if dEvent.udevData.DMName == "" {
 			dEvent.udevData.DMName = runUdevData.DMName
 		} else if dEvent.udevData.DMName != runUdevData.DMName {
-			return errValueMismatch(dEvent.udevData.Path, "DMName", dEvent.udevData.DMName, runUdevData.DMName)
+			return errValueMismatch(dEvent.devPath, "DMName", dEvent.udevData.DMName, runUdevData.DMName)
 		}
 	}
 	if runUdevData.DMUUID != "" {
 		if dEvent.udevData.DMUUID == "" {
 			dEvent.udevData.DMUUID = runUdevData.DMUUID
 		} else if dEvent.udevData.DMUUID != runUdevData.DMUUID {
-			return errValueMismatch(dEvent.udevData.Path, "DMUUID", dEvent.udevData.DMUUID, runUdevData.DMUUID)
+			return errValueMismatch(dEvent.devPath, "DMUUID", dEvent.udevData.DMUUID, runUdevData.DMUUID)
 		}
 	}
 	if runUdevData.MDUUID != "" {
 		if dEvent.udevData.MDUUID == "" {
 			dEvent.udevData.MDUUID = runUdevData.MDUUID
 		} else if dEvent.udevData.MDUUID != runUdevData.MDUUID {
-			return errValueMismatch(dEvent.udevData.Path, "MDUUID", dEvent.udevData.MDUUID, runUdevData.MDUUID)
+			return errValueMismatch(dEvent.devPath, "MDUUID", dEvent.udevData.MDUUID, runUdevData.MDUUID)
 		}
 	}
 	if runUdevData.PTUUID != "" {
 		if dEvent.udevData.PTUUID == "" {
 			dEvent.udevData.PTUUID = runUdevData.PTUUID
 		} else if dEvent.udevData.PTUUID != runUdevData.PTUUID {
-			return errValueMismatch(dEvent.udevData.Path, "PTUUID", dEvent.udevData.PTUUID, runUdevData.PTUUID)
+			return errValueMismatch(dEvent.devPath, "PTUUID", dEvent.udevData.PTUUID, runUdevData.PTUUID)
 		}
 	}
 	if runUdevData.PTType != "" {
 		if dEvent.udevData.PTType == "" {
 			dEvent.udevData.PTType = runUdevData.PTType
 		} else if dEvent.udevData.PTType != runUdevData.PTType {
-			return errValueMismatch(dEvent.udevData.Path, "PTType", dEvent.udevData.PTType, runUdevData.PTType)
+			return errValueMismatch(dEvent.devPath, "PTType", dEvent.udevData.PTType, runUdevData.PTType)
 		}
 	}
 	if runUdevData.PartUUID != "" {
 		if dEvent.udevData.PartUUID == "" {
 			dEvent.udevData.PartUUID = runUdevData.PartUUID
 		} else if dEvent.udevData.PartUUID != runUdevData.PartUUID {
-			return errValueMismatch(dEvent.udevData.Path, "PartUUID", dEvent.udevData.PartUUID, runUdevData.PartUUID)
+			return errValueMismatch(dEvent.devPath, "PartUUID", dEvent.udevData.PartUUID, runUdevData.PartUUID)
 		}
 	}
 	if runUdevData.UeventFSUUID != "" {
 		if dEvent.udevData.UeventFSUUID == "" {
 			dEvent.udevData.UeventFSUUID = runUdevData.UeventFSUUID
 		} else if dEvent.udevData.UeventFSUUID != runUdevData.UeventFSUUID {
-			return errValueMismatch(dEvent.udevData.Path, "UeventFSUUID", dEvent.udevData.UeventFSUUID, runUdevData.UeventFSUUID)
+			return errValueMismatch(dEvent.devPath, "UeventFSUUID", dEvent.udevData.UeventFSUUID, runUdevData.UeventFSUUID)
 		}
 	}
 	if runUdevData.FSType != "" {
 		if dEvent.udevData.FSType == "" {
 			dEvent.udevData.FSType = runUdevData.FSType
 		} else if dEvent.udevData.FSType != runUdevData.FSType {
-			return errValueMismatch(dEvent.udevData.Path, "FSType", dEvent.udevData.FSType, runUdevData.FSType)
+			return errValueMismatch(dEvent.devPath, "FSType", dEvent.udevData.FSType, runUdevData.FSType)
 		}
 	}
 	if runUdevData.FSUUID != "" {
 		if dEvent.udevData.FSUUID == "" {
 			dEvent.udevData.FSUUID = runUdevData.FSUUID
 		} else if dEvent.udevData.FSUUID != runUdevData.FSUUID {
-			return errValueMismatch(dEvent.udevData.Path, "FSUUID", dEvent.udevData.FSUUID, runUdevData.FSUUID)
+			return errValueMismatch(dEvent.devPath, "FSUUID", dEvent.udevData.FSUUID, runUdevData.FSUUID)
 		}
 	}
 
@@ -463,21 +483,36 @@ func (l *listener) sync() error {
 			continue
 		}
 
-		filename := filepath.Join("/run/udev/data", name)
-		data, err := sys.ReadRunUdevDataFile(filename)
+		major, minor, err := utils.GetMajorMinorFromStr(strings.TrimPrefix(name, "b:"))
 		if err != nil {
-			return err
+			klog.V(5).Infof("error while parsing maj:min for file: %s: %v", name, err)
+			continue
 		}
-		runUdevData, err := mapToUdevData(data)
+		devName, err := sys.GetDeviceName(major, minor)
 		if err != nil {
-			return err
+			klog.V(5).Infof("error while getting device name for maj:min (%v:%v): %v", major, minor, err)
+			continue
+		}
+
+		data, err := sys.ReadRunUdevDataByMajorMinor(int(major), int(minor))
+		if err != nil {
+			klog.V(5).Infof("error while reading udevdata for device %s: %v", devName, err)
+			continue
+		}
+
+		runUdevData, err := sys.MapToUdevData(data)
+		if err != nil {
+			klog.V(5).Infof("error while mapping udevdata for device %s: %v", devName, err)
+			continue
 		}
 
 		event := &deviceEvent{
 			created:  time.Now().UTC(),
 			action:   Sync,
 			udevData: runUdevData,
-			devPath:  runUdevData.Path,
+			devPath:  "/dev/" + devName,
+			major:    int(major),
+			minor:    int(minor),
 		}
 
 		l.eventQueue.push(event)

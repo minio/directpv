@@ -22,9 +22,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/minio/directpv/pkg/sys"
 )
 
 func (l *listener) parseUEvent(buf []byte) (*deviceEvent, error) {
@@ -44,7 +47,22 @@ func (l *listener) parseUEvent(buf []byte) (*deviceEvent, error) {
 		return nil, fmt.Errorf("invalid device action: %s", eventAction)
 	}
 
-	udevData, err := mapToUdevData(eventMap)
+	path := eventMap["DEVPATH"]
+	if path == "" {
+		return nil, fmt.Errorf("invalid path: %s", path)
+	}
+
+	major, err := strconv.Atoi(eventMap["MAJOR"])
+	if err != nil {
+		return nil, err
+	}
+
+	minor, err := strconv.Atoi(eventMap["MINOR"])
+	if err != nil {
+		return nil, err
+	}
+
+	udevData, err := sys.MapToUdevData(eventMap)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +71,9 @@ func (l *listener) parseUEvent(buf []byte) (*deviceEvent, error) {
 		created:  time.Now().UTC(),
 		action:   eventAction,
 		udevData: udevData,
-		devPath:  udevData.Path,
+		devPath:  path,
+		major:    major,
+		minor:    minor,
 	}, nil
 }
 

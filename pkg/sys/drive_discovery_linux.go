@@ -25,14 +25,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/minio/directpv/pkg/blockdev"
-	"github.com/minio/directpv/pkg/blockdev/parttable"
 	"github.com/minio/directpv/pkg/fs"
 	fserrors "github.com/minio/directpv/pkg/fs/errors"
 	"github.com/minio/directpv/pkg/mount"
@@ -124,17 +121,6 @@ func getSize(name string) (uint64, error) {
 	return ui64 * defaultBlockSize, nil
 }
 
-func getPartition(name string) (int, error) {
-	s, err := readFirstLine("/sys/class/block/"+name+"/partition", false)
-	if err != nil {
-		return 0, err
-	}
-	if s != "" {
-		return strconv.Atoi(s)
-	}
-	return 0, nil
-}
-
 func getRemovable(name string) (bool, error) {
 	s, err := readFirstLine("/sys/class/block/"+name+"/removable", false)
 	return s != "" && s != "0", err
@@ -145,45 +131,9 @@ func getReadOnly(name string) (bool, error) {
 	return s != "" && s != "0", err
 }
 
-func getWWID(name string) (wwid string, err error) {
-	if wwid, err = readFirstLine("/sys/class/block/"+name+"/wwid", false); err == nil && wwid == "" {
-		wwid, err = readFirstLine("/sys/class/block/"+name+"/device/wwid", false)
-	}
-	return wwid, err
-}
-
-func getModel(name string) (string, error) {
-	return readFirstLine("/sys/class/block/"+name+"/device/model", false)
-}
-
 func getSerial(name string) (string, error) {
 	serial, _ := smart.GetSerialNumber("/dev/" + name)
 	return serial, nil
-}
-
-func getVendor(name string) (string, error) {
-	return readFirstLine("/sys/class/block/"+name+"/device/vendor", false)
-}
-
-func getDMName(name string) (string, error) {
-	return readFirstLine("/sys/class/block/"+name+"/dm/name", false)
-}
-
-func getDMUUID(name string) (string, error) {
-	return readFirstLine("/sys/class/block/"+name+"/dm/uuid", false)
-}
-
-func getMDUUID(name string) (string, error) {
-	uuid, err := readFirstLine("/sys/class/block/"+name+"/md/uuid", false)
-	return NormalizeUUID(uuid), err
-}
-
-func getVirtual(name string) (bool, error) {
-	absPath, err := filepath.EvalSymlinks("/sys/class/block/" + name)
-	if err != nil {
-		return false, err
-	}
-	return strings.HasPrefix(absPath, "/sys/devices/virtual/block/"), nil
 }
 
 func getHidden(name string) bool {
@@ -210,294 +160,8 @@ func getPartitions(name string) ([]string, error) {
 	return partitions, nil
 }
 
-func getSlaves(name string) ([]string, error) {
-	return readdirnames("/sys/block/"+name+"/slaves", false)
-}
-
-func readSysBlock() ([]string, error) {
-	return readdirnames("/sys/block", true)
-}
-
-func readSysClassBlock() ([]string, error) {
-	return readdirnames("/sys/class/block", true)
-}
-
-func probeDevice(name string) (device *Device, err error) {
-	device = &Device{Name: name}
-	device.Hidden = getHidden(name)
-	// hidden devices do not have major,minor value.
-	if !device.Hidden {
-		device.Major, device.Minor, err = getMajorMinor(name)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if device.Size, err = getSize(name); err != nil {
-		return nil, err
-	}
-	// hidden devices do not have parititions.
-	if !device.Hidden {
-		if device.Partition, err = getPartition(name); err != nil {
-			return nil, err
-		}
-	}
-	if device.Removable, err = getRemovable(name); err != nil {
-		return nil, err
-	}
-	if device.ReadOnly, err = getReadOnly(name); err != nil {
-		return nil, err
-	}
-	if device.WWID, err = getWWID(name); err != nil {
-		return nil, err
-	}
-	if device.Model, err = getModel(name); err != nil {
-		return nil, err
-	}
-	if device.Serial, err = getSerial(name); err != nil {
-		return nil, err
-	}
-	if device.Vendor, err = getVendor(name); err != nil {
-		return nil, err
-	}
-	// hidden devices do not have dmname, dmuuid, mduuid and virtual links.
-	if !device.Hidden {
-		if device.DMName, err = getDMName(name); err != nil {
-			return nil, err
-		}
-		if device.DMUUID, err = getDMUUID(name); err != nil {
-			return nil, err
-		}
-		if device.MDUUID, err = getMDUUID(name); err != nil {
-			return nil, err
-		}
-		if device.Virtual, err = getVirtual(name); err != nil {
-			return nil, err
-		}
-	}
-	return device, nil
-}
-
-func getAllDevices() (devices map[string]*Device, err error) {
-	var names []string
-	if names, err = readSysClassBlock(); err != nil {
-		return nil, err
-	}
-
-	var device *Device
-	devices = map[string]*Device{}
-	for _, name := range names {
-		if device, err = probeDevice(name); err != nil {
-			return nil, err
-		}
-		devices[name] = device
-	}
-
-	return devices, nil
-}
-
-func probePartTable(name string) (parttable.PartTable, error) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelFunc()
-	return blockdev.Probe(ctx, "/dev/"+name)
-}
-
-func updatePartTableInfo(devices map[string]*Device) error {
-	names, err := readSysBlock()
-	if err != nil {
-		return err
-	}
-
-	for _, name := range names {
-		device, ok := devices[name]
-		if !ok {
-			klog.V(3).Infof("device name %s present in /sys/block missing from /sys/class/block probe, ignoring", name)
-			continue
-		}
-
-		if device.Hidden {
-			// No partitions for hidden devices.
-			continue
-		}
-
-		partTable, err := probePartTable(name)
-		if devices[name].Size > 0 && err != nil {
-			switch {
-			case errors.Is(err, parttable.ErrPartTableNotFound):
-			case strings.Contains(strings.ToLower(err.Error()), "no medium found"):
-			default:
-				return err
-			}
-		}
-
-		var partitionMap map[int]*parttable.Partition
-		if partTable != nil {
-			devices[name].PTUUID = partTable.UUID()
-			devices[name].PTType = partTable.Type()
-			partitionMap = partTable.Partitions()
-		}
-
-		partitions, err := getPartitions(name)
-		if err != nil {
-			return err
-		}
-		devices[name].Partitioned = len(partitions) > 0
-		for _, partition := range partitions {
-			devices[partition].Parent = name
-
-			partNumber := devices[partition].Partition
-			if partitionMap != nil {
-				if _, found := partitionMap[partNumber]; found {
-					devices[name].PartUUID = partitionMap[partNumber].UUID
-				}
-			}
-		}
-
-		slaves, err := getSlaves(name)
-		if err != nil {
-			return err
-		}
-		for _, slave := range slaves {
-			devices[slave].Master = name
-		}
-	}
-
-	return nil
-}
-
-func probeDevicesFromSysfs() (devices map[string]*Device, err error) {
-	if devices, err = getAllDevices(); err != nil {
-		return nil, err
-	}
-
-	if err = updatePartTableInfo(devices); err != nil {
-		return nil, err
-	}
-
-	return devices, nil
-}
-
-func NewDevice(udevData *UDevData) (device *Device, err error) {
-	name := filepath.Base(udevData.Path)
-	if name == "" {
-		return nil, fmt.Errorf("udevData does not have valid DEVPATH %v", udevData.Path)
-	}
-	device = &Device{
-		Name:         name,
-		Major:        udevData.Major,
-		Minor:        udevData.Minor,
-		Virtual:      strings.Contains(udevData.Path, "/virtual/"),
-		Partition:    udevData.Partition,
-		WWID:         udevData.WWID,
-		Model:        udevData.Model,
-		UeventSerial: udevData.UeventSerial,
-		Vendor:       udevData.Vendor,
-		DMName:       udevData.DMName,
-		DMUUID:       udevData.DMUUID,
-		MDUUID:       udevData.MDUUID,
-		PTUUID:       udevData.PTUUID,
-		PTType:       udevData.PTUUID,
-		PartUUID:     udevData.PartUUID,
-		UeventFSUUID: udevData.UeventFSUUID,
-		FSType:       udevData.FSType,
-		FSUUID:       udevData.FSUUID,
-	}
-
-	return device, nil
-}
-
-func updateRelationship(devices map[string]*Device) error {
-	names, err := readSysBlock()
-	if err != nil {
-		return err
-	}
-
-	for _, name := range names {
-		device, ok := devices[name]
-		if !ok {
-			klog.V(3).Infof("device name %s present in /sys/block missing from udev probe, ignoring", name)
-			continue
-		}
-
-		if device.Hidden {
-			// No partitions for hidden devices.
-			continue
-		}
-
-		partitions, err := getPartitions(name)
-		if err != nil {
-			return err
-		}
-
-		devices[name].Partitioned = len(partitions) > 0
-		for _, partition := range partitions {
-			devices[partition].Parent = name
-		}
-
-		slaves, err := getSlaves(name)
-		if err != nil {
-			return err
-		}
-		for _, slave := range slaves {
-			devices[slave].Master = name
-		}
-	}
-
-	return nil
-}
-
-func probeDevicesFromUdev() (devices map[string]*Device, err error) {
-	var names []string
-	if names, err = readSysClassBlock(); err != nil {
-		return nil, err
-	}
-
-	devices = map[string]*Device{}
-	for _, name := range names {
-		hidden := getHidden(name)
-		var device *Device
-		if !hidden {
-			major, minor, err := getMajorMinor(name)
-			if err != nil {
-				return nil, err
-			}
-
-		udevData, err := readRunUdevData(major, minor)
-		if err != nil {
-			return nil, err
-		}
-
-		device, err := NewDevice(udevData)
-		if err != nil {
-			return nil, err
-		}
-
-		if device.Virtual, err = getVirtual(name); err != nil {
-			return nil, err
-		}
-
-		if device.Serial, err = getSerial(device.Name); err != nil {
-			return nil, err
-		}
-
-		if device.Size, err = getSize(name); err != nil {
-			return nil, err
-		}
-
-		if device.Removable, err = getRemovable(name); err != nil {
-			return nil, err
-		}
-		if device.ReadOnly, err = getReadOnly(name); err != nil {
-			return nil, err
-		}
-
-		devices[name] = device
-	}
-
-	if err = updateRelationship(devices); err != nil {
-		return nil, err
-	}
-
-	return devices, nil
+func getHolders(name string) ([]string, error) {
+	return readdirnames("/sys/block/"+name+"/holders", false)
 }
 
 func getBlockSizes(device string) (physicalBlockSize, logicalBlockSize uint64, err error) {
@@ -679,50 +343,8 @@ func getMountPoints(mountInfos map[string][]mount.MountInfo) (map[string][]strin
 	return mountPointsMap, nil
 }
 
-func probeDevices() (devices map[string]*Device, err error) {
-	if isUdevDataReadable() {
-		devices, err = probeDevicesFromUdev()
-	} else {
-		devices, err = probeDevicesFromSysfs()
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	CDROMs, err := getCDROMs()
-	if err != nil {
-		return nil, err
-	}
-
-	swaps, err := getSwaps()
-	if err != nil {
-		return nil, err
-	}
-
-	mountInfos, err := mount.Probe()
-	if err != nil {
-		return nil, err
-	}
-
-	mountPointsMap, err := getMountPoints(mountInfos)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, device := range devices {
-		if device.Hidden {
-			// No FS information needed for hidden devices
-			continue
-		}
-		if err = updateFSInfo(device, CDROMs, swaps, mountInfos, mountPointsMap); err != nil {
-			return nil, err
-		}
-	}
-
-	return devices, nil
-}
-
 func (device *Device) ProbeHostInfo() (err error) {
+	device.Hidden = getHidden(device.Name)
 	if device.Serial, err = getSerial(device.Name); err != nil {
 		return err
 	}
@@ -739,49 +361,47 @@ func (device *Device) ProbeHostInfo() (err error) {
 		return err
 	}
 
-	if device.Partition <= 0 {
-		names, err := getPartitions(device.Name)
+	// No partitions for hidden devices.
+	// No FS information needed for hidden devices
+	if !device.Hidden {
+		if device.Partition <= 0 {
+			names, err := getPartitions(device.Name)
+			if err != nil {
+				return err
+			}
+			device.Partitioned = len(names) > 0
+		}
+		device.Holders, err = getHolders(device.Name)
 		if err != nil {
 			return err
 		}
-		device.Partitioned = len(names) > 0
-	}
 
-	CDROMs, err := getCDROMs()
-	if err != nil {
-		return err
-	}
+		CDROMs, err := getCDROMs()
+		if err != nil {
+			return err
+		}
 
-	mountInfos, err := mount.Probe()
-	if err != nil {
-		return err
-	}
+		mountInfos, err := mount.Probe()
+		if err != nil {
+			return err
+		}
 
-	mountPointsMap, err := getMountPoints(mountInfos)
-	if err != nil {
-		return err
-	}
+		mountPointsMap, err := getMountPoints(mountInfos)
+		if err != nil {
+			return err
+		}
 
-	swaps, err := getSwaps()
-	if err != nil {
-		return err
-	}
+		swaps, err := getSwaps()
+		if err != nil {
+			return err
+		}
 
-	if err = updateFSInfo(device, CDROMs, swaps, mountInfos, mountPointsMap); err != nil {
-		return err
+		if err = updateFSInfo(device, CDROMs, swaps, mountInfos, mountPointsMap); err != nil {
+			return err
+		}
 	}
 
 	return nil
-}
-
-func createDevice(udevData *UDevData) (device *Device, err error) {
-	if device, err = NewDevice(udevData); err != nil {
-		return nil, err
-	}
-	if err := device.ProbeHostInfo(); err != nil {
-		return nil, err
-	}
-	return device, nil
 }
 
 func getDeviceName(major, minor uint32) (string, error) {

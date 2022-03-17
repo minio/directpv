@@ -16,7 +16,10 @@
 
 package sys
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestIsFATFSType(t *testing.T) {
 	testCases := []struct {
@@ -76,5 +79,48 @@ func TestFSTypeEqual(t *testing.T) {
 		if result != testCase.expectedResult {
 			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
 		}
+	}
+}
+
+func TestMapToEventData(t *testing.T) {
+	testEventMap := map[string]string{
+		"MD_UUID":              "MDUUID",
+		"ID_PART_ENTRY_NUMBER": "7",
+		"ID_WWN":               "WWN",
+		"ID_MODEL":             "ID_MODEL",
+		"ID_SERIAL_SHORT":      "ID_SERIAL_SHORT",
+		"ID_VENDOR":            "ID_VENDOR",
+		"DM_NAME":              "DM_NAME",
+		"DM_UUID":              "DM_UUID",
+		"ID_PART_TABLE_UUID":   "ID_PART_TABLE_UUID",
+		"ID_PART_TABLE_TYPE":   "ID_PART_TABLE_TYPE",
+		"ID_PART_ENTRY_UUID":   "ID_PART_ENTRY_UUID",
+		"ID_FS_UUID":           "ID_FS_UUID",
+		"ID_FS_TYPE":           "ID_FS_TYPE",
+	}
+
+	expectedUEventData := &UDevData{
+		Partition:    7,
+		WWID:         "WWN",
+		Model:        "ID_MODEL",
+		UeventSerial: "ID_SERIAL_SHORT",
+		Vendor:       "ID_VENDOR",
+		DMName:       "DM_NAME",
+		DMUUID:       "DM_UUID",
+		MDUUID:       "MDUUID",
+		PTUUID:       "ID_PART_TABLE_UUID",
+		PTType:       "ID_PART_TABLE_TYPE",
+		PartUUID:     "ID_PART_ENTRY_UUID",
+		UeventFSUUID: "ID_FS_UUID",
+		FSType:       "ID_FS_TYPE",
+	}
+
+	udevData, err := MapToUdevData(testEventMap)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if !reflect.DeepEqual(udevData, expectedUEventData) {
+		t.Fatalf("expected udevdata: %v, got: %v", udevData, expectedUEventData)
 	}
 }

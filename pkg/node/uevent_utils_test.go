@@ -58,7 +58,6 @@ func TestSetDriveStatus(t *testing.T) {
 				FSType:            "xfs",
 				UeventSerial:      "12345ABCD678",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				Parent:            "parent",
 				FreeCapacity:      uint64(412000),
 				LogicalBlockSize:  uint64(512),
 				PhysicalBlockSize: uint64(512),
@@ -251,7 +250,6 @@ func TestSetDriveStatus(t *testing.T) {
 				FSType:            "xfs",
 				UeventSerial:      "12345ABCD678",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				Parent:            "parent",
 				FreeCapacity:      uint64(412000),
 				LogicalBlockSize:  uint64(512),
 				PhysicalBlockSize: uint64(512),
@@ -434,7 +432,6 @@ func TestSetDriveStatus(t *testing.T) {
 				FSType:            "xfs",
 				UeventSerial:      "12345ABCD678",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				Parent:            "parent",
 				FreeCapacity:      uint64(412000),
 				LogicalBlockSize:  uint64(512),
 				PhysicalBlockSize: uint64(512),
@@ -575,9 +572,9 @@ func TestSetDriveStatus(t *testing.T) {
 						},
 						{
 							Type:    string(directcsi.DirectCSIDriveConditionMounted),
-							Status:  metav1.ConditionTrue,
+							Status:  metav1.ConditionFalse,
 							Message: "",
-							Reason:  string(directcsi.DirectCSIDriveReasonNotAdded),
+							Reason:  string(directcsi.DirectCSIDriveReasonAdded),
 						},
 						{
 							Type:    string(directcsi.DirectCSIDriveConditionFormatted),
@@ -622,7 +619,6 @@ func TestSetDriveStatus(t *testing.T) {
 				FSType:            "xfs",
 				UeventSerial:      "12345ABCD678",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				Parent:            "parent",
 				FreeCapacity:      uint64(412000),
 				LogicalBlockSize:  uint64(512),
 				PhysicalBlockSize: uint64(512),
@@ -815,7 +811,6 @@ func TestSetDriveStatus(t *testing.T) {
 				FSType:            "xfs",
 				UeventSerial:      "12345ABCD678",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				Parent:            "parent",
 				FreeCapacity:      uint64(412000),
 				LogicalBlockSize:  uint64(512),
 				PhysicalBlockSize: uint64(512),
@@ -992,6 +987,10 @@ func TestSetDriveStatus(t *testing.T) {
 	handler := createDriveEventHandler()
 	for i, testCase := range testCases {
 		updatedDrive := handler.setDriveStatus(testCase.device, testCase.drive)
+		// reset the timestamps before comparing
+		for i := range updatedDrive.Status.Conditions {
+			updatedDrive.Status.Conditions[i].LastTransitionTime = metav1.Time{}
+		}
 		if !reflect.DeepEqual(updatedDrive, testCase.expectedDrive) {
 			t.Fatalf("case %v: expected %v, got: %v", i, testCase.expectedDrive, updatedDrive)
 		}
@@ -1063,7 +1062,7 @@ func TestValidateDrive(t *testing.T) {
 					Path:           "/dev/sdc1",
 					DriveStatus:    directcsi.DriveStatusReady,
 					Filesystem:     "xfs",
-					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
 					MountOptions:   []string{"prjquota", "relatime", "rw"},
 					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
@@ -1075,9 +1074,9 @@ func TestValidateDrive(t *testing.T) {
 				FSUUID:            "d79dff9e-2884-46f2-8919-dada2eecb12d",
 				FSType:            "xfs",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
+				MountPoints:       []string{"/var/lib/direct-csi/mnt/test-drive"},
 				FirstMountOptions: []string{"prjquota", "relatime", "rw"},
-				FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/test-drive",
 			},
 		},
 		// Mountpoint mismatch
@@ -1091,7 +1090,7 @@ func TestValidateDrive(t *testing.T) {
 					Path:           "/dev/sdc1",
 					DriveStatus:    directcsi.DriveStatusReady,
 					Filesystem:     "xfs",
-					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
 					MountOptions:   []string{"prjquota", "relatime", "rw"},
 					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
@@ -1111,7 +1110,7 @@ func TestValidateDrive(t *testing.T) {
 				errInvalidMount,
 				errInvalidDrive(
 					"Mountpoint",
-					"/var/lib/direct-csi/mnt/fsuuid",
+					"/var/lib/direct-csi/mnt/test-drive",
 					"/data",
 				),
 			},
@@ -1127,7 +1126,7 @@ func TestValidateDrive(t *testing.T) {
 					Path:           "/dev/sdc1",
 					DriveStatus:    directcsi.DriveStatusReady,
 					Filesystem:     "xfs",
-					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
 					MountOptions:   []string{"prjquota", "relatime", "rw"},
 					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
@@ -1147,12 +1146,12 @@ func TestValidateDrive(t *testing.T) {
 				errInvalidMount,
 				errInvalidDrive(
 					"Mountpoint",
-					"/var/lib/direct-csi/mnt/fsuuid",
+					"/var/lib/direct-csi/mnt/test-drive",
 					"/data",
 				),
 				errInvalidDrive(
 					"MountpointOptions",
-					[]string{"prjquota", "relatime", "rw"},
+					"prjquota",
 					[]string{"relatime", "rw"},
 				),
 			},
@@ -1168,7 +1167,7 @@ func TestValidateDrive(t *testing.T) {
 					Path:           "/dev/sdc1",
 					DriveStatus:    directcsi.DriveStatusReady,
 					Filesystem:     "xfs",
-					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
 					MountOptions:   []string{"prjquota", "relatime", "rw"},
 					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
@@ -1180,9 +1179,9 @@ func TestValidateDrive(t *testing.T) {
 				FSUUID:            "sdfgqf9e-2884-46f2-8919-dada2eecb12d",
 				FSType:            "xfs",
 				UeventFSUUID:      "sdfgqf9e-2884-46f2-8919-dada2eecb12d",
-				MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
+				MountPoints:       []string{"/var/lib/direct-csi/mnt/test-drive"},
 				FirstMountOptions: []string{"prjquota", "relatime", "rw"},
-				FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/test-drive",
 			},
 			expectedErrs: []error{
 				errInvalidDrive(
@@ -1206,7 +1205,7 @@ func TestValidateDrive(t *testing.T) {
 					Path:           "/dev/sdc1",
 					DriveStatus:    directcsi.DriveStatusReady,
 					Filesystem:     "xfs",
-					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
 					MountOptions:   []string{"prjquota", "relatime", "rw"},
 					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
@@ -1218,9 +1217,9 @@ func TestValidateDrive(t *testing.T) {
 				FSUUID:            "d79dff9e-2884-46f2-8919-dada2eecb12d",
 				FSType:            "ext4",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
+				MountPoints:       []string{"/var/lib/direct-csi/mnt/test-drive"},
 				FirstMountOptions: []string{"prjquota", "relatime", "rw"},
-				FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/test-drive",
 			},
 			expectedErrs: []error{
 				errInvalidDrive(
@@ -1240,7 +1239,7 @@ func TestValidateDrive(t *testing.T) {
 					Path:           "/dev/sdc1",
 					DriveStatus:    directcsi.DriveStatusReady,
 					Filesystem:     "xfs",
-					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
 					MountOptions:   []string{"prjquota", "relatime", "rw"},
 					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
@@ -1252,9 +1251,9 @@ func TestValidateDrive(t *testing.T) {
 				FSUUID:            "d79dff9e-2884-46f2-8919-dada2eecb12d",
 				FSType:            "xfs",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
+				MountPoints:       []string{"/var/lib/direct-csi/mnt/test-drive"},
 				FirstMountOptions: []string{"prjquota", "relatime", "rw"},
-				FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/test-drive",
 			},
 			expectedErrs: []error{
 				fmt.Errorf(
@@ -1273,7 +1272,7 @@ func TestValidateDrive(t *testing.T) {
 					Path:           "/dev/sdc1",
 					DriveStatus:    directcsi.DriveStatusReady,
 					Filesystem:     "xfs",
-					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
 					MountOptions:   []string{"prjquota", "relatime", "rw"},
 					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
@@ -1285,9 +1284,9 @@ func TestValidateDrive(t *testing.T) {
 				FSUUID:            "d79dff9e-2884-46f2-8919-dada2eecb12d",
 				FSType:            "xfs",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
+				MountPoints:       []string{"/var/lib/direct-csi/mnt/test-drive"},
 				FirstMountOptions: []string{"prjquota", "relatime", "rw"},
-				FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/test-drive",
 				ReadOnly:          true,
 			},
 			expectedErrs: []error{
@@ -1308,7 +1307,7 @@ func TestValidateDrive(t *testing.T) {
 					Path:           "/dev/sdc1",
 					DriveStatus:    directcsi.DriveStatusReady,
 					Filesystem:     "xfs",
-					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
 					MountOptions:   []string{"prjquota", "relatime", "rw"},
 					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
@@ -1320,9 +1319,9 @@ func TestValidateDrive(t *testing.T) {
 				FSUUID:            "d79dff9e-2884-46f2-8919-dada2eecb12d",
 				FSType:            "xfs",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
+				MountPoints:       []string{"/var/lib/direct-csi/mnt/test-drive"},
 				FirstMountOptions: []string{"prjquota", "relatime", "rw"},
-				FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/test-drive",
 				SwapOn:            true,
 			},
 			expectedErrs: []error{
@@ -1343,7 +1342,7 @@ func TestValidateDrive(t *testing.T) {
 					Path:           "/dev/sdc1",
 					DriveStatus:    directcsi.DriveStatusReady,
 					Filesystem:     "xfs",
-					Mountpoint:     "/var/lib/direct-csi/mnt/fsuuid",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
 					MountOptions:   []string{"prjquota", "relatime", "rw"},
 					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
@@ -1355,9 +1354,9 @@ func TestValidateDrive(t *testing.T) {
 				FSUUID:            "d79dff9e-2884-46f2-8919-dada2eecb12d",
 				FSType:            "xfs",
 				UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
-				MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
+				MountPoints:       []string{"/var/lib/direct-csi/mnt/test-drive"},
 				FirstMountOptions: []string{"prjquota", "relatime", "rw"},
-				FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/test-drive",
 				Master:            "vda",
 			},
 			expectedErrs: []error{
