@@ -142,7 +142,7 @@ function check_drives() {
 
     check_drives_state Available
     "${DIRECT_CSI_CLIENT}" drives format --all --force
-    sleep 5
+    sleep 35
 
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" drives list --all
