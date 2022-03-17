@@ -40,11 +40,8 @@ func getRootBlockPath(devName string) string {
 	}
 }
 
-func ValidateDevice(device *sys.Device, filteredDrives []*directcsi.DirectCSIDrive) bool {
-	if len(filteredDrives) != 1 {
-		return false
-	}
-	directCSIDrive := filteredDrives[0]
+func ValidateDevice(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
+
 	if directCSIDrive.Status.Path != device.DevPath() {
 		return false
 	}

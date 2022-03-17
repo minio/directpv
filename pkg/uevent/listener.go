@@ -261,7 +261,7 @@ func (l *listener) validateDevice(device *sys.Device) (bool, error) {
 	if len(filteredDrives) != 1 {
 		return false, nil
 	}
-	return ValidateDevice(device, filteredDrives), nil
+	return ValidateDevice(device, filteredDrives[0]), nil
 }
 
 func (l *listener) processAdd(ctx context.Context,
