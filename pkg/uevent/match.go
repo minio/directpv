@@ -54,8 +54,6 @@ var stageOneMatchers = []matchFn{
 	fsUUIDMatcher,
 	serialNumberMatcher,
 	// size matchers
-	logicalBlocksizeMatcher,
-	physicalBlocksizeMatcher,
 	totalCapacityMatcher,
 }
 
@@ -204,7 +202,7 @@ func mdUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, b
 }
 
 func partitionTableUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.PartUUID, drive.Status.PartTableUUID)
+	return immutablePropertyMatcher(device.PTUUID, drive.Status.PartTableUUID)
 }
 
 // Refer https://go.dev/play/p/zuaURPArfcL
@@ -284,10 +282,6 @@ func fsPropertyMatcher(alpha string, beta string) (bool, bool, error) {
 		}
 	}
 	return match, consider, err
-}
-
-func logicalBlocksizeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return sizeMatcher(int64(device.LogicalBlockSize), drive.Status.LogicalBlockSize)
 }
 
 func totalCapacityMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {

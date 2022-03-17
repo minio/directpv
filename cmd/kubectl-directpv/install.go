@@ -120,7 +120,7 @@ func install(ctx context.Context, args []string) (err error) {
 		Tolerations:                tolerations,
 		SeccompProfile:             seccompProfile,
 		ApparmorProfile:            apparmorProfile,
-		DynamicDriveDiscovery:      dynamicDriveDiscovery,
+		DynamicDriveDiscovery:      true,
 		DryRun:                     dryRun,
 		AuditFile:                  file,
 		ImagePullSecrets:           imagePullSecrets,
