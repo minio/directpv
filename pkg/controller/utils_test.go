@@ -530,6 +530,71 @@ func TestGetFilteredDrives(t *testing.T) {
 		},
 	}
 
+	case12Result := []directcsi.DirectCSIDrive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusReady,
+				Topology:    map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"},
+				Conditions: []metav1.Condition{
+					{
+						Type:    string(directcsi.DirectCSIDriveConditionReady),
+						Status:  metav1.ConditionTrue,
+						Message: "",
+						Reason:  string(directcsi.DirectCSIDriveReasonReady),
+					},
+				},
+			},
+		},
+	}
+
+	case12Objects := []runtime.Object{
+		&directcsi.DirectCSIDrive{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive-1",
+			},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusAvailable,
+				Conditions: []metav1.Condition{
+					{
+						Type:    string(directcsi.DirectCSIDriveConditionReady),
+						Status:  metav1.ConditionTrue,
+						Message: "",
+						Reason:  string(directcsi.DirectCSIDriveReasonReady),
+					},
+				},
+			},
+		},
+		&directcsi.DirectCSIDrive{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive-3",
+				DeletionTimestamp: func() *metav1.Time {
+					deleteTz := metav1.Now()
+					return &deleteTz
+				}(),
+			},
+			Status: directcsi.DirectCSIDriveStatus{
+				DriveStatus: directcsi.DriveStatusInUse,
+				Topology:    map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"},
+				Conditions: []metav1.Condition{
+					{
+						Type:    string(directcsi.DirectCSIDriveConditionReady),
+						Status:  metav1.ConditionTrue,
+						Message: "",
+						Reason:  string(directcsi.DirectCSIDriveReasonReady),
+					},
+				},
+			},
+		},
+		&case10Result[0],
+	}
+	case12Request := &csi.CreateVolumeRequest{
+		Name: "volume-1",
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Requisite: []*csi.Topology{{Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R2"}}},
+		},
+	}
+
 	testCases := []struct {
 		objects        []runtime.Object
 		request        *csi.CreateVolumeRequest
@@ -546,6 +611,7 @@ func TestGetFilteredDrives(t *testing.T) {
 		{case9Objects, case9Request, nil},
 		{case10Objects, case10Request, case10Result},
 		{case11Objects, case11Request, nil},
+		{case12Objects, case12Request, case12Result},
 	}
 
 	for i, testCase := range testCases {
