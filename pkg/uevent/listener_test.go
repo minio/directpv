@@ -194,15 +194,9 @@ func TestFillMissingUdevData(t *testing.T) {
 	}{
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 			},
 			runUDevData: &sys.UDevData{
-				Path:         "/dev/nvmen1p1",
-				Major:        202,
-				Minor:        1,
 				Partition:    1,
 				WWID:         "wwid",
 				Model:        "model",
@@ -217,9 +211,6 @@ func TestFillMissingUdevData(t *testing.T) {
 				FSType:       "xfs",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:         "/dev/nvmen1p1",
-				Major:        202,
-				Minor:        1,
 				Partition:    1,
 				WWID:         "wwid",
 				Model:        "model",
@@ -237,65 +228,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
-				Partition: 1,
-			},
-			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     203,
-				Minor:     1,
-				Partition: 1,
-			},
-			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
-				Partition: 1,
-			},
-			expectedErr: errValueMismatch("/dev/nvmen1p1", "major", 202, 203),
-		},
-		{
-			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
-				Partition: 1,
-			},
-			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     2,
-				Partition: 1,
-			},
-			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
-				Partition: 1,
-			},
-			expectedErr: errValueMismatch("/dev/nvmen1p1", "minor", 1, 2),
-		},
-		{
-			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				WWID:      "WWID",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				WWID:      "ID",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				WWID:      "WWID",
 			},
@@ -303,23 +243,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				Model:     "modelnumber",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				Model:     "invalidmodelnumber",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				Model:     "modelnumber",
 			},
@@ -327,23 +258,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:         "/dev/nvmen1p1",
-				Major:        202,
-				Minor:        1,
 				Partition:    1,
 				UeventSerial: "ueventserial",
 			},
 			runUDevData: &sys.UDevData{
-				Path:         "/dev/nvmen1p1",
-				Major:        202,
-				Minor:        1,
 				Partition:    1,
 				UeventSerial: "invalidueventserial",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:         "/dev/nvmen1p1",
-				Major:        202,
-				Minor:        1,
 				Partition:    1,
 				UeventSerial: "ueventserial",
 			},
@@ -351,23 +273,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				Vendor:    "vendor",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				Vendor:    "invalidvendor",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				Vendor:    "vendor",
 			},
@@ -375,23 +288,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				DMName:    "dmname",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				DMName:    "invaliddmname",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				DMName:    "dmname",
 			},
@@ -399,23 +303,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				DMUUID:    "dmuuid",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				DMUUID:    "invaliddmuuid",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				DMUUID:    "dmuuid",
 			},
@@ -423,23 +318,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				MDUUID:    "mduuid",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				MDUUID:    "invalidmduuid",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				MDUUID:    "mduuid",
 			},
@@ -447,23 +333,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				PTUUID:    "ptuuid",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				PTUUID:    "invalidptuuid",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				PTUUID:    "ptuuid",
 			},
@@ -471,23 +348,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				PTType:    "pttype",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				PTType:    "invalidpttype",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				PTType:    "pttype",
 			},
@@ -495,23 +363,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				PartUUID:  "partuuid",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				PartUUID:  "invalidpartuuid",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				PartUUID:  "partuuid",
 			},
@@ -519,23 +378,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:         "/dev/nvmen1p1",
-				Major:        202,
-				Minor:        1,
 				Partition:    1,
 				UeventFSUUID: "ueventfsuuid",
 			},
 			runUDevData: &sys.UDevData{
-				Path:         "/dev/nvmen1p1",
-				Major:        202,
-				Minor:        1,
 				Partition:    1,
 				UeventFSUUID: "invalidueventfsuuid",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:         "/dev/nvmen1p1",
-				Major:        202,
-				Minor:        1,
 				Partition:    1,
 				UeventFSUUID: "ueventfsuuid",
 			},
@@ -543,23 +393,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				FSType:    "fstype",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				FSType:    "invalidueventfstype",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				FSType:    "fstype",
 			},
@@ -567,23 +408,14 @@ func TestFillMissingUdevData(t *testing.T) {
 		},
 		{
 			ueventUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				FSUUID:    "fsuuid",
 			},
 			runUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				FSUUID:    "invalidueventfsuuid",
 			},
 			expectedUDevData: &sys.UDevData{
-				Path:      "/dev/nvmen1p1",
-				Major:     202,
-				Minor:     1,
 				Partition: 1,
 				FSUUID:    "fsuuid",
 			},
@@ -594,6 +426,7 @@ func TestFillMissingUdevData(t *testing.T) {
 	for i, testCase := range testCases {
 		dE := &deviceEvent{
 			udevData: testCase.ueventUDevData,
+			devPath:  "/dev/nvmen1p1",
 		}
 		err := dE.fillMissingUdevData(testCase.runUDevData)
 		if err != nil {

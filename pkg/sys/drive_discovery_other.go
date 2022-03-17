@@ -27,16 +27,6 @@ func getDeviceMajorMinor(device string) (major, minor uint32, err error) {
 	return 0, 0, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func probeDevices() (devices map[string]*Device, err error) {
-	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
-}
-
 func getDeviceName(major, minor uint32) (string, error) {
 	return "", fmt.Errorf("unsupported operating system %v", runtime.GOOS)
-}
-
-// CreateDevice creates new device from udev data and probes dev and sys
-// to fill the remaining device information.
-func CreateDevice(udevData *UDevData) (device *Device, err error) {
-	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

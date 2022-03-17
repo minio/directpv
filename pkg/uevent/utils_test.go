@@ -17,7 +17,6 @@
 package uevent
 
 import (
-	"reflect"
 	"testing"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
@@ -25,55 +24,6 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func TestMapToEventData(t *testing.T) {
-	testEventMap := map[string]string{
-		"DEVPATH":              "/devices/virtual/block/loop7",
-		"MAJOR":                "7",
-		"MINOR":                "0",
-		"MD_UUID":              "MDUUID",
-		"ID_PART_ENTRY_NUMBER": "7",
-		"ID_WWN":               "WWN",
-		"ID_MODEL":             "ID_MODEL",
-		"ID_SERIAL_SHORT":      "ID_SERIAL_SHORT",
-		"ID_VENDOR":            "ID_VENDOR",
-		"DM_NAME":              "DM_NAME",
-		"DM_UUID":              "DM_UUID",
-		"ID_PART_TABLE_UUID":   "ID_PART_TABLE_UUID",
-		"ID_PART_TABLE_TYPE":   "ID_PART_TABLE_TYPE",
-		"ID_PART_ENTRY_UUID":   "ID_PART_ENTRY_UUID",
-		"ID_FS_UUID":           "ID_FS_UUID",
-		"ID_FS_TYPE":           "ID_FS_TYPE",
-	}
-
-	expectedUEventData := &sys.UDevData{
-		Path:         "/devices/virtual/block/loop7",
-		Major:        7,
-		Minor:        0,
-		Partition:    7,
-		WWID:         "WWN",
-		Model:        "ID_MODEL",
-		UeventSerial: "ID_SERIAL_SHORT",
-		Vendor:       "ID_VENDOR",
-		DMName:       "DM_NAME",
-		DMUUID:       "DM_UUID",
-		MDUUID:       "MDUUID",
-		PTUUID:       "ID_PART_TABLE_UUID",
-		PTType:       "ID_PART_TABLE_TYPE",
-		PartUUID:     "ID_PART_ENTRY_UUID",
-		UeventFSUUID: "ID_FS_UUID",
-		FSType:       "ID_FS_TYPE",
-	}
-
-	udevData, err := mapToUdevData(testEventMap)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if !reflect.DeepEqual(udevData, expectedUEventData) {
-		t.Fatalf("expected udevdata: %v, got: %v", udevData, expectedUEventData)
-	}
-}
 
 func TestGetRootBlockPath(t1 *testing.T) {
 
@@ -184,7 +134,6 @@ func TestValidateDevice(t1 *testing.T) {
 				FSType:            "xfs",
 				UeventSerial:      "ueventserial",
 				UeventFSUUID:      "d9877501-e1b5-4bac-b73f-178b29974ed5",
-				Parent:            "parent",
 				TotalCapacity:     uint64(5368709120),
 				FreeCapacity:      uint64(5368709120),
 				LogicalBlockSize:  uint64(512),
