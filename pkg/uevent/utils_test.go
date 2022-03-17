@@ -1007,7 +1007,7 @@ func TestValidateDevice(t1 *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		if testCase.expectedResult != validateDevice(testCase.device, testCase.drives) {
+		if testCase.expectedResult != ValidateDevice(testCase.device, testCase.drives) {
 			t1.Errorf("Test case %d: Expected result = (%v) got: %v", i, testCase.expectedResult, !testCase.expectedResult)
 		}
 	}

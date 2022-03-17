@@ -17,9 +17,24 @@
 package drive
 
 import (
+	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
+
 	"github.com/google/uuid"
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/mount"
+	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/uevent"
+	"github.com/minio/directpv/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+var (
+	errInvalidDevPath     = errors.New("devpath not found in the event")
+	errDriveValueMismatch = errors.New("Drive value mismatch")
 )
 
 func isFormatRequested(drive *directcsi.DirectCSIDrive) bool {
@@ -59,5 +74,67 @@ func getFSUUIDFromDrive(drive *directcsi.DirectCSIDrive) string {
 //            Else, return errNotMounted
 // ----------------------------------------------------------------------------
 func verifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
+
+	devName, err := sys.GetDeviceName(uint32(drive.Status.MajorNumber), uint32(drive.Status.MinorNumber))
+	if err != nil {
+		return err
+	}
+	if filepath.Base(drive.Status.Path) != devName {
+		return fmt.Errorf("path mismatch. Expected %s got %s", filepath.Base(drive.Status.Path), devName)
+	}
+
+	if !utils.IsCondition(drive.Status.Conditions,
+		string(directcsi.DirectCSIDriveConditionReady),
+		metav1.ConditionFalse, string(directcsi.DirectCSIDriveReasonLost), "") {
+		return fmt.Errorf("drive is lost = %v", drive.Status.Conditions)
+	}
+
+	runUdevDataMap, err := sys.ReadRunUdevDataByMajorMinor(int(drive.Status.MajorNumber), int(drive.Status.MinorNumber))
+	if err != nil {
+		return err
+	}
+	runUdevData, err := sys.MapToUdevData(runUdevDataMap)
+	if err != nil {
+		return err
+	}
+	device := &sys.Device{
+		Name:         filepath.Base(drive.Status.Path),
+		Major:        int(drive.Status.MajorNumber),
+		Minor:        int(drive.Status.MinorNumber),
+		Virtual:      strings.Contains(drive.Status.Path, "/virtual/"),
+		Partition:    runUdevData.Partition,
+		WWID:         runUdevData.WWID,
+		Model:        runUdevData.Model,
+		UeventSerial: runUdevData.UeventSerial,
+		Vendor:       runUdevData.Vendor,
+		DMName:       runUdevData.DMName,
+		DMUUID:       runUdevData.DMUUID,
+		MDUUID:       runUdevData.MDUUID,
+		PTUUID:       runUdevData.PTUUID,
+		PTType:       runUdevData.PTType,
+		PartUUID:     runUdevData.PartUUID,
+		UeventFSUUID: runUdevData.UeventFSUUID,
+		FSType:       runUdevData.FSType,
+	}
+
+	if !uevent.ValidateDevice(device, []*directcsi.DirectCSIDrive{drive}) {
+		return errDriveValueMismatch
+	}
+
+	if drive.Status.DriveStatus == directcsi.DriveStatusInUse ||
+		drive.Status.DriveStatus == directcsi.DriveStatusReady {
+		mounted, err := mount.IsMounted(drive.Name)
+		if err != nil {
+			return err
+		}
+		if mounted {
+			if !node.ValidDirectPVMountOpts(drive.Status.MountOptions) {
+				return errInvalidMountOptions
+			}
+
+		} else {
+			return errNotMounted
+		}
+	}
 	return nil
 }

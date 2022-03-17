@@ -152,7 +152,7 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 				filepath.Join(sys.MountRoot, drive.Name),
 				device.FirstMountPoint))
 		}
-		if !validDirectPVMountOpts(device.FirstMountOptions) {
+		if !ValidDirectPVMountOpts(device.FirstMountOptions) {
 			err = multierr.Append(err, errInvalidDrive(
 				"MountpointOptions",
 				mount.MountOptPrjQuota,
@@ -253,7 +253,7 @@ func validDirectPVMounts(mountPoints []string) bool {
 	return false
 }
 
-func validDirectPVMountOpts(deviceMountOpts []string) bool {
+func ValidDirectPVMountOpts(deviceMountOpts []string) bool {
 	expectedMountOpts := []string{
 		mount.MountOptPrjQuota,
 	}
