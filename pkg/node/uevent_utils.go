@@ -36,6 +36,7 @@ import (
 
 var (
 	errInvalidMount = errors.New("the directpv mount is not found")
+	errHasHolders   = errors.New("the device has holders")
 	errInvalidDrive = func(fieldName string, expected, found interface{}) error {
 		return fmt.Errorf("; %s mismatch - Expected %v found %v",
 			fieldName,
@@ -104,7 +105,12 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 		updatedDrive.Status.Vendor = device.Vendor
 	}
 
-	if device.ReadOnly || device.Partitioned || device.SwapOn || device.Master != "" || !validDirectPVMounts(device.MountPoints) {
+	if device.ReadOnly ||
+		device.Partitioned ||
+		device.SwapOn ||
+		device.Master != "" ||
+		len(device.Holders) > 0 ||
+		!validDirectPVMounts(device.MountPoints) {
 		if updatedDrive.Status.DriveStatus == directcsi.DriveStatusAvailable {
 			updatedDrive.Status.DriveStatus = directcsi.DriveStatusUnavailable
 		}
@@ -192,6 +198,11 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 				"Master",
 				"",
 				device.Master))
+		}
+		if len(device.Holders) > 0 {
+			err = multierr.Append(err, fmt.Errorf(
+				"the device has holders: %v",
+				device.Holders))
 		}
 	}
 	return err
