@@ -236,23 +236,22 @@ func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}, mountInfos 
 		device.SwapOn = true
 	}
 
-	if device.FSType == "" {
-		fsInfo, err := probeFS(device)
-		if err != nil {
-			return err
-		}
-		if fsInfo != nil {
-			device.FSUUID = fsInfo.ID()
-			if device.FSType != "" && !FSTypeEqual(device.FSType, fsInfo.Type()) {
-				klog.Errorf("%v: FSType %v from Uevent does not match probed FSType %v", "/dev/"+device.Name, device.FSType, fsInfo.Type())
-				device.TotalCapacity, device.FreeCapacity = getCapacity(device)
-			} else {
-				device.FSType = fsInfo.Type()
-				device.TotalCapacity = fsInfo.TotalCapacity()
-				device.FreeCapacity = fsInfo.FreeCapacity()
-			}
+	fsInfo, err := probeFS(device)
+	if err != nil {
+		return err
+	}
+	if fsInfo != nil {
+		device.FSUUID = fsInfo.ID()
+		if device.FSType != "" && !FSTypeEqual(device.FSType, fsInfo.Type()) {
+			klog.Errorf("%v: FSType %v from Uevent does not match probed FSType %v", "/dev/"+device.Name, device.FSType, fsInfo.Type())
+			device.TotalCapacity, device.FreeCapacity = getCapacity(device)
+		} else {
+			device.FSType = fsInfo.Type()
+			device.TotalCapacity = fsInfo.TotalCapacity()
+			device.FreeCapacity = fsInfo.FreeCapacity()
 		}
 	}
+
 	return nil
 }
 

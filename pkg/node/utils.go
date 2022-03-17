@@ -118,10 +118,11 @@ func getDriveUUID(nodeID string, device *sys.Device) string {
 				nodeID,
 				device.WWID,
 				device.UeventSerial,
+				device.DMUUID,
 				// FIXME: device.UeventSerialLong,
 				// FIXME: device.PCIPath,
 			},
-			"-",
+			"",
 		),
 	)
 	h := sha256.Sum256(data)

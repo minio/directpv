@@ -51,6 +51,7 @@ func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[str
 		device.SwapOn ||
 		device.Hidden ||
 		device.ReadOnly ||
+		device.Removable ||
 		device.Partitioned ||
 		device.Master != "" ||
 		len(device.Holders) > 0 ||
