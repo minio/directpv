@@ -76,7 +76,7 @@ func unmount(target string, force, detach, expire bool) error {
 	return syscall.Unmount(target, flags)
 }
 
-func isMounted(target string) (bool, error) {
+func IsMounted(target string) (bool, error) {
 	mountInfos, err := Probe()
 	if err != nil {
 		return false, err
@@ -94,7 +94,7 @@ func isMounted(target string) (bool, error) {
 }
 
 func safeMount(device, target, fsType string, flags []string, superBlockFlags string) error {
-	mounted, err := isMounted(target)
+	mounted, err := IsMounted(target)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func safeMount(device, target, fsType string, flags []string, superBlockFlags st
 }
 
 func safeBindMount(source, target, fsType string, recursive, readOnly bool, superBlockFlags string) error {
-	mounted, err := isMounted(target)
+	mounted, err := IsMounted(target)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func safeBindMount(source, target, fsType string, recursive, readOnly bool, supe
 }
 
 func safeUnmount(target string, force, detach, expire bool) error {
-	mounted, err := isMounted(target)
+	mounted, err := IsMounted(target)
 	if err != nil {
 		return err
 	}
