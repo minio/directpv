@@ -76,7 +76,6 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 	device *sys.Device,
 	stageOneMatchers, stageTwoMatchers []matchFn) (*directcsi.DirectCSIDrive, matchResult) {
 	var matchedDrives, consideredDrives []*directcsi.DirectCSIDrive
-	var matched, updated bool
 	var err error
 
 	for _, matchFn := range stageOneMatchers {
@@ -90,14 +89,8 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 		}
 		switch {
 		case len(matchedDrives) > 0:
-			if len(matchedDrives) == 1 {
-				matched = true
-			}
 			drives = matchedDrives
 		default:
-			if len(consideredDrives) == 1 && matched {
-				updated = true
-			}
 			drives = consideredDrives
 		}
 	}
@@ -110,6 +103,7 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 				klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
 				continue
 			}
+
 		}
 	}
 
@@ -117,13 +111,19 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 	case 0:
 		return nil, noMatch
 	case 1:
-		if updated {
+		if isFormatRequested(drives[0]) || isChanged(device, drives[0]) {
 			return drives[0], changed
 		}
 		return drives[0], noChange
 	default:
 		return nil, tooManyMatches
 	}
+}
+
+func isChanged(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
+	return !ValidateUDevInfo(device, directCSIDrive) ||
+		!validateSysInfo(device, directCSIDrive) ||
+		!validateDevInfo(device, directCSIDrive)
 }
 
 func majMinMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
