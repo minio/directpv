@@ -85,7 +85,7 @@ func (f *FAT32) ID() string {
 
 // Type returns "fat32".
 func (f *FAT32) Type() string {
-	return "fat32"
+	return "vfat"
 }
 
 // TotalCapacity returns total capacity of filesystem.

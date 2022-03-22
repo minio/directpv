@@ -285,6 +285,15 @@ func (l *listener) validateDevice(device *sys.Device) (bool, error) {
 	if len(filteredDrives) != 1 {
 		return false, nil
 	}
+	filteredDrive := filteredDrives[0]
+
+	// check if format is requested
+	if filteredDrive.Spec.DirectCSIOwned &&
+		filteredDrive.Spec.RequestedFormat != nil &&
+		filteredDrive.Status.DriveStatus == directcsi.DriveStatusAvailable {
+		return false, nil
+	}
+
 	return ValidateDevice(device, filteredDrives[0]), nil
 }
 
