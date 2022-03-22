@@ -194,13 +194,17 @@ func (l *listener) processEvents(ctx context.Context) {
 			dEvent := l.eventQueue.pop()
 			if err := dEvent.collectUDevData(); err != nil {
 				klog.ErrorS(err, "failed to collect udevdata for path: %s", dEvent.devPath)
-				l.eventQueue.push(dEvent)
+				if dEvent.action != Sync {
+					l.eventQueue.push(dEvent)
+				}
 				continue
 			}
 			if err := l.handle(ctx, dEvent); err != nil {
 				klog.ErrorS(err, "failed to handle an event", dEvent.action)
-				// Push it again to the queue
-				l.eventQueue.push(dEvent)
+				if dEvent.action != Sync {
+					// Push it again to the queue
+					l.eventQueue.push(dEvent)
+				}
 			}
 		}
 	}
@@ -239,18 +243,18 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		FSType:       dEvent.udevData.FSType,
 	}
 
-	ok, err := l.validateDevice(device)
-	if err != nil {
-		return err
-	}
-	if ok {
-		return nil
-	}
-
-	if err := device.ProbeHostInfo(); err != nil {
-		// if drive is deleted
-		// FIXME: should we ignore errNotExist event for update, add and sync?
-		if !errors.Is(err, os.ErrNotExist) {
+	if dEvent.action != Remove {
+		if err := device.ProbeSysInfo(); err != nil {
+			return err
+		}
+		ok, err := l.validateDevice(device)
+		if err != nil {
+			return err
+		}
+		if ok {
+			return nil
+		}
+		if err := device.ProbeDevInfo(); err != nil {
 			return err
 		}
 	}
@@ -287,14 +291,9 @@ func (l *listener) validateDevice(device *sys.Device) (bool, error) {
 	}
 	filteredDrive := filteredDrives[0]
 
-	// check if format is requested
-	if filteredDrive.Spec.DirectCSIOwned &&
-		filteredDrive.Spec.RequestedFormat != nil &&
-		filteredDrive.Status.DriveStatus == directcsi.DriveStatusAvailable {
-		return false, nil
-	}
-
-	return ValidateDevice(device, filteredDrives[0]), nil
+	return !isFormatRequested(filteredDrive) &&
+		ValidateUDevInfo(device, filteredDrive) &&
+		validateSysInfo(device, filteredDrive), nil
 }
 
 func (l *listener) processAdd(ctx context.Context,

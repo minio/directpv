@@ -109,7 +109,7 @@ func TestGetRootBlockPath(t1 *testing.T) {
 	}
 
 }
-func TestValidateDevice(t1 *testing.T) {
+func TestValidateUDevInfo(t1 *testing.T) {
 	testCases := []struct {
 		device         *sys.Device
 		drives         []*directcsi.DirectCSIDrive
@@ -958,7 +958,7 @@ func TestValidateDevice(t1 *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		if testCase.expectedResult != ValidateDevice(testCase.device, testCase.drives[0]) {
+		if testCase.expectedResult != ValidateUDevInfo(testCase.device, testCase.drives[0]) {
 			t1.Errorf("Test case %d: Expected result = (%v) got: %v", i, testCase.expectedResult, !testCase.expectedResult)
 		}
 	}
