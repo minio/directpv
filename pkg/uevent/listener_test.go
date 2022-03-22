@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -88,102 +89,151 @@ func getHeader() []byte {
 	return append(header, pad...)
 }
 
-// func TestListenerGet(t *testing.T) {
-// 	socketName, listener, serverConn, clientConn, sockfd, err := setupTestServer()
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestUEventListener(t *testing.T) {
+	socketName, testListener, serverConn, clientConn, sockfd, err := setupTestServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.TODO()
 
-// 	defer func() {
-// 		clientConn.Close()
-// 		serverConn.Close()
-// 		listener.Close()
-// 		os.Remove(socketName)
-// 	}()
+	eventListener := &listener{
+		sockfd:     sockfd,
+		closeCh:    make(chan struct{}),
+		eventQueue: newEventQueue(),
+	}
+	defer func() {
+		eventListener.close()
+		testListener.Close()
+		clientConn.Close()
+		serverConn.Close()
+		os.Remove(socketName)
+	}()
 
-// 	eventListener := &Listener{
-// 		closeCh:  make(chan struct{}),
-// 		sockfd:   sockfd,
-// 		eventMap: map[string]map[string]string{},
-// 	}
-// 	eventListener.start()
-// 	defer eventListener.Close()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				t.Error("context cancelled")
+			default:
+				dEvent, err := eventListener.getNextDeviceUEvent(ctx)
+				if err == nil {
+					eventListener.eventQueue.push(dEvent)
+				}
+			}
+		}
+	}()
 
-// 	case1Msg := append(getHeader(), []byte(strings.Join(
-// 		[]string{
-// 			".ID_FS_TYPE_NEW=",
-// 			"ACTION=change",
-// 			"DEVNAME=/dev/loop0",
-// 			"DEVPATH=/devices/virtual/block/loop0",
-// 			"DEVTYPE=disk",
-// 			"ID_FS_TYPE=",
-// 			"MAJOR=7",
-// 			"MINOR=0",
-// 			"SEQNUM=17050",
-// 			"SUBSYSTEM=block",
-// 			"TAGS=:systemd:",
-// 			"USEC_INITIALIZED=132131168299",
-// 		},
-// 		string(fieldDelimiter),
-// 	))...)
-// 	case1Result := map[string]string{
-// 		".ID_FS_TYPE_NEW":  "",
-// 		"ACTION":           "change",
-// 		"DEVNAME":          "/dev/loop0",
-// 		"DEVPATH":          "/devices/virtual/block/loop0",
-// 		"DEVTYPE":          "disk",
-// 		"ID_FS_TYPE":       "",
-// 		"MAJOR":            "7",
-// 		"MINOR":            "0",
-// 		"SEQNUM":           "17050",
-// 		"SUBSYSTEM":        "block",
-// 		"TAGS":             ":systemd:",
-// 		"USEC_INITIALIZED": "132131168299",
-// 	}
+	case1Msg := append(getHeader(), []byte(strings.Join(
+		[]string{
+			".ID_FS_TYPE_NEW=",
+			"ACTION=change",
+			"DEVNAME=/dev/loop0",
+			"DEVPATH=/devices/virtual/block/loop0",
+			"DEVTYPE=disk",
+			"ID_FS_TYPE=",
+			"MAJOR=7",
+			"MINOR=0",
+			"SEQNUM=17050",
+			"SUBSYSTEM=block",
+			"TAGS=:systemd:",
+			"USEC_INITIALIZED=132131168299",
+		},
+		string(fieldDelimiter),
+	))...)
 
-// 	if _, err := serverConn.Write(case1Msg); err != nil {
-// 		t.Fatal(err)
-// 	}
+	if _, err := serverConn.Write(case1Msg); err != nil {
+		t.Fatal(err)
+	}
 
-// 	result, err := eventListener.Get(context.TODO())
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	dEvent := eventListener.eventQueue.pop()
 
-// 	if !reflect.DeepEqual(result, case1Result) {
-// 		t.Fatalf("result: expected: %v; got: %v", case1Result, result)
-// 	}
-// }
-// fillMissingUdevData(runUdevData *sys.UDevData) error {
+	if dEvent.devPath != "/devices/virtual/block/loop0" {
+		t.Fatalf("expected devPath /devices/virtual/block/loop0 got %s", dEvent.devPath)
+	}
+	if dEvent.action != Change {
+		t.Fatalf("expected action change got %s", string(dEvent.devPath))
+	}
+	if dEvent.major != 7 {
+		t.Fatalf("expected major: 7 got %d", dEvent.major)
+	}
+	if dEvent.minor != 0 {
+		t.Fatalf("expected major: 0 got %d", dEvent.minor)
+	}
 
-// Path         string
-// Major        int
-// Minor        int
-// Partition    int
-// WWID         string
-// Model        string
-// UeventSerial string
-// Vendor       string
-// DMName       string
-// DMUUID       string
-// MDUUID       string
-// PTUUID       string
-// PTType       string
-// PartUUID     string
-// UeventFSUUID string
-// FSType       string
-// FSUUID       string
+	case2Msg := append(getHeader(), []byte(strings.Join(
+		[]string{
+			".ID_FS_TYPE_NEW=",
+			"ACTION=remove",
+			"DEVNAME=/dev/loop0",
+			"DEVPATH=/devices/virtual/block/loop0",
+			"DEVTYPE=disk",
+			"ID_FS_TYPE=",
+			"MAJOR=7",
+			"MINOR=0",
+			"SEQNUM=17050",
+			"SUBSYSTEM=block",
+			"TAGS=:systemd:",
+			"USEC_INITIALIZED=132131168299",
+		},
+		string(fieldDelimiter),
+	))...)
 
-// type deviceEvent struct {
-// 	created time.Time
-// 	action  action
-// 	devPath string
-// 	backOff time.Duration
-// 	popped  bool
-// 	timer   *time.Timer
+	if _, err := serverConn.Write(case2Msg); err != nil {
+		t.Fatal(err)
+	}
 
-// 	udevData *sys.UDevData
-// }
+	dEvent = eventListener.eventQueue.pop()
+
+	if dEvent.devPath != "/devices/virtual/block/loop0" {
+		t.Fatalf("expected devPath /devices/virtual/block/loop0 got %s", dEvent.devPath)
+	}
+	if dEvent.action != Remove {
+		t.Fatalf("expected action change got %s", string(dEvent.devPath))
+	}
+	if dEvent.major != 7 {
+		t.Fatalf("expected major: 7 got %d", dEvent.major)
+	}
+	if dEvent.minor != 0 {
+		t.Fatalf("expected major: 0 got %d", dEvent.minor)
+	}
+
+	case3Msg := append(getHeader(), []byte(strings.Join(
+		[]string{
+			".ID_FS_TYPE_NEW=",
+			"ACTION=add",
+			"DEVNAME=/dev/loop0",
+			"DEVPATH=/devices/virtual/block/loop0",
+			"DEVTYPE=disk",
+			"ID_FS_TYPE=",
+			"MAJOR=7",
+			"MINOR=0",
+			"SEQNUM=17050",
+			"SUBSYSTEM=block",
+			"TAGS=:systemd:",
+			"USEC_INITIALIZED=132131168299",
+		},
+		string(fieldDelimiter),
+	))...)
+
+	if _, err := serverConn.Write(case3Msg); err != nil {
+		t.Fatal(err)
+	}
+
+	dEvent = eventListener.eventQueue.pop()
+
+	if dEvent.devPath != "/devices/virtual/block/loop0" {
+		t.Fatalf("expected devPath /devices/virtual/block/loop0 got %s", dEvent.devPath)
+	}
+	if dEvent.action != Add {
+		t.Fatalf("expected action change got %s", string(dEvent.devPath))
+	}
+	if dEvent.major != 7 {
+		t.Fatalf("expected major: 7 got %d", dEvent.major)
+	}
+	if dEvent.minor != 0 {
+		t.Fatalf("expected major: 0 got %d", dEvent.minor)
+	}
+}
 
 func TestFillMissingUdevData(t *testing.T) {
 	testCases := []struct {

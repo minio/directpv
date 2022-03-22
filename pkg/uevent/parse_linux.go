@@ -18,6 +18,7 @@ package uevent
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -111,19 +112,24 @@ func parse(msg []byte) (map[string]string, error) {
 	return event, nil
 }
 
-func (l *listener) msgPeek() (int, []byte, error) {
+func (l *listener) msgPeek(ctx context.Context) (int, []byte, error) {
 	var n int
 	var err error
 	buf := make([]byte, os.Getpagesize())
 	for {
-		if n, _, err = syscall.Recvfrom(l.sockfd, buf, syscall.MSG_PEEK); err != nil {
-			return n, nil, err
+		select {
+		case <-ctx.Done():
+			return n, nil, ctx.Err()
+		case <-l.closeCh:
+			return n, nil, errClosedListener
+		default:
+			if n, _, err = syscall.Recvfrom(l.sockfd, buf, syscall.MSG_PEEK); err != nil {
+				return n, nil, err
+			}
 		}
-
 		if n < len(buf) {
 			break
 		}
-
 		buf = make([]byte, len(buf)+os.Getpagesize())
 	}
 
@@ -150,14 +156,19 @@ func (l *listener) msgRead(buf []byte) error {
 }
 
 // ReadMsg allow to read an entire uevent msg
-func (l *listener) readMsg() ([]byte, error) {
-	_, buf, err := l.msgPeek()
-	if err != nil {
-		return nil, err
+func (l *listener) readMsg(ctx context.Context) ([]byte, error) {
+	for {
+		n, buf, err := l.msgPeek(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			// continue peeking until a message has been written to the sock
+			continue
+		}
+		if err = l.msgRead(buf); err != nil {
+			return nil, err
+		}
+		return buf, nil
 	}
-	if err = l.msgRead(buf); err != nil {
-		return nil, err
-	}
-
-	return buf, nil
 }
