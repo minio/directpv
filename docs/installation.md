@@ -35,7 +35,7 @@ For installation in production grade environments, ensure that all criteria in t
 #### 1. Install the driver
 
 ```sh
-kubectl directpv install --crd
+kubectl directpv install
 ```
 
 This will install directpv driver in the kubernetes cluster.
@@ -44,7 +44,6 @@ This will install directpv driver in the kubernetes cluster.
 
  - directpv components are installed in the namespace `directpv-min-io`
  - alternate kubeconfig path can be specified using `kubectl directpv --kubeconfig /path/to/kubeconfig` 
- - `--crd` flag is only required when installing for the first time
  - the rbac requirements for the driver is [here](./specification.md#driver-rbac)
  - the driver runs in `privileged` mode, which is required for mounting, unmounting and formatting drives
 
