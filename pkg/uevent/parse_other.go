@@ -19,6 +19,7 @@
 package uevent
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 )
@@ -28,6 +29,6 @@ func (l *listener) parseUEvent(buf []byte) (*deviceEvent, error) {
 }
 
 // ReadMsg allow to read an entire uevent msg
-func (l *listener) readMsg() ([]byte, error) {
+func (l *listener) readMsg(ctx context.Context) ([]byte, error) {
 	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

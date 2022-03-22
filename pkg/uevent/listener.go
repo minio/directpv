@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -68,6 +69,7 @@ var (
 			found,
 		)
 	}
+	errClosedListener = errors.New("closed listener")
 )
 
 type DeviceUEventHandler interface {
@@ -77,6 +79,8 @@ type DeviceUEventHandler interface {
 }
 
 type listener struct {
+	isClosed    int32
+	closeCh     chan struct{}
 	sockfd      int
 	eventQueue  *eventQueue
 	threadiness int
@@ -125,6 +129,7 @@ func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error 
 		nodeID:     nodeID,
 		indexer:    newIndexer(ctx, nodeID, resyncPeriod),
 	}
+	defer listener.close()
 
 	go listener.startSync(ctx)
 
@@ -134,6 +139,8 @@ func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error 
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-listener.closeCh:
+			return errClosedListener
 		default:
 			dEvent, err := listener.getNextDeviceUEvent(ctx)
 			if err != nil {
@@ -142,6 +149,14 @@ func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error 
 			listener.eventQueue.push(dEvent)
 		}
 	}
+}
+
+func (l *listener) close() error {
+	if atomic.AddInt32(&l.isClosed, 1) == 1 {
+		close(l.closeCh)
+		return syscall.Close(l.sockfd)
+	}
+	return nil
 }
 
 func (l *listener) startSync(ctx context.Context) {
@@ -154,6 +169,9 @@ func (l *listener) startSync(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			klog.Error(ctx.Err())
+			return
+		case <-l.closeCh:
+			klog.Error(errClosedListener)
 			return
 		case <-syncTicker.C:
 			if err := l.sync(); err != nil {
@@ -168,6 +186,9 @@ func (l *listener) processEvents(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			klog.Error(ctx.Err())
+			return
+		case <-l.closeCh:
+			klog.Error(errClosedListener)
 			return
 		default:
 			dEvent := l.eventQueue.pop()
@@ -324,19 +345,26 @@ func (l *listener) processRemove(ctx context.Context,
 
 func (l *listener) getNextDeviceUEvent(ctx context.Context) (*deviceEvent, error) {
 	for {
-		buf, err := l.readMsg()
-		if err != nil {
-			return nil, err
-		}
-
-		dEvent, err := l.parseUEvent(buf)
-		if err != nil {
-			if errors.Is(err, errNonDeviceEvent) {
-				continue
+		select {
+		case <-ctx.Done():
+			klog.Error(ctx.Err())
+			return nil, ctx.Err()
+		case <-l.closeCh:
+			return nil, errClosedListener
+		default:
+			buf, err := l.readMsg(ctx)
+			if err != nil {
+				return nil, err
 			}
-			return nil, err
+			dEvent, err := l.parseUEvent(buf)
+			if err != nil {
+				if errors.Is(err, errNonDeviceEvent) {
+					continue
+				}
+				return nil, err
+			}
+			return dEvent, nil
 		}
-		return dEvent, nil
 	}
 }
 
