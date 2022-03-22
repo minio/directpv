@@ -415,39 +415,6 @@ func TestFSUUIDMatcher(t *testing.T) {
 	}
 }
 
-func TestLogicalBlocksizeMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{LogicalBlockSize: 0}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{LogicalBlockSize: 512}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{LogicalBlockSize: -123}}
-	case1Device := &sys.Device{LogicalBlockSize: 0}
-	case2Device := &sys.Device{LogicalBlockSize: 512}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// LogicalBlockSize blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// LogicalBlockSize blank in device
-		{case1Device, &case2Drive, false, true, nil},
-		// LogicalBlockSize blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// LogicalBlockSize not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// LogicalBlockSize not blank in both and does not match
-		{case2Device, &case3Drive, false, true, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := logicalBlocksizeMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
-		}
-	}
-}
-
 func TestTotalCapacityMatcher(t *testing.T) {
 	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{TotalCapacity: 0}}
 	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{TotalCapacity: 512}}
