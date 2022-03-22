@@ -342,12 +342,8 @@ func getMountPoints(mountInfos map[string][]mount.MountInfo) (map[string][]strin
 	return mountPointsMap, nil
 }
 
-func (device *Device) ProbeHostInfo() (err error) {
+func (device *Device) ProbeSysInfo() (err error) {
 	device.Hidden = getHidden(device.Name)
-	if device.Serial, err = getSerial(device.Name); err != nil {
-		return err
-	}
-
 	if device.Removable, err = getRemovable(device.Name); err != nil {
 		return err
 	}
@@ -361,7 +357,6 @@ func (device *Device) ProbeHostInfo() (err error) {
 	}
 
 	// No partitions for hidden devices.
-	// No FS information needed for hidden devices
 	if !device.Hidden {
 		if device.Partition <= 0 {
 			names, err := getPartitions(device.Name)
@@ -374,7 +369,18 @@ func (device *Device) ProbeHostInfo() (err error) {
 		if err != nil {
 			return err
 		}
+	}
 
+	return nil
+}
+
+func (device *Device) ProbeDevInfo() (err error) {
+	if device.Serial, err = getSerial(device.Name); err != nil {
+		return err
+	}
+
+	// No FS information needed for hidden devices
+	if !device.Hidden {
 		CDROMs, err := getCDROMs()
 		if err != nil {
 			return err

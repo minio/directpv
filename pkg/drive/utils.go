@@ -115,7 +115,7 @@ func verifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 		FSType:       runUdevData.FSType,
 	}
 
-	if !uevent.ValidateDevice(device, drive) {
+	if !uevent.ValidateUDevInfo(device, drive) {
 		return errDriveValueMismatch
 	}
 

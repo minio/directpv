@@ -41,7 +41,7 @@ func getRootBlockPath(devName string) string {
 	}
 }
 
-func ValidateDevice(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
+func ValidateUDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
 
 	if directCSIDrive.Status.Path != device.DevPath() {
 		klog.V(3).Infof("[%s] path mismatch: %v -> %v", directCSIDrive.Status.Path, device.DevPath())
@@ -109,4 +109,68 @@ func ValidateDevice(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive
 	}
 
 	return true
+}
+
+func validateSysInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
+	if directCSIDrive.Status.ReadOnly != device.ReadOnly {
+		klog.V(3).Infof("[%s] mismatch readonly %v - %v", device.Name, directCSIDrive.Status.ReadOnly, device.ReadOnly)
+		return false
+	}
+	if directCSIDrive.Status.TotalCapacity != int64(device.Size) {
+		klog.V(3).Infof("[%s] mismatch size %v - %v", device.Name, directCSIDrive.Status.TotalCapacity, device.Size)
+		return false
+	}
+	if directCSIDrive.Status.Partitioned != device.Partitioned {
+		klog.V(3).Infof("[%s] mismatch patitioned %v - %v", device.Name, directCSIDrive.Status.Partitioned, device.Partitioned)
+		return false
+	}
+
+	// To be added :-
+	//
+	// if directCSIDrive.Status.Removable != device.Removable {
+	// 	klog.V(3).Infof("[%s] mismatch Removable %v - %v", device.Name, directCSIDrive.Status.Removable, device.Removable)
+	// 	return false
+	// }
+	// if directCSIDrive.Status.Hidden != device.Hidden {
+	// 	klog.V(3).Infof("[%s] mismatch Hidden %v - %v", device.Name, directCSIDrive.Status.Hidden, device.Hidden)
+	// 	return false
+	// }
+	// if directCSIDrive.Status.Holders != device.Holders {
+	// 	klog.V(3).Infof("[%s] mismatch Holders %v - %v", device.Name, directCSIDrive.Status.Holders, device.Holders)
+	// 	return false
+	// }
+	//
+
+	return true
+}
+
+func validateDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
+	if directCSIDrive.Status.SerialNumber != device.Serial {
+		klog.V(3).Infof("[%s] mismatch serial %v - %v", device.Name, directCSIDrive.Status.SerialNumber, device.Serial)
+		return false
+	}
+	if directCSIDrive.Status.FilesystemUUID != device.FSUUID {
+		klog.V(3).Infof("[%s] mismatch fsuuid %v - %v", device.Name, directCSIDrive.Status.FilesystemUUID, device.FSUUID)
+		return false
+	}
+	if directCSIDrive.Status.ReadOnly != device.ReadOnly {
+		klog.V(3).Infof("[%s] mismatch readonly %v - %v", device.Name, directCSIDrive.Status.ReadOnly, device.ReadOnly)
+		return false
+	}
+	if directCSIDrive.Status.Mountpoint != device.FirstMountPoint {
+		klog.V(3).Infof("[%s] mismatch mountpoint %v - %v", device.Name, directCSIDrive.Status.Mountpoint, device.FirstMountPoint)
+		return false
+	}
+	if directCSIDrive.Status.SwapOn != device.SwapOn {
+		klog.V(3).Infof("[%s] mismatch swapon %v - %v", device.Name, directCSIDrive.Status.SwapOn, device.SwapOn)
+		return false
+	}
+
+	return true
+}
+
+func isFormatRequested(directCSIDrive *directcsi.DirectCSIDrive) bool {
+	return directCSIDrive.Spec.DirectCSIOwned &&
+		directCSIDrive.Spec.RequestedFormat != nil &&
+		directCSIDrive.Status.DriveStatus == directcsi.DriveStatusAvailable
 }
