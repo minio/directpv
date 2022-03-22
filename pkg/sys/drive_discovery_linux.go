@@ -90,25 +90,6 @@ func readdirnames(dirname string, errorIfNotExist bool) ([]string, error) {
 	return dir.Readdirnames(-1)
 }
 
-func getMajorMinor(name string) (major int, minor int, err error) {
-	var majorMinor string
-	if majorMinor, err = readFirstLine("/sys/class/block/"+name+"/dev", true); err != nil {
-		return
-	}
-
-	tokens := strings.SplitN(majorMinor, ":", 2)
-	if len(tokens) != 2 {
-		err = fmt.Errorf("unknown format of %v", majorMinor)
-		return
-	}
-
-	if major, err = strconv.Atoi(tokens[0]); err != nil {
-		return
-	}
-	minor, err = strconv.Atoi(tokens[1])
-	return
-}
-
 func getSize(name string) (uint64, error) {
 	s, err := readFirstLine("/sys/class/block/"+name+"/size", true)
 	if err != nil {

@@ -250,6 +250,7 @@ func processObjects(
 	return nil
 }
 
+// ProcessVolumes processes the volume
 func ProcessVolumes(
 	ctx context.Context,
 	resultCh <-chan ListVolumeResult,
@@ -296,6 +297,7 @@ func ProcessVolumes(
 	)
 }
 
+// ProcessDrives processes the drives
 func ProcessDrives(
 	ctx context.Context,
 	resultCh <-chan ListDriveResult,
@@ -342,6 +344,7 @@ func ProcessDrives(
 	)
 }
 
+// DrivesListerWatcher list and watches a drive
 func DrivesListerWatcher(nodeID string) cache.ListerWatcher {
 	labelSelector := ""
 	if nodeID != "" {
@@ -360,6 +363,7 @@ func DrivesListerWatcher(nodeID string) cache.ListerWatcher {
 	)
 }
 
+// VolumesListerWatcher list and watches a volume
 func VolumesListerWatcher(nodeID string) cache.ListerWatcher {
 	labelSelector := ""
 	if nodeID != "" {

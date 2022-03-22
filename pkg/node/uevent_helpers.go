@@ -23,7 +23,6 @@ import (
 
 	"k8s.io/client-go/util/retry"
 
-	directcsiv1beta1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta1"
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/sys"
@@ -159,17 +158,6 @@ func matchDeviceNameSize(drive *directcsi.DirectCSIDrive, device *sys.Device) bo
 	}
 
 	return true
-}
-
-func isV1Beta1Drive(drive *directcsi.DirectCSIDrive) bool {
-	if labels := drive.GetLabels(); labels != nil {
-		return labels[string(utils.VersionLabelKey)] == directcsiv1beta1.Version
-	}
-	return false
-}
-
-func matchV1Beta1Name(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
-	return drive.Status.Path == "/dev/"+device.Name
 }
 
 func updateDriveProperties(drive *directcsi.DirectCSIDrive, device *sys.Device) (bool, bool) {

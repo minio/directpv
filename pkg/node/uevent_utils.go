@@ -36,7 +36,6 @@ import (
 
 var (
 	errInvalidMount = errors.New("the directpv mount is not found")
-	errHasHolders   = errors.New("the device has holders")
 	errInvalidDrive = func(fieldName string, expected, found interface{}) error {
 		return fmt.Errorf("; %s mismatch - Expected %v found %v",
 			fieldName,
@@ -272,7 +271,7 @@ func validDirectPVMounts(mountPoints []string) bool {
 
 func checkAndUpdateConditions(drive *directcsi.DirectCSIDrive) {
 	switch {
-	// Check if formatting request suceeded, If so, update the status fields
+	// Check if formatting request succeeded, If so, update the status fields
 	case drive.Spec.RequestedFormat != nil && drive.Status.DriveStatus == directcsi.DriveStatusAvailable:
 		if drive.Status.Mountpoint == filepath.Join(sys.MountRoot, drive.Name) {
 			drive.Finalizers = []string{directcsi.DirectCSIDriveFinalizerDataProtection}

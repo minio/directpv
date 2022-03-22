@@ -83,6 +83,7 @@ type Device struct {
 	FirstMountOptions []string
 }
 
+// DevPath return dev path
 func (d Device) DevPath() string {
 	return filepath.Join("/dev", d.Name)
 }

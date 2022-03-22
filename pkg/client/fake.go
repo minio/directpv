@@ -31,12 +31,14 @@ import (
 
 type fakeServerGroupsAndResourcesMethod func() ([]*metav1.APIGroup, []*metav1.APIResourceList, error)
 
+// FakeDiscovery creates fake discovery
 type FakeDiscovery struct {
 	discoveryfake.FakeDiscovery
 	fakeServerGroupsAndResourcesMethod
 	versionInfo *version.Info
 }
 
+// ServerVersion returns version info
 func (fd *FakeDiscovery) ServerVersion() (*version.Info, error) {
 	return fd.versionInfo, nil
 }
@@ -66,14 +68,17 @@ func FakeInit() {
 	initEvent(kubeClient)
 }
 
+// SetLatestDirectCSIDriveInterface sets latest drive
 func SetLatestDirectCSIDriveInterface(driveInterface directcsiclientset.DirectCSIDriveInterface) {
 	latestDirectCSIDriveInterface = driveInterface
 }
 
+// SetLatestDirectCSIVolumeInterface sets leates volume
 func SetLatestDirectCSIVolumeInterface(volumeInterface directcsiclientset.DirectCSIVolumeInterface) {
 	latestDirectCSIVolumeInterface = volumeInterface
 }
 
+// SetFakeDiscoveryClient returns a fake discovery client
 func SetFakeDiscoveryClient(groupsAndMethodsFn fakeServerGroupsAndResourcesMethod, serverVersionInfo *version.Info) {
 	discoveryClient = &FakeDiscovery{
 		FakeDiscovery:                      discoveryfake.FakeDiscovery{Fake: &kubeClient.(*kubernetesfake.Clientset).Fake},

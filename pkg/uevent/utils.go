@@ -41,6 +41,7 @@ func getRootBlockPath(devName string) string {
 	}
 }
 
+// ValidateDevice validates the device with drive
 func ValidateDevice(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
 
 	if directCSIDrive.Status.Path != device.DevPath() {

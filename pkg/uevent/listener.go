@@ -40,10 +40,15 @@ const (
 	libudevMagic = 0xfeedcafe
 	minMsgLen    = 40
 
-	Add    action = "add"
+	// Add event
+	Add action = "add"
+
+	// Change event
 	Change action = "change"
+
+	// Remove event
 	Remove action = "remove"
-	// internal
+	// Sync internal
 	Sync action = "sync"
 )
 
@@ -72,6 +77,7 @@ var (
 	errClosedListener = errors.New("closed listener")
 )
 
+// DeviceUEventHandler is and interface with uevent methods
 type DeviceUEventHandler interface {
 	Add(context.Context, *sys.Device) error
 	Update(context.Context, *sys.Device, *directcsi.DirectCSIDrive) error
@@ -104,6 +110,7 @@ type deviceEvent struct {
 	udevData *sys.UDevData
 }
 
+// Run listens for events
 func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error {
 	sockfd, err := syscall.Socket(
 		syscall.AF_NETLINK,
