@@ -147,6 +147,10 @@ function check_drives() {
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" drives list --all
 
+    sleep 30
+    # Show output for manual debugging.
+    "${DIRECT_CSI_CLIENT}" drives list --all
+
     check_drives_state Ready
 }
 

@@ -161,10 +161,13 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 				device.FirstMountOptions))
 		}
 		if strings.TrimSpace(drive.Status.UeventFSUUID) != strings.TrimSpace(device.UeventFSUUID) {
-			err = multierr.Append(err, errInvalidDrive(
-				"UeventFSUUID",
+			err = multierr.Append(err, fmt.Errorf(
+				"drive.Status.UeventFSUUID: %s device.UeventFSUUID: %s len(a): %d len(b): %d",
 				drive.Status.UeventFSUUID,
-				device.UeventFSUUID))
+				device.UeventFSUUID,
+				len(drive.Status.UeventFSUUID),
+				len(device.UeventFSUUID),
+			))
 		}
 		if strings.TrimSpace(drive.Status.FilesystemUUID) != strings.TrimSpace(device.FSUUID) {
 			err = multierr.Append(err, errInvalidDrive(

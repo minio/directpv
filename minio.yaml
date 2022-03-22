@@ -65,7 +65,7 @@ spec:
       #     - {key: direct.csi.min.io/access-tier, operator: In, values: [Hot]}
       resources:
         requests:
-          storage: 512Mi    
+          storage: 100Mi    
       storageClassName: directpv-min-io # This field references the existing StorageClass
   - metadata:
       name: minio-data-2
@@ -73,7 +73,7 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 512Mi  
+          storage: 100Mi  
       storageClassName: directpv-min-io # This field references the existing StorageClass
   - metadata:
       name: minio-data-3
@@ -81,7 +81,7 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 512Mi
+          storage: 100Mi
       storageClassName: directpv-min-io # This field references the existing StorageClass
   - metadata:
       name: minio-data-4
@@ -89,5 +89,5 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 512Mi 
+          storage: 100Mi 
       storageClassName: directpv-min-io # This field references the existing StorageClass
