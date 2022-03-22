@@ -194,7 +194,7 @@ func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.D
 	// mount the drive
 	if err == nil {
 		target := filepath.Join(sys.MountRoot, drive.Name)
-		err = handler.mountDevice(device, target, drive.Spec.RequestedFormat.MountOptions)
+		err = handler.mountDevice(device, target, []string{})
 		if err != nil {
 			klog.Errorf("failed to mount drive %s; %w", drive.Name, err)
 		}
@@ -259,7 +259,7 @@ func (handler *driveEventHandler) mountDrive(ctx context.Context, drive *directc
 	}
 	if err == nil {
 		target := filepath.Join(sys.MountRoot, drive.Name)
-		err = handler.mountDevice(device, target, drive.Spec.RequestedFormat.MountOptions)
+		err = handler.mountDevice(device, target, []string{})
 		if err != nil {
 			klog.Errorf("failed to mount drive %s; %w", drive.Name, err)
 			utils.UpdateCondition(
