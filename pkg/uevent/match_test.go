@@ -522,6 +522,7 @@ func TestRunMatchers(t *testing.T) {
 				Name: "test_drive_1",
 			},
 			Status: directcsi.DirectCSIDriveStatus{
+				Path:           "/dev/sda",
 				UeventSerial:   "SERIAL1",
 				FilesystemUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
 			},
@@ -532,6 +533,7 @@ func TestRunMatchers(t *testing.T) {
 				Name: "test_drive_2",
 			},
 			Status: directcsi.DirectCSIDriveStatus{
+				Path:           "/dev/sdb",
 				UeventSerial:   "SERIAL2",
 				FilesystemUUID: "ertsdfff-e1b5-4bac-b73f-178b29974ed5",
 			},
@@ -545,6 +547,7 @@ func TestRunMatchers(t *testing.T) {
 				Name: "test_drive_3",
 			},
 			Status: directcsi.DirectCSIDriveStatus{
+				Path:           "/dev/sdc",
 				UeventSerial:   "SERIAL2",
 				FilesystemUUID: "ertsdfff-e1b5-4bac-b73f-178b29974ed5",
 				DriveStatus:    directcsi.DriveStatusTerminating,
@@ -556,6 +559,7 @@ func TestRunMatchers(t *testing.T) {
 				Name: "test_drive_4",
 			},
 			Status: directcsi.DirectCSIDriveStatus{
+				Path:           "/dev/sdd",
 				UeventSerial:   "SERIAL3",
 				FilesystemUUID: "ertsdfff-e1b5-4bac-b73f-178b29974ed5",
 				DriveStatus:    directcsi.DriveStatusTerminating,
@@ -566,6 +570,7 @@ func TestRunMatchers(t *testing.T) {
 	driveObjects := append(validDriveObjs, terminatingDriveObjects...)
 
 	testDevice := &sys.Device{
+		Name:         "sda",
 		FSUUID:       "d9877501-e1b5-4bac-b73f-178b29974ed5",
 		UeventSerial: "SERIAL1",
 	}
@@ -673,11 +678,12 @@ func TestRunMatchers(t *testing.T) {
 					Name: "test_drive_1",
 				},
 				Status: directcsi.DirectCSIDriveStatus{
+					Path:           "/dev/sda",
 					FilesystemUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
 					UeventSerial:   "SERIAL1",
 				},
 			},
-			expectedMatchResult: changed,
+			expectedMatchResult: noChange,
 			expectedMatchHit:    1*len(validDriveObjs) + 1 + 1,
 		},
 		{
@@ -738,6 +744,7 @@ func TestRunMatchers(t *testing.T) {
 					Name: "test_drive_1",
 				},
 				Status: directcsi.DirectCSIDriveStatus{
+					Path:           "/dev/sda",
 					FilesystemUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
 					UeventSerial:   "SERIAL1",
 				},
@@ -774,6 +781,7 @@ func TestRunMatchers(t *testing.T) {
 					Name: "test_drive_1",
 				},
 				Status: directcsi.DirectCSIDriveStatus{
+					Path:           "/dev/sda",
 					FilesystemUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
 					UeventSerial:   "SERIAL1",
 				},

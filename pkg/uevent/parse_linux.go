@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -72,7 +73,7 @@ func (l *listener) parseUEvent(buf []byte) (*deviceEvent, error) {
 		created:  time.Now().UTC(),
 		action:   eventAction,
 		udevData: udevData,
-		devPath:  path,
+		devPath:  "/dev/" + filepath.Base(path),
 		major:    major,
 		minor:    minor,
 	}, nil

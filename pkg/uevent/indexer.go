@@ -24,6 +24,7 @@ import (
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	"github.com/minio/directpv/pkg/client"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -37,11 +38,22 @@ type indexer struct {
 
 func newIndexer(ctx context.Context, nodeID string, resyncPeriod time.Duration) *indexer {
 	store := cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
-
 	lw := client.DrivesListerWatcher(nodeID)
 	reflector := cache.NewReflector(lw, &directcsi.DirectCSIDrive{}, store, resyncPeriod)
+	initResourceVersion := reflector.LastSyncResourceVersion()
 
 	go reflector.Run(ctx.Done())
+
+	if cache.WaitForCacheSync(
+		ctx.Done(),
+		func() bool {
+			return reflector.LastSyncResourceVersion() != initResourceVersion
+		},
+	) {
+		klog.Info("indexer successfully synced")
+	} else {
+		klog.Info("indexer can't be synced")
+	}
 
 	return &indexer{
 		store:  store,
