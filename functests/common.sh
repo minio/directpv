@@ -107,7 +107,13 @@ function install_directcsi_with_dynamic_discovery() {
 }
 
 function uninstall_directcsi() {
-    "${DIRECT_CSI_CLIENT}" uninstall  --crd --force
+    uninstall_cmd=$("${DIRECT_CSI_CLIENT}" uninstall  --crd --force)
+    while true; do
+        if [[ $uninstall_cmd -eq 0 ]]; then
+            break
+        fi
+        sleep 5
+    done
 
     pending=4
     if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
