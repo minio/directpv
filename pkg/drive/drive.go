@@ -158,6 +158,17 @@ func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.D
 }
 
 func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.DirectCSIDrive) (err error) {
+	target := filepath.Join(sys.MountRoot, drive.Name)
+	mounted, err := mount.IsMounted(target)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	if mounted {
+		klog.V(3).Infof("device %s already mounted in %s", drive.Status.Path, target)
+		return nil
+	}
+
 	device, err := handler.getDevice(drive.Status.MajorNumber, drive.Status.MinorNumber)
 	if err != nil {
 		klog.Error(err)
@@ -177,13 +188,6 @@ func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.D
 	}
 
 	filesystemUUID := getFSUUIDFromDrive(drive)
-	// umount the drive if mounted
-	if err == nil {
-		err = handler.unmountDevice(device)
-		if err != nil {
-			klog.Errorf("failed to umount drive %s; %w", drive.Name, err)
-		}
-	}
 	// format the drive
 	if err == nil {
 		err = handler.makeFS(ctx, drive.Status.Path, filesystemUUID, drive.Spec.RequestedFormat.Force, handler.reflinkSupport)

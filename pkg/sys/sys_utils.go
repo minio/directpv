@@ -115,3 +115,16 @@ func NormalizeUUID(uuid string) string {
 	}
 	return uuid
 }
+
+// IsDeviceUnavailable checks if the device is unavailable to use
+func IsDeviceUnavailable(device *Device) bool {
+	return device.Size < MinSupportedDeviceSize ||
+		device.SwapOn ||
+		device.Hidden ||
+		device.ReadOnly ||
+		device.Removable ||
+		device.Partitioned ||
+		device.Master != "" ||
+		len(device.Holders) > 0 ||
+		len(device.MountPoints) > 0
+}
