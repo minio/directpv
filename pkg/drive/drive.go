@@ -111,7 +111,7 @@ func (handler *driveEventHandler) Handle(ctx context.Context, args listener.Even
 }
 
 func (handler *driveEventHandler) add(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	err := verifyHostStateForDrive(drive)
+	err := VerifyHostStateForDrive(drive)
 	switch err {
 	case nil:
 		switch {
@@ -135,7 +135,7 @@ func (handler *driveEventHandler) add(ctx context.Context, drive *directcsi.Dire
 }
 
 func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	err := verifyHostStateForDrive(drive)
+	err := VerifyHostStateForDrive(drive)
 	switch err {
 	case nil:
 		switch {
