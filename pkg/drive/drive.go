@@ -123,6 +123,10 @@ func (handler *driveEventHandler) add(ctx context.Context, drive *directcsi.Dire
 			return nil
 		}
 	case errNotMounted:
+		// Check if legacy mount is set. If so, umount and mount with the new mountpoint.
+		if drive.Status.Mountpoint == filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
+			return handler.mountDrive(ctx, drive, true)
+		}
 		return handler.mountDrive(ctx, drive, false)
 	case errInvalidMountOptions:
 		return handler.mountDrive(ctx, drive, true)
