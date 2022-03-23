@@ -27,8 +27,6 @@ import (
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/uevent"
-	"github.com/minio/directpv/pkg/utils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -71,7 +69,7 @@ func getFSUUIDFromDrive(drive *directcsi.DirectCSIDrive) string {
 //            If mounted, check the mount options, If not matching, return errInvalidMountOptions
 //            Else, return errNotMounted
 // ----------------------------------------------------------------------------
-func verifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
+func VerifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 
 	devName, err := sys.GetDeviceName(uint32(drive.Status.MajorNumber), uint32(drive.Status.MinorNumber))
 	if err != nil {
@@ -79,12 +77,6 @@ func verifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 	}
 	if filepath.Base(drive.Status.Path) != devName {
 		return fmt.Errorf("path mismatch. Expected %s got %s", filepath.Base(drive.Status.Path), devName)
-	}
-
-	if utils.IsConditionStatus(drive.Status.Conditions,
-		string(directcsi.DirectCSIDriveConditionReady),
-		metav1.ConditionFalse) {
-		return fmt.Errorf("drive %s is not ready", drive.Name)
 	}
 
 	runUdevDataMap, err := sys.ReadRunUdevDataByMajorMinor(int(drive.Status.MajorNumber), int(drive.Status.MinorNumber))
@@ -121,7 +113,8 @@ func verifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 
 	if drive.Status.DriveStatus == directcsi.DriveStatusInUse ||
 		drive.Status.DriveStatus == directcsi.DriveStatusReady {
-		mounted, err := mount.IsMounted(drive.Name)
+		target := filepath.Join(sys.MountRoot, drive.Name)
+		mounted, err := mount.IsMounted(target)
 		if err != nil {
 			return err
 		}
@@ -129,7 +122,6 @@ func verifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 			if !mount.ValidDirectPVMountOpts(drive.Status.MountOptions) {
 				return errInvalidMountOptions
 			}
-
 		} else {
 			return errNotMounted
 		}
