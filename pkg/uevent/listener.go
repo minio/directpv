@@ -50,7 +50,7 @@ const (
 var (
 	pageSize       = os.Getpagesize()
 	fieldDelimiter = []byte{0}
-	resyncPeriod   = 60 * time.Second
+	resyncPeriod   = 30 * time.Second
 	syncInterval   = 30 * time.Second
 	// errors
 	errEmptyBuf            = errors.New("buffer is empty")
@@ -408,9 +408,13 @@ func (dEvent *deviceEvent) collectUDevData() error {
 }
 
 func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error {
-	// // check for consistent fields
-	if dEvent.udevData.Partition != runUdevData.Partition {
-		return errValueMismatch(dEvent.devPath, "partitionnum", dEvent.udevData.Partition, runUdevData.Partition)
+	// check for consistent fields
+	if runUdevData.Partition != dEvent.udevData.Partition {
+		if dEvent.udevData.Partition == 0 {
+			dEvent.udevData.Partition = runUdevData.Partition
+		} else {
+			return errValueMismatch(dEvent.devPath, "partitionnum", dEvent.udevData.Partition, runUdevData.Partition)
+		}
 	}
 
 	if runUdevData.WWID != "" {
