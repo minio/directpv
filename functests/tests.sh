@@ -149,5 +149,6 @@ do_upgrade_test "1.4.6"
 
 # unmount all direct-csi mounts of previous installation if any.
 mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl
+
 remove_luks
 remove_lvm

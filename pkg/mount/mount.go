@@ -18,6 +18,7 @@ package mount
 
 import (
 	"os"
+	"strings"
 
 	"k8s.io/klog/v2"
 )
@@ -86,4 +87,17 @@ func ValidDirectPVMountOpts(deviceMountOpts []string) bool {
 		}
 	}
 	return true
+}
+
+func ValidDirectPVMounts(mountPoints []string) bool {
+	if len(mountPoints) == 0 {
+		return true
+	}
+
+	for _, mountPoint := range mountPoints {
+		if strings.HasPrefix(mountPoint, "/var/lib/direct-csi/") {
+			return true
+		}
+	}
+	return false
 }
