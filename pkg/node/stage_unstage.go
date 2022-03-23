@@ -22,7 +22,9 @@ import (
 	"path/filepath"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
+	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/fs/xfs"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -60,18 +62,19 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
+	directCSIDrive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if err := n.checkDrive(ctx, drive, req.GetVolumeId()); err != nil {
+	if err := drive.VerifyHostStateForDrive(directCSIDrive); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	path := filepath.Join(drive.Status.Mountpoint, vID)
+	driveMountPoint := filepath.Join(sys.MountRoot, directCSIDrive.Name)
+	path := filepath.Join(driveMountPoint, vID)
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return nil, err
 	}
@@ -85,9 +88,13 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		SoftLimit: uint64(vol.Status.TotalCapacity),
 	}
 
-	device, err := n.getDevice(drive.Status.MajorNumber, drive.Status.MinorNumber)
+	device, err := n.getDevice(directCSIDrive.Status.MajorNumber, directCSIDrive.Status.MinorNumber)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Unable to find device for major/minor %v:%v; %v", drive.Status.MajorNumber, drive.Status.MinorNumber, err)
+		return nil, status.Errorf(codes.Internal,
+			"Unable to find device for major/minor %v:%v; %v",
+			directCSIDrive.Status.MajorNumber,
+			directCSIDrive.Status.MinorNumber,
+			err)
 	}
 	if err := n.setQuota(ctx, device, stagingTargetPath, vID, quota); err != nil {
 		return nil, status.Errorf(codes.Internal, "Error while setting xfs limits: %v", err)
