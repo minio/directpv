@@ -100,17 +100,15 @@ func (handler *driveEventHandler) ObjectType() runtime.Object {
 
 func (handler *driveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
 	switch args.Event {
-	case listener.AddEvent:
-		return handler.add(ctx, args.Object.(*directcsi.DirectCSIDrive))
-	case listener.UpdateEvent:
-		return handler.update(ctx, args.Object.(*directcsi.DirectCSIDrive))
+	case listener.AddEvent, listener.UpdateEvent:
+		return handler.handleUpdate(ctx, args.Object.(*directcsi.DirectCSIDrive))
 	case listener.DeleteEvent:
 		return handler.delete(ctx, args.Object.(*directcsi.DirectCSIDrive))
 	}
 	return nil
 }
 
-func (handler *driveEventHandler) add(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
+func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
 	err := VerifyHostStateForDrive(drive)
 	switch err {
 	case nil:
@@ -136,25 +134,6 @@ func (handler *driveEventHandler) add(ctx context.Context, drive *directcsi.Dire
 		return err
 	}
 
-}
-
-func (handler *driveEventHandler) update(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	err := VerifyHostStateForDrive(drive)
-	switch err {
-	case nil:
-		switch {
-		case isFormatRequested(drive):
-			return handler.format(ctx, drive)
-		case drive.Status.DriveStatus == directcsi.DriveStatusReleased:
-			return handler.release(ctx, drive)
-		default:
-			return nil
-		}
-	case os.ErrNotExist:
-		return handler.lost(ctx, drive)
-	default:
-		return err
-	}
 }
 
 func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
@@ -219,8 +198,8 @@ func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.D
 		_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
 			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
 		)
-		if uerr != nil && err == nil {
-			err = uerr
+		if uerr != nil {
+			klog.Error(uerr)
 		}
 	}
 
@@ -246,8 +225,8 @@ func (handler *driveEventHandler) release(ctx context.Context, drive *directcsi.
 		_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
 			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
 		)
-		if uerr != nil && err == nil {
-			err = uerr
+		if uerr != nil {
+			klog.Error(uerr)
 		}
 	}
 	return err
@@ -263,6 +242,19 @@ func (handler *driveEventHandler) mountDrive(ctx context.Context, drive *directc
 		err = handler.unmountDevice(device)
 		if err != nil {
 			klog.Errorf("failed to umount drive %s; %w", drive.Name, err)
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionOwned),
+				metav1.ConditionFalse,
+				string(directcsi.DirectCSIDriveReasonAdded),
+				fmt.Sprintf("failed to umount drive: %s", err.Error()),
+			)
+			_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
+				ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+			)
+			if uerr != nil {
+				klog.Error(uerr)
+			}
 		}
 	}
 	if err == nil {
@@ -280,8 +272,8 @@ func (handler *driveEventHandler) mountDrive(ctx context.Context, drive *directc
 			_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
 				ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
 			)
-			if uerr != nil && err == nil {
-				err = uerr
+			if uerr != nil {
+				klog.Error(uerr)
 			}
 		}
 	}
