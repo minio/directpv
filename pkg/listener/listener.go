@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -244,10 +243,6 @@ func (listener *Listener) controllerLoop(ctx context.Context) {
 		}
 
 		if oldObject, exists, err := listener.indexer.Get(delta.Object); err == nil && exists {
-			if reflect.DeepEqual(delta.Object, oldObject) {
-				return nil
-			}
-
 			return &EventArgs{
 				Event:     UpdateEvent,
 				Key:       key,
