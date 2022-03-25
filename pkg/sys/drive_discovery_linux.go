@@ -496,7 +496,8 @@ func updateRelationship(devices map[string]*Device) error {
 
 		partitions, err := getPartitions(name)
 		if err != nil {
-			return err
+			klog.V(3).Infof("couldn't get paritions of device %s due to error %v", name, err)
+			continue
 		}
 
 		devices[name].Partitioned = len(partitions) > 0
@@ -506,7 +507,8 @@ func updateRelationship(devices map[string]*Device) error {
 
 		slaves, err := getSlaves(name)
 		if err != nil {
-			return err
+			klog.V(3).Infof("couldn't get info for device %s due to error %v", name, err)
+			continue
 		}
 		for _, slave := range slaves {
 			devices[slave].Master = name
@@ -793,7 +795,8 @@ func probeDevices() (devices map[string]*Device, err error) {
 			continue
 		}
 		if err = updateFSInfo(device, CDROMs, swaps, mountInfos, mountPointsMap); err != nil {
-			return nil, err
+			klog.Infof("couldn't get fsinfo for device %s due to error: %v", device.Name, err)
+			continue
 		}
 	}
 
