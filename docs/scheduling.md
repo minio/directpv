@@ -33,7 +33,39 @@ Create a storage class with the following parameter set
 
 ```
 parameters:
-  directpv-min-io/access-tier: warm|hot|cold
+  direct-csi-min-io/access-tier: Warm|Hot|Cold
+```
+
+For example, take the following storage class definition for Hot tiered drives
+
+```
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  finalizers:
+  - foregroundDeletion
+  labels:
+    application-name: direct.csi.min.io
+    application-type: CSIDriver
+    direct.csi.min.io/created-by: kubectl-direct-csi
+    direct.csi.min.io/version: v1beta3
+  name: directpv-min-io-hot
+  resourceVersion: "4307589"
+  uid: 9f602557-8dee-4557-ad21-1f07a4935323
+allowVolumeExpansion: false
+allowedTopologies:
+- matchLabelExpressions:
+  - key: direct.csi.min.io/identity
+    values:
+    - direct-csi-min-io
+parameters:
+  fstype: xfs
+  direct-csi-min-io/access-tier: Hot
+provisioner: direct-csi-min-io
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
 ```
 
 #### Step 4: Deploy the workload with the corresponding storage class name set

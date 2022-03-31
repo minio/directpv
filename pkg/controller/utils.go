@@ -50,8 +50,11 @@ func matchDrive(drive directcsi.DirectCSIDrive, req *csi.CreateVolumeRequest) bo
 
 	// Match drive by access-tier if requested.
 	for key, value := range req.GetParameters() {
-		if key == "direct-csi-min-io/access-tier" && string(drive.Status.AccessTier) != value {
-			return false
+		if key == "direct-csi-min-io/access-tier" {
+			aT, _ := directcsi.ToAccessTier(value)
+			if drive.Status.AccessTier != aT {
+				return false
+			}
 		}
 	}
 
