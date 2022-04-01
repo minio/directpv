@@ -28,8 +28,10 @@ import (
 	"time"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
@@ -329,6 +331,24 @@ func (l *listener) processUpdate(ctx context.Context,
 	case changed:
 		return l.handler.Update(ctx, device, drive)
 	case noChange:
+		// check if the lost drive is back
+		for i := range drive.Status.Conditions {
+			if drive.Status.Conditions[i].Type == string(directcsi.DirectCSIDriveConditionReady) &&
+				drive.Status.Conditions[i].Status == metav1.ConditionFalse &&
+				drive.Status.Conditions[i].Reason == string(directcsi.DirectCSIDriveReasonLost) {
+				utils.UpdateCondition(drive.Status.Conditions,
+					string(directcsi.DirectCSIDriveConditionReady),
+					metav1.ConditionTrue,
+					string(directcsi.DirectCSIDriveReasonLost),
+					"")
+				_, err := client.GetLatestDirectCSIDriveInterface().Update(
+					ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+				)
+				if err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	case tooManyMatches:
 		return errTooManyMatchesFound(device, Change)
