@@ -20,4 +20,4 @@ set -ex
 SCRIPT_DIR=$(dirname "$0")
 source "${SCRIPT_DIR}/common.sh"
 export DIRECT_CSI_CLIENT=./kubectl-directpv
-check_drive_not_exist "$1"
+check_volume_exist "$1"

@@ -151,6 +151,38 @@ function check_drives() {
 }
 
 # usage: check_drive_state <drive> <state>
+function check_drive_removed() {
+    drive="$1"
+    state="$2"
+    removed="drive is removed"
+    check_drives_state drive state
+    "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" -o wide
+    if ! "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}.*${removed}"; then
+        echo "$ME: error: ${drive} not found in removed state"
+        return 1
+    fi
+}
+
+# usage: check_volume_exist <state>
+function check_volume_exist() {
+    volumesPresent="$1"   
+    count=$("${DIRECT_CSI_CLIENT}" volumes ls | awk '!/WARNING/ {count++} END {print count}')
+    if $volumesPresent ; then 
+         # Includes Header line and WARNING line for deprecation notice
+        if [[ $count -eq 1 ]]  ; then
+            echo "$ME: volumes not present "
+            return 1
+        fi
+    else 
+         # Includes Header line and WARNING line for deprecation notice
+        if ! [[ $count -eq 1 ]]  ; then
+            echo "$ME: error: volumes present even after detaching device"
+            return 1
+        fi
+    fi
+}
+
+# usage: check_drive_state <drive> <state>
 function check_drive_state() {
     drive="$1"
     state="$2"
