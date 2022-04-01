@@ -18,5 +18,5 @@
 
 set -ex
 source "${SCRIPT_DIR}/common.sh"
-export DIRECT_CSI_CLIENT=./kubectl-direct_csi
+export DIRECT_CSI_CLIENT=./kubectl-directpv
 check_drive_state "$1" "$2"
