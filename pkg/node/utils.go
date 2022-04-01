@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -121,6 +122,7 @@ func getDriveUUID(nodeID string, device *sys.Device) string {
 				device.DMUUID,
 				device.SerialLong,
 				device.PCIPath,
+				strconv.Itoa(device.Partition),
 			},
 			"",
 		),
