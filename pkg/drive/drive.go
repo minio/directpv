@@ -128,9 +128,10 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *direc
 		return handler.mountDrive(ctx, drive, false)
 	case errInvalidMountOptions:
 		return handler.mountDrive(ctx, drive, true)
-	case os.ErrNotExist:
-		return handler.lost(ctx, drive)
 	default:
+		if os.IsNotExist(err) {
+			return handler.lost(ctx, drive)
+		}
 		return err
 	}
 
