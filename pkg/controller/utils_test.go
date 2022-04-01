@@ -595,6 +595,28 @@ func TestGetFilteredDrives(t *testing.T) {
 		},
 	}
 
+	case13Result := []directcsi.DirectCSIDrive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusReady, AccessTier: directcsi.AccessTierHot},
+		},
+	}
+	case13Objects := []runtime.Object{
+		&directcsi.DirectCSIDrive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusAvailable},
+		},
+		&directcsi.DirectCSIDrive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status:     directcsi.DirectCSIDriveStatus{DriveStatus: directcsi.DriveStatusInUse},
+		},
+		&case13Result[0],
+	}
+	case13Request := &csi.CreateVolumeRequest{
+		Name:       "volume-1",
+		Parameters: map[string]string{"direct-csi-min-io/access-tier": "hot"},
+	}
+
 	testCases := []struct {
 		objects        []runtime.Object
 		request        *csi.CreateVolumeRequest
@@ -612,6 +634,7 @@ func TestGetFilteredDrives(t *testing.T) {
 		{case10Objects, case10Request, case10Result},
 		{case11Objects, case11Request, nil},
 		{case12Objects, case12Request, case12Result},
+		{case13Objects, case13Request, case13Result},
 	}
 
 	for i, testCase := range testCases {
