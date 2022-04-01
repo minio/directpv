@@ -90,6 +90,7 @@ function build_directcsi() {
 
     export CGO_ENABLED=0 GO111MODULE=on
     go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/directpv
+    go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/kubectl-directpv
     go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${BUILD_TAG} -extldflags=-static" github.com/minio/directpv/cmd/kubectl-direct_csi
 }
 
@@ -116,19 +117,20 @@ function run_functional_test() {
     export VM_IMAGE="${VM_NAME}.qcow2c"
     start_test_vm
 
-    scp_cmd CREDITS LICENSE centos.repo direct-csi kubectl-direct_csi Dockerfile "root@${VM_IPADDR}:"
+    scp_cmd CREDITS LICENSE centos.repo directpv kubectl-directpv kubectl-direct_csi Dockerfile "root@${VM_IPADDR}:"
     ssh_cmd "${VM_IPADDR}" "docker build -t quay.io/minio/directpv:${BUILD_TAG} -f Dockerfile ."
     ssh_cmd "${VM_IPADDR}" "minikube start --driver=none"
     scp_cmd -r functests "root@${VM_IPADDR}:"
-    ssh_cmd "${VM_IPADDR}" "RHEL7_TEST=1 functests/run.sh ${BUILD_TAG}"
+    # ssh_cmd "${VM_IPADDR}" "RHEL7_TEST=1 functests/run.sh ${BUILD_TAG}"
 
-    ssh_cmd "${VM_IPADDR}" "functests/install-directcsi.sh ${BUILD_TAG}"
+    ssh_cmd "${VM_IPADDR}" "functests/run-install-directcsi.sh ${BUILD_TAG}"
 
-    qemu-img create -f qcow2 "${VM_NAME}-vdb.qcow2" 512M
+    qemu-img create -f raw "${VM_NAME}-vdb.img" 512M
     cat > vdb.xml <<EOF
 <disk type='file' device='disk'>
-  <source file='${PWD}/${VM_NAME}-vdb.qcow2'/>
+  <source file='${PWD}/${VM_NAME}-vdb.img'/>
   <target dev='vdb'/>
+  <serial>thisisdeviceB</serial>
 </disk>
 EOF
 
@@ -138,33 +140,49 @@ EOF
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Available"
     sudo virsh detach-device "${VM_NAME}" vdb.xml --live
     sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-not-exist.sh /dev/vdb"
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-removed.sh /dev/vdb Available"
+
 
     # attach/detach drive in Available and Ready state
     sudo virsh attach-device "${VM_NAME}" vdb.xml --live
     sleep 1
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Available"
-    ssh_cmd "${VM_IPADDR}" "./kubectl-direct_csi drive format --drives /dev/vdb"
+    ssh_cmd "${VM_IPADDR}" "./kubectl-directpv drive format --drives /dev/vdb"
     sleep 1
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Ready"
     sudo virsh detach-device "${VM_NAME}" vdb.xml --live
     sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-not-exist.sh /dev/vdb"
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-removed.sh /dev/vdb Ready"
 
-    # attach/detach drive in Available, Ready, InUse and Terminating state
-    sudo virsh attach-device "${VM_NAME}" vdb.xml --live
+   # attach a new device to test InUse
+    qemu-img create -f raw "${VM_NAME}-vdc.img" 512M
+    cat > vdc.xml <<EOF
+<disk type='file' device='disk'>
+  <source file='${PWD}/${VM_NAME}-vdc.img'/>
+  <target dev='vdc'/>
+  <serial>thisisdeviceC</serial>
+</disk>
+EOF
+
+    # attach/detach drive in Available, Ready, InUse
+    sudo virsh attach-device "${VM_NAME}" vdc.xml --live
     sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Available"
-    ssh_cmd "${VM_IPADDR}" "./kubectl-direct_csi drive format --drives /dev/vdb"
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdc Available"
+    ssh_cmd "${VM_IPADDR}" "./kubectl-directpv drive format --drives /dev/vdc"
     sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Ready"
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdc Ready"
     ssh_cmd "${VM_IPADDR}" "functests/run-deploy-minio.sh"
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb InUse"
-    sudo virsh detach-device "${VM_NAME}" vdb.xml --live
-    sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Terminating"
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdc InUse"
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-volume-exist.sh /dev/vdc true"
 
-    rm -f vdb.xml "${VM_NAME}-vdb.qcow2"
+    sudo virsh detach-device "${VM_NAME}" vdc.xml --live
+    sleep 1
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-removed.sh /dev/vdc InUse"
+    sleep 3
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-volume-exist.sh /dev/vdc false"
+
+    rm -f vdb.xml "${VM_NAME}-vdb.img"
+    rm -f vdc.xml "${VM_NAME}-vdc.img"
 
     remove_test_vm
 }
