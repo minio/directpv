@@ -46,8 +46,8 @@ var (
 )
 
 func (d *driveEventHandler) updateDrive(device *sys.Device, drive *directcsi.DirectCSIDrive) (*directcsi.DirectCSIDrive, error) {
-	err := validateDrive(drive, device)
-	return d.setDriveStatus(device, drive), err
+	updatedDrive := d.setDriveStatus(device, drive)
+	return updatedDrive, validateDrive(updatedDrive, device)
 }
 
 func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.DirectCSIDrive) *directcsi.DirectCSIDrive {
@@ -224,6 +224,14 @@ func syncVolumeLabels(ctx context.Context, drive *directcsi.DirectCSIDrive) erro
 			)
 			if err != nil {
 				return err
+			}
+			if volume.Labels != nil {
+				if val, ok := volume.Labels[string(utils.DrivePathLabelKey)]; ok && val == driveName {
+					// no change to the label value
+					return nil
+				}
+			} else {
+				volume.Labels = map[string]string{}
 			}
 			volume.Labels[string(utils.DrivePathLabelKey)] = driveName
 			_, err = volumeInterface.Update(
