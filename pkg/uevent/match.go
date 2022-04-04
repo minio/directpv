@@ -19,6 +19,7 @@ package uevent
 import (
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/klog/v2"
 )
 
@@ -99,13 +100,20 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 
 	if len(drives) > 1 {
 		for _, matchFn := range stageTwoMatchers {
-			// run identity matcher for more than one matched drives
-			drives, _, err = match(drives, device, matchFn)
+			if len(drives) == 0 {
+				break
+			}
+			matchedDrives, consideredDrives, err = match(drives, device, matchFn)
 			if err != nil {
 				klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
 				continue
 			}
-
+			switch {
+			case len(matchedDrives) > 0:
+				drives = matchedDrives
+			default:
+				drives = consideredDrives
+			}
 		}
 	}
 
@@ -130,6 +138,10 @@ func isChanged(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) boo
 }
 
 func majMinMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
+	// v1beta1 version doesn't have maj:min in the API. Consider such drives.
+	if utils.IsV1Beta1Drive(drive) && drive.Status.MajorNumber == uint32(0) && drive.Status.MinorNumber == uint32(0) {
+		return false, true, nil
+	}
 	if drive.Status.MajorNumber != uint32(device.Major) {
 		return false, false, nil
 	}
@@ -147,10 +159,7 @@ func pathMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match boo
 }
 
 func pciPathMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-	if drive.Status.PCIPath != device.PCIPath {
-		return false, false, nil
-	}
-	return true, true, nil
+	return mutablePropertyMatcher(device.PCIPath, drive.Status.PCIPath)
 }
 
 // ------------------------
@@ -180,6 +189,10 @@ func match(drives []*directcsi.DirectCSIDrive,
 }
 
 func partitionNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	// v1beta1 version doesn't have PartitionNum in the API. Consider such drives.
+	if utils.IsV1Beta1Drive(drive) && drive.Status.PartitionNum == int(0) {
+		return drive.Status.PartitionNum == device.Partition, true, nil
+	}
 	return drive.Status.PartitionNum == device.Partition, false, nil
 }
 
@@ -250,19 +263,19 @@ func immutablePropertyMatcher(alpha string, beta string) (bool, bool, error) {
 }
 
 func ueventFSUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return fsPropertyMatcher(device.UeventFSUUID, drive.Status.UeventFSUUID)
+	return mutablePropertyMatcher(device.UeventFSUUID, drive.Status.UeventFSUUID)
 }
 
 func fsUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return fsPropertyMatcher(device.FSUUID, drive.Status.FilesystemUUID)
+	return mutablePropertyMatcher(device.FSUUID, drive.Status.FilesystemUUID)
 }
 
 func serialNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return fsPropertyMatcher(device.Serial, drive.Status.SerialNumber)
+	return mutablePropertyMatcher(device.Serial, drive.Status.SerialNumber)
 }
 
 func fileSystemTypeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return fsPropertyMatcher(device.FSType, drive.Status.Filesystem)
+	return mutablePropertyMatcher(device.FSType, drive.Status.Filesystem)
 }
 
 // Refer https://go.dev/play/p/zuaURPArfcL
@@ -278,7 +291,7 @@ func fileSystemTypeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) 
 // 	|   1	|   1  |	match=true, consider=false, err = nil   | match=false, consider=true , err = nil  |
 //  |-------|------|--------------------------------------------|------------------------------------------
 
-func fsPropertyMatcher(alpha string, beta string) (bool, bool, error) {
+func mutablePropertyMatcher(alpha string, beta string) (bool, bool, error) {
 	var match, consider bool
 	var err error
 	switch {

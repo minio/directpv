@@ -29,6 +29,9 @@ import (
 	"github.com/fatih/color"
 	"github.com/mitchellh/go-homedir"
 	"sigs.k8s.io/yaml"
+
+	directcsiv1beta1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta1"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 )
 
 const (
@@ -141,4 +144,11 @@ func GetMajorMinorFromStr(majMin string) (major, minor uint32, err error) {
 	minor64, err = strconv.ParseUint(tokens[1], 10, 32)
 	minor = uint32(minor64)
 	return
+}
+
+func IsV1Beta1Drive(drive *directcsi.DirectCSIDrive) bool {
+	if labels := drive.GetLabels(); labels != nil {
+		return labels[string(VersionLabelKey)] == directcsiv1beta1.Version
+	}
+	return false
 }

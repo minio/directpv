@@ -115,6 +115,9 @@ function do_upgrade_test() {
 
     install_directcsi
 
+    # wait for initial sync
+    sleep 35
+
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" drives list --all -o wide
 
