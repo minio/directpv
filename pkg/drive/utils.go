@@ -27,10 +27,13 @@ import (
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/uevent"
+	"github.com/minio/directpv/pkg/utils"
+	"k8s.io/klog/v2"
 )
 
 var (
 	errDriveValueMismatch = errors.New("drive value mismatch")
+	errDriveNotUpgraded   = errors.New("drive not upgraded")
 )
 
 func isFormatRequested(drive *directcsi.DirectCSIDrive) bool {
@@ -57,6 +60,7 @@ func getFSUUIDFromDrive(drive *directcsi.DirectCSIDrive) string {
 
 // verify if the drive states match the host info
 // --------------------------------------------------------------------------
+// - error if the v1beta1 drive is not upgraded yet (NOTE: maj:min is not present in v1beta1 API version)
 // - read /run/udev/data/b<maj:min> (refer ReadRunUdevDataByMajorMinor and mapToUdevData funcs)
 //   return err if the file does not exist
 // - construct sys.Device (refer /pkg/uevent/listener.go)
@@ -70,6 +74,11 @@ func getFSUUIDFromDrive(drive *directcsi.DirectCSIDrive) string {
 //            Else, return errNotMounted
 // ----------------------------------------------------------------------------
 func VerifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
+
+	if utils.IsV1Beta1Drive(drive) && drive.Status.MajorNumber == uint32(0) && drive.Status.MinorNumber == uint32(0) {
+		klog.V(4).Infof("waiting for drive %s to be upgraded from v1beta1", drive.Status.Path)
+		return errDriveNotUpgraded
+	}
 
 	devName, err := sys.GetDeviceName(uint32(drive.Status.MajorNumber), uint32(drive.Status.MinorNumber))
 	if err != nil {
