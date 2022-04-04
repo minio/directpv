@@ -261,7 +261,7 @@ func (listener *Listener) controllerLoop(ctx context.Context) {
 	processFunc := func(obj interface{}) error {
 		for _, delta := range obj.(cache.Deltas) {
 			switch delta.Type {
-			case cache.Sync, cache.Replaced, cache.Added, cache.Updated:
+			case cache.Sync, cache.Replaced, cache.Added, cache.Updated, cache.Deleted:
 			default:
 				continue
 			}
