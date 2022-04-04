@@ -68,8 +68,14 @@ func (handler *volumeEventHandler) ObjectType() runtime.Object {
 }
 
 func (handler *volumeEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
-	if args.Event == listener.DeleteEvent {
-		return handler.delete(ctx, args.Object.(*directcsi.DirectCSIVolume))
+	volume, err := client.GetLatestDirectCSIVolumeInterface().Get(
+		ctx, args.Object.(*directcsi.DirectCSIVolume).Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+	)
+	if err != nil {
+		return err
+	}
+	if !volume.GetDeletionTimestamp().IsZero() {
+		return handler.delete(ctx, volume)
 	}
 	return nil
 }
