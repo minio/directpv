@@ -73,7 +73,7 @@ func (d *driveEventHandler) Update(ctx context.Context, device *sys.Device, driv
 	if err != nil {
 		errMessage = err.Error()
 	}
-	if drive.Status.Path != updatedDrive.Status.Path {
+	if updatedDrive.Status.DriveStatus == directcsi.DriveStatusInUse {
 		if err := syncVolumeLabels(ctx, updatedDrive); err != nil {
 			return err
 		}
