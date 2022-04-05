@@ -17,6 +17,8 @@
 package uevent
 
 import (
+	"strings"
+
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
@@ -201,7 +203,20 @@ func ueventSerialNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDri
 }
 
 func wwidMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.WWID, drive.Status.WWID)
+	match, consider, err := immutablePropertyMatcher(device.WWID, drive.Status.WWID)
+	if err != nil {
+		return match, consider, err
+	}
+	// WWID of few drives may show up without extension
+	// eg, probed wwid = 0x6002248032bf1752a69bdaee7b0ceb33
+	//     wwid in drive CRD = naa.6002248032bf1752a69bdaee7b0ceb33
+	if !match && !consider {
+		match, consider, err = immutablePropertyMatcher(
+			strings.TrimPrefix(device.WWID, "0x"),
+			wwidWithoutExtension(drive.Status.WWID),
+		)
+	}
+	return match, consider, err
 }
 
 func modelNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {

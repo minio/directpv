@@ -77,7 +77,7 @@ func ValidateUDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDri
 		klog.V(3).Infof("[%s] partitionnum mismatch: %v -> %v", device.Name, directCSIDrive.Status.PartitionNum, device.Partition)
 		return false
 	}
-	if directCSIDrive.Status.WWID != device.WWID {
+	if directCSIDrive.Status.WWID != device.WWID && wwidWithoutExtension(directCSIDrive.Status.WWID) != strings.TrimPrefix(device.WWID, "0x") {
 		klog.V(3).Infof("[%s] wwid msmatch: %v -> %v", device.Name, directCSIDrive.Status.WWID, device.WWID)
 		return false
 	}
@@ -199,4 +199,12 @@ func isFormatRequested(directCSIDrive *directcsi.DirectCSIDrive) bool {
 	return directCSIDrive.Spec.DirectCSIOwned &&
 		directCSIDrive.Spec.RequestedFormat != nil &&
 		directCSIDrive.Status.DriveStatus == directcsi.DriveStatusAvailable
+}
+
+func wwidWithoutExtension(wwid string) string {
+	ls := strings.SplitN(wwid, ".", 2)
+	if len(ls) == 2 {
+		return ls[1]
+	}
+	return wwid
 }
