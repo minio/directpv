@@ -147,8 +147,8 @@ func TestUEventListener(t *testing.T) {
 
 	dEvent := eventListener.eventQueue.pop()
 
-	if dEvent.devPath != "/devices/virtual/block/loop0" {
-		t.Fatalf("expected devPath /devices/virtual/block/loop0 got %s", dEvent.devPath)
+	if dEvent.devPath != "/dev/loop0" {
+		t.Fatalf("expected devPath /dev/loop0 got %s", dEvent.devPath)
 	}
 	if dEvent.action != Change {
 		t.Fatalf("expected action change got %s", string(dEvent.devPath))
@@ -184,8 +184,8 @@ func TestUEventListener(t *testing.T) {
 
 	dEvent = eventListener.eventQueue.pop()
 
-	if dEvent.devPath != "/devices/virtual/block/loop0" {
-		t.Fatalf("expected devPath /devices/virtual/block/loop0 got %s", dEvent.devPath)
+	if dEvent.devPath != "/dev/loop0" {
+		t.Fatalf("expected devPath /dev/loop0 got %s", dEvent.devPath)
 	}
 	if dEvent.action != Remove {
 		t.Fatalf("expected action change got %s", string(dEvent.devPath))
@@ -221,8 +221,8 @@ func TestUEventListener(t *testing.T) {
 
 	dEvent = eventListener.eventQueue.pop()
 
-	if dEvent.devPath != "/devices/virtual/block/loop0" {
-		t.Fatalf("expected devPath /devices/virtual/block/loop0 got %s", dEvent.devPath)
+	if dEvent.devPath != "/dev/loop0" {
+		t.Fatalf("expected devPath /dev/loop0 got %s", dEvent.devPath)
 	}
 	if dEvent.action != Add {
 		t.Fatalf("expected action change got %s", string(dEvent.devPath))
