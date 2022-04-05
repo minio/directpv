@@ -18,6 +18,7 @@ package xfs
 
 import "context"
 
+// MakeFS is a utility function to format a device
 func MakeFS(ctx context.Context, device, uuid string, force, reflink bool) error {
 	return makeFS(ctx, device, uuid, force, reflink)
 }

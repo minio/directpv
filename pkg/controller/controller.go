@@ -75,6 +75,7 @@ import (
  *
  */
 
+// ControllerServer contains controller server properties
 type ControllerServer struct {
 	NodeID          string
 	Identity        string
@@ -84,6 +85,7 @@ type ControllerServer struct {
 	directcsiClient clientset.Interface
 }
 
+// NewControllerServer returns the instance of ControllerServer with the provided properties
 func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
 	controller := &ControllerServer{
 		NodeID:          nodeID,
@@ -97,6 +99,8 @@ func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, regi
 	return controller, nil
 }
 
+// ControllerGetCapabilities constructs ControllerGetCapabilitiesResponse
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllergetcapabilities
 func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: []*csi.ControllerServiceCapability{
@@ -109,6 +113,8 @@ func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *c
 	}, nil
 }
 
+// ValidateVolumeCapabilities validates volume capabilities
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#validatevolumecapabilities
 func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	var message string
 	for _, vcap := range req.GetVolumeCapabilities() {
@@ -131,6 +137,7 @@ func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 }
 
 // CreateVolume - Creates a DirectCSI Volume
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#createvolume
 func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	klog.V(3).InfoS("CreateVolumeRequest", "name", req.GetName())
 	name := req.GetName()
@@ -265,9 +272,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
-		} else {
-			client.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
 		}
+		client.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
 	}
 
 	return &csi.CreateVolumeResponse{
@@ -285,6 +291,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}, nil
 }
 
+// DeleteVolume implements DeleteVolume controller RPC
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#deletevolume
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	klog.V(3).InfoS("DeleteVolumeRequest", "name", req.GetVolumeId())
 	vID := req.GetVolumeId()
@@ -340,38 +348,56 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
+// ListVolumes implements ListVolumes controller RPC
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#listvolumes
 func (c *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerPublishVolume - controller RPC to publish volumes
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllerpublishvolume
 func (c *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerUnpublishVolume - controller RPC to unpublish volumes
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllerunpublishvolume
 func (c *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerExpandVolume - controller RPC to expand volume
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllerexpandvolume
 func (c *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerGetVolume - controller RPC for get volume
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllergetvolume
 func (c *ControllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ListSnapshots - controller RPC for listing snapshots
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#listsnapshots
 func (c *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// CreateSnapshot controller RPC for creating snapshots
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#createsnapshot
 func (c *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// DeleteSnapshot - controller RPC for deleting snapshots
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#deletesnapshot
 func (c *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// GetCapacity - controller RPC to get capacity
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#getcapacity
 func (c *ControllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }

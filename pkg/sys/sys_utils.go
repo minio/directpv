@@ -95,6 +95,7 @@ func isSwapFSType(fsType string) bool {
 	}
 }
 
+// FSTypeEqual compares the FSType
 func FSTypeEqual(fsType1, fsType2 string) bool {
 	fsType1, fsType2 = strings.ToLower(fsType1), strings.ToLower(fsType2)
 	switch {
@@ -109,6 +110,7 @@ func FSTypeEqual(fsType1, fsType2 string) bool {
 	}
 }
 
+// NormalizeUUID normalizes the UUID
 func NormalizeUUID(uuid string) string {
 	if u := strings.ReplaceAll(strings.ReplaceAll(uuid, ":", ""), "-", ""); len(u) > 20 {
 		uuid = fmt.Sprintf("%v-%v-%v-%v-%v", u[:8], u[8:12], u[12:16], u[16:20], u[20:])

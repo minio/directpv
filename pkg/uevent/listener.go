@@ -40,17 +40,18 @@ type action string
 const (
 	libudev      = "libudev\x00"
 	libudevMagic = 0xfeedcafe
-	minMsgLen    = 40
 
-	Add    action = "add"
+	// Add event
+	Add action = "add"
+	// Change event
 	Change action = "change"
+	// Remove event
 	Remove action = "remove"
-	// internal
+	// Sync internal
 	Sync action = "sync"
 )
 
 var (
-	pageSize       = os.Getpagesize()
 	fieldDelimiter = []byte{0}
 	resyncPeriod   = 30 * time.Second
 	syncInterval   = 30 * time.Second
@@ -58,7 +59,6 @@ var (
 	errEmptyBuf            = errors.New("buffer is empty")
 	errShortRead           = errors.New("short read")
 	errNonDeviceEvent      = errors.New("event is not for a block device")
-	errInvalidDevPath      = errors.New("devpath not found in the event")
 	errTooManyMatchesFound = func(device *sys.Device, action action) error {
 		return fmt.Errorf("too many matches found for device %s while processing %s", device.DevPath(), action)
 	}
@@ -74,6 +74,7 @@ var (
 	errClosedListener = errors.New("closed listener")
 )
 
+// DeviceUEventHandler is an interface with uevent methods
 type DeviceUEventHandler interface {
 	Add(context.Context, *sys.Device) error
 	Update(context.Context, *sys.Device, *directcsi.DirectCSIDrive) error
@@ -81,11 +82,10 @@ type DeviceUEventHandler interface {
 }
 
 type listener struct {
-	isClosed    int32
-	closeCh     chan struct{}
-	sockfd      int
-	eventQueue  *eventQueue
-	threadiness int
+	isClosed   int32
+	closeCh    chan struct{}
+	sockfd     int
+	eventQueue *eventQueue
 
 	nodeID  string
 	handler DeviceUEventHandler
@@ -106,6 +106,7 @@ type deviceEvent struct {
 	udevData *sys.UDevData
 }
 
+// Run listens for events
 func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error {
 	sockfd, err := syscall.Socket(
 		syscall.AF_NETLINK,
@@ -131,7 +132,7 @@ func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error 
 		nodeID:     nodeID,
 		indexer:    newIndexer(ctx, nodeID, resyncPeriod),
 	}
-	defer listener.close()
+	defer listener.close(ctx)
 
 	go listener.startSync(ctx)
 
@@ -153,7 +154,7 @@ func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error 
 	}
 }
 
-func (l *listener) close() error {
+func (l *listener) close(ctx context.Context) error {
 	if atomic.AddInt32(&l.isClosed, 1) == 1 {
 		close(l.closeCh)
 		return syscall.Close(l.sockfd)

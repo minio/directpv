@@ -937,6 +937,7 @@ spec:
                 type: string
               otherMountsInfo:
                 items:
+                  description: OtherMountsInfo contains mount info
                   properties:
                     mountOptions:
                       items:

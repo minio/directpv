@@ -250,6 +250,7 @@ func processObjects(
 	return nil
 }
 
+// ProcessVolumes processes the volumes by applying the provided filter functions
 func ProcessVolumes(
 	ctx context.Context,
 	resultCh <-chan ListVolumeResult,
@@ -296,6 +297,7 @@ func ProcessVolumes(
 	)
 }
 
+// ProcessDrives processes the drives by applying the provided filter functions
 func ProcessDrives(
 	ctx context.Context,
 	resultCh <-chan ListDriveResult,
@@ -342,6 +344,7 @@ func ProcessDrives(
 	)
 }
 
+// DrivesListerWatcher is the lister watcher for DirectCSIDrives
 func DrivesListerWatcher(nodeID string) cache.ListerWatcher {
 	labelSelector := ""
 	if nodeID != "" {
@@ -360,6 +363,7 @@ func DrivesListerWatcher(nodeID string) cache.ListerWatcher {
 	)
 }
 
+// VolumesListerWatcher is the lister watcher for DirectCSIVolumes
 func VolumesListerWatcher(nodeID string) cache.ListerWatcher {
 	labelSelector := ""
 	if nodeID != "" {
