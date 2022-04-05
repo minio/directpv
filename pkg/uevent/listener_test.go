@@ -102,7 +102,7 @@ func TestUEventListener(t *testing.T) {
 		eventQueue: newEventQueue(),
 	}
 	defer func() {
-		eventListener.close()
+		eventListener.close(context.TODO())
 		testListener.Close()
 		clientConn.Close()
 		serverConn.Close()
@@ -113,7 +113,7 @@ func TestUEventListener(t *testing.T) {
 		for {
 			select {
 			case <-ctx.Done():
-				t.Error("context cancelled")
+				t.Error("context canceled")
 			default:
 				dEvent, err := eventListener.getNextDeviceUEvent(ctx)
 				if err == nil {

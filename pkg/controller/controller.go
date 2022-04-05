@@ -75,6 +75,7 @@ import (
  *
  */
 
+// ControllerServer contains controller server info
 type ControllerServer struct {
 	NodeID          string
 	Identity        string
@@ -84,6 +85,7 @@ type ControllerServer struct {
 	directcsiClient clientset.Interface
 }
 
+// NewControllerServer returns ControllerServer
 func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*ControllerServer, error) {
 	controller := &ControllerServer{
 		NodeID:          nodeID,
@@ -97,6 +99,7 @@ func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, regi
 	return controller, nil
 }
 
+// ControllerGetCapabilities returns ControllerGetCapabilitiesResponse
 func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: []*csi.ControllerServiceCapability{
@@ -109,6 +112,7 @@ func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *c
 	}, nil
 }
 
+// ValidateVolumeCapabilities validates volume capabilities
 func (c *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	var message string
 	for _, vcap := range req.GetVolumeCapabilities() {
@@ -265,9 +269,8 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
-		} else {
-			client.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
 		}
+		client.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
 	}
 
 	return &csi.CreateVolumeResponse{
@@ -285,6 +288,7 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}, nil
 }
 
+// DeleteVolume Delete the volumes
 func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	klog.V(3).InfoS("DeleteVolumeRequest", "name", req.GetVolumeId())
 	vID := req.GetVolumeId()
@@ -340,38 +344,47 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
+// ListVolumes returns ListVolumesResponse
 func (c *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerPublishVolume returns ControllerPublishVolumeRequest
 func (c *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerUnpublishVolume returns ControllerUnpublishVolumeRequest
 func (c *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerExpandVolume returns ControllerExpandVolumeRequest
 func (c *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ControllerGetVolume returns ControllerGetVolumeResponse
 func (c *ControllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// ListSnapshots list snapsots
 func (c *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// CreateSnapshot creates snapshots
 func (c *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// DeleteSnapshot deletes the snapshot
 func (c *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
+// GetCapacity returns total/free capacity from filesystem on device.
 func (c *ControllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }

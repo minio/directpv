@@ -22,6 +22,7 @@ import (
 	"github.com/minio/directpv/pkg/mount"
 )
 
+// UDevData has udev data info
 type UDevData struct {
 	Partition        int
 	WWID             string
@@ -86,12 +87,13 @@ type Device struct {
 	SwapOn            bool
 
 	// Populated from /proc/1/mountinfo
-	MountPoints       []string // Deprecating in favour of MountInfos
+	MountPoints       []string // Deprecating in favor of MountInfos
 	FirstMountPoint   string
 	FirstMountOptions []string
 	OtherMountsInfo   []mount.MountInfo
 }
 
+// DevPath return dev path
 func (d Device) DevPath() string {
 	return filepath.Join("/dev", d.Name)
 }

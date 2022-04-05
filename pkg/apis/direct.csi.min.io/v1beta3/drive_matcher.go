@@ -23,6 +23,7 @@ import (
 	"github.com/minio/directpv/pkg/matcher"
 )
 
+// SupportedStatusSelectorValues contains the list of Drive Status
 func SupportedStatusSelectorValues() []string {
 	return []string{
 		string(DriveStatusInUse),
@@ -34,6 +35,7 @@ func SupportedStatusSelectorValues() []string {
 	}
 }
 
+// ToAccessTier converts it to valid access tier
 func ToAccessTier(value string) (accessTier AccessTier, err error) {
 	accessTier = AccessTier(strings.Title(value))
 	switch accessTier {
@@ -44,6 +46,7 @@ func ToAccessTier(value string) (accessTier AccessTier, err error) {
 	return accessTier, err
 }
 
+// StringsToAccessTiers converts slice of values to its corresponding access tiers
 func StringsToAccessTiers(values []string) (accessTiers []AccessTier, err error) {
 	var accessTier AccessTier
 	for _, value := range values {
@@ -55,6 +58,7 @@ func StringsToAccessTiers(values []string) (accessTiers []AccessTier, err error)
 	return accessTiers, nil
 }
 
+// AccessTiersToStrings converts slice of access tiers to its string values
 func AccessTiersToStrings(accessTiers []AccessTier) (slice []string) {
 	for _, accessTier := range accessTiers {
 		slice = append(slice, string(accessTier))
@@ -62,6 +66,7 @@ func AccessTiersToStrings(accessTiers []AccessTier) (slice []string) {
 	return slice
 }
 
+// ToDriveStatus maps value to drive status
 func ToDriveStatus(value string) (driveStatus DriveStatus, err error) {
 	switch strings.ToLower(value) {
 	case "available":
@@ -81,6 +86,7 @@ func ToDriveStatus(value string) (driveStatus DriveStatus, err error) {
 	}
 }
 
+// DriveStatusListToStrings maps drives list status to slice of string
 func DriveStatusListToStrings(driveStatusList []DriveStatus) (slice []string) {
 	for _, driveStatus := range driveStatusList {
 		slice = append(slice, string(driveStatus))
@@ -93,6 +99,7 @@ func (drive *DirectCSIDrive) MatchGlob(nodes, drives, status []string) bool {
 	return matcher.GlobMatchNodesDrivesStatuses(nodes, drives, status, drive.Status.NodeName, drive.Status.Path, string(drive.Status.DriveStatus))
 }
 
+// MatchDriveStatus matches the list of drive status to the drive status
 func (drive *DirectCSIDrive) MatchDriveStatus(driveStatusList []DriveStatus) bool {
 	return matcher.StringIn(DriveStatusListToStrings(driveStatusList), string(drive.Status.DriveStatus))
 }

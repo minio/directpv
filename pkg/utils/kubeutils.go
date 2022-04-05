@@ -87,6 +87,7 @@ func IsConditionStatus(statusConditions []metav1.Condition, condType string, con
 	return false
 }
 
+// SetLabels sets the labels
 func SetLabels(object metav1.Object, labels map[LabelKey]LabelValue) {
 	values := make(map[string]string)
 	for key, value := range labels {

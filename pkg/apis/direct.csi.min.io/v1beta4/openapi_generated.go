@@ -672,7 +672,8 @@ func schema_pkg_apis_directcsiminio_v1beta4_OtherMountsInfo(ref common.Reference
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "OtherMountsInfo contains mount info",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"mountpoint": {
 						SchemaProps: spec.SchemaProps{

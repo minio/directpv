@@ -46,6 +46,7 @@ func defaultIfZeroString(left, right string) string {
 	return right
 }
 
+// Config contains the configurations info
 type Config struct {
 	Identity string
 
@@ -105,36 +106,36 @@ func (c *Config) validate() error {
 	return nil
 }
 
-func (i *Config) namespace() string {
-	return utils.SanitizeKubeResourceName(i.Identity)
+func (c *Config) namespace() string {
+	return utils.SanitizeKubeResourceName(c.Identity)
 }
 
-func (i *Config) serviceName() string {
-	return utils.SanitizeKubeResourceName(i.Identity)
+func (c *Config) serviceName() string {
+	return utils.SanitizeKubeResourceName(c.Identity)
 }
 
-func (i *Config) identity() string {
-	return utils.SanitizeKubeResourceName(i.Identity)
+func (c *Config) identity() string {
+	return utils.SanitizeKubeResourceName(c.Identity)
 }
 
 func (c *Config) conversionHealthzURL() string {
 	return getConversionHealthzURL(c.identity())
 }
 
-func (i *Config) getCSIProvisionerImage() string {
-	return defaultIfZeroString(i.CSIProvisionerImage, CSIImageCSIProvisioner)
+func (c *Config) getCSIProvisionerImage() string {
+	return defaultIfZeroString(c.CSIProvisionerImage, CSIImageCSIProvisioner)
 }
 
-func (i *Config) getNodeDriverRegistrarImage() string {
-	return defaultIfZeroString(i.NodeDriverRegistrarImage, CSIImageNodeDriverRegistrar)
+func (c *Config) getNodeDriverRegistrarImage() string {
+	return defaultIfZeroString(c.NodeDriverRegistrarImage, CSIImageNodeDriverRegistrar)
 }
 
-func (i *Config) getLivenessProbeImage() string {
-	return defaultIfZeroString(i.LivenessProbeImage, CSIImageLivenessProbe)
+func (c *Config) getLivenessProbeImage() string {
+	return defaultIfZeroString(c.LivenessProbeImage, CSIImageLivenessProbe)
 }
 
-func (i *Config) conversionWebhookDNSName() string {
-	return strings.Join([]string{i.identity(), i.namespace(), "svc"}, ".") // "direct-csi-min-io.direct-csi-min-io.svc"
+func (c *Config) conversionWebhookDNSName() string {
+	return strings.Join([]string{c.identity(), c.namespace(), "svc"}, ".") // "direct-csi-min-io.direct-csi-min-io.svc"
 }
 
 func (c *Config) csiDriverName() string {
@@ -149,24 +150,24 @@ func (c *Config) deploymentName() string {
 	return c.identity()
 }
 
-func (i *Config) getPSPName() string {
-	return i.identity()
+func (c *Config) getPSPName() string {
+	return c.identity()
 }
 
-func (i *Config) getPSPClusterRoleBindingName() string {
-	return utils.SanitizeKubeResourceName("psp-" + i.identity())
+func (c *Config) getPSPClusterRoleBindingName() string {
+	return utils.SanitizeKubeResourceName("psp-" + c.identity())
 }
 
-func (i *Config) serviceAccountName() string {
-	return i.identity()
+func (c *Config) serviceAccountName() string {
+	return c.identity()
 }
 
-func (i *Config) clusterRoleName() string {
-	return i.identity()
+func (c *Config) clusterRoleName() string {
+	return c.identity()
 }
 
-func (i *Config) roleBindingName() string {
-	return i.identity()
+func (c *Config) roleBindingName() string {
+	return c.identity()
 }
 
 func (c *Config) storageClassNameDirectCSI() string {
@@ -195,16 +196,16 @@ func (c *Config) getImagePullSecrets() []corev1.LocalObjectReference {
 	return localObjectReferences
 }
 
-func (i *Config) postProc(obj interface{}) error {
-	if i.DryRun {
+func (c *Config) postProc(obj interface{}) error {
+	if c.DryRun {
 		yamlString, err := utils.ToYAML(obj)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("%s\n---\n", yamlString)
 	}
-	if i.AuditFile != nil {
-		if err := utils.WriteObject(i.AuditFile, obj); err != nil {
+	if c.AuditFile != nil {
+		if err := utils.WriteObject(c.AuditFile, obj); err != nil {
 			return err
 		}
 	}

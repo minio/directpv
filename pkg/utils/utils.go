@@ -67,6 +67,7 @@ func ToYAML(obj interface{}) (string, error) {
 	return string(data), nil
 }
 
+//WriteObject writes the writer content
 func WriteObject(writer io.Writer, obj interface{}) error {
 	y, err := ToYAML(obj)
 	if err != nil {
@@ -81,15 +82,18 @@ func WriteObject(writer io.Writer, obj interface{}) error {
 	return nil
 }
 
+// SafeFile is used to write the yaml
 type SafeFile struct {
 	filename string
 	tempFile *os.File
 }
 
+// Writes writes to the file
 func (safeFile *SafeFile) Write(p []byte) (int, error) {
 	return safeFile.tempFile.Write(p)
 }
 
+// Close after writing to file
 func (safeFile *SafeFile) Close() error {
 	if err := safeFile.tempFile.Close(); err != nil {
 		return err
@@ -97,6 +101,7 @@ func (safeFile *SafeFile) Close() error {
 	return os.Rename(safeFile.tempFile.Name(), safeFile.filename)
 }
 
+// NewSafeFile returns new SafeFile
 func NewSafeFile(filename string) (*SafeFile, error) {
 	tempFile, err := os.CreateTemp(filepath.Dir(filename), "safefile.")
 	if err != nil {
@@ -108,6 +113,7 @@ func NewSafeFile(filename string) (*SafeFile, error) {
 	}, nil
 }
 
+// GetDefaultAuditDir returns the default audit directory
 func GetDefaultAuditDir() (string, error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {
@@ -116,6 +122,7 @@ func GetDefaultAuditDir() (string, error) {
 	return filepath.Join(homeDir, defaultDirectCSIDir, auditDir), nil
 }
 
+// OpenAuditFile opens the file for writing
 func OpenAuditFile(auditFile string) (*SafeFile, error) {
 	defaultAuditDir, err := GetDefaultAuditDir()
 	if err != nil {
@@ -127,6 +134,7 @@ func OpenAuditFile(auditFile string) (*SafeFile, error) {
 	return NewSafeFile(filepath.Join(defaultAuditDir, fmt.Sprintf("%v-%v", auditFile, time.Now().UnixNano())))
 }
 
+// GetMajorMinorFromStr returns the manjor minor number
 func GetMajorMinorFromStr(majMin string) (major, minor uint32, err error) {
 	tokens := strings.SplitN(majMin, ":", 2)
 	if len(tokens) != 2 {
@@ -146,6 +154,7 @@ func GetMajorMinorFromStr(majMin string) (major, minor uint32, err error) {
 	return
 }
 
+// IsV1Beta1Drive checks if the drive are of beta1 version
 func IsV1Beta1Drive(drive *directcsi.DirectCSIDrive) bool {
 	if labels := drive.GetLabels(); labels != nil {
 		return labels[string(VersionLabelKey)] == directcsiv1beta1.Version

@@ -36,7 +36,6 @@ import (
 
 var (
 	errInvalidMount = errors.New("the directpv mount is not found")
-	errHasHolders   = errors.New("the device has holders")
 	errInvalidDrive = func(fieldName string, expected, found interface{}) error {
 		return fmt.Errorf("; %s mismatch - Expected %v found %v",
 			fieldName,
@@ -258,7 +257,7 @@ func syncVolumeLabels(ctx context.Context, drive *directcsi.DirectCSIDrive) erro
 func checkAndUpdateConditions(drive *directcsi.DirectCSIDrive, device *sys.Device) {
 	switch drive.Status.DriveStatus {
 	case directcsi.DriveStatusAvailable:
-		// Check if formatting request suceeded, If so, update the status fields
+		// Check if formatting request succeeded, If so, update the status fields
 		if drive.Spec.RequestedFormat != nil {
 			if drive.Status.Mountpoint == filepath.Join(sys.MountRoot, drive.Name) {
 				drive.Finalizers = []string{directcsi.DirectCSIDriveFinalizerDataProtection}

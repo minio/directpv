@@ -27,8 +27,10 @@ import (
 )
 
 const (
+	// DirectCSIControllerName is the name of the controller
 	DirectCSIControllerName = "directcsi-controller"
-	DirectCSIDriverName     = "directcsi-driver"
+	// DirectCSIDriverName is the driver name
+	DirectCSIDriverName = "directcsi-driver"
 )
 
 func normalizeLabelValue(value string) string {
@@ -52,29 +54,46 @@ func normalizeLabelValue(value string) string {
 	return string(result)
 }
 
+// LabelKey stores label keys
 type LabelKey string
 
 const (
-	PodNameLabelKey          LabelKey = directcsi.Group + "/pod.name"
-	PodNSLabelKey            LabelKey = directcsi.Group + "/pod.namespace"
-	NodeLabelKey             LabelKey = directcsi.Group + "/node"
-	DriveLabelKey            LabelKey = directcsi.Group + "/drive"
-	PathLabelKey             LabelKey = directcsi.Group + "/path"
-	AccessTierLabelKey       LabelKey = directcsi.Group + "/access-tier"
-	VersionLabelKey          LabelKey = directcsi.Group + "/version"
-	CreatedByLabelKey        LabelKey = directcsi.Group + "/created-by"
-	DrivePathLabelKey        LabelKey = directcsi.Group + "/drive-path"
+	// PodNameLabelKey label key for pod name
+	PodNameLabelKey LabelKey = directcsi.Group + "/pod.name"
+	// PodNSLabelKey label key for pod namespace
+	PodNSLabelKey LabelKey = directcsi.Group + "/pod.namespace"
+	// NodeLabelKey label key for node
+	NodeLabelKey LabelKey = directcsi.Group + "/node"
+	// DriveLabelKey label key for drive
+	DriveLabelKey LabelKey = directcsi.Group + "/drive"
+	// PathLabelKey key for path
+	PathLabelKey LabelKey = directcsi.Group + "/path"
+	// AccessTierLabelKey label key for access-tier
+	AccessTierLabelKey LabelKey = directcsi.Group + "/access-tier"
+	// VersionLabelKey label key for version
+	VersionLabelKey LabelKey = directcsi.Group + "/version"
+	// CreatedByLabelKey label key for created by
+	CreatedByLabelKey LabelKey = directcsi.Group + "/created-by"
+	// DrivePathLabelKey label key for drive path
+	DrivePathLabelKey LabelKey = directcsi.Group + "/drive-path"
+	// DirectCSIVersionLabelKey label key for group and version
 	DirectCSIVersionLabelKey LabelKey = directcsi.Group + "/" + directcsi.Version
-
+	// TopologyDriverIdentity label key for identity
 	TopologyDriverIdentity LabelKey = directcsi.Group + "/identity"
-	TopologyDriverNode     LabelKey = directcsi.Group + "/node"
-	TopologyDriverRack     LabelKey = directcsi.Group + "/rack"
-	TopologyDriverZone     LabelKey = directcsi.Group + "/zone"
-	TopologyDriverRegion   LabelKey = directcsi.Group + "/region"
+	// TopologyDriverNode label key for node
+	TopologyDriverNode LabelKey = directcsi.Group + "/node"
+	// TopologyDriverRack label key for rack
+	TopologyDriverRack LabelKey = directcsi.Group + "/rack"
+	// TopologyDriverZone label key for zone
+	TopologyDriverZone LabelKey = directcsi.Group + "/zone"
+	// TopologyDriverRegion label key for region
+	TopologyDriverRegion LabelKey = directcsi.Group + "/region"
 )
 
+// LabelValue stores label values
 type LabelValue string
 
+// NewLabelValue converts string value to Labels
 func NewLabelValue(value string) LabelValue {
 	errs := validation.IsValidLabelValue(value)
 	if len(errs) == 0 {
@@ -89,6 +108,7 @@ func NewLabelValue(value string) LabelValue {
 	return result
 }
 
+// ToLabelSelector retirns selectors
 func ToLabelSelector(labels map[LabelKey][]LabelValue) string {
 	selectors := []string{}
 	for key, values := range labels {

@@ -18,6 +18,7 @@ package xfs
 
 import "context"
 
+// MakeFS creates FS
 func MakeFS(ctx context.Context, device, uuid string, force, reflink bool) error {
 	return makeFS(ctx, device, uuid, force, reflink)
 }

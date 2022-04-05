@@ -23,6 +23,7 @@ import (
 	"runtime"
 )
 
+// ReadRunUdevDataByMajorMinor reads udev data by major minor
 func ReadRunUdevDataByMajorMinor(major, minor int) (map[string]string, error) {
 	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

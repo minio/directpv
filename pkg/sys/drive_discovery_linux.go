@@ -90,25 +90,6 @@ func readdirnames(dirname string, errorIfNotExist bool) ([]string, error) {
 	return dir.Readdirnames(-1)
 }
 
-func getMajorMinor(name string) (major int, minor int, err error) {
-	var majorMinor string
-	if majorMinor, err = readFirstLine("/sys/class/block/"+name+"/dev", true); err != nil {
-		return
-	}
-
-	tokens := strings.SplitN(majorMinor, ":", 2)
-	if len(tokens) != 2 {
-		err = fmt.Errorf("unknown format of %v", majorMinor)
-		return
-	}
-
-	if major, err = strconv.Atoi(tokens[0]); err != nil {
-		return
-	}
-	minor, err = strconv.Atoi(tokens[1])
-	return
-}
-
 func getSize(name string) (uint64, error) {
 	s, err := readFirstLine("/sys/class/block/"+name+"/size", true)
 	if err != nil {
@@ -325,17 +306,7 @@ func getSwaps() (map[string]struct{}, error) {
 	return devices, nil
 }
 
-func getMountPoints(mountInfos map[string][]mount.MountInfo) (map[string][]string, error) {
-	mountPointsMap := map[string][]string{}
-	for _, mounts := range mountInfos {
-		for _, mount := range mounts {
-			mountPointsMap[mount.MajorMinor] = append(mountPointsMap[mount.MajorMinor], mount.MountPoint)
-		}
-	}
-
-	return mountPointsMap, nil
-}
-
+// ProbeSysInfo probes sys information
 func (device *Device) ProbeSysInfo() (err error) {
 	device.Hidden = getHidden(device.Name)
 	if device.Removable, err = getRemovable(device.Name); err != nil {
@@ -368,6 +339,7 @@ func (device *Device) ProbeSysInfo() (err error) {
 	return nil
 }
 
+// ProbeDevInfo probe device info
 func (device *Device) ProbeDevInfo() (err error) {
 	if device.Serial, err = getSerial(device.Name); err != nil {
 		return err
@@ -393,6 +365,7 @@ func (device *Device) ProbeDevInfo() (err error) {
 	return nil
 }
 
+// ProbeMountInfo probe mount info
 func (device *Device) ProbeMountInfo() (err error) {
 	mountInfosAll, err := mount.Probe()
 	if err != nil {
