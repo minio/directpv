@@ -60,6 +60,7 @@ type DirectCSIDriveSpec struct {
 	DriveTaint map[string]string `json:"driveTaint,omitempty"`
 }
 
+// OtherMountsInfo contains mount info
 type OtherMountsInfo struct {
 	// required
 	Mountpoint string `json:"mountpoint,omitempty"`

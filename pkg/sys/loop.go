@@ -16,6 +16,7 @@
 
 package sys
 
+// CreateLoopDevices creates loop devices (To be deprecated soon)
 func CreateLoopDevices() error {
 	return createLoopDevices()
 }

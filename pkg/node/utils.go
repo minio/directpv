@@ -17,83 +17,15 @@
 package node
 
 import (
-	"context"
 	"crypto/sha256"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
-	"github.com/minio/directpv/pkg/matcher"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
-	"github.com/minio/directpv/pkg/utils"
-	"k8s.io/klog/v2"
 )
-
-func (n *NodeServer) checkDrive(ctx context.Context, drive *directcsi.DirectCSIDrive, volumeID string) error {
-
-	probeXFSUUID := func(majMin string) (string, error) {
-		major, minor, err := utils.GetMajorMinorFromStr(majMin)
-		if err != nil {
-			klog.V(5).Infof("invalid maj:minor (%s) detected while probing FSUUID: %s", majMin, err.Error())
-			return "", err
-		}
-		dev, err := n.getDevice(major, minor)
-		if err != nil {
-			klog.V(5).Infof("could not retrieve the device name from maj:min = %s, error: %s", majMin, err.Error())
-			return "", err
-		}
-		fsInfo, err := n.fsProbe(ctx, dev)
-		if err != nil {
-			klog.V(5).Infof("could not probe fs for device = %s, error: %s", dev, err.Error())
-			return "", err
-		}
-		if fsInfo.Type() != "xfs" {
-			klog.V(5).Infof("unexpected fs found for device = %s, fs: %s", dev, fsInfo.Type())
-			return "", fmt.Errorf("unexpected fs found in drive %s fs: %s", dev, fsInfo.Type())
-		}
-		return fsInfo.ID(), nil
-	}
-
-	if drive.Status.DriveStatus != directcsi.DriveStatusInUse {
-		return fmt.Errorf("drive %v is not in InUse state", drive.Name)
-	}
-
-	finalizer := directcsi.DirectCSIDriveFinalizerPrefix + volumeID
-	if !matcher.StringIn(drive.Finalizers, finalizer) {
-		return fmt.Errorf("drive %v does not have volume finalizer %v", drive.Name, finalizer)
-	}
-
-	mounts, err := n.probeMounts()
-	if err != nil {
-		return err
-	}
-
-	majorMinor := fmt.Sprintf("%v:%v", drive.Status.MajorNumber, drive.Status.MinorNumber)
-	mountInfos, found := mounts[majorMinor]
-	if !found {
-		return fmt.Errorf("mount information not found for major/minor %v of drive %v", majorMinor, drive.Name)
-	}
-
-	mountPoint := filepath.Join(sys.MountRoot, drive.Name)
-	for _, mountInfo := range mountInfos {
-		if mountInfo.MountPoint == mountPoint {
-			probedFSUUID, err := probeXFSUUID(mountInfo.MajorMinor)
-			if err != nil {
-				return err
-			}
-			if probedFSUUID != drive.Status.FilesystemUUID {
-				return fmt.Errorf("fssuid check failed for drive %s. probedfsuuid: %s, fsuuid: %s", drive.Name, probedFSUUID, drive.Status.FilesystemUUID)
-			}
-			return nil
-		}
-	}
-
-	return fmt.Errorf("drive %v is not mounted at mount point %v", drive.Name, mountPoint)
-}
 
 func checkStagingTargetPath(stagingPath string, probeMounts func() (map[string][]mount.MountInfo, error)) error {
 	mounts, err := probeMounts()

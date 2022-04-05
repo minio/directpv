@@ -76,6 +76,7 @@ func unmount(target string, force, detach, expire bool) error {
 	return syscall.Unmount(target, flags)
 }
 
+// IsMounted checks if target is mounted
 func IsMounted(target string) (bool, error) {
 	mountInfos, err := Probe()
 	if err != nil {

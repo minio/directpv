@@ -60,7 +60,7 @@ func TestUpdateDriveNoOp(t *testing.T) {
 		Status: directcsi.DirectCSIDriveStatus{},
 	}
 	ctx := context.TODO()
-	err := dl.update(ctx, &b)
+	err := dl.handleUpdate(ctx, &b)
 	if err != nil {
 		t.Errorf("Error returned [NoOP]: %+v", err)
 	}
@@ -202,7 +202,7 @@ func TestDriveFormat(t *testing.T) {
 		}
 
 		// Step 4: Execute the Update hook
-		if err := dl.update(ctx, newObj); err != nil {
+		if err := dl.handleUpdate(ctx, newObj); err != nil {
 			t.Errorf("Test case [%d]: Error while invoking the update listener: %+v", i, err)
 		}
 

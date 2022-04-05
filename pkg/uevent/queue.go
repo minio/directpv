@@ -38,7 +38,6 @@ type eventQueue struct {
 	events map[string]*deviceEvent
 	mutex  sync.Mutex
 	keyCh  chan string
-	keys   sync.Map
 }
 
 func newEventQueue() *eventQueue {

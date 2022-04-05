@@ -398,7 +398,7 @@ func TestSetDriveStatus(t *testing.T) {
 				},
 			},
 		},
-		// make unavailabe drive to available if the conditions look fine
+		// make unavailable drive to available if the conditions look fine
 		{
 			device: &sys.Device{
 				Name:              "sdb1",

@@ -75,6 +75,7 @@ func getInstaller(config *Config) (installer, error) {
 	return nil, fmt.Errorf("unsupported kubernetes version %s.%s", versionInfo.Major, versionInfo.Minor)
 }
 
+// Install installs directpv
 func Install(ctx context.Context, config *Config) error {
 	if config == nil {
 		return errors.New("bad arguments: empty configuration")
@@ -94,6 +95,7 @@ func Install(ctx context.Context, config *Config) error {
 	return installer.Install(ctx)
 }
 
+// Uninstall uninstalls directpv
 func Uninstall(ctx context.Context, config *Config) error {
 	if config == nil {
 		return errors.New("bad arguments: empty configuration")

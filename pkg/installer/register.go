@@ -217,6 +217,7 @@ func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResou
 	return nil
 }
 
+// // GetConversionCABundle returns the CA bundle from the secret
 func GetConversionCABundle(ctx context.Context, c *Config) ([]byte, error) {
 	getCABundleFromConfig := func() ([]byte, error) {
 		conversionCABundle := c.conversionWebhookCaBundle

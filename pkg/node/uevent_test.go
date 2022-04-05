@@ -485,16 +485,22 @@ func TestAddHandlerWithRace(t *testing.T) {
 	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset().DirectV1beta4().DirectCSIDrives())
 	ctx := context.TODO()
 	handler := createDriveEventHandler()
+	errs := make(chan error, 1)
 	for _, device := range devices {
 		wg.Add(1)
-		go func() {
+		go func(dev *sys.Device) {
 			defer wg.Done()
-			if err := handler.Add(ctx, device); err != nil {
-				t.Fatalf("could not create drive: %v", err)
+			if err := handler.Add(ctx, dev); err != nil {
+				errs <- err
 			}
-		}()
+		}(device)
 	}
 	wg.Wait()
+
+	err := <-errs
+	if err != nil {
+		t.Fatalf("could not create drive: %v", err)
+	}
 
 	result, err := client.GetLatestDirectCSIDriveInterface().List(ctx, metav1.ListOptions{})
 	if err != nil {
