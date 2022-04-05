@@ -955,10 +955,381 @@ func TestValidateUDevInfo(t1 *testing.T) {
 			},
 			expectedResult: false,
 		},
+		// handle special case for wwid matches with extensions
+		{
+			device: &sys.Device{
+				Name:         "name",
+				Major:        200,
+				Minor:        2,
+				WWID:         "0xwwid", // probed device can show up without extensions
+				Model:        "model",
+				Vendor:       "vendor",
+				DMName:       "dmname",
+				DMUUID:       "dmuuid",
+				MDUUID:       "mduuid",
+				PTUUID:       "parttableuuid",
+				PTType:       "gpt",
+				PartUUID:     "partuuid",
+				FSType:       "xfs",
+				UeventSerial: "ueventserial",
+				UeventFSUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
+				Virtual:      false,
+				Partition:    int(0),
+			},
+			drives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test_drive_1",
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						Path:          "/dev/name",
+						MajorNumber:   uint32(200),
+						MinorNumber:   uint32(2),
+						Virtual:       false,
+						Filesystem:    "xfs",
+						PartitionNum:  0,
+						WWID:          "naa.wwid",
+						ModelNumber:   "model",
+						UeventSerial:  "ueventserial",
+						Vendor:        "vendor",
+						DMName:        "dmname",
+						DMUUID:        "dmuuid",
+						MDUUID:        "mduuid",
+						PartTableUUID: "parttableuuid",
+						PartTableType: "gpt",
+						PartitionUUID: "partuuid",
+						UeventFSUUID:  "d9877501-e1b5-4bac-b73f-178b29974ed5",
+					},
+				},
+			},
+			expectedResult: true,
+		},
 	}
 
 	for i, testCase := range testCases {
 		if testCase.expectedResult != ValidateUDevInfo(testCase.device, testCase.drives[0]) {
+			t1.Errorf("Test case %d: Expected result = (%v) got: %v", i, testCase.expectedResult, !testCase.expectedResult)
+		}
+	}
+}
+
+func TestValidateDevInfo(t1 *testing.T) {
+	testCases := []struct {
+		device         *sys.Device
+		drive          *directcsi.DirectCSIDrive
+		expectedResult bool
+	}{
+		{
+			device: &sys.Device{
+				Serial:          "serial",
+				FSUUID:          "fsuuid",
+				ReadOnly:        false,
+				FirstMountPoint: "/var/lib/direct-csi/mnt/test-drive",
+				SwapOn:          false,
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					SerialNumber:   "serial",
+					FilesystemUUID: "fsuuid",
+					ReadOnly:       false,
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
+					SwapOn:         false,
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			device: &sys.Device{
+				Serial:          "serial",
+				FSUUID:          "fsuuid",
+				ReadOnly:        false,
+				FirstMountPoint: "/var/lib/direct-csi/mnt/test-drive",
+				SwapOn:          false,
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					SerialNumber:   "serial2",
+					FilesystemUUID: "fsuuid",
+					ReadOnly:       false,
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
+					SwapOn:         false,
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			device: &sys.Device{
+				Serial:          "serial",
+				FSUUID:          "fsuuid",
+				ReadOnly:        false,
+				FirstMountPoint: "/var/lib/direct-csi/mnt/test-drive",
+				SwapOn:          false,
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					SerialNumber:   "serial",
+					FilesystemUUID: "fsuuid2",
+					ReadOnly:       false,
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
+					SwapOn:         false,
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			device: &sys.Device{
+				Serial:          "serial",
+				FSUUID:          "fsuuid",
+				ReadOnly:        false,
+				FirstMountPoint: "/var/lib/direct-csi/mnt/test-drive",
+				SwapOn:          false,
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					SerialNumber:   "serial",
+					FilesystemUUID: "fsuuid",
+					ReadOnly:       true,
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
+					SwapOn:         false,
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			device: &sys.Device{
+				Serial:          "serial",
+				FSUUID:          "fsuuid",
+				ReadOnly:        false,
+				FirstMountPoint: "/var/lib/direct-csi/mnt/test-drive",
+				SwapOn:          false,
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					SerialNumber:   "serial",
+					FilesystemUUID: "fsuuid",
+					ReadOnly:       false,
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
+					SwapOn:         true,
+				},
+			},
+			expectedResult: false,
+		},
+	}
+
+	for i, testCase := range testCases {
+		if testCase.expectedResult != validateDevInfo(testCase.device, testCase.drive) {
+			t1.Errorf("Test case %d: Expected result = (%v) got: %v", i, testCase.expectedResult, !testCase.expectedResult)
+		}
+	}
+}
+
+func TestValidateSysInfo(t1 *testing.T) {
+	testCases := []struct {
+		device         *sys.Device
+		drive          *directcsi.DirectCSIDrive
+		expectedResult bool
+	}{
+		{
+			device: &sys.Device{
+				ReadOnly:    false,
+				Size:        uint64(5432400),
+				Partitioned: false,
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					ReadOnly:      false,
+					TotalCapacity: int64(5432400),
+					Partitioned:   false,
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			device: &sys.Device{
+				ReadOnly:    false,
+				Size:        uint64(5432400),
+				Partitioned: false,
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					ReadOnly:      true,
+					TotalCapacity: int64(5432400),
+					Partitioned:   false,
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			device: &sys.Device{
+				ReadOnly:    false,
+				Size:        uint64(5432400),
+				Partitioned: false,
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					ReadOnly:      false,
+					TotalCapacity: int64(5432401),
+					Partitioned:   false,
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			device: &sys.Device{
+				ReadOnly:    false,
+				Size:        uint64(5432400),
+				Partitioned: false,
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					ReadOnly:      false,
+					TotalCapacity: int64(5432400),
+					Partitioned:   true,
+				},
+			},
+			expectedResult: false,
+		},
+	}
+
+	for i, testCase := range testCases {
+		if testCase.expectedResult != validateSysInfo(testCase.device, testCase.drive) {
+			t1.Errorf("Test case %d: Expected result = (%v) got: %v", i, testCase.expectedResult, !testCase.expectedResult)
+		}
+	}
+}
+
+func TestValidateMountInfo(t1 *testing.T) {
+	testCases := []struct {
+		device         *sys.Device
+		drive          *directcsi.DirectCSIDrive
+		expectedResult bool
+	}{
+		{
+			device: &sys.Device{
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/drive",
+				FirstMountOptions: []string{"rw", "relatime"},
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Mountpoint:   "/var/lib/direct-csi/mnt/drive",
+					MountOptions: []string{"rw", "relatime"},
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			device: &sys.Device{
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/drive",
+				FirstMountOptions: []string{"rw", "relatime"},
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Mountpoint:   "/var/lib/direct-csi/mnt/drive",
+					MountOptions: []string{"relatime", "rw"},
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			device: &sys.Device{
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/drive",
+				FirstMountOptions: []string{"rw", "relatime"},
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Mountpoint:   "/var/lib/direct-csi/mnt/drive1",
+					MountOptions: []string{"rw", "relatime"},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			device: &sys.Device{
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/drive",
+				FirstMountOptions: []string{"rw", "relatime"},
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Mountpoint:   "/var/lib/direct-csi/mnt/drive",
+					MountOptions: []string{"rw"},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			device: &sys.Device{
+				FirstMountPoint:   "/var/lib/direct-csi/mnt/drive",
+				FirstMountOptions: []string{"rw", "relatime"},
+			},
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Mountpoint:   "/var/lib/direct-csi/mnt/drive",
+					MountOptions: []string{"rw", "quota"},
+				},
+			},
+			expectedResult: false,
+		},
+	}
+
+	for i, testCase := range testCases {
+		if testCase.expectedResult != ValidateMountInfo(testCase.device, testCase.drive) {
 			t1.Errorf("Test case %d: Expected result = (%v) got: %v", i, testCase.expectedResult, !testCase.expectedResult)
 		}
 	}

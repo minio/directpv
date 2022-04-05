@@ -183,10 +183,6 @@ func validateDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDriv
 		klog.V(3).Infof("[%s] mismatch readonly %v - %v", device.Name, directCSIDrive.Status.ReadOnly, device.ReadOnly)
 		return false
 	}
-	if directCSIDrive.Status.Mountpoint != device.FirstMountPoint {
-		klog.V(3).Infof("[%s] mismatch mountpoint %v - %v", device.Name, directCSIDrive.Status.Mountpoint, device.FirstMountPoint)
-		return false
-	}
 	if directCSIDrive.Status.SwapOn != device.SwapOn {
 		klog.V(3).Infof("[%s] mismatch swapon %v - %v", device.Name, directCSIDrive.Status.SwapOn, device.SwapOn)
 		return false
