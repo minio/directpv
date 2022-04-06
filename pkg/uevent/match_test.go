@@ -299,19 +299,19 @@ func TestSerialNumberMatcher(t *testing.T) {
 		// SerialNumber blank in both
 		{case1Device, &case1Drive, false, true, nil},
 		// SerialNumber blank in device
-		{case1Device, &case2Drive, false, false, nil},
+		{case1Device, &case2Drive, false, true, nil},
 		// SerialNumber blank in drive
 		{case2Device, &case1Drive, false, true, nil},
 		// SerialNumber not blank in both and match
 		{case2Device, &case2Drive, true, false, nil},
 		// SerialNumber not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
+		{case2Device, &case3Drive, false, true, nil},
 	}
 
 	for i, testCase := range testCases {
 		match, consider, err := serialNumberMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, testCase.match, testCase.consider, err, match, consider, testCase.err)
 		}
 	}
 }
@@ -485,8 +485,8 @@ func TestPartitionTableUUIDMatcherr(t *testing.T) {
 	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: ""}}
 	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: "serial"}}
 	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: "serial123"}}
-	case1Device := &sys.Device{PartUUID: ""}
-	case2Device := &sys.Device{PartUUID: "serial"}
+	case1Device := &sys.Device{PTUUID: ""}
+	case2Device := &sys.Device{PTUUID: "serial"}
 	testCases := []struct {
 		device   *sys.Device
 		drive    *directcsi.DirectCSIDrive
@@ -509,7 +509,7 @@ func TestPartitionTableUUIDMatcherr(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := partitionTableUUIDMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }

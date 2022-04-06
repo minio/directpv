@@ -18,12 +18,13 @@ package node
 
 import (
 	"context"
-	"os"
+	"errors"
 	"path/filepath"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/mount"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -98,6 +99,12 @@ func TestNodeStageVolume(t *testing.T) {
 		nodeServer.probeMounts = func() (map[string][]mount.MountInfo, error) {
 			return testCase.mountInfo, nil
 		}
+		nodeServer.verifyHostStateForDrive = func(drive *directcsi.DirectCSIDrive) error {
+			if drive.Status.Path == "" {
+				return errors.New("empty path")
+			}
+			return nil
+		}
 		_, err := nodeServer.NodeStageVolume(context.TODO(), testCase.req)
 		if err == nil {
 			t.Fatalf("case %v: expected error, but succeeded", i+1)
@@ -108,12 +115,6 @@ func TestNodeStageVolume(t *testing.T) {
 func TestStageUnstageVolume(t *testing.T) {
 	testDriveName := "test_drive"
 	testVolumeName50MB := "test_volume_50MB"
-
-	testMountPointDir, err := os.MkdirTemp("", "test_")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(testMountPointDir)
 
 	testObjects := []runtime.Object{
 		&directcsi.DirectCSIDrive{
@@ -126,7 +127,7 @@ func TestStageUnstageVolume(t *testing.T) {
 				},
 			},
 			Status: directcsi.DirectCSIDriveStatus{
-				Mountpoint:        testMountPointDir,
+				Mountpoint:        filepath.Join(sys.MountRoot, testDriveName),
 				NodeName:          testNodeName,
 				DriveStatus:       directcsi.DriveStatusInUse,
 				FreeCapacity:      mb50,
@@ -197,13 +198,18 @@ func TestStageUnstageVolume(t *testing.T) {
 	ns := createFakeNodeServer()
 	ns.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
 	directCSIClient := ns.directcsiClient.DirectV1beta4()
-	hostPath := filepath.Join(testMountPointDir, testVolumeName50MB)
+	hostPath := filepath.Join(
+		filepath.Join(
+			sys.MountRoot,
+			testDriveName,
+		),
+		testVolumeName50MB)
 	ns.probeMounts = func() (map[string][]mount.MountInfo, error) {
 		return map[string][]mount.MountInfo{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt", MajorMinor: "0:0"}}}, nil
 	}
 
 	// Stage Volume test
-	_, err = ns.NodeStageVolume(ctx, &stageVolumeRequest)
+	_, err := ns.NodeStageVolume(ctx, &stageVolumeRequest)
 	if err != nil {
 		t.Fatalf("[%s] StageVolume failed. Error: %v", stageVolumeRequest.VolumeId, err)
 	}

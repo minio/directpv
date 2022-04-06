@@ -233,6 +233,9 @@ const (
 
 	// DirectCSIDriveMessageNotFormatted denotes "NotFormatted" drive message.
 	DirectCSIDriveMessageNotFormatted DirectCSIDriveMessage = "NotFormatted"
+
+	// DirectCSIDriveMessageLost denotes "removed" drive message.
+	DirectCSIDriveMessageLost DirectCSIDriveMessage = "drive is removed"
 )
 
 // RequestedFormat denotes drive format request information.
@@ -339,6 +342,17 @@ const (
 
 	// DirectCSIVolumeReasonNotReady denotes "NotReady" volume reason.
 	DirectCSIVolumeReasonNotReady DirectCSIVolumeReason = "NotReady"
+
+	// DirectCSIVolumeReasonDriveLost denotes "DriveLost" volume reason.
+	DirectCSIVolumeReasonDriveLost DirectCSIVolumeReason = "DriveLost"
+)
+
+// DirectCSIVolumeMessage denotes drive message.
+type DirectCSIVolumeMessage string
+
+const (
+	// DirectCSIVolumeMessageDriveLost denotes "DriveLost" drive message.
+	DirectCSIVolumeMessageDriveLost DirectCSIVolumeMessage = "Drive Lost"
 )
 
 // DirectCSIVolumeStatus denotes volume information.

@@ -18,7 +18,10 @@ package node
 
 import (
 	"context"
+	"errors"
+	"os"
 
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	directsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/fs"
 	"github.com/minio/directpv/pkg/fs/xfs"
@@ -64,6 +67,18 @@ func createFakeNodeServer() *NodeServer {
 		setQuota: func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error) { return nil },
 		fsProbe: func(ctx context.Context, device string) (fs fs.FS, err error) {
 			return &fakeXFS{}, nil
+		},
+		verifyHostStateForDrive: func(drive *directcsi.DirectCSIDrive) error {
+			if drive == nil {
+				return errors.New("drive found to be nil")
+			}
+			return nil
+		},
+		mkdirAll: func(path string, perm os.FileMode) error {
+			if path == "" {
+				return errors.New("path is empty")
+			}
+			return nil
 		},
 	}
 }

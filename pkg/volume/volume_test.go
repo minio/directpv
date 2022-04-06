@@ -38,40 +38,35 @@ const (
 	mb100 = 100 * MB
 	mb20  = 20 * MB
 	mb30  = 30 * MB
-
-	testNodeName = "test-node"
 )
 
-func createFakeVolumeEventListener(objects ...runtime.Object) *volumeEventHandler {
-	fakeDirectCSIClient := clientsetfake.NewSimpleClientset(objects...).DirectV1beta4()
-	client.SetLatestDirectCSIDriveInterface(fakeDirectCSIClient.DirectCSIDrives())
-	client.SetLatestDirectCSIVolumeInterface(fakeDirectCSIClient.DirectCSIVolumes())
-	return &volumeEventHandler{nodeID: testNodeName}
+func createFakeVolumeEventListener(nodeName string) *volumeEventHandler {
+	return &volumeEventHandler{nodeID: nodeName}
 }
 
 func TestVolumeEventHandlerHandle(t *testing.T) {
 	testDriveName := "test_drive"
 	testVolumeName20MB := "test_volume_20MB"
 	testVolumeName30MB := "test_volume_30MB"
-	testObjects := []runtime.Object{
-		&directcsi.DirectCSIDrive{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: testDriveName,
-				Finalizers: []string{
-					string(directcsi.DirectCSIDriveFinalizerDataProtection),
-					directcsi.DirectCSIDriveFinalizerPrefix + testVolumeName20MB,
-					directcsi.DirectCSIDriveFinalizerPrefix + testVolumeName30MB,
-				},
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				NodeName:          testNodeName,
-				DriveStatus:       directcsi.DriveStatusInUse,
-				FreeCapacity:      mb50,
-				AllocatedCapacity: mb50,
-				TotalCapacity:     mb100,
+	testDriveObject := &directcsi.DirectCSIDrive{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testDriveName,
+			Finalizers: []string{
+				string(directcsi.DirectCSIDriveFinalizerDataProtection),
+				directcsi.DirectCSIDriveFinalizerPrefix + testVolumeName20MB,
+				directcsi.DirectCSIDriveFinalizerPrefix + testVolumeName30MB,
 			},
 		},
+		Status: directcsi.DirectCSIDriveStatus{
+			NodeName:          "test-node",
+			DriveStatus:       directcsi.DriveStatusInUse,
+			FreeCapacity:      mb50,
+			AllocatedCapacity: mb50,
+			TotalCapacity:     mb100,
+		},
+	}
+	testVolumeObjects := []runtime.Object{
 		&directcsi.DirectCSIVolume{
 			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 			ObjectMeta: metav1.ObjectMeta{
@@ -81,7 +76,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 				},
 			},
 			Status: directcsi.DirectCSIVolumeStatus{
-				NodeName:      testNodeName,
+				NodeName:      "test-node",
 				HostPath:      "hostpath",
 				Drive:         testDriveName,
 				TotalCapacity: mb20,
@@ -119,7 +114,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 				},
 			},
 			Status: directcsi.DirectCSIVolumeStatus{
-				NodeName:      testNodeName,
+				NodeName:      "test-node",
 				HostPath:      "hostpath",
 				Drive:         testDriveName,
 				TotalCapacity: mb30,
@@ -150,26 +145,40 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		},
 	}
 
-	vl := createFakeVolumeEventListener(testObjects...)
+	vl := createFakeVolumeEventListener("test-node")
 	ctx := context.TODO()
-	for _, testObj := range testObjects {
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObject).DirectV1beta4().DirectCSIDrives())
+	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObjects...).DirectV1beta4().DirectCSIVolumes())
+	for _, testObj := range testVolumeObjects {
 		vObj, ok := testObj.(*directcsi.DirectCSIVolume)
 		if !ok {
 			continue
 		}
 		newObj, vErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, vObj.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()})
 		if vErr != nil {
-			t.Fatalf("Error while getting the drive object: %+v", vErr)
+			t.Fatalf("Error while getting the volume object: %+v", vErr)
 		}
 
 		now := metav1.Now()
 		newObj.DeletionTimestamp = &now
 
+		_, vErr = client.GetLatestDirectCSIVolumeInterface().Update(
+			ctx, newObj, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+		)
+		if vErr != nil {
+			t.Fatalf("Error while updating the volume object: %+v", vErr)
+		}
 		if err := vl.Handle(ctx, listener.EventArgs{Event: listener.DeleteEvent, Object: newObj}); err != nil {
 			t.Fatalf("Error while invoking the volume delete listener: %+v", err)
 		}
-		if len(newObj.GetFinalizers()) != 0 {
-			t.Errorf("Volume finalizers are not empty: %v", newObj.GetFinalizers())
+		updatedVolume, err := client.GetLatestDirectCSIVolumeInterface().Get(
+			ctx, newObj.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+		)
+		if err != nil {
+			t.Fatalf("Error while getting the volume object: %+v", err)
+		}
+		if len(updatedVolume.GetFinalizers()) != 0 {
+			t.Errorf("Volume finalizers are not empty: %v", updatedVolume.GetFinalizers())
 		}
 	}
 
@@ -194,65 +203,63 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 }
 
 func TestAbnormalDeleteEventHandle(t *testing.T) {
-	testObjects := []runtime.Object{
-		&directcsi.DirectCSIVolume{
-			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-volume",
-				Finalizers: []string{
-					string(directcsi.DirectCSIVolumeFinalizerPVProtection),
-					string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
-				},
+	testVolumeObject := &directcsi.DirectCSIVolume{
+		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-volume",
+			Finalizers: []string{
+				string(directcsi.DirectCSIVolumeFinalizerPVProtection),
+				string(directcsi.DirectCSIVolumeFinalizerPurgeProtection),
 			},
-			Status: directcsi.DirectCSIVolumeStatus{
-				NodeName:      "node-1",
-				HostPath:      "hostpath",
-				Drive:         "test-drive",
-				TotalCapacity: int64(100),
-				Conditions: []metav1.Condition{
-					{
-						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
-						Status:             metav1.ConditionTrue,
-						Message:            "",
-						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
-						LastTransitionTime: metav1.Now(),
-					},
-					{
-						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
-						Status:             metav1.ConditionFalse,
-						Message:            "",
-						Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
-						LastTransitionTime: metav1.Now(),
-					},
-					{
-						Type:               string(directcsi.DirectCSIVolumeConditionReady),
-						Status:             metav1.ConditionTrue,
-						Message:            "",
-						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
-						LastTransitionTime: metav1.Now(),
-					},
+		},
+		Status: directcsi.DirectCSIVolumeStatus{
+			NodeName:      "test-node",
+			HostPath:      "hostpath",
+			Drive:         "test-drive",
+			TotalCapacity: int64(100),
+			Conditions: []metav1.Condition{
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+					Status:             metav1.ConditionTrue,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+					Status:             metav1.ConditionFalse,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionReady),
+					Status:             metav1.ConditionTrue,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+					LastTransitionTime: metav1.Now(),
 				},
 			},
 		},
 	}
 
-	vl := createFakeVolumeEventListener(testObjects...)
+	vl := createFakeVolumeEventListener("test-node")
 	ctx := context.TODO()
-	for _, testObj := range testObjects {
-		vObj, ok := testObj.(*directcsi.DirectCSIVolume)
-		if !ok {
-			continue
-		}
-		newObj, vErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, vObj.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()})
-		if vErr != nil {
-			t.Fatalf("Error while getting the drive object: %+v", vErr)
-		}
+	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObject).DirectV1beta4().DirectCSIVolumes())
 
-		now := metav1.Now()
-		newObj.DeletionTimestamp = &now
-
-		if err := vl.Handle(ctx, listener.EventArgs{Event: listener.DeleteEvent, Object: newObj}); err == nil {
-			t.Errorf("[%s] DeleteVolume expected to fail but succeeded", vObj.Name)
-		}
+	newObj, vErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, testVolumeObject.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()})
+	if vErr != nil {
+		t.Fatalf("Error while getting the volume object: %+v", vErr)
+	}
+	now := metav1.Now()
+	newObj.DeletionTimestamp = &now
+	_, vErr = client.GetLatestDirectCSIVolumeInterface().Update(
+		ctx, newObj, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+	)
+	if vErr != nil {
+		t.Fatalf("Error while updating the volume object: %+v", vErr)
+	}
+	if err := vl.Handle(ctx, listener.EventArgs{Event: listener.DeleteEvent, Object: newObj}); err == nil {
+		t.Errorf("[%s] DeleteVolumeHandle expected to fail but succeeded", newObj.Name)
 	}
 }

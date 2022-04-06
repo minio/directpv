@@ -495,11 +495,17 @@ func TestAddHandlerWithRace(t *testing.T) {
 			}
 		}(device)
 	}
-	wg.Wait()
 
-	err := <-errs
-	if err != nil {
-		t.Fatalf("could not create drive: %v", err)
+	// close errs once all children finish.
+	go func() {
+		wg.Wait()
+		close(errs)
+	}()
+
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	result, err := client.GetLatestDirectCSIDriveInterface().List(ctx, metav1.ListOptions{})

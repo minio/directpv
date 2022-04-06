@@ -18,7 +18,10 @@ package node
 
 import (
 	"context"
+	"os"
 
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/fs"
 
 	"github.com/minio/directpv/pkg/client"
@@ -51,19 +54,21 @@ func getDevice(major, minor uint32) (string, error) {
 
 // NodeServer denotes node server.
 type NodeServer struct { //revive:disable-line:exported
-	NodeID          string
-	Identity        string
-	Rack            string
-	Zone            string
-	Region          string
-	directcsiClient clientset.Interface
-	probeMounts     func() (map[string][]mount.MountInfo, error)
-	getDevice       func(major, minor uint32) (string, error)
-	safeBindMount   func(source, target string, recursive, readOnly bool) error
-	safeUnmount     func(target string, force, detach, expire bool) error
-	getQuota        func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error)
-	setQuota        func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error)
-	fsProbe         func(ctx context.Context, device string) (fs fs.FS, err error)
+	NodeID                  string
+	Identity                string
+	Rack                    string
+	Zone                    string
+	Region                  string
+	directcsiClient         clientset.Interface
+	probeMounts             func() (map[string][]mount.MountInfo, error)
+	getDevice               func(major, minor uint32) (string, error)
+	safeBindMount           func(source, target string, recursive, readOnly bool) error
+	safeUnmount             func(target string, force, detach, expire bool) error
+	getQuota                func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error)
+	setQuota                func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error)
+	fsProbe                 func(ctx context.Context, device string) (fs fs.FS, err error)
+	verifyHostStateForDrive func(drive *directcsi.DirectCSIDrive) error
+	mkdirAll                func(path string, perm os.FileMode) error
 }
 
 //revive:enable-line:exported
@@ -85,19 +90,21 @@ func NewNodeServer(ctx context.Context,
 	}
 
 	nodeServer := &NodeServer{
-		NodeID:          nodeID,
-		Identity:        identity,
-		Rack:            rack,
-		Zone:            zone,
-		Region:          region,
-		directcsiClient: directClientset,
-		probeMounts:     mount.Probe,
-		getDevice:       getDevice,
-		safeBindMount:   safeBindMount,
-		safeUnmount:     mount.SafeUnmount,
-		getQuota:        xfs.GetQuota,
-		setQuota:        xfs.SetQuota,
-		fsProbe:         fs.Probe,
+		NodeID:                  nodeID,
+		Identity:                identity,
+		Rack:                    rack,
+		Zone:                    zone,
+		Region:                  region,
+		directcsiClient:         directClientset,
+		probeMounts:             mount.Probe,
+		getDevice:               getDevice,
+		safeBindMount:           safeBindMount,
+		safeUnmount:             mount.SafeUnmount,
+		getQuota:                xfs.GetQuota,
+		setQuota:                xfs.SetQuota,
+		fsProbe:                 fs.Probe,
+		verifyHostStateForDrive: drive.VerifyHostStateForDrive,
+		mkdirAll:                os.MkdirAll,
 	}
 
 	go metrics.ServeMetrics(ctx, nodeID, metricsPort)

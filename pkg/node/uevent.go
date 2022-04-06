@@ -99,7 +99,7 @@ func (d *driveEventHandler) Remove(ctx context.Context, drive *directcsi.DirectC
 		string(directcsi.DirectCSIDriveConditionReady),
 		metav1.ConditionFalse,
 		string(directcsi.DirectCSIDriveReasonLost),
-		"drive is removed")
+		string(directcsi.DirectCSIDriveMessageLost))
 	_, err := client.GetLatestDirectCSIDriveInterface().Update(ctx, drive, metav1.UpdateOptions{})
 	return err
 }

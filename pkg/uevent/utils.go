@@ -190,7 +190,7 @@ func validateDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDriv
 	return true
 }
 
-func isFormatRequested(directCSIDrive *directcsi.DirectCSIDrive) bool {
+func IsFormatRequested(directCSIDrive *directcsi.DirectCSIDrive) bool {
 	return directCSIDrive.Spec.DirectCSIOwned &&
 		directCSIDrive.Spec.RequestedFormat != nil &&
 		directCSIDrive.Status.DriveStatus == directcsi.DriveStatusAvailable
