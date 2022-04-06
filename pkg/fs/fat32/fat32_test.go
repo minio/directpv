@@ -30,7 +30,7 @@ func TestProbe(t *testing.T) {
 		freeCapacity  uint64
 		expectErr     bool
 	}{
-		{"fat32.testdata", "120D-5600", "fat32", 52428800, 51604992, false},
+		{"fat32.testdata", "120D-5600", "vfat", 52428800, 51604992, false},
 		{"zero.testdata", "", "", 0, 0, true},
 		{"empty.testdata", "", "", 0, 0, true},
 		{"fat12.testdata", "", "", 0, 0, true},

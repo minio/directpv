@@ -23,6 +23,6 @@ import (
 	"runtime"
 )
 
-func probe(filename string) (map[string][]Info, error) {
+func probe(filename string) (map[string][]MountInfo, error) {
 	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

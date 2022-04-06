@@ -30,6 +30,7 @@ import (
 	"github.com/minio/directpv/pkg/listener"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/uevent"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,14 +45,16 @@ var (
 )
 
 type driveEventHandler struct {
-	nodeID          string
-	reflinkSupport  bool
-	getDevice       func(major, minor uint32) (string, error)
-	stat            func(name string) (os.FileInfo, error)
-	mountDevice     func(fsUUID, target string, flags []string) error
-	unmountDevice   func(device string) error
-	makeFS          func(ctx context.Context, device, uuid string, force, reflink bool) error
-	getFreeCapacity func(path string) (uint64, error)
+	nodeID                  string
+	reflinkSupport          bool
+	getDevice               func(major, minor uint32) (string, error)
+	stat                    func(name string) (os.FileInfo, error)
+	mountDevice             func(device, target string, flags []string) error
+	unmountDevice           func(device string) error
+	makeFS                  func(ctx context.Context, device, uuid string, force, reflink bool) error
+	getFreeCapacity         func(path string) (uint64, error)
+	verifyHostStateForDrive func(drive *directcsi.DirectCSIDrive) error
+	isMounted               func(target string) (bool, error)
 }
 
 // StartController starts drive event controller.
@@ -72,13 +75,15 @@ func StartController(ctx context.Context, nodeID string, reflinkSupport bool) er
 
 func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler {
 	return &driveEventHandler{
-		nodeID:         nodeID,
-		reflinkSupport: reflinkSupport,
-		getDevice:      getDevice,
-		stat:           os.Stat,
-		mountDevice:    mount.MountXFSDevice,
-		unmountDevice:  mount.UnmountDevice,
-		makeFS:         xfs.MakeFS,
+		nodeID:                  nodeID,
+		reflinkSupport:          reflinkSupport,
+		getDevice:               getDevice,
+		stat:                    os.Stat,
+		mountDevice:             mount.MountXFSDevice,
+		unmountDevice:           mount.UnmountDevice,
+		makeFS:                  xfs.MakeFS,
+		verifyHostStateForDrive: VerifyHostStateForDrive,
+		isMounted:               mount.IsMounted,
 	}
 }
 
@@ -109,11 +114,11 @@ func (handler *driveEventHandler) Handle(ctx context.Context, args listener.Even
 }
 
 func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	err := VerifyHostStateForDrive(drive)
+	err := handler.verifyHostStateForDrive(drive)
 	switch err {
 	case nil:
 		switch {
-		case isFormatRequested(drive):
+		case uevent.IsFormatRequested(drive):
 			return handler.format(ctx, drive)
 		case drive.Status.DriveStatus == directcsi.DriveStatusReleased:
 			return handler.release(ctx, drive)
@@ -143,7 +148,7 @@ func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.D
 
 func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.DirectCSIDrive) (err error) {
 	target := filepath.Join(sys.MountRoot, drive.Name)
-	mounted, err := mount.IsMounted(target)
+	mounted, err := handler.isMounted(target)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -283,12 +288,17 @@ func (handler *driveEventHandler) mountDrive(ctx context.Context, drive *directc
 
 func (handler *driveEventHandler) lost(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
 	// Set the drive ready condition as false if not set
-	if !utils.IsConditionStatus(drive.Status.Conditions, string(directcsi.DirectCSIDriveConditionReady), metav1.ConditionFalse) {
+	if !utils.IsCondition(drive.Status.Conditions,
+		string(directcsi.DirectCSIDriveConditionReady),
+		metav1.ConditionFalse,
+		string(directcsi.DirectCSIDriveReasonLost),
+		string(directcsi.DirectCSIDriveMessageLost),
+	) {
 		utils.UpdateCondition(drive.Status.Conditions,
 			string(directcsi.DirectCSIDriveConditionReady),
 			metav1.ConditionFalse,
 			string(directcsi.DirectCSIDriveReasonLost),
-			"drive is removed")
+			string(directcsi.DirectCSIDriveMessageLost))
 		_, err := client.GetLatestDirectCSIDriveInterface().Update(
 			ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
 		)
@@ -310,17 +320,25 @@ func (handler *driveEventHandler) lost(ctx context.Context, drive *directcsi.Dir
 			if err != nil {
 				return err
 			}
-			utils.UpdateCondition(volume.Status.Conditions,
+
+			if !utils.IsCondition(volume.Status.Conditions,
 				string(directcsi.DirectCSIVolumeConditionReady),
 				metav1.ConditionFalse,
-				string(directcsi.DirectCSIVolumeReasonNotReady),
-				"[DRIVE LOST]",
-			)
-			_, err = volumeInterface.Update(
-				ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
-			)
-			if err != nil {
-				return err
+				string(directcsi.DirectCSIVolumeReasonDriveLost),
+				string(directcsi.DirectCSIVolumeMessageDriveLost),
+			) {
+				utils.UpdateCondition(volume.Status.Conditions,
+					string(directcsi.DirectCSIVolumeConditionReady),
+					metav1.ConditionFalse,
+					string(directcsi.DirectCSIVolumeReasonDriveLost),
+					string(directcsi.DirectCSIVolumeMessageDriveLost),
+				)
+				_, err = volumeInterface.Update(
+					ctx, volume, metav1.UpdateOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+				)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

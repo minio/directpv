@@ -299,7 +299,7 @@ func (l *listener) validateDevice(device *sys.Device) (bool, error) {
 	}
 	filteredDrive := filteredDrives[0]
 
-	return !isFormatRequested(filteredDrive) &&
+	return !IsFormatRequested(filteredDrive) &&
 		ValidateMountInfo(device, filteredDrive) &&
 		ValidateUDevInfo(device, filteredDrive) &&
 		validateSysInfo(device, filteredDrive), nil

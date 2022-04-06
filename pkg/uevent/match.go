@@ -123,7 +123,7 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 	case 0:
 		return nil, noMatch
 	case 1:
-		if isFormatRequested(drives[0]) || isChanged(device, drives[0]) {
+		if IsFormatRequested(drives[0]) || isChanged(device, drives[0]) {
 			return drives[0], changed
 		}
 		return drives[0], noChange

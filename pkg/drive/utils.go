@@ -36,12 +36,6 @@ var (
 	errDriveNotUpgraded   = errors.New("drive not upgraded")
 )
 
-func isFormatRequested(drive *directcsi.DirectCSIDrive) bool {
-	return drive.Spec.DirectCSIOwned &&
-		drive.Spec.RequestedFormat != nil &&
-		drive.Status.DriveStatus == directcsi.DriveStatusAvailable
-}
-
 func getDevice(major, minor uint32) (string, error) {
 	name, err := sys.GetDeviceName(major, minor)
 	if err != nil {
