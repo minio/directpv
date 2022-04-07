@@ -31,19 +31,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func isDirectCSIMount(mountPoints []string) bool {
-	if len(mountPoints) == 0 {
-		return true
-	}
-
-	for _, mountPoint := range mountPoints {
-		if strings.HasPrefix(mountPoint, "/var/lib/direct-csi/") {
-			return true
-		}
-	}
-	return false
-}
-
 // NewDirectCSIDriveStatus creates direct CSI drive status.
 func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[string]string) directcsi.DirectCSIDriveStatus {
 	driveStatus := directcsi.DriveStatusAvailable

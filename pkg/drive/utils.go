@@ -58,7 +58,7 @@ func getFSUUIDFromDrive(drive *directcsi.DirectCSIDrive) string {
 	return fsuuid.String()
 }
 
-// verify if the drive states match the host info
+// VerifyHostStateForDrive verifies if the drive states match the host info
 // --------------------------------------------------------------------------
 // - error if the v1beta1 drive is not upgraded yet (NOTE: maj:min is not present in v1beta1 API version)
 // - read /run/udev/data/b<maj:min> (refer ReadRunUdevDataByMajorMinor and mapToUdevData funcs)

@@ -235,9 +235,9 @@ func (w watchInterfaceWrapper) ResultChan() <-chan watch.Event {
 }
 
 // Watch returns a watch.Interface that watches the requested directCSIDrives.
-func (c *directCSIInterface) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+func (d *directCSIInterface) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
-	watcher, err := c.resourceInterface.Watch(ctx, opts)
+	watcher, err := d.resourceInterface.Watch(ctx, opts)
 	if err != nil {
 		return nil, err
 	}

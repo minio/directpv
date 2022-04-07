@@ -55,13 +55,18 @@ var (
 	errMixedStatusSelectorUsage = fmt.Errorf("either glob or [%s] is supported", strings.Join(directcsi.SupportedStatusSelectorValues(), ", "))
 )
 
+// Command defines the directpv drives sub-command
 type Command string
 
 const (
-	SetAcessTier   Command = "setAccessTier"
+	// SetAcessTier is the sub-command to set the access tier
+	SetAcessTier Command = "setAccessTier"
+	// UnSetAcessTier is the sub-command to remove the access tier
 	UnSetAcessTier Command = "unSetAccessTier"
-	Format         Command = "format"
-	DriveRelease   Command = "driveRelease"
+	// Format is the sub-command to format the drives
+	Format Command = "format"
+	// DriveRelease is the sub-command to release the drive
+	DriveRelease Command = "driveRelease"
 )
 
 func printableString(s string) string {

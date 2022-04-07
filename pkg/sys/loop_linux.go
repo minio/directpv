@@ -31,7 +31,8 @@ import (
 const (
 	loopFileRoot    = "/var/lib/direct-csi/loop"
 	loopDeviceCount = 4
-	GiB             = 1024 * 1024 * 1024
+	// GiB is equal to 1024 * 1024 * 1024 bytes
+	GiB = 1024 * 1024 * 1024
 )
 
 func createLoopDevices() error {

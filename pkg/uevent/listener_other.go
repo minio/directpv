@@ -24,6 +24,7 @@ import (
 	"runtime"
 )
 
+// Run starts identity/controller/node servers.
 func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

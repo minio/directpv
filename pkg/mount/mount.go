@@ -71,6 +71,7 @@ func MountXFSDevice(device, target string, flags []string) error {
 	return SafeMount(device, target, "xfs", flags, MountOptPrjQuota)
 }
 
+// ValidDirectPVMountOpts checks for valid mount opts
 func ValidDirectPVMountOpts(deviceMountOpts []string) bool {
 	expectedMountOpts := []string{
 		MountOptRW,
@@ -90,6 +91,7 @@ func ValidDirectPVMountOpts(deviceMountOpts []string) bool {
 	return true
 }
 
+// ValidDirectPVMounts checks if the provided mountpoints have any directpv mounts
 func ValidDirectPVMounts(mountPoints []string) bool {
 	if len(mountPoints) == 0 {
 		return true

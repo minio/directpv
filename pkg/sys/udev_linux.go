@@ -26,10 +26,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"k8s.io/klog/v2"
 )
 
+// ReadRunUdevDataByMajorMinor reads udev data by major minor
 func ReadRunUdevDataByMajorMinor(major, minor int) (map[string]string, error) {
 	return readRunUdevDataFile(fmt.Sprintf("%v/b%v:%v", runUdevData, major, minor))
 }
@@ -42,31 +41,6 @@ func readRunUdevDataFile(filename string) (map[string]string, error) {
 	defer file.Close()
 
 	return parseRunUdevDataFile(file)
-}
-
-func readRunUdevData(major, minor int) (*UDevData, error) {
-	data, err := ReadRunUdevDataByMajorMinor(major, minor)
-	if err != nil {
-		return nil, err
-	}
-
-	return MapToUdevData(data)
-}
-
-func isUdevDataReadable() bool {
-	dir, err := os.Open(runUdevData)
-	if err != nil {
-		klog.V(5).Infof("%v", err)
-		return false
-	}
-
-	defer dir.Close()
-	if _, err = dir.Readdirnames(1); err != nil {
-		klog.V(5).Infof("%v", err)
-		return false
-	}
-
-	return true
 }
 
 func parseRunUdevDataFile(r io.Reader) (map[string]string, error) {
@@ -97,6 +71,7 @@ func parseRunUdevDataFile(r io.Reader) (map[string]string, error) {
 	return event, nil
 }
 
+// MapToUdevData maps eventMap to Udev Data
 func MapToUdevData(eventMap map[string]string) (*UDevData, error) {
 	var err error
 	var partition int

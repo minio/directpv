@@ -53,7 +53,7 @@ var (
 	errMountFailure                = errors.New("could not mount the drive")
 )
 
-func waitForConversionWebhook() error {
+func waitForConversionWebhook(ctx context.Context) error {
 	if conversionHealthzURL == "" {
 		return errInvalidConversionHealthzURL
 	}
@@ -144,6 +144,7 @@ func checkXFS(ctx context.Context, reflinkSupport bool) error {
 
 func run(ctxMain context.Context, args []string) error {
 	ctx, cancel := context.WithCancel(ctxMain)
+	defer cancel()
 	errChan := make(chan error)
 
 	// Start dynamic drive handler container.
@@ -162,7 +163,7 @@ func run(ctxMain context.Context, args []string) error {
 		return err
 	}
 
-	if err := waitForConversionWebhook(); err != nil {
+	if err := waitForConversionWebhook(ctx); err != nil {
 		return err
 	}
 	klog.V(3).Info("The conversion webhook is live!")
@@ -241,9 +242,10 @@ func run(ctxMain context.Context, args []string) error {
 		}
 	}()
 
-	select {
-	case err := <-errChan:
+	err = <-errChan
+	if err != nil {
 		cancel()
 		return err
 	}
+	return nil
 }

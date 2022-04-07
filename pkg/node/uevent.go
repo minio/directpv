@@ -29,6 +29,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// RunDynamicDriveHandler starts the listener
 func RunDynamicDriveHandler(ctx context.Context,
 	identity, nodeID, rack, zone, region string,
 	loopbackOnly bool) error {
@@ -84,9 +85,8 @@ func (d *driveEventHandler) Update(ctx context.Context, device *sys.Device, driv
 		func() string {
 			if errMessage == "" {
 				return string(directcsi.DirectCSIDriveReasonReady)
-			} else {
-				return string(directcsi.DirectCSIDriveReasonNotReady)
 			}
+			return string(directcsi.DirectCSIDriveReasonNotReady)
 		}(),
 		errMessage)
 
