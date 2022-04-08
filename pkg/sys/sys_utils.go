@@ -18,64 +18,8 @@ package sys
 
 import (
 	"fmt"
-	"path/filepath"
-	"strconv"
 	"strings"
 )
-
-func getBlockFile(devName string) string {
-	if strings.Contains(devName, DirectCSIDevRoot) {
-		return devName
-	}
-	if strings.HasPrefix(devName, HostDevRoot) {
-		return getBlockFile(filepath.Base(devName))
-	}
-	return filepath.Join(DirectCSIDevRoot, makeBlockDeviceName(devName))
-}
-
-func makeBlockDeviceName(devName string) string {
-	dName, partNum := splitDevAndPartNum(devName)
-
-	partNumStr := func() string {
-		if partNum == 0 {
-			return ""
-		}
-		return strconv.Itoa(partNum)
-	}()
-
-	if partNumStr == "" {
-		return devName
-	}
-
-	return strings.Join([]string{dName, partNumStr}, DirectCSIPartitionInfix)
-}
-
-func splitDevAndPartNum(s string) (string, int) {
-	possibleNum := strings.Builder{}
-	toRet := strings.Builder{}
-
-	// finds number at the end of a string
-	for _, r := range s {
-		if r >= '0' && r <= '9' {
-			possibleNum.WriteRune(r)
-			continue
-		}
-		toRet.WriteString(possibleNum.String())
-		toRet.WriteRune(r)
-		possibleNum.Reset()
-	}
-	num := possibleNum.String()
-	str := toRet.String()
-	if len(num) > 0 {
-		numVal, err := strconv.Atoi(num)
-		if err != nil {
-			// return full input string in this case
-			return s, 0
-		}
-		return str, numVal
-	}
-	return str, 0
-}
 
 func isFATFSType(fsType string) bool {
 	switch fsType {

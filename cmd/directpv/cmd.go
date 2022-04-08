@@ -46,7 +46,6 @@ var (
 	controller            = false
 	driver                = false
 	procfs                = "/proc"
-	loopbackOnly          = false
 	showVersion           = false
 	conversionHealthzURL  = ""
 	dynamicDriveDiscovery = false
@@ -112,7 +111,6 @@ func init() {
 	driverCmd.Flags().StringVarP(&procfs, "procfs", "", procfs, "path to host /proc for accessing mount information")
 	driverCmd.Flags().BoolVarP(&controller, "controller", "", controller, "running in controller mode")
 	driverCmd.Flags().BoolVarP(&driver, "driver", "", driver, "run in driver mode")
-	driverCmd.Flags().BoolVarP(&loopbackOnly, "loopback-only", "", loopbackOnly, "Create and use loopback devices (FOR TESTING ONLY)")
 	driverCmd.Flags().StringVarP(&conversionHealthzURL, "conversion-healthz-url", "", conversionHealthzURL, "The URL of the conversion webhook healthz endpoint")
 	driverCmd.Flags().BoolVarP(&dynamicDriveDiscovery, "dynamic-drive-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery (disabled by default) (experimental)")
 	driverCmd.Flags().BoolVarP(&dynamicDriveHandler, "dynamic-drive-handler", "", dynamicDriveHandler, "running in dynamic drive handler mode (experimental)")

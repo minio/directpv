@@ -18,15 +18,6 @@
 
 package sys
 
-import (
-	"fmt"
-	"runtime"
-)
-
-func createLoopDevices() error {
-	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
-}
-
 // IsLoopBackDevice checks if the device is a loopback or not
 func IsLoopBackDevice(devPath string) bool {
 	return false

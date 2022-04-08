@@ -36,7 +36,6 @@ func TestInstaller(t1 *testing.T) {
 		DirectCSIContainerOrg:      "test-org",
 		DirectCSIContainerRegistry: "test-registry",
 		AdmissionControl:           false,
-		LoopbackMode:               false,
 		NodeSelector:               nil,
 		Tolerations:                nil,
 		SeccompProfile:             "",
