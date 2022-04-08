@@ -47,7 +47,8 @@ func TestPartitionNumberMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := partitionNumberMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -80,7 +81,8 @@ func TestUeventSerialNumberMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := ueventSerialNumberMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -113,7 +115,8 @@ func TestWWIDMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := wwidMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -146,7 +149,8 @@ func TestModelNumberMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := modelNumberMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -179,7 +183,8 @@ func TestVendorMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := vendorMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -212,7 +217,8 @@ func TestPartitionUUIDMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := partitionUUIDMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -245,7 +251,8 @@ func TestDMUUIDMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := dmUUIDMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -278,7 +285,8 @@ func TestMDUUIDMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := mdUUIDMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -311,7 +319,8 @@ func TestSerialNumberMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := serialNumberMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, testCase.match, testCase.consider, err, match, consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -344,7 +353,8 @@ func TestUeventFSUUIDMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := ueventFSUUIDMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -377,7 +387,8 @@ func TestFileSystemTypeMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := fileSystemTypeMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -410,7 +421,8 @@ func TestFSUUIDMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := fsUUIDMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -443,7 +455,8 @@ func TestTotalCapacityMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := totalCapacityMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
@@ -476,17 +489,18 @@ func TestPhysicalBlocksizeMatcher(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := physicalBlocksizeMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, match, consider, err, testCase.match, testCase.consider, testCase.err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
 
 func TestPartitionTableUUIDMatcherr(t *testing.T) {
 	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: "serial"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: "serial123"}}
+	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: "eda8ada5"}}
+	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: "eda8ada512345"}}
 	case1Device := &sys.Device{PTUUID: ""}
-	case2Device := &sys.Device{PTUUID: "serial"}
+	case2Device := &sys.Device{PTUUID: "eda8ada5"}
 	testCases := []struct {
 		device   *sys.Device
 		drive    *directcsi.DirectCSIDrive
@@ -509,7 +523,8 @@ func TestPartitionTableUUIDMatcherr(t *testing.T) {
 	for i, testCase := range testCases {
 		match, consider, err := partitionTableUUIDMatcher(testCase.device, testCase.drive)
 		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ", i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
+			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
+				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
 		}
 	}
 }
