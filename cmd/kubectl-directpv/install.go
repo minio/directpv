@@ -49,7 +49,6 @@ var (
 	tolerationParameters   = []string{}
 	seccompProfile         = ""
 	apparmorProfile        = ""
-	dynamicDriveDiscovery  = false
 	auditInstall           = "install"
 	imagePullSecrets       = []string{}
 )
@@ -66,10 +65,6 @@ func init() {
 	installCmd.PersistentFlags().StringSliceVarP(&tolerationParameters, "tolerations", "t", tolerationParameters, "tolerations parameters")
 	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "set Seccomp profile")
 	installCmd.PersistentFlags().StringVarP(&apparmorProfile, "apparmor-profile", "", apparmorProfile, "set Apparmor profile")
-
-	installCmd.PersistentFlags().BoolVarP(&loopbackOnly, "loopback-only", "", loopbackOnly, "Uses 4 free loopback devices per node and treat them as DirectCSIDrive resources. This is recommended only for testing/development purposes")
-	installCmd.PersistentFlags().MarkHidden("loopback-only")
-	installCmd.PersistentFlags().BoolVarP(&dynamicDriveDiscovery, "enable-dynamic-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery (experimental)")
 }
 
 func install(ctx context.Context, args []string) (err error) {
@@ -91,11 +86,6 @@ func install(ctx context.Context, args []string) (err error) {
 		return fmt.Errorf("invalid tolerations. format of '--tolerations' must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>")
 	}
 
-	if !dynamicDriveDiscovery {
-		klog.Infof("Enable dynamic drive change management using " + utils.Bold("--enable-dynamic-discovery") + " flag")
-	}
-	klog.Warning("dynamic-discovery feature is strictly experimental and NOT production ready yet")
-
 	file, err := utils.OpenAuditFile(auditInstall)
 	if err != nil {
 		klog.Errorf("error in audit logging: %w", err)
@@ -115,7 +105,6 @@ func install(ctx context.Context, args []string) (err error) {
 		DirectCSIContainerOrg:      org,
 		DirectCSIContainerRegistry: registry,
 		AdmissionControl:           admissionControl,
-		LoopbackMode:               loopbackOnly,
 		NodeSelector:               nodeSelector,
 		Tolerations:                tolerations,
 		SeccompProfile:             seccompProfile,

@@ -31,8 +31,7 @@ import (
 
 // RunDynamicDriveHandler starts the listener
 func RunDynamicDriveHandler(ctx context.Context,
-	identity, nodeID, rack, zone, region string,
-	loopbackOnly bool) error {
+	identity, nodeID, rack, zone, region string) error {
 
 	handler := &driveEventHandler{
 		nodeID: nodeID,

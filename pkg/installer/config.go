@@ -63,9 +63,6 @@ type Config struct {
 	// Admission controller
 	AdmissionControl bool
 
-	// Mode switches
-	LoopbackMode bool
-
 	// Selectors and tolerations
 	NodeSelector map[string]string
 	Tolerations  []corev1.Toleration

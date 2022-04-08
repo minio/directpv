@@ -155,7 +155,7 @@ func run(ctxMain context.Context, args []string) error {
 			rack,
 			zone,
 			region,
-			loopbackOnly)
+		)
 	}
 
 	// Start conversion webserver
@@ -176,7 +176,6 @@ func run(ctxMain context.Context, args []string) error {
 
 	var nodeSrv csi.NodeServer
 	if driver {
-
 		var reflinkSupport bool
 		// try with reflink enabled
 		if err := checkXFS(ctx, true); err == nil {
@@ -214,9 +213,7 @@ func run(ctxMain context.Context, args []string) error {
 			rack,
 			zone,
 			region,
-			dynamicDriveDiscovery,
 			reflinkSupport,
-			loopbackOnly,
 			metricsPort,
 		)
 		if err != nil {

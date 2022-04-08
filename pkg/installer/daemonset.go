@@ -144,9 +144,6 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 						fmt.Sprintf("--metrics-port=%d", metricsPort),
 						"--driver",
 					}
-					if c.LoopbackMode {
-						args = append(args, "--loopback-only")
-					}
 					if c.DynamicDriveDiscovery {
 						args = append(args, "--dynamic-drive-discovery")
 					}
@@ -231,9 +228,6 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 			fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
 			"--dynamic-drive-handler",
-		}
-		if c.LoopbackMode {
-			args = append(args, "--loopback-only")
 		}
 		podSpec.Containers = append(podSpec.Containers, corev1.Container{
 			Name:            directPVDriveDiscoveryContainerName,
