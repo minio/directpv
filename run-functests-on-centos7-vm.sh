@@ -121,7 +121,7 @@ function run_functional_test() {
     ssh_cmd "${VM_IPADDR}" "docker build -t quay.io/minio/directpv:${BUILD_TAG} -f Dockerfile ."
     ssh_cmd "${VM_IPADDR}" "minikube start --driver=none"
     scp_cmd -r functests "root@${VM_IPADDR}:"
-    # ssh_cmd "${VM_IPADDR}" "RHEL7_TEST=1 functests/run.sh ${BUILD_TAG}"
+    ssh_cmd "${VM_IPADDR}" "RHEL7_TEST=1 functests/run.sh ${BUILD_TAG}"
 
     ssh_cmd "${VM_IPADDR}" "functests/run-install-directcsi.sh ${BUILD_TAG}"
 

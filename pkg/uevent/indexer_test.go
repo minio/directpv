@@ -64,11 +64,18 @@ func TestFilterDrivesByUEventFSUUID(t *testing.T) {
 
 	d1 := createTestDrive("test-node", "D1", "d9877501-e1b5-4bac-b73f-178b29974ed5")
 	d2 := createTestDrive("test-node", "D2", filterOnFSuuid)
-
+	var err error
 	indexer := createFakeIndexer()
-	indexer.store.Add(d1)
-	indexer.store.Add(d2)
-	filteredDrive, _ := indexer.filterDrivesByUEventFSUUID(filterOnFSuuid)
+	if err := indexer.store.Add(d1); err != nil {
+		t.Errorf("error while adding objects to store: %v", err)
+	}
+	if err := indexer.store.Add(d2); err != nil {
+		t.Errorf("error while adding objects to store: %v", err)
+	}
+	filteredDrive, err := indexer.filterDrivesByUEventFSUUID(filterOnFSuuid)
+	if err != nil {
+		t.Errorf("")
+	}
 	for _, val := range filteredDrive {
 		if !reflect.DeepEqual(val.Status.FilesystemUUID, filterOnFSuuid) {
 			t.Errorf("expected drive with FSUUID: %v but got: %v", filterOnFSuuid, val.Status.FilesystemUUID)
@@ -82,8 +89,12 @@ func TestListDrives(t *testing.T) {
 	var drives []*directcsi.DirectCSIDrive
 	drives = append(drives, d1, d2)
 	indexer := createFakeIndexer()
-	indexer.store.Add(d1)
-	indexer.store.Add(d2)
+	if err := indexer.store.Add(d1); err != nil {
+		t.Errorf("error while adding objects to store: %v", err)
+	}
+	if err := indexer.store.Add(d2); err != nil {
+		t.Errorf("error while adding objects to store: %v", err)
+	}
 	listedDrive, _ := indexer.listDrives()
 
 	if !reflect.DeepEqual(drives, listedDrive) {
