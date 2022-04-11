@@ -16,8 +16,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set -ex
+ME=$(basename "$0")
+export ME
+
 SCRIPT_DIR=$(dirname "$0")
-source "${SCRIPT_DIR}/common.sh"
-export DIRECT_CSI_CLIENT=./kubectl-directpv
-check_drive_not_exist "$1"
+export SCRIPT_DIR
+
+if [[ $# -ne 2 ]]; then
+    echo "error: DRIVE and STATE must be provided"
+    echo "usage: $ME <DRIVE> <STATE>"
+    exit 255
+fi
+
+"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/check-drive-removed.sh" "$@"
