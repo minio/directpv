@@ -55,6 +55,7 @@ type driveEventHandler struct {
 	getFreeCapacity         func(path string) (uint64, error)
 	verifyHostStateForDrive func(drive *directcsi.DirectCSIDrive) error
 	isMounted               func(target string) (bool, error)
+	safeUnmount             func(target string, force, detach, expire bool) error
 }
 
 // StartController starts drive event controller.
@@ -84,6 +85,7 @@ func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler
 		makeFS:                  xfs.MakeFS,
 		verifyHostStateForDrive: VerifyHostStateForDrive,
 		isMounted:               mount.IsMounted,
+		safeUnmount:             mount.SafeUnmount,
 	}
 }
 
@@ -126,12 +128,12 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *direc
 			return nil
 		}
 	case errNotMounted:
-		// Check if legacy mount is set. If so, umount and mount with the new mountpoint.
-		if drive.Status.Mountpoint == filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
-			return handler.mountDrive(ctx, drive, true)
-		}
 		return handler.mountDrive(ctx, drive, false)
 	case errInvalidMountOptions:
+		if drive.Status.Mountpoint == filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
+			// do not try to umount a legacy mount (fsuuid mounts)
+			return nil
+		}
 		return handler.mountDrive(ctx, drive, true)
 	default:
 		if os.IsNotExist(err) {
@@ -245,7 +247,7 @@ func (handler *driveEventHandler) mountDrive(ctx context.Context, drive *directc
 		return err
 	}
 	if remount {
-		err = handler.unmountDevice(device)
+		err = handler.safeUnmount(drive.Status.Mountpoint, false, false, false)
 		if err != nil {
 			klog.Errorf("failed to umount drive %s; %w", drive.Name, err)
 			utils.UpdateCondition(

@@ -51,6 +51,9 @@ func createFakeDriveEventListener() *driveEventHandler {
 		isMounted: func(target string) (bool, error) {
 			return false, nil
 		},
+		safeUnmount: func(target string, force, detach, expire bool) error {
+			return nil
+		},
 	}
 }
 
@@ -560,7 +563,7 @@ func TestMountDriveHander(t *testing.T) {
 	dl := createFakeDriveEventListener()
 
 	// MountDrive test
-	var getDeviceCalled, mountDeviceCalled, umountDeviceCalled bool
+	var getDeviceCalled, mountDeviceCalled, safeUnmountCalled bool
 	dl.getDevice = func(major, minor uint32) (string, error) {
 		getDeviceCalled = true
 		if major != uint32(testDrive.Status.MajorNumber) {
@@ -581,8 +584,8 @@ func TestMountDriveHander(t *testing.T) {
 		}
 		return nil
 	}
-	dl.unmountDevice = func(device string) error {
-		umountDeviceCalled = true
+	dl.safeUnmount = func(target string, force, detach, expire bool) error {
+		safeUnmountCalled = true
 		return nil
 	}
 	dl.verifyHostStateForDrive = func(drive *directcsi.DirectCSIDrive) error {
@@ -594,8 +597,8 @@ func TestMountDriveHander(t *testing.T) {
 	if !getDeviceCalled {
 		t.Error("getDevice function is not called")
 	}
-	if umountDeviceCalled {
-		t.Error("umountDevice function is not expected to be called")
+	if safeUnmountCalled {
+		t.Error("safeUnmount function is not expected to be called")
 	}
 	if !mountDeviceCalled {
 		t.Error("mountDeviceCalled function is not called")
@@ -609,8 +612,8 @@ func TestMountDriveHander(t *testing.T) {
 		mountDeviceCalled = true
 		return errors.New("returning an error to test the failure scenario")
 	}
-	dl.unmountDevice = func(device string) error {
-		umountDeviceCalled = true
+	dl.safeUnmount = func(target string, force, detach, expire bool) error {
+		safeUnmountCalled = true
 		return nil
 	}
 	if err := dl.handleUpdate(ctx, testDrive); err == nil {
@@ -619,8 +622,8 @@ func TestMountDriveHander(t *testing.T) {
 	if !getDeviceCalled {
 		t.Error("getDevice function is not called")
 	}
-	if umountDeviceCalled {
-		t.Error("umountDevice function is not expected to be called")
+	if safeUnmountCalled {
+		t.Error("safeUnmount function is not expected to be called")
 	}
 	if !mountDeviceCalled {
 		t.Error("mountDeviceCalled function is not called")
@@ -695,8 +698,7 @@ func TestRemountDriveHander(t *testing.T) {
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
 
-	// MountDrive test
-	var getDeviceCalled, mountDeviceCalled, umountDeviceCalled bool
+	var getDeviceCalled, mountDeviceCalled, safeUnmountCalled bool
 	dl.getDevice = func(major, minor uint32) (string, error) {
 		getDeviceCalled = true
 		if major != uint32(testDrive.Status.MajorNumber) {
@@ -717,10 +719,10 @@ func TestRemountDriveHander(t *testing.T) {
 		}
 		return nil
 	}
-	dl.unmountDevice = func(device string) error {
-		umountDeviceCalled = true
-		if device != testDrive.Status.Path {
-			return fmt.Errorf("expected device %s but got %s", testDrive.Status.Path, device)
+	dl.safeUnmount = func(target string, force, detach, expire bool) error {
+		safeUnmountCalled = true
+		if target != testDrive.Status.Mountpoint {
+			return fmt.Errorf("expected target %s but got %s", testDrive.Status.Mountpoint, target)
 		}
 		return nil
 	}
@@ -735,19 +737,19 @@ func TestRemountDriveHander(t *testing.T) {
 		t.Error("getDevice function is not called")
 	}
 	if !mountDeviceCalled {
-		t.Error("mountDeviceCalled function is not called")
+		t.Error("mountDevice function is not called")
 	}
-	if !umountDeviceCalled {
-		t.Error("mountDeviceCalled function is not called")
+	if !safeUnmountCalled {
+		t.Error("safeUnmount function is not called")
 	}
 
 	// remountDrive with error
 	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDrive).DirectV1beta4().DirectCSIDrives())
 	getDeviceCalled = false
 	mountDeviceCalled = false
-	umountDeviceCalled = false
-	dl.unmountDevice = func(device string) error {
-		umountDeviceCalled = true
+	safeUnmountCalled = false
+	dl.safeUnmount = func(target string, force, detach, expire bool) error {
+		safeUnmountCalled = true
 		return errors.New("returning an error to test the failure scenario")
 	}
 	dl.mountDevice = func(device, target string, flags []string) error {
@@ -760,8 +762,8 @@ func TestRemountDriveHander(t *testing.T) {
 	if !getDeviceCalled {
 		t.Error("getDevice function is not called")
 	}
-	if !umountDeviceCalled {
-		t.Error("umountDeviceCalled function is not called")
+	if !safeUnmountCalled {
+		t.Error("safeUnmount function is not called")
 	}
 	if mountDeviceCalled {
 		t.Error("mountDevice function shouldn't be called if umount is failing")

@@ -146,7 +146,8 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 		if !mount.ValidDirectPVMounts(device.MountPoints) {
 			err = multierr.Append(err, errInvalidMount)
 		}
-		if device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Name) {
+		if device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Name) &&
+			device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
 			err = multierr.Append(err, errInvalidDrive(
 				"Mountpoint",
 				filepath.Join(sys.MountRoot, drive.Name),
