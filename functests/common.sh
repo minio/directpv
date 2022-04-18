@@ -101,10 +101,6 @@ function install_directcsi() {
     _wait_directcsi_to_start
 }
 
-function install_directcsi_with_dynamic_discovery() {
-    "${DIRECT_CSI_CLIENT}" install --image "directpv:${DIRECT_CSI_VERSION}" --enable-dynamic-discovery
-    _wait_directcsi_to_start
-}
 
 function uninstall_directcsi() {
     "${DIRECT_CSI_CLIENT}" uninstall  --crd --force
@@ -175,8 +171,8 @@ function check_volume_exist() {
             return 1
         fi
     else
-        lost="DRIVE LOST"
-        if ! "${DIRECT_CSI_CLIENT}" volumes list --drives="${drive}" --no-headers --all -o wide | grep -q -e "*${lost}"; then
+        lost="Drive Lost"
+        if ! "${DIRECT_CSI_CLIENT}" volumes list --drives="${drive}" --no-headers --all -o wide | grep -q -e "${lost}"; then
             echo "$ME: error: some volumes are not in lost state"
             return 1
         fi

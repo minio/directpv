@@ -21,4 +21,4 @@ set -ex
 source "${SCRIPT_DIR}/common.sh"
 export DIRECT_CSI_CLIENT=./kubectl-directpv
 export DIRECT_CSI_VERSION="$BUILD_VERSION"
-install_directcsi_with_dynamic_discovery
+install_directcsi

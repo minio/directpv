@@ -44,7 +44,6 @@ var (
 	image                  = "directpv:" + Version
 	registry               = "quay.io"
 	org                    = "minio"
-	loopbackOnly           = false
 	nodeSelectorParameters = []string{}
 	tolerationParameters   = []string{}
 	seccompProfile         = ""
