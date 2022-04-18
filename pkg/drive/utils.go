@@ -124,7 +124,7 @@ func VerifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 			return err
 		}
 		if mounted {
-			if !mount.ValidDirectPVMountOpts(drive.Status.MountOptions) {
+			if len(drive.Status.MountOptions) > 0 && !mount.ValidDirectPVMountOpts(drive.Status.MountOptions) {
 				return errInvalidMountOptions
 			}
 		} else {
