@@ -19,6 +19,7 @@ package converter
 import (
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -266,12 +267,12 @@ request:
 
 }
 
-func TestV1alpha1ToV1beta3VolumeUpgrade(t *testing.T) {
+func TestV1alpha1ToV1beta4VolumeUpgrade(t *testing.T) {
 	sampleObj := `kind: ConversionReview
 apiVersion: apiextensions.k8s.io/v1
 request:
   uid: 0000-0000-0000-0000
-  desiredAPIVersion: direct.csi.min.io/v1beta3
+  desiredAPIVersion: direct.csi.min.io/v1beta4
   objects:
   - apiVersion: direct.csi.min.io/v1alpha1
     kind: DirectCSIVolume
@@ -370,11 +371,11 @@ request:
 	if _, _, err := yamlSerializer.Decode(convertReview.Response.ConvertedObjects[0].Raw, nil, &convertedObj); err != nil {
 		t.Fatal(err)
 	}
-	if e, a := versionV1Beta3, convertedObj.GetAPIVersion(); e != a {
+	if e, a := versionV1Beta4, convertedObj.GetAPIVersion(); e != a {
 		t.Errorf("expected= %v, actual= %v", e, a)
 	}
 
-	var directCSIVolume directv1beta3.DirectCSIVolume
+	var directCSIVolume directv1beta4.DirectCSIVolume
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(convertedObj.Object, &directCSIVolume); err != nil {
 		t.Errorf("Error while converting %v", err)
 	}
@@ -387,7 +388,7 @@ request:
 		t.Errorf("expected created-by label value = directcsi-controller, got = %s", createdByLabelV)
 	}
 
-	if !utils.IsCondition(directCSIVolume.Status.Conditions, string(directv1beta3.DirectCSIVolumeConditionReady), metav1.ConditionTrue, string(directv1beta3.DirectCSIVolumeReasonReady), "") {
+	if !utils.IsCondition(directCSIVolume.Status.Conditions, string(directv1beta4.DirectCSIVolumeConditionReady), metav1.ConditionTrue, string(directv1beta4.DirectCSIVolumeReasonReady), "") {
 		t.Errorf("unexpected status.conditions = %v", directCSIVolume.Status.Conditions)
 	}
 
@@ -637,6 +638,126 @@ request:
 	}
 }
 
+func TestV1beta3ToV1beta4DriveUpgrade(t *testing.T) {
+	sampleObj := `kind: ConversionReview
+apiVersion: apiextensions.k8s.io/v1
+request:
+  uid: 0000-0000-0000-0000
+  desiredAPIVersion: direct.csi.min.io/v1beta4
+  objects:
+  - apiVersion: direct.csi.min.io/v1beta3
+    kind: DirectCSIDrive
+    metadata:
+      creationTimestamp: "2021-02-25T09:06:13Z"
+      generation: 1
+    name: b58850c1-8f77-4f29-822a-044e4af31a00
+    resourceVersion: "4642669"
+    uid: e56f5721-cee4-46fc-85c7-652e29a7b087
+    spec:
+      directCSIOwned: false
+    status:
+      accessTier: Unknown
+      conditions:
+      - lastTransitionTime: "2021-05-18T06:45:57Z"
+        message: ""
+        reason: NotAdded
+        status: "False"
+        type: Owned
+      - lastTransitionTime: "2021-05-18T06:45:57Z"
+        message: /var/lib/direct-csi/mnt/26b5e22d368f01dfbfa161c35b70d758f960a820d1b79f54950f4309f73be064
+        reason: NotAdded
+        status: "True"
+        type: Mounted
+      - lastTransitionTime: "2021-05-18T06:45:57Z"
+        message: xfs
+        reason: NotAdded
+        status: "True"
+        type: Formatted
+      - lastTransitionTime: "2021-05-18T06:45:57Z"
+        message: ""
+        reason: Initialized
+        status: "True"
+        type: Initialized
+      driveStatus: Available
+      filesystem: xfs
+      freeCapacity: 992712667136
+      logicalBlockSize: 512
+      mountOptions:
+      - rw
+      - relatime
+      mountpoint: /var/lib/direct-csi/mnt/26b5e22d368f01dfbfa161c35b70d758f960a820d1b79f54950f4309f73be064
+      nodeName: minio-k8s6
+      path: /var/lib/direct-csi/devices/nvme1n-part-1
+      physicalBlockSize: 512
+      wwid: eui.8ce38e05006c9351
+      rootPartition: nvme1n1
+      topology:
+        direct.csi.min.io/identity: direct-csi-min-io
+        direct.csi.min.io/node: minio-k8s6
+        direct.csi.min.io/rack: default
+        direct.csi.min.io/region: default
+        direct.csi.min.io/zone: default
+      totalCapacity: 1000204886017
+`
+	response := httptest.NewRecorder()
+	request, err := http.NewRequest("POST", DriveHandlerPath, strings.NewReader(sampleObj))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Add("Content-Type", "application/yaml")
+	serveDriveConversion(response, request)
+	convertReview := v1.ConversionReview{}
+	scheme := runtime.NewScheme()
+	yamlSerializer := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{Yaml: true})
+	if _, _, err := yamlSerializer.Decode(response.Body.Bytes(), nil, &convertReview); err != nil {
+		t.Fatalf("cannot decode data: \n %v\n Error: %v", response.Body, err)
+	}
+	if convertReview.Response.Result.Status != metav1.StatusSuccess {
+		t.Fatalf("cr conversion failed: %v", convertReview.Response)
+	}
+	convertedObj := unstructured.Unstructured{}
+	if _, _, err := yamlSerializer.Decode(convertReview.Response.ConvertedObjects[0].Raw, nil, &convertedObj); err != nil {
+		t.Fatal(err)
+	}
+	if e, a := versionV1Beta4, convertedObj.GetAPIVersion(); e != a {
+		t.Errorf("expected= %v, actual= %v", e, a)
+	}
+
+	var directCSIDrive directv1beta4.DirectCSIDrive
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(convertedObj.Object, &directCSIDrive); err != nil {
+		t.Errorf("Error while converting %v", err)
+	}
+
+	if versionLabelV := getLabelValue(&directCSIDrive, string(utils.VersionLabelKey)); versionLabelV != "v1beta3" {
+		t.Errorf("expected version label value = v1beta4, got = %s", versionLabelV)
+	}
+
+	if nodeLabelV := getLabelValue(&directCSIDrive, string(utils.NodeLabelKey)); nodeLabelV != directCSIDrive.Status.NodeName {
+		t.Errorf("expected node label value = %s, got = %s", directCSIDrive.Status.NodeName, nodeLabelV)
+	}
+
+	if pathLabelV := getLabelValue(&directCSIDrive, string(utils.PathLabelKey)); pathLabelV != filepath.Base(directCSIDrive.Status.Path) {
+		t.Errorf("expected path label value = %s, got = %s", directCSIDrive.Status.Path, pathLabelV)
+	}
+
+	if directCSIDrive.Status.PCIPath != "" || directCSIDrive.Status.SerialNumberLong != "" || len(directCSIDrive.Status.OtherMountsInfo) != 0 {
+		t.Errorf("expected pci path, serial number long and mount options to be nil but, got = %s %s %s ",
+			directCSIDrive.Status.PCIPath, directCSIDrive.Status.SerialNumberLong, directCSIDrive.Status.OtherMountsInfo[0])
+	}
+
+	if createdByLabelV := getLabelValue(&directCSIDrive, string(utils.CreatedByLabelKey)); createdByLabelV != "directcsi-driver" {
+		t.Errorf("expected created-by label value = directcsi-driver, got = %s", createdByLabelV)
+	}
+
+	if accessTierLabelV := getLabelValue(&directCSIDrive, string(utils.AccessTierLabelKey)); accessTierLabelV != string(directCSIDrive.Status.AccessTier) {
+		t.Errorf("expected access-tier label value = %s, got = %s", string(directCSIDrive.Status.AccessTier), accessTierLabelV)
+	}
+
+	if !utils.IsCondition(directCSIDrive.Status.Conditions, string(directv1beta4.DriveStatusReady), metav1.ConditionTrue, string(directv1beta4.DriveStatusReady), "") {
+		t.Errorf("unexpected status.conditions = %v", directCSIDrive.Status.Conditions)
+	}
+}
+
 func TestMigrate(t *testing.T) {
 	testCases := []struct {
 		srcObject    runtime.Object
@@ -679,6 +800,8 @@ func TestMigrate(t *testing.T) {
 					FreeCapacity:      2048,
 					AllocatedCapacity: 1024,
 					TotalCapacity:     3072,
+					PCIPath:           "pci-0000:2e:00.0-nvme-1",
+					SerialNumberLong:  "KXG6AZNV512G TOSHIBA_31IF73XDFDM3",
 				},
 			},
 			groupVersion: schema.GroupVersion{
@@ -752,9 +875,9 @@ func TestMigrate(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-drive",
 					Finalizers: []string{
-						string(directv1beta3.DirectCSIDriveFinalizerDataProtection),
-						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-1",
-						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-2",
+						string(directv1beta4.DirectCSIDriveFinalizerDataProtection),
+						directv1beta4.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta4.DirectCSIDriveFinalizerPrefix + "volume-2",
 					},
 				},
 				Status: directv1beta4.DirectCSIDriveStatus{
@@ -763,6 +886,8 @@ func TestMigrate(t *testing.T) {
 					FreeCapacity:      2048,
 					AllocatedCapacity: 1024,
 					TotalCapacity:     3072,
+					PCIPath:           "pci-0000:2e:00.0-nvme-1",
+					SerialNumberLong:  "KXG6AZNV512G TOSHIBA_31IF73XDFDM3",
 				},
 			},
 			groupVersion: schema.GroupVersion{
@@ -830,6 +955,8 @@ func TestMigrate(t *testing.T) {
 					FreeCapacity:      2048,
 					AllocatedCapacity: 1024,
 					TotalCapacity:     3072,
+					PCIPath:           "pci-0000:2e:00.0-nvme-1",
+					SerialNumberLong:  "KXG6AZNV512G TOSHIBA_31IF73XDFDM3",
 				},
 			},
 			destObject: &directv1beta1.DirectCSIDrive{
@@ -872,6 +999,8 @@ func TestMigrate(t *testing.T) {
 					FreeCapacity:      2048,
 					AllocatedCapacity: 1024,
 					TotalCapacity:     3072,
+					PCIPath:           "pci-0000:2e:00.0-nvme-1",
+					SerialNumberLong:  "KXG6AZNV512G TOSHIBA_31IF73XDFDM3",
 				},
 			},
 			destObject: &directv1beta2.DirectCSIDrive{
@@ -914,6 +1043,8 @@ func TestMigrate(t *testing.T) {
 					FreeCapacity:      2048,
 					AllocatedCapacity: 1024,
 					TotalCapacity:     3072,
+					PCIPath:           "pci-0000:2e:00.0-nvme-1",
+					SerialNumberLong:  "KXG6AZNV512G TOSHIBA_31IF73XDFDM3",
 				},
 			},
 			destObject: &directv1beta3.DirectCSIDrive{
