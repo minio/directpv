@@ -150,6 +150,7 @@ func (ns *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 		Capabilities: []*csi.NodeServiceCapability{
 			nodeCap(csi.NodeServiceCapability_RPC_GET_VOLUME_STATS),
 			nodeCap(csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME),
+			nodeCap(csi.NodeServiceCapability_RPC_VOLUME_CONDITION),
 		},
 	}, nil
 }
@@ -157,21 +158,35 @@ func (ns *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 // NodeGetVolumeStats gets node volume stats.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetvolumestats
 func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	directCSIClient := ns.directcsiClient.DirectV1beta4()
+	vclient := directCSIClient.DirectCSIVolumes()
+	dclient := directCSIClient.DirectCSIDrives()
 	vID := req.GetVolumeId()
 	volumePath := req.GetVolumePath()
 
 	if volumePath == "" {
-		return &csi.NodeGetVolumeStatsResponse{}, nil
+		return nil, status.Error(codes.InvalidArgument, "missing volumepath in the request")
 	}
 
-	directCSIClient := ns.directcsiClient.DirectV1beta4()
-	vclient := directCSIClient.DirectCSIVolumes()
-	dclient := directCSIClient.DirectCSIDrives()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
 		TypeMeta: utils.DirectCSIVolumeTypeMeta(),
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	for i := range vol.Status.Conditions {
+		if vol.Status.Conditions[i].Type == string(directcsi.DirectCSIVolumeConditionAbnormal) && vol.Status.Conditions[i].Status == metav1.ConditionTrue {
+			res := &csi.NodeGetVolumeStatsResponse{}
+			res.Usage = []*csi.VolumeUsage{
+				{},
+			}
+			res.VolumeCondition = &csi.VolumeCondition{
+				Abnormal: true,
+				Message:  vol.Status.Conditions[i].Message,
+			}
+			return res, nil
+		}
 	}
 
 	drive, err := dclient.Get(ctx, vol.Status.Drive, metav1.GetOptions{
@@ -183,7 +198,7 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 
 	device, err := ns.getDevice(drive.Status.MajorNumber, drive.Status.MinorNumber)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Unable to find device for major/minor %v:%v; %v", drive.Status.MajorNumber, drive.Status.MinorNumber, err)
+		return nil, status.Errorf(codes.NotFound, "Unable to find device for major/minor %v:%v; %v", drive.Status.MajorNumber, drive.Status.MinorNumber, err)
 	}
 	quota, err := ns.getQuota(ctx, device, vID)
 	if err != nil {

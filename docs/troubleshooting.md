@@ -195,3 +195,19 @@ sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 (Note: Also verify if the systemd-udevd services are running on the host)
+
+### Volume mount errors
+
+If the respective volume mounts are gone or accidentally umounted, you may see events in corresponding pods and PVCs(If external health monitor is deployed) indicating that the volume mounts weren't mounted properly.
+
+For example,
+
+```log
+Warning  VolumeConditionAbnormal  46s (x13 over 19m)  kubelet            Volume minio-data-1: container path is not mounted
+```
+
+```log
+  Warning  VolumeConditionAbnormal  29s                csi-pv-monitor-controller-direct-csi-min-io                                                staging path is not mounted
+```
+
+In such cases, restarting the corresponding pods may re-create the missing volume mounts.

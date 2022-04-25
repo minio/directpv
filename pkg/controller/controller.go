@@ -102,13 +102,22 @@ func NewControllerServer(ctx context.Context, identity, nodeID, rack, zone, regi
 // ControllerGetCapabilities constructs ControllerGetCapabilitiesResponse
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllergetcapabilities
 func (c *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	return &csi.ControllerGetCapabilitiesResponse{
-		Capabilities: []*csi.ControllerServiceCapability{
-			{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME},
+	controllerCap := func(cap csi.ControllerServiceCapability_RPC_Type) *csi.ControllerServiceCapability {
+		return &csi.ControllerServiceCapability{
+			Type: &csi.ControllerServiceCapability_Rpc{
+				Rpc: &csi.ControllerServiceCapability_RPC{
+					Type: cap,
 				},
 			},
+		}
+	}
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: []*csi.ControllerServiceCapability{
+			controllerCap(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME),
+			controllerCap(csi.ControllerServiceCapability_RPC_LIST_VOLUMES),
+			controllerCap(csi.ControllerServiceCapability_RPC_VOLUME_CONDITION),
+			controllerCap(csi.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES),
+			controllerCap(csi.ControllerServiceCapability_RPC_GET_VOLUME),
 		},
 	}, nil
 }
@@ -212,6 +221,13 @@ func (c *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 					Status:             metav1.ConditionFalse,
 					Message:            "",
 					Reason:             string(directcsi.DirectCSIVolumeReasonNotReady),
+					LastTransitionTime: metav1.Now(),
+				},
+				{
+					Type:               string(directcsi.DirectCSIVolumeConditionAbnormal),
+					Status:             metav1.ConditionFalse,
+					Message:            "",
+					Reason:             string(directcsi.DirectCSIVolumeReasonNormal),
 					LastTransitionTime: metav1.Now(),
 				},
 			},
@@ -351,7 +367,34 @@ func (c *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 // ListVolumes implements ListVolumes controller RPC
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#listvolumes
 func (c *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	result, err := client.GetLatestDirectCSIVolumeInterface().List(ctx, metav1.ListOptions{
+		Limit:    int64(req.GetMaxEntries()),
+		Continue: req.GetStartingToken(),
+	})
+	if err != nil {
+		klog.V(3).Infof("Error while listing DirectPV Volumes: %v", err)
+		return nil, status.Errorf(codes.Aborted, "could not list volumes: %v", err)
+	}
+
+	var volumeEntries []*csi.ListVolumesResponse_Entry
+	for _, volume := range result.Items {
+		csiVolumeResponse, err := c.getCSIVolumeResponse(ctx, &volume)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		volumeEntries = append(volumeEntries, &csi.ListVolumesResponse_Entry{
+			Volume: csiVolumeResponse,
+			Status: &csi.ListVolumesResponse_VolumeStatus{
+				PublishedNodeIds: []string{volume.Status.NodeName}, // we do not support moving volumes b/w the nodes
+				VolumeCondition:  c.getCSIVolumeCondition(&volume),
+			},
+		})
+	}
+
+	return &csi.ListVolumesResponse{
+		Entries:   volumeEntries,
+		NextToken: result.Continue,
+	}, nil
 }
 
 // ControllerPublishVolume - controller RPC to publish volumes
@@ -375,7 +418,25 @@ func (c *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 // ControllerGetVolume - controller RPC for get volume
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllergetvolume
 func (c *ControllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	volume, err := client.GetLatestDirectCSIVolumeInterface().Get(
+		ctx, req.GetVolumeId(), metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
+	)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	csiVolumeResponse, err := c.getCSIVolumeResponse(ctx, volume)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &csi.ControllerGetVolumeResponse{
+		Volume: csiVolumeResponse,
+		Status: &csi.ControllerGetVolumeResponse_VolumeStatus{
+			PublishedNodeIds: []string{volume.Status.NodeName}, // we do not support moving volumes b/w the nodes
+			VolumeCondition:  c.getCSIVolumeCondition(volume),
+		},
+	}, nil
 }
 
 // ListSnapshots - controller RPC for listing snapshots
@@ -400,4 +461,37 @@ func (c *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#getcapacity
 func (c *ControllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
+}
+
+func (c *ControllerServer) getCSIVolumeResponse(ctx context.Context, volume *directcsi.DirectCSIVolume) (*csi.Volume, error) {
+	drive, err := client.GetLatestDirectCSIDriveInterface().Get(ctx, volume.Status.Drive, metav1.GetOptions{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &csi.Volume{
+		CapacityBytes: volume.Status.TotalCapacity,
+		VolumeId:      volume.Name,
+		AccessibleTopology: []*csi.Topology{
+			{
+				Segments: drive.Status.Topology,
+			},
+		},
+	}, nil
+}
+
+func (c *ControllerServer) getCSIVolumeCondition(volume *directcsi.DirectCSIVolume) *csi.VolumeCondition {
+	var isAbnormal bool
+	var message string
+	for i := range volume.Status.Conditions {
+		if volume.Status.Conditions[i].Type == string(directcsi.DirectCSIVolumeConditionAbnormal) {
+			isAbnormal = volume.Status.Conditions[i].Status == metav1.ConditionTrue
+			message = volume.Status.Conditions[i].Message
+		}
+	}
+	return &csi.VolumeCondition{
+		Abnormal: isAbnormal,
+		Message:  message,
+	}
 }

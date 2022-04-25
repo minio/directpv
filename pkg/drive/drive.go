@@ -107,7 +107,7 @@ func (handler *driveEventHandler) ObjectType() runtime.Object {
 
 func (handler *driveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
 	switch args.Event {
-	case listener.AddEvent, listener.UpdateEvent:
+	case listener.AddEvent, listener.UpdateEvent, listener.SyncEvent:
 		return handler.handleUpdate(ctx, args.Object.(*directcsi.DirectCSIDrive))
 	case listener.DeleteEvent:
 		return handler.delete(ctx, args.Object.(*directcsi.DirectCSIDrive))

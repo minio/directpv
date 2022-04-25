@@ -18,6 +18,7 @@ Documentation
  - [Metrics](./metrics.md)
  - [Troubleshooting](./troubleshooting.md)
  - [Drive States](./drive-states.md)
+ - [Volume Health Monitor](./volume-health-monitor.md)
 
 <!--- 
  - [Usage Guide](./usage-guide.md)

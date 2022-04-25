@@ -240,7 +240,7 @@ function uninstall_minio() {
             break
         fi
         echo "$ME: error: ${count} provisioned volumes still exist"
-        sleep 3
+        sleep "${count}"
     done
 
     # Show output for manual debugging.
@@ -251,11 +251,8 @@ function uninstall_minio() {
         if [[ $count -eq 0 ]]; then
             break
         fi
-        # Show output for manual debugging.
-        "${DIRECT_CSI_CLIENT}" drives ls -o wide --all
-        "${DIRECT_CSI_CLIENT}" volumes ls --all -o wide
         echo "$ME: waiting for ${count} drives to be released"
-        sleep 5
+        sleep "${count}"
     done
 }
 

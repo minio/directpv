@@ -142,6 +142,13 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 			conditions[i].Status = utils.BoolToCondition(true)
 			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonInUse)
 		}
+		if c.Type == string(directcsi.DirectCSIVolumeConditionAbnormal) {
+			if c.Reason == string(directcsi.DirectCSIVolumeReasonContainerPathNotMounted) {
+				conditions[i].Status = utils.BoolToCondition(false)
+				conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonNormal)
+				conditions[i].Message = ""
+			}
+		}
 	}
 	vol.Status.ContainerPath = req.GetTargetPath()
 
@@ -194,6 +201,12 @@ func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 			conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonNotInUse)
 		case string(directcsi.DirectCSIVolumeConditionStaged):
 		case string(directcsi.DirectCSIVolumeConditionReady):
+		case string(directcsi.DirectCSIVolumeConditionAbnormal):
+			if c.Reason == string(directcsi.DirectCSIVolumeReasonContainerPathNotMounted) {
+				conditions[i].Status = utils.BoolToCondition(false)
+				conditions[i].Reason = string(directcsi.DirectCSIVolumeReasonNormal)
+				conditions[i].Message = ""
+			}
 		}
 	}
 	vol.Status.ContainerPath = ""

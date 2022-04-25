@@ -18,6 +18,7 @@ package volume
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -35,9 +36,15 @@ import (
 	"k8s.io/klog/v2"
 )
 
+var (
+	errStagingMountNotFound   = errors.New("staging path is not mounted")
+	errContainerMountNotFound = errors.New("container path is not mounted")
+)
+
 type volumeEventHandler struct {
 	nodeID      string
 	safeUnmount func(target string, force, detach, expire bool) error
+	isMounted   func(target string) (bool, error)
 }
 
 // StartController starts volume controller.
@@ -55,6 +62,7 @@ func newVolumeEventHandler(nodeID string) *volumeEventHandler {
 	return &volumeEventHandler{
 		nodeID:      nodeID,
 		safeUnmount: mount.SafeUnmount,
+		isMounted:   mount.IsMounted,
 	}
 }
 
@@ -83,6 +91,59 @@ func (handler *volumeEventHandler) Handle(ctx context.Context, args listener.Eve
 	}
 	if !volume.GetDeletionTimestamp().IsZero() {
 		return handler.delete(ctx, volume)
+	}
+	switch args.Event {
+	case listener.AddEvent, listener.SyncEvent:
+		return handler.checkVolumeMount(ctx, volume)
+	}
+	return nil
+}
+
+func (handler *volumeEventHandler) checkVolumeMount(ctx context.Context, volume *directcsi.DirectCSIVolume) error {
+	var err error
+	var isMounted bool
+	var reason directcsi.DirectCSIVolumeReason
+	volumeClient := client.GetLatestDirectCSIVolumeInterface()
+	// check if the container mount is present
+	if volume.Status.ContainerPath != "" {
+		isMounted, err = handler.isMounted(volume.Status.ContainerPath)
+		if err != nil {
+			return err
+		}
+		if !isMounted {
+			err = errContainerMountNotFound
+			reason = directcsi.DirectCSIVolumeReasonContainerPathNotMounted
+		}
+	}
+	// check if staging mount is present
+	if err == nil && volume.Status.StagingPath != "" {
+		isMounted, err = handler.isMounted(volume.Status.StagingPath)
+		if err != nil {
+			return err
+		}
+		if !isMounted {
+			err = errStagingMountNotFound
+			reason = directcsi.DirectCSIVolumeReasonStagingPathNotMounted
+		}
+	}
+	// update the volume condition if the volume is abnormal
+	if err != nil {
+		if !utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionAbnormal), metav1.ConditionTrue) {
+			utils.UpdateCondition(
+				volume.Status.Conditions,
+				string(directcsi.DirectCSIVolumeConditionAbnormal),
+				metav1.ConditionTrue,
+				string(reason),
+				err.Error(),
+			)
+			if _, err := volumeClient.Update(
+				ctx, volume, metav1.UpdateOptions{
+					TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+				},
+			); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

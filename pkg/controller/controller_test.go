@@ -349,6 +349,26 @@ func TestControllerGetCapabilities(t *testing.T) {
 					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME},
 				},
 			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES},
+				},
+			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_VOLUME_CONDITION},
+				},
+			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES},
+				},
+			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_GET_VOLUME},
+				},
+			},
 		},
 	}
 	if !reflect.DeepEqual(result, expectedResult) {
@@ -405,8 +425,227 @@ func TestValidateVolumeCapabilities(t *testing.T) {
 }
 
 func TestListVolumes(t *testing.T) {
-	if _, err := createFakeController().ListVolumes(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
+	testObjects := []runtime.Object{
+		&directcsi.DirectCSIDrive{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-drive",
+			},
+			Status: directcsi.DirectCSIDriveStatus{
+				Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+			},
+		},
+		&directcsi.DirectCSIVolume{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-abnormal-volume-1",
+			},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      "N1",
+				Drive:         "test-drive",
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionAbnormal),
+						Status:             metav1.ConditionTrue,
+						Message:            "abnormal error message",
+						Reason:             string(directcsi.DirectCSIVolumeReasonStagingPathNotMounted),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+		&directcsi.DirectCSIVolume{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-abnormal-volume-2",
+			},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      "N1",
+				Drive:         "test-drive",
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionAbnormal),
+						Status:             metav1.ConditionTrue,
+						Message:            "abnormal error message",
+						Reason:             string(directcsi.DirectCSIVolumeReasonContainerPathNotMounted),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+		&directcsi.DirectCSIVolume{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-normal-volume-1",
+			},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      "N1",
+				Drive:         "test-drive",
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionAbnormal),
+						Status:             metav1.ConditionFalse,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNormal),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+		&directcsi.DirectCSIVolume{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-normal-volume-2",
+			},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      "N1",
+				Drive:         "test-drive",
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionAbnormal),
+						Status:             metav1.ConditionFalse,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNormal),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+	}
+
+	ctx := context.TODO()
+	cl := createFakeController()
+	cl.directcsiClient = clientsetfake.NewSimpleClientset(testObjects...)
+	client.SetLatestDirectCSIVolumeInterface(cl.directcsiClient.DirectV1beta4().DirectCSIVolumes())
+	client.SetLatestDirectCSIDriveInterface(cl.directcsiClient.DirectV1beta4().DirectCSIDrives())
+
+	getListVolumeResponseEntry := func(volumeId string, abnormal bool, message string) *csi.ListVolumesResponse_Entry {
+		return &csi.ListVolumesResponse_Entry{
+			Volume: &csi.Volume{
+				CapacityBytes: int64(100),
+				VolumeId:      volumeId,
+				AccessibleTopology: []*csi.Topology{
+					{
+						Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+					},
+				},
+			},
+			Status: &csi.ListVolumesResponse_VolumeStatus{
+				PublishedNodeIds: []string{"N1"},
+				VolumeCondition: &csi.VolumeCondition{
+					Abnormal: abnormal,
+					Message:  message,
+				},
+			},
+		}
+	}
+
+	expectedListVolumeResponseEntries := []*csi.ListVolumesResponse_Entry{
+		getListVolumeResponseEntry("test-abnormal-volume-1", true, "abnormal error message"),
+		getListVolumeResponseEntry("test-abnormal-volume-2", true, "abnormal error message"),
+		getListVolumeResponseEntry("test-normal-volume-1", false, ""),
+		getListVolumeResponseEntry("test-normal-volume-2", false, ""),
+	}
+
+	req := &csi.ListVolumesRequest{
+		MaxEntries:    int32(4),
+		StartingToken: "",
+	}
+	listVolumesRes, err := cl.ListVolumes(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listVolumeResponseEntries := listVolumesRes.GetEntries()
+	if !reflect.DeepEqual(listVolumeResponseEntries, expectedListVolumeResponseEntries) {
+		t.Fatalf("expected volume response entries: %#+v, got: %#+v\n", expectedListVolumeResponseEntries, listVolumeResponseEntries)
 	}
 }
 
@@ -429,8 +668,153 @@ func TestControllerExpandVolume(t *testing.T) {
 }
 
 func TestControllerGetVolume(t *testing.T) {
-	if _, err := createFakeController().ControllerGetVolume(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
+	testObjects := []runtime.Object{
+		&directcsi.DirectCSIDrive{
+			TypeMeta: utils.DirectCSIDriveTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-drive",
+			},
+			Status: directcsi.DirectCSIDriveStatus{
+				Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+			},
+		},
+		&directcsi.DirectCSIVolume{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-abnormal-volume",
+			},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      "N1",
+				Drive:         "test-drive",
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNotInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionAbnormal),
+						Status:             metav1.ConditionTrue,
+						Message:            "abnormal error message",
+						Reason:             string(directcsi.DirectCSIVolumeReasonContainerPathNotMounted),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+		&directcsi.DirectCSIVolume{
+			TypeMeta: utils.DirectCSIVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-normal-volume",
+			},
+			Status: directcsi.DirectCSIVolumeStatus{
+				NodeName:      "N1",
+				Drive:         "test-drive",
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionPublished),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonInUse),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionReady),
+						Status:             metav1.ConditionTrue,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonReady),
+						LastTransitionTime: metav1.Now(),
+					},
+					{
+						Type:               string(directcsi.DirectCSIVolumeConditionAbnormal),
+						Status:             metav1.ConditionFalse,
+						Message:            "",
+						Reason:             string(directcsi.DirectCSIVolumeReasonNormal),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+	}
+
+	getControllerGetVolumeResponse := func(volumeId string, abnormal bool, message string) *csi.ControllerGetVolumeResponse {
+		return &csi.ControllerGetVolumeResponse{
+			Volume: &csi.Volume{
+				CapacityBytes: int64(100),
+				VolumeId:      volumeId,
+				AccessibleTopology: []*csi.Topology{
+					{
+						Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+					},
+				},
+			},
+			Status: &csi.ControllerGetVolumeResponse_VolumeStatus{
+				PublishedNodeIds: []string{"N1"},
+				VolumeCondition: &csi.VolumeCondition{
+					Abnormal: abnormal,
+					Message:  message,
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		req         *csi.ControllerGetVolumeRequest
+		expectedRes *csi.ControllerGetVolumeResponse
+	}{
+		{
+			req: &csi.ControllerGetVolumeRequest{
+				VolumeId: "test-abnormal-volume",
+			},
+			expectedRes: getControllerGetVolumeResponse("test-abnormal-volume", true, "abnormal error message"),
+		},
+		{
+			req: &csi.ControllerGetVolumeRequest{
+				VolumeId: "test-normal-volume",
+			},
+			expectedRes: getControllerGetVolumeResponse("test-normal-volume", false, ""),
+		},
+	}
+
+	ctx := context.TODO()
+	cl := createFakeController()
+	cl.directcsiClient = clientsetfake.NewSimpleClientset(testObjects...)
+	client.SetLatestDirectCSIVolumeInterface(cl.directcsiClient.DirectV1beta4().DirectCSIVolumes())
+	client.SetLatestDirectCSIDriveInterface(cl.directcsiClient.DirectV1beta4().DirectCSIDrives())
+
+	for i, testCase := range testCases {
+		result, err := cl.ControllerGetVolume(ctx, testCase.req)
+		if err != nil {
+			t.Fatalf("case %v: unexpected error %v", i+1, err)
+		}
+		if !reflect.DeepEqual(result, testCase.expectedRes) {
+			t.Fatalf("case %v: expected: %#+v, got: %#+v\n", i+1, testCase.expectedRes, result)
+		}
 	}
 }
 

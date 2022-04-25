@@ -110,7 +110,16 @@ func listVolumes(ctx context.Context, args []string) error {
 					string(directcsi.DirectCSIVolumeMessageDriveLost),
 				)
 			}
-			return all || utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue)
+			switch {
+			case all:
+				return true
+			case utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionAbnormal), metav1.ConditionTrue):
+				return false
+			case utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionFalse):
+				return false
+			default:
+				return true
+			}
 		},
 	)
 	if err != nil {
@@ -168,11 +177,13 @@ func listVolumes(ctx context.Context, args []string) error {
 		msg := ""
 		for _, c := range volume.Status.Conditions {
 			switch c.Type {
+			case string(directcsi.DirectCSIVolumeConditionAbnormal):
+				if c.Status == metav1.ConditionTrue && c.Message != "" {
+					msg = utils.Red("*" + c.Message)
+				}
 			case string(directcsi.DirectCSIVolumeConditionReady):
-				if c.Status != metav1.ConditionTrue {
-					if c.Message != "" {
-						msg = utils.Red("*" + c.Message)
-					}
+				if c.Status == metav1.ConditionFalse && c.Message != "" {
+					msg = utils.Red("*" + c.Message)
 				}
 			}
 		}

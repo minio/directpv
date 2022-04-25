@@ -325,6 +325,9 @@ const (
 
 	// DirectCSIVolumeConditionReady denotes "Ready" volume condition.
 	DirectCSIVolumeConditionReady DirectCSIVolumeCondition = "Ready"
+
+	// DirectCSIVolumeConditionAbnormal denotes "Ready" volume condition.
+	DirectCSIVolumeConditionAbnormal DirectCSIVolumeCondition = "Abnormal"
 )
 
 // DirectCSIVolumeReason denotes volume reason.
@@ -345,6 +348,15 @@ const (
 
 	// DirectCSIVolumeReasonDriveLost denotes "DriveLost" volume reason.
 	DirectCSIVolumeReasonDriveLost DirectCSIVolumeReason = "DriveLost"
+
+	// DirectCSIVolumeReasonStagingPathNotMounted denotes missing staging path mount.
+	DirectCSIVolumeReasonStagingPathNotMounted DirectCSIVolumeReason = "StagingPathNotMounted"
+
+	// DirectCSIVolumeReasonContainerPathNotMounted denotes missing container path mount.
+	DirectCSIVolumeReasonContainerPathNotMounted DirectCSIVolumeReason = "ContainerPathNotMounted"
+
+	// DirectCSIVolumeReasonNormal denotes that the volume is normal.
+	DirectCSIVolumeReasonNormal DirectCSIVolumeReason = "Normal"
 )
 
 // DirectCSIVolumeMessage denotes drive message.
