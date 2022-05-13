@@ -17,6 +17,7 @@ Documentation
  - [CSI Specification](./specification.md)
  - [Metrics](./metrics.md)
  - [Troubleshooting](./troubleshooting.md)
+ - [Drive States](./drive-states.md)
 
 <!--- 
  - [Usage Guide](./usage-guide.md)
