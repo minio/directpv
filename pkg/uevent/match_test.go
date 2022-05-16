@@ -291,40 +291,6 @@ func TestMDUUIDMatcher(t *testing.T) {
 	}
 }
 
-func TestSerialNumberMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{SerialNumber: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{SerialNumber: "31IF73XDFDM3"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{SerialNumber: "different-31IF73XDFDM3"}}
-	case1Device := &sys.Device{Serial: ""}
-	case2Device := &sys.Device{Serial: "31IF73XDFDM3"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// SerialNumber blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// SerialNumber blank in device
-		{case1Device, &case2Drive, false, true, nil},
-		// SerialNumber blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// SerialNumber not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// SerialNumber not blank in both and does not match
-		{case2Device, &case3Drive, false, true, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := serialNumberMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
 func TestUeventFSUUIDMatcher(t *testing.T) {
 	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{UeventFSUUID: ""}}
 	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{UeventFSUUID: "ueventfsuuid"}}

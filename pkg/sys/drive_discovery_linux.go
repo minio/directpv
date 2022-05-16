@@ -33,7 +33,6 @@ import (
 	"github.com/minio/directpv/pkg/fs"
 	fserrors "github.com/minio/directpv/pkg/fs/errors"
 	"github.com/minio/directpv/pkg/mount"
-	"github.com/minio/directpv/pkg/sys/smart"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
@@ -110,11 +109,6 @@ func getRemovable(name string) (bool, error) {
 func getReadOnly(name string) (bool, error) {
 	s, err := readFirstLine("/sys/class/block/"+name+"/ro", false)
 	return s != "" && s != "0", err
-}
-
-func getSerial(name string) (string, error) {
-	serial, _ := smart.GetSerialNumber("/dev/" + name)
-	return serial, nil
 }
 
 func getHidden(name string) bool {
@@ -341,10 +335,6 @@ func (device *Device) ProbeSysInfo() (err error) {
 
 // ProbeDevInfo probes device information from /dev
 func (device *Device) ProbeDevInfo() (err error) {
-	if device.Serial, err = getSerial(device.Name); err != nil {
-		return err
-	}
-
 	// No FS information needed for hidden devices
 	if !device.Hidden {
 		CDROMs, err := getCDROMs()

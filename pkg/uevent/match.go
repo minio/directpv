@@ -56,7 +56,6 @@ var stageOneMatchers = []matchFn{
 	ueventFSUUIDMatcher,
 	// v1beta2 matchers
 	fsUUIDMatcher,
-	serialNumberMatcher,
 	// size matchers
 	totalCapacityMatcher,
 }
@@ -283,10 +282,6 @@ func ueventFSUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (b
 
 func fsUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
 	return mutablePropertyMatcher(device.FSUUID, drive.Status.FilesystemUUID)
-}
-
-func serialNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return mutablePropertyMatcher(device.Serial, drive.Status.SerialNumber)
 }
 
 func fileSystemTypeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
