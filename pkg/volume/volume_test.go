@@ -18,6 +18,7 @@ package volume
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/minio/directpv/pkg/client"
@@ -41,7 +42,12 @@ const (
 )
 
 func createFakeVolumeEventListener(nodeName string) *volumeEventHandler {
-	return &volumeEventHandler{nodeID: nodeName}
+	return &volumeEventHandler{
+		nodeID: nodeName,
+		safeUnmount: func(target string, force, detach, expire bool) error {
+			return nil
+		},
+	}
 }
 
 func TestVolumeEventHandlerHandle(t *testing.T) {
@@ -118,6 +124,8 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 				HostPath:      "hostpath",
 				Drive:         testDriveName,
 				TotalCapacity: mb30,
+				StagingPath:   "/path/staging",
+				ContainerPath: "/path/container",
 				Conditions: []metav1.Condition{
 					{
 						Type:               string(directcsi.DirectCSIVolumeConditionStaged),
@@ -150,6 +158,19 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObject).DirectV1beta4().DirectCSIDrives())
 	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObjects...).DirectV1beta4().DirectCSIVolumes())
 	for _, testObj := range testVolumeObjects {
+		var stagingUmountCalled, containerUmountCalled bool
+		vl.safeUnmount = func(target string, force, detach, expire bool) error {
+			if testObj.(*directcsi.DirectCSIVolume).Status.StagingPath == "" && testObj.(*directcsi.DirectCSIVolume).Status.ContainerPath == "" {
+				return errors.New("umount should never be called for volumes with empty staging and container paths")
+			}
+			if target == testObj.(*directcsi.DirectCSIVolume).Status.StagingPath {
+				stagingUmountCalled = true
+			}
+			if target == testObj.(*directcsi.DirectCSIVolume).Status.ContainerPath {
+				containerUmountCalled = true
+			}
+			return nil
+		}
 		vObj, ok := testObj.(*directcsi.DirectCSIVolume)
 		if !ok {
 			continue
@@ -170,6 +191,12 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		}
 		if err := vl.Handle(ctx, listener.EventArgs{Event: listener.DeleteEvent, Object: newObj}); err != nil {
 			t.Fatalf("Error while invoking the volume delete listener: %+v", err)
+		}
+		if newObj.Status.StagingPath != "" && !stagingUmountCalled {
+			t.Error("staging path is not umounted")
+		}
+		if newObj.Status.ContainerPath != "" && !containerUmountCalled {
+			t.Error("container path is not umounted")
 		}
 		updatedVolume, err := client.GetLatestDirectCSIVolumeInterface().Get(
 			ctx, newObj.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},

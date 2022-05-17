@@ -25,6 +25,7 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
 	discoveryfake "k8s.io/client-go/discovery/fake"
+	"k8s.io/client-go/kubernetes"
 	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 	metadatafake "k8s.io/client-go/metadata/fake"
 )
@@ -70,13 +71,21 @@ func FakeInit() {
 }
 
 // SetLatestDirectCSIDriveInterface sets latest DirectCSIDrive client
+// Note: To be used for writing test cases only
 func SetLatestDirectCSIDriveInterface(driveInterface directcsiclientset.DirectCSIDriveInterface) {
 	latestDirectCSIDriveInterface = driveInterface
 }
 
 // SetLatestDirectCSIVolumeInterface sets the latest DirectCSIVolume client
+// Note: To be used for writing test cases only
 func SetLatestDirectCSIVolumeInterface(volumeInterface directcsiclientset.DirectCSIVolumeInterface) {
 	latestDirectCSIVolumeInterface = volumeInterface
+}
+
+// SetKubeClient sets the given kubeclient
+// Note: To be used for writing test cases only
+func SetKubeClient(client kubernetes.Interface) {
+	kubeClient = client
 }
 
 // SetFakeDiscoveryClient sets the fake discovery client

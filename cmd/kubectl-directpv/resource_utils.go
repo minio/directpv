@@ -48,3 +48,25 @@ func getDrivesByIds(ctx context.Context, ids []string) <-chan client.ListDriveRe
 	}()
 	return resultCh
 }
+
+func getVolumesByIds(ctx context.Context, ids []string) <-chan client.ListVolumeResult {
+	resultCh := make(chan client.ListVolumeResult)
+	go func() {
+		defer close(resultCh)
+		directClient := client.GetLatestDirectCSIVolumeInterface()
+		for _, id := range ids {
+			volumeName := strings.TrimSpace(id)
+			v, err := directClient.Get(ctx, volumeName, metav1.GetOptions{})
+			if err != nil {
+				if !errors.IsNotFound(err) {
+					klog.ErrorS(err, "could not get volume", volumeName)
+					return
+				}
+				klog.Errorf("No resource of %s found by the name %s", bold("DirectCSIVolume"), volumeName)
+				continue
+			}
+			resultCh <- client.ListVolumeResult{Volume: *v}
+		}
+	}()
+	return resultCh
+}

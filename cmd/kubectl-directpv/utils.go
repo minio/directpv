@@ -67,6 +67,8 @@ const (
 	Format Command = "format"
 	// DriveRelease is the sub-command to release the drive
 	DriveRelease Command = "driveRelease"
+	// VolumePurge is a volume sub-command to purge the released/failed volumes
+	VolumePurge Command = "volumePurge"
 )
 
 func printableString(s string) string {
@@ -340,4 +342,57 @@ func getDirectCSIPath(driveName string) string {
 		return getDirectCSIPath(filepath.Base(driveName))
 	}
 	return filepath.Join(sys.DirectCSIDevRoot, driveName)
+}
+
+func processFilteredVolumes(
+	ctx context.Context,
+	idArgs []string,
+	matchFunc func(*directcsi.DirectCSIVolume) bool,
+	applyFunc func(*directcsi.DirectCSIVolume) error,
+	processFunc func(context.Context, *directcsi.DirectCSIVolume) error, command Command) error {
+	var resultCh <-chan client.ListVolumeResult
+	var err error
+	if len(idArgs) > 0 {
+		resultCh = getVolumesByIds(ctx, idArgs)
+	} else {
+		ctx, cancelFunc := context.WithCancel(ctx)
+		defer cancelFunc()
+		resultCh, err = client.ListVolumes(ctx,
+			nodeSelectorValues,
+			driveSelectorValues,
+			podNameSelectorValues,
+			podNsSelectorValues,
+			client.MaxThreadCount)
+		if err != nil {
+			return err
+		}
+	}
+
+	file, err := utils.OpenAuditFile(string(command))
+	if err != nil {
+		klog.Errorf("error in audit logging: %w", err)
+	}
+
+	defer func() {
+		if file != nil {
+			if err := file.Close(); err != nil {
+				klog.Errorf("unable to close audit file : %w", err)
+			}
+		}
+	}()
+	return client.ProcessVolumes(
+		ctx,
+		resultCh,
+		func(volume *directcsi.DirectCSIVolume) bool {
+			return volume.MatchNodeDrives(nodeGlobs, driveGlobs) &&
+				volume.MatchPodName(podNameGlobs) &&
+				volume.MatchPodNamespace(podNsGlobs) &&
+				volume.MatchStatus(volumeStatusList) &&
+				matchFunc(volume)
+		},
+		applyFunc,
+		processFunc,
+		file,
+		dryRun,
+	)
 }
