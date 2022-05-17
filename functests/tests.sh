@@ -147,6 +147,8 @@ echo "$ME: Setup environment"
 setup_lvm
 setup_luks
 
+sleep 30
+
 echo "$ME: Run build test"
 test_build
 

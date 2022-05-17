@@ -40,6 +40,8 @@ type UDevData struct {
 	FSUUID           string
 	PCIPath          string
 	UeventSerialLong string
+	// internal
+	NotReady bool
 }
 
 // Device is a block device information.

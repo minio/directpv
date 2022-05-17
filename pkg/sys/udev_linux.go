@@ -82,6 +82,13 @@ func MapToUdevData(eventMap map[string]string) (*UDevData, error) {
 		}
 	}
 
+	var notReady bool
+	if value, found := eventMap["SYSTEMD_READY"]; found {
+		// If set to "0", the device seems to be unplugged or in un-intialized state
+		// reference: https://www.freedesktop.org/software/systemd/man/systemd.device.html
+		notReady = value == "0"
+	}
+
 	return &UDevData{
 		Partition:        partition,
 		WWID:             eventMap["ID_WWN"],
@@ -98,5 +105,6 @@ func MapToUdevData(eventMap map[string]string) (*UDevData, error) {
 		FSType:           eventMap["ID_FS_TYPE"],
 		UeventSerialLong: eventMap["ID_SERIAL"],
 		PCIPath:          eventMap["ID_PATH"],
+		NotReady:         notReady,
 	}, nil
 }

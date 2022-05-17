@@ -34,6 +34,7 @@ import (
 var (
 	errDriveValueMismatch = errors.New("drive value mismatch")
 	errDriveNotUpgraded   = errors.New("drive not upgraded")
+	errDriveNotReady      = errors.New("drive is not ready")
 )
 
 func getDevice(major, minor uint32) (string, error) {
@@ -90,6 +91,10 @@ func VerifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 	if err != nil {
 		return err
 	}
+	if runUdevData.NotReady {
+		return errDriveNotReady
+	}
+
 	device := &sys.Device{
 		Name:         filepath.Base(drive.Status.Path),
 		Major:        int(drive.Status.MajorNumber),

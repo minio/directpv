@@ -202,6 +202,9 @@ func (l *listener) processEvents(ctx context.Context) {
 				}
 				continue
 			}
+			if dEvent.action != Remove && dEvent.udevData.NotReady {
+				continue
+			}
 			if err := l.handle(ctx, dEvent); err != nil {
 				klog.ErrorS(err, "failed to handle an event", dEvent.action)
 				if dEvent.action != Sync {
@@ -550,6 +553,10 @@ func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error 
 		}
 	}
 
+	if runUdevData.NotReady != dEvent.udevData.NotReady {
+		dEvent.udevData.NotReady = runUdevData.NotReady
+	}
+
 	return nil
 }
 
@@ -590,6 +597,10 @@ func (l *listener) sync() error {
 		runUdevData, err := sys.MapToUdevData(data)
 		if err != nil {
 			klog.V(5).Infof("error while mapping udevdata for device %s: %v", devName, err)
+			continue
+		}
+
+		if runUdevData.NotReady {
 			continue
 		}
 

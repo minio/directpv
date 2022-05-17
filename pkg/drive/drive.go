@@ -135,6 +135,10 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *direc
 			return nil
 		}
 		return handler.mountDrive(ctx, drive, true)
+	case errDriveNotReady:
+		// We don't know when the drive will be ready
+		// returning nil to skip exponential retries
+		return nil
 	default:
 		if os.IsNotExist(err) {
 			return handler.lost(ctx, drive)
