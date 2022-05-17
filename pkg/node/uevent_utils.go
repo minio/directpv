@@ -88,7 +88,13 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	// fill hwinfo only if it is empty
 	if updatedDrive.Status.PartitionUUID == "" {
 		updatedDrive.Status.PartitionUUID = device.PartUUID
+	} else {
+		// PartitionUUID values in versions < 3.0.0 is upper-cased
+		if strings.EqualFold(updatedDrive.Status.PartitionUUID, device.PartUUID) {
+			updatedDrive.Status.PartitionUUID = device.PartUUID
+		}
 	}
+
 	if updatedDrive.Status.DMUUID == "" {
 		updatedDrive.Status.DMUUID = device.DMUUID
 	}

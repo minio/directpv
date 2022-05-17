@@ -227,7 +227,7 @@ func vendorMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, b
 }
 
 func partitionUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.PartUUID, drive.Status.PartitionUUID)
+	return immutablePropertyMatcher(strings.ToLower(device.PartUUID), strings.ToLower(drive.Status.PartitionUUID))
 }
 
 func dmUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
@@ -285,6 +285,11 @@ func fsUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, b
 }
 
 func fileSystemTypeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	// udev probe reports "vfat" as the fstype for fat32 drives
+	// whereas fat32 probes for versions < v3.0.0 reported "fat32"
+	if device.FSType == "vfat" && drive.Status.Filesystem == "fat32" {
+		return true, false, nil
+	}
 	return mutablePropertyMatcher(device.FSType, drive.Status.Filesystem)
 }
 
