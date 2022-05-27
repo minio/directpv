@@ -57,7 +57,6 @@ $ kubectl {{ . }} volumes purge --pod-namespace=tenant-{1...3}
 
 # Purge all released|failed volumes based on drive and volume ellipses
 $ kubectl {{ . }} volumes purge --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
-
 `),
 	RunE: func(c *cobra.Command, args []string) error {
 		if !all {
