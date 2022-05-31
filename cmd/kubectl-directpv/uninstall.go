@@ -41,8 +41,11 @@ var (
 )
 
 func init() {
-	uninstallCmd.PersistentFlags().BoolVarP(&uninstallCRD, "crd", "c", uninstallCRD, "unregister direct.csi.min.io group crds")
+	uninstallCmd.PersistentFlags().BoolVarP(&uninstallCRD, "crd", "c", uninstallCRD, "unregister direct.csi.min.io group crds [May cause data loss]")
 	uninstallCmd.PersistentFlags().BoolVarP(&forceRemove, "force", "", forceRemove, "Removes the direct.csi.min.io resources [May cause data loss]")
+
+	uninstallCmd.PersistentFlags().MarkHidden("crd")
+	uninstallCmd.PersistentFlags().MarkHidden("force")
 }
 
 func uninstall(ctx context.Context, args []string) error {

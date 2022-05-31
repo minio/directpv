@@ -39,7 +39,6 @@ var installCmd = &cobra.Command{
 }
 
 var (
-	installCRD             = false
 	admissionControl       = false
 	image                  = "directpv:" + Version
 	registry               = "quay.io"
@@ -53,13 +52,11 @@ var (
 )
 
 func init() {
-	installCmd.PersistentFlags().BoolVarP(&installCRD, "crd", "c", installCRD, "register crds along with installation")
 	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, "DirectPV image")
 	installCmd.PersistentFlags().StringSliceVarP(&imagePullSecrets, "image-pull-secrets", "", imagePullSecrets, "image pull secrets to be set in pod specs")
 	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "registry where DirectPV images are available")
 	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "organization name where DirectPV images are available")
 	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "turn on DirectPV admission controller")
-	installCmd.PersistentFlags().MarkDeprecated("crd", "Will be removed in version 1.5 or greater")
 	installCmd.PersistentFlags().StringSliceVarP(&nodeSelectorParameters, "node-selector", "n", nodeSelectorParameters, "node selector parameters")
 	installCmd.PersistentFlags().StringSliceVarP(&tolerationParameters, "tolerations", "t", tolerationParameters, "tolerations parameters")
 	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "set Seccomp profile")

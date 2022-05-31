@@ -1,11 +1,10 @@
 ### Install Kubectl plugin
 
-The `directpv` kubectl plugin has been provided to manage the lifecycle of directpv
+The `directpv` kubectl plugin can be used to manage the lifecycles of volume and drives in the kubernetes cluster
 
 ```sh
 $ kubectl krew install directpv
 ```
-
 
 ### Install DirectPV
 
@@ -13,10 +12,29 @@ Using the kubectl plugin, install directpv driver in your kubernetes cluster
 
 ```sh
 $ kubectl directpv install --help
+Install directpv in k8s cluster
 
-	-k, --kubeconfig string   path to kubeconfig
-	-c, --crd                 register crds along with installation [use it on your first installation]
-	-f, --force               delete and recreate CRDs [use it when upgrading directpv]
+Usage:
+  directpv install [flags]
+
+Flags:
+      --admission-control            turn on DirectPV admission controller
+      --apparmor-profile string      set Apparmor profile
+  -h, --help                         help for install
+  -i, --image string                 DirectPV image (default "directpv:")
+      --image-pull-secrets strings   image pull secrets to be set in pod specs
+  -n, --node-selector strings        node selector parameters
+  -g, --org string                   organization name where DirectPV images are available (default "minio")
+  -r, --registry string              registry where DirectPV images are available (default "quay.io")
+      --seccomp-profile string       set Seccomp profile
+  -t, --tolerations strings          tolerations parameters
+
+Global Flags:
+      --dry-run             prints the installation yaml
+  -k, --kubeconfig string   path to kubeconfig
+      --no-headers          disables table headers
+  -o, --output string       output format should be one of wide|json|yaml or empty
+
 ```
 
 ### Uninstall DirectPV
@@ -24,27 +42,58 @@ $ kubectl directpv install --help
 Using the kubectl plugin, uninstall directpv driver from your kubernetes cluster
 
 ```sh
-$ kubectl directpv drives uninstall --help
+Uninstall directpv in k8s cluster
 
 Usage:
-  kubectl-directpv uninstall [flags]
+  directpv uninstall [flags]
 
 Flags:
-  -c, --crd    unregister directpv.min.io group crds
   -h, --help   help for uninstall
 
 Global Flags:
+      --dry-run             prints the installation yaml
   -k, --kubeconfig string   path to kubeconfig
-  -v, --v Level             log level for V logs
-```
+      --no-headers          disables table headers
+  -o, --output string       output format should be one of wide|json|yaml or emptympty
 
+```
 
 ### Drives 
 
-The kubectl plugin makes it easy to discover drives in your cluster
+The `kubectl directpv drives` sub-command is used to manage the drives in the kubernetes cluster
 
 ```sh
-list drives in the DirectPV cluster
+Manage Drives in directpv cluster
+
+Usage:
+  directpv drives [command]
+
+Aliases:
+  drives, drive, dr
+
+Available Commands:
+  access-tier tag/untag directpv drives based on their access-tiers
+  format      format drives in the directpv cluster
+  list        list drives in the directpv cluster
+  purge       purge detached|lost drives in the directpv cluster
+  release     release drives from the directpv cluster
+
+Flags:
+  -h, --help   help for drives
+
+Global Flags:
+      --dry-run             prints the installation yaml
+  -k, --kubeconfig string   path to kubeconfig
+      --no-headers          disables table headers
+  -o, --output string       output format should be one of wide|json|yaml or empty
+
+Use "directpv drives [command] --help" for more information about a command.
+```
+
+### List drives in the cluster
+
+```sh
+list drives in the directpv cluster
 
 Usage:
   directpv drives list [flags]
@@ -54,26 +103,32 @@ Aliases:
 
 Examples:
 
-# Filter drives by ellipses notation for drive paths and nodes
-$ kubectl directpv drives ls --drives='/dev/xvd{a...d}' --nodes='node-{1...4}'
+# List all drives
+$ kubectl directpv drives ls
+
+# List all drives (including 'unavailable' drives)
+$ kubectl directpv drives ls --all
 
 # Filter all ready drives 
 $ kubectl directpv drives ls --status=ready
 
 # Filter all drives from a particular node
-$ kubectl directpv drives ls --nodes=directpv-1
+$ kubectl directpv drives ls --nodes=direct-1
 
 # Combine multiple filters using multi-arg
-$ kubectl directpv drives ls --nodes=directpv-1 --nodes=othernode-2 --status=available
+$ kubectl directpv drives ls --nodes=direct-1 --nodes=othernode-2 --status=available
 
 # Combine multiple filters using csv
-$ kubectl directpv drives ls --nodes=directpv-1,othernode-2 --status=ready
+$ kubectl directpv drives ls --nodes=direct-1,othernode-2 --status=ready
 
 # Filter all drives based on access-tier
 $ kubectl directpv drives drives ls --access-tier="hot"
 
 # Filter all drives with access-tier being set
 $ kubectl directpv drives drives ls --access-tier="*"
+
+# Filter drives by ellipses notation for drive paths and nodes
+$ kubectl directpv drives ls --drives='/dev/xvd{a...d}' --nodes='node-{1...4}'
 
 
 Flags:
@@ -83,9 +138,16 @@ Flags:
   -h, --help                  help for list
   -n, --nodes strings         filter by node name(s) (also accepts ellipses range notations)
   -s, --status strings        match based on drive status [InUse, Available, Unavailable, Ready, Terminating, Released]
+
+Global Flags:
+      --dry-run             prints the installation yaml
+  -k, --kubeconfig string   path to kubeconfig
+      --no-headers          disables table headers
+  -o, --output string       output format should be one of wide|json|yaml or empty
+
 ```
 
-**EXAMPLE** When directpv is first installed, the output will look something like this, with most drives in `Available` status
+**EXAMPLE** When directpv is first installed, the output will look something like this, with drives in `Available` status. `Unavailable` drives will be listed with `--all` flag.
 
 ```sh
 $ kubectl directpv drives list
@@ -102,8 +164,10 @@ $ kubectl directpv drives list
 
 ### Format and add Drives to DirectPV
 
+This command will format the drives with XFS filesystem and makes them "Ready" for the workloads to schedule volumes in them.
+
 ```sh
-format drives in the DirectPV cluster
+format drives in the directpv cluster
 
 Usage:
   directpv drives format [flags]
@@ -120,22 +184,22 @@ $ kubectl directpv drives format --drives '/dev/sdf'
 $ kubectl directpv drives format --drives '/dev/sd{a...z}'
 
 # Format the drives from selective nodes using ellipses notation for node names
-$ kubectl directpv drives format --nodes 'directpv-{1...3}'
+$ kubectl directpv drives format --nodes 'direct-{1...3}'
 
 # Format all drives from a particular node
-$ kubectl directpv drives format --nodes=directpv-1
+$ kubectl directpv drives format --nodes=direct-1
 
 # Format all drives based on the access-tier set [hot|cold|warm]
 $ kubectl directpv drives format --access-tier=hot
 
 # Combine multiple parameters using multi-arg
-$ kubectl directpv drives format --nodes=directpv-1 --nodes=othernode-2 --status=available
+$ kubectl directpv drives format --nodes=direct-1 --nodes=othernode-2 --status=available
 
 # Combine multiple parameters using csv
-$ kubectl directpv drives format --nodes=directpv-1,othernode-2 --status=available
+$ kubectl directpv drives format --nodes=direct-1,othernode-2 --status=available
 
 # Combine multiple parameters using ellipses notations
-$ kubectl directpv drives format --nodes "directpv-{3...4}" --drives "/dev/xvd{b...f}"
+$ kubectl directpv drives format --nodes "direct-{3...4}" --drives "/dev/xvd{b...f}"
 
 # Format a drive by it's drive-id
 $ kubectl directpv drives format <drive_id>
@@ -151,6 +215,13 @@ Flags:
   -f, --force                 force format a drive even if a FS is already present
   -h, --help                  help for format
   -n, --nodes strings         filter by node name(s) (also accepts ellipses range notations)
+
+Global Flags:
+      --dry-run             prints the installation yaml
+  -k, --kubeconfig string   path to kubeconfig
+      --no-headers          disables table headers
+  -o, --output string       output format should be one of wide|json|yaml or empty
+
 ```
 
 **WARNING** - Adding drives to directpv will result in them being formatted
@@ -159,26 +230,111 @@ Flags:
  - The drives are always formatted with `XFS` filesystem
  - If a parition table or a filesystem is already present on a drive, then `drive format` will fail 
  - You can override this behavior by setting the `--force` flag, which overwrites any parition table or filesystem present on the drive
- - Any drive/paritition mounted at '/' (root) or having the GPT PartUUID of Boot partitions will be marked `Unavailable`. These drives cannot be added even if `--force` flag is set
+ - Any mounted drives/parititions or having the GPT PartUUID of Boot partitions will be marked `Unavailable`. These drives cannot be added even if `--force` flag is set
  
 
-#### Drive Status 
+##### Drive Status 
 
- | Status      | Description                                                                                                  |
- |-------------|--------------------------------------------------------------------------------------------------------------|
- | Available   | These drives are available for DirectPV to use                                                              |
- | Unavailable | Either a boot partition or drive mounted at '/'. Note: All other drives can be given to directpv to manage |
- | InUse       | Drive is currently in use by a volume. i.e. number of volumes > 0                                            |
- | Ready       | Drive is formatted and ready to be used, but no volumes have been assigned on this drive yet                 |
- | Terminating | Drive is currently being deleted                                                                             |
+ | Status      | Description                                                                                                                                               |
+ |-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+ | Available   | These drives are available for DirectPV to use                                                                                                            |
+ | Unavailable | These drives cannot be used as it does not comply with certain conditions. Please refer the drives states documentaion                                    |
+ | InUse       | Drive is currently in use by a volume. i.e. number of volumes > 0                                                                                         |
+ | Ready       | Drive is formatted and ready to be used, but no volumes have been assigned on this drive yet                                                              |
+ | Terminating | Drive is currently being deleted (Deprecated)                                                                                                             |
+ | Released    | Intermediate state when `kubectl drives release` was called on them                                                                                       |
 
+- To know more about the drive states, Please refer [Drive States](../drive-states.md)
+
+### Tag/Untag directpv drives based on their access-tiers
+
+```sh
+tag/untag directpv drives based on their access-tiers
+
+Usage:
+  directpv drives access-tier [command]
+
+Aliases:
+  access-tier, accesstier
+
+Available Commands:
+  set         tag directpv drive(s) based on their access-tiers [hot,cold,warm]
+  unset       remove the access-tier tag from the directpv drive(s)
+
+Flags:
+  -h, --help   help for access-tier
+
+Global Flags:
+      --dry-run             prints the installation yaml
+  -k, --kubeconfig string   path to kubeconfig
+      --no-headers          disables table headers
+  -o, --output string       output format should be one of wide|json|yaml or empty
+
+Use "directpv drives access-tier [command] --help" for more information about a command.
+```
+
+These tags can be used to control scheduling of volumes on selective drives based on the access-tier set on them. For more details, please refer [Scheduling](../scheduling.md)
+
+### Release the "Ready" drives
+
+This command will umount the "Ready" drives and makes them "Available"
+
+```sh
+release drives from the directpv cluster
+
+Usage:
+  directpv drives release [flags]
+
+Examples:
+
+ # Release all drives in the cluster
+ $ kubectl directpv drives release --all
+ 
+ # Release the 'sdf' drives in all nodes
+ $ kubectl directpv drives release --drives '/dev/sdf'
+
+ # Release the selective drives using ellipses notation for drive paths
+ $ kubectl directpv drives release --drives '/dev/sd{a...z}'
+ 
+ # Release the drives from selective nodes using ellipses notation for node names
+ $ kubectl directpv drives release --nodes 'directcsi-{1...3}'
+ 
+ # Release all drives from a particular node
+ $ kubectl directpv drives release --nodes=directcsi-1
+ 
+ # Release all drives based on the access-tier set [hot|cold|warm]
+ $ kubectl directpv drives release --access-tier=hot
+ 
+ # Combine multiple parameters using multi-arg
+ $ kubectl directpv drives release --nodes=direct-1 --nodes=othernode-2 --status=available
+ 
+ # Combine multiple parameters using csv
+ $ kubectl directpv drives release --nodes=direct-1,othernode-2 --status=ready
+ 
+
+Flags:
+      --access-tier strings   release based on access-tier set. The possible values are [hot,cold,warm] 
+  -a, --all                   release all available drives
+  -d, --drives strings        filter by drive path(s) (also accepts ellipses range notations)
+  -h, --help                  help for release
+  -n, --nodes strings         filter by node name(s) (also accepts ellipses range notations)
+
+Global Flags:
+      --dry-run             prints the installation yaml
+  -k, --kubeconfig string   path to kubeconfig
+      --no-headers          disables table headers
+  -o, --output string       output format should be one of wide|json|yaml or empty
+
+```
 
 ### Volumes 
 
-The kubectl plugin makes it easy to discover volumes in your cluster
+### List DirectPV volumes in the cluster
+
+The `kubectl directpv volumes` sub-command is used to manage the volumes in the kubernetes cluster
 
 ```sh
-list volumes in the DirectPV cluster
+list volumes in the directpv cluster
 
 Usage:
   directpv volumes list [flags]
@@ -188,15 +344,14 @@ Aliases:
 
 Examples:
 
-
 # List all staged and published volumes
 $ kubectl directpv volumes ls --status=staged,published
 
 # List all volumes from a particular node
-$ kubectl directpv volumes ls --nodes=directpv-1
+$ kubectl directpv volumes ls --nodes=direct-1
 
 # Combine multiple filters using csv
-$ kubectl directpv vol ls --nodes=directpv-1,directpv-2 --status=staged --drives=/dev/nvme0n1
+$ kubectl directpv vol ls --nodes=direct-1,direct-2 --status=staged --drives=/dev/nvme0n1
 
 # List all published volumes by pod name
 $ kubectl directpv volumes ls --status=published --pod-name=minio-{1...3}
@@ -207,7 +362,6 @@ $ kubectl directpv volumes ls --status=published --pod-namespace=tenant-{1...3}
 # List all volumes provisioned based on drive and volume ellipses
 $ kubectl directpv volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
 
-
 Flags:
   -a, --all                     list all volumes (including non-provisioned)
   -d, --drives strings          filter by drive path(s) (also accepts ellipses range notations)
@@ -216,96 +370,184 @@ Flags:
       --pod-name strings        filter by pod name(s) (also accepts ellipses range notations)
       --pod-namespace strings   filter by pod namespace(s) (also accepts ellipses range notations)
   -s, --status strings          match based on volume status. The possible values are [staged,published]
+
+Global Flags:
+      --dry-run             prints the installation yaml
+  -k, --kubeconfig string   path to kubeconfig
+      --no-headers          disables table headers
+  -o, --output string       output format should be one of wide|json|yaml or empty
+
+```
+
+### Purge volumes in the directpv cluster
+
+The `kubectl directpv volumes purge` will purge the released or failed volumes in the cluster
+
+```sh
+purge released|failed volumes in the directpv cluster. This command has to be cautiously used as it may lead to data loss.
+
+Usage:
+  directpv volumes purge [flags]
+
+Examples:
+
+# Purge all released|failed volumes in the cluster
+$ kubectl directpv volumes purge --all
+
+# Purge the volume by its name(id)
+$ kubectl directpv volumes purge <volume-name>
+
+# Purge all released|failed volumes from a particular node
+$ kubectl directpv volumes purge --nodes=direct-1
+
+# Combine multiple filters using csv
+$ kubectl directpv volumes purge --nodes=direct-1,direct-2 --drives=/dev/nvme0n1
+
+# Purge all released|failed volumes by pod name
+$ kubectl directpv volumes purge --pod-name=minio-{1...3}
+
+# Purge all released|failed volumes by pod namespace
+$ kubectl directpv volumes purge --pod-namespace=tenant-{1...3}
+
+# Purge all released|failed volumes based on drive and volume ellipses
+$ kubectl directpv volumes purge --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
+
+
+Flags:
+  -a, --all                     purge all released|failed volumes
+  -d, --drives strings          filter by drive path(s) (also accepts ellipses range notations)
+  -h, --help                    help for purge
+  -n, --nodes strings           filter by node name(s) (also accepts ellipses range notations)
+      --pod-name strings        filter by pod name(s) (also accepts ellipses range notations)
+      --pod-namespace strings   filter by pod namespace(s) (also accepts ellipses range notations)
+
+Global Flags:
+      --dry-run             prints the installation yaml
+  -k, --kubeconfig string   path to kubeconfig
+      --no-headers          disables table headers
+  -o, --output string       output format should be one of wide|json|yaml or empty
+
 ```
 
 ### Verify Installation
 
- - Check if all the pods are deployed correctly. i.e. they are 'Running'
+(Note: `minikube` was used for the following demonstration) 
+
+ - Check if all the directpv pods are deployed correctly. i.e. they are 'Running'
 
 ```sh
-$ kubectl -n directpv-min-io get pods
+$ kubectl get pods -n direct-csi-min-io
 NAME                                 READY   STATUS    RESTARTS   AGE
-directpv-min-io-2hcmc              3/3     Running   0          6s
-directpv-min-io-79bc887cff-5rxzj   2/2     Running   0          6s
-directpv-min-io-79bc887cff-hpzzx   2/2     Running   0          6s
-directpv-min-io-79bc887cff-pf98s   2/2     Running   0          6s
-directpv-min-io-l2hq8              3/3     Running   0          6s
-directpv-min-io-mfv4h              3/3     Running   0          6s
-directpv-min-io-zq486              3/3     Running   0          6s
+direct-csi-min-io-5ccf67d545-8zbwp   2/2     Running   0          168m
+direct-csi-min-io-5ccf67d545-95kf8   2/2     Running   0          168m
+direct-csi-min-io-5ccf67d545-jvbr5   2/2     Running   0          168m
+direct-csi-min-io-fktxr              4/4     Running   0          168m
 ```
 
- - Check if directpvdrives and directpvvolumes CRDs are registered
+- Check if directcsidrives and directcsivolumes CRDs are registered
 
 ```sh
-$ kubectl get crd | grep directpv
-directpvdrives.directpv.min.io                     2020-12-23T03:01:13Z
-directpvvolumes.directpv.min.io                    2020-12-23T03:01:13Z
+$ kubectl get crd | grep directcsi
+directcsidrives.direct.csi.min.io    2022-06-03T07:10:11Z
+directcsivolumes.direct.csi.min.io   2022-06-03T07:10:11Z
 ```
 
- - Check if DirectPV drives are discovered. Atleast 1 drive should be in `Ready` or `InUse` for volumes to be provisioned
+ - Check if DirectPV drives are discovered
 
 
 ```sh
 $ kubectl directpv drives list --all
- DRIVE      CAPACITY  ALLOCATED  VOLUMES  NODE         STATUS
- /dev/xvda  64 GiB    -          -        directpv-1  Unavailable 
- /dev/xvdb  10 GiB    4.0 GiB    2        directpv-1  InUse 
- /dev/xvdc  10 GiB    4.0 GiB    2        directpv-1  InUse 
- /dev/xvda  64 GiB    -          -        directpv-2  Unavailable 
- /dev/xvdb  10 GiB    4.0 GiB    2        directpv-2  InUse 
- /dev/xvdc  10 GiB    4.0 GiB    2        directpv-2  InUse 
- /dev/xvda  64 GiB    -          -        directpv-3  Unavailable 
- /dev/xvdb  10 GiB    4.0 GiB    2        directpv-3  InUse 
- /dev/xvdc  10 GiB    4.0 GiB    2        directpv-3  InUse 
- /dev/xvda  64 GiB    -          -        directpv-4  Unavailable 
- /dev/xvdb  10 GiB    4.0 GiB    2        directpv-4  InUse 
- /dev/xvdc  10 GiB    4.0 GiB    2        directpv-4  InUse 
+ DRIVE           CAPACITY  ALLOCATED  FILESYSTEM  VOLUMES  NODE                             ACCESS-TIER  STATUS        
+ /dev/dm-0       800 MiB   -          xfs         -        control-plane.minikube.internal  -            Available     
+ /dev/dm-1       800 MiB   -          xfs         -        control-plane.minikube.internal  -            Available     
+ /dev/dm-2       800 MiB   -          xfs         -        control-plane.minikube.internal  -            Available     
+ /dev/dm-3       800 MiB   -          xfs         -        control-plane.minikube.internal  -            Available     
+ /dev/nvme0n1    238 GiB   -          -           -        control-plane.minikube.internal  -            Unavailable   
+ /dev/nvme0n1p1  512 MiB   -          vfat        -        control-plane.minikube.internal  -            Unavailable   
+ /dev/nvme0n1p2  238 GiB   -          ext4        -        control-plane.minikube.internal  -            Unavailable   
+ /dev/sda        -         -          -           -        control-plane.minikube.internal  -            Unavailable
 ```
 
- - Check if volumes are being provisioned correctly
+- Format the drives to make them "Ready" using `kubectl directpv drives format` command
 
 ```sh
-# Create a volumeClaimTemplate that refers to directpv-min-io driver
-$ cat minio.yaml | grep -C 10 direct.pv.min.io
-  volumeClaimTemplates: # This is the specification in which you reference the StorageClass
-  - metadata:
-      name: minio-data-1
+$ kubectl directpv drives list
+DRIVE      CAPACITY  ALLOCATED  FILESYSTEM  VOLUMES  NODE                             ACCESS-TIER  STATUS   
+ /dev/dm-0  800 MiB   -          xfs         -        control-plane.minikube.internal  -            Ready    
+ /dev/dm-1  800 MiB   -          xfs         -        control-plane.minikube.internal  -            Ready    
+ /dev/dm-2  800 MiB   -          xfs         -        control-plane.minikube.internal  -            Ready    
+ /dev/dm-3  800 MiB   -          xfs         -        control-plane.minikube.internal  -            Ready
+```
+
+- Deploy a workload using "directpv-min-io" as the storageClassName in the volumeClaimTemplate 
+
+Please refer `minio.yaml` in the project root directory for a sample MinIO deployment yaml using `directpv-min-io` storage class.
+
+```sh
+# Create a volumeClaimTemplate that refers to directpv-min-io storageClass
+$ cat minio.yaml | grep -B 10 directpv-min-io
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 2Gi
+          storage: 100Mi    
       storageClassName: directpv-min-io # This field references the existing StorageClass
+  - metadata:
+      name: minio-data-2
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 100Mi  
+      storageClassName: directpv-min-io # This field references the existing StorageClass
+  - metadata:
+      name: minio-data-3
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 100Mi
+      storageClassName: directpv-min-io # This field references the existing StorageClass
+  - metadata:
+      name: minio-data-4
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 100Mi 
+      storageClassName: directpv-min-io # This field references the existing StorageClass
+
 ```
 
+Apply the yaml to deploy the workload
 
- - Check if volumes are being provisioned correctly
+ - Check if the pods are up and the volumes are being provisioned correctly
 
 ```
-# Create the pods and check if PVCs are bound
-$ kubectl get pvc | grep minio-data
-minio-data-1-minio-0   Bound    pvc-a7c76893-f3d9-472e-9a43-ce5775df61fa   2Gi        RWO            directpv-min-io   13h
-minio-data-1-minio-1   Bound    pvc-51232f07-30fa-48eb-ac4f-5d529f82fbcf   2Gi        RWO            directpv-min-io   13h
-minio-data-1-minio-2   Bound    pvc-77915ec1-9c7a-4423-8879-4f4f19a12ca8   2Gi        RWO            directpv-min-io   13h
-minio-data-1-minio-3   Bound    pvc-13b788ab-75ab-441c-a6a6-46af32929702   2Gi        RWO            directpv-min-io   13h
+$ kubectl get pvc 
+NAME                   STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS      AGE
+minio-data-1-minio-0   Bound    pvc-3a3a0a81-20ae-49f1-bb10-ace2b88e4df9   100Mi      RWO            directpv-min-io   25s
+minio-data-2-minio-0   Bound    pvc-427ec139-6c39-4e88-9e98-15d99d08b00c   100Mi      RWO            directpv-min-io   25s
+minio-data-3-minio-0   Bound    pvc-e6853d87-216e-4f90-b2a8-23afa4c77bc0   100Mi      RWO            directpv-min-io   25s
+minio-data-4-minio-0   Bound    pvc-c8de2f50-99d6-4ae6-a2c2-de23328e1358   100Mi      RWO            directpv-min-io   25s
 
 # List the volumes to see if they are provisioned
-$ kubectl directpv vol ls
- VOLUME                                    CAPACITY  NODE         DRIVE
- pvc-590cf951-af53-4d6e-b3d1-3a5b07e88a83  2.0 GiB   directpv-1  xvdc
- pvc-a8171e3d-f4bd-48ef-9ea0-55f68ecaa664  2.0 GiB   directpv-1  xvdc
- pvc-b881c91b-64f3-479e-b1ef-ce8b87cc27ea  2.0 GiB   directpv-3  xvdc
- pvc-ec810adf-753a-47b1-8768-4d564fe360fc  2.0 GiB   directpv-3  xvdc
- pvc-d9979e3f-79c5-475e-a9a7-0545b497a692  2.0 GiB   directpv-2  xvdb
- pvc-1a2f599b-1a63-48da-a8b4-cc36a3ab7a41  2.0 GiB   directpv-2  xvdb
- pvc-7af9bcb4-1d0c-4ad3-b561-ee12d55c0395  2.0 GiB   directpv-1  xvdb
- pvc-95460617-dcc6-4b5f-b9cb-ccb2da504309  2.0 GiB   directpv-1  xvdb
- pvc-efded452-c5b9-45b9-bcda-11a584bee119  2.0 GiB   directpv-4  xvdc
- pvc-fbdfa236-c764-49ad-9b65-1d71366104a8  2.0 GiB   directpv-4  xvdc
- pvc-50b81c44-568d-4325-a63e-7f8abd25705c  2.0 GiB   directpv-2  xvdc
- pvc-c4c21bb2-503e-454a-87ac-c748e62e4d3d  2.0 GiB   directpv-2  xvdc
- pvc-1aea229e-4364-4b96-8c71-869ab627f520  2.0 GiB   directpv-3  xvdb
- pvc-7de5d796-28fa-4fcd-9fac-8e3861d9134c  2.0 GiB   directpv-3  xvdb
- pvc-c13a41f8-5bf0-4f45-84f1-10b3534e14d1  2.0 GiB   directpv-4  xvdb
- pvc-1ee1a06e-0b09-45c2-89c3-e596fb1d6cab  2.0 GiB   directpv-4  xvdb
+$ kubectl directpv volumes ls
+  VOLUME                                    CAPACITY  NODE                             DRIVE  PODNAME  PODNAMESPACE   
+ pvc-1bfc8b70-4a88-47ca-a093-bff4721df7b7  100 MiB   control-plane.minikube.internal  dm-3   minio-2  default        
+ pvc-3a3a0a81-20ae-49f1-bb10-ace2b88e4df9  100 MiB   control-plane.minikube.internal  dm-1   minio-0  default        
+ pvc-427ec139-6c39-4e88-9e98-15d99d08b00c  100 MiB   control-plane.minikube.internal  dm-3   minio-0  default        
+ pvc-66d32683-b41b-4cac-9894-fde96aa21b6b  100 MiB   control-plane.minikube.internal  dm-1   minio-1  default        
+ pvc-69742f84-bdbd-4e29-bd3e-10e9cafeedee  100 MiB   control-plane.minikube.internal  dm-3   minio-1  default        
+ pvc-7c5e4220-8003-4cdb-b92c-4eddef5944ae  100 MiB   control-plane.minikube.internal  dm-2   minio-3  default        
+ pvc-a27fc1dc-0ad6-4092-b56a-3a8ff745d763  100 MiB   control-plane.minikube.internal  dm-1   minio-2  default        
+ pvc-b11357e3-0be7-4ccf-ac8c-e9cd1cfa369a  100 MiB   control-plane.minikube.internal  dm-2   minio-2  default        
+ pvc-b91651ec-b765-4396-8228-36182bec54f5  100 MiB   control-plane.minikube.internal  dm-3   minio-3  default        
+ pvc-bd2c7951-3982-433b-af10-24caa89c2cdf  100 MiB   control-plane.minikube.internal  dm-2   minio-1  default        
+ pvc-c8de2f50-99d6-4ae6-a2c2-de23328e1358  100 MiB   control-plane.minikube.internal  dm-0   minio-0  default        
+ pvc-d4191545-ed06-4077-963a-f88eebc07ece  100 MiB   control-plane.minikube.internal  dm-0   minio-1  default        
+ pvc-e6853d87-216e-4f90-b2a8-23afa4c77bc0  100 MiB   control-plane.minikube.internal  dm-2   minio-0  default        
+ pvc-ea980526-22da-45c6-ad77-2a5e3f9d1028  100 MiB   control-plane.minikube.internal  dm-0   minio-3  default        
+ pvc-eb694cdf-8407-4687-acea-c307f2ab4f77  100 MiB   control-plane.minikube.internal  dm-1   minio-3  default        
+ pvc-fad3002a-60a4-42c9-93a9-f5e59e845b1b  100 MiB   control-plane.minikube.internal  dm-0   minio-2  default     
 ```

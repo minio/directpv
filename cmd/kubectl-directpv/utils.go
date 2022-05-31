@@ -69,6 +69,8 @@ const (
 	DriveRelease Command = "driveRelease"
 	// VolumePurge is a volume sub-command to purge the released/failed volumes
 	VolumePurge Command = "volumePurge"
+	// DrivePurge is the sub-command to purge the lost drive
+	DrivePurge Command = "drivePurge"
 )
 
 func printableString(s string) string {

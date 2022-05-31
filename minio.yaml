@@ -58,11 +58,6 @@ spec:
       name: minio-data-1
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      # selector: // claim Selector is not supported for dynamic provisioning
-      #   matchLabels: 
-      #     direct.csi.min.io/access-tier: "Hot"
-      #   matchExpressions:
-      #     - {key: direct.csi.min.io/access-tier, operator: In, values: [Hot]}
       resources:
         requests:
           storage: 100Mi    
