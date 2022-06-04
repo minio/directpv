@@ -18,6 +18,7 @@ package listener
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -43,6 +44,10 @@ import (
 	"k8s.io/klog/v2"
 
 	"golang.org/x/time/rate"
+)
+
+var (
+	errLeaderElectionDied = errors.New("leaderelection died")
 )
 
 func getNamespace() string {
@@ -140,7 +145,7 @@ func NewListener(handler EventHandler, identity, leaderLock string, threadiness 
 		handler: handler,
 
 		LeaseDuration: 1 * time.Minute,
-		RenewDeadline: 10 * time.Second,
+		RenewDeadline: 50 * time.Second,
 		RetryPeriod:   5 * time.Second,
 
 		ResyncPeriod: 1 * time.Minute,
@@ -386,5 +391,5 @@ func (listener *Listener) Run(ctx context.Context) error {
 	}
 
 	leaderelection.RunOrDie(ctx, leaderConfig)
-	return nil // should never reach here
+	return errLeaderElectionDied
 }
