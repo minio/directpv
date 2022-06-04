@@ -26,7 +26,7 @@ var podNameSelectorValues, podNsSelectorValues []utils.LabelValue
 
 var volumesCmd = &cobra.Command{
 	Use:   "volumes",
-	Short: "Manage Direct Persistent Volumes",
+	Short: "Manage DirectPV Volumes",
 	Long:  "",
 	Aliases: []string{
 		"volume",
@@ -62,4 +62,5 @@ func validateVolumeSelectors() (err error) {
 
 func init() {
 	volumesCmd.AddCommand(listVolumesCmd)
+	volumesCmd.AddCommand(purgeVolumesCmd)
 }

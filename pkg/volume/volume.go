@@ -24,6 +24,7 @@ import (
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/listener"
+	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +34,8 @@ import (
 )
 
 type volumeEventHandler struct {
-	nodeID string
+	nodeID      string
+	safeUnmount func(target string, force, detach, expire bool) error
 }
 
 // StartController starts volume controller.
@@ -48,7 +50,10 @@ func StartController(ctx context.Context, nodeID string) error {
 }
 
 func newVolumeEventHandler(nodeID string) *volumeEventHandler {
-	return &volumeEventHandler{nodeID: nodeID}
+	return &volumeEventHandler{
+		nodeID:      nodeID,
+		safeUnmount: mount.SafeUnmount,
+	}
 }
 
 func (handler *volumeEventHandler) ListerWatcher() cache.ListerWatcher {
@@ -86,6 +91,17 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *directcsi
 	)
 	if len(finalizers) > 0 {
 		return fmt.Errorf("waiting for the volume to be released before cleaning up")
+	}
+
+	if volume.Status.ContainerPath != "" {
+		if err := handler.safeUnmount(volume.Status.ContainerPath, true, true, false); err != nil {
+			return err
+		}
+	}
+	if volume.Status.StagingPath != "" {
+		if err := handler.safeUnmount(volume.Status.StagingPath, true, true, false); err != nil {
+			return err
+		}
 	}
 
 	// Remove associated directory of the volume.

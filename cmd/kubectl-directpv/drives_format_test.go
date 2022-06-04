@@ -114,7 +114,11 @@ func TestFormatDrivesByAttributes(t1 *testing.T) {
 				return err
 			}
 		}
-
+		// resetting the selectors
+		drives = nil
+		nodes = nil
+		accessTiers = nil
+		all = false
 		return nil
 	}
 
