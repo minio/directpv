@@ -155,6 +155,7 @@ func run(ctxMain context.Context, args []string) error {
 			rack,
 			zone,
 			region,
+			disableUDevListener,
 		)
 	}
 

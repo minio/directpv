@@ -89,6 +89,9 @@ type Config struct {
 	// internal
 	conversionWebhookCaBundle []byte
 	validationWebhookCaBundle []byte
+
+	// Drive discovery
+	DisableUDevListener bool
 }
 
 type installer interface {

@@ -51,6 +51,7 @@ var (
 	dynamicDriveDiscovery = false
 	dynamicDriveHandler   = false
 	metricsPort           = 10443
+	disableUDevListener   = false
 )
 
 var driverCmd = &cobra.Command{
@@ -115,6 +116,7 @@ func init() {
 	driverCmd.Flags().BoolVarP(&dynamicDriveDiscovery, "dynamic-drive-discovery", "", dynamicDriveDiscovery, "Enable dynamic drive discovery (disabled by default) (experimental)")
 	driverCmd.Flags().BoolVarP(&dynamicDriveHandler, "dynamic-drive-handler", "", dynamicDriveHandler, "running in dynamic drive handler mode (experimental)")
 	driverCmd.Flags().IntVarP(&metricsPort, "metrics-port", "", metricsPort, "Metrics port for scraping. default is 10443")
+	driverCmd.Flags().BoolVarP(&disableUDevListener, "disable-udev-listener", "", disableUDevListener, "disable uevent listener and rely on 30secs internal drive-sync mechanism")
 
 	driverCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	driverCmd.PersistentFlags().MarkHidden("log_backtrace_at")

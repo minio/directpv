@@ -25,6 +25,6 @@ import (
 )
 
 // Run starts identity/controller/node servers.
-func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error {
+func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler, disableUDevListener bool) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
