@@ -79,3 +79,46 @@ func TestGetVolumeList(t *testing.T) {
 		t.Fatalf("expected: 2000, got: %v", len(volumes))
 	}
 }
+
+func TestGetSortedVolumeList(t *testing.T) {
+	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset().DirectV1beta4().DirectCSIVolumes())
+	volumes, err := GetVolumeList(context.TODO(), nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(volumes) != 0 {
+		t.Fatalf("expected: 0, got: %v", len(volumes))
+	}
+
+	objects := []runtime.Object{}
+	for i := 1; i <= 4; i++ {
+		objects = append(
+			objects, &directcsi.DirectCSIVolume{ObjectMeta: metav1.ObjectMeta{Namespace: "CCC", Name: fmt.Sprintf("volume-%v", i)}},
+		)
+	}
+	for i := 5; i <= 8; i++ {
+		objects = append(
+			objects, &directcsi.DirectCSIVolume{ObjectMeta: metav1.ObjectMeta{Namespace: "BBB", Name: fmt.Sprintf("volume-%v", i)}},
+		)
+	}
+	for i := 9; i <= 12; i++ {
+		objects = append(
+			objects, &directcsi.DirectCSIVolume{ObjectMeta: metav1.ObjectMeta{Namespace: "AAA", Name: fmt.Sprintf("volume-%v", i)}},
+		)
+	}
+
+	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta4().DirectCSIVolumes())
+	volumes, err = GetVolumeList(context.TODO(), nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if volumes[0].ObjectMeta.Namespace != "AAA" {
+		t.Fatalf("expected volume to be in Namespace : AAA, got: %v", volumes[0].ObjectMeta.Namespace)
+	}
+	if volumes[4].ObjectMeta.Namespace != "BBB" {
+		t.Fatalf("expected volume to be in Namespace : BBB, got: %v", volumes[3].ObjectMeta.Namespace)
+	}
+	if volumes[8].ObjectMeta.Namespace != "CCC" {
+		t.Fatalf("expected volume to be in Namespace : CCC, got: %v", volumes[7].ObjectMeta.Namespace)
+	}
+}
