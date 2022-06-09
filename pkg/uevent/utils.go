@@ -170,10 +170,6 @@ func validateSysInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDriv
 }
 
 func validateDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
-	if directCSIDrive.Status.SerialNumber != device.Serial {
-		klog.V(3).Infof("[%s] mismatch serial %v - %v", device.Name, directCSIDrive.Status.SerialNumber, device.Serial)
-		return false
-	}
 	if directCSIDrive.Status.FilesystemUUID != device.FSUUID {
 		klog.V(3).Infof("[%s] mismatch fsuuid %v - %v", device.Name, directCSIDrive.Status.FilesystemUUID, device.FSUUID)
 		return false

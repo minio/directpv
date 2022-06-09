@@ -1057,29 +1057,6 @@ func TestValidateDevInfo(t1 *testing.T) {
 					Name: "test-drive",
 				},
 				Status: directcsi.DirectCSIDriveStatus{
-					SerialNumber:   "serial2",
-					FilesystemUUID: "fsuuid",
-					ReadOnly:       false,
-					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
-					SwapOn:         false,
-				},
-			},
-			expectedResult: false,
-		},
-		{
-			device: &sys.Device{
-				Serial:          "serial",
-				FSUUID:          "fsuuid",
-				ReadOnly:        false,
-				FirstMountPoint: "/var/lib/direct-csi/mnt/test-drive",
-				SwapOn:          false,
-			},
-			drive: &directcsi.DirectCSIDrive{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-drive",
-				},
-				Status: directcsi.DirectCSIDriveStatus{
 					SerialNumber:   "serial",
 					FilesystemUUID: "fsuuid2",
 					ReadOnly:       false,
