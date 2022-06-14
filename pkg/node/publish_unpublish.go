@@ -80,6 +80,7 @@ func getPodInfo(ctx context.Context, req *csi.NodePublishVolumeRequest) (podName
 }
 
 // NodePublishVolume is node publish volume request handler.
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodepublishvolume
 func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(3).InfoS("NodePublishVolumeRequest",
 		"volumeID", req.GetVolumeId(),
@@ -156,6 +157,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 }
 
 // NodeUnpublishVolume is node unpublish volume handler.
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodeunpublishvolume
 func (n *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(3).InfoS("NodeUnPublishVolumeRequest",
 		"volumeID", req.GetVolumeId(),

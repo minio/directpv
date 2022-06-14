@@ -112,6 +112,7 @@ func NewNodeServer(ctx context.Context,
 }
 
 // NodeGetInfo gets node information.
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo
 func (ns *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	topology := &csi.Topology{
 		Segments: map[string]string{
@@ -131,6 +132,7 @@ func (ns *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 }
 
 // NodeGetCapabilities gets node capabilities.
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetcapabilities
 func (ns *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	nodeCap := func(cap csi.NodeServiceCapability_RPC_Type) *csi.NodeServiceCapability {
 		klog.V(5).Infof("Using node capability %v", cap)
@@ -153,6 +155,7 @@ func (ns *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 }
 
 // NodeGetVolumeStats gets node volume stats.
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetvolumestats
 func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	vID := req.GetVolumeId()
 	volumePath := req.GetVolumePath()
@@ -206,6 +209,7 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 }
 
 // NodeExpandVolume returns unimplemented error.
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodeexpandvolume
 func (ns *NodeServer) NodeExpandVolume(ctx context.Context, in *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
