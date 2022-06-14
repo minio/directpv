@@ -53,6 +53,107 @@ $ ./kubectl-directpv --kubeconfig <PATH-TO-KUBECONFIG-FILE> info
 $ ./kubectl-directpv --kubeconfig <PATH-TO-KUBECONFIG-FILE> drives list
 ```
 
+## Testing with minikube
+
+1. Setup LVs
+
+The following script will create 4 LVs backed up by 4 loopback devices
+
+```bash
+sudo truncate --size=1G /tmp/disk-{1..4}.img
+for disk in /tmp/disk-{1..4}.img; do sudo losetup --find $disk; done
+devices=( $(for disk in /tmp/disk-{1..4}.img; do sudo losetup --noheadings --output NAME --associated $disk; done) )
+sudo pvcreate "${devices[@]}"
+vgname="vg0"
+sudo vgcreate "$vgname" "${devices[@]}"
+for lvname in lv-{0..3}; do sudo lvcreate --name="$lvname" --size=800MiB "$vgname"; done
+```
+
+2. Start minikube
+
+```bash
+minikube start --driver=none
+```
+
+3. Install directpv
+
+Install the freshly built version
+
+```bash
+./kubectl-directpv install --image directpv:<NEW_BUILD_TAG> --org <QUAY_USERNAME> --registry quay.io
+```
+
+4. Check if the drives are showing up
+
+```bash
+./kubectl-directpv drives list
+```
+
+5. Format the drives
+
+```bash
+./kubectl-directpv drives format --all
+```
+
+6. Apply the minio.yaml file
+
+Download and apply a sample MinIO deployment file available [here](https://github.com/minio/directpv/blob/master/minio.yaml)
+
+```bash
+kubectl apply -f minio.yaml
+```
+
+7. Check if the pods are up and running
+
+```bash
+kubectl get pods
+```
+
+8. Check the volumes
+
+```bash
+./kubectl-directpv volumes list
+```
+
+9. Check the drives if they are in "InUse" state
+
+```bash
+./kubectl-directpv drives list
+```
+
+10. Uninstall the MinIO deployment
+
+```bash
+kubectl delete -f minio.yaml
+```
+
+11. Delete the PVCs
+
+```bash
+kubectl delete pvc --all
+```
+
+After deleting the PVCs, check if the drives are back in "Ready" state.
+
+12. Release the "Ready" drives
+
+```bash
+./kubectl-directpv drives release --all
+```
+
+This should make all the "Ready" drives "Available" by umounting the drives in the host.
+
+13. Cleanup LV setup
+
+```sh
+sudo lvremove vg0 -y
+sudo vgremove vg0 -y
+sudo pvremove /dev/loop<n> /dev/loop<n> /dev/loop<n> /dev/loop<n> # n can be replaced with the loopbacks created
+sudo losetup --detach-all
+```
+
+Please refer [here](./troubleshooting.md) for any trouble shooting guidelines.
+
 ## Loopback Devices
 
 DirectPV can automatically provision loopback devices for setups where extra drives are not available. The loopback interface is intended for use with automated testing and continuous integration, and is not recommended for use in regular development or production environments. Some operating systems, such as macOS, place limits on the number of loop devices and can cause DirectPV to hang while attempting to provision persistent volumes. This issue is particularly noticeable on Kubernetes deployment tools like `kind` or `minikube`, where the deployed infrastructure takes up most if not all of the available loop devices and prevents DirectPV from provisioning drives entirely.
