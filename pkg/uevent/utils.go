@@ -121,12 +121,22 @@ func ValidateUDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDri
 		return false
 	}
 	if directCSIDrive.Status.Filesystem != device.FSType {
-		klog.V(3).Infof("[%s] filesystem mismatch: %v -> %v", device.Name, directCSIDrive.Status.Filesystem, device.FSType)
-		return false
+		if device.FSType != "" {
+			klog.V(3).Infof("[%s] filesystem mismatch: %v -> %v", device.Name, directCSIDrive.Status.Filesystem, device.FSType)
+			return false
+		}
+		// Do not invalidate if ID_FS_TYPE value is empty in /run/udev/data/b<maj>:<min> file
+		// reference: https://github.com/minio/directpv/issues/602
+		klog.Warningf("[%s] ID_FS_TYPE not found in /run/udev/data/b%d:%d. Please refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md#troubleshooting", device.Name, device.Major, device.Minor)
 	}
 	if directCSIDrive.Status.UeventFSUUID != device.UeventFSUUID {
-		klog.V(3).Infof("[%s] mismatch ueventfsuuid: %v - %v", device.Name, directCSIDrive.Status.UeventFSUUID, device.UeventFSUUID)
-		return false
+		if device.UeventFSUUID != "" {
+			klog.V(3).Infof("[%s] mismatch ueventfsuuid: %v - %v", device.Name, directCSIDrive.Status.UeventFSUUID, device.UeventFSUUID)
+			return false
+		}
+		// Do not invalidate if ID_FS_UUID value is empty in /run/udev/data/b<maj>:<min> file
+		// reference: https://github.com/minio/directpv/issues/602
+		klog.Warningf("[%s] ID_FS_UUID not found in /run/udev/data/b%d:%d. Please refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md#troubleshooting", device.Name, device.Major, device.Minor)
 	}
 	if directCSIDrive.Status.PCIPath != device.PCIPath {
 		klog.V(3).Infof("[%s] PCIPath mismatch: %v -> %v", device.Name, directCSIDrive.Status.PCIPath, device.PCIPath)
