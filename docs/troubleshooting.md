@@ -52,17 +52,16 @@ After v3.0.0, the removed or detached drive will show up in the drives list with
 
 (NOTE: before deleting the lost PVCs, please [cordon](https://kubernetes.io/docs/concepts/architecture/nodes/) the node, to avoid any PVC conflicts)
 
-### "filesystem mismatch" errors in direct-csi pod logs
+### FS attribute mismatch errors in direct-csi pod logs
 
-If the device FS attributes are not updated in `/run/udev/data/b<maj>:<min>` file by the udev service, the following logs will show up in directpv pods in `direct-csi-min-io` namespace.
+If the device FS attributes are not updated in `/run/udev/data/b<maj>:<min>` file by the udev service, the following warnings will show up in directpv pods in `direct-csi-min-io` namespace.
 
 ```log
-....
-I0608 10:02:02.368094 2528104 utils.go:124] [sdy] filesystem mismatch: xfs ->             
-I0608 10:02:02.449987 2528104 utils.go:124] [sdx] filesystem mismatch: xfs ->             
-I0608 10:02:02.467464 2528104 utils.go:124] [sdw] filesystem mismatch: xfs ->            
-I0608 10:02:02.486359 2528104 utils.go:124] [sdv] filesystem mismatch: xfs ->       
-....
+W0615 11:17:08.484072   19851 utils.go:130] [name] ID_FS_TYPE not found in /run/udev/data/b200:2. Please refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md#troubleshooting
+```
+
+```log
+W0615 11:17:08.484123   19851 utils.go:139] [name] ID_FS_UUID not found in /run/udev/data/b200:2. Please refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md#troubleshooting
 ```
 
 The following command will trigger the udev service to sync the attribute values in `/run/udev/data/b<maj:min>`
@@ -70,3 +69,5 @@ The following command will trigger the udev service to sync the attribute values
 ```bash
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
+
+(Note: Also verify if the systemd-udevd services are running on the host)
