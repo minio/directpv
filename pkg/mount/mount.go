@@ -29,6 +29,8 @@ const (
 	MountOptPrjQuota = "prjquota"
 	// rw option for project quota
 	MountOptRW = "rw"
+	// MountFlagNoAtime - "noatime" mount flag
+	MountFlagNoAtime = "noatime"
 )
 
 // Mount mounts device to target using fsType, flags and superBlockFlags.
@@ -66,9 +68,11 @@ func MountXFSDevice(device, target string, flags []string) error {
 	if err := os.MkdirAll(target, 0777); err != nil {
 		return err
 	}
-
-	klog.V(3).InfoS("mounting device", "device", device, "target", target)
-	return SafeMount(device, target, "xfs", flags, MountOptPrjQuota)
+	// mount with "noatime" by default
+	flags = append(flags, MountFlagNoAtime)
+	// safemounting with "prjquota" mountopt
+	klog.V(3).InfoS("mounting device", "device", device, "target", target, "flags", flags, "mountopts", MountOptPrjQuota)
+	return safeMount(device, target, "xfs", flags, MountOptPrjQuota)
 }
 
 // ValidDirectPVMountOpts checks for valid mount opts

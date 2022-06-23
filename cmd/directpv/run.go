@@ -134,8 +134,8 @@ func checkXFS(ctx context.Context, reflinkSupport bool) error {
 		}
 	}()
 
-	if err = mount.Mount(loopDevice.Path(), mountPoint, "xfs", nil, ""); err != nil {
-		klog.V(3).ErrorS(err, "failed to mount", "reflink", reflinkSupport)
+	if err = mount.Mount(loopDevice.Path(), mountPoint, "xfs", []string{mount.MountFlagNoAtime}, mount.MountOptPrjQuota); err != nil {
+		klog.V(3).ErrorS(err, "failed to mount", "reflink", reflinkSupport, "flags", mount.MountFlagNoAtime, "mountopts", mount.MountOptPrjQuota)
 		return errMountFailure
 	}
 
