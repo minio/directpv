@@ -39,6 +39,10 @@ func isSwapFSType(fsType string) bool {
 	}
 }
 
+func isLVMMemberFSType(fsType string) bool {
+	return strings.EqualFold("LVM2_member", fsType)
+}
+
 // FSTypeEqual compares the FSType
 func FSTypeEqual(fsType1, fsType2 string) bool {
 	fsType1, fsType2 = strings.ToLower(fsType1), strings.ToLower(fsType2)
@@ -69,8 +73,11 @@ func IsDeviceUnavailable(device *Device) bool {
 		device.Hidden ||
 		device.ReadOnly ||
 		device.Removable ||
+		device.CDRom ||
 		device.Partitioned ||
 		device.Master != "" ||
 		len(device.Holders) > 0 ||
-		device.FirstMountPoint != ""
+		device.FirstMountPoint != "" ||
+		isLVMMemberFSType(device.FSType) ||
+		isSwapFSType(device.FSType)
 }

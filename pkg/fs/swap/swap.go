@@ -40,7 +40,7 @@ func (swap *Swap) ID() string {
 
 // Type returns "linux-swap".
 func (swap *Swap) Type() string {
-	return "linux-swap"
+	return "swap"
 }
 
 // TotalCapacity returns zero.

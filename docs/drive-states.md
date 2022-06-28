@@ -24,6 +24,7 @@ An "Available" drive should satisfy the following conditions
 - The drive should not be a "removable" drive
 - The drive shouldn't be a partition-parent (parent)
 - The drive cannot have any holders
+- The drive shouldn't be a LVM member
 
 An availabe drive can become unavailable if any of the above conditions are reversed.
 

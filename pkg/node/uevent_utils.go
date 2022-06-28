@@ -36,6 +36,7 @@ import (
 
 var (
 	errInvalidMount = errors.New("the directpv mount is not found")
+	errNoFilesystem = errors.New("no filesystem found on the drive")
 	errInvalidDrive = func(fieldName string, expected, found interface{}) error {
 		return fmt.Errorf("; %s mismatch - Expected %v found %v",
 			fieldName,
@@ -53,8 +54,6 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	updatedDrive := drive.DeepCopy()
 	updatedDrive.Status.NodeName = d.nodeID
 	updatedDrive.Status.Topology = d.topology
-	updatedDrive.Status.Filesystem = device.FSType
-	updatedDrive.Status.FilesystemUUID = device.FSUUID
 	updatedDrive.Status.UeventFSUUID = device.UeventFSUUID
 	updatedDrive.Status.MajorNumber = uint32(device.Major)
 	updatedDrive.Status.MinorNumber = uint32(device.Minor)
@@ -71,6 +70,12 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	updatedDrive.Status.PartTableType = device.PTType
 	updatedDrive.Status.Partitioned = device.Partitioned
 	updatedDrive.Status.PCIPath = device.PCIPath
+
+	// Don't accept FS attribute updates for an InUse drive
+	if updatedDrive.Status.DriveStatus != directcsi.DriveStatusInUse {
+		updatedDrive.Status.Filesystem = device.FSType
+		updatedDrive.Status.FilesystemUUID = device.FSUUID
+	}
 
 	// populate mount infos
 	updatedDrive.Status.MountOptions = device.FirstMountOptions
@@ -149,34 +154,44 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 	var err error
 	switch drive.Status.DriveStatus {
 	case directcsi.DriveStatusInUse, directcsi.DriveStatusReady:
-		if !mount.ValidDirectPVMounts(device.MountPoints) {
+		// Check if the drive is umounted or if the directpv mount is not found
+		if device.FirstMountPoint == "" || !mount.ValidDirectPVMounts(device.MountPoints) {
 			err = multierr.Append(err, errInvalidMount)
 		}
-		if device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Name) &&
-			device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
-			err = multierr.Append(err, errInvalidDrive(
-				"Mountpoint",
-				filepath.Join(sys.MountRoot, drive.Name),
-				device.FirstMountPoint))
+		// Verify drive mount and mountopts
+		if device.FirstMountPoint != "" {
+			if device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Name) &&
+				device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
+				err = multierr.Append(err, errInvalidDrive(
+					"Mountpoint",
+					filepath.Join(sys.MountRoot, drive.Name),
+					device.FirstMountPoint))
+			}
+			if !mount.ValidDirectPVMountOpts(device.FirstMountOptions) {
+				err = multierr.Append(err, errInvalidDrive(
+					"MountpointOptions",
+					mount.MountOptRW,
+					device.FirstMountOptions))
+			}
 		}
-		if !mount.ValidDirectPVMountOpts(device.FirstMountOptions) {
-			err = multierr.Append(err, errInvalidDrive(
-				"MountpointOptions",
-				mount.MountOptRW,
-				device.FirstMountOptions))
+		// Check if the drive has expected "XFS" filesystem and filesystemUUID
+		if device.FSType == "" && device.FSUUID == "" {
+			err = multierr.Append(err, errNoFilesystem)
+		} else {
+			if strings.TrimSpace(drive.Status.FilesystemUUID) != strings.TrimSpace(device.FSUUID) {
+				err = multierr.Append(err, errInvalidDrive(
+					"FilesystemUUID",
+					drive.Status.FilesystemUUID,
+					device.FSUUID))
+			}
+			if drive.Status.Filesystem != device.FSType {
+				err = multierr.Append(err, errInvalidDrive(
+					"Filesystem",
+					drive.Status.Filesystem,
+					device.FSType))
+			}
 		}
-		if strings.TrimSpace(drive.Status.FilesystemUUID) != strings.TrimSpace(device.FSUUID) {
-			err = multierr.Append(err, errInvalidDrive(
-				"FilesystemUUID",
-				drive.Status.FilesystemUUID,
-				device.FSUUID))
-		}
-		if drive.Status.Filesystem != device.FSType {
-			err = multierr.Append(err, errInvalidDrive(
-				"Filesystem",
-				drive.Status.Filesystem,
-				device.FSType))
-		}
+		// Check other device attributes
 		if device.Size < sys.MinSupportedDeviceSize {
 			err = multierr.Append(err, fmt.Errorf(
 				"the size of the drive is less than %v",

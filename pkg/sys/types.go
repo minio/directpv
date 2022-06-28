@@ -52,6 +52,7 @@ type Device struct {
 	ReadOnly  bool
 	Virtual   bool
 	Hidden    bool
+	CDRom     bool
 
 	// Populated from /run/udev/data/b<Major>:<Minor>
 	Size       uint64

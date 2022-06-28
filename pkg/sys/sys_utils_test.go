@@ -124,3 +124,226 @@ func TestMapToEventData(t *testing.T) {
 		t.Fatalf("expected udevdata: %v, got: %v", udevData, expectedUEventData)
 	}
 }
+
+func TestIsDeviceUnavailable(t *testing.T) {
+	testCases := []struct {
+		device         *Device
+		expectedResult bool
+	}{
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: false,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize - 1, // drive with size less then supported
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          true, // swapons
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          true, // hidden device
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        true, // readonly device
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       true, // removable device
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           true, // cdrom device
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     true, // partitioned device
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "/dev/sda", // master
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{"/dev/dm-0"}, // has holders
+				FirstMountPoint: "",
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "/mnt/abc", // mounted drive
+				FSType:          "xfs",
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "swap", // swapfs
+			},
+			expectedResult: true,
+		},
+		{
+			device: &Device{
+				Size:            MinSupportedDeviceSize,
+				SwapOn:          false,
+				Hidden:          false,
+				ReadOnly:        false,
+				Removable:       false,
+				CDRom:           false,
+				Partitioned:     false,
+				Master:          "",
+				Holders:         []string{},
+				FirstMountPoint: "",
+				FSType:          "LVM2_member", // lvm configured drive
+			},
+			expectedResult: true,
+		},
+	}
+
+	for i, testCase := range testCases {
+		result := IsDeviceUnavailable(testCase.device)
+		if result != testCase.expectedResult {
+			t.Fatalf("case %v: expected: %v; got: %v", i+1, testCase.expectedResult, result)
+		}
+	}
+}

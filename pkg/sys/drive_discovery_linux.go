@@ -190,8 +190,7 @@ func getCapacity(device *Device) (totalCapacity, freeCapacity uint64) {
 
 func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}) error {
 	if _, found := CDROMs[device.Name]; found {
-		device.ReadOnly = true
-		device.Removable = true
+		device.CDRom = true
 		return nil
 	}
 

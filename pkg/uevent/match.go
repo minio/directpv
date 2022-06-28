@@ -285,6 +285,11 @@ func fsUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, b
 }
 
 func fileSystemTypeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	// udev probe reports "swap" as the fstype for linux swap drives
+	// whereas swap probes for versions < v3.0.0 reported "linux-swap"
+	if device.FSType == "swap" && drive.Status.Filesystem == "linux-swap" {
+		return true, false, nil
+	}
 	// udev probe reports "vfat" as the fstype for fat32 drives
 	// whereas fat32 probes for versions < v3.0.0 reported "fat32"
 	if device.FSType == "vfat" && drive.Status.Filesystem == "fat32" {
