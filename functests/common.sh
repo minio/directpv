@@ -122,11 +122,15 @@ function uninstall_directcsi() {
 function check_drives_state() {
     state="$1"
     if ! "${DIRECT_CSI_CLIENT}" drives list --drives="${LV_DEVICE}" | grep -q -e "${LV_DEVICE}.*${state}"; then
+        kubectl logs daemonset/direct-csi-min-io -n direct-csi-min-io directpv-drive-discovery | grep -i DEBUG
+        kubectl get directcsidrives -o yaml 
         echo "$ME: error: LVM device ${LV_DEVICE} not found in ${state} state"
         return 1
     fi
 
     if ! "${DIRECT_CSI_CLIENT}" drives list --drives="${LUKS_DEVICE}" | grep -q -e "${LUKS_DEVICE}.*${state}"; then
+        kubectl logs daemonset/direct-csi-min-io -n direct-csi-min-io directpv-drive-discovery | grep -i DEBUG
+        kubectl get directcsidrives -o yaml 
         echo "$ME: error: LUKS device ${LUKS_DEVICE} not found in ${state} state"
         return 1
     fi

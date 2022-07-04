@@ -30,7 +30,7 @@ func TestProbe(t *testing.T) {
 		freeCapacity  uint64
 		expectErr     bool
 	}{
-		{"swap.testdata", "", "linux-swap", 0, 0, false},
+		{"swap.testdata", "", "swap", 0, 0, false},
 		{"zero.testdata", "", "", 0, 0, true},
 		{"empty.testdata", "", "", 0, 0, true},
 	}

@@ -193,8 +193,9 @@ func TestPartitionUUIDMatcher(t *testing.T) {
 	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartitionUUID: ""}}
 	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartitionUUID: "ptuuid"}}
 	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartitionUUID: "invalidptuuid"}}
-	case1Device := &sys.Device{PartUUID: ""}
-	case2Device := &sys.Device{PartUUID: "ptuuid"}
+	case1Device := &sys.Device{Partition: int(1), PartUUID: ""}
+	case2Device := &sys.Device{Partition: int(2), PartUUID: "ptuuid"}
+	case3Device := &sys.Device{Partition: int(0)}
 	testCases := []struct {
 		device   *sys.Device
 		drive    *directcsi.DirectCSIDrive
@@ -212,6 +213,8 @@ func TestPartitionUUIDMatcher(t *testing.T) {
 		{case2Device, &case2Drive, true, false, nil},
 		// PartitionUUID not blank in both and does not match
 		{case2Device, &case3Drive, false, false, nil},
+		// Root partitions
+		{case3Device, &case3Drive, false, true, nil},
 	}
 
 	for i, testCase := range testCases {

@@ -82,11 +82,11 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 	var matchedDrives, consideredDrives []*directcsi.DirectCSIDrive
 	var err error
 
-	for _, matchFn := range stageOneMatchers {
+	for i, matchFn := range stageOneMatchers {
 		if len(drives) == 0 {
 			break
 		}
-		matchedDrives, consideredDrives, err = match(drives, device, matchFn)
+		matchedDrives, consideredDrives, err = match(drives, device, matchFn, i)
 		if err != nil {
 			klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
 			continue
@@ -97,14 +97,17 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 		default:
 			drives = consideredDrives
 		}
+		if len(drives) == 1 {
+			klog.Infof("\n [DEBUG] [STAGEONE] matched %s with %s, index: %d, name: %s", device.Name, drives[0].Status.Path, i, drives[0].Name)
+		}
 	}
 
 	if len(drives) > 1 {
-		for _, matchFn := range stageTwoMatchers {
+		for i, matchFn := range stageTwoMatchers {
 			if len(drives) == 0 {
 				break
 			}
-			matchedDrives, consideredDrives, err = match(drives, device, matchFn)
+			matchedDrives, consideredDrives, err = match(drives, device, matchFn, i)
 			if err != nil {
 				klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
 				continue
@@ -114,6 +117,9 @@ func runMatchers(drives []*directcsi.DirectCSIDrive,
 				drives = matchedDrives
 			default:
 				drives = consideredDrives
+			}
+			if len(drives) == 1 {
+				klog.Infof("\n [DEBUG] [STAGETWO] matched %s with %s, index: %d, name: %s", device.Name, drives[0].Status.Path, i, drives[0].Name)
 			}
 		}
 	}
@@ -170,7 +176,7 @@ func pciPathMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match 
 // ------------------------
 func match(drives []*directcsi.DirectCSIDrive,
 	device *sys.Device,
-	matchFn matchFn) ([]*directcsi.DirectCSIDrive, []*directcsi.DirectCSIDrive, error) {
+	matchFn matchFn, i int) ([]*directcsi.DirectCSIDrive, []*directcsi.DirectCSIDrive, error) {
 	var matchedDrives, consideredDrives []*directcsi.DirectCSIDrive
 	for _, drive := range drives {
 		if drive.Status.DriveStatus == directcsi.DriveStatusTerminating {
@@ -181,8 +187,10 @@ func match(drives []*directcsi.DirectCSIDrive,
 			return nil, nil, err
 		}
 		if match {
+			klog.Infof("\n [DEBUG-L2] matched %s with %s, index: %d, name: %s", device.Name, drive.Status.Path, i, drive.Name)
 			matchedDrives = append(matchedDrives, drive)
 		} else if consider {
+			klog.Infof("\n [DEBUG-L2] considered %s with %s, index: %d, name: %s", device.Name, drive.Status.Path, i, drive.Name)
 			consideredDrives = append(consideredDrives, drive)
 		}
 	}
@@ -227,6 +235,10 @@ func vendorMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, b
 }
 
 func partitionUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
+	if device.Partition == int(0) {
+		// no partitionUUIDs will be present for root partitions
+		return false, true, nil
+	}
 	return immutablePropertyMatcher(strings.ToLower(device.PartUUID), strings.ToLower(drive.Status.PartitionUUID))
 }
 

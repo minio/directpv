@@ -106,6 +106,10 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 		if strings.EqualFold(updatedDrive.Status.PartitionUUID, device.PartUUID) {
 			updatedDrive.Status.PartitionUUID = device.PartUUID
 		}
+		// bugfix: for versions < 3.0.0, the partitionUUID has to be unset or set to empty for root partitions
+		if device.Partition == int(0) {
+			updatedDrive.Status.PartitionUUID = device.PartUUID
+		}
 	}
 
 	if updatedDrive.Status.DMUUID == "" {
@@ -192,10 +196,10 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 					drive.Status.FilesystemUUID,
 					device.FSUUID))
 			}
-			if drive.Status.Filesystem != device.FSType {
+			if !strings.EqualFold(device.FSType, "xfs") {
 				err = multierr.Append(err, errInvalidDrive(
 					"Filesystem",
-					drive.Status.Filesystem,
+					"xfs",
 					device.FSType))
 			}
 		}
