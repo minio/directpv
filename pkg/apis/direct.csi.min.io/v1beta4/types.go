@@ -236,6 +236,9 @@ const (
 
 	// DirectCSIDriveMessageLost denotes "removed" drive message.
 	DirectCSIDriveMessageLost DirectCSIDriveMessage = "drive is removed"
+
+	// DirectCSIDriveMessageNotReady denotes not ready drives.
+	DirectCSIDriveMessageNotReady DirectCSIDriveMessage = "drive is not ready"
 )
 
 // RequestedFormat denotes drive format request information.

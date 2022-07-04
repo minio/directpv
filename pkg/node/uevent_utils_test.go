@@ -1681,6 +1681,60 @@ func TestValidateDrive(t *testing.T) {
 					"vda"),
 			},
 		},
+		// empty mountpoint
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Path:           "/dev/sdc1",
+					DriveStatus:    directcsi.DriveStatusReady,
+					Filesystem:     "xfs",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
+					MountOptions:   []string{"prjquota", "relatime", "rw"},
+					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
+					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
+				},
+			},
+			device: &sys.Device{
+				Size:         36777215,
+				Name:         "sdc1",
+				FSUUID:       "d79dff9e-2884-46f2-8919-dada2eecb12d",
+				FSType:       "xfs",
+				UeventFSUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
+			},
+			expectedErrs: []error{
+				errInvalidMount,
+			},
+		},
+		// empty filesystem
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Path:           "/dev/sdc1",
+					DriveStatus:    directcsi.DriveStatusReady,
+					Filesystem:     "xfs",
+					Mountpoint:     "/var/lib/direct-csi/mnt/test-drive",
+					MountOptions:   []string{"prjquota", "relatime", "rw"},
+					FilesystemUUID: "d79dff9e-2884-46f2-8919-dada2eecb12d",
+					UeventFSUUID:   "d79dff9e-2884-46f2-8919-dada2eecb12d",
+				},
+			},
+			device: &sys.Device{
+				Size: 36777215,
+				Name: "sdc1",
+			},
+			expectedErrs: []error{
+				errInvalidMount,
+				errNoFilesystem,
+			},
+		},
 	}
 
 	for i, testCase := range testCases {

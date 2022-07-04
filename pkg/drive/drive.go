@@ -139,6 +139,21 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *direc
 		if os.IsNotExist(err) {
 			return handler.lost(ctx, drive)
 		}
+		if utils.IsConditionStatus(drive.Status.Conditions, string(directcsi.DirectCSIDriveConditionReady), utils.BoolToCondition(true)) {
+			utils.UpdateCondition(
+				drive.Status.Conditions,
+				string(directcsi.DirectCSIDriveConditionReady),
+				utils.BoolToCondition(false),
+				string(directcsi.DirectCSIDriveReasonNotReady),
+				string(directcsi.DirectCSIDriveMessageNotReady),
+			)
+			_, uerr := client.GetLatestDirectCSIDriveInterface().Update(
+				ctx, drive, metav1.UpdateOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+			)
+			if uerr != nil {
+				klog.Error(uerr)
+			}
+		}
 		return err
 	}
 

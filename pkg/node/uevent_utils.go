@@ -75,6 +75,14 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	if updatedDrive.Status.DriveStatus != directcsi.DriveStatusInUse {
 		updatedDrive.Status.Filesystem = device.FSType
 		updatedDrive.Status.FilesystemUUID = device.FSUUID
+	} else {
+		// directpv versions <= 1.3.6 do not have FS attributes in the API
+		if updatedDrive.Status.Filesystem == "" {
+			updatedDrive.Status.Filesystem = device.FSType
+		}
+		if updatedDrive.Status.FilesystemUUID == "" {
+			updatedDrive.Status.FilesystemUUID = device.FSUUID
+		}
 	}
 
 	// populate mount infos

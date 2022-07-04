@@ -329,8 +329,11 @@ func TestFileSystemTypeMatcher(t *testing.T) {
 	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Filesystem: ""}}
 	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Filesystem: "xfs"}}
 	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Filesystem: "ext64"}}
+	case4Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Filesystem: "linux-swap"}}
+	case5Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Filesystem: "swap"}}
 	case1Device := &sys.Device{FSType: ""}
 	case2Device := &sys.Device{FSType: "xfs"}
+	case3Device := &sys.Device{FSType: "swap"}
 	testCases := []struct {
 		device   *sys.Device
 		drive    *directcsi.DirectCSIDrive
@@ -348,6 +351,9 @@ func TestFileSystemTypeMatcher(t *testing.T) {
 		{case2Device, &case2Drive, true, false, nil},
 		// Filesystem not blank in both and does not match
 		{case2Device, &case3Drive, false, true, nil},
+		// "swap" filesystem matchers
+		{case3Device, &case4Drive, true, false, nil},
+		{case3Device, &case5Drive, true, false, nil},
 	}
 
 	for i, testCase := range testCases {
