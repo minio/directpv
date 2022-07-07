@@ -17,6 +17,7 @@ package uevent
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
@@ -25,769 +26,1600 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestPartitionNumberMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartitionNum: 0}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartitionNum: 1}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartitionNum: 2}}
-	case1Device := &sys.Device{Partition: 0}
-	case2Device := &sys.Device{Partition: 1}
+func TestGetMatchedDevices(t *testing.T) {
 	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
+		drive                    *directcsi.DirectCSIDrive
+		devices                  []*sys.Device
+		expectedMatchedDevices   []*sys.Device
+		expectedUnmatchedDevices []*sys.Device
 	}{
-		{case1Device, &case1Drive, true, false, nil},
-		{case1Device, &case2Drive, false, false, nil},
-		{case1Device, &case3Drive, false, false, nil},
-		{case2Device, &case2Drive, true, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := partitionNumberMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestUeventSerialNumberMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{UeventSerial: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{UeventSerial: "serial"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{UeventSerial: "serial123"}}
-	case1Device := &sys.Device{UeventSerial: ""}
-	case2Device := &sys.Device{UeventSerial: "serial"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// UeventSerial blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// UeventSerial blank in device
-		{case1Device, &case2Drive, false, false, nil},
-		// UeventSerial blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// UeventSerial not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// UeventSerial not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := ueventSerialNumberMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestWWIDMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{WWID: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{WWID: "wwid"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{WWID: "wwid123"}}
-	case1Device := &sys.Device{WWID: ""}
-	case2Device := &sys.Device{WWID: "wwid"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// WWID blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// WWID blank in device
-		{case1Device, &case2Drive, false, false, nil},
-		// WWID blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// WWID not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// WWID not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := wwidMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestModelNumberMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{ModelNumber: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{ModelNumber: "KXG6AZNV512G TOSHIBA"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{ModelNumber: "KXG6AZ DELL"}}
-	case1Device := &sys.Device{Model: ""}
-	case2Device := &sys.Device{Model: "KXG6AZNV512G TOSHIBA"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// ModelNumber blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// ModelNumber blank in device
-		{case1Device, &case2Drive, false, false, nil},
-		// ModelNumber blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// ModelNumber not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// ModelNumber not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := modelNumberMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestVendorMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Vendor: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Vendor: "TOSHIBA"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Vendor: "DELL"}}
-	case1Device := &sys.Device{Vendor: ""}
-	case2Device := &sys.Device{Vendor: "TOSHIBA"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// Vendor blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// Vendor blank in device
-		{case1Device, &case2Drive, false, false, nil},
-		// Vendor blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// Vendor not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// Vendor not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := vendorMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestPartitionUUIDMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartitionUUID: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartitionUUID: "ptuuid"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartitionUUID: "invalidptuuid"}}
-	case1Device := &sys.Device{PartUUID: ""}
-	case2Device := &sys.Device{PartUUID: "ptuuid"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// PartitionUUID blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// PartitionUUID blank in device
-		{case1Device, &case2Drive, false, false, nil},
-		// PartitionUUID blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// PartitionUUID not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// PartitionUUID not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := partitionUUIDMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestDMUUIDMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{DMUUID: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{DMUUID: "TOSHIBA"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{DMUUID: "DELL"}}
-	case1Device := &sys.Device{DMUUID: ""}
-	case2Device := &sys.Device{DMUUID: "TOSHIBA"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// DMUUID blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// DMUUID blank in device
-		{case1Device, &case2Drive, false, false, nil},
-		// DMUUID blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// DMUUID not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// DMUUID not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := dmUUIDMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestMDUUIDMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{MDUUID: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{MDUUID: "TOSHIBA"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{MDUUID: "DELL"}}
-	case1Device := &sys.Device{MDUUID: ""}
-	case2Device := &sys.Device{MDUUID: "TOSHIBA"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// MDUUID blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// MDUUID blank in device
-		{case1Device, &case2Drive, false, false, nil},
-		// MDUUID blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// MDUUID not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// MDUUID not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := mdUUIDMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestUeventFSUUIDMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{UeventFSUUID: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{UeventFSUUID: "ueventfsuuid"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{UeventFSUUID: "invalid-ueventfsuuid"}}
-	case1Device := &sys.Device{UeventFSUUID: ""}
-	case2Device := &sys.Device{UeventFSUUID: "ueventfsuuid"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// UeventFSUUID blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// UeventFSUUID blank in device
-		{case1Device, &case2Drive, false, true, nil},
-		// UeventFSUUID blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// UeventFSUUID not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// UeventFSUUID not blank in both and does not match
-		{case2Device, &case3Drive, false, true, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := ueventFSUUIDMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestFileSystemTypeMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Filesystem: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Filesystem: "xfs"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{Filesystem: "ext64"}}
-	case1Device := &sys.Device{FSType: ""}
-	case2Device := &sys.Device{FSType: "xfs"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// Filesystem blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// Filesystem blank in device
-		{case1Device, &case2Drive, false, true, nil},
-		// Filesystem blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// Filesystem not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// Filesystem not blank in both and does not match
-		{case2Device, &case3Drive, false, true, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := fileSystemTypeMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestFSUUIDMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{FilesystemUUID: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{FilesystemUUID: "fsuuid"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{FilesystemUUID: "invalid-fsuuid"}}
-	case1Device := &sys.Device{FSUUID: ""}
-	case2Device := &sys.Device{FSUUID: "fsuuid"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// FilesystemUUID blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// FilesystemUUID blank in device
-		{case1Device, &case2Drive, false, true, nil},
-		// FilesystemUUID blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// FilesystemUUID not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// FilesystemUUID not blank in both and does not match
-		{case2Device, &case3Drive, false, true, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := fsUUIDMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestTotalCapacityMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{TotalCapacity: 0}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{TotalCapacity: 512}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{TotalCapacity: -123}}
-	case1Device := &sys.Device{TotalCapacity: 0}
-	case2Device := &sys.Device{TotalCapacity: 512}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// FilesystemUUID blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// FilesystemUUID blank in device
-		{case1Device, &case2Drive, false, true, nil},
-		// FilesystemUUID blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// FilesystemUUID not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// FilesystemUUID not blank in both and does not match
-		{case2Device, &case3Drive, false, true, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := totalCapacityMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestPhysicalBlocksizeMatcher(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PhysicalBlockSize: 0}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PhysicalBlockSize: 512}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PhysicalBlockSize: -123}}
-	case1Device := &sys.Device{PhysicalBlockSize: 0}
-	case2Device := &sys.Device{PhysicalBlockSize: 512}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// PhysicalBlockSize blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// PhysicalBlockSize blank in device
-		{case1Device, &case2Drive, false, true, nil},
-		// PhysicalBlockSize blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// PhysicalBlockSize not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// PhysicalBlockSize not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := physicalBlocksizeMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestPartitionTableUUIDMatcherr(t *testing.T) {
-	case1Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: ""}}
-	case2Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: "eda8ada5"}}
-	case3Drive := directcsi.DirectCSIDrive{Status: directcsi.DirectCSIDriveStatus{PartTableUUID: "eda8ada512345"}}
-	case1Device := &sys.Device{PTUUID: ""}
-	case2Device := &sys.Device{PTUUID: "eda8ada5"}
-	testCases := []struct {
-		device   *sys.Device
-		drive    *directcsi.DirectCSIDrive
-		match    bool
-		consider bool
-		err      error
-	}{
-		// UeventSerial blank in both
-		{case1Device, &case1Drive, false, true, nil},
-		// UeventSerial blank in device
-		{case1Device, &case2Drive, false, false, nil},
-		// UeventSerial blank in drive
-		{case2Device, &case1Drive, false, true, nil},
-		// UeventSerial not blank in both and match
-		{case2Device, &case2Drive, true, false, nil},
-		// UeventSerial not blank in both and does not match
-		{case2Device, &case3Drive, false, false, nil},
-	}
-
-	for i, testCase := range testCases {
-		match, consider, err := partitionTableUUIDMatcher(testCase.device, testCase.drive)
-		if match != testCase.match || consider != testCase.consider || err != testCase.err {
-			t.Fatalf("case %v: expected: match %v , consider %v , error %v ; got: match %v  consider %v  error %v ",
-				i+1, testCase.match, testCase.consider, testCase.err, match, consider, err)
-		}
-	}
-}
-
-func TestRunMatchers(t *testing.T) {
-	validDriveObjs := []*directcsi.DirectCSIDrive{
 		{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test_drive_1",
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
 			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Path:           "/dev/sda",
-				UeventSerial:   "SERIAL1",
-				FilesystemUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
+			devices: []*sys.Device{
+				{
+					FSUUID: "xxxxx-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "yyyyy-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "zzzzz-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+			},
+			expectedUnmatchedDevices: []*sys.Device{
+				{
+					FSUUID: "xxxxx-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "yyyyy-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "zzzzz-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
 			},
 		},
 		{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test_drive_2",
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
 			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Path:           "/dev/sdb",
-				UeventSerial:   "SERIAL2",
-				FilesystemUUID: "ertsdfff-e1b5-4bac-b73f-178b29974ed5",
+			devices: []*sys.Device{
+				{
+					FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "yyyyy-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "zzzzz-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+			},
+			expectedMatchedDevices: []*sys.Device{
+				{
+					FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+			},
+			expectedUnmatchedDevices: []*sys.Device{
+				{
+					FSUUID: "yyyyy-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "zzzzz-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+			},
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+			},
+			devices: []*sys.Device{
+				{
+					FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "zzzzz-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+			},
+			expectedMatchedDevices: []*sys.Device{
+				{
+					FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+				{
+					FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+			},
+			expectedUnmatchedDevices: []*sys.Device{
+				{
+					FSUUID: "zzzzz-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
 			},
 		},
 	}
 
-	terminatingDriveObjects := []*directcsi.DirectCSIDrive{
-		{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test_drive_3",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Path:           "/dev/sdc",
-				UeventSerial:   "SERIAL2",
-				FilesystemUUID: "ertsdfff-e1b5-4bac-b73f-178b29974ed5",
-				DriveStatus:    directcsi.DriveStatusTerminating,
-			},
-		},
-		{
-			TypeMeta: utils.DirectCSIDriveTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test_drive_4",
-			},
-			Status: directcsi.DirectCSIDriveStatus{
-				Path:           "/dev/sdd",
-				UeventSerial:   "SERIAL3",
-				FilesystemUUID: "ertsdfff-e1b5-4bac-b73f-178b29974ed5",
-				DriveStatus:    directcsi.DriveStatusTerminating,
-			},
-		},
+	for i, testCase := range testCases {
+		matchedDevices, unmatchedDevices := getMatchedDevices(testCase.drive, testCase.devices, func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+			return drive.Status.FilesystemUUID == device.FSUUID
+		})
+		sort.Slice(matchedDevices, func(p, q int) bool {
+			return matchedDevices[p].FSUUID < matchedDevices[q].FSUUID
+		})
+		sort.Slice(unmatchedDevices, func(p, q int) bool {
+			return unmatchedDevices[p].FSUUID < unmatchedDevices[q].FSUUID
+		})
+		sort.Slice(testCase.expectedMatchedDevices, func(p, q int) bool {
+			return testCase.expectedMatchedDevices[p].FSUUID < testCase.expectedMatchedDevices[q].FSUUID
+		})
+		sort.Slice(testCase.expectedUnmatchedDevices, func(p, q int) bool {
+			return testCase.expectedUnmatchedDevices[p].FSUUID < testCase.expectedUnmatchedDevices[q].FSUUID
+		})
+		if !reflect.DeepEqual(testCase.expectedMatchedDevices, matchedDevices) {
+			t.Errorf("case: %d expected matchedDevices: %v but got %v", i, testCase.expectedMatchedDevices, matchedDevices)
+		}
+		if !reflect.DeepEqual(testCase.expectedUnmatchedDevices, unmatchedDevices) {
+			t.Errorf("case: %d expected unmatchedDevices: %v but got %v", i, testCase.expectedUnmatchedDevices, unmatchedDevices)
+		}
 	}
+}
 
-	driveObjects := append(validDriveObjs, terminatingDriveObjects...)
-
-	testDevice := &sys.Device{
-		Name:         "sda",
-		FSUUID:       "d9877501-e1b5-4bac-b73f-178b29974ed5",
-		UeventSerial: "SERIAL1",
-	}
-
-	var matchCounter int
-	var stageTwoHit bool
-
+func TestGetMatchedDrives(t *testing.T) {
 	testCases := []struct {
-		name                string
-		stageOnematchers    []matchFn
-		stageTwoMatchers    []matchFn
-		stageTwoHit         bool
+		drives                []*directcsi.DirectCSIDrive
+		device                *sys.Device
+		expectedMatchedDrives []*directcsi.DirectCSIDrive
+	}{
+		{
+			drives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "z5db531k-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "pgjwblpw-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+			},
+			device: &sys.Device{
+				FSUUID: "lasbfqkp-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+		},
+		{
+			drives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "z5db531k-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "pgjwblpw-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+			},
+			device: &sys.Device{
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedMatchedDrives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+			},
+		},
+		{
+			drives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "pgjwblpw-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+			},
+			device: &sys.Device{
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedMatchedDrives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+			},
+		},
+	}
+
+	for i, testCase := range testCases {
+		matchedDrives := getMatchedDrives(testCase.drives, testCase.device, func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+			return drive.Status.FilesystemUUID == device.FSUUID
+		})
+		sort.Slice(matchedDrives, func(p, q int) bool {
+			return matchedDrives[p].Status.FilesystemUUID < matchedDrives[q].Status.FilesystemUUID
+		})
+		if !reflect.DeepEqual(testCase.expectedMatchedDrives, matchedDrives) {
+			t.Errorf("case: %d expected matchedDrives: %v but got %v", i, testCase.expectedMatchedDrives, matchedDrives)
+		}
+	}
+}
+
+func TestFSMatcher(t *testing.T) {
+	testCases := []struct {
+		drive          *directcsi.DirectCSIDrive
+		device         *sys.Device
+		expectedResult bool
+	}{
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					Filesystem:     "xfs",
+				},
+			},
+			device: &sys.Device{
+				FSType: "xfs",
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedResult: true,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Filesystem: "xfs",
+				},
+			},
+			device: &sys.Device{
+				FSType: "xfs",
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+			},
+			device: &sys.Device{
+				FSType: "xfs",
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{},
+			},
+			device: &sys.Device{
+				FSType: "xfs",
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					Filesystem:     "xfs",
+				},
+			},
+			device: &sys.Device{
+				FSType: "ext4",
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					Filesystem:     "xfs",
+				},
+			},
+			device: &sys.Device{
+				FSType: "xfs",
+				FSUUID: "xxxxxxx-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					Filesystem:     "xfs",
+				},
+			},
+			device: &sys.Device{
+				FSType: "ext4",
+				FSUUID: "xxxxxxxx-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedResult: false,
+		},
+	}
+
+	for i, testCase := range testCases {
+		result := fsMatcher(testCase.drive, testCase.device)
+		if result != testCase.expectedResult {
+			t.Errorf("case %d expected result: %v but got %v", i, testCase.expectedResult, result)
+		}
+	}
+}
+
+func TestConclusiveMatcher(t *testing.T) {
+	testCases := []struct {
+		drive          *directcsi.DirectCSIDrive
+		device         *sys.Device
+		expectedResult bool
+	}{
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{},
+			},
+			device:         &sys.Device{},
+			expectedResult: false,
+		},
+		// PartitionNumber
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(0),
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		// WWID
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					WWID:         "wwid-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					WWID:         "naa.6002248032bf1752a69bdaee7b0ceb33",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "0x6002248032bf1752a69bdaee7b0ceb33",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					WWID:         "wwid-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		// UeventSerial
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					UeventSerial: "ueventserial-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					UeventSerial: "ueventserial-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		// SerialNumberLong
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:     int(1),
+					SerialNumberLong: "seriallong-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:     int(1),
+					SerialNumberLong: "seriallong-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		// DMUUID
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					DMUUID:       "dmuuid-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					DMUUID:       "dmuuid-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		// MDUUID
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					MDUUID:       "mduuid-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					MDUUID:       "mduuid-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		// ModelNumber and Vendor
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					ModelNumber:  "model-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					ModelNumber:  "model-xxx",
+					Vendor:       "vendor-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					ModelNumber:  "model-xxx",
+					Vendor:       "vendor-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		// PartitionUUID
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:  int(1),
+					ModelNumber:   "model-xxx",
+					Vendor:        "vendor-xxx",
+					PartitionUUID: "partuuid-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:  int(1),
+					ModelNumber:   "model-xxx",
+					Vendor:        "vendor-xxx",
+					PartitionUUID: "PARTUUID-XXX",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:  int(1),
+					ModelNumber:   "model-xxx",
+					Vendor:        "vendor-xxx",
+					PartitionUUID: "partuuid-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		// PartTableUUID
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:  int(1),
+					ModelNumber:   "model-xxx",
+					Vendor:        "vendor-xxx",
+					PartTableUUID: "ptuuid-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:  int(1),
+					ModelNumber:   "model-xxx",
+					Vendor:        "vendor-xxx",
+					PartTableUUID: "ptuuid-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		// UeventFSUUID
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					ModelNumber:  "model-xxx",
+					Vendor:       "vendor-xxx",
+					UeventFSUUID: "ueventfsuuid-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum: int(1),
+					ModelNumber:  "model-xxx",
+					Vendor:       "vendor-xxx",
+					UeventFSUUID: "ueventfsuuid-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		// FilesystemUUID
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:   int(1),
+					ModelNumber:    "model-xxx",
+					Vendor:         "vendor-xxx",
+					FilesystemUUID: "fsuuid-yyy",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:   int(1),
+					ModelNumber:    "model-xxx",
+					Vendor:         "vendor-xxx",
+					FilesystemUUID: "fsuuid-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:    1,
+				WWID:         "wwid-xxx",
+				UeventSerial: "ueventserial-xxx",
+				SerialLong:   "seriallong-xxx",
+				DMUUID:       "dmuuid-xxx",
+				MDUUID:       "mduuid-xxx",
+				Model:        "model-xxx",
+				Vendor:       "vendor-xxx",
+				PartUUID:     "partuuid-xxx",
+				PTUUID:       "ptuuid-xxx",
+				UeventFSUUID: "ueventfsuuid-xxx",
+				FSUUID:       "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+	}
+	for i, testCase := range testCases {
+		result := conclusiveMatcher(testCase.drive, testCase.device)
+		if result != testCase.expectedResult {
+			t.Errorf("case %d expected result: %v but got %v", i, testCase.expectedResult, result)
+		}
+	}
+}
+
+func TestNonConclusiveMatcher(t *testing.T) {
+	testCases := []struct {
+		drive          *directcsi.DirectCSIDrive
+		device         *sys.Device
+		expectedResult bool
+	}{
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Path:        "/dev/sda",
+					MajorNumber: uint32(202),
+					MinorNumber: uint32(1),
+					PCIPath:     "pcipath-xxx",
+				},
+			},
+			device: &sys.Device{
+				Name:    "sda",
+				Major:   int(202),
+				Minor:   int(1),
+				PCIPath: "pcipath-xxx",
+			},
+			expectedResult: true,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Path:        "/dev/sda",
+					MajorNumber: uint32(202),
+					MinorNumber: uint32(1),
+					PCIPath:     "pcipath-xxx",
+				},
+			},
+			device: &sys.Device{
+				Name:    "sda",
+				Major:   int(202),
+				Minor:   int(1),
+				PCIPath: "pcipath-yyy",
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Path:        "/dev/sda",
+					MajorNumber: uint32(202),
+					MinorNumber: uint32(1),
+				},
+			},
+			device: &sys.Device{
+				Name:  "sda",
+				Major: int(202),
+				Minor: int(1),
+			},
+			expectedResult: true,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Path:        "/dev/sdb",
+					MajorNumber: uint32(202),
+					MinorNumber: uint32(1),
+				},
+			},
+			device: &sys.Device{
+				Name:  "sda",
+				Major: int(202),
+				Minor: int(1),
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Path:        "/dev/sda",
+					MajorNumber: uint32(202),
+					MinorNumber: uint32(1),
+				},
+			},
+			device: &sys.Device{
+				Name:  "sda",
+				Major: int(203),
+				Minor: int(1),
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					Path:        "/dev/sda",
+					MajorNumber: uint32(202),
+					MinorNumber: uint32(1),
+				},
+			},
+			device: &sys.Device{
+				Name:  "sda",
+				Major: int(202),
+				Minor: int(2),
+			},
+			expectedResult: false,
+		},
+	}
+	for i, testCase := range testCases {
+		result := nonConclusiveMatcher(testCase.drive, testCase.device)
+		if result != testCase.expectedResult {
+			t.Errorf("case %d expected result: %v but got %v", i, testCase.expectedResult, result)
+		}
+	}
+}
+
+func TestMatchDrives(t *testing.T) {
+	testCases := []struct {
+		drives              []*directcsi.DirectCSIDrive
+		device              *sys.Device
 		expectedDrive       *directcsi.DirectCSIDrive
 		expectedMatchResult matchResult
-		expectedMatchHit    int
 	}{
 		{
-			name: "no_match_test",
-			stageOnematchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = false
-					consider = false
-					return
+			drives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
 				},
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = false
-					consider = false
-					return
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "z5db531k-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "pgjwblpw-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
 				},
 			},
-			stageTwoMatchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					stageTwoHit = true
-					return
-				},
+			device: &sys.Device{
+				FSUUID: "lasbfqkp-0d9d-4e6e-a766-c79ac18b7ea6",
 			},
-			stageTwoHit:         false,
 			expectedDrive:       nil,
 			expectedMatchResult: noMatch,
-			expectedMatchHit:    1 * len(validDriveObjs),
 		},
 		{
-			name: "more_than_one_considered_drives_test",
-			stageOnematchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = false
-					consider = true
-					return
+			drives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+						Path:           "/dev/sda",
+					},
 				},
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = false
-					consider = true
-					return
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "z5db531k-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-2",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "pgjwblpw-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
 				},
 			},
-			stageTwoMatchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					stageTwoHit = true
-					match = true
-					consider = false
-					return
+			device: &sys.Device{
+				Name:   "sda",
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedDrive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					Path:           "/dev/sda",
 				},
 			},
-			stageTwoHit:         true,
+			expectedMatchResult: noChange,
+		},
+		{
+			drives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Spec: directcsi.DirectCSIDriveSpec{
+						RequestedFormat: &directcsi.RequestedFormat{
+							Force:      true,
+							Filesystem: "xfs",
+						},
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "z5db531k-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-2",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "pgjwblpw-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+			},
+			device: &sys.Device{
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
+			expectedDrive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Spec: directcsi.DirectCSIDriveSpec{
+					RequestedFormat: &directcsi.RequestedFormat{
+						Force:      true,
+						Filesystem: "xfs",
+					},
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				},
+			},
+			expectedMatchResult: changed,
+		},
+		{
+			drives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+						Path:           "/dev/sdb",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "z5db531k-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-2",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "pgjwblpw-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+			},
+			device: &sys.Device{
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+				Name:   "sda",
+			},
+			expectedDrive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					Path:           "/dev/sdb",
+				},
+			},
+			expectedMatchResult: changed,
+		},
+		{
+			drives: []*directcsi.DirectCSIDrive{
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+				{
+					TypeMeta: utils.DirectCSIDriveTypeMeta(),
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-drive-1",
+						Namespace: metav1.NamespaceNone,
+					},
+					Status: directcsi.DirectCSIDriveStatus{
+						FilesystemUUID: "pgjwblpw-0d9d-4e6e-a766-c79ac18b7ea6",
+					},
+				},
+			},
+			device: &sys.Device{
+				FSUUID: "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
+			},
 			expectedDrive:       nil,
 			expectedMatchResult: tooManyMatches,
-			expectedMatchHit:    2 * len(validDriveObjs),
-		},
-		{
-			name: "one_considered_drive_test",
-			stageOnematchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = drive.Status.UeventSerial == device.UeventSerial
-					consider = false
-					return
-				},
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = false
-					consider = true
-					return
-				},
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = false
-					consider = true
-					return
-				},
-			},
-			stageTwoMatchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					stageTwoHit = true
-					return
-				},
-			},
-			stageTwoHit: false,
-			expectedDrive: &directcsi.DirectCSIDrive{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test_drive_1",
-				},
-				Status: directcsi.DirectCSIDriveStatus{
-					Path:           "/dev/sda",
-					FilesystemUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
-					UeventSerial:   "SERIAL1",
-				},
-			},
-			expectedMatchResult: noChange,
-			expectedMatchHit:    1*len(validDriveObjs) + 1 + 1,
-		},
-		{
-			name: "more_than_one_matched_test",
-			stageOnematchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = true
-					consider = false
-					return
-				},
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = true
-					consider = false
-					return
-				},
-			},
-			stageTwoMatchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					stageTwoHit = true
-					match = true
-					consider = true
-					return
-				},
-			},
-			stageTwoHit:         true,
-			expectedDrive:       nil,
-			expectedMatchResult: tooManyMatches,
-			expectedMatchHit:    2 * len(validDriveObjs),
-		},
-		{
-			name: "one_matched_drive_test",
-			stageOnematchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = drive.Status.UeventSerial == device.UeventSerial
-					consider = false
-					return
-				},
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = drive.Status.FilesystemUUID == device.FSUUID
-					consider = false
-					return
-				},
-			},
-			stageTwoMatchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					stageTwoHit = true
-					return
-				},
-			},
-			stageTwoHit: false,
-			expectedDrive: &directcsi.DirectCSIDrive{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test_drive_1",
-				},
-				Status: directcsi.DirectCSIDriveStatus{
-					Path:           "/dev/sda",
-					FilesystemUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
-					UeventSerial:   "SERIAL1",
-				},
-			},
-			expectedMatchResult: noChange,
-			expectedMatchHit:    1*len(validDriveObjs) + 1,
-		},
-		{
-			name: "matched_and_considered_drives_test",
-			stageOnematchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = true
-					consider = true
-					return
-				},
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					matchCounter++
-					match = drive.Status.FilesystemUUID == device.FSUUID
-					consider = true
-					return
-				},
-			},
-			stageTwoMatchers: []matchFn{
-				func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-					stageTwoHit = true
-					return
-				},
-			},
-			stageTwoHit: false,
-			expectedDrive: &directcsi.DirectCSIDrive{
-				TypeMeta: utils.DirectCSIDriveTypeMeta(),
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test_drive_1",
-				},
-				Status: directcsi.DirectCSIDriveStatus{
-					Path:           "/dev/sda",
-					FilesystemUUID: "d9877501-e1b5-4bac-b73f-178b29974ed5",
-					UeventSerial:   "SERIAL1",
-				},
-			},
-			expectedMatchResult: noChange,
-			expectedMatchHit:    2 * len(validDriveObjs),
 		},
 	}
 
-	for _, tt := range testCases {
-		matchCounter = 0
-		stageTwoHit = false
-		drive, matchResult := runMatchers(driveObjects, testDevice, tt.stageOnematchers, tt.stageTwoMatchers)
-		if !reflect.DeepEqual(drive, tt.expectedDrive) {
-			t.Errorf("test: %s expected drive: %v but got: %v", tt.name, tt.expectedDrive, drive)
+	for i, testCase := range testCases {
+		drive, matchResult := matchDrives(testCase.drives, testCase.device)
+		if !reflect.DeepEqual(drive, testCase.expectedDrive) {
+			t.Errorf("case %d expected drive: %v but got %v", i, testCase.expectedDrive, drive)
 		}
-		if matchCounter != tt.expectedMatchHit {
-			t.Errorf("test: %s expected mactchHit: %d but got: %d", tt.name, tt.expectedMatchHit, matchCounter)
-		}
-		if matchResult != tt.expectedMatchResult {
-			t.Errorf("test: %s expected matchResult: %v but got: %v", tt.name, tt.expectedMatchResult, matchResult)
-		}
-		if stageTwoHit != tt.stageTwoHit {
-			t.Errorf("test: %s expected stageTwoHit: %v but got: %v", tt.name, tt.stageTwoHit, stageTwoHit)
-
+		if matchResult != testCase.expectedMatchResult {
+			t.Errorf("case %d expected matchResult: %v but got %v", i, testCase.expectedMatchResult, matchResult)
 		}
 	}
 }

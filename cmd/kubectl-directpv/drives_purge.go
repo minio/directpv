@@ -93,7 +93,7 @@ $ kubectl {{ . }} drives purge <drive_id_1> <drive_id_2>
 func init() {
 	purgeDrivesCmd.PersistentFlags().StringSliceVarP(&drives, "drives", "d", drives, "filter by drive path(s) (also accepts ellipses range notations)")
 	purgeDrivesCmd.PersistentFlags().StringSliceVarP(&nodes, "nodes", "n", nodes, "filter by node name(s) (also accepts ellipses range notations)")
-	purgeDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "purge all lost drives")
+	purgeDrivesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "purge all corrupted or lost drives")
 	purgeDrivesCmd.PersistentFlags().StringSliceVarP(&accessTiers, "access-tier", "", accessTiers,
 		"purge based on access-tier set. The possible values are hot|cold|warm")
 }

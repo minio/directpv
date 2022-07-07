@@ -61,7 +61,7 @@ This container uses `directpv` binary with `--dynamic-drive-handler` flag enable
 
 The devices will be discovered from `/run/data/udev/` directory and dynamically listens for udev events for any add, change and remove uevents. Apart from dynamically listening, there is a periodic 30sec sync which checks and syncs the drive states.
 
-For any change, the directcsidrive object will be synced to match the local state. A new directcsidrive object will be created when a new device is detected during sync or when an "Add" uevent occurs.
+For any change, the directcsidrive object will be synced to match the local state. A new directcsidrive object will be created when a new device is detected during sync or when an "Add" uevent occurs. If an inuse/ready drive gets corrupted or lost, it will be tagged with a error condition on the drive. If an Available/Unavailable drive is lost, it will be deleted.
 
 #### Direct CSI
 

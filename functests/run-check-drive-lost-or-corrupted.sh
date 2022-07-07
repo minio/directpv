@@ -22,10 +22,10 @@ export ME
 SCRIPT_DIR=$(dirname "$0")
 export SCRIPT_DIR
 
-if [[ $# -ne 2 ]]; then
-    echo "error: DRIVE and STATE must be provided"
-    echo "usage: $ME <DRIVE> <STATE>"
+if [[ $# -ne 1 ]]; then
+    echo "error: DRIVE must be provided"
+    echo "usage: $ME <DRIVE>"
     exit 255
 fi
 
-"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/check-drive-removed.sh" "$@"
+"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/check-drive-lost-or-corrupted.sh" "$@"

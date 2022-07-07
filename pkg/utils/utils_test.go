@@ -29,6 +29,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 )
 
 func TestWriteObject(t *testing.T) {
@@ -106,4 +108,97 @@ func TestNewSafeFile(t *testing.T) {
 		}
 	}
 
+}
+
+func TestIsManagedDrive(t *testing.T) {
+	testCases := []struct {
+		drive          *directcsi.DirectCSIDrive
+		expectedResult bool
+	}{
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					DriveStatus: directcsi.DriveStatusReady,
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					DriveStatus: directcsi.DriveStatusInUse,
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					DriveStatus: directcsi.DriveStatusReleased,
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					DriveStatus: directcsi.DriveStatusTerminating,
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					DriveStatus: directcsi.DriveStatusUnavailable,
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					DriveStatus: directcsi.DriveStatusAvailable,
+				},
+			},
+			expectedResult: false,
+		},
+	}
+
+	for i, testCase := range testCases {
+		result := IsManagedDrive(testCase.drive)
+		if result != testCase.expectedResult {
+			t.Errorf("case %d expected %v but got %v", i, testCase.expectedResult, result)
+		}
+	}
 }

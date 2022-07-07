@@ -163,7 +163,7 @@ func (l *listener) close(ctx context.Context) error {
 }
 
 func (l *listener) startSync(ctx context.Context) {
-	if err := l.sync(); err != nil {
+	if err := l.sync(ctx); err != nil {
 		klog.Errorf("error while sycing: %v", err)
 	}
 	syncTicker := time.NewTicker(syncInterval)
@@ -177,7 +177,7 @@ func (l *listener) startSync(ctx context.Context) {
 			klog.Error(errClosedListener)
 			return
 		case <-syncTicker.C:
-			if err := l.sync(); err != nil {
+			if err := l.sync(ctx); err != nil {
 				klog.Errorf("error while sycing: %v", err)
 			}
 		}
@@ -267,11 +267,13 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 		}
 	}
 
-	drives, err := l.indexer.listDrives()
+	managedDrives, nonManagedDrives, err := l.indexer.listDrives()
 	if err != nil {
 		return err
 	}
-	drive, matchResult := runMatchers(drives, device, stageOneMatchers, stageTwoMatchers)
+	drives := append(managedDrives, nonManagedDrives...)
+
+	drive, matchResult := matchDrives(drives, device)
 
 	switch dEvent.action {
 	case Add:
@@ -328,7 +330,7 @@ func (l *listener) processUpdate(ctx context.Context,
 	drive *directcsi.DirectCSIDrive) error {
 	switch matchResult {
 	case noMatch:
-		return l.handler.Add(ctx, device)
+		return nil
 	case changed:
 		return l.handler.Update(ctx, device, drive)
 	case noChange:
@@ -364,7 +366,7 @@ func (l *listener) processRemove(ctx context.Context,
 	drive *directcsi.DirectCSIDrive) error {
 	switch matchResult {
 	case noMatch:
-		klog.V(3).InfoS(
+		klog.V(5).InfoS(
 			"matching drive not found",
 			"ACTION", Remove,
 			"DEVICE", device.Name)
@@ -548,61 +550,6 @@ func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error 
 		} else if dEvent.udevData.PCIPath != runUdevData.PCIPath {
 			return errValueMismatch(dEvent.devPath, "PCIPath", dEvent.udevData.PCIPath, runUdevData.PCIPath)
 		}
-	}
-
-	return nil
-}
-
-func (l *listener) sync() error {
-	dir, err := os.Open("/run/udev/data")
-	if err != nil {
-		return err
-	}
-	defer dir.Close()
-
-	names, err := dir.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-
-	for _, name := range names {
-		if !strings.HasPrefix(name, "b") {
-			continue
-		}
-
-		major, minor, err := utils.GetMajorMinorFromStr(strings.TrimPrefix(name, "b"))
-		if err != nil {
-			klog.V(5).Infof("error while parsing maj:min for file: %s: %v", name, err)
-			continue
-		}
-		devName, err := sys.GetDeviceName(major, minor)
-		if err != nil {
-			klog.V(5).Infof("error while getting device name for maj:min (%v:%v): %v", major, minor, err)
-			continue
-		}
-
-		data, err := sys.ReadRunUdevDataByMajorMinor(int(major), int(minor))
-		if err != nil {
-			klog.V(5).Infof("error while reading udevdata for device %s: %v", devName, err)
-			continue
-		}
-
-		runUdevData, err := sys.MapToUdevData(data)
-		if err != nil {
-			klog.V(5).Infof("error while mapping udevdata for device %s: %v", devName, err)
-			continue
-		}
-
-		event := &deviceEvent{
-			created:  time.Now().UTC(),
-			action:   Sync,
-			udevData: runUdevData,
-			devPath:  "/dev/" + devName,
-			major:    int(major),
-			minor:    int(minor),
-		}
-
-		l.eventQueue.push(event)
 	}
 
 	return nil

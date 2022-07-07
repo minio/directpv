@@ -18,6 +18,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
@@ -25,6 +26,7 @@ import (
 	"github.com/minio/directpv/pkg/uevent"
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -63,6 +65,14 @@ func (d *driveEventHandler) Add(ctx context.Context, device *sys.Device) error {
 			klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
 			return err
 		}
+		klog.V(5).InfoS("rejecting duplicate drive creation",
+			"WWID", device.WWID,
+			"UEventSerial", device.UeventSerial,
+			"DMUUID", device.DMUUID,
+			"SerialLong", device.SerialLong,
+			"PCIPath", device.PCIPath,
+			"Partition", device.Partition,
+		)
 	}
 	return nil
 }
@@ -93,12 +103,21 @@ func (d *driveEventHandler) Update(ctx context.Context, device *sys.Device, driv
 	return err
 }
 
-func (d *driveEventHandler) Remove(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
-	utils.UpdateCondition(drive.Status.Conditions,
-		string(directcsi.DirectCSIDriveConditionReady),
-		metav1.ConditionFalse,
-		string(directcsi.DirectCSIDriveReasonLost),
-		string(directcsi.DirectCSIDriveMessageLost))
-	_, err := client.GetLatestDirectCSIDriveInterface().Update(ctx, drive, metav1.UpdateOptions{})
+func (d *driveEventHandler) Remove(ctx context.Context, drive *directcsi.DirectCSIDrive) (err error) {
+	if utils.IsManagedDrive(drive) {
+		klog.InfoS(fmt.Sprintf("%s drive corrupted/lost", string(drive.Status.DriveStatus)), "drive:", drive.Status.Path, "driveName:", drive.Name)
+		utils.UpdateCondition(drive.Status.Conditions,
+			string(directcsi.DirectCSIDriveConditionReady),
+			metav1.ConditionFalse,
+			string(directcsi.DirectCSIDriveReasonLost),
+			string(directcsi.DirectCSIDriveMessageLost))
+		_, err = client.GetLatestDirectCSIDriveInterface().Update(ctx, drive, metav1.UpdateOptions{})
+	} else {
+		klog.V(5).Infof("deleting non-managed drive: %s", drive.Status.Path)
+		err = client.GetLatestDirectCSIDriveInterface().Delete(ctx, drive.Name, metav1.DeleteOptions{})
+		if k8serrors.IsNotFound(err) {
+			err = nil
+		}
+	}
 	return err
 }

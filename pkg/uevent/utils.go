@@ -209,3 +209,11 @@ func wwidWithoutExtension(wwid string) string {
 	}
 	return wwid
 }
+
+func getDeviceNames(devices []*sys.Device) string {
+	var deviceNames []string
+	for _, device := range devices {
+		deviceNames = append(deviceNames, device.Name)
+	}
+	return strings.Join(deviceNames, ", ")
+}

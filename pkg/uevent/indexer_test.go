@@ -94,15 +94,15 @@ func TestListDrives(t *testing.T) {
 	if err := indexer.store.Add(d2); err != nil {
 		t.Errorf("error while adding objects to store: %v", err)
 	}
-	listedDrive, _ := indexer.listDrives()
+	managedDrives, nonManagedDrives, _ := indexer.listDrives()
+	listedDrives := append(managedDrives, nonManagedDrives...)
 	sort.Slice(drives, func(p, q int) bool {
 		return drives[p].Status.FilesystemUUID < drives[q].Status.FilesystemUUID
 	})
-	sort.Slice(listedDrive, func(p, q int) bool {
-		return listedDrive[p].Status.FilesystemUUID < listedDrive[q].Status.FilesystemUUID
+	sort.Slice(listedDrives, func(p, q int) bool {
+		return listedDrives[p].Status.FilesystemUUID < listedDrives[q].Status.FilesystemUUID
 	})
-
-	if !reflect.DeepEqual(drives, listedDrive) {
-		t.Errorf("expected drive slice: %v but got: %v", drives, listedDrive)
+	if !reflect.DeepEqual(drives, listedDrives) {
+		t.Errorf("expected drive slice: %v but got: %v", drives, listedDrives)
 	}
 }

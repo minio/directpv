@@ -1409,3 +1409,22 @@ func TestValidateMountInfo(t1 *testing.T) {
 		}
 	}
 }
+
+func TestGetDeviceNames(t1 *testing.T) {
+	devices := []*sys.Device{
+		{
+			Name: "sdc",
+		},
+		{
+			Name: "sdd",
+		},
+		{
+			Name: "sde",
+		},
+	}
+	expectedStr := "sdc, sdd, sde"
+	result := getDeviceNames(devices)
+	if expectedStr != result {
+		t1.Errorf("expected %s but got %s", expectedStr, result)
+	}
+}

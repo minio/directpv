@@ -63,20 +63,14 @@ function do_upgrade_test() {
     # Show output for manual debugging.
     "${DIRECT_CSI_CLIENT}" volumes list
 
-    if [[ $1 == "1.3.6" ]]; then
-        "${DIRECT_CSI_CLIENT}" uninstall
-    else
-        # Check version compatibility client.
-        ./kubectl-direct_csi uninstall
-    fi
+    # Check version compatibility client.
+    ./kubectl-direct_csi uninstall
 
-    pending=7
-    wait_count=0
-    if [[ $1 == "1.3.6" ]]; then
-        wait_count=3 # webhook uninstallation is not supported in v1.3.6
+    pending=4
+    if [[ $1 == "1.4.6" ]]; then
+        pending=7 # conversion webhook pods
     fi
-
-    while [[ $pending -gt ${wait_count} ]]; do
+    while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} direct-csi pods to go down"
         sleep ${pending}
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
@@ -85,9 +79,9 @@ function do_upgrade_test() {
     # Show output for manual debugging.
     kubectl get pods -n direct-csi-min-io
 
-    if [[ $1 != "1.3.6" ]]; then
-        wait_namespace_removal
-    fi
+    
+    wait_namespace_removal
+    
 
     export DIRECT_CSI_CLIENT=./kubectl-direct_csi
     export DIRECT_CSI_VERSION="${BUILD_VERSION}"
@@ -150,10 +144,7 @@ setup_luks
 echo "$ME: Run build test"
 test_build
 
-echo "$ME: Run upgrade test from v1.3.6"
-do_upgrade_test "1.3.6"
-
-echo "$ME: Run upgrade test from v1.4.6"
+echo "$ME: ================================= Run upgrade test from v1.4.6 ================================="
 do_upgrade_test "1.4.6"
 
 # kubernetes version 1.22+ is not supported in directpv:v2.0.9
@@ -161,7 +152,7 @@ do_upgrade_test "1.4.6"
 minor=$(kubectl version -o json | jq .serverVersion.minor)
 minor=$(echo "$minor" | tr -d '"')
 if [ "$minor" -lt 23 ]; then
-    echo "$ME: Run upgrade test from v2.0.9"
+    echo "$ME: ================================= Run upgrade test from v2.0.9 ================================="
     do_upgrade_test "2.0.9"
 fi
 

@@ -140,7 +140,7 @@ EOF
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Available"
     sudo virsh detach-device "${VM_NAME}" vdb.xml --live
     sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-removed.sh /dev/vdb Available"
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-not-exist.sh /dev/vdb"
 
 
     # attach/detach drive in Available and Ready state
@@ -152,7 +152,7 @@ EOF
     ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Ready"
     sudo virsh detach-device "${VM_NAME}" vdb.xml --live
     sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-removed.sh /dev/vdb Ready"
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-lost-or-corrupted.sh /dev/vdb"
 
    # attach a new device to test InUse
     qemu-img create -f raw "${VM_NAME}-vdc.img" 512M
@@ -177,7 +177,7 @@ EOF
 
     sudo virsh detach-device "${VM_NAME}" vdc.xml --live
     sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-removed.sh /dev/vdc InUse"
+    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-lost-or-corrupted.sh /dev/vdc"
     sleep 3
     ssh_cmd "${VM_IPADDR}" "functests/run-check-volume-exist.sh /dev/vdc false"
 

@@ -70,7 +70,7 @@ function remove_luks() {
 
 function _wait_directcsi_to_start() {
     required_count=4
-    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
+    if [[ "$DIRECT_CSI_VERSION" == "v1.4.6" ]]; then
         required_count=7 # plus 3 for conversion deployment pods
     fi
     running_count=0
@@ -91,7 +91,7 @@ function _wait_directcsi_to_start() {
 
 function install_directcsi() {
     image="directpv:${DIRECT_CSI_VERSION}"
-    if [[ "$DIRECT_CSI_VERSION" == "v1.3.6" ]] || [[ "$DIRECT_CSI_VERSION" == "v1.4.3" ]]; then
+    if [[ "$DIRECT_CSI_VERSION" == "v1.4.6" ]]; then
         image="direct-csi:${DIRECT_CSI_VERSION}"
     fi
     if [ -n "$1" ]; then
@@ -146,15 +146,13 @@ function check_drives() {
     check_drives_state Ready
 }
 
-# usage: check_drive_state <drive> <state>
-function check_drive_removed() {
+# usage: check_drive_lost_or_corrupted <drive>
+function check_drive_lost_or_corrupted() {
     drive="$1"
-    state="$2"
-    removed="drive is removed"
-    check_drives_state drive state
+    message="drive is lost or corrupted"
     "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" -o wide
-    if ! "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}.*${removed}"; then
-        echo "$ME: error: ${drive} not found in removed state"
+    if ! "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}.*${message}"; then
+        echo "$ME: error: ${drive} not found in lost state"
         return 1
     fi
 }
@@ -193,8 +191,8 @@ function check_drive_state() {
 # usage: check_drive_not_exist <drive>
 function check_drive_not_exist() {
     drive="$1"
-    "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" -o wide
-    if "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" | grep -q -e "${drive}"; then
+    "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" --all -o wide
+    if "${DIRECT_CSI_CLIENT}" drives list --drives="${drive}" --all | grep -q -e "${drive}"; then
         echo "$ME: error: ${drive} exists"
         return 1
     fi

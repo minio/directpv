@@ -21,13 +21,9 @@ import (
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/sys"
-	"github.com/minio/directpv/pkg/utils"
-	"k8s.io/klog/v2"
 )
 
-// If the corresponding field is empty in the drive, return consider
-// Else, return True if matched or False if not matched
-type matchFn func(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error)
+type matchFn func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool
 
 type matchResult string
 
@@ -38,99 +34,6 @@ const (
 	noChange       matchResult = "nochange"
 )
 
-// prioritiy based matchers
-var stageOneMatchers = []matchFn{
-	// HW matchers
-	partitionNumberMatcher,
-	ueventSerialNumberMatcher,
-	serialNumberLongMatcher,
-	wwidMatcher,
-	modelNumberMatcher,
-	vendorMatcher,
-	// SW matchers
-	partitionTableUUIDMatcher,
-	partitionUUIDMatcher,
-	dmUUIDMatcher,
-	mdUUIDMatcher,
-	fileSystemTypeMatcher,
-	ueventFSUUIDMatcher,
-	// v1beta2 matchers
-	fsUUIDMatcher,
-	// size matchers
-	totalCapacityMatcher,
-}
-
-// stageTwoMatchers are the conslusive matchers for more than one matching drives
-var stageTwoMatchers = []matchFn{
-	majMinMatcher,
-	pathMatcher,
-	pciPathMatcher,
-}
-
-// ------------------------
-// - Run the list of matchers on the list of drives
-// - Match function SHOULD return matched (100% match) and considered (if the field is empty) results
-// - If MORE THAN ONE matching drive is found, pass the matching drives to the next matching function in the priority list
-//   If NO matching drive is found
-//      AND If the considered list is empty, return the empty list (NEW DRIVE).
-//          Else, pass the considered list to the next matching function in the priority list
-//   (NOTE: the returning results can be more than one incase of duplicate/identical drives)
-// ------------------------
-func runMatchers(drives []*directcsi.DirectCSIDrive,
-	device *sys.Device,
-	stageOneMatchers, stageTwoMatchers []matchFn) (*directcsi.DirectCSIDrive, matchResult) {
-	var matchedDrives, consideredDrives []*directcsi.DirectCSIDrive
-	var err error
-
-	for _, matchFn := range stageOneMatchers {
-		if len(drives) == 0 {
-			break
-		}
-		matchedDrives, consideredDrives, err = match(drives, device, matchFn)
-		if err != nil {
-			klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
-			continue
-		}
-		switch {
-		case len(matchedDrives) > 0:
-			drives = matchedDrives
-		default:
-			drives = consideredDrives
-		}
-	}
-
-	if len(drives) > 1 {
-		for _, matchFn := range stageTwoMatchers {
-			if len(drives) == 0 {
-				break
-			}
-			matchedDrives, consideredDrives, err = match(drives, device, matchFn)
-			if err != nil {
-				klog.V(3).Infof("error while matching drive %s: %v", device.DevPath(), err)
-				continue
-			}
-			switch {
-			case len(matchedDrives) > 0:
-				drives = matchedDrives
-			default:
-				drives = consideredDrives
-			}
-		}
-	}
-
-	switch len(drives) {
-	case 0:
-		return nil, noMatch
-	case 1:
-		if IsFormatRequested(drives[0]) || isChanged(device, drives[0]) {
-			return drives[0], changed
-		}
-		return drives[0], noChange
-	default:
-		return nil, tooManyMatches
-	}
-}
-
 func isChanged(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
 	return !ValidateUDevInfo(device, directCSIDrive) ||
 		!ValidateMountInfo(device, directCSIDrive) ||
@@ -138,245 +41,143 @@ func isChanged(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) boo
 		!validateDevInfo(device, directCSIDrive)
 }
 
-func majMinMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-	// v1beta1 version doesn't have maj:min in the API. Consider such drives.
-	if utils.IsV1Beta1Drive(drive) && drive.Status.MajorNumber == uint32(0) && drive.Status.MinorNumber == uint32(0) {
-		return false, true, nil
+func getMatchedDevicesForManagedDrive(drive *directcsi.DirectCSIDrive, devices []*sys.Device) ([]*sys.Device, []*sys.Device) {
+	return getMatchedDevices(
+		drive,
+		devices,
+		func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+			return fsMatcher(drive, device)
+		},
+	)
+}
+
+func getMatchedDevicesForNonManagedDrive(drive *directcsi.DirectCSIDrive, devices []*sys.Device) ([]*sys.Device, []*sys.Device) {
+	return getMatchedDevices(
+		drive,
+		devices,
+		func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+			return conclusiveMatcher(drive, device)
+		},
+	)
+}
+
+func getMatchedDevicesForUnidentifiedDrive(drive *directcsi.DirectCSIDrive, devices []*sys.Device) ([]*sys.Device, []*sys.Device) {
+	return getMatchedDevices(
+		drive,
+		devices,
+		func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+			return nonConclusiveMatcher(drive, device)
+		},
+	)
+}
+
+func getMatchedDevices(drive *directcsi.DirectCSIDrive, devices []*sys.Device, matchFn matchFn) (matchedDevices, unmatchedDevices []*sys.Device) {
+	for _, device := range devices {
+		if matchFn(drive, device) {
+			matchedDevices = append(matchedDevices, device)
+		} else {
+			unmatchedDevices = append(unmatchedDevices, device)
+		}
+	}
+	return matchedDevices, unmatchedDevices
+}
+
+func getMatchedDrives(drives []*directcsi.DirectCSIDrive, device *sys.Device, matchFn matchFn) (matchedDrives []*directcsi.DirectCSIDrive) {
+	for _, drive := range drives {
+		if matchFn(drive, device) {
+			matchedDrives = append(matchedDrives, drive)
+		}
+	}
+	return matchedDrives
+}
+
+func fsMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+	if drive.Status.Filesystem == "" || drive.Status.FilesystemUUID == "" {
+		return false
+	}
+	if drive.Status.Filesystem != device.FSType {
+		return false
+	}
+	if drive.Status.FilesystemUUID != device.FSUUID {
+		return false
+	}
+	return true
+}
+
+func conclusiveMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+	if device.Partition != drive.Status.PartitionNum {
+		return false
+	}
+	if drive.Status.WWID != "" {
+		if drive.Status.WWID == device.WWID {
+			return true
+		}
+		// WWID of few drives may show up without extension
+		// eg, probed wwid = 0x6002248032bf1752a69bdaee7b0ceb33
+		//     wwid in drive CRD = naa.6002248032bf1752a69bdaee7b0ceb33
+		return strings.TrimPrefix(device.WWID, "0x") == wwidWithoutExtension(drive.Status.WWID)
+	}
+	if drive.Status.UeventSerial != "" {
+		return drive.Status.UeventSerial == device.UeventSerial
+	}
+	if drive.Status.SerialNumberLong != "" {
+		return drive.Status.SerialNumberLong == device.SerialLong
+	}
+	if drive.Status.DMUUID != "" {
+		return drive.Status.DMUUID == device.DMUUID
+	}
+	if drive.Status.MDUUID != "" {
+		return drive.Status.MDUUID == device.MDUUID
+	}
+	if drive.Status.ModelNumber != "" && drive.Status.ModelNumber != device.Model {
+		return false
+	}
+	if drive.Status.Vendor != "" && drive.Status.Vendor != device.Vendor {
+		return false
+	}
+	if drive.Status.PartitionNum > 0 && drive.Status.PartitionUUID != "" {
+		// PartitionUUID values in versions < 3.0.0 is upper-cased
+		return strings.EqualFold(drive.Status.PartitionUUID, device.PartUUID)
+	}
+	if drive.Status.PartTableUUID != "" {
+		return strings.EqualFold(drive.Status.PartTableUUID, device.PTUUID)
+	}
+	if drive.Status.UeventFSUUID != "" {
+		return device.UeventFSUUID == drive.Status.UeventFSUUID
+	}
+	if drive.Status.FilesystemUUID != "" {
+		return device.FSUUID == drive.Status.FilesystemUUID
+	}
+	return false
+}
+
+func nonConclusiveMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+	if getRootBlockPath(drive.Status.Path) != device.DevPath() {
+		return false
 	}
 	if drive.Status.MajorNumber != uint32(device.Major) {
-		return false, false, nil
+		return false
 	}
 	if drive.Status.MinorNumber != uint32(device.Minor) {
-		return false, false, nil
+		return false
 	}
-	return true, true, nil
-}
-
-func pathMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-	if getRootBlockPath(drive.Status.Path) != device.DevPath() {
-		return false, false, nil
+	if drive.Status.PCIPath != "" && drive.Status.PCIPath != device.PCIPath {
+		return false
 	}
-	return true, true, nil
+	return true
 }
 
-func pciPathMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (match bool, consider bool, err error) {
-	return mutablePropertyMatcher(device.PCIPath, drive.Status.PCIPath)
-}
-
-// ------------------------
-// - Run the list of drives over the provided match function
-// - If matched, append the drive to the matched list
-// - If considered, append the the drive to the considered list
-// ------------------------
-func match(drives []*directcsi.DirectCSIDrive,
-	device *sys.Device,
-	matchFn matchFn) ([]*directcsi.DirectCSIDrive, []*directcsi.DirectCSIDrive, error) {
-	var matchedDrives, consideredDrives []*directcsi.DirectCSIDrive
-	for _, drive := range drives {
-		if drive.Status.DriveStatus == directcsi.DriveStatusTerminating {
-			continue
+func matchDrives(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*directcsi.DirectCSIDrive, matchResult) {
+	matchedDrives := getMatchedDrives(drives, device, conclusiveMatcher)
+	switch len(matchedDrives) {
+	case 0:
+		return nil, noMatch
+	case 1:
+		if IsFormatRequested(drives[0]) || isChanged(device, drives[0]) {
+			return matchedDrives[0], changed
 		}
-		match, consider, err := matchFn(device, drive)
-		if err != nil {
-			return nil, nil, err
-		}
-		if match {
-			matchedDrives = append(matchedDrives, drive)
-		} else if consider {
-			consideredDrives = append(consideredDrives, drive)
-		}
+		return matchedDrives[0], noChange
+	default:
+		return nil, tooManyMatches
 	}
-	return matchedDrives, consideredDrives, nil
-}
-
-func partitionNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	// v1beta1 version doesn't have PartitionNum in the API. Consider such drives.
-	if utils.IsV1Beta1Drive(drive) && drive.Status.PartitionNum == int(0) {
-		return drive.Status.PartitionNum == device.Partition, true, nil
-	}
-	return drive.Status.PartitionNum == device.Partition, false, nil
-}
-
-func ueventSerialNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.UeventSerial, drive.Status.UeventSerial)
-}
-
-func wwidMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	match, consider, err := immutablePropertyMatcher(device.WWID, drive.Status.WWID)
-	if err != nil {
-		return match, consider, err
-	}
-	// WWID of few drives may show up without extension
-	// eg, probed wwid = 0x6002248032bf1752a69bdaee7b0ceb33
-	//     wwid in drive CRD = naa.6002248032bf1752a69bdaee7b0ceb33
-	if !match && !consider {
-		match, consider, err = immutablePropertyMatcher(
-			strings.TrimPrefix(device.WWID, "0x"),
-			wwidWithoutExtension(drive.Status.WWID),
-		)
-	}
-	return match, consider, err
-}
-
-func modelNumberMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.Model, drive.Status.ModelNumber)
-}
-
-func vendorMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.Vendor, drive.Status.Vendor)
-}
-
-func partitionUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(strings.ToLower(device.PartUUID), strings.ToLower(drive.Status.PartitionUUID))
-}
-
-func dmUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.DMUUID, drive.Status.DMUUID)
-}
-
-func mdUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.MDUUID, drive.Status.MDUUID)
-}
-
-func partitionTableUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.PTUUID, drive.Status.PartTableUUID)
-}
-
-func serialNumberLongMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return immutablePropertyMatcher(device.SerialLong, drive.Status.SerialNumberLong)
-}
-
-// Refer https://go.dev/play/p/zuaURPArfcL
-// ###################################### Truth table Hardware Matcher ####################################
-//	| alpha | beta |				Match 						|			Not-Match 					  |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   0	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   0	|   1  |				XXXXXXX     	            | match=false, consider=false, err = nil  |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   1	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   1	|   1  |	match=true, consider=false, err = nil   | match=false, consider=false, err = nil  |
-//  |-------|------|--------------------------------------------|-----------------------------------------|
-
-func immutablePropertyMatcher(alpha string, beta string) (bool, bool, error) {
-	var match, consider bool
-	var err error
-	switch {
-	case alpha == "" && beta == "":
-		consider = true
-	case alpha == "" && beta != "":
-	case alpha != "" && beta == "":
-		consider = true
-	case alpha != "" && beta != "":
-		if alpha == beta {
-			match = true
-		}
-	}
-	return match, consider, err
-}
-
-func ueventFSUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return mutablePropertyMatcher(device.UeventFSUUID, drive.Status.UeventFSUUID)
-}
-
-func fsUUIDMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return mutablePropertyMatcher(device.FSUUID, drive.Status.FilesystemUUID)
-}
-
-func fileSystemTypeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	// udev probe reports "vfat" as the fstype for fat32 drives
-	// whereas fat32 probes for versions < v3.0.0 reported "fat32"
-	if device.FSType == "vfat" && drive.Status.Filesystem == "fat32" {
-		return true, false, nil
-	}
-	return mutablePropertyMatcher(device.FSType, drive.Status.Filesystem)
-}
-
-// Refer https://go.dev/play/p/zuaURPArfcL
-// ###################################### Truth table Hardware Matcher ####################################
-//	| alpha | beta |				Match 						|			Not-Match 					  |
-//	|-------|------|--------------------------------------------|------------------------------------------
-// 	|   0	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   0	|   1  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   1	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   1	|   1  |	match=true, consider=false, err = nil   | match=false, consider=true , err = nil  |
-//  |-------|------|--------------------------------------------|------------------------------------------
-
-func mutablePropertyMatcher(alpha string, beta string) (bool, bool, error) {
-	var match, consider bool
-	var err error
-	switch {
-	case alpha == "" && beta == "":
-		consider = true
-	case alpha == "" && beta != "":
-		consider = true
-	case alpha != "" && beta == "":
-		consider = true
-	case alpha != "" && beta != "":
-		if alpha == beta {
-			match = true
-		} else {
-			consider = true
-		}
-	}
-	return match, consider, err
-}
-
-func totalCapacityMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	return sizeMatcher(int64(device.TotalCapacity), drive.Status.TotalCapacity)
-}
-
-func sizeMatcher(alpha int64, beta int64) (bool, bool, error) {
-	var match, consider bool
-	var err error
-	switch {
-	case alpha == 0 && beta == 0:
-		consider = true
-	case alpha == 0 && beta != 0:
-		consider = true
-	case alpha != 0 && beta == 0:
-		consider = true
-	case alpha != 0 && beta != 0:
-		if alpha == beta {
-			match = true
-		} else {
-			consider = true
-		}
-	}
-	return match, consider, err
-}
-
-// Refer https://go.dev/play/p/zuaURPArfcL
-// ###################################### Truth table Hardware Matcher ####################################
-//	| alpha | beta |				Match 						|			Not-Match 					  |
-//	|-------|------|--------------------------------------------|------------------------------------------
-// 	|   0	|   0  |	match=false, consider=true, err = nil   | 			XXXXXXX 					  |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   0	|   1  |				XXXXXXX           			| match=false, consider=true, err = nil   |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   1	|   0  |				XXXXXXX 					| match=false, consider=true, err = nil   |
-//	|-------|------|--------------------------------------------|-----------------------------------------|
-// 	|   1	|   1  |	match=true, consider=false, err = nil   | match=false, consider=fals , err = nil  |
-//  |-------|------|--------------------------------------------|-----------------------------------------|
-
-func physicalBlocksizeMatcher(device *sys.Device, drive *directcsi.DirectCSIDrive) (bool, bool, error) {
-	var match, consider bool
-	var err error
-	switch {
-	case int64(device.PhysicalBlockSize) == 0 && drive.Status.PhysicalBlockSize == 0:
-		consider = true
-	case int64(device.PhysicalBlockSize) == 0 && drive.Status.PhysicalBlockSize != 0:
-		consider = true
-	case int64(device.PhysicalBlockSize) != 0 && drive.Status.PhysicalBlockSize == 0:
-		consider = true
-	case int64(device.PhysicalBlockSize) != 0 && drive.Status.PhysicalBlockSize != 0:
-		if int64(device.PhysicalBlockSize) == drive.Status.PhysicalBlockSize {
-			match = true
-		}
-	}
-	return match, consider, err
 }
