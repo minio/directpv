@@ -141,11 +141,17 @@ echo "$ME: Setup environment"
 setup_lvm
 setup_luks
 
-echo "$ME: Run build test"
+echo "$ME: ================================= Run build test ================================="
 test_build
 
-echo "$ME: ================================= Run upgrade test from v1.4.6 ================================="
-do_upgrade_test "1.4.6"
+# run v1.4.6 upgrade test only on 18.04 as there was a regression caused in
+# virtual environment version upgrade
+# refer: https://github.com/actions/virtual-environments/issues/5934
+version=$(lsb_release -r | cut -f2)
+if [ "$version" = "18.04" ]; then
+    echo "$ME: ================================= Run upgrade test from v1.4.6 ================================="
+    do_upgrade_test "1.4.6"
+fi
 
 # kubernetes version 1.22+ is not supported in directpv:v2.0.9
 # skipping v2.0.9 upgrade test for v1.22+ versions
