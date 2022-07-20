@@ -173,7 +173,7 @@ func matchDrives(drives []*directcsi.DirectCSIDrive, device *sys.Device) (*direc
 	case 0:
 		return nil, noMatch
 	case 1:
-		if IsFormatRequested(drives[0]) || isChanged(device, drives[0]) {
+		if IsFormatRequested(matchedDrives[0]) || isChanged(device, matchedDrives[0]) {
 			return matchedDrives[0], changed
 		}
 		return matchedDrives[0], noChange
