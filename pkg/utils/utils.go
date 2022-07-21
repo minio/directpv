@@ -161,3 +161,13 @@ func IsV1Beta1Drive(drive *directcsi.DirectCSIDrive) bool {
 	}
 	return false
 }
+
+// IsManagedDrive returns if it is directpv owned drive or not
+func IsManagedDrive(drive *directcsi.DirectCSIDrive) bool {
+	switch drive.Status.DriveStatus {
+	case directcsi.DriveStatusReady, directcsi.DriveStatusInUse:
+		return true
+	default:
+		return false
+	}
+}

@@ -28,4 +28,4 @@ if [[ $# -ne 1 ]]; then
     exit 255
 fi
 
-"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/check-drive-exist.sh" "$@"
+"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/check-drive-not-exist.sh" "$@"

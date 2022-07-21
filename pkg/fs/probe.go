@@ -19,13 +19,9 @@ package fs
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 
 	fserrors "github.com/minio/directpv/pkg/fs/errors"
-	"github.com/minio/directpv/pkg/fs/ext4"
-	"github.com/minio/directpv/pkg/fs/fat32"
-	"github.com/minio/directpv/pkg/fs/swap"
 	"github.com/minio/directpv/pkg/fs/xfs"
 )
 
@@ -44,39 +40,12 @@ func probe(device string) (FS, error) {
 	}
 	defer devFile.Close()
 
+	// only XFS is the supported filesystem as of now
 	xfsSB, err := xfs.Probe(devFile)
-	if err == nil {
-		return xfsSB, nil
-	}
-
-	if _, err = devFile.Seek(0, io.SeekStart); err != nil {
-		return nil, err
-	}
-
-	ext4SB, err := ext4.Probe(devFile)
-	if err == nil {
-		return ext4SB, nil
-	}
-
-	if _, err = devFile.Seek(0, io.SeekStart); err != nil {
-		return nil, err
-	}
-
-	fat32SB, err := fat32.Probe(devFile)
-	if err == nil {
-		return fat32SB, nil
-	}
-
-	if _, err = devFile.Seek(0, io.SeekStart); err != nil {
-		return nil, err
-	}
-
-	swapSB, err := swap.Probe(devFile)
 	if err != nil {
 		return nil, err
 	}
-
-	return swapSB, nil
+	return xfsSB, nil
 }
 
 // Probe detects and returns filesystem information of given device.
@@ -99,13 +68,11 @@ func Probe(ctx context.Context, device string) (fs FS, err error) {
 func getCapacity(device, filesystem string) (totalCapacity, freeCapacity uint64, err error) {
 	var devFile *os.File
 	switch filesystem {
-	case "xfs", "ext4", "vfat":
+	case "xfs":
 		if devFile, err = os.OpenFile(device, os.O_RDONLY, os.ModeDevice); err != nil {
 			return 0, 0, err
 		}
 		defer devFile.Close()
-	case "swap":
-		return 0, 0, nil
 	default:
 		return 0, 0, fserrors.ErrFSNotFound
 	}
@@ -117,18 +84,6 @@ func getCapacity(device, filesystem string) (totalCapacity, freeCapacity uint64,
 			return 0, 0, err
 		}
 		return xfsSB.TotalCapacity(), xfsSB.FreeCapacity(), nil
-	case "ext4":
-		ext4SB, err := ext4.Probe(devFile)
-		if err != nil {
-			return 0, 0, err
-		}
-		return ext4SB.TotalCapacity(), ext4SB.FreeCapacity(), nil
-	case "vfat":
-		fat32SB, err := fat32.Probe(devFile)
-		if err != nil {
-			return 0, 0, err
-		}
-		return fat32SB.TotalCapacity(), fat32SB.FreeCapacity(), nil
 	}
 
 	return 0, 0, fserrors.ErrFSNotFound

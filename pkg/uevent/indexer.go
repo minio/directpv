@@ -80,18 +80,21 @@ func (i *indexer) filterDrivesByUEventFSUUID(fsuuid string) ([]*directcsi.Direct
 	return filteredDrives, nil
 }
 
-func (i *indexer) listDrives() ([]*directcsi.DirectCSIDrive, error) {
+func (i *indexer) listDrives() (managedDrives, nonManagedDrives []*directcsi.DirectCSIDrive, err error) {
 	objects := i.store.List()
-	drives := []*directcsi.DirectCSIDrive{}
 	for _, obj := range objects {
 		directCSIDrive, ok := obj.(*directcsi.DirectCSIDrive)
 		if !ok {
-			return nil, errNotDirectCSIDriveObject
+			return nil, nil, errNotDirectCSIDriveObject
 		}
 		if directCSIDrive.Status.NodeName != i.nodeID {
 			continue
 		}
-		drives = append(drives, directCSIDrive)
+		if directCSIDrive.Status.DriveStatus == directcsi.DriveStatusInUse || directCSIDrive.Status.DriveStatus == directcsi.DriveStatusReady {
+			managedDrives = append(managedDrives, directCSIDrive)
+		} else {
+			nonManagedDrives = append(nonManagedDrives, directCSIDrive)
+		}
 	}
-	return drives, nil
+	return managedDrives, nonManagedDrives, nil
 }

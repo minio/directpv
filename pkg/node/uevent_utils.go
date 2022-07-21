@@ -86,7 +86,7 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	updatedDrive.Status.OtherMountsInfo = otherMountsInfo
 
 	// fill hwinfo only if it is empty
-	if updatedDrive.Status.PartitionUUID == "" {
+	if updatedDrive.Status.PartitionUUID == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.PartitionUUID = device.PartUUID
 	} else {
 		// PartitionUUID values in versions < 3.0.0 is upper-cased
@@ -95,34 +95,34 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 		}
 	}
 
-	if updatedDrive.Status.DMUUID == "" {
+	if updatedDrive.Status.DMUUID == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.DMUUID = device.DMUUID
 	}
-	if updatedDrive.Status.MDUUID == "" {
+	if updatedDrive.Status.MDUUID == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.MDUUID = device.MDUUID
 	}
-	if updatedDrive.Status.PartitionNum == int(0) {
+	if updatedDrive.Status.PartitionNum == int(0) || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.PartitionNum = device.Partition
 	}
-	if updatedDrive.Status.PhysicalBlockSize == int64(0) {
+	if updatedDrive.Status.PhysicalBlockSize == int64(0) || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.PhysicalBlockSize = int64(device.PhysicalBlockSize)
 	}
-	if updatedDrive.Status.ModelNumber == "" {
+	if updatedDrive.Status.ModelNumber == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.ModelNumber = device.Model
 	}
-	if updatedDrive.Status.SerialNumber == "" {
+	if updatedDrive.Status.SerialNumber == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.SerialNumber = device.Serial
 	}
-	if updatedDrive.Status.SerialNumberLong == "" {
+	if updatedDrive.Status.SerialNumberLong == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.SerialNumberLong = device.SerialLong
 	}
-	if updatedDrive.Status.UeventSerial == "" {
+	if updatedDrive.Status.UeventSerial == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.UeventSerial = device.UeventSerial
 	}
-	if updatedDrive.Status.WWID == "" {
+	if updatedDrive.Status.WWID == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.WWID = device.WWID
 	}
-	if updatedDrive.Status.Vendor == "" {
+	if updatedDrive.Status.Vendor == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.Vendor = device.Vendor
 	}
 
@@ -164,18 +164,6 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 				"MountpointOptions",
 				mount.MountOptRW,
 				device.FirstMountOptions))
-		}
-		if strings.TrimSpace(drive.Status.FilesystemUUID) != strings.TrimSpace(device.FSUUID) {
-			err = multierr.Append(err, errInvalidDrive(
-				"FilesystemUUID",
-				drive.Status.FilesystemUUID,
-				device.FSUUID))
-		}
-		if drive.Status.Filesystem != device.FSType {
-			err = multierr.Append(err, errInvalidDrive(
-				"Filesystem",
-				drive.Status.Filesystem,
-				device.FSType))
 		}
 		if device.Size < sys.MinSupportedDeviceSize {
 			err = multierr.Append(err, fmt.Errorf(

@@ -26,6 +26,7 @@ import (
 	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -930,7 +931,101 @@ func TestUpdateHandler(t *testing.T) {
 	}
 }
 
-func TestRemoveHandler(t *testing.T) {
+func TestRemoveHandlerWithManagedDrive(t *testing.T) {
+	testDrive := &directcsi.DirectCSIDrive{
+		TypeMeta: utils.DirectCSIDriveTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-drive",
+			Labels: map[string]string{
+				"direct.csi.min.io/access-tier": "Unknown",
+				"direct.csi.min.io/created-by":  "directcsi-driver",
+				"direct.csi.min.io/node":        "test-node",
+				"direct.csi.min.io/path":        "sdb1",
+				"direct.csi.min.io/version":     "v1beta3",
+			},
+		},
+		Status: directcsi.DirectCSIDriveStatus{
+			NodeName:          "test-node",
+			Path:              "/dev/sdb1",
+			Filesystem:        "xfs",
+			TotalCapacity:     512000,
+			FreeCapacity:      412000,
+			AllocatedCapacity: 100000,
+			LogicalBlockSize:  512,
+			Mountpoint:        "/var/lib/direct-csi/mnt/fsuuid",
+			MountOptions:      []string{"relatime", "rw"},
+			RootPartition:     "sdb1",
+			FilesystemUUID:    "d79dff9e-2884-46f2-8919-dada2eecb12d",
+			MajorNumber:       8,
+			MinorNumber:       1,
+			UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
+			DMName:            "vg0-lv0",
+			PartTableUUID:     "7e3bf265-0396-440b-88fd-dc2003505583",
+			PartTableType:     "gpt",
+			DriveStatus:       directcsi.DriveStatusReady,
+			Topology: map[string]string{
+				string(utils.TopologyDriverIdentity): "identity",
+				string(utils.TopologyDriverRack):     "rack",
+				string(utils.TopologyDriverZone):     "zone",
+				string(utils.TopologyDriverRegion):   "region",
+				string(utils.TopologyDriverNode):     "test-node",
+			},
+			Conditions: []metav1.Condition{
+				{
+					Type:   string(directcsi.DirectCSIDriveConditionOwned),
+					Status: metav1.ConditionTrue,
+					Reason: string(directcsi.DirectCSIDriveReasonAdded),
+				},
+				{
+					Type:    string(directcsi.DirectCSIDriveConditionMounted),
+					Status:  metav1.ConditionTrue,
+					Message: "",
+					Reason:  string(directcsi.DirectCSIDriveReasonNotAdded),
+				},
+				{
+					Type:    string(directcsi.DirectCSIDriveConditionFormatted),
+					Status:  metav1.ConditionTrue,
+					Message: "xfs",
+					Reason:  string(directcsi.DirectCSIDriveReasonNotAdded),
+				},
+				{
+					Type:    string(directcsi.DirectCSIDriveConditionInitialized),
+					Status:  metav1.ConditionTrue,
+					Message: "initialized",
+					Reason:  string(directcsi.DirectCSIDriveReasonInitialized),
+				},
+				{
+					Type:    string(directcsi.DirectCSIDriveConditionReady),
+					Status:  metav1.ConditionTrue,
+					Message: "",
+					Reason:  string(directcsi.DirectCSIDriveReasonReady),
+				},
+			},
+		},
+	}
+
+	ctx := context.TODO()
+	handler := createDriveEventHandler()
+	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testDrive).DirectV1beta4().DirectCSIDrives())
+
+	if err := handler.Remove(ctx, testDrive); err != nil {
+		t.Fatalf("error while handling remove: %v", err)
+	}
+
+	updatedDrive, err := client.GetLatestDirectCSIDriveInterface().Get(ctx, testDrive.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("could not get the updated drive: %v", err)
+	}
+
+	if !utils.IsConditionStatus(updatedDrive.Status.Conditions,
+		string(directcsi.DirectCSIDriveConditionReady),
+		metav1.ConditionFalse,
+	) {
+		t.Error("ready condition status found to be true")
+	}
+}
+
+func TestRemoveHandlerWithNonManagedDrive(t *testing.T) {
 	testDrive := &directcsi.DirectCSIDrive{
 		TypeMeta: utils.DirectCSIDriveTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{
@@ -1011,15 +1106,8 @@ func TestRemoveHandler(t *testing.T) {
 		t.Fatalf("error while handling remove: %v", err)
 	}
 
-	updatedDrive, err := client.GetLatestDirectCSIDriveInterface().Get(ctx, testDrive.Name, metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("could not get the updated drive: %v", err)
-	}
-
-	if !utils.IsConditionStatus(updatedDrive.Status.Conditions,
-		string(directcsi.DirectCSIDriveConditionReady),
-		metav1.ConditionFalse,
-	) {
-		t.Error("ready condition status found to be true")
+	_, err := client.GetLatestDirectCSIDriveInterface().Get(ctx, testDrive.Name, metav1.GetOptions{})
+	if err == nil || !k8serrors.IsNotFound(err) {
+		t.Errorf("expected not found error but got %v", err)
 	}
 }
