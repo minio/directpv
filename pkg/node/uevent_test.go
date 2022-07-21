@@ -635,7 +635,7 @@ func TestUpdateHandler(t *testing.T) {
 				PTUUID:            "7e3bf265-0396-440b-88fd-dc2003505583",
 				PTType:            "gpt",
 				PartUUID:          "d895e5a6-c5cb-49d7-ae0d-a3946f4f1a3a",
-				FSUUID:            "e79dff9e-2884-46f2-8919-dada2eecb12d",
+				FSUUID:            "d79dff9e-2884-46f2-8919-dada2eecb12d",
 				FSType:            "xfs",
 				UeventSerial:      "12345ABCD678",
 				UeventFSUUID:      "e79dff9e-2884-46f2-8919-dada2eecb12d",

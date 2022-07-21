@@ -21,37 +21,8 @@ import (
 	"strings"
 )
 
-func isFATFSType(fsType string) bool {
-	switch fsType {
-	case "fat", "vfat", "fat12", "fat16", "fat32":
-		return true
-	default:
-		return false
-	}
-}
-
-func isSwapFSType(fsType string) bool {
-	switch fsType {
-	case "linux-swap", "swap":
-		return true
-	default:
-		return false
-	}
-}
-
-// FSTypeEqual compares the FSType
-func FSTypeEqual(fsType1, fsType2 string) bool {
-	fsType1, fsType2 = strings.ToLower(fsType1), strings.ToLower(fsType2)
-	switch {
-	case fsType1 == fsType2:
-		return true
-	case isFATFSType(fsType1) && isFATFSType(fsType2):
-		return true
-	case isSwapFSType(fsType1) && isSwapFSType(fsType2):
-		return true
-	default:
-		return false
-	}
+func isLVMMemberFSType(fsType string) bool {
+	return strings.EqualFold("LVM2_member", fsType)
 }
 
 // NormalizeUUID normalizes the UUID
@@ -68,9 +39,10 @@ func IsDeviceUnavailable(device *Device) bool {
 		device.SwapOn ||
 		device.Hidden ||
 		device.ReadOnly ||
-		device.Removable ||
 		device.Partitioned ||
 		device.Master != "" ||
 		len(device.Holders) > 0 ||
-		device.FirstMountPoint != ""
+		device.FirstMountPoint != "" ||
+		isLVMMemberFSType(device.FSType) ||
+		device.CDRom
 }

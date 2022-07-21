@@ -85,6 +85,7 @@ type Device struct {
 	LogicalBlockSize  uint64
 	PhysicalBlockSize uint64
 	SwapOn            bool
+	CDRom             bool
 
 	// Populated from /proc/1/mountinfo
 	MountPoints       []string // Deprecating in favor of MountInfos

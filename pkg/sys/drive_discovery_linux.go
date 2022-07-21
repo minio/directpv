@@ -34,7 +34,6 @@ import (
 	fserrors "github.com/minio/directpv/pkg/fs/errors"
 	"github.com/minio/directpv/pkg/mount"
 	"golang.org/x/sys/unix"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -139,30 +138,6 @@ func getHolders(name string) ([]string, error) {
 	return readdirnames("/sys/block/"+name+"/holders", false)
 }
 
-func getBlockSizes(device string) (physicalBlockSize, logicalBlockSize uint64, err error) {
-	devFile, err := os.OpenFile(device, os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return
-	}
-	defer devFile.Close()
-	fd := devFile.Fd()
-
-	var blockSize int
-	if blockSize, err = unix.IoctlGetInt(int(fd), unix.BLKBSZGET); err != nil {
-		klog.Errorf("could not obtain physical block size for device: %s", device)
-		return
-	}
-	physicalBlockSize = uint64(blockSize)
-
-	if blockSize, err = unix.IoctlGetInt(int(fd), unix.BLKSSZGET); err != nil {
-		klog.Errorf("could not obtain logical block size for device: %s", device)
-		return
-	}
-	logicalBlockSize = uint64(blockSize)
-
-	return
-}
-
 func probeFS(device *Device) (fs.FS, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
@@ -177,50 +152,21 @@ func probeFS(device *Device) (fs.FS, error) {
 	return fsInfo, nil
 }
 
-func getCapacity(device *Device) (totalCapacity, freeCapacity uint64) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelFunc()
-	var err error
-	totalCapacity, freeCapacity, err = fs.GetCapacity(ctx, "/dev/"+device.Name, device.FSType)
-	if err != nil {
-		klog.V(5).InfoS("unable to get device capacity", "err", err, "Device", device.Name, "FSType", device.FSType)
-	}
-	return
-}
-
-func updateFSInfo(device *Device, CDROMs, swaps map[string]struct{}) error {
-	if _, found := CDROMs[device.Name]; found {
-		device.ReadOnly = true
-		device.Removable = true
-		return nil
-	}
-
-	majorMinor := fmt.Sprintf("%v:%v", device.Major, device.Minor)
-	if _, found := swaps[majorMinor]; !found {
-		var err error
-		if device.PhysicalBlockSize, device.LogicalBlockSize, err = getBlockSizes("/dev/" + device.Name); device.Size > 0 && err != nil {
+func updateFSInfo(device *Device) error {
+	// Probe only for "xfs" devices
+	// UDev may have empty ID_FS_TYPE for xfs devices (ref: https://github.com/minio/directpv/issues/602)
+	if device.FSType == "" || strings.EqualFold(device.FSType, "xfs") {
+		fsInfo, err := probeFS(device)
+		if err != nil {
 			return err
 		}
-	} else {
-		device.SwapOn = true
-	}
-
-	fsInfo, err := probeFS(device)
-	if err != nil {
-		return err
-	}
-	if fsInfo != nil {
-		device.FSUUID = fsInfo.ID()
-		if device.FSType != "" && !FSTypeEqual(device.FSType, fsInfo.Type()) {
-			klog.Errorf("%v: FSType %v from Uevent does not match probed FSType %v", "/dev/"+device.Name, device.FSType, fsInfo.Type())
-			device.TotalCapacity, device.FreeCapacity = getCapacity(device)
-		} else {
+		if fsInfo != nil {
+			device.FSUUID = fsInfo.ID()
 			device.FSType = fsInfo.Type()
 			device.TotalCapacity = fsInfo.TotalCapacity()
 			device.FreeCapacity = fsInfo.FreeCapacity()
 		}
 	}
-
 	return nil
 }
 
@@ -341,17 +287,21 @@ func (device *Device) ProbeDevInfo() (err error) {
 		if err != nil {
 			return err
 		}
-
+		if _, found := CDROMs[device.Name]; found {
+			device.CDRom = true
+		}
 		swaps, err := getSwaps()
 		if err != nil {
 			return err
 		}
-
-		if err = updateFSInfo(device, CDROMs, swaps); err != nil {
-			return err
+		majorMinor := fmt.Sprintf("%v:%v", device.Major, device.Minor)
+		if _, found := swaps[majorMinor]; found {
+			device.SwapOn = true
+		}
+		if !device.CDRom {
+			return updateFSInfo(device)
 		}
 	}
-
 	return nil
 }
 
