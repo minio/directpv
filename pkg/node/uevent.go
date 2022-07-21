@@ -20,12 +20,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/uevent"
 	"github.com/minio/directpv/pkg/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -56,25 +56,10 @@ type driveEventHandler struct {
 
 func (d *driveEventHandler) Add(ctx context.Context, device *sys.Device) error {
 	drive := client.NewDirectCSIDrive(
-		getDriveUUID(d.nodeID, device),
+		uuid.New().String(),
 		client.NewDirectCSIDriveStatus(device, d.nodeID, d.topology),
 	)
-	err := client.CreateDrive(ctx, drive)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			klog.ErrorS(err, "unable to create drive", "Status.Path", drive.Status.Path)
-			return err
-		}
-		klog.V(5).InfoS("rejecting duplicate drive creation",
-			"WWID", device.WWID,
-			"UEventSerial", device.UeventSerial,
-			"DMUUID", device.DMUUID,
-			"SerialLong", device.SerialLong,
-			"PCIPath", device.PCIPath,
-			"Partition", device.Partition,
-		)
-	}
-	return nil
+	return client.CreateDrive(ctx, drive)
 }
 
 func (d *driveEventHandler) Update(ctx context.Context, device *sys.Device, drive *directcsi.DirectCSIDrive) error {

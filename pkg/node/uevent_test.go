@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"sync"
 	"testing"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
@@ -397,125 +396,6 @@ func TestAddHandler(t *testing.T) {
 		) {
 			t.Fatalf("case %d found Ready condition to be false", i)
 		}
-	}
-}
-
-func TestAddHandlerWithRace(t *testing.T) {
-	devices := []*sys.Device{
-		{
-			Name:              "name",
-			Major:             200,
-			Minor:             2,
-			Size:              uint64(5368709120),
-			WWID:              "wwid",
-			Model:             "model",
-			Serial:            "serial",
-			Vendor:            "vendor",
-			DMName:            "dmname",
-			DMUUID:            "dmuuid",
-			MDUUID:            "mduuid",
-			PTUUID:            "ptuuid",
-			PTType:            "gpt",
-			PartUUID:          "partuuid",
-			FSUUID:            "fsuuid",
-			FSType:            "xfs",
-			UeventSerial:      "ueventserial",
-			UeventFSUUID:      "ueventfsuuid",
-			TotalCapacity:     uint64(5368709120),
-			FreeCapacity:      uint64(5368709120),
-			LogicalBlockSize:  uint64(512),
-			PhysicalBlockSize: uint64(512),
-			MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
-			FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
-		},
-		{
-			Name:              "name",
-			Major:             200,
-			Minor:             2,
-			Size:              uint64(5368709120),
-			WWID:              "wwid",
-			Model:             "model",
-			Serial:            "serial",
-			Vendor:            "vendor",
-			DMName:            "dmname",
-			DMUUID:            "dmuuid",
-			MDUUID:            "mduuid",
-			PTUUID:            "ptuuid",
-			PTType:            "gpt",
-			PartUUID:          "partuuid",
-			FSUUID:            "fsuuid",
-			FSType:            "xfs",
-			UeventSerial:      "ueventserial",
-			UeventFSUUID:      "ueventfsuuid",
-			TotalCapacity:     uint64(5368709120),
-			FreeCapacity:      uint64(5368709120),
-			LogicalBlockSize:  uint64(512),
-			PhysicalBlockSize: uint64(512),
-			MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
-			FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
-		},
-		{
-			Name:              "name",
-			Major:             200,
-			Minor:             2,
-			Size:              uint64(5368709120),
-			WWID:              "wwid",
-			Model:             "model",
-			Serial:            "serial",
-			Vendor:            "vendor",
-			DMName:            "dmname",
-			DMUUID:            "dmuuid",
-			MDUUID:            "mduuid",
-			PTUUID:            "ptuuid",
-			PTType:            "gpt",
-			PartUUID:          "partuuid",
-			FSUUID:            "fsuuid",
-			FSType:            "xfs",
-			UeventSerial:      "ueventserial",
-			UeventFSUUID:      "ueventfsuuid",
-			TotalCapacity:     uint64(5368709120),
-			FreeCapacity:      uint64(5368709120),
-			LogicalBlockSize:  uint64(512),
-			PhysicalBlockSize: uint64(512),
-			MountPoints:       []string{"/var/lib/direct-csi/mnt/fsuuid"},
-			FirstMountPoint:   "/var/lib/direct-csi/mnt/fsuuid",
-		},
-	}
-
-	var wg sync.WaitGroup
-	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset().DirectV1beta4().DirectCSIDrives())
-	ctx := context.TODO()
-	handler := createDriveEventHandler()
-	errs := make(chan error, 1)
-	for _, device := range devices {
-		wg.Add(1)
-		go func(dev *sys.Device) {
-			defer wg.Done()
-			if err := handler.Add(ctx, dev); err != nil {
-				errs <- err
-			}
-		}(device)
-	}
-
-	// close errs once all children finish.
-	go func() {
-		wg.Wait()
-		close(errs)
-	}()
-
-	for err := range errs {
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	result, err := client.GetLatestDirectCSIDriveInterface().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		t.Fatalf("could not list drives: %v", err)
-	}
-
-	if len(result.Items) != 1 {
-		t.Error("duplicate drives found")
 	}
 }
 
