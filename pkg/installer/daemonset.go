@@ -229,6 +229,11 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
 			"--dynamic-drive-handler",
 		}
+
+		if c.DisableUDevListener {
+			args = append(args, "--disable-udev-listener")
+		}
+
 		podSpec.Containers = append(podSpec.Containers, corev1.Container{
 			Name:            directPVDriveDiscoveryContainerName,
 			Image:           filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),

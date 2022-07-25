@@ -91,6 +91,8 @@ type listener struct {
 	handler DeviceUEventHandler
 
 	indexer *indexer
+
+	udevListenerDisabled bool
 }
 
 type deviceEvent struct {
@@ -107,57 +109,67 @@ type deviceEvent struct {
 }
 
 // Run listens for events
-func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler) error {
-	sockfd, err := syscall.Socket(
-		syscall.AF_NETLINK,
-		syscall.SOCK_RAW,
-		syscall.NETLINK_KOBJECT_UEVENT,
-	)
-	if err != nil {
-		return err
-	}
-
-	if err := syscall.Bind(sockfd, &syscall.SockaddrNetlink{
-		Family: syscall.AF_NETLINK,
-		Pid:    uint32(os.Getpid()),
-		Groups: 2,
-	}); err != nil {
-		return err
-	}
-
+func Run(ctx context.Context, nodeID string, handler DeviceUEventHandler, disableUDevListener bool) error {
 	listener := &listener{
-		sockfd:     sockfd,
-		handler:    handler,
-		eventQueue: newEventQueue(),
-		nodeID:     nodeID,
-		indexer:    newIndexer(ctx, nodeID, resyncPeriod),
+		handler:              handler,
+		eventQueue:           newEventQueue(),
+		nodeID:               nodeID,
+		indexer:              newIndexer(ctx, nodeID, resyncPeriod),
+		udevListenerDisabled: disableUDevListener,
+		closeCh:              make(chan struct{}),
 	}
 	defer listener.close(ctx)
+
+	if !disableUDevListener {
+		sockfd, err := syscall.Socket(
+			syscall.AF_NETLINK,
+			syscall.SOCK_RAW,
+			syscall.NETLINK_KOBJECT_UEVENT,
+		)
+		if err != nil {
+			return err
+		}
+		if err := syscall.Bind(sockfd, &syscall.SockaddrNetlink{
+			Family: syscall.AF_NETLINK,
+			Pid:    uint32(os.Getpid()),
+			Groups: 2,
+		}); err != nil {
+			return err
+		}
+		listener.sockfd = sockfd
+	}
 
 	go listener.startSync(ctx)
 
 	go listener.processEvents(ctx)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-listener.closeCh:
-			return errClosedListener
-		default:
-			dEvent, err := listener.getNextDeviceUEvent(ctx)
-			if err != nil {
-				return err
+	if !disableUDevListener {
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-listener.closeCh:
+				return errClosedListener
+			default:
+				dEvent, err := listener.getNextDeviceUEvent(ctx)
+				if err != nil {
+					return err
+				}
+				listener.eventQueue.push(dEvent)
 			}
-			listener.eventQueue.push(dEvent)
 		}
 	}
+
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 func (l *listener) close(ctx context.Context) error {
 	if atomic.AddInt32(&l.isClosed, 1) == 1 {
 		close(l.closeCh)
-		return syscall.Close(l.sockfd)
+		if !l.udevListenerDisabled {
+			return syscall.Close(l.sockfd)
+		}
 	}
 	return nil
 }

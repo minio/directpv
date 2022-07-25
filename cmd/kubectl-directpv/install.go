@@ -49,6 +49,7 @@ var (
 	apparmorProfile        = ""
 	auditInstall           = "install"
 	imagePullSecrets       = []string{}
+	disableUDevListener    = false
 )
 
 func init() {
@@ -61,6 +62,7 @@ func init() {
 	installCmd.PersistentFlags().StringSliceVarP(&tolerationParameters, "tolerations", "t", tolerationParameters, "tolerations parameters")
 	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "set Seccomp profile")
 	installCmd.PersistentFlags().StringVarP(&apparmorProfile, "apparmor-profile", "", apparmorProfile, "set Apparmor profile")
+	installCmd.PersistentFlags().BoolVarP(&disableUDevListener, "disable-udev-listener", "", disableUDevListener, "disable uevent listener and rely on 30secs internal drive-sync mechanism")
 }
 
 func install(ctx context.Context, args []string) (err error) {
@@ -109,6 +111,7 @@ func install(ctx context.Context, args []string) (err error) {
 		DryRun:                     dryRun,
 		AuditFile:                  file,
 		ImagePullSecrets:           imagePullSecrets,
+		DisableUDevListener:        disableUDevListener,
 	}
 
 	return installer.Install(ctx, installConfig)

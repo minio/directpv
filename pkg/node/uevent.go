@@ -33,7 +33,8 @@ import (
 
 // RunDynamicDriveHandler starts the listener
 func RunDynamicDriveHandler(ctx context.Context,
-	identity, nodeID, rack, zone, region string) error {
+	identity, nodeID, rack, zone, region string,
+	disableUDevListener bool) error {
 
 	handler := &driveEventHandler{
 		nodeID: nodeID,
@@ -46,7 +47,7 @@ func RunDynamicDriveHandler(ctx context.Context,
 		},
 	}
 
-	return uevent.Run(ctx, nodeID, handler)
+	return uevent.Run(ctx, nodeID, handler, disableUDevListener)
 }
 
 type driveEventHandler struct {
