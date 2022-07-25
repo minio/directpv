@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
@@ -203,7 +204,9 @@ func (l *listener) syncDevices(ctx context.Context, devices []*sys.Device) error
 		case 1:
 			klog.V(5).Infof("matched device: %s for drive %s", matchedDevices[0].Name, drive.Name)
 			// unset requested format while matching unidentified drive
-			drive.Spec.RequestedFormat = nil
+			if drive.Spec.RequestedFormat != nil && matchedDevices[0].FirstMountPoint != filepath.Join(sys.MountRoot, drive.Name) {
+				drive.Spec.RequestedFormat = nil
+			}
 			if err := l.processMatchedDrive(ctx, matchedDevices[0], drive); err != nil {
 				klog.V(3).Infof("error while processing update for device %s: %v", drive.Status.Path, err)
 			}

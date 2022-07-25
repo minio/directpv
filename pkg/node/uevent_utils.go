@@ -53,8 +53,6 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	updatedDrive := drive.DeepCopy()
 	updatedDrive.Status.NodeName = d.nodeID
 	updatedDrive.Status.Topology = d.topology
-	updatedDrive.Status.Filesystem = device.FSType
-	updatedDrive.Status.FilesystemUUID = device.FSUUID
 	updatedDrive.Status.UeventFSUUID = device.UeventFSUUID
 	updatedDrive.Status.MajorNumber = uint32(device.Major)
 	updatedDrive.Status.MinorNumber = uint32(device.Minor)
@@ -71,6 +69,14 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	updatedDrive.Status.PartTableType = device.PTType
 	updatedDrive.Status.Partitioned = device.Partitioned
 	updatedDrive.Status.PCIPath = device.PCIPath
+
+	// do not update FS info for managed drives
+	if updatedDrive.Status.Filesystem == "" || !utils.IsManagedDrive(updatedDrive) {
+		updatedDrive.Status.Filesystem = device.FSType
+	}
+	if updatedDrive.Status.FilesystemUUID == "" || !utils.IsManagedDrive(updatedDrive) {
+		updatedDrive.Status.FilesystemUUID = device.FSUUID
+	}
 
 	// populate mount infos
 	updatedDrive.Status.MountOptions = device.FirstMountOptions
@@ -91,6 +97,10 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	} else {
 		// PartitionUUID values in versions < 3.0.0 is upper-cased
 		if strings.EqualFold(updatedDrive.Status.PartitionUUID, device.PartUUID) {
+			updatedDrive.Status.PartitionUUID = device.PartUUID
+		}
+		// bugfix: for versions < 3.0.0, the partitionUUID has to be unset or set to empty for root partitions
+		if device.Partition == int(0) {
 			updatedDrive.Status.PartitionUUID = device.PartUUID
 		}
 	}
@@ -149,22 +159,27 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 	var err error
 	switch drive.Status.DriveStatus {
 	case directcsi.DriveStatusInUse, directcsi.DriveStatusReady:
-		if !mount.ValidDirectPVMounts(device.MountPoints) {
+		// Check if the drive is umounted or if the directpv mount is not found
+		if device.FirstMountPoint == "" || !mount.ValidDirectPVMounts(device.MountPoints) {
 			err = multierr.Append(err, errInvalidMount)
 		}
-		if device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Name) &&
-			device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
-			err = multierr.Append(err, errInvalidDrive(
-				"Mountpoint",
-				filepath.Join(sys.MountRoot, drive.Name),
-				device.FirstMountPoint))
+		// Verify drive mount and mountopts
+		if device.FirstMountPoint != "" {
+			if device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Name) &&
+				device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
+				err = multierr.Append(err, errInvalidDrive(
+					"Mountpoint",
+					filepath.Join(sys.MountRoot, drive.Name),
+					device.FirstMountPoint))
+			}
+			if !mount.ValidDirectPVMountOpts(device.FirstMountOptions) {
+				err = multierr.Append(err, errInvalidDrive(
+					"MountpointOptions",
+					mount.MountOptRW,
+					device.FirstMountOptions))
+			}
 		}
-		if !mount.ValidDirectPVMountOpts(device.FirstMountOptions) {
-			err = multierr.Append(err, errInvalidDrive(
-				"MountpointOptions",
-				mount.MountOptRW,
-				device.FirstMountOptions))
-		}
+		// Check other device attributes
 		if device.Size < sys.MinSupportedDeviceSize {
 			err = multierr.Append(err, fmt.Errorf(
 				"the size of the drive is less than %v",
@@ -181,12 +196,6 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 				"Hidden",
 				false,
 				device.Hidden))
-		}
-		if device.Removable {
-			err = multierr.Append(err, errInvalidDrive(
-				"Removable",
-				false,
-				device.Removable))
 		}
 		if device.SwapOn {
 			err = multierr.Append(err, errInvalidDrive(
