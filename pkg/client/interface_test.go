@@ -105,7 +105,7 @@ func createTestDrive(node, drive, backendVersion string, labels map[string]strin
 	}
 }
 
-func getFakeDirectCSIDriveAdapter(drive runtime.Object, i int, version string, t *testing.T) *directCSIDriveInterface {
+func getFakeDirectCSIDriveAdapter(drive runtime.Object, i int, version string, t *testing.T) *DirectCSIDriveInterface {
 	unstructuredObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(drive)
 	if err != nil {
 		t.Errorf("case %v: Error in converting to unstructured object, Expected err to nil, got %v", i+1, err)
@@ -114,7 +114,7 @@ func getFakeDirectCSIDriveAdapter(drive runtime.Object, i int, version string, t
 	if err != nil {
 		t.Errorf("case %v: Error in creating fake client, Expected err to nil, got %v", i+1, err)
 	}
-	return &directCSIDriveInterface{*fakeDirecCSIClient}
+	return &DirectCSIDriveInterface{*fakeDirecCSIClient}
 }
 
 func TestGetDrive(t *testing.T) {
@@ -193,7 +193,7 @@ func TestListDrive(t *testing.T) {
 		if err != nil {
 			t.Errorf(" case %v: Error in creating fake client, Expected err to nil, got %v", i+1, err)
 		}
-		fakeDirectCSIListAdapter := &directCSIDriveInterface{*fakeDirecCSIClient}
+		fakeDirectCSIListAdapter := &DirectCSIDriveInterface{*fakeDirecCSIClient}
 		driveList, err := fakeDirectCSIListAdapter.List(ctx, metav1.ListOptions{})
 		if err != nil {
 			t.Errorf("case %v: Error in creating fake client, Expected err to nil, got %v", i+1, err)
@@ -255,7 +255,7 @@ func TestListDriveWithOption(t *testing.T) {
 		if err != nil {
 			t.Errorf(" case %v: Error in creating fake client, Expected err to nil, got %v", i+1, err)
 		}
-		fakeDirectCSIListAdapter := &directCSIDriveInterface{*fakeDirecCSIClient}
+		fakeDirectCSIListAdapter := &DirectCSIDriveInterface{*fakeDirecCSIClient}
 		labelMap := map[utils.LabelKey][]utils.LabelValue{
 			utils.NodeLabelKey: {utils.NewLabelValue("N2")},
 		}
@@ -590,7 +590,7 @@ func createTestVolume(volName string, backendVersion string) *directcsi.DirectCS
 	}
 }
 
-func getFakeDirectCSIVolumeAdapter(drive runtime.Object, i int, version string, t *testing.T) *directCSIVolumeInterface {
+func getFakeDirectCSIVolumeAdapter(drive runtime.Object, i int, version string, t *testing.T) *DirectCSIVolumeInterface {
 	unstructuredObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(drive)
 	if err != nil {
 		t.Errorf("case %v: Error in converting to unstructured object, Expected err to nil, got %v", i+1, err)
@@ -599,7 +599,7 @@ func getFakeDirectCSIVolumeAdapter(drive runtime.Object, i int, version string, 
 	if err != nil {
 		t.Errorf("case %v: Error in creating fake client, Expected err to nil, got %v", i+1, err)
 	}
-	return &directCSIVolumeInterface{*fakeDirecCSIClient}
+	return &DirectCSIVolumeInterface{*fakeDirecCSIClient}
 }
 
 func TestGetVolume(t *testing.T) {
@@ -678,7 +678,7 @@ func TestListVolume(t *testing.T) {
 		if err != nil {
 			t.Errorf(" case %v: Error in creating fake client, Expected err to nil, got %v", i+1, err)
 		}
-		fakeDirectCSIListAdapter := &directCSIVolumeInterface{*fakeDirecCSIClient}
+		fakeDirectCSIListAdapter := &DirectCSIVolumeInterface{*fakeDirecCSIClient}
 		volumeList, err := fakeDirectCSIListAdapter.List(ctx, metav1.ListOptions{})
 		if err != nil {
 			t.Errorf("case %v: Error in creating fake client, Expected err to nil, got %v", i+1, err)

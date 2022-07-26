@@ -89,6 +89,10 @@ func GetDiscoveryClient() discovery.DiscoveryInterface {
 	return discoveryClient
 }
 
+func SetDiscoveryClient(client discovery.DiscoveryInterface) {
+	discoveryClient = client
+}
+
 // GetMetadataClient gets metadata client.
 func GetMetadataClient() metadata.Interface {
 	return metadataClient
@@ -144,13 +148,13 @@ func Init() {
 		os.Exit(1)
 	}
 
-	latestDirectCSIDriveInterface, err = directCSIDriveInterfaceForConfig(config)
+	latestDirectCSIDriveInterface, err = DirectCSIDriveInterfaceForConfig(config)
 	if err != nil {
 		fmt.Printf("%s: could not initialize drive adapter client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
 	}
 
-	latestDirectCSIVolumeInterface, err = directCSIVolumeInterfaceForConfig(config)
+	latestDirectCSIVolumeInterface, err = DirectCSIVolumeInterfaceForConfig(config)
 	if err != nil {
 		fmt.Printf("%s: could not initialize volume adapter client: err=%v\n", utils.Bold("Error"), err)
 		os.Exit(1)
