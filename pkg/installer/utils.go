@@ -110,8 +110,8 @@ func newVolumeMount(name, path string, mountPropogation corev1.MountPropagationM
 	}
 }
 
-func getConversionHealthzHandler() corev1.Handler {
-	return corev1.Handler{
+func getConversionHealthzHandler() corev1.ProbeHandler {
+	return corev1.ProbeHandler{
 		HTTPGet: &corev1.HTTPGetAction{
 			Path:   healthZContainerPortPath,
 			Port:   intstr.FromString(conversionWebhookPortName),

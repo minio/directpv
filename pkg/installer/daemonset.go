@@ -184,14 +184,14 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 					},
 				},
 				ReadinessProbe: &corev1.Probe{
-					Handler: getConversionHealthzHandler(),
+					ProbeHandler: getConversionHealthzHandler(),
 				},
 				LivenessProbe: &corev1.Probe{
 					FailureThreshold:    5,
 					InitialDelaySeconds: 300,
 					TimeoutSeconds:      5,
 					PeriodSeconds:       5,
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						HTTPGet: &corev1.HTTPGetAction{
 							Path: healthZContainerPortPath,
 							Port: intstr.FromString(healthZContainerPortName),
