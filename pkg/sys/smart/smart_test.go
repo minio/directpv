@@ -19,19 +19,22 @@
 package smart
 
 import (
-	"fmt"
+	"os"
 	"testing"
 )
 
-func TestSerialNumber(t1 *testing.T) {
+func TestSerialNumber(t *testing.T) {
 	sn, err := GetSerialNumber("/dev/sdb")
 	if err != nil {
-		t1.Errorf("Cannot get serial number: %v", err)
+		if os.IsPermission(err) {
+			t.Skip()
+		}
+		t.Errorf("Cannot get serial number: %v", err)
 	}
-	fmt.Printf("\nSerial Number of /dev/sdb : %s", sn)
+	t.Logf("Serial Number of /dev/sdb : %s", sn)
 	sn, err = GetSerialNumber("/dev/nvme0n1")
 	if err != nil {
-		t1.Errorf("Cannot get serial number: %v", err)
+		t.Errorf("Cannot get serial number: %v", err)
 	}
-	fmt.Printf("\nSerial Number of /dev/nvme0n1: %s\n\n", sn)
+	t.Logf("Serial Number of /dev/nvme0n1: %s", sn)
 }
