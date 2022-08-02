@@ -23,7 +23,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//intSize is the size in bytes (converted to integer) of 0
+// intSize is the size in bytes (converted to integer) of 0
 const intSize int = int(unsafe.Sizeof(0))
 
 // A ByteOrder specifies how to convert byte sequences

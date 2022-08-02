@@ -41,7 +41,6 @@ func registerDriveValidationRules(ctx context.Context, c *Config) error {
 }
 
 func getDriveValidatingWebhookConfig(c *Config) admissionv1.ValidatingWebhookConfiguration {
-
 	getServiceRef := func() *admissionv1.ServiceReference {
 		path := "/validatedrive"
 		return &admissionv1.ServiceReference{
@@ -56,7 +55,6 @@ func getDriveValidatingWebhookConfig(c *Config) admissionv1.ValidatingWebhookCon
 			Service:  getServiceRef(),
 			CABundle: c.validationWebhookCaBundle,
 		}
-
 	}
 
 	getValidationRules := func() []admissionv1.RuleWithOperations {

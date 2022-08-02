@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
@@ -29,9 +29,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var (
-	errDuplicateDevice = errors.New("found duplicate devices for drive")
-)
+var errDuplicateDevice = errors.New("found duplicate devices for drive")
 
 // syncs the directcsidrive states by locally probing the devices
 func (l *listener) sync(ctx context.Context) error {
@@ -204,7 +202,7 @@ func (l *listener) syncDevices(ctx context.Context, devices []*sys.Device) error
 		case 1:
 			klog.V(5).Infof("matched device: %s for drive %s", matchedDevices[0].Name, drive.Name)
 			// unset requested format while matching unidentified drive
-			if drive.Spec.RequestedFormat != nil && matchedDevices[0].FirstMountPoint != filepath.Join(sys.MountRoot, drive.Name) {
+			if drive.Spec.RequestedFormat != nil && matchedDevices[0].FirstMountPoint != path.Join(sys.MountRoot, drive.Name) {
 				drive.Spec.RequestedFormat = nil
 			}
 			if err := l.processMatchedDrive(ctx, matchedDevices[0], drive); err != nil {

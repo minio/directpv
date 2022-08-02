@@ -163,7 +163,8 @@ func CreateDrive(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
 func DeleteDrive(
 	ctx context.Context,
 	drive *directcsi.DirectCSIDrive,
-	force bool) error {
+	force bool,
+) error {
 	var err error
 	if drive.Status.DriveStatus != directcsi.DriveStatusTerminating {
 		drive.Status.DriveStatus = directcsi.DriveStatusTerminating

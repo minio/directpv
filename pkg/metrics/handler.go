@@ -56,7 +56,8 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 func (c *metricsCollector) volumeStatsEmitter(
 	ctx context.Context,
 	ch chan<- prometheus.Metric,
-	volumeStatsGetter xfsVolumeStatsGetter) {
+	volumeStatsGetter xfsVolumeStatsGetter,
+) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -85,7 +86,6 @@ func (c *metricsCollector) volumeStatsEmitter(
 }
 
 func metricsHandler(nodeID string) http.Handler {
-
 	registry := prometheus.NewRegistry()
 
 	mc, err := newMetricsCollector(nodeID)
@@ -108,5 +108,4 @@ func metricsHandler(nodeID string) http.Handler {
 				ErrorHandling: promhttp.ContinueOnError,
 			}),
 	)
-
 }

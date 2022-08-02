@@ -31,9 +31,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var (
-	errStorageClassVersionUnsupported = errors.New("Unsupported StorageClass version found")
-)
+var errStorageClassVersionUnsupported = errors.New("Unsupported StorageClass version found")
 
 func installStorageClassDefault(ctx context.Context, c *Config) error {
 	if err := createStorageClass(ctx, c, c.storageClassNameDirectCSI()); err != nil {

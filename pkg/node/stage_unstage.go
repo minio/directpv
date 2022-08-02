@@ -18,7 +18,7 @@ package node
 
 import (
 	"context"
-	"path/filepath"
+	"path"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/fs/xfs"
@@ -72,9 +72,9 @@ func (n *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	driveMountPoint := filepath.Join(sys.MountRoot, directCSIDrive.Name)
-	path := filepath.Join(driveMountPoint, vID)
-	if err := n.mkdirAll(path, 0755); err != nil {
+	driveMountPoint := path.Join(sys.MountRoot, directCSIDrive.Name)
+	path := path.Join(driveMountPoint, vID)
+	if err := n.mkdirAll(path, 0o755); err != nil {
 		return nil, err
 	}
 

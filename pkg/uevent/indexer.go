@@ -27,9 +27,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var (
-	errNotDirectCSIDriveObject = errors.New("not a directcsidrive object")
-)
+var errNotDirectCSIDriveObject = errors.New("not a directcsidrive object")
 
 type indexer struct {
 	store  cache.Store

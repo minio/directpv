@@ -41,7 +41,6 @@ const (
 )
 
 func parseVolumeContext(volumeContext map[string]string) (name, ns string, err error) {
-
 	parseValue := func(key string) (string, error) {
 		value, ok := volumeContext[key]
 		if !ok {
@@ -129,7 +128,7 @@ func (n *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if err := os.MkdirAll(req.GetTargetPath(), 0755); err != nil {
+	if err := os.MkdirAll(req.GetTargetPath(), 0o755); err != nil {
 		return nil, err
 	}
 

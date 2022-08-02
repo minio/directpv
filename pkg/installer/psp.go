@@ -31,7 +31,6 @@ import (
 )
 
 func createPodSecurityPolicy(ctx context.Context, i *Config) error {
-
 	pspObj := &policy.PodSecurityPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policy/v1beta1",
@@ -146,7 +145,6 @@ func installPSPDefault(ctx context.Context, i *Config) error {
 
 	klog.Infof("pod security policy is not supported in your kubernetes")
 	return nil
-
 }
 
 func uninstallPSPDefault(ctx context.Context, i *Config) error {

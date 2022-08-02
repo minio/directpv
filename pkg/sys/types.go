@@ -17,7 +17,7 @@
 package sys
 
 import (
-	"path/filepath"
+	"path"
 
 	"github.com/minio/directpv/pkg/mount"
 )
@@ -96,5 +96,5 @@ type Device struct {
 
 // DevPath return /dev notation of the path
 func (d Device) DevPath() string {
-	return filepath.Join("/dev", d.Name)
+	return path.Join("/dev", d.Name)
 }

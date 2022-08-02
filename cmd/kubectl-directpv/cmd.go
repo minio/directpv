@@ -38,7 +38,7 @@ var (
 	kubeconfig = ""
 	identity   = "direct.csi.min.io"
 	dryRun     = false
-	//output modes
+	// output modes
 	outputMode = ""
 	wide       = false
 	json       = false
@@ -46,9 +46,11 @@ var (
 	noHeaders  = false
 )
 
-var drives, nodes, driveGlobs, nodeGlobs []string
-var driveSelectorValues, nodeSelectorValues []utils.LabelValue
-var printer func(interface{}) error
+var (
+	drives, nodes, driveGlobs, nodeGlobs    []string
+	driveSelectorValues, nodeSelectorValues []utils.LabelValue
+	printer                                 func(interface{}) error
+)
 
 var pluginCmd = &cobra.Command{
 	Use:           utils.BinaryName(),
@@ -127,7 +129,7 @@ func init() {
 	pluginCmd.AddCommand(uninstallCmd)
 	pluginCmd.AddCommand(drivesCmd)
 	pluginCmd.AddCommand(volumesCmd)
-	//pluginCmd.AddCommand(newVolumesCmd())
+	// pluginCmd.AddCommand(newVolumesCmd())
 }
 
 // Execute executes plugin command.

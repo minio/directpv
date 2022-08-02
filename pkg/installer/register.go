@@ -38,9 +38,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var (
-	errEmptyCABundle = errors.New("CA bundle is empty")
-)
+var errEmptyCABundle = errors.New("CA bundle is empty")
 
 func parseSingleKubeNativeFromBytes(data []byte) (runtime.Object, error) {
 	obj := map[string]interface{}{}
@@ -153,7 +151,6 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 }
 
 func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, c *Config) error {
-
 	getServiceRef := func() *apiextensions.ServiceReference {
 		path := func() string {
 			switch crdObj.Name {

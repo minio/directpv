@@ -259,7 +259,8 @@ func testProbeCast2Result() map[string][]MountInfo {
 			{MajorMinor: "7:5", MountPoint: "/snap/snapd/12159", MountOptions: []string{"nodev", "relatime", "ro"}, fsType: "squashfs"},
 		},
 		"7:6": {
-			{MajorMinor: "7:6", MountPoint: "/snap/snapd/12057", MountOptions: []string{"nodev", "relatime", "ro"}, fsType: "squashfs"}},
+			{MajorMinor: "7:6", MountPoint: "/snap/snapd/12057", MountOptions: []string{"nodev", "relatime", "ro"}, fsType: "squashfs"},
+		},
 	}
 }
 
@@ -514,7 +515,8 @@ func testProbeCast3Result() map[string][]MountInfo {
 			{MajorMinor: "7:5", MountPoint: "/snap/snapd/12159", MountOptions: []string{"nodev", "relatime", "ro"}, fsType: "squashfs"},
 		},
 		"7:6": {
-			{MajorMinor: "7:6", MountPoint: "/snap/snapd/12057", MountOptions: []string{"nodev", "relatime", "ro"}, fsType: "squashfs"}},
+			{MajorMinor: "7:6", MountPoint: "/snap/snapd/12057", MountOptions: []string{"nodev", "relatime", "ro"}, fsType: "squashfs"},
+		},
 	}
 }
 

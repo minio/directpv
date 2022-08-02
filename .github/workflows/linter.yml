@@ -23,15 +23,15 @@ jobs:
         env:
           SHELLCHECK_OPTS: -e SC1091
 
-      - name: Set up Go 1.17.x
+      - name: Set up Go 1.18.x
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17.x
+          go-version: 1.18.x
         
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.42.1
+          version: v1.47.3
 
           # Optional: working directory, useful for monorepos
           # working-directory: somedir

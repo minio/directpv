@@ -22,9 +22,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var status, accessTiers, statusGlobs []string
-var accessTierSelectorValues []utils.LabelValue
-var driveStatusList []directcsi.DriveStatus
+var (
+	status, accessTiers, statusGlobs []string
+	accessTierSelectorValues         []utils.LabelValue
+	driveStatusList                  []directcsi.DriveStatus
+)
 
 var drivesCmd = &cobra.Command{
 	Use:   "drives",

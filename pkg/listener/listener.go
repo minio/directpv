@@ -46,9 +46,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-var (
-	errLeaderElectionDied = errors.New("leaderelection died")
-)
+var errLeaderElectionDied = errors.New("leaderelection died")
 
 func getNamespace() string {
 	if ns := os.Getenv("POD_NAMESPACE"); ns != "" {

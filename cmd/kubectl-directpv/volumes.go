@@ -21,8 +21,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var volumeStatus, volumeStatusList, podNames, podNameGlobs, podNss, podNsGlobs []string
-var podNameSelectorValues, podNsSelectorValues []utils.LabelValue
+var (
+	volumeStatus, volumeStatusList, podNames, podNameGlobs, podNss, podNsGlobs []string
+	podNameSelectorValues, podNsSelectorValues                                 []utils.LabelValue
+)
 
 var volumesCmd = &cobra.Command{
 	Use:   "volumes",

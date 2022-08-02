@@ -34,8 +34,7 @@ const (
 	xfsFileSystem = "xfs"
 )
 
-type validationHandler struct {
-}
+type validationHandler struct{}
 
 func parseAdmissionReview(req *http.Request) (admissionv1.AdmissionReview, error) {
 	var body []byte
@@ -177,7 +176,6 @@ func validateRequestedFormat(directCSIDrive directcsi.DirectCSIDrive, admissionR
    - Check if force option is set if the drive has an existing filesystem or mountpoint
 */
 func (vh *validationHandler) validateDrive(w http.ResponseWriter, r *http.Request) {
-
 	admissionReview, err := parseAdmissionReview(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse the body: %v", err), http.StatusBadRequest)
@@ -209,7 +207,6 @@ func (vh *validationHandler) validateDrive(w http.ResponseWriter, r *http.Reques
 
 // To-Do: Volume updates other than conditions shouldn't be allowed.
 func (vh *validationHandler) validateVolume(w http.ResponseWriter, r *http.Request) {
-
 	admissionReview, err := parseAdmissionReview(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse the body: %v", err), http.StatusBadRequest)

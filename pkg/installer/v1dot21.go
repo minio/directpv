@@ -34,33 +34,43 @@ func newV1Dot21(config *Config) *v1dot21 {
 func (v *v1dot21) installNS(ctx context.Context) error {
 	return installNSDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installRBAC(ctx context.Context) error {
 	return installRBACDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installPSP(ctx context.Context) error {
 	return installPSPDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installConversionSecret(ctx context.Context) error {
 	return installConversionSecretDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installCRD(ctx context.Context) error {
 	return installCRDDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installCSIDriver(ctx context.Context) error {
 	return installCSIDriverDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installStorageClass(ctx context.Context) error {
 	return installStorageClassDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installService(ctx context.Context) error {
 	return installServiceDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installDaemonset(ctx context.Context) error {
 	return installDaemonsetDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installDeployment(ctx context.Context) error {
 	return installDeploymentDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) installValidationRules(ctx context.Context) error {
 	return installValidationRulesDefault(ctx, v.Config)
 }
@@ -69,33 +79,43 @@ func (v *v1dot21) installValidationRules(ctx context.Context) error {
 func (v *v1dot21) uninstallNS(ctx context.Context) error {
 	return uninstallNSDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallRBAC(ctx context.Context) error {
 	return uninstallRBACDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallPSP(ctx context.Context) error {
 	return uninstallPSPDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallConversionSecret(ctx context.Context) error {
 	return uninstallConversionSecretDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallCRD(ctx context.Context) error {
 	return uninstallCRDDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallCSIDriver(ctx context.Context) error {
 	return uninstallCSIDriverDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallStorageClass(ctx context.Context) error {
 	return uninstallStorageClassDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallService(ctx context.Context) error {
 	return uninstallServiceDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallDaemonset(ctx context.Context) error {
 	return uninstallDaemonsetDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallDeployment(ctx context.Context) error {
 	return uninstallDeploymentDefault(ctx, v.Config)
 }
+
 func (v *v1dot21) uninstallValidationRules(ctx context.Context) error {
 	return uninstallValidationRulesDefault(ctx, v.Config)
 }

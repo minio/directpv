@@ -19,7 +19,7 @@ package node
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"path"
 	"reflect"
 	"testing"
 
@@ -1355,7 +1355,7 @@ func TestSetDriveStatus(t *testing.T) {
 				LogicalBlockSize:  uint64(512),
 				PhysicalBlockSize: uint64(512),
 				Partition:         1,
-				FirstMountPoint:   filepath.Join(sys.MountRoot, "test-drive"),
+				FirstMountPoint:   path.Join(sys.MountRoot, "test-drive"),
 			},
 			drive: &directcsi.DirectCSIDrive{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -1484,7 +1484,7 @@ func TestSetDriveStatus(t *testing.T) {
 					PartTableUUID:     "7e3bf265-0396-440b-88fd-dc2003505583",
 					PartTableType:     "gpt",
 					DriveStatus:       directcsi.DriveStatusReady,
-					Mountpoint:        filepath.Join(sys.MountRoot, "test-drive"),
+					Mountpoint:        path.Join(sys.MountRoot, "test-drive"),
 					Topology: map[string]string{
 						string(utils.TopologyDriverIdentity): "identity",
 						string(utils.TopologyDriverRack):     "rack",
@@ -1551,7 +1551,7 @@ func TestSetDriveStatus(t *testing.T) {
 				LogicalBlockSize:  uint64(512),
 				PhysicalBlockSize: uint64(512),
 				Partition:         1,
-				// FirstMountPoint:   filepath.Join(sys.MountRoot, "test-drive"),
+				// FirstMountPoint:   path.Join(sys.MountRoot, "test-drive"),
 			},
 			drive: &directcsi.DirectCSIDrive{
 				TypeMeta: utils.DirectCSIDriveTypeMeta(),
@@ -1592,7 +1592,7 @@ func TestSetDriveStatus(t *testing.T) {
 					PartTableUUID:     "7e3bf265-0396-440b-88fd-dc2003505583",
 					PartTableType:     "gpt",
 					DriveStatus:       directcsi.DriveStatusReleased,
-					Mountpoint:        filepath.Join(sys.MountRoot, "test-drive"),
+					Mountpoint:        path.Join(sys.MountRoot, "test-drive"),
 					Topology: map[string]string{
 						string(utils.TopologyDriverIdentity): "identity",
 						string(utils.TopologyDriverRack):     "rack",
@@ -2641,5 +2641,4 @@ func TestSyncVolumeLabels(t *testing.T) {
 			t.Fatalf("drive path label mismatch. expected: sdb1 got %s", value)
 		}
 	}
-
 }

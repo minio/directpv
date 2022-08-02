@@ -30,9 +30,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var (
-	errCSIDriverVersionUnsupported = errors.New("Unsupported CSIDriver version found")
-)
+var errCSIDriverVersionUnsupported = errors.New("Unsupported CSIDriver version found")
 
 func createCSIDriver(ctx context.Context, c *Config) error {
 	podInfoOnMount := true

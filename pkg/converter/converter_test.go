@@ -137,7 +137,6 @@ request:
 	if directCSIDrive.Status.AccessTier != directv1beta1.AccessTierUnknown {
 		t.Errorf("expected status.accessTier = %v, actual status.accessTier = %v", directv1beta1.AccessTierUnknown, directCSIDrive.Status.AccessTier)
 	}
-
 }
 
 func TestV1alpha1ToV1beta2VolumeUpgrade(t *testing.T) {
@@ -264,7 +263,6 @@ request:
 	if !utils.IsCondition(directCSIVolume.Status.Conditions, string(directv1beta2.DirectCSIVolumeConditionReady), metav1.ConditionTrue, string(directv1beta2.DirectCSIVolumeReasonReady), "") {
 		t.Errorf("unexpected status.conditions = %v", directCSIVolume.Status.Conditions)
 	}
-
 }
 
 func TestV1alpha1ToV1beta4VolumeUpgrade(t *testing.T) {
@@ -391,7 +389,6 @@ request:
 	if !utils.IsCondition(directCSIVolume.Status.Conditions, string(directv1beta4.DirectCSIVolumeConditionReady), metav1.ConditionTrue, string(directv1beta4.DirectCSIVolumeReasonReady), "") {
 		t.Errorf("unexpected status.conditions = %v", directCSIVolume.Status.Conditions)
 	}
-
 }
 
 func TestV1beta1ToV1beta2DriveUpgrade(t *testing.T) {
@@ -806,7 +803,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta4"},
+				Version: "v1beta4",
+			},
 		},
 		// upgrade drive v1beta1 => v1beta3
 		{
@@ -848,7 +846,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta3"},
+				Version: "v1beta3",
+			},
 		},
 		// upgrade drive v1beta2 => v1beta4
 		{
@@ -892,7 +891,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta4"},
+				Version: "v1beta4",
+			},
 		},
 		// upgrade drive v1beta2 => v1beta3
 		{
@@ -934,7 +934,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta3"},
+				Version: "v1beta3",
+			},
 		},
 
 		// downgrade drive v1beta4 => v1beta1
@@ -979,7 +980,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta1"},
+				Version: "v1beta1",
+			},
 		},
 		// downgrade drive v1beta4 => v1beta2
 		{
@@ -1023,7 +1025,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta2"},
+				Version: "v1beta2",
+			},
 		},
 		// downgrade drive v1beta4 => v1beta3
 		{
@@ -1067,7 +1070,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta3"},
+				Version: "v1beta3",
+			},
 		},
 
 		// downgrade drive v1beta3 => v1beta1
@@ -1110,7 +1114,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta1"},
+				Version: "v1beta1",
+			},
 		},
 		// downgrade drive v1beta3 => v1beta2
 		{
@@ -1152,7 +1157,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta2"},
+				Version: "v1beta2",
+			},
 		},
 
 		// upgrage volume v1beta1 => v1beta4
@@ -1189,7 +1195,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta4"},
+				Version: "v1beta4",
+			},
 		},
 		// upgrage volume v1beta2 => v1beta4
 		{
@@ -1225,7 +1232,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta4"},
+				Version: "v1beta4",
+			},
 		},
 		// upgrage volume v1beta1 => v1beta3
 		{
@@ -1261,7 +1269,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta3"},
+				Version: "v1beta3",
+			},
 		},
 		// upgrage volume v1beta2 => v1beta3
 		{
@@ -1297,7 +1306,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta3"},
+				Version: "v1beta3",
+			},
 		},
 		// downgrade volume v1beta4 => v1beta1
 		{
@@ -1333,7 +1343,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta1"},
+				Version: "v1beta1",
+			},
 		},
 		// downgrage volume v1beta4 => v1beta2
 		{
@@ -1369,7 +1380,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta2"},
+				Version: "v1beta2",
+			},
 		},
 		// downgrage volume v1beta4 => v1beta3
 		{
@@ -1405,7 +1417,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta3"},
+				Version: "v1beta3",
+			},
 		},
 
 		// downgrade volume v1beta3 => v1beta1
@@ -1442,7 +1455,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta1"},
+				Version: "v1beta1",
+			},
 		},
 		// downgrage volume v1beta3 => v1beta2
 		{
@@ -1478,7 +1492,8 @@ func TestMigrate(t *testing.T) {
 			},
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
-				Version: "v1beta2"},
+				Version: "v1beta2",
+			},
 		},
 	}
 

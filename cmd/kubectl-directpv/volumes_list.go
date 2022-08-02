@@ -82,7 +82,6 @@ func init() {
 }
 
 func listVolumes(ctx context.Context, args []string) error {
-
 	volumeList, err := getFilteredVolumeList(
 		ctx,
 		func(volume directcsi.DirectCSIVolume) bool {
@@ -150,10 +149,10 @@ func listVolumes(ctx context.Context, args []string) error {
 			}
 		}
 		row := []interface{}{
-			volume.Name, //VOLUME
-			printableBytes(volume.Status.TotalCapacity),                        //CAPACITY
-			volume.Status.NodeName,                                             //SERVER
-			driveName(getLabelValue(&volume, string(utils.DrivePathLabelKey))), //DRIVE
+			volume.Name, // VOLUME
+			printableBytes(volume.Status.TotalCapacity),                        // CAPACITY
+			volume.Status.NodeName,                                             // SERVER
+			driveName(getLabelValue(&volume, string(utils.DrivePathLabelKey))), // DRIVE
 			printableString(volume.Labels[directcsi.Group+"/pod.name"]),
 			printableString(volume.Labels[directcsi.Group+"/pod.namespace"]),
 			msg,

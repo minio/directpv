@@ -21,6 +21,7 @@ import (
 	"html/template"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -67,7 +68,7 @@ func ToYAML(obj interface{}) (string, error) {
 	return string(data), nil
 }
 
-//WriteObject writes the writer content
+// WriteObject writes the writer content
 func WriteObject(writer io.Writer, obj interface{}) error {
 	y, err := ToYAML(obj)
 	if err != nil {
@@ -119,7 +120,7 @@ func GetDefaultAuditDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(homeDir, defaultDirectCSIDir, auditDir), nil
+	return path.Join(homeDir, defaultDirectCSIDir, auditDir), nil
 }
 
 // OpenAuditFile opens the file for writing
@@ -128,10 +129,10 @@ func OpenAuditFile(auditFile string) (*SafeFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get default audit directory ; %w", err)
 	}
-	if err := os.MkdirAll(defaultAuditDir, 0700); err != nil {
+	if err := os.MkdirAll(defaultAuditDir, 0o700); err != nil {
 		return nil, fmt.Errorf("unable to create default audit directory : %w", err)
 	}
-	return NewSafeFile(filepath.Join(defaultAuditDir, fmt.Sprintf("%v-%v", auditFile, time.Now().UnixNano())))
+	return NewSafeFile(path.Join(defaultAuditDir, fmt.Sprintf("%v-%v", auditFile, time.Now().UnixNano())))
 }
 
 // GetMajorMinorFromStr parses the maj:min string and extracts major and minor
