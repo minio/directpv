@@ -601,6 +601,7 @@ func getFakeDirectCSIVolumeAdapter(drive runtime.Object, i int, version string, 
 	}
 	return &directCSIVolumeInterface{*fakeDirecCSIClient}
 }
+
 func TestGetVolume(t *testing.T) {
 	testCases := []struct {
 		backendVersion string
@@ -687,7 +688,6 @@ func TestListVolume(t *testing.T) {
 			t.Fatalf("case %v: result: expected: %v, got: %v", i+1, expectedGV, volumeList.GetObjectKind().GroupVersionKind().GroupVersion())
 		}
 	}
-
 }
 
 func TestCreateVolume(t *testing.T) {

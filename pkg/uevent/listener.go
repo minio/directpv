@@ -322,7 +322,8 @@ func (l *listener) validateDevice(device *sys.Device) (bool, error) {
 func (l *listener) processAdd(ctx context.Context,
 	matchResult matchResult,
 	device *sys.Device,
-	drive *directcsi.DirectCSIDrive) error {
+	drive *directcsi.DirectCSIDrive,
+) error {
 	switch matchResult {
 	case noMatch:
 		return l.handler.Add(ctx, device)
@@ -339,7 +340,8 @@ func (l *listener) processAdd(ctx context.Context,
 func (l *listener) processUpdate(ctx context.Context,
 	matchResult matchResult,
 	device *sys.Device,
-	drive *directcsi.DirectCSIDrive) error {
+	drive *directcsi.DirectCSIDrive,
+) error {
 	switch matchResult {
 	case noMatch:
 		return nil
@@ -375,7 +377,8 @@ func (l *listener) processUpdate(ctx context.Context,
 func (l *listener) processRemove(ctx context.Context,
 	matchResult matchResult,
 	device *sys.Device,
-	drive *directcsi.DirectCSIDrive) error {
+	drive *directcsi.DirectCSIDrive,
+) error {
 	switch matchResult {
 	case noMatch:
 		klog.V(5).InfoS(

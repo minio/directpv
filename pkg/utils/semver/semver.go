@@ -46,15 +46,15 @@ func (v *SemVer) Compare(other *SemVer) int {
 func NewVersion(version string) (*SemVer, error) {
 	versionNumParser := func(end1, end2 rune,
 		followFn1, followFn2 func(rune) (bool, bool, interface{}),
-		shouldContinue bool) func(r rune) (bool, bool, interface{}) {
-
+		shouldContinue bool,
+	) func(r rune) (bool, bool, interface{}) {
 		// This is the definition of parseFunc
 		// input is the current rune being parsed
 		// return values are
 		//  - validSoFar - indicates that the parsing has been successful so far
 		//  - mustHaveMoreInput - indicates that the parsing cannot end at the current rune
 
-		//var parseFn func(in rune) (validSoFar bool, mustHaveMoreInput bool)
+		// var parseFn func(in rune) (validSoFar bool, mustHaveMoreInput bool)
 
 		var parse func(r rune) (bool, bool, interface{})
 		var parseEnd func(r rune) (bool, bool, interface{})
@@ -185,7 +185,6 @@ func NewVersion(version string) (*SemVer, error) {
 				return true, false, parsePrerelease
 			}
 			return false, false, parsePrereleaseStart
-
 		}
 		return parsePrereleaseStart
 	}

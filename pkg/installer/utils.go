@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
@@ -61,7 +61,7 @@ func newRandomString(length int) string {
 }
 
 func newDirectCSIPluginsSocketDir(kubeletDir, name string) string {
-	return filepath.Join(kubeletDir, "plugins", utils.SanitizeKubeResourceName(name))
+	return path.Join(kubeletDir, "plugins", utils.SanitizeKubeResourceName(name))
 }
 
 func getConversionWebhookDNSName(identity string) string {

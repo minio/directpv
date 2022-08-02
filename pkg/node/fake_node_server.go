@@ -37,12 +37,15 @@ type fakeXFS struct{}
 func (fxfs *fakeXFS) ID() string {
 	return ""
 }
+
 func (fxfs *fakeXFS) Type() string {
 	return "xfs"
 }
+
 func (fxfs *fakeXFS) TotalCapacity() uint64 {
 	return uint64(0)
 }
+
 func (fxfs *fakeXFS) FreeCapacity() uint64 {
 	return uint64(0)
 }

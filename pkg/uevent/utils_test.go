@@ -26,7 +26,6 @@ import (
 )
 
 func TestGetRootBlockPath(t1 *testing.T) {
-
 	testCases := []struct {
 		name     string
 		devName  string
@@ -107,8 +106,8 @@ func TestGetRootBlockPath(t1 *testing.T) {
 			}
 		})
 	}
-
 }
+
 func TestValidateUDevInfo(t1 *testing.T) {
 	testCases := []struct {
 		device         *sys.Device

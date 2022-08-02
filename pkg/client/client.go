@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -83,7 +83,7 @@ func getKubeConfig() (*rest.Config, string, error) {
 		if err != nil {
 			klog.Infof("could not find home dir: %v", err)
 		}
-		kubeConfig = filepath.Join(home, ".kube", "config")
+		kubeConfig = path.Join(home, ".kube", "config")
 	}
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)

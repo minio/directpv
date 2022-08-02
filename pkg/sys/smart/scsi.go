@@ -29,16 +29,14 @@ const (
 	// inqReplyLen = 96
 	inqReplyLen = 20
 
-	sgInfoOk     = 0x0 //no sense, host nor driver "noise" or error
-	sgInfoOkMask = 0x1 //indicates whether some error or status field is non-zero
+	sgInfoOk     = 0x0 // no sense, host nor driver "noise" or error
+	sgInfoOkMask = 0x1 // indicates whether some error or status field is non-zero
 
-	sgIO           = 0x2285 //scsi generic ioctl command
+	sgIO           = 0x2285 // scsi generic ioctl command
 	sgDxferFromDev = -3
 )
 
-var (
-	serialInquiry = []byte{0x12, 0x01, 0x80, 0x00, 0x60, 0x00}
-)
+var serialInquiry = []byte{0x12, 0x01, 0x80, 0x00, 0x60, 0x00}
 
 type scsiDevice struct {
 	Name string
@@ -145,7 +143,7 @@ func (d *scsiDevice) sendCDB(cdb []byte, respBuf *[]byte) error {
 }
 
 func (d *scsiDevice) open() (err error) {
-	d.fd, err = unix.Open(d.Name, unix.O_RDWR, 0600)
+	d.fd, err = unix.Open(d.Name, unix.O_RDWR, 0o600)
 	return err
 }
 

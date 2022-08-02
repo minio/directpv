@@ -232,7 +232,6 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 }
 
 func TestAbnormalDeleteVolume(t1 *testing.T) {
-
 	testVolumeObjects := []runtime.Object{
 		&directcsi.DirectCSIVolume{
 			TypeMeta: utils.DirectCSIVolumeTypeMeta(),

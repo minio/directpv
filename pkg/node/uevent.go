@@ -34,8 +34,8 @@ import (
 // RunDynamicDriveHandler starts the listener
 func RunDynamicDriveHandler(ctx context.Context,
 	identity, nodeID, rack, zone, region string,
-	disableUDevListener bool) error {
-
+	disableUDevListener bool,
+) error {
 	handler := &driveEventHandler{
 		nodeID: nodeID,
 		topology: map[string]string{

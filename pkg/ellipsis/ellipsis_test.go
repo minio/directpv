@@ -44,9 +44,11 @@ func TestExpand(t *testing.T) {
 		// Valid case- Start with ellipsis
 		{"{a...c}p{0...2}9", []string{"ap09", "ap19", "ap29", "bp09", "bp19", "bp29", "cp09", "cp19", "cp29"}, false},
 		// Valid case- Start with ellipsis
-		{"{a...c}p{0...2}9{d...a}", []string{"ap09a", "ap09b", "ap09c", "ap09d", "ap19a", "ap19b", "ap19c", "ap19d", "ap29a",
+		{"{a...c}p{0...2}9{d...a}", []string{
+			"ap09a", "ap09b", "ap09c", "ap09d", "ap19a", "ap19b", "ap19c", "ap19d", "ap29a",
 			"ap29b", "ap29c", "ap29d", "bp09a", "bp09b", "bp09c", "bp09d", "bp19a", "bp19b", "bp19c", "bp19d", "bp29a",
-			"bp29b", "bp29c", "bp29d", "cp09a", "cp09b", "cp09c", "cp09d", "cp19a", "cp19b", "cp19c", "cp19d", "cp29a", "cp29b", "cp29c", "cp29d"}, false},
+			"bp29b", "bp29c", "bp29d", "cp09a", "cp09b", "cp09c", "cp09d", "cp19a", "cp19b", "cp19c", "cp19d", "cp29a", "cp29b", "cp29c", "cp29d",
+		}, false},
 		// Valid case- Start with non-ellipsis
 		{"abc", []string{"abc"}, false},
 		// Valid case- Start with non-ellipsis
@@ -58,13 +60,15 @@ func TestExpand(t *testing.T) {
 		// Valid case- ellipsis start with two digit
 		{"a{12...20}x", []string{"a12x", "a13x", "a14x", "a15x", "a16x", "a17x", "a18x", "a19x", "a20x"}, false},
 		// Valid case - ellipsis start with two digit end with two digits
-		{"ax{ab...dx}y", []string{"axaby", "axacy", "axady", "axaey", "axafy", "axagy", "axahy", "axaiy", "axajy", "axaky",
+		{"ax{ab...dx}y", []string{
+			"axaby", "axacy", "axady", "axaey", "axafy", "axagy", "axahy", "axaiy", "axajy", "axaky",
 			"axaly", "axamy", "axany", "axaoy", "axapy", "axaqy", "axary", "axasy", "axaty", "axauy", "axavy", "axawy", "axaxy", "axayy", "axazy",
 			"axbay", "axbby", "axbcy", "axbdy", "axbey", "axbfy", "axbgy", "axbhy", "axbiy", "axbjy", "axbky", "axbly", "axbmy", "axbny", "axboy",
 			"axbpy", "axbqy", "axbry", "axbsy", "axbty", "axbuy", "axbvy", "axbwy", "axbxy", "axbyy", "axbzy", "axcay", "axcby", "axccy", "axcdy",
 			"axcey", "axcfy", "axcgy", "axchy", "axciy", "axcjy", "axcky", "axcly", "axcmy", "axcny", "axcoy", "axcpy", "axcqy", "axcry", "axcsy",
 			"axcty", "axcuy", "axcvy", "axcwy", "axcxy", "axcyy", "axczy", "axday", "axdby", "axdcy", "axddy", "axdey", "axdfy", "axdgy", "axdhy",
-			"axdiy", "axdjy", "axdky", "axdly", "axdmy", "axdny", "axdoy", "axdpy", "axdqy", "axdry", "axdsy", "axdty", "axduy", "axdvy", "axdwy", "axdxy"}, false},
+			"axdiy", "axdjy", "axdky", "axdly", "axdmy", "axdny", "axdoy", "axdpy", "axdqy", "axdry", "axdsy", "axdty", "axduy", "axdvy", "axdwy", "axdxy",
+		}, false},
 		// Invalid case with one dot
 		{"a{a.c}p", nil, true},
 		// Invalid case - two dots

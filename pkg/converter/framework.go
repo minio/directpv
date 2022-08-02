@@ -69,7 +69,6 @@ func conversionResponseFailureWithMessagef(msg string, params ...interface{}) *v
 			Status:  metav1.StatusFailure,
 		},
 	}
-
 }
 
 func statusErrorWithMessage(msg string, params ...interface{}) metav1.Status {
@@ -170,11 +169,13 @@ type mediaType struct {
 	Type, SubType string
 }
 
-var scheme = runtime.NewScheme()
-var serializers = map[mediaType]runtime.Serializer{
-	{"application", "json"}: json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{}),
-	{"application", "yaml"}: json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{Yaml: true}),
-}
+var (
+	scheme      = runtime.NewScheme()
+	serializers = map[mediaType]runtime.Serializer{
+		{"application", "json"}: json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{}),
+		{"application", "yaml"}: json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme, scheme, json.SerializerOptions{Yaml: true}),
+	}
+)
 
 func getInputSerializer(contentType string) runtime.Serializer {
 	parts := strings.SplitN(contentType, "/", 2)

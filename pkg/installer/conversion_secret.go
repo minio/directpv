@@ -29,7 +29,6 @@ import (
 )
 
 func createOrUpdateConversionKeyPairSecret(ctx context.Context, publicCertBytes, privateKeyBytes []byte, c *Config) error {
-
 	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
 
 	getCertsDataMap := func() map[string][]byte {
@@ -77,7 +76,6 @@ func createOrUpdateConversionKeyPairSecret(ctx context.Context, publicCertBytes,
 }
 
 func createOrUpdateConversionCACertSecret(ctx context.Context, caCertBytes []byte, c *Config) error {
-
 	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
 
 	getCertsDataMap := func() map[string][]byte {

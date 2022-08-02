@@ -19,6 +19,7 @@ package drive
 import (
 	"errors"
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -68,7 +69,6 @@ func getFSUUIDFromDrive(drive *directcsi.DirectCSIDrive) string {
 //            Else, return errNotMounted
 // ----------------------------------------------------------------------------
 func VerifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
-
 	if utils.IsV1Beta1Drive(drive) && drive.Status.MajorNumber == uint32(0) && drive.Status.MinorNumber == uint32(0) {
 		klog.V(4).Infof("waiting for drive %s to be upgraded from v1beta1", drive.Status.Path)
 		return errDriveNotUpgraded
@@ -118,7 +118,7 @@ func VerifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 
 	if drive.Status.DriveStatus == directcsi.DriveStatusInUse ||
 		drive.Status.DriveStatus == directcsi.DriveStatusReady {
-		target := filepath.Join(sys.MountRoot, drive.Name)
+		target := path.Join(sys.MountRoot, drive.Name)
 		mounted, err := mount.IsMounted(target)
 		if err != nil {
 			return err

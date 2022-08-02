@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"reflect"
 	"testing"
 	"time"
@@ -81,8 +81,7 @@ func TestNewSafeFile(t *testing.T) {
 	dirname, _ := os.UserHomeDir()
 	timeinNs := time.Now().UnixNano()
 	homeDir, _ := homedir.Dir()
-	filepath.Join(homeDir, ".direct-csi")
-	defaultDirname := filepath.Join(homeDir, ".direct-csi")
+	defaultDirname := path.Join(homeDir, ".direct-csi")
 	testCases := []struct {
 		input       string
 		output      *SafeFile
@@ -107,7 +106,6 @@ func TestNewSafeFile(t *testing.T) {
 			t.Fatalf("Test %d: expected %v got %v", i+1, test.input, out.filename)
 		}
 	}
-
 }
 
 func TestIsManagedDrive(t *testing.T) {

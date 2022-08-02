@@ -21,7 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
@@ -130,7 +130,7 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *direc
 	case errNotMounted:
 		return handler.mountDrive(ctx, drive, false)
 	case errInvalidMountOptions:
-		if drive.Status.Mountpoint == filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
+		if drive.Status.Mountpoint == path.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
 			// do not try to umount a legacy mount (fsuuid mounts)
 			return nil
 		}
@@ -141,7 +141,6 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *direc
 		}
 		return err
 	}
-
 }
 
 func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.DirectCSIDrive) error {
@@ -149,7 +148,7 @@ func (handler *driveEventHandler) delete(ctx context.Context, drive *directcsi.D
 }
 
 func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.DirectCSIDrive) (err error) {
-	target := filepath.Join(sys.MountRoot, drive.Name)
+	target := path.Join(sys.MountRoot, drive.Name)
 	mounted, err := handler.isMounted(target)
 	if err != nil {
 		klog.Error(err)
@@ -188,7 +187,7 @@ func (handler *driveEventHandler) format(ctx context.Context, drive *directcsi.D
 	}
 	// mount the drive
 	if err == nil {
-		target := filepath.Join(sys.MountRoot, drive.Name)
+		target := path.Join(sys.MountRoot, drive.Name)
 		err = handler.mountDevice(device, target, []string{})
 		if err != nil {
 			klog.Errorf("failed to mount drive %s; %w", drive.Name, err)
@@ -266,7 +265,7 @@ func (handler *driveEventHandler) mountDrive(ctx context.Context, drive *directc
 		}
 	}
 	if err == nil {
-		target := filepath.Join(sys.MountRoot, drive.Name)
+		target := path.Join(sys.MountRoot, drive.Name)
 		err = handler.mountDevice(device, target, []string{})
 		if err != nil {
 			klog.Errorf("failed to mount drive %s; %w", drive.Name, err)

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -122,10 +123,10 @@ func TestFormatHander(t *testing.T) {
 	var getDeviceCalled, isMountedCalled, statCalled, makeFSCalled, mountDeviceCalled bool
 	dl.isMounted = func(target string) (bool, error) {
 		isMountedCalled = true
-		if target != filepath.Join(sys.MountRoot, testDrive.Name) {
+		if target != path.Join(sys.MountRoot, testDrive.Name) {
 			return false, fmt.Errorf(
 				"expected target %s but got %s",
-				filepath.Join(sys.MountRoot, testDrive.Name),
+				path.Join(sys.MountRoot, testDrive.Name),
 				target,
 			)
 		}
@@ -169,8 +170,8 @@ func TestFormatHander(t *testing.T) {
 		if device != testDrive.Status.Path {
 			return fmt.Errorf("expected device %s but got %s", testDrive.Status.Path, device)
 		}
-		if target != filepath.Join(sys.MountRoot, testDrive.Name) {
-			return fmt.Errorf("expected target %s but got %s", filepath.Join(sys.MountRoot, testDrive.Name), target)
+		if target != path.Join(sys.MountRoot, testDrive.Name) {
+			return fmt.Errorf("expected target %s but got %s", path.Join(sys.MountRoot, testDrive.Name), target)
 		}
 		return nil
 	}
@@ -261,10 +262,10 @@ func TestFormatHanderWithError(t *testing.T) {
 	var getDeviceCalled, isMountedCalled, statCalled, makeFSCalled bool
 	dl.isMounted = func(target string) (bool, error) {
 		isMountedCalled = true
-		if target != filepath.Join(sys.MountRoot, testDrive.Name) {
+		if target != path.Join(sys.MountRoot, testDrive.Name) {
 			return false, fmt.Errorf(
 				"expected target %s but got %s",
-				filepath.Join(sys.MountRoot, testDrive.Name),
+				path.Join(sys.MountRoot, testDrive.Name),
 				target,
 			)
 		}
@@ -579,8 +580,8 @@ func TestMountDriveHander(t *testing.T) {
 		if device != testDrive.Status.Path {
 			return fmt.Errorf("expected device %s but got %s", testDrive.Status.Path, device)
 		}
-		if target != filepath.Join(sys.MountRoot, testDrive.Name) {
-			return fmt.Errorf("expected target %s but got %s", filepath.Join(sys.MountRoot, testDrive.Name), target)
+		if target != path.Join(sys.MountRoot, testDrive.Name) {
+			return fmt.Errorf("expected target %s but got %s", path.Join(sys.MountRoot, testDrive.Name), target)
 		}
 		return nil
 	}
@@ -714,8 +715,8 @@ func TestRemountDriveHander(t *testing.T) {
 		if device != testDrive.Status.Path {
 			return fmt.Errorf("expected device %s but got %s", testDrive.Status.Path, device)
 		}
-		if target != filepath.Join(sys.MountRoot, testDrive.Name) {
-			return fmt.Errorf("expected target %s but got %s", filepath.Join(sys.MountRoot, testDrive.Name), target)
+		if target != path.Join(sys.MountRoot, testDrive.Name) {
+			return fmt.Errorf("expected target %s but got %s", path.Join(sys.MountRoot, testDrive.Name), target)
 		}
 		return nil
 	}

@@ -17,6 +17,7 @@
 package uevent
 
 import (
+	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -39,7 +40,7 @@ func getRootBlockPath(devName string) string {
 			sys.DirectCSIPartitionInfix,
 			sys.HostPartitionInfix,
 		)
-		return filepath.Join(sys.HostDevRoot, name)
+		return path.Join(sys.HostDevRoot, name)
 	}
 }
 
@@ -59,7 +60,6 @@ func ValidateMountInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDr
 
 // ValidateUDevInfo compares and validates the udevinfo of the device with the DirectCSIDrive
 func ValidateUDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDrive) bool {
-
 	if directCSIDrive.Status.Path != device.DevPath() {
 		klog.V(3).Infof("[%s] path mismatch: %v -> %v", directCSIDrive.Status.Path, device.DevPath())
 		return false

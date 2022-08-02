@@ -19,7 +19,7 @@ package installer
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"path"
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
@@ -33,7 +33,6 @@ import (
 )
 
 func createControllerSecret(ctx context.Context, publicCertBytes, privateKeyBytes []byte, c *Config) error {
-
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
 		mp[privateKeyFileName] = privateKeyBytes
@@ -132,7 +131,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 		Containers: []corev1.Container{
 			{
 				Name:  csiProvisionerContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getCSIProvisionerImage()),
+				Image: path.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getCSIProvisionerImage()),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
@@ -171,7 +170,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 			},
 			{
 				Name:  directCSIContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
+				Image: path.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
 				Args: []string{
 					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", c.deploymentName()),

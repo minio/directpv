@@ -65,7 +65,7 @@ func UnmountDevice(device string) error {
 
 // MountXFSDevice mounts device having XFS filesystem into target.
 func MountXFSDevice(device, target string, flags []string) error {
-	if err := os.MkdirAll(target, 0777); err != nil {
+	if err := os.MkdirAll(target, 0o777); err != nil {
 		return err
 	}
 	// mount with "noatime" by default

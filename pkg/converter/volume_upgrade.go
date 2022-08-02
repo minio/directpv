@@ -80,7 +80,6 @@ func upgradeVolumeObject(object *unstructured.Unstructured, toVersion string) er
 }
 
 func volumeUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1alpha1DirectCSIVolume directv1alpha1.DirectCSIVolume
@@ -133,7 +132,6 @@ func volumeUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) err
 }
 
 func volumeUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta1DirectCSIVolume directv1beta1.DirectCSIVolume
@@ -165,7 +163,6 @@ func volumeUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) erro
 }
 
 func volumeUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta2DirectCSIVolume directv1beta2.DirectCSIVolume
@@ -197,7 +194,6 @@ func volumeUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) erro
 }
 
 func volumeUpgradeV1Beta3ToV1Beta4(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta3DirectCSIVolume directv1beta3.DirectCSIVolume

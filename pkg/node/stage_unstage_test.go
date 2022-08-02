@@ -19,7 +19,7 @@ package node
 import (
 	"context"
 	"errors"
-	"path/filepath"
+	"path"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -127,7 +127,7 @@ func TestStageUnstageVolume(t *testing.T) {
 				},
 			},
 			Status: directcsi.DirectCSIDriveStatus{
-				Mountpoint:        filepath.Join(sys.MountRoot, testDriveName),
+				Mountpoint:        path.Join(sys.MountRoot, testDriveName),
 				NodeName:          testNodeName,
 				DriveStatus:       directcsi.DriveStatusInUse,
 				FreeCapacity:      mb50,
@@ -198,8 +198,8 @@ func TestStageUnstageVolume(t *testing.T) {
 	ns := createFakeNodeServer()
 	ns.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
 	directCSIClient := ns.directcsiClient.DirectV1beta4()
-	hostPath := filepath.Join(
-		filepath.Join(
+	hostPath := path.Join(
+		path.Join(
 			sys.MountRoot,
 			testDriveName,
 		),

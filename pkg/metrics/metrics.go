@@ -27,7 +27,6 @@ import (
 
 // ServeMetrics starts metrics service.
 func ServeMetrics(ctx context.Context, nodeID string, port int) {
-
 	server := &http.Server{
 		Handler: metricsHandler(nodeID),
 	}

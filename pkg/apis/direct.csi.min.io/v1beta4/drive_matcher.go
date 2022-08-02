@@ -86,7 +86,7 @@ func ToDriveStatus(value string) (driveStatus DriveStatus, err error) {
 	}
 }
 
-//DriveStatusListToStrings maps drives list status to slice of string
+// DriveStatusListToStrings maps drives list status to slice of string
 func DriveStatusListToStrings(driveStatusList []DriveStatus) (slice []string) {
 	for _, driveStatus := range driveStatusList {
 		slice = append(slice, string(driveStatus))

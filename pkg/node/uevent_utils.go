@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strings"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
@@ -165,11 +165,11 @@ func validateDrive(drive *directcsi.DirectCSIDrive, device *sys.Device) error {
 		}
 		// Verify drive mount and mountopts
 		if device.FirstMountPoint != "" {
-			if device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Name) &&
-				device.FirstMountPoint != filepath.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
+			if device.FirstMountPoint != path.Join(sys.MountRoot, drive.Name) &&
+				device.FirstMountPoint != path.Join(sys.MountRoot, drive.Status.FilesystemUUID) {
 				err = multierr.Append(err, errInvalidDrive(
 					"Mountpoint",
-					filepath.Join(sys.MountRoot, drive.Name),
+					path.Join(sys.MountRoot, drive.Name),
 					device.FirstMountPoint))
 			}
 			if !mount.ValidDirectPVMountOpts(device.FirstMountOptions) {
@@ -263,7 +263,7 @@ func checkAndUpdateConditions(drive *directcsi.DirectCSIDrive, device *sys.Devic
 	case directcsi.DriveStatusAvailable:
 		// Check if formatting request succeeded, If so, update the status fields
 		if drive.Spec.RequestedFormat != nil {
-			if drive.Status.Mountpoint == filepath.Join(sys.MountRoot, drive.Name) {
+			if drive.Status.Mountpoint == path.Join(sys.MountRoot, drive.Name) {
 				drive.Finalizers = []string{directcsi.DirectCSIDriveFinalizerDataProtection}
 				drive.Status.DriveStatus = directcsi.DriveStatusReady
 				drive.Spec.RequestedFormat = nil

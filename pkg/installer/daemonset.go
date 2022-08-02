@@ -19,7 +19,7 @@ package installer
 import (
 	"context"
 	"fmt"
-	"path/filepath"
+	"path"
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
@@ -49,14 +49,12 @@ func uninstallDaemonsetDefault(ctx context.Context, c *Config) error {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}
-
 	}
 	klog.Infof("'%s' daemonset deleted", utils.Bold(c.Identity))
 	return nil
 }
 
 func createDaemonSet(ctx context.Context, c *Config) error {
-
 	privileged := true
 	securityContext := &corev1.SecurityContext{Privileged: &privileged}
 
@@ -106,7 +104,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		Containers: []corev1.Container{
 			{
 				Name:  nodeDriverRegistrarContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getNodeDriverRegistrarImage()),
+				Image: path.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getNodeDriverRegistrarImage()),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--csi-address=unix:///csi/csi.sock",
@@ -133,7 +131,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			},
 			{
 				Name:  directCSIContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
+				Image: path.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
 				Args: func() []string {
 					args := []string{
 						fmt.Sprintf("--identity=%s", c.daemonsetName()),
@@ -203,7 +201,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			},
 			{
 				Name:  livenessProbeContainerName,
-				Image: filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getLivenessProbeImage()),
+				Image: path.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getLivenessProbeImage()),
 				Args: []string{
 					"--csi-address=/csi/csi.sock",
 					"--health-port=9898",
@@ -236,7 +234,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 
 		podSpec.Containers = append(podSpec.Containers, corev1.Container{
 			Name:            directPVDriveDiscoveryContainerName,
-			Image:           filepath.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
+			Image:           path.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.DirectCSIContainerImage),
 			Args:            args,
 			SecurityContext: securityContext,
 			Env: []corev1.EnvVar{

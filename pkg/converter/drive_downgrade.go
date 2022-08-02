@@ -77,7 +77,6 @@ func downgradeDriveObject(object *unstructured.Unstructured, toVersion string) e
 }
 
 func driveDowngradeV1Beta1ToV1alpha1(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta1DirectCSIDrive directv1beta1.DirectCSIDrive
@@ -103,7 +102,6 @@ func driveDowngradeV1Beta1ToV1alpha1(unstructured *unstructured.Unstructured) er
 }
 
 func driveDowngradeV1Beta2ToV1Beta1(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta2DirectCSIDrive directv1beta2.DirectCSIDrive
@@ -129,7 +127,6 @@ func driveDowngradeV1Beta2ToV1Beta1(unstructured *unstructured.Unstructured) err
 }
 
 func driveDowngradeV1Beta3ToV1Beta2(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta3DirectCSIDrive directv1beta3.DirectCSIDrive
@@ -155,7 +152,6 @@ func driveDowngradeV1Beta3ToV1Beta2(unstructured *unstructured.Unstructured) err
 }
 
 func driveDowngradeV1Beta4ToV1Beta3(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta4DirectCSIDrive directv1beta4.DirectCSIDrive

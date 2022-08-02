@@ -22,7 +22,7 @@ import (
 
 func TestSemVer(t *testing.T) {
 	testSet := map[string]bool{
-		//valid semvers
+		// valid semvers
 		"v0.0.4":                 true,
 		"v1.2.3-1.1+build":       true,
 		"v10.20.30-01xtrtrtr":    true,

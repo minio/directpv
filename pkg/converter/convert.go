@@ -33,9 +33,7 @@ import (
 
 type migrateFunc func(object *unstructured.Unstructured, toVersion string) error
 
-var (
-	errUnsupportedCRDKind = errors.New("unsupported CRD Kind")
-)
+var errUnsupportedCRDKind = errors.New("unsupported CRD Kind")
 
 func convertDriveCRD(Object *unstructured.Unstructured, toVersion string) (*unstructured.Unstructured, metav1.Status) {
 	convertedObject := Object.DeepCopy()

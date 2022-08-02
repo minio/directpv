@@ -17,6 +17,7 @@
 package converter
 
 import (
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -46,7 +47,7 @@ func convertV1Beta1V1Beta2DeviceName(devName string) string {
 			sys.DirectCSIPartitionInfix,
 			sys.HostPartitionInfix,
 		)
-		return filepath.Join(sys.HostDevRoot, name)
+		return path.Join(sys.HostDevRoot, name)
 	}
 }
 
@@ -98,7 +99,6 @@ func upgradeDriveObject(object *unstructured.Unstructured, toVersion string) err
 }
 
 func driveUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1alpha1DirectCSIDrive directv1alpha1.DirectCSIDrive
@@ -126,7 +126,6 @@ func driveUpgradeV1alpha1ToV1Beta1(unstructured *unstructured.Unstructured) erro
 }
 
 func driveUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta1DirectCSIDrive directv1beta1.DirectCSIDrive
@@ -161,7 +160,6 @@ func driveUpgradeV1Beta1ToV1Beta2(unstructured *unstructured.Unstructured) error
 }
 
 func driveUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta2DirectCSIDrive directv1beta2.DirectCSIDrive
@@ -196,7 +194,6 @@ func driveUpgradeV1Beta2ToV1Beta3(unstructured *unstructured.Unstructured) error
 }
 
 func driveUpgradeV1Beta3ToV1Beta4(unstructured *unstructured.Unstructured) error {
-
 	unstructuredObject := unstructured.Object
 
 	var v1beta3DirectCSIDrive directv1beta3.DirectCSIDrive

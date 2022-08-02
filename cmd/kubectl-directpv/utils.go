@@ -21,6 +21,7 @@ import (
 	encodingjson "encoding/json"
 	"errors"
 	"fmt"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -117,7 +118,8 @@ func processFilteredDrives(
 	idArgs []string,
 	matchFunc func(*directcsi.DirectCSIDrive) bool,
 	applyFunc func(*directcsi.DirectCSIDrive) error,
-	processFunc func(context.Context, *directcsi.DirectCSIDrive) error, command Command) error {
+	processFunc func(context.Context, *directcsi.DirectCSIDrive) error, command Command,
+) error {
 	var resultCh <-chan client.ListDriveResult
 	var err error
 	if len(idArgs) > 0 {
@@ -343,7 +345,7 @@ func getDirectCSIPath(driveName string) string {
 	if strings.HasPrefix(driveName, sys.HostDevRoot) {
 		return getDirectCSIPath(filepath.Base(driveName))
 	}
-	return filepath.Join(sys.DirectCSIDevRoot, driveName)
+	return path.Join(sys.DirectCSIDevRoot, driveName)
 }
 
 func processFilteredVolumes(
@@ -351,7 +353,8 @@ func processFilteredVolumes(
 	idArgs []string,
 	matchFunc func(*directcsi.DirectCSIVolume) bool,
 	applyFunc func(*directcsi.DirectCSIVolume) error,
-	processFunc func(context.Context, *directcsi.DirectCSIVolume) error, command Command) error {
+	processFunc func(context.Context, *directcsi.DirectCSIVolume) error, command Command,
+) error {
 	var resultCh <-chan client.ListVolumeResult
 	var err error
 	if len(idArgs) > 0 {

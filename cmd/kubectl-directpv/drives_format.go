@@ -30,9 +30,7 @@ import (
 
 const xfs = "xfs"
 
-var (
-	force = false
-)
+var force = false
 
 var formatDrivesCmd = &cobra.Command{
 	Use:   "format",

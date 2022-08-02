@@ -30,9 +30,7 @@ const (
 	nvmeAdminIdentify = 0x06
 )
 
-var (
-	nvmeIoctlAdminCmd = ioctl.Iowr('N', 0x41, unsafe.Sizeof(nvmePassthruCommand{}))
-)
+var nvmeIoctlAdminCmd = ioctl.Iowr('N', 0x41, unsafe.Sizeof(nvmePassthruCommand{}))
 
 type nvmeDevice struct {
 	Name string
@@ -122,7 +120,7 @@ type nvmeIdentController struct {
 } // 4096 bytes
 
 func (d *nvmeDevice) open() (int, error) {
-	return unix.Open(d.Name, unix.O_RDWR, 0600)
+	return unix.Open(d.Name, unix.O_RDWR, 0o600)
 }
 
 func (d *nvmeDevice) close(fd int) error {
@@ -130,7 +128,6 @@ func (d *nvmeDevice) close(fd int) error {
 }
 
 func (d *nvmeDevice) SerialNumber() (string, error) {
-
 	fd, err := d.open()
 	if err != nil {
 		return "", err

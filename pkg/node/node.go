@@ -76,8 +76,8 @@ type NodeServer struct { //revive:disable-line:exported
 // NewNodeServer creates node server.
 func NewNodeServer(ctx context.Context,
 	identity, nodeID, rack, zone, region string,
-	reflinkSupport bool, metricsPort int) (*NodeServer, error) {
-
+	reflinkSupport bool, metricsPort int,
+) (*NodeServer, error) {
 	config, err := client.GetKubeConfig()
 	if err != nil {
 		return &NodeServer{}, err
