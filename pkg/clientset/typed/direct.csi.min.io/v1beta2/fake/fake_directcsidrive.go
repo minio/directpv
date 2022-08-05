@@ -110,7 +110,7 @@ func (c *FakeDirectCSIDrives) UpdateStatus(ctx context.Context, directCSIDrive *
 // Delete takes name of the directCSIDrive and deletes it. Returns an error if one occurs.
 func (c *FakeDirectCSIDrives) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(directcsidrivesResource, name), &v1beta2.DirectCSIDrive{})
+		Invokes(testing.NewRootDeleteActionWithOptions(directcsidrivesResource, name, opts), &v1beta2.DirectCSIDrive{})
 	return err
 }
 

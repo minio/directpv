@@ -82,7 +82,10 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
-var _ clientset.Interface = &Clientset{}
+var (
+	_ clientset.Interface = &Clientset{}
+	_ testing.FakeClient  = &Clientset{}
+)
 
 // DirectV1alpha1 retrieves the DirectV1alpha1Client
 func (c *Clientset) DirectV1alpha1() directv1alpha1.DirectV1alpha1Interface {

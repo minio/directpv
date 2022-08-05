@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -67,6 +68,13 @@ type directCSIInterface struct {
 }
 
 func directCSIInterfaceForConfig(config *rest.Config, kind, resource string) (*directCSIInterface, error) {
+	if GetDiscoveryClient() == nil {
+		dClient, err := discovery.NewDiscoveryClientForConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		SetDiscoveryClient(dClient)
+	}
 	gvk, err := GetGroupKindVersions(
 		directcsi.Group,
 		kind,
@@ -258,22 +266,23 @@ func (d *directCSIInterface) APIVersion() schema.GroupVersion {
 	return d.groupVersion
 }
 
-// directCSIDriveInterface has methods to work with DirectCSIDrive resources.
-type directCSIDriveInterface struct {
+// DirectCSIDriveInterface is a dynamic client interface for DirectCSIDrives
+type DirectCSIDriveInterface struct {
 	directCSIInterface
 }
 
-func directCSIDriveInterfaceForConfig(config *rest.Config) (*directCSIDriveInterface, error) {
+// DirectCSIDriveInterfaceForConfig provides a dynamic client interface for DirectCSIDrives
+func DirectCSIDriveInterfaceForConfig(config *rest.Config) (*DirectCSIDriveInterface, error) {
 	inter, err := directCSIInterfaceForConfig(config, "DirectCSIDrive", "directcsidrives")
 	if err != nil {
 		return nil, err
 	}
 
-	return &directCSIDriveInterface{*inter}, nil
+	return &DirectCSIDriveInterface{*inter}, nil
 }
 
 // Create takes the representation of a directCSIDrive and creates it.  Returns the server's representation of the directCSIDrive, and an error, if there is any.
-func (d *directCSIDriveInterface) Create(ctx context.Context, directCSIDrive *directcsi.DirectCSIDrive, opts metav1.CreateOptions) (*directcsi.DirectCSIDrive, error) {
+func (d *DirectCSIDriveInterface) Create(ctx context.Context, directCSIDrive *directcsi.DirectCSIDrive, opts metav1.CreateOptions) (*directcsi.DirectCSIDrive, error) {
 	directCSIDrive.TypeMeta = utils.DirectCSIDriveTypeMeta()
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(directCSIDrive)
 	if err != nil {
@@ -289,7 +298,7 @@ func (d *directCSIDriveInterface) Create(ctx context.Context, directCSIDrive *di
 }
 
 // Update takes the representation of a directCSIDrive and updates it. Returns the server's representation of the directCSIDrive, and an error, if there is any.
-func (d *directCSIDriveInterface) Update(ctx context.Context, directCSIDrive *directcsi.DirectCSIDrive, opts metav1.UpdateOptions) (*directcsi.DirectCSIDrive, error) {
+func (d *DirectCSIDriveInterface) Update(ctx context.Context, directCSIDrive *directcsi.DirectCSIDrive, opts metav1.UpdateOptions) (*directcsi.DirectCSIDrive, error) {
 	directCSIDrive.TypeMeta = utils.DirectCSIDriveTypeMeta()
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(directCSIDrive)
 	if err != nil {
@@ -306,7 +315,7 @@ func (d *directCSIDriveInterface) Update(ctx context.Context, directCSIDrive *di
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (d *directCSIDriveInterface) UpdateStatus(ctx context.Context, directCSIDrive *directcsi.DirectCSIDrive, opts metav1.UpdateOptions) (*directcsi.DirectCSIDrive, error) {
+func (d *DirectCSIDriveInterface) UpdateStatus(ctx context.Context, directCSIDrive *directcsi.DirectCSIDrive, opts metav1.UpdateOptions) (*directcsi.DirectCSIDrive, error) {
 	directCSIDrive.TypeMeta = utils.DirectCSIDriveTypeMeta()
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(directCSIDrive)
 	if err != nil {
@@ -322,7 +331,7 @@ func (d *directCSIDriveInterface) UpdateStatus(ctx context.Context, directCSIDri
 }
 
 // Get takes name of the directCSIDrive, and returns the corresponding directCSIDrive object, and an error if there is any.
-func (d *directCSIDriveInterface) Get(ctx context.Context, name string, opts metav1.GetOptions) (*directcsi.DirectCSIDrive, error) {
+func (d *DirectCSIDriveInterface) Get(ctx context.Context, name string, opts metav1.GetOptions) (*directcsi.DirectCSIDrive, error) {
 	object, err := d.directCSIInterface.Get(ctx, name, opts)
 	if err != nil {
 		return nil, err
@@ -336,7 +345,7 @@ func (d *directCSIDriveInterface) Get(ctx context.Context, name string, opts met
 }
 
 // List takes label and field selectors, and returns the list of DirectCSIDrives that match those selectors.
-func (d *directCSIDriveInterface) List(ctx context.Context, opts metav1.ListOptions) (*directcsi.DirectCSIDriveList, error) {
+func (d *DirectCSIDriveInterface) List(ctx context.Context, opts metav1.ListOptions) (*directcsi.DirectCSIDriveList, error) {
 	object, items, err := d.directCSIInterface.List(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -362,7 +371,7 @@ func (d *directCSIDriveInterface) List(ctx context.Context, opts metav1.ListOpti
 }
 
 // Patch applies the patch and returns the patched directCSIDrive.
-func (d *directCSIDriveInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *directcsi.DirectCSIDrive, err error) {
+func (d *DirectCSIDriveInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *directcsi.DirectCSIDrive, err error) {
 	object, err := d.directCSIInterface.Patch(ctx, name, pt, data, opts, subresources...)
 	if err != nil {
 		return nil, err
@@ -371,22 +380,23 @@ func (d *directCSIDriveInterface) Patch(ctx context.Context, name string, pt typ
 	return toDirectCSIDrive(object)
 }
 
-// directCSIVolumeInterface has methods to work with DirectCSIVolume resources.
-type directCSIVolumeInterface struct {
+// DirectCSIVolumeInterface is a dynamic client interface for DirectCSIVolumes
+type DirectCSIVolumeInterface struct {
 	directCSIInterface
 }
 
-func directCSIVolumeInterfaceForConfig(config *rest.Config) (*directCSIVolumeInterface, error) {
+// DirectCSIVolumeInterfaceForConfig provides a dynamic client interface for DirectCSIVolumes
+func DirectCSIVolumeInterfaceForConfig(config *rest.Config) (*DirectCSIVolumeInterface, error) {
 	inter, err := directCSIInterfaceForConfig(config, "DirectCSIVolume", "directcsivolumes")
 	if err != nil {
 		return nil, err
 	}
 
-	return &directCSIVolumeInterface{*inter}, nil
+	return &DirectCSIVolumeInterface{*inter}, nil
 }
 
 // Create takes the representation of a directCSIVolume and creates it.  Returns the server's representation of the directCSIVolume, and an error, if there is any.
-func (d *directCSIVolumeInterface) Create(ctx context.Context, directCSIVolume *directcsi.DirectCSIVolume, opts metav1.CreateOptions) (*directcsi.DirectCSIVolume, error) {
+func (d *DirectCSIVolumeInterface) Create(ctx context.Context, directCSIVolume *directcsi.DirectCSIVolume, opts metav1.CreateOptions) (*directcsi.DirectCSIVolume, error) {
 	directCSIVolume.TypeMeta = utils.DirectCSIVolumeTypeMeta()
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(directCSIVolume)
 	if err != nil {
@@ -402,7 +412,7 @@ func (d *directCSIVolumeInterface) Create(ctx context.Context, directCSIVolume *
 }
 
 // Update takes the representation of a directCSIVolume and updates it. Returns the server's representation of the directCSIVolume, and an error, if there is any.
-func (d *directCSIVolumeInterface) Update(ctx context.Context, directCSIVolume *directcsi.DirectCSIVolume, opts metav1.UpdateOptions) (*directcsi.DirectCSIVolume, error) {
+func (d *DirectCSIVolumeInterface) Update(ctx context.Context, directCSIVolume *directcsi.DirectCSIVolume, opts metav1.UpdateOptions) (*directcsi.DirectCSIVolume, error) {
 	directCSIVolume.TypeMeta = utils.DirectCSIVolumeTypeMeta()
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(directCSIVolume)
 	if err != nil {
@@ -419,7 +429,7 @@ func (d *directCSIVolumeInterface) Update(ctx context.Context, directCSIVolume *
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (d *directCSIVolumeInterface) UpdateStatus(ctx context.Context, directCSIVolume *directcsi.DirectCSIVolume, opts metav1.UpdateOptions) (*directcsi.DirectCSIVolume, error) {
+func (d *DirectCSIVolumeInterface) UpdateStatus(ctx context.Context, directCSIVolume *directcsi.DirectCSIVolume, opts metav1.UpdateOptions) (*directcsi.DirectCSIVolume, error) {
 	directCSIVolume.TypeMeta = utils.DirectCSIVolumeTypeMeta()
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(directCSIVolume)
 	if err != nil {
@@ -435,7 +445,7 @@ func (d *directCSIVolumeInterface) UpdateStatus(ctx context.Context, directCSIVo
 }
 
 // Get takes name of the directCSIVolume, and returns the corresponding directCSIVolume object, and an error if there is any.
-func (d *directCSIVolumeInterface) Get(ctx context.Context, name string, opts metav1.GetOptions) (*directcsi.DirectCSIVolume, error) {
+func (d *DirectCSIVolumeInterface) Get(ctx context.Context, name string, opts metav1.GetOptions) (*directcsi.DirectCSIVolume, error) {
 	object, err := d.directCSIInterface.Get(ctx, name, opts)
 	if err != nil {
 		return nil, err
@@ -449,7 +459,7 @@ func (d *directCSIVolumeInterface) Get(ctx context.Context, name string, opts me
 }
 
 // List takes label and field selectors, and returns the list of DirectCSIVolumes that match those selectors.
-func (d *directCSIVolumeInterface) List(ctx context.Context, opts metav1.ListOptions) (*directcsi.DirectCSIVolumeList, error) {
+func (d *DirectCSIVolumeInterface) List(ctx context.Context, opts metav1.ListOptions) (*directcsi.DirectCSIVolumeList, error) {
 	object, items, err := d.directCSIInterface.List(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -475,7 +485,7 @@ func (d *directCSIVolumeInterface) List(ctx context.Context, opts metav1.ListOpt
 }
 
 // Patch applies the patch and returns the patched directCSIVolume.
-func (d *directCSIVolumeInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *directcsi.DirectCSIVolume, err error) {
+func (d *DirectCSIVolumeInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *directcsi.DirectCSIVolume, err error) {
 	object, err := d.directCSIInterface.Patch(ctx, name, pt, data, opts, subresources...)
 	if err != nil {
 		return nil, err

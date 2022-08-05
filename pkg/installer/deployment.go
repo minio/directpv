@@ -199,7 +199,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 					},
 				},
 				ReadinessProbe: &corev1.Probe{
-					Handler: getConversionHealthzHandler(),
+					ProbeHandler: getConversionHealthzHandler(),
 				},
 				Env: []corev1.EnvVar{
 					{
