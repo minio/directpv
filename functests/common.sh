@@ -213,15 +213,25 @@ function deploy_minio() {
 function uninstall_minio() {
     kubectl delete -f functests/minio.yaml
     pending=4
+    retry_count=0
     while [[ $pending -gt 0 ]]; do
+        if [[ $retry_count -gt 50 ]]; then
+            kubectl delete pods --all --force --grace-period 0
+        fi
+        retry_count=$((retry_count + 1))
         echo "$ME: waiting for ${pending} minio pods to go down"
         sleep ${pending}
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep -c '^minio-' || true)
     done
 
     kubectl delete pvc --all
+
+    # purge all the volumes
+    sleep 10
+    "${DIRECT_CSI_CLIENT}" volumes purge --all
+
     # Show output for manual debugging.
-    "${DIRECT_CSI_CLIENT}" volumes ls
+    "${DIRECT_CSI_CLIENT}" volumes ls --all
 
     while true; do
         count=$("${DIRECT_CSI_CLIENT}" volumes ls | awk '!/WARNING/ {count++} END {print count}')
