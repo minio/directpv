@@ -25,7 +25,6 @@ import (
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
-	"github.com/minio/directpv/pkg/converter"
 	"github.com/minio/directpv/pkg/utils"
 
 	"k8s.io/apiextensions-apiserver/pkg/apihelpers"
@@ -79,7 +78,7 @@ func registerCRDs(ctx context.Context, c *Config) error {
 				return err
 			}
 
-			if err := setConversionWebhook(ctx, &crdObj, c); err != nil {
+			if err := setNoneConversionStrategy(ctx, &crdObj, c); err != nil {
 				return err
 			}
 
@@ -132,7 +131,7 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 		}
 	}
 
-	if err := setConversionWebhook(ctx, existingCRD, c); err != nil {
+	if err := setNoneConversionStrategy(ctx, existingCRD, c); err != nil {
 		return err
 	}
 
@@ -150,58 +149,10 @@ func syncCRD(ctx context.Context, existingCRD *apiextensions.CustomResourceDefin
 	return c.postProc(existingCRD)
 }
 
-func setConversionWebhook(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, c *Config) error {
-	getServiceRef := func() *apiextensions.ServiceReference {
-		path := func() string {
-			switch crdObj.Name {
-			case driveCRDName:
-				return converter.DriveHandlerPath
-			case volumeCRDName:
-				return converter.VolumeHandlerPath
-			default:
-				panic("unknown crd name found")
-			}
-		}()
-		port := int32(conversionWebhookPort)
-
-		return &apiextensions.ServiceReference{
-			Namespace: c.namespace(),
-			Name:      c.serviceName(),
-			Path:      &path,
-			Port:      &port,
-		}
-	}
-
-	getWebhookClientConfig := func() (*apiextensions.WebhookClientConfig, error) {
-		caBundle, err := GetConversionCABundle(ctx, c)
-		if err != nil {
-			return nil, err
-		}
-		return &apiextensions.WebhookClientConfig{
-			Service:  getServiceRef(),
-			CABundle: []byte(caBundle),
-		}, nil
-	}
-
-	getWebhookConversionSettings := func() (*apiextensions.WebhookConversion, error) {
-		webhookClientConfig, err := getWebhookClientConfig()
-		if err != nil {
-			return nil, err
-		}
-		return &apiextensions.WebhookConversion{
-			ClientConfig:             webhookClientConfig,
-			ConversionReviewVersions: []string{"v1"},
-		}, nil
-	}
-
+func setNoneConversionStrategy(ctx context.Context, crdObj *apiextensions.CustomResourceDefinition, c *Config) error {
 	getConversionSettings := func() (*apiextensions.CustomResourceConversion, error) {
-		webhookConversionSettings, err := getWebhookConversionSettings()
-		if err != nil {
-			return nil, err
-		}
 		return &apiextensions.CustomResourceConversion{
-			Strategy: apiextensions.WebhookConverter,
-			Webhook:  webhookConversionSettings,
+			Strategy: apiextensions.NoneConverter,
 		}, nil
 	}
 

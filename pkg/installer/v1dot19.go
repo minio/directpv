@@ -43,10 +43,6 @@ func (v *v1dot19) installPSP(ctx context.Context) error {
 	return installPSPDefault(ctx, v.Config)
 }
 
-func (v *v1dot19) installConversionSecret(ctx context.Context) error {
-	return installConversionSecretDefault(ctx, v.Config)
-}
-
 func (v *v1dot19) installCRD(ctx context.Context) error {
 	return installCRDDefault(ctx, v.Config)
 }
@@ -128,9 +124,6 @@ func (v *v1dot19) Install(ctx context.Context) error {
 		return err
 	}
 	if err := v.installPSP(ctx); err != nil {
-		return err
-	}
-	if err := v.installConversionSecret(ctx); err != nil {
 		return err
 	}
 	if err := v.installCRD(ctx); err != nil {

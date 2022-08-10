@@ -118,10 +118,6 @@ func (c *Config) identity() string {
 	return utils.SanitizeKubeResourceName(c.Identity)
 }
 
-func (c *Config) conversionHealthzURL() string {
-	return getConversionHealthzURL(c.identity())
-}
-
 func (c *Config) getCSIProvisionerImage() string {
 	return defaultIfZeroString(c.CSIProvisionerImage, CSIImageCSIProvisioner)
 }
