@@ -39,7 +39,7 @@ The deleted PVCs will be re-created and provisions volumes successfully on the r
 
 - When the pods and corresponding PVCs were force deleted. Force deletion might skip few necessary volume cleanups and make them stale.
 - When the corresponding drive is removed or detached from the cluster. `kubectl directpv volumes list` would indicate such lost volumes with an error tag.
-- The volumes were deleted when directpv pod running in that node was node.
+- The volumes were deleted when directpv pod running in that node was down.
 - etc..
 
 Plese check `kubectl directpv volumes purge --help` for more helpers.
@@ -48,9 +48,133 @@ Plese check `kubectl directpv volumes purge --help` for more helpers.
 
 ### Purging the removed / detached drive
 
-After v3.0.0, the removed or detached drive will show up in the drives list with an error message indicating that the drive is removed. If the drive is in InUse state, the corresponding volumes need to be purged first. ie, the corresponding PVCs has to be cleaned-up first.
+After v3.0.0, the removed or detached InUse drives will show up in the drives list with an error message indicating that the drive is lost. In such cases, the corresponding volumes need to be purged first. ie, the corresponding PVCs has to be cleaned-up first and then the drive can be purged.
 
 (NOTE: before deleting the lost PVCs, please [cordon](https://kubernetes.io/docs/concepts/architecture/nodes/) the node, to avoid any PVC conflicts)
+
+Here is an example with a step-by-step procedure to handle drive replacements,
+
+STEP 1: After detaching the InUse drive and replacing it with a fresh drive, the new drive will show up in the list as "Available"
+
+```sh
+[root@control-plane ~] kubectl directpv drives list
+ DRIVE      CAPACITY  ALLOCATED  FILESYSTEM  VOLUMES  NODE                             ACCESS-TIER  STATUS
+ /dev/vdb   512 MiB   83 MiB     xfs         8        control-plane.minikube.internal  -            InUse
+ /dev/vdc   512 MiB   -          xfs         8        control-plane.minikube.internal  -            InUse*       drive is lost or corrupted
+ /dev/vdd   512 MiB   -          -           -        control-plane.minikube.internal  -            Available
+```
+
+here the drive `/dev/vdc` is detached and new drive `/dev/vdd` is attached to the node.
+
+STEP 2: Format the newly attached drive to make it "Ready" for workloads to utilize it
+
+```sh
+[root@control-plane ~] kubectl directpv drives format --drives /dev/vdd --nodes control-plane.minikube.internal
+[root@control-plane ~] kubectl directpv drives list
+ DRIVE     CAPACITY  ALLOCATED  FILESYSTEM  VOLUMES  NODE                             ACCESS-TIER  STATUS
+ /dev/vdb  512 MiB   83 MiB     xfs         8        control-plane.minikube.internal  -            InUse
+ /dev/vdc  512 MiB   -          xfs         8        control-plane.minikube.internal  -            InUse*  drive is lost or corrupted
+ /dev/vdd  512 MiB   -          xfs         -        control-plane.minikube.internal  -            Ready
+```
+
+STEP 3: Cordon the node to stop kubernetes to schedule any workloads during the maintenance
+
+```sh
+[root@control-plane ~] kubectl cordon control-plane.minikube.internal
+node/control-plane.minikube.internal cordoned
+```
+
+STEP 4: Check the lost volumes from the detached drive
+
+```sh
+[root@control-plane ~] kubectl directpv volumes list --all --drives /dev/vdc --nodes control-plane.minikube.internal --pvc
+ VOLUME                                    CAPACITY  NODE                             DRIVE  PODNAME  PODNAMESPACE               PVC
+ pvc-2b261763-bc5b-4a84-9d6d-33588e008dee  10 MiB    control-plane.minikube.internal  vdc    minio-2  default       *Drive Lost  minio-data-2-minio-2
+ pvc-3bc3302a-2954-4f43-88f4-a081f68f9818  10 MiB    control-plane.minikube.internal  vdc    minio-3  default       *Drive Lost  minio-data-3-minio-3
+ pvc-9a131013-3501-4540-bd10-7fa1a0f81bbf  10 MiB    control-plane.minikube.internal  vdc    minio-1  default       *Drive Lost  minio-data-3-minio-1
+ pvc-a443e955-a77a-4b06-9649-49d7d17504cd  10 MiB    control-plane.minikube.internal  vdc    minio-3  default       *Drive Lost  minio-data-2-minio-3
+ pvc-b80ea783-ba2a-44b9-8a16-77fe1f7a8537  10 MiB    control-plane.minikube.internal  vdc    minio-1  default       *Drive Lost  minio-data-2-minio-1
+ pvc-b8b13ce8-10db-4274-908e-3480249a05e5  10 MiB    control-plane.minikube.internal  vdc    minio-0  default       *Drive Lost  minio-data-3-minio-0
+ pvc-ba0b1c56-14cb-4a58-ba1c-4a2b9427ca18  10 MiB    control-plane.minikube.internal  vdc    minio-0  default       *Drive Lost  minio-data-1-minio-0
+ pvc-e4f15027-0bc2-44c4-a271-b54141ebc42a  10 MiB    control-plane.minikube.internal  vdc    minio-2  default       *Drive Lost  minio-data-3-minio-2
+```
+
+STEP 5: Delete the corresponding pods and PVCs of the lost volumes
+
+```sh
+[root@control-plane ~] kubectl delete pods minio-0 minio-1 minio-2 minio-3 -n default
+pod "minio-0" deleted
+pod "minio-1" deleted
+pod "minio-2" deleted
+pod "minio-3" deleted
+[root@control-plane ~]
+```
+
+verify the PVCs to be deleted
+
+```sh
+root@control-plane ~] kubectl directpv volumes list --lost --drives /dev/vdc --nodes control-plane.minikube.internal --pvc | awk '{print $10}' | paste -s -d " " -
+ minio-data-2-minio-2 minio-data-3-minio-3 minio-data-3-minio-1 minio-data-2-minio-3 minio-data-2-minio-1 minio-data-3-minio-0 minio-data-1-minio-0 minio-data-3-minio-2
+```
+
+you can use the following one-liner to delete the lost PVCs
+
+```sh
+[root@control-plane ~] kubectl directpv volumes list --lost --drives /dev/vdc --nodes control-plane.minikube.internal --pvc | awk '{print $10}' | paste -s -d " " - | xargs kubectl delete pvc
+persistentvolumeclaim "minio-data-2-minio-2" deleted
+persistentvolumeclaim "minio-data-3-minio-3" deleted
+persistentvolumeclaim "minio-data-3-minio-1" deleted
+persistentvolumeclaim "minio-data-2-minio-3" deleted
+persistentvolumeclaim "minio-data-2-minio-1" deleted
+persistentvolumeclaim "minio-data-3-minio-0" deleted
+persistentvolumeclaim "minio-data-1-minio-0" deleted
+persistentvolumeclaim "minio-data-3-minio-2" deleted
+[root@control-plane ~]
+```
+
+wait till the lost volumes are purged successfully
+
+```sh
+[root@control-plane ~] kubectl directpv drives list
+ DRIVE     CAPACITY  ALLOCATED  FILESYSTEM  VOLUMES  NODE                             ACCESS-TIER  STATUS
+ /dev/vdb  512 MiB   83 MiB     xfs         8        control-plane.minikube.internal  -            InUse
+ /dev/vdc  512 MiB   -          xfs         -        control-plane.minikube.internal  -            Ready*  drive is lost or corrupted
+ /dev/vdd  512 MiB   -          xfs         -        control-plane.minikube.internal  -            Ready
+```
+
+you can now purge the lost drive
+
+```sh
+[root@control-plane ~] kubectl-directpv drives purge --drives /dev/vdc --nodes control-plane.minikube.internal
+[root@control-plane ~] kubectl directpv drives list
+ DRIVE     CAPACITY  ALLOCATED  FILESYSTEM  VOLUMES  NODE                             ACCESS-TIER  STATUS
+ /dev/vdb  512 MiB   83 MiB     xfs         8        control-plane.minikube.internal  -            InUse
+ /dev/vdd  512 MiB   -          xfs         -        control-plane.minikube.internal  -            Ready
+```
+
+STEP 6: Uncordon the node to resume scheduling
+
+```sh
+[root@control-plane ~] kubectl uncordon control-plane.minikube.internal
+node/control-plane.minikube.internal uncordoned
+```
+
+STEP 7: New PVCs will be created and volumes will be allocated on the new drive based on the more free capacity approach.
+
+(NOTE: here, you might want to restart the "pending" pod(s) once if there is a pod-PVC race conflict)
+
+```sh
+[root@control-plane ~] kubectl get pods -o wide
+NAME      READY   STATUS    RESTARTS   AGE     IP           NODE                              NOMINATED NODE   READINESS GATES
+minio-0   1/1     Running   0          2m25s   172.17.0.7   control-plane.minikube.internal   <none>           <none>
+minio-1   1/1     Running   0          2m17s   172.17.0.6   control-plane.minikube.internal   <none>           <none>
+minio-2   1/1     Running   0          2m8s    172.17.0.8   control-plane.minikube.internal   <none>           <none>
+minio-3   1/1     Running   0          117s    172.17.0.9   control-plane.minikube.internal   <none>           <none>
+[root@control-plane ~] kubectl directpv drives list
+ DRIVE     CAPACITY  ALLOCATED  FILESYSTEM  VOLUMES  NODE                             ACCESS-TIER  STATUS
+ /dev/vdb  512 MiB   83 MiB     xfs         8        control-plane.minikube.internal  -            InUse
+ /dev/vdd  512 MiB   83 MiB     xfs         8        control-plane.minikube.internal  -            InUse
+```
 
 ### FS attribute mismatch errors in direct-csi pod logs
 

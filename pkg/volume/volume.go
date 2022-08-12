@@ -31,6 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	"k8s.io/klog/v2"
 )
 
 type volumeEventHandler struct {
@@ -95,18 +97,39 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *directcsi
 
 	if volume.Status.ContainerPath != "" {
 		if err := handler.safeUnmount(volume.Status.ContainerPath, true, true, false); err != nil {
-			return err
+			if _, ok := err.(*os.PathError); !ok {
+				klog.InfoS("failed to umount container path",
+					"volume", volume.Name,
+					"containerPath", volume.Status.ContainerPath,
+					"error", err,
+				)
+				return err
+			}
 		}
 	}
 	if volume.Status.StagingPath != "" {
 		if err := handler.safeUnmount(volume.Status.StagingPath, true, true, false); err != nil {
-			return err
+			if _, ok := err.(*os.PathError); !ok {
+				klog.InfoS("failed to umount staging path",
+					"volume", volume.Name,
+					"containerPath", volume.Status.StagingPath,
+					"error", err,
+				)
+				return err
+			}
 		}
 	}
 
 	// Remove associated directory of the volume.
 	if err := os.RemoveAll(volume.Status.HostPath); err != nil {
-		return err
+		if _, ok := err.(*os.PathError); !ok {
+			klog.InfoS("failed to remove host path",
+				"volume", volume.Name,
+				"hostPath", volume.Status.HostPath,
+				"error", err,
+			)
+			return err
+		}
 	}
 
 	// Release volume from associated drive.
