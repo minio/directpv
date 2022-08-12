@@ -37,10 +37,6 @@ const (
 	caCertFileName    = "ca.pem"
 	conversionCACert  = "conversioncacert"
 
-	// crd
-	driveCRDName  = "directcsidrives.direct.csi.min.io"
-	volumeCRDName = "directcsivolumes.direct.csi.min.io"
-
 	// Daemonset
 	volumeNameMountpointDir          = "mountpoint-dir"
 	volumeNameRegistrationDir        = "registration-dir"
@@ -79,10 +75,7 @@ const (
 	endpointEnvVarCSI                   = "CSI_ENDPOINT"
 	kubeletDirPath                      = "/var/lib/kubelet"
 	directCSIPluginName                 = "kubectl-direct-csi"
-	conversionWebhookPortName           = "convwebhook"
 	selectorValueEnabled                = "enabled"
-	conversionCADir                     = "/etc/conversion/CAs"
-	conversionCertsDir                  = "/etc/conversion/certs"
 	serviceSelector                     = "selector.direct.csi.min.io.service"
 	healthZContainerPortPath            = "/healthz"
 	directCSIFinalizerDeleteProtection  = "/delete-protection"

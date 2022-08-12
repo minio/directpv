@@ -27,7 +27,6 @@ import (
 
 const (
 	readinessPath = "/ready"
-	readinessPort = "30443"
 )
 
 func serveReadinessEndpoint(ctx context.Context) error {
@@ -44,7 +43,7 @@ func serveReadinessEndpoint(ctx context.Context) error {
 	}
 
 	go func() {
-		klog.V(3).Infof("Starting to serve readiness endpoint in port: %s", readinessPort)
+		klog.V(3).Infof("Starting to serve readiness endpoint in port: %d", readinessPort)
 		if err := server.Serve(listener); err != nil {
 			klog.Errorf("Failed to serve readiness endpoint: %v", err)
 		}

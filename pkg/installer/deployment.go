@@ -171,6 +171,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", c.deploymentName()),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
+					fmt.Sprintf("--readiness-port=%d", readinessPort),
 					"--controller",
 				},
 				SecurityContext: &corev1.SecurityContext{

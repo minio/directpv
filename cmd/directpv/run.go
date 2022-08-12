@@ -37,9 +37,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var (
-	errMountFailure = errors.New("could not mount the drive")
-)
+var errMountFailure = errors.New("could not mount the drive")
 
 func checkXFS(ctx context.Context, reflinkSupport bool) error {
 	mountPoint, err := os.MkdirTemp("", "xfs.check.mnt.")

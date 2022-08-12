@@ -135,6 +135,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 						fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 						fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
 						fmt.Sprintf("--metrics-port=%d", metricsPort),
+						fmt.Sprintf("--readiness-port=%d", readinessPort),
 						"--driver",
 					}
 					if c.DynamicDriveDiscovery {
