@@ -131,7 +131,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 		Containers: []corev1.Container{
 			{
 				Name:  csiProvisionerContainerName,
-				Image: path.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getCSIProvisionerImage()),
+				Image: path.Join("k8s.gcr.io", "sig-storage", c.getCSIProvisionerImage()),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",

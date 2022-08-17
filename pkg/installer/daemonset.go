@@ -94,7 +94,6 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		volumes = append(volumes, newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData))
 		volumeMounts = append(volumeMounts, newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, corev1.MountPropagationBidirectional, true))
 	}
-
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: c.serviceAccountName(),
 		HostIPC:            false,
@@ -104,7 +103,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		Containers: []corev1.Container{
 			{
 				Name:  nodeDriverRegistrarContainerName,
-				Image: path.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getNodeDriverRegistrarImage()),
+				Image: path.Join("k8s.gcr.io", "sig-storage", c.getNodeDriverRegistrarImage()),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--csi-address=unix:///csi/csi.sock",
@@ -201,7 +200,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			},
 			{
 				Name:  livenessProbeContainerName,
-				Image: path.Join(c.DirectCSIContainerRegistry, c.DirectCSIContainerOrg, c.getLivenessProbeImage()),
+				Image: path.Join("k8s.gcr.io", "sig-storage", c.getLivenessProbeImage()),
 				Args: []string{
 					"--csi-address=/csi/csi.sock",
 					"--health-port=9898",

@@ -61,8 +61,10 @@ func getInstaller(config *Config) (installer, error) {
 	if versionInfo.Major == "1" {
 		switch minor {
 		case "18":
+			config.CSIProvisionerImage = "csi-provisioner:v2.2.0"
 			return newV1Dot18(config), nil
 		case "19":
+			config.CSIProvisionerImage = "csi-provisioner:v2.2.0"
 			return newV1Dot19(config), nil
 		case "20":
 			return newV1Dot20(config), nil
