@@ -5,7 +5,6 @@ go 1.17
 require (
 	github.com/container-storage-interface/spec v1.3.0
 	github.com/docker/distribution v2.8.1+incompatible
-	github.com/dswarbrick/smart v0.0.0-20190505152634-909a45200d6d
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fatih/color v1.12.0
 	github.com/google/uuid v1.1.2
