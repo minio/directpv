@@ -72,6 +72,10 @@ func getInstaller(config *Config) (installer, error) {
 			return newV1Dot22(config), nil
 		case "23":
 			return newV1Dot23(config), nil
+		case "24":
+			return newv1dot24(config), nil
+		case "25":
+			return newv1dot25(config), nil
 		default:
 			klog.Warningf("running on experimental version of kubernetes v1.%s. This version is not officially supported yet.", minor)
 			return newDefaultInstaller(config), nil

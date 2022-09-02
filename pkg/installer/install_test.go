@@ -125,10 +125,18 @@ func TestInstaller(t1 *testing.T) {
 			Major: "1",
 			Minor: "23",
 		},
+		{
+			Major: "1",
+			Minor: "24",
+		},
+		{
+			Major: "1",
+			Minor: "25",
+		},
 		// experimental version
 		{
 			Major: "1",
-			Minor: "24+",
+			Minor: "26+",
 		},
 	}
 

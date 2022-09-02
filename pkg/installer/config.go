@@ -86,12 +86,13 @@ type Config struct {
 	// Image pull secrets
 	ImagePullSecrets []string
 
-	// internal
-	conversionWebhookCaBundle []byte
-	validationWebhookCaBundle []byte
-
 	// Drive discovery
 	DisableUDevListener bool
+
+	// internal
+	conversionWebhookCaBundle  []byte
+	validationWebhookCaBundle  []byte
+	enablePodSecurityAdmission bool
 }
 
 type installer interface {

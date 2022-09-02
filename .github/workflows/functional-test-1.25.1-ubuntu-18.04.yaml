@@ -1,4 +1,4 @@
-name: Testing on k8s v1.22.5
+name: Testing on k8s v1.25.1 (Ubuntu 18.04)
 
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
@@ -53,7 +53,7 @@ jobs:
         uses: manusa/actions-setup-minikube@v2.7.0
         with:
           minikube version: 'v1.27.0'
-          kubernetes version: 'v1.22.5'
+          kubernetes version: 'v1.25.1'
           github token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check Minikube

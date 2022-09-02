@@ -50,9 +50,9 @@ jobs:
           docker build -t quay.io/minio/directpv:${BUILD_TAG} .
 
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.4.3
+        uses: manusa/actions-setup-minikube@v2.7.0
         with:
-          minikube version: 'v1.24.0'
+          minikube version: 'v1.27.0'
           kubernetes version: 'v1.23.3'
           github token: ${{ secrets.GITHUB_TOKEN }}
 
