@@ -23,7 +23,7 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,8 +78,8 @@ func TestVolumesPurge(t2 *testing.T) {
 	defer cancelFunc()
 
 	testClientSet := clientsetfake.NewSimpleClientset(testVolumeObjects...)
-	volumeInterface := testClientSet.DirectV1beta4().DirectCSIVolumes()
-	driveInterface := testClientSet.DirectV1beta4().DirectCSIDrives()
+	volumeInterface := testClientSet.DirectV1beta5().DirectCSIVolumes()
+	driveInterface := testClientSet.DirectV1beta5().DirectCSIDrives()
 	client.SetLatestDirectCSIVolumeInterface(volumeInterface)
 	client.SetLatestDirectCSIDriveInterface(driveInterface)
 

@@ -24,6 +24,7 @@ import (
 	directv1beta2 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2"
 	directv1beta3 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	directv1beta4 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directv1beta5 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,6 +41,7 @@ var localSchemeBuilder = runtime.SchemeBuilder{
 	directv1beta2.AddToScheme,
 	directv1beta3.AddToScheme,
 	directv1beta4.AddToScheme,
+	directv1beta5.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/uevent"
@@ -91,25 +91,26 @@ func VerifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 		return err
 	}
 	device := &sys.Device{
-		Name:         filepath.Base(drive.Status.Path),
-		Major:        int(drive.Status.MajorNumber),
-		Minor:        int(drive.Status.MinorNumber),
-		Virtual:      strings.Contains(drive.Status.Path, "/virtual/"),
-		Partition:    runUdevData.Partition,
-		WWID:         runUdevData.WWID,
-		Model:        runUdevData.Model,
-		UeventSerial: runUdevData.UeventSerial,
-		Vendor:       runUdevData.Vendor,
-		DMName:       runUdevData.DMName,
-		DMUUID:       runUdevData.DMUUID,
-		MDUUID:       runUdevData.MDUUID,
-		PTUUID:       runUdevData.PTUUID,
-		PTType:       runUdevData.PTType,
-		PartUUID:     runUdevData.PartUUID,
-		UeventFSUUID: runUdevData.UeventFSUUID,
-		FSType:       runUdevData.FSType,
-		PCIPath:      runUdevData.PCIPath,
-		SerialLong:   runUdevData.UeventSerialLong,
+		Name:              filepath.Base(drive.Status.Path),
+		Major:             int(drive.Status.MajorNumber),
+		Minor:             int(drive.Status.MinorNumber),
+		Virtual:           strings.Contains(drive.Status.Path, "/virtual/"),
+		Partition:         runUdevData.Partition,
+		WWID:              runUdevData.WWID,
+		WWIDWithExtension: runUdevData.WWIDWithExtension,
+		Model:             runUdevData.Model,
+		UeventSerial:      runUdevData.UeventSerial,
+		Vendor:            runUdevData.Vendor,
+		DMName:            runUdevData.DMName,
+		DMUUID:            runUdevData.DMUUID,
+		MDUUID:            runUdevData.MDUUID,
+		PTUUID:            runUdevData.PTUUID,
+		PTType:            runUdevData.PTType,
+		PartUUID:          runUdevData.PartUUID,
+		UeventFSUUID:      runUdevData.UeventFSUUID,
+		FSType:            runUdevData.FSType,
+		PCIPath:           runUdevData.PCIPath,
+		SerialLong:        runUdevData.UeventSerialLong,
 	}
 
 	if !uevent.ValidateUDevInfo(device, drive) {

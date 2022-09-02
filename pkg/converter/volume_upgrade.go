@@ -24,6 +24,7 @@ import (
 	directv1beta2 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2"
 	directv1beta3 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	directv1beta4 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directv1beta5 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,6 +72,15 @@ func upgradeVolumeObject(object *unstructured.Unstructured, toVersion string) er
 		fallthrough
 	case versionV1Beta4:
 		if toVersion == versionV1Beta4 {
+			klog.V(10).Info("Successfully migrated")
+			break
+		}
+		if err := volumeUpgradeV1Beta4ToV1Beta5(object); err != nil {
+			return err
+		}
+		fallthrough
+	case versionV1Beta5:
+		if toVersion == versionV1Beta5 {
 			klog.V(10).Info("Successfully migrated")
 			break
 		}
@@ -216,6 +226,32 @@ func volumeUpgradeV1Beta3ToV1Beta4(unstructured *unstructured.Unstructured) erro
 	})
 
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta4DirectCSIVolume)
+	if err != nil {
+		return err
+	}
+
+	unstructured.Object = convertedObj
+	return nil
+}
+
+func volumeUpgradeV1Beta4ToV1Beta5(unstructured *unstructured.Unstructured) error {
+	unstructuredObject := unstructured.Object
+
+	var v1beta4DirectCSIVolume directv1beta4.DirectCSIVolume
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObject, &v1beta4DirectCSIVolume)
+	if err != nil {
+		return err
+	}
+
+	klog.V(10).Infof("Converting directpvvolume:%v to v1beta4", v1beta4DirectCSIVolume.Name)
+
+	var v1beta5DirectCSIVolume directv1beta5.DirectCSIVolume
+	if err := directv1beta5.Convert_v1beta4_DirectCSIVolume_To_v1beta5_DirectCSIVolume(&v1beta4DirectCSIVolume, &v1beta5DirectCSIVolume, nil); err != nil {
+		return err
+	}
+
+	v1beta5DirectCSIVolume.TypeMeta = v1beta4DirectCSIVolume.TypeMeta
+	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta5DirectCSIVolume)
 	if err != nil {
 		return err
 	}

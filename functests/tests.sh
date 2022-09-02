@@ -162,6 +162,9 @@ if [ "$minor" -lt 23 ]; then
     do_upgrade_test "2.0.9"
 fi
 
+echo "$ME: ================================= Run upgrade test from v3.0.4 ================================="
+do_upgrade_test "3.0.4"
+
 # unmount all direct-csi mounts of previous installation if any.
 mount | awk '/direct-csi/ {print $3}' | xargs sudo umount -fl
 

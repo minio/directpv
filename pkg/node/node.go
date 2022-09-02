@@ -20,7 +20,7 @@ import (
 	"context"
 	"os"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/fs"
 
@@ -164,7 +164,7 @@ func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		return &csi.NodeGetVolumeStatsResponse{}, nil
 	}
 
-	directCSIClient := ns.directcsiClient.DirectV1beta4()
+	directCSIClient := ns.directcsiClient.DirectV1beta5()
 	vclient := directCSIClient.DirectCSIVolumes()
 	dclient := directCSIClient.DirectCSIDrives()
 	vol, err := vclient.Get(ctx, vID, metav1.GetOptions{
