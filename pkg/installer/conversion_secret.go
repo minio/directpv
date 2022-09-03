@@ -22,135 +22,10 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 
-	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
-
-func createOrUpdateConversionKeyPairSecret(ctx context.Context, publicCertBytes, privateKeyBytes []byte, c *Config) error {
-	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
-
-	getCertsDataMap := func() map[string][]byte {
-		mp := make(map[string][]byte)
-		mp[privateKeyFileName] = privateKeyBytes
-		mp[publicCertFileName] = publicCertBytes
-		return mp
-	}
-
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        conversionKeyPair,
-			Namespace:   c.namespace(),
-			Annotations: defaultAnnotations,
-			Labels:      defaultLabels,
-		},
-		Data: getCertsDataMap(),
-	}
-
-	if c.DryRun {
-		return c.postProc(secret)
-	}
-
-	existingSecret, err := secretsClient.Get(ctx, conversionKeyPair, metav1.GetOptions{})
-	if err != nil {
-		if !k8serror.IsNotFound(err) {
-			return err
-		}
-		if _, err := secretsClient.Create(ctx, secret, metav1.CreateOptions{}); err != nil {
-			return err
-		}
-		return c.postProc(secret)
-	}
-
-	existingSecret.Data = secret.Data
-	if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
-		return err
-	}
-
-	return c.postProc(secret)
-}
-
-func createOrUpdateConversionCACertSecret(ctx context.Context, caCertBytes []byte, c *Config) error {
-	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
-
-	getCertsDataMap := func() map[string][]byte {
-		mp := make(map[string][]byte)
-		mp[caCertFileName] = caCertBytes
-		return mp
-	}
-
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        conversionCACert,
-			Namespace:   c.namespace(),
-			Annotations: defaultAnnotations,
-			Labels:      defaultLabels,
-		},
-		Data: getCertsDataMap(),
-	}
-
-	if c.DryRun {
-		return c.postProc(secret)
-	}
-
-	existingSecret, err := secretsClient.Get(ctx, conversionCACert, metav1.GetOptions{})
-	if err != nil {
-		if !k8serror.IsNotFound(err) {
-			return err
-		}
-		if _, err := secretsClient.Create(ctx, secret, metav1.CreateOptions{}); err != nil {
-			return err
-		}
-		return c.postProc(secret)
-	}
-
-	existingSecret.Data = secret.Data
-	if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
-		return err
-	}
-
-	return c.postProc(secret)
-}
-
-func checkConversionSecrets(ctx context.Context, c *Config) error {
-	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
-	if _, err := secretsClient.Get(ctx, conversionKeyPair, metav1.GetOptions{}); err != nil {
-		return err
-	}
-	_, err := secretsClient.Get(ctx, conversionCACert, metav1.GetOptions{})
-	return err
-}
-
-func createConversionWebhookSecrets(ctx context.Context, c *Config) error {
-	err := checkConversionSecrets(ctx, c)
-	if err == nil {
-		return nil
-	}
-	if !k8serror.IsNotFound(err) {
-		return err
-	}
-
-	caCertBytes, publicCertBytes, privateKeyBytes, certErr := getCerts([]string{c.conversionWebhookDNSName()})
-	if certErr != nil {
-		return certErr
-	}
-	c.conversionWebhookCaBundle = caCertBytes
-
-	if err := createOrUpdateConversionKeyPairSecret(ctx, publicCertBytes, privateKeyBytes, c); err != nil {
-		return err
-	}
-
-	return createOrUpdateConversionCACertSecret(ctx, caCertBytes, c)
-}
 
 func deleteConversionSecrets(ctx context.Context, c *Config) error {
 	secretsClient := client.GetKubeClient().CoreV1().Secrets(c.namespace())
@@ -158,16 +33,6 @@ func deleteConversionSecrets(ctx context.Context, c *Config) error {
 		return err
 	}
 	return secretsClient.Delete(ctx, conversionCACert, metav1.DeleteOptions{})
-}
-
-func installConversionSecretDefault(ctx context.Context, c *Config) error {
-	if err := createConversionWebhookSecrets(ctx, c); err != nil {
-		return err
-	}
-	if !c.DryRun {
-		klog.Infof("'%s' conversion webhook secrets created", utils.Bold(c.Identity))
-	}
-	return nil
 }
 
 func uninstallConversionSecretDefault(ctx context.Context, c *Config) error {

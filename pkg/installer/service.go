@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
 )
 
@@ -54,14 +53,6 @@ func createService(ctx context.Context, c *Config) error {
 		Port: 12345,
 		Name: "unused",
 	}
-	webhookPort := corev1.ServicePort{
-		Name: conversionWebhookPortName,
-		Port: conversionWebhookPort,
-		TargetPort: intstr.IntOrString{
-			Type:   intstr.String,
-			StrVal: conversionWebhookPortName,
-		},
-	}
 	svc := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -74,9 +65,9 @@ func createService(ctx context.Context, c *Config) error {
 			Labels:      defaultLabels,
 		},
 		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{csiPort, webhookPort},
+			Ports: []corev1.ServicePort{csiPort},
 			Selector: map[string]string{
-				webhookSelector: selectorValueEnabled,
+				serviceSelector: selectorValueEnabled,
 			},
 		},
 	}
