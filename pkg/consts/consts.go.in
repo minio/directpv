@@ -1,0 +1,100 @@
+// This file is part of MinIO
+// Copyright (c) 2022 MinIO, Inc.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+package consts
+
+const (
+	// AppName denotes application/library/plugin/tool name
+	AppName = "directpv"
+
+	// AppPrettyName denotes application/library/plugin/tool pretty name
+	AppPrettyName = "DirectPV"
+
+	// AppCapsName denotes application/library/plugin/tool name in capital letters.
+	AppCapsName = "DIRECTPV"
+
+	// Group denotes group name.
+	GroupName = AppName + ".min.io"
+
+	// LatestAPIVersion denotes latest API version of drive/volume.
+	LatestAPIVersion = "{VERSION}"
+
+	// Identity denotes identity value.
+	Identity = AppName + "-min-io"
+
+	// StorageClassName denotes storage class name.
+	StorageClassName = Identity
+
+	// DriveFinalizerDataProtection denotes data protection finalizer.
+	DriveFinalizerDataProtection = GroupName + "/data-protection"
+
+	// DriveFinalizerPrefix denotes prefix finalizer.
+	DriveFinalizerPrefix = GroupName + ".volume/"
+
+	// VolumeFinalizerPVProtection denotes PV protection finalizer.
+	VolumeFinalizerPVProtection = GroupName + "/pv-protection"
+
+	// VolumeFinalizerPurgeProtection denotes purge protection finalizer.
+	VolumeFinalizerPurgeProtection = GroupName + "/purge-protection"
+
+	// ControllerName is the name of the controller.
+	ControllerName = AppName + "-controller"
+
+	// DriverName is the driver name.
+	DriverName = AppName + "-driver"
+
+	// DriveKind is drive CRD kind.
+	DriveKind = AppPrettyName + "Drive"
+
+	// VolumeKind is volume CRD kind.
+	VolumeKind = AppPrettyName + "Volume"
+
+	// DriveResource is drive CRD resource.
+	DriveResource = AppName + "drives"
+
+	// VolumeResource is volume CRD resource.
+	VolumeResource = AppName + "volumes"
+
+	// AppRootDir is application root directory.
+	AppRootDir = "/var/lib/" + AppName
+
+	// SysFSDir is sysfs directory.
+	SysFSDir = "/sys"
+
+	// DevDir is /dev directory
+	DevDir = "/dev"
+
+	// UdevDataDir is Udev data directory.
+	UdevDataDir = "/run/udev/data"
+
+	// ProcFSDir is Udev data directory.
+	ProcFSDir = "/proc"
+
+	// MetricsPort is default metrics port.
+	MetricsPort = 10443
+
+	// ReadinessPort is default readiness port.
+	ReadinessPort = 30443
+
+	// ReadinessPath is default readiness path.
+	ReadinessPath = "/ready"
+
+	// FSLabel is filesystem label.
+	FSLabel = AppCapsName
+
+	// MountRootDir is mount root directory.
+	MountRootDir = AppRootDir + "/mnt"
+)
