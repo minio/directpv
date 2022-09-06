@@ -19,7 +19,7 @@ package uevent
 import (
 	"strings"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/sys"
 )
 
@@ -108,14 +108,16 @@ func conclusiveMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) bool
 	if device.Partition != drive.Status.PartitionNum {
 		return false
 	}
+	if drive.Status.WWIDWithExtension != "" {
+		return drive.Status.WWIDWithExtension == device.WWIDWithExtension
+	}
 	if drive.Status.WWID != "" {
-		if drive.Status.WWID == device.WWID {
-			return true
-		}
-		// WWID of few drives may show up without extension
+		// Special case: WWID of few drives may show up without extension
 		// eg, probed wwid = 0x6002248032bf1752a69bdaee7b0ceb33
 		//     wwid in drive CRD = naa.6002248032bf1752a69bdaee7b0ceb33
-		return strings.TrimPrefix(device.WWID, "0x") == wwidWithoutExtension(drive.Status.WWID)
+		if drive.Status.WWID != device.WWID && strings.TrimPrefix(device.WWID, "0x") != wwidWithoutExtension(drive.Status.WWID) {
+			return false
+		}
 	}
 	if drive.Status.UeventSerial != "" {
 		return drive.Status.UeventSerial == device.UeventSerial

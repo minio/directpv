@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/matcher"
@@ -638,7 +638,7 @@ func TestGetFilteredDrives(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testCase.objects...).DirectV1beta4().DirectCSIDrives())
+		client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testCase.objects...).DirectV1beta5().DirectCSIDrives())
 		result, err := getFilteredDrives(context.TODO(), testCase.request)
 		if err != nil {
 			t.Fatalf("case %v: unexpected error: %v", i+1, err)
@@ -671,7 +671,7 @@ func TestGetDrive(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testCase.objects...).DirectV1beta4().DirectCSIDrives())
+		client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testCase.objects...).DirectV1beta5().DirectCSIDrives())
 		result, err := selectDrive(context.TODO(), testCase.request)
 
 		if testCase.expectErr {
@@ -702,7 +702,7 @@ func TestGetDrive(t *testing.T) {
 	}
 	request := &csi.CreateVolumeRequest{Name: "volume-1", CapacityRange: &csi.CapacityRange{RequiredBytes: 2 * GiB}}
 
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta4().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta5().DirectCSIDrives())
 	result, err := selectDrive(context.TODO(), request)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

@@ -23,7 +23,7 @@ import (
 	"sort"
 	"strings"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/sys"
 	"k8s.io/klog/v2"
 )
@@ -78,6 +78,10 @@ func ValidateUDevInfo(device *sys.Device, directCSIDrive *directcsi.DirectCSIDri
 	}
 	if directCSIDrive.Status.WWID != device.WWID && wwidWithoutExtension(directCSIDrive.Status.WWID) != strings.TrimPrefix(device.WWID, "0x") {
 		klog.V(3).Infof("[%s] wwid msmatch: %v -> %v", device.Name, directCSIDrive.Status.WWID, device.WWID)
+		return false
+	}
+	if directCSIDrive.Status.WWIDWithExtension != device.WWIDWithExtension {
+		klog.V(3).Infof("[%s] extended wwid msmatch: %v -> %v", device.Name, directCSIDrive.Status.WWIDWithExtension, device.WWIDWithExtension)
 		return false
 	}
 	if directCSIDrive.Status.ModelNumber != device.Model {

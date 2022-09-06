@@ -22,7 +22,7 @@ import (
 	"path"
 	"strings"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
@@ -81,6 +81,7 @@ func NewDirectCSIDriveStatus(device *sys.Device, nodeID string, topology map[str
 		UeventSerial:      device.UeventSerial,
 		UeventFSUUID:      device.UeventFSUUID,
 		WWID:              device.WWID,
+		WWIDWithExtension: device.WWIDWithExtension,
 		Vendor:            device.Vendor,
 		DMName:            device.DMName,
 		DMUUID:            device.DMUUID,

@@ -24,22 +24,23 @@ import (
 
 // UDevData has udev data info
 type UDevData struct {
-	Partition        int
-	WWID             string
-	Model            string
-	UeventSerial     string
-	Vendor           string
-	DMName           string
-	DMUUID           string
-	MDUUID           string
-	PTUUID           string
-	PTType           string
-	PartUUID         string
-	UeventFSUUID     string
-	FSType           string
-	FSUUID           string
-	PCIPath          string
-	UeventSerialLong string
+	Partition         int
+	WWID              string
+	Model             string
+	UeventSerial      string
+	Vendor            string
+	DMName            string
+	DMUUID            string
+	MDUUID            string
+	PTUUID            string
+	PTType            string
+	PartUUID          string
+	UeventFSUUID      string
+	FSType            string
+	FSUUID            string
+	PCIPath           string
+	UeventSerialLong  string
+	WWIDWithExtension string
 }
 
 // Device is a block device information.
@@ -54,22 +55,23 @@ type Device struct {
 	Hidden    bool
 
 	// Populated from /run/udev/data/b<Major>:<Minor>
-	Size       uint64
-	Partition  int
-	WWID       string
-	Model      string
-	Serial     string
-	Vendor     string
-	DMName     string
-	DMUUID     string
-	MDUUID     string
-	PTUUID     string
-	PTType     string
-	PartUUID   string
-	FSUUID     string
-	FSType     string
-	PCIPath    string
-	SerialLong string
+	Size              uint64
+	Partition         int
+	WWID              string
+	WWIDWithExtension string
+	Model             string
+	Serial            string
+	Vendor            string
+	DMName            string
+	DMUUID            string
+	MDUUID            string
+	PTUUID            string
+	PTType            string
+	PartUUID          string
+	FSUUID            string
+	FSType            string
+	PCIPath           string
+	SerialLong        string
 
 	UeventSerial string
 	UeventFSUUID string

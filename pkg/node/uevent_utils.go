@@ -23,7 +23,7 @@ import (
 	"path"
 	"strings"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/sys"
@@ -131,6 +131,9 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	}
 	if updatedDrive.Status.WWID == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.WWID = device.WWID
+	}
+	if updatedDrive.Status.WWIDWithExtension == "" || !utils.IsManagedDrive(updatedDrive) {
+		updatedDrive.Status.WWIDWithExtension = device.WWIDWithExtension
 	}
 	if updatedDrive.Status.Vendor == "" || !utils.IsManagedDrive(updatedDrive) {
 		updatedDrive.Status.Vendor = device.Vendor

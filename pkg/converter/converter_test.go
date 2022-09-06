@@ -23,6 +23,7 @@ import (
 	directv1beta2 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2"
 	directv1beta3 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	directv1beta4 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directv1beta5 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -37,6 +38,49 @@ func TestMigrate(t *testing.T) {
 		destObject   runtime.Object
 		groupVersion schema.GroupVersion
 	}{
+		// upgrade drive v1beta1 => v1beta5
+		{
+			srcObject: &directv1beta1.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta1", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta1.DirectCSIDriveFinalizerDataProtection),
+						directv1beta1.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta1.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta1.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta1.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			destObject: &directv1beta5.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta5", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta5.DirectCSIDriveFinalizerDataProtection),
+						directv1beta5.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta5.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta5.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta5.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta5",
+			},
+		},
 		// upgrade drive v1beta1 => v1beta4
 		{
 			srcObject: &directv1beta1.DirectCSIDrive{
@@ -123,6 +167,49 @@ func TestMigrate(t *testing.T) {
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
 				Version: "v1beta3",
+			},
+		},
+		// upgrade drive v1beta2 => v1beta5
+		{
+			srcObject: &directv1beta2.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta2", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta2.DirectCSIDriveFinalizerDataProtection),
+						directv1beta2.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta2.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta2.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta2.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			destObject: &directv1beta5.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta5", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta5.DirectCSIDriveFinalizerDataProtection),
+						directv1beta5.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta5.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta5.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta5.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta5",
 			},
 		},
 		// upgrade drive v1beta2 => v1beta4
@@ -213,7 +300,51 @@ func TestMigrate(t *testing.T) {
 				Version: "v1beta3",
 			},
 		},
-
+		// downgrade drive v1beta5 => v1beta1
+		{
+			srcObject: &directv1beta4.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta4", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta4.DirectCSIDriveFinalizerDataProtection),
+						directv1beta4.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta4.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta4.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta4.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+					PCIPath:           "pci-0000:2e:00.0-nvme-1",
+					SerialNumberLong:  "KXG6AZNV512G TOSHIBA_31IF73XDFDM3",
+				},
+			},
+			destObject: &directv1beta1.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta1", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta1.DirectCSIDriveFinalizerDataProtection),
+						directv1beta1.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta1.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta1.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta1.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta1",
+			},
+		},
 		// downgrade drive v1beta4 => v1beta1
 		{
 			srcObject: &directv1beta4.DirectCSIDrive{
@@ -259,6 +390,49 @@ func TestMigrate(t *testing.T) {
 				Version: "v1beta1",
 			},
 		},
+		// downgrade drive v1beta5 => v1beta2
+		{
+			srcObject: &directv1beta5.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta5", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta5.DirectCSIDriveFinalizerDataProtection),
+						directv1beta5.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta5.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta5.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta5.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			destObject: &directv1beta2.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta2", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta2.DirectCSIDriveFinalizerDataProtection),
+						directv1beta2.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta2.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta2.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta2.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta2",
+			},
+		},
 		// downgrade drive v1beta4 => v1beta2
 		{
 			srcObject: &directv1beta4.DirectCSIDrive{
@@ -302,6 +476,49 @@ func TestMigrate(t *testing.T) {
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
 				Version: "v1beta2",
+			},
+		},
+		// downgrade drive v1beta5 => v1beta3
+		{
+			srcObject: &directv1beta5.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta5", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta5.DirectCSIDriveFinalizerDataProtection),
+						directv1beta5.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta5.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta5.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta5.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			destObject: &directv1beta3.DirectCSIDrive{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIDrive"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-drive",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIDriveFinalizerDataProtection),
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-1",
+						directv1beta3.DirectCSIDriveFinalizerPrefix + "volume-2",
+					},
+				},
+				Status: directv1beta3.DirectCSIDriveStatus{
+					NodeName:          "node-name",
+					DriveStatus:       directv1beta3.DriveStatusInUse,
+					FreeCapacity:      2048,
+					AllocatedCapacity: 1024,
+					TotalCapacity:     3072,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta3",
 			},
 		},
 		// downgrade drive v1beta4 => v1beta3
@@ -436,7 +653,43 @@ func TestMigrate(t *testing.T) {
 				Version: "v1beta2",
 			},
 		},
-
+		// upgrage volume v1beta1 => v1beta5
+		{
+			srcObject: &directv1beta1.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta1", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta1.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta1.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			destObject: &directv1beta5.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta5", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta5.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta5.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta5",
+			},
+		},
 		// upgrage volume v1beta1 => v1beta4
 		{
 			srcObject: &directv1beta1.DirectCSIVolume{
@@ -472,6 +725,43 @@ func TestMigrate(t *testing.T) {
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
 				Version: "v1beta4",
+			},
+		},
+		// upgrage volume v1beta2 => v1beta5
+		{
+			srcObject: &directv1beta2.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta2", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta2.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta2.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			destObject: &directv1beta5.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta5", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta5.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta5.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta5",
 			},
 		},
 		// upgrage volume v1beta2 => v1beta4
@@ -585,6 +875,43 @@ func TestMigrate(t *testing.T) {
 				Version: "v1beta3",
 			},
 		},
+		// downgrade volume v1beta5 => v1beta1
+		{
+			srcObject: &directv1beta5.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta5", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta5.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta5.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			destObject: &directv1beta1.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta1", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta1.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta1.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta1",
+			},
+		},
 		// downgrade volume v1beta4 => v1beta1
 		{
 			srcObject: &directv1beta4.DirectCSIVolume{
@@ -622,6 +949,43 @@ func TestMigrate(t *testing.T) {
 				Version: "v1beta1",
 			},
 		},
+		// downgrage volume v1beta5 => v1beta2
+		{
+			srcObject: &directv1beta5.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta5", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta5.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta5.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			destObject: &directv1beta2.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta2", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta2.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta2.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta2",
+			},
+		},
 		// downgrage volume v1beta4 => v1beta2
 		{
 			srcObject: &directv1beta4.DirectCSIVolume{
@@ -657,6 +1021,43 @@ func TestMigrate(t *testing.T) {
 			groupVersion: schema.GroupVersion{
 				Group:   "direct.csi.min.io",
 				Version: "v1beta2",
+			},
+		},
+		// downgrage volume v1beta5 => v1beta3
+		{
+			srcObject: &directv1beta5.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta5", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta5.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta5.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			destObject: &directv1beta3.DirectCSIVolume{
+				TypeMeta: metav1.TypeMeta{APIVersion: "direct.csi.min.io/v1beta3", Kind: "DirectCSIVolume"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-volume-1",
+					Finalizers: []string{
+						string(directv1beta3.DirectCSIVolumeFinalizerPurgeProtection),
+					},
+				},
+				Status: directv1beta3.DirectCSIVolumeStatus{
+					NodeName:      "test-node",
+					HostPath:      "hostpath",
+					Drive:         "test-drive",
+					TotalCapacity: 2048,
+				},
+			},
+			groupVersion: schema.GroupVersion{
+				Group:   "direct.csi.min.io",
+				Version: "v1beta3",
 			},
 		},
 		// downgrage volume v1beta4 => v1beta3

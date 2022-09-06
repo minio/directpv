@@ -22,6 +22,7 @@ const (
 	versionV1Beta2  = "direct.csi.min.io/v1beta2"
 	versionV1Beta3  = "direct.csi.min.io/v1beta3"
 	versionV1Beta4  = "direct.csi.min.io/v1beta4"
+	versionV1Beta5  = "direct.csi.min.io/v1beta5"
 )
 
 var supportedVersions = []string{
@@ -30,6 +31,7 @@ var supportedVersions = []string{
 	versionV1Beta2,
 	versionV1Beta3,
 	versionV1Beta4,
+	versionV1Beta5,
 } // ordered
 
 type crdKind string

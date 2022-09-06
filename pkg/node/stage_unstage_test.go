@@ -28,7 +28,7 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -197,7 +197,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	ctx := context.TODO()
 	ns := createFakeNodeServer()
 	ns.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
-	directCSIClient := ns.directcsiClient.DirectV1beta4()
+	directCSIClient := ns.directcsiClient.DirectV1beta5()
 	hostPath := path.Join(
 		path.Join(
 			sys.MountRoot,

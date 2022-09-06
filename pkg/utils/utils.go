@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	directcsiv1beta1 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta1"
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 )
 
 const (

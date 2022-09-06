@@ -27,6 +27,7 @@ import (
 	directv1beta2 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta2"
 	directv1beta3 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta3"
 	directv1beta4 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta4"
+	directv1beta5 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta5"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -39,6 +40,7 @@ type Interface interface {
 	DirectV1beta2() directv1beta2.DirectV1beta2Interface
 	DirectV1beta3() directv1beta3.DirectV1beta3Interface
 	DirectV1beta4() directv1beta4.DirectV1beta4Interface
+	DirectV1beta5() directv1beta5.DirectV1beta5Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -50,6 +52,7 @@ type Clientset struct {
 	directV1beta2  *directv1beta2.DirectV1beta2Client
 	directV1beta3  *directv1beta3.DirectV1beta3Client
 	directV1beta4  *directv1beta4.DirectV1beta4Client
+	directV1beta5  *directv1beta5.DirectV1beta5Client
 }
 
 // DirectV1alpha1 retrieves the DirectV1alpha1Client
@@ -75,6 +78,11 @@ func (c *Clientset) DirectV1beta3() directv1beta3.DirectV1beta3Interface {
 // DirectV1beta4 retrieves the DirectV1beta4Client
 func (c *Clientset) DirectV1beta4() directv1beta4.DirectV1beta4Interface {
 	return c.directV1beta4
+}
+
+// DirectV1beta5 retrieves the DirectV1beta5Client
+func (c *Clientset) DirectV1beta5() directv1beta5.DirectV1beta5Interface {
+	return c.directV1beta5
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -141,6 +149,10 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 	if err != nil {
 		return nil, err
 	}
+	cs.directV1beta5, err = directv1beta5.NewForConfigAndClient(&configShallowCopy, httpClient)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
@@ -167,6 +179,7 @@ func New(c rest.Interface) *Clientset {
 	cs.directV1beta2 = directv1beta2.New(c)
 	cs.directV1beta3 = directv1beta3.New(c)
 	cs.directV1beta4 = directv1beta4.New(c)
+	cs.directV1beta5 = directv1beta5.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

@@ -30,6 +30,8 @@ import (
 	fakedirectv1beta3 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta3/fake"
 	directv1beta4 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta4"
 	fakedirectv1beta4 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta4/fake"
+	directv1beta5 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta5"
+	fakedirectv1beta5 "github.com/minio/directpv/pkg/clientset/typed/direct.csi.min.io/v1beta5/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -110,4 +112,9 @@ func (c *Clientset) DirectV1beta3() directv1beta3.DirectV1beta3Interface {
 // DirectV1beta4 retrieves the DirectV1beta4Client
 func (c *Clientset) DirectV1beta4() directv1beta4.DirectV1beta4Interface {
 	return &fakedirectv1beta4.FakeDirectV1beta4{Fake: &c.Fake}
+}
+
+// DirectV1beta5 retrieves the DirectV1beta5Client
+func (c *Clientset) DirectV1beta5() directv1beta5.DirectV1beta5Interface {
+	return &fakedirectv1beta5.FakeDirectV1beta5{Fake: &c.Fake}
 }

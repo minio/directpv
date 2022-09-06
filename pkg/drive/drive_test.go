@@ -25,7 +25,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/sys"
@@ -257,7 +257,7 @@ func TestFormatHanderWithError(t *testing.T) {
 
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDrive).DirectV1beta4().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDrive).DirectV1beta5().DirectCSIDrives())
 
 	var getDeviceCalled, isMountedCalled, statCalled, makeFSCalled bool
 	dl.isMounted = func(target string) (bool, error) {
@@ -464,7 +464,7 @@ func TestReleaseHanderWithError(t *testing.T) {
 	}
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDrive).DirectV1beta4().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDrive).DirectV1beta5().DirectCSIDrives())
 
 	var getDeviceCalled, unmountDeviceCalled bool
 	dl.getDevice = func(major, minor uint32) (string, error) {
@@ -606,7 +606,7 @@ func TestMountDriveHander(t *testing.T) {
 	}
 
 	// MountDrive with error
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDrive).DirectV1beta4().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDrive).DirectV1beta5().DirectCSIDrives())
 	getDeviceCalled = false
 	mountDeviceCalled = false
 	dl.mountDevice = func(device, target string, flags []string) error {
@@ -745,7 +745,7 @@ func TestRemountDriveHander(t *testing.T) {
 	}
 
 	// remountDrive with error
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDrive).DirectV1beta4().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDrive).DirectV1beta5().DirectCSIDrives())
 	getDeviceCalled = false
 	mountDeviceCalled = false
 	safeUnmountCalled = false
@@ -914,8 +914,8 @@ func TestDriveLostHandler(t *testing.T) {
 
 	ctx := context.TODO()
 	dl := createFakeDriveEventListener()
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObject).DirectV1beta4().DirectCSIDrives())
-	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObjects...).DirectV1beta4().DirectCSIVolumes())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObject).DirectV1beta5().DirectCSIDrives())
+	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObjects...).DirectV1beta5().DirectCSIVolumes())
 	dl.verifyHostStateForDrive = func(drive *directcsi.DirectCSIDrive) error {
 		return os.ErrNotExist
 	}

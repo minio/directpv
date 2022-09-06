@@ -23,7 +23,7 @@ import (
 	"sort"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 
@@ -631,7 +631,7 @@ func TestSyncDevices(t *testing.T) {
 				createTestDevice("sda", "wwid-a", "11111111-1111-1111-1111-111111111111", "xfs", 0, 202, 1),
 				createTestDevice("sdb", "wwid-b", "22222222-2222-2222-2222-222222222222", "xfs", 0, 202, 2),
 				createTestDevice("sdc", "wwid-c", "33333333-3333-3333-3333-333333333333", "xfs", 0, 202, 3),
-				createTestDevice("sde", "wwid-e", "", "", 0, 202, 55),
+				createTestDevice("sde", "wwid-e", "44444444-4444-4444-4444-444444444444", "", 0, 202, 5),
 				createTestDevice("sdf", "wwid-f", "66666666-6666-6666-6666-666666666666", "ext4", 0, 202, 6),
 			},
 			addedDeviceNames:   []string{"sdf"},
