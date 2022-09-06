@@ -1,0 +1,463 @@
+// This file is part of MinIO DirectPV
+// Copyright (c) 2021, 2022 MinIO, Inc.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+package controller
+
+import (
+	"context"
+	"reflect"
+	"testing"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
+	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
+	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
+const GiB = 1024 * 1024 * 1024
+
+func TestGetFilteredDrives(t *testing.T) {
+	case2Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "drive-1",
+				Finalizers: []string{consts.DriveFinalizerPrefix + "volume-1"},
+			},
+			Status: types.DriveStatus{},
+		},
+	}
+	case2Objects := []runtime.Object{&case2Result[0]}
+	case2Request := &csi.CreateVolumeRequest{Name: "volume-1"}
+
+	case3Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusOK,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusOK,
+			},
+		},
+	}
+	case3Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&case3Result[0],
+		&case3Result[1],
+	}
+	case3Request := &csi.CreateVolumeRequest{Name: "volume-1"}
+
+	case4Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: types.DriveStatus{
+				Status:       directpvtypes.DriveStatusOK,
+				FreeCapacity: 4 * GiB,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: types.DriveStatus{
+				Status:       directpvtypes.DriveStatusOK,
+				FreeCapacity: 2 * GiB,
+			},
+		},
+	}
+	case4Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&case4Result[0],
+		&case4Result[1],
+	}
+	case4Request := &csi.CreateVolumeRequest{Name: "volume-1", CapacityRange: &csi.CapacityRange{RequiredBytes: 2 * GiB}}
+
+	case5Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: types.DriveStatus{
+				Status:       directpvtypes.DriveStatusOK,
+				FreeCapacity: 4 * GiB,
+			},
+		},
+	}
+	case5Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: types.DriveStatus{
+				Status:       directpvtypes.DriveStatusFenced,
+				FreeCapacity: 2 * GiB,
+			},
+		},
+		&case5Result[0],
+	}
+	case5Request := &csi.CreateVolumeRequest{
+		Name:               "volume-1",
+		CapacityRange:      &csi.CapacityRange{RequiredBytes: 2 * GiB},
+		VolumeCapabilities: []*csi.VolumeCapability{{AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{FsType: "xfs"}}}},
+	}
+
+	case6Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: types.DriveStatus{
+				Status:     directpvtypes.DriveStatusOK,
+				AccessTier: directpvtypes.AccessTierHot,
+			},
+		},
+	}
+	case6Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusDeleted,
+			},
+		},
+		&case6Result[0],
+	}
+	case6Request := &csi.CreateVolumeRequest{
+		Name:       "volume-1",
+		Parameters: map[string]string{"direct-csi-min-io/access-tier": string(directpvtypes.AccessTierHot)},
+	}
+
+	case7Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: types.DriveStatus{
+				Status:   directpvtypes.DriveStatusOK,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region1"},
+			},
+		},
+	}
+	case7Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusOK,
+			},
+		},
+		&case7Result[0],
+	}
+	case7Request := &csi.CreateVolumeRequest{
+		Name: "volume-1",
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Preferred: []*csi.Topology{{Segments: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region1"}}},
+		},
+	}
+
+	case8Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: types.DriveStatus{
+				Status:   directpvtypes.DriveStatusOK,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"},
+			},
+		},
+	}
+	case8Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: types.DriveStatus{
+				Status:   directpvtypes.DriveStatusOK,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region1"},
+			},
+		},
+		&case8Result[0],
+	}
+	case8Request := &csi.CreateVolumeRequest{
+		Name: "volume-1",
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Requisite: []*csi.Topology{{Segments: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"}}},
+		},
+	}
+
+	case9Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusOK,
+			},
+		},
+	}
+	case9Request := &csi.CreateVolumeRequest{
+		Name: "volume-1",
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Preferred: []*csi.Topology{{Segments: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region1"}}},
+			Requisite: []*csi.Topology{{Segments: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"}}},
+		},
+	}
+
+	case10Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: types.DriveStatus{
+				Status:   directpvtypes.DriveStatusOK,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"},
+			},
+		},
+	}
+	case10Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: types.DriveStatus{
+				Status:   directpvtypes.DriveStatusDeleted,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"},
+			},
+		},
+		&case10Result[0],
+	}
+	case10Request := &csi.CreateVolumeRequest{
+		Name: "volume-1",
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Requisite: []*csi.Topology{{Segments: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"}}},
+		},
+	}
+
+	case11Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status: types.DriveStatus{
+				Status:   directpvtypes.DriveStatusFenced,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"},
+			},
+		},
+	}
+	case11Request := &csi.CreateVolumeRequest{
+		Name: "volume-1",
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Requisite: []*csi.Topology{{Segments: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"}}},
+		},
+	}
+
+	case12Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status: types.DriveStatus{
+				Status:   directpvtypes.DriveStatusOK,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"},
+			},
+		},
+	}
+	case12Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive-1",
+			},
+			Status: types.DriveStatus{
+				Status: directpvtypes.DriveStatusError,
+			},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "drive-3",
+				DeletionTimestamp: func() *metav1.Time {
+					deleteTz := metav1.Now()
+					return &deleteTz
+				}(),
+			},
+			Status: types.DriveStatus{
+				Status:   directpvtypes.DriveStatusOK,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"},
+			},
+		},
+		&case10Result[0],
+	}
+	case12Request := &csi.CreateVolumeRequest{
+		Name: "volume-1",
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Requisite: []*csi.Topology{{Segments: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region2"}}},
+		},
+	}
+
+	case13Result := []types.Drive{
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status:     types.DriveStatus{Status: directpvtypes.DriveStatusOK, AccessTier: directpvtypes.AccessTierHot},
+		},
+	}
+	case13Objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status:     types.DriveStatus{Status: directpvtypes.DriveStatusError},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status:     types.DriveStatus{Status: directpvtypes.DriveStatusDeleted},
+		},
+		&case13Result[0],
+	}
+	case13Request := &csi.CreateVolumeRequest{
+		Name:       "volume-1",
+		Parameters: map[string]string{"direct-csi-min-io/access-tier": "hot"},
+	}
+
+	testCases := []struct {
+		objects        []runtime.Object
+		request        *csi.CreateVolumeRequest
+		expectedResult []types.Drive
+	}{
+		{[]runtime.Object{}, nil, nil},
+		{case2Objects, case2Request, case2Result},
+		{case3Objects, case3Request, case3Result},
+		{case4Objects, case4Request, case4Result},
+		{case5Objects, case5Request, case5Result},
+		{case6Objects, case6Request, case6Result},
+		{case7Objects, case7Request, case7Result},
+		{case8Objects, case8Request, case8Result},
+		{case9Objects, case9Request, nil},
+		{case10Objects, case10Request, case10Result},
+		{case11Objects, case11Request, nil},
+		{case12Objects, case12Request, case12Result},
+		{case13Objects, case13Request, case13Result},
+	}
+
+	for i, testCase := range testCases {
+		clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testCase.objects...))
+		client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+		result, err := getFilteredDrives(context.TODO(), testCase.request)
+		if err != nil {
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
+		}
+
+		if !reflect.DeepEqual(result, testCase.expectedResult) {
+			t.Fatalf("case %v: result: expected: %v, got: %v", i+1, testCase.expectedResult, result)
+		}
+	}
+}
+
+func TestGetDrive(t *testing.T) {
+	case2Result := &types.Drive{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "drive-1",
+			Finalizers: []string{consts.DriveFinalizerPrefix + "volume-1"},
+		},
+	}
+	case2Objects := []runtime.Object{case2Result}
+	case2Request := &csi.CreateVolumeRequest{Name: "volume-1"}
+
+	testCases := []struct {
+		objects        []runtime.Object
+		request        *csi.CreateVolumeRequest
+		expectedResult *types.Drive
+		expectErr      bool
+	}{
+		{[]runtime.Object{}, nil, nil, true},
+		{case2Objects, case2Request, case2Result, false},
+	}
+
+	for i, testCase := range testCases {
+		clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testCase.objects...))
+		client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+		client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
+		result, err := selectDrive(context.TODO(), testCase.request)
+
+		if testCase.expectErr {
+			if err == nil {
+				t.Fatalf("case %v: expected error, but succeeded", i+1)
+			}
+			continue
+		}
+
+		if !reflect.DeepEqual(result, testCase.expectedResult) {
+			t.Fatalf("case %v: result: expected: %v, got: %v", i+1, testCase.expectedResult, result)
+		}
+	}
+
+	objects := []runtime.Object{
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
+			Status:     types.DriveStatus{Status: directpvtypes.DriveStatusError},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-2"},
+			Status:     types.DriveStatus{Status: directpvtypes.DriveStatusOK, FreeCapacity: 4 * GiB},
+		},
+		&types.Drive{
+			ObjectMeta: metav1.ObjectMeta{Name: "drive-3"},
+			Status:     types.DriveStatus{Status: directpvtypes.DriveStatusOK, FreeCapacity: 4 * GiB},
+		},
+	}
+	request := &csi.CreateVolumeRequest{Name: "volume-1", CapacityRange: &csi.CapacityRange{RequiredBytes: 2 * GiB}}
+
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	result, err := selectDrive(context.TODO(), request)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !utils.StringIn([]string{"drive-2", "drive-3"}, result.Name) {
+		t.Fatalf("result: expected: %v, got: %v", []string{"drive-2", "drive-3"}, result.Name)
+	}
+}
