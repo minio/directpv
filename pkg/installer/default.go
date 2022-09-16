@@ -223,20 +223,6 @@ func (v *defaultInstaller) uninstallPSP(ctx context.Context) error {
 	return err
 }
 
-func (v *defaultInstaller) uninstallConversionSecret(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete Conversion secret")) },
-	)
-	defer timer.Stop()
-
-	err := uninstallConversionSecretDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete Conversion secret; %v", color.HiRedString("ERROR"), err)
-	}
-	return err
-}
-
 func (v *defaultInstaller) uninstallCRD(ctx context.Context) error {
 	timer := time.AfterFunc(
 		3*time.Second,
@@ -386,9 +372,6 @@ func (v *defaultInstaller) Uninstall(ctx context.Context) error {
 		return err
 	}
 	if err := v.uninstallCSIDriver(ctx); err != nil {
-		return err
-	}
-	if err := v.uninstallConversionSecret(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallPSP(ctx); err != nil {

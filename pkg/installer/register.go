@@ -128,11 +128,7 @@ func registerCRDs(ctx context.Context, c *Config) error {
 				return err
 			}
 
-			if err = c.postProc(crd); err != nil {
-				return err
-			}
-
-			return nil
+			return c.postProc(crd)
 		}
 
 		return syncCRD(ctx, existingCRD, &crd, c)
@@ -143,36 +139,6 @@ func registerCRDs(ctx context.Context, c *Config) error {
 	}
 
 	return register(volumesYAML)
-}
-
-// GetConversionCABundle returns the CA bundle from the secret
-func GetConversionCABundle(ctx context.Context, c *Config) ([]byte, error) {
-	getCABundleFromConfig := func() ([]byte, error) {
-		conversionCABundle := c.conversionWebhookCaBundle
-		if len(conversionCABundle) == 0 {
-			return []byte{}, errEmptyCABundle
-		}
-		return conversionCABundle, nil
-	}
-
-	secret, err := k8s.KubeClient().
-		CoreV1().
-		Secrets(c.namespace()).
-		Get(ctx, conversionCACert, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) && c.DryRun {
-			return getCABundleFromConfig()
-		}
-		return []byte{}, err
-	}
-
-	for key, value := range secret.Data {
-		if key == caCertFileName {
-			return value, nil
-		}
-	}
-
-	return []byte{}, errEmptyCABundle
 }
 
 func unregisterCRDs(ctx context.Context) error {

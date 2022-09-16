@@ -82,10 +82,6 @@ func (v *v1dot20) uninstallPSP(ctx context.Context) error {
 	return uninstallPSPDefault(ctx, v.Config)
 }
 
-func (v *v1dot20) uninstallConversionSecret(ctx context.Context) error {
-	return uninstallConversionSecretDefault(ctx, v.Config)
-}
-
 func (v *v1dot20) uninstallCRD(ctx context.Context) error {
 	return uninstallCRDDefault(ctx, v.Config)
 }
@@ -165,9 +161,6 @@ func (v *v1dot20) Uninstall(ctx context.Context) error {
 		return err
 	}
 	if err := v.uninstallCSIDriver(ctx); err != nil {
-		return err
-	}
-	if err := v.uninstallConversionSecret(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallPSP(ctx); err != nil {

@@ -92,11 +92,6 @@ func Install(ctx context.Context, config *Config) error {
 	if err != nil {
 		return err
 	}
-	if !config.DryRun {
-		if err := deleteLegacyConversionDeployment(ctx, config.Identity); err != nil {
-			return err
-		}
-	}
 	return installer.Install(ctx)
 }
 
@@ -111,11 +106,6 @@ func Uninstall(ctx context.Context, config *Config) error {
 	installer, err := getInstaller(config)
 	if err != nil {
 		return err
-	}
-	if !config.DryRun {
-		if err := deleteLegacyConversionDeployment(ctx, config.Identity); err != nil {
-			return err
-		}
 	}
 	return installer.Uninstall(ctx)
 }

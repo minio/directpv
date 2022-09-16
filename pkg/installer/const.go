@@ -19,11 +19,6 @@ package installer
 import "github.com/minio/directpv/pkg/consts"
 
 const (
-	// conversion deployment
-	conversionWebhookDeploymentName = consts.AppName + "-conversion-webhook"
-	conversionWebhookSecretName     = "conversionwebhookcerts"
-	conversionWebhookCertsSecret    = "converionwebhookcertsecret"
-
 	// rbac
 	clusterRoleVerbList   = "list"
 	clusterRoleVerbUse    = "use"
@@ -33,11 +28,6 @@ const (
 	clusterRoleVerbDelete = "delete"
 	clusterRoleVerbUpdate = "update"
 	clusterRoleVerbPatch  = "patch"
-
-	// conversion secret
-	conversionKeyPair = "conversionkeypair"
-	caCertFileName    = "ca.pem"
-	conversionCACert  = "conversioncacert"
 
 	// Daemonset
 	volumeNameMountpointDir          = "mountpoint-dir"
