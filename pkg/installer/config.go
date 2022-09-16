@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -86,7 +85,6 @@ type Config struct {
 	ImagePullSecrets []string
 
 	// internal
-	conversionWebhookCaBundle []byte
 	validationWebhookCaBundle []byte
 }
 
@@ -125,10 +123,6 @@ func (c *Config) getNodeDriverRegistrarImage() string {
 
 func (c *Config) getLivenessProbeImage() string {
 	return defaultOnEmpty(c.LivenessProbeImage, CSIImageLivenessProbe)
-}
-
-func (c *Config) conversionWebhookDNSName() string {
-	return strings.Join([]string{c.identity(), c.namespace(), "svc"}, ".")
 }
 
 func (c *Config) csiDriverName() string {
