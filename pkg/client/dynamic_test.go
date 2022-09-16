@@ -128,7 +128,7 @@ func createTestDrive(node, drive, backendVersion string, labels map[string]strin
 func getFakeLatestDriveClient(t *testing.T, i int, drive runtime.Object, version string) *latestDriveClient {
 	unstructuredObject, err := runtime.DefaultUnstructuredConverter.ToUnstructured(drive)
 	if err != nil {
-		t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+		t.Fatalf("case %v: unexpected error: %v", i+1, err)
 	}
 	return newFakeLatestDriveClient(version, consts.DriveResource, &unstructured.Unstructured{Object: unstructuredObject})
 }
@@ -152,7 +152,7 @@ func TestGetDrive(t *testing.T) {
 		client := getFakeLatestDriveClient(t, i, testCase.object, testCase.apiVersion)
 		drive, err := client.Get(ctx, testCase.name, metav1.GetOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != drive.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, drive.GetObjectKind().GroupVersionKind().GroupVersion())
@@ -182,7 +182,7 @@ func TestListDrive(t *testing.T) {
 		for j := range testCase.objects {
 			obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(testCase.objects[j])
 			if err != nil {
-				t.Fatalf("case %v: object %v: error: expected: no error, got: %v", i+1, j, err)
+				t.Fatalf("case %v: object %v: unexpected error: %v", i+1, j, err)
 			}
 			unstructuredObjects = append(unstructuredObjects, &unstructured.Unstructured{Object: obj})
 		}
@@ -190,7 +190,7 @@ func TestListDrive(t *testing.T) {
 		client := newFakeLatestDriveClientForList(testCase.apiVersion, consts.DriveResource, "DirectPVDriveList", unstructuredObjects...)
 		driveList, err := client.List(ctx, metav1.ListOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != driveList.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, driveList.GetObjectKind().GroupVersionKind().GroupVersion())
@@ -224,7 +224,7 @@ func TestListDriveWithOption(t *testing.T) {
 		for j := range testCase.objects {
 			obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(testCase.objects[j])
 			if err != nil {
-				t.Fatalf("case %v: object %v: error: expected: no error, got: %v", i+1, j, err)
+				t.Fatalf("case %v: object %v: unexpected error: %v", i+1, j, err)
 			}
 			unstructuredObjects = append(unstructuredObjects, &unstructured.Unstructured{Object: obj})
 		}
@@ -238,7 +238,7 @@ func TestListDriveWithOption(t *testing.T) {
 		}
 		driveList, err := client.List(ctx, metav1.ListOptions{LabelSelector: types.ToLabelSelector(labelMap)})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		var names []string
 		for _, item := range driveList.Items {
@@ -274,7 +274,7 @@ func TestCreateDrive(t *testing.T) {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
 		createdDrive, err := client.Create(ctx, testCase.newDrive, metav1.CreateOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != createdDrive.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, createdDrive.GetObjectKind().GroupVersionKind().GroupVersion())
@@ -299,10 +299,10 @@ func TestDeleteDrive(t *testing.T) {
 	for i, testCase := range testCases {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
 		if err := client.Delete(ctx, testCase.name, metav1.DeleteOptions{}); err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if _, err := client.Get(ctx, testCase.name, metav1.GetOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 	}
 }
@@ -324,10 +324,10 @@ func TestDeleteCollectionDrive(t *testing.T) {
 	for i, testCase := range testCases {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
 		if err := client.DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{}); err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if _, err := client.Get(ctx, testCase.name, metav1.GetOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 	}
 }
@@ -353,7 +353,7 @@ func TestUpdateDrive(t *testing.T) {
 		testCase.inputDrive.Status.AccessTier = testCase.accessTier
 		updatedDrive, err := client.Update(ctx, testCase.inputDrive, metav1.UpdateOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion())
@@ -385,7 +385,7 @@ func TestUpdateStatusDrive(t *testing.T) {
 		testCase.inputDrive.Status.AccessTier = testCase.accessTier
 		updatedDrive, err := client.UpdateStatus(ctx, testCase.inputDrive, metav1.UpdateOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion())
@@ -406,7 +406,7 @@ func TestWatcher(t *testing.T) {
 		}
 		var drive types.Drive
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(event.Object.(*unstructured.Unstructured).Object, &drive); err != nil {
-			return fmt.Errorf("error: expected: no error, got: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if !reflect.DeepEqual(&drive, expectedObject) {
 			return fmt.Errorf("eventType %v: expected: %v, got: %v", expectedEventType, expectedObject, drive)
@@ -418,7 +418,7 @@ func TestWatcher(t *testing.T) {
 	fakeDriveClient := getFakeLatestDriveClient(t, 0, inputDrive, consts.LatestAPIVersion)
 	fakeWatchInterface, err := fakeDriveClient.Watch(ctx, metav1.ListOptions{})
 	if err != nil {
-		t.Fatalf("error: expected: no error, got: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	resultCh := watchInterfaceWrapper{fakeWatchInterface}.ResultChan()
 
@@ -430,7 +430,7 @@ func TestWatcher(t *testing.T) {
 		},
 	}
 	if _, err = fakeDriveClient.Create(ctx, testCreateObject, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error: expected: no error, got: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	event, ok := <-resultCh
 	if !ok {
@@ -449,7 +449,7 @@ func TestWatcher(t *testing.T) {
 		Status: types.DriveStatus{Status: directpvtypes.DriveStatusError},
 	}
 	if _, err = fakeDriveClient.Update(ctx, testUpdateObject, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error: expected: no error, got: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	event, ok = <-resultCh
 	if !ok {
@@ -462,7 +462,7 @@ func TestWatcher(t *testing.T) {
 	// Test Delete Event
 
 	if err = fakeDriveClient.Delete(ctx, "drive1", metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error: expected: no error, got: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	event, ok = <-resultCh
 	if !ok {
@@ -519,7 +519,7 @@ func TestGetVolume(t *testing.T) {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)
 		volume, err := volumeClient.Get(ctx, testCase.name, metav1.GetOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != volume.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, volume.GetObjectKind().GroupVersionKind().GroupVersion())
@@ -546,7 +546,7 @@ func TestListVolume(t *testing.T) {
 		for j, value := range testCase.volumes {
 			obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(value)
 			if err != nil {
-				t.Fatalf("case %v: volume %v: error: expected: no error, got: %v", i+1, j, err)
+				t.Fatalf("case %v: volume %v: unexpected error: %v", i+1, j, err)
 			}
 			unstructuredObjects = append(unstructuredObjects, &unstructured.Unstructured{Object: obj})
 		}
@@ -554,7 +554,7 @@ func TestListVolume(t *testing.T) {
 		client := newFakeLatestVolumeClientForList(testCase.apiVersion, consts.DriveResource, "DirectPVVolumeList", unstructuredObjects...)
 		volumeList, err := client.List(ctx, metav1.ListOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != volumeList.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, volumeList.GetObjectKind().GroupVersionKind().GroupVersion())
@@ -582,7 +582,7 @@ func TestCreateVolume(t *testing.T) {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)
 		createdVolume, err := volumeClient.Create(ctx, testCase.newVolume, metav1.CreateOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != createdVolume.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, createdVolume.GetObjectKind().GroupVersionKind().GroupVersion())
@@ -607,10 +607,10 @@ func TestDeleteVolume(t *testing.T) {
 	for i, testCase := range testCases {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)
 		if err := volumeClient.Delete(ctx, testCase.name, metav1.DeleteOptions{}); err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if _, err := volumeClient.Get(ctx, testCase.name, metav1.GetOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 	}
 }
@@ -632,10 +632,10 @@ func TestVolumeDeleteCollection(t *testing.T) {
 	for i, testCase := range testCases {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)
 		if err := volumeClient.DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{}); err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if _, err := volumeClient.Get(ctx, testCase.name, metav1.GetOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 	}
 }
@@ -661,7 +661,7 @@ func TestUpdateVolume(t *testing.T) {
 		testCase.volume.Status.AvailableCapacity = testCase.availableCapacity
 		updatedVolume, err := volumeClient.Update(ctx, testCase.volume, metav1.UpdateOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != updatedVolume.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, updatedVolume.GetObjectKind().GroupVersionKind().GroupVersion())
@@ -693,7 +693,7 @@ func TestUpdateStatusVolume(t *testing.T) {
 		testCase.volume.Status.AvailableCapacity = testCase.availableCapacity
 		updatedVolume, err := volumeClient.UpdateStatus(ctx, testCase.volume, metav1.UpdateOptions{})
 		if err != nil {
-			t.Fatalf("case %v: error: expected: no error, got: %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 		if expectedGV != updatedVolume.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, updatedVolume.GetObjectKind().GroupVersionKind().GroupVersion())

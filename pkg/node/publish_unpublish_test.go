@@ -23,10 +23,10 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/mount"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -48,10 +48,11 @@ func TestNodePublishVolume(t *testing.T) {
 		Status:     types.VolumeStatus{StagingPath: "volume-id-1-staging-target-path"},
 	}
 
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(volume))
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
 	nodeServer := createFakeServer()
-	nodeServer.directcsiClient = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(volume))
-	_, err := nodeServer.NodePublishVolume(context.TODO(), req)
-	if err == nil {
+	if _, err := nodeServer.NodePublishVolume(context.TODO(), req); err == nil {
 		t.Fatalf("expected error, but succeeded")
 	}
 }
@@ -139,22 +140,23 @@ func TestPublishUnpublishVolume(t *testing.T) {
 		TargetPath: testContainerPath,
 	}
 
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testVol))
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
 	ctx := context.TODO()
 	ns := createFakeServer()
-	ns.directcsiClient = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testVol))
-	directCSIClient := ns.directcsiClient.DirectpvLatest()
 
 	// Publish volume test
-	ns.probeMounts = func() (map[string][]mount.MountInfo, error) {
-		return map[string][]mount.MountInfo{"0:0": {{MountPoint: testStagingPath}}}, nil
+	ns.getMounts = func() (map[string][]string, map[string][]string, error) {
+		return map[string][]string{testStagingPath: {}}, nil, nil
 	}
 	_, err := ns.NodePublishVolume(ctx, &publishVolumeRequest)
 	if err != nil {
 		t.Fatalf("[%s] PublishVolume failed. Error: %v", publishVolumeRequest.VolumeId, err)
 	}
 
-	volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, publishVolumeRequest.GetVolumeId(), metav1.GetOptions{
-		TypeMeta: directpvtypes.NewVolumeTypeMeta(),
+	volObj, gErr := client.VolumeClient().Get(ctx, publishVolumeRequest.GetVolumeId(), metav1.GetOptions{
+		TypeMeta: types.NewVolumeTypeMeta(),
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", publishVolumeRequest.GetVolumeId(), gErr)
@@ -175,8 +177,8 @@ func TestPublishUnpublishVolume(t *testing.T) {
 		t.Fatalf("[%s] PublishVolume failed. Error: %v", unpublishVolumeRequest.VolumeId, err)
 	}
 
-	volObj, gErr = directCSIClient.DirectCSIVolumes().Get(ctx, unpublishVolumeRequest.GetVolumeId(), metav1.GetOptions{
-		TypeMeta: directpvtypes.NewVolumeTypeMeta(),
+	volObj, gErr = client.VolumeClient().Get(ctx, unpublishVolumeRequest.GetVolumeId(), metav1.GetOptions{
+		TypeMeta: types.NewVolumeTypeMeta(),
 	})
 	if gErr != nil {
 		t.Fatalf("Volume (%s) not found. Error: %v", unpublishVolumeRequest.GetVolumeId(), gErr)

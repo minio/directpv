@@ -376,7 +376,7 @@ func (listener *Listener) Run(ctx context.Context) error {
 				listener.runController(ctx)
 			},
 			OnStoppedLeading: func() {
-				klog.Errorf("Stopped %v controller after stopped leader election")
+				klog.Errorf("Stopped controller by stopped leader election")
 			},
 			OnNewLeader: func(identity string) {
 				klog.V(3).Infof("New leader detected; current leader %s", identity)

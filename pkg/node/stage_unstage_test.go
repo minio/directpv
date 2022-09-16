@@ -18,19 +18,17 @@ package node
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"path"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
-	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
-	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
+	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/mount"
-	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -62,7 +60,7 @@ func TestNodeStageVolume(t *testing.T) {
 	case2Drive := &types.Drive{
 		TypeMeta:   types.NewDriveTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-		Status:     types.DriveStatus{DriveStatus: directcsi.DriveStatusInUse},
+		Status:     types.DriveStatus{Status: directpvtypes.DriveStatusOK},
 	}
 
 	case3Drive := &types.Drive{
@@ -71,18 +69,18 @@ func TestNodeStageVolume(t *testing.T) {
 			Name:       "drive-1",
 			Finalizers: []string{consts.DriveFinalizerPrefix + "volume-id-1"},
 		},
-		Status: types.DriveStatus{DriveStatus: directcsi.DriveStatusInUse},
+		Status: types.DriveStatus{Status: directpvtypes.DriveStatusOK},
 	}
 
 	testCases := []struct {
 		req       *csi.NodeStageVolumeRequest
 		drive     *types.Drive
-		mountInfo map[string][]mount.MountInfo
+		mountInfo map[string][]string
 	}{
 		{case1Req, case1Drive, nil},
 		{case1Req, case2Drive, nil},
-		{case1Req, case3Drive, map[string][]mount.MountInfo{"1:0": {}}},
-		{case1Req, case3Drive, map[string][]mount.MountInfo{"0:0": {}}},
+		{case1Req, case3Drive, map[string][]string{consts.MountRootDir: {}}},
+		{case1Req, case3Drive, map[string][]string{consts.MountRootDir: {}}},
 	}
 
 	for i, testCase := range testCases {
@@ -91,24 +89,26 @@ func TestNodeStageVolume(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: testCase.req.VolumeId},
 			Status: types.VolumeStatus{
 				NodeName:      testNodeName,
-				Drive:         testCase.drive.Name,
+				DriveName:     testCase.drive.Name,
 				TotalCapacity: 100 * MB,
 			},
 		}
 
+		clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(volume, testCase.drive))
+		client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+		client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
 		nodeServer := createFakeServer()
-		nodeServer.directcsiClient = fakedirect.NewSimpleClientset(volume, testCase.drive)
-		nodeServer.probeMounts = func() (map[string][]mount.MountInfo, error) {
-			return testCase.mountInfo, nil
+		nodeServer.getMounts = func() (map[string][]string, map[string][]string, error) {
+			return testCase.mountInfo, nil, nil
 		}
-		nodeServer.verifyHostStateForDrive = func(drive *types.Drive) error {
-			if drive.Status.Path == "" {
-				return errors.New("empty path")
+		nodeServer.bindMount = func(source, stagingTargetPath string, readOnly bool) error {
+			if _, found := testCase.mountInfo[source]; !found {
+				return fmt.Errorf("source is not mounted")
 			}
 			return nil
 		}
-		_, err := nodeServer.NodeStageVolume(context.TODO(), testCase.req)
-		if err == nil {
+		if _, err := nodeServer.NodeStageVolume(context.TODO(), testCase.req); err == nil {
 			t.Fatalf("case %v: expected error, but succeeded", i+1)
 		}
 	}
@@ -129,9 +129,8 @@ func TestStageUnstageVolume(t *testing.T) {
 				},
 			},
 			Status: types.DriveStatus{
-				Mountpoint:        path.Join(sys.MountRoot, testDriveName),
 				NodeName:          testNodeName,
-				DriveStatus:       directcsi.DriveStatusInUse,
+				Status:            directpvtypes.DriveStatusOK,
 				FreeCapacity:      mb50,
 				AllocatedCapacity: mb50,
 				TotalCapacity:     mb100,
@@ -147,7 +146,8 @@ func TestStageUnstageVolume(t *testing.T) {
 			},
 			Status: types.VolumeStatus{
 				NodeName:      testNodeName,
-				Drive:         testDriveName,
+				DriveName:     testDriveName,
+				FSUUID:        testDriveName,
 				TotalCapacity: mb20,
 				Conditions: []metav1.Condition{
 					{
@@ -196,18 +196,15 @@ func TestStageUnstageVolume(t *testing.T) {
 		StagingTargetPath: "/path/to/target",
 	}
 
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testObjects...))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
 	ctx := context.TODO()
 	ns := createFakeServer()
-	ns.directcsiClient = fakedirect.NewSimpleClientset(testObjects...)
-	directCSIClient := ns.directcsiClient.DirectV1beta4()
-	hostPath := path.Join(
-		path.Join(
-			sys.MountRoot,
-			testDriveName,
-		),
-		testVolumeName50MB)
-	ns.probeMounts = func() (map[string][]mount.MountInfo, error) {
-		return map[string][]mount.MountInfo{"0:0": {{MountPoint: "/var/lib/direct-csi/mnt", MajorMinor: "0:0"}}}, nil
+	hostPath := path.Join(consts.MountRootDir, testDriveName, ".FSUUID."+testDriveName, testVolumeName50MB)
+	ns.getMounts = func() (map[string][]string, map[string][]string, error) {
+		return map[string][]string{consts.MountRootDir: {}}, nil, nil
 	}
 
 	// Stage Volume test
@@ -216,7 +213,7 @@ func TestStageUnstageVolume(t *testing.T) {
 		t.Fatalf("[%s] StageVolume failed. Error: %v", stageVolumeRequest.VolumeId, err)
 	}
 
-	volObj, gErr := directCSIClient.DirectCSIVolumes().Get(ctx, stageVolumeRequest.GetVolumeId(), metav1.GetOptions{
+	volObj, gErr := client.VolumeClient().Get(ctx, stageVolumeRequest.GetVolumeId(), metav1.GetOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	})
 	if gErr != nil {
@@ -241,7 +238,7 @@ func TestStageUnstageVolume(t *testing.T) {
 		t.Fatalf("[%s] UnstageVolume failed. Error: %v", unstageVolumeRequest.VolumeId, err)
 	}
 
-	volObj, gErr = directCSIClient.DirectCSIVolumes().Get(ctx, unstageVolumeRequest.GetVolumeId(), metav1.GetOptions{
+	volObj, gErr = client.VolumeClient().Get(ctx, unstageVolumeRequest.GetVolumeId(), metav1.GetOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	})
 	if gErr != nil {

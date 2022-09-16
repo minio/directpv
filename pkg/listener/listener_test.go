@@ -23,16 +23,15 @@ import (
 	"reflect"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
-	"github.com/minio/directpv/pkg/clientset"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
-	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/consts"
+	pkgtypes "github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
-	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -41,26 +40,24 @@ const (
 	GiB    = 1024 * 1024 * 1024
 )
 
+func init() {
+	client.FakeInit()
+}
+
 type testEventHandler struct {
-	t               *testing.T
-	kubeClient      kubernetes.Interface
-	directCSIClient clientset.Interface
-	handleFunc      func(args EventArgs) error
+	t          *testing.T
+	handleFunc func(args EventArgs) error
 }
 
 func (handler *testEventHandler) ListerWatcher() cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return handler.directCSIClient.DirectV1beta4().DirectCSIVolumes().List(context.TODO(), options)
+			return client.VolumeClient().List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return handler.directCSIClient.DirectV1beta4().DirectCSIVolumes().Watch(context.TODO(), options)
+			return client.VolumeClient().Watch(context.TODO(), options)
 		},
 	}
-}
-
-func (handler *testEventHandler) KubeClient() kubernetes.Interface {
-	return handler.kubeClient
 }
 
 func (handler *testEventHandler) Name() string {
@@ -68,7 +65,7 @@ func (handler *testEventHandler) Name() string {
 }
 
 func (handler *testEventHandler) ObjectType() runtime.Object {
-	return &types.Volume{}
+	return &pkgtypes.Volume{}
 }
 
 func (handler *testEventHandler) Handle(ctx context.Context, args EventArgs) error {
@@ -90,9 +87,9 @@ func startTestController(ctx context.Context, t *testing.T, handler *testEventHa
 }
 
 type condition struct {
-	ctype  types.VolumeCondition
+	ctype  directpvtypes.VolumeConditionType
 	status metav1.ConditionStatus
-	reason types.VolumeReason
+	reason directpvtypes.VolumeConditionReason
 }
 
 func (c condition) toCondition() metav1.Condition {
@@ -104,14 +101,14 @@ func (c condition) toCondition() metav1.Condition {
 	}
 }
 
-func newDirectCSIVolume(name, uid string, capacity int64, conditions []condition) *types.Volume {
+func newVolume(name, uid string, capacity int64, conditions []condition) *pkgtypes.Volume {
 	var metaConditions []metav1.Condition
 	for _, c := range conditions {
 		metaConditions = append(metaConditions, c.toCondition())
 	}
 
-	return &types.Volume{
-		TypeMeta: types.NewVolumeTypeMeta(),
+	return &pkgtypes.Volume{
+		TypeMeta: pkgtypes.NewVolumeTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Finalizers: []string{
@@ -119,17 +116,17 @@ func newDirectCSIVolume(name, uid string, capacity int64, conditions []condition
 			},
 			UID: types.UID(uid),
 		},
-		Status: types.VolumeStatus{
+		Status: pkgtypes.VolumeStatus{
 			NodeName:      nodeID,
 			HostPath:      "hostpath",
-			Drive:         "test-drive",
+			DriveName:     "test-drive",
 			TotalCapacity: capacity,
 			Conditions:    metaConditions,
 		},
 	}
 }
 
-func getHandleFunc(t *testing.T, event EventType, volumes ...*types.Volume) (<-chan struct{}, func(EventArgs) error) {
+func getHandleFunc(t *testing.T, event EventType, volumes ...*pkgtypes.Volume) (<-chan struct{}, func(EventArgs) error) {
 	doneCh := make(chan struct{})
 	i := 0
 	errOccured := false
@@ -146,7 +143,7 @@ func getHandleFunc(t *testing.T, event EventType, volumes ...*types.Volume) (<-c
 			t.Fatalf("expected: %v, got: %v", event, args.Event)
 		}
 
-		volume := args.Object.(*types.Volume)
+		volume := args.Object.(*pkgtypes.Volume)
 		if !reflect.DeepEqual(volumes[i], volume) {
 			errOccured = true
 			t.Fatalf("received volume is not equal to volumes[%v]", i)
@@ -155,7 +152,7 @@ func getHandleFunc(t *testing.T, event EventType, volumes ...*types.Volume) (<-c
 	}
 }
 
-func toRuntimeObjects(volumes ...*types.Volume) (objects []runtime.Object) {
+func toRuntimeObjects(volumes ...*pkgtypes.Volume) (objects []runtime.Object) {
 	for _, volume := range volumes {
 		objects = append(objects, volume)
 	}
@@ -167,24 +164,25 @@ func TestListener(t *testing.T) {
 	defer cancelFunc()
 
 	testHandler := &testEventHandler{
-		kubeClient: kubernetesfake.NewSimpleClientset(),
-		t:          t,
+		t: t,
 	}
 
 	// Sync
-	volumes := []*types.Volume{
-		newDirectCSIVolume("test-volume-1", "1", 2*GiB, []condition{
-			{types.VolumeConditionStaged, metav1.ConditionTrue, types.VolumeReasonInUse},
-			{types.VolumeConditionPublished, metav1.ConditionFalse, types.VolumeReasonNotInUse},
-			{types.VolumeConditionReady, metav1.ConditionTrue, types.VolumeReasonReady},
+	volumes := []*pkgtypes.Volume{
+		newVolume("test-volume-1", "1", 2*GiB, []condition{
+			{directpvtypes.VolumeConditionTypeStaged, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonInUse},
+			{directpvtypes.VolumeConditionTypePublished, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonNotInUse},
+			{directpvtypes.VolumeConditionTypeReady, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonReady},
 		}),
-		newDirectCSIVolume("test-volume-2", "2", 3*GiB, []condition{
-			{types.VolumeConditionStaged, metav1.ConditionFalse, types.VolumeReasonInUse},
-			{types.VolumeConditionPublished, metav1.ConditionFalse, types.VolumeReasonNotInUse},
-			{types.VolumeConditionReady, metav1.ConditionTrue, types.VolumeReasonReady},
+		newVolume("test-volume-2", "2", 3*GiB, []condition{
+			{directpvtypes.VolumeConditionTypeStaged, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonInUse},
+			{directpvtypes.VolumeConditionTypePublished, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonNotInUse},
+			{directpvtypes.VolumeConditionTypeReady, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonReady},
 		}),
 	}
-	testHandler.directCSIClient = clientsetfake.NewSimpleClientset(toRuntimeObjects(volumes...)...)
+
+	clientset := pkgtypes.NewExtFakeClientset(clientsetfake.NewSimpleClientset(toRuntimeObjects(volumes...)...))
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
 	doneCh, handleFunc := getHandleFunc(t, AddEvent, volumes...)
 	testHandler.handleFunc = handleFunc
@@ -192,26 +190,26 @@ func TestListener(t *testing.T) {
 	<-doneCh
 
 	// Update
-	volumes = []*types.Volume{
-		newDirectCSIVolume("test-volume-1", "1", 4*GiB, []condition{
-			{types.VolumeConditionStaged, metav1.ConditionTrue, types.VolumeReasonInUse},
-			{types.VolumeConditionPublished, metav1.ConditionFalse, types.VolumeReasonNotInUse},
-			{types.VolumeConditionReady, metav1.ConditionTrue, types.VolumeReasonReady},
+	volumes = []*pkgtypes.Volume{
+		newVolume("test-volume-1", "1", 4*GiB, []condition{
+			{directpvtypes.VolumeConditionTypeStaged, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonInUse},
+			{directpvtypes.VolumeConditionTypePublished, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonNotInUse},
+			{directpvtypes.VolumeConditionTypeReady, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonReady},
 		}),
-		newDirectCSIVolume("test-volume-1", "1", 6*GiB, []condition{
-			{types.VolumeConditionStaged, metav1.ConditionTrue, types.VolumeReasonInUse},
-			{types.VolumeConditionPublished, metav1.ConditionFalse, types.VolumeReasonNotInUse},
-			{types.VolumeConditionReady, metav1.ConditionTrue, types.VolumeReasonReady},
+		newVolume("test-volume-1", "1", 6*GiB, []condition{
+			{directpvtypes.VolumeConditionTypeStaged, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonInUse},
+			{directpvtypes.VolumeConditionTypePublished, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonNotInUse},
+			{directpvtypes.VolumeConditionTypeReady, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonReady},
 		}),
 	}
 	doneCh, handleFunc = getHandleFunc(t, UpdateEvent, volumes[1])
 	testHandler.handleFunc = handleFunc
 	for _, volume := range volumes {
-		_, err := testHandler.directCSIClient.DirectV1beta4().DirectCSIVolumes().Update(
+		_, err := client.VolumeClient().Update(
 			ctx,
 			volume,
 			metav1.UpdateOptions{
-				TypeMeta: types.NewVolumeTypeMeta(),
+				TypeMeta: pkgtypes.NewVolumeTypeMeta(),
 			},
 		)
 		if err != nil {
@@ -221,11 +219,11 @@ func TestListener(t *testing.T) {
 	<-doneCh
 
 	// Delete
-	volumes = []*types.Volume{
-		newDirectCSIVolume("test-volume-1", "1", 4*GiB, []condition{
-			{types.VolumeConditionStaged, metav1.ConditionTrue, types.VolumeReasonInUse},
-			{types.VolumeConditionPublished, metav1.ConditionFalse, types.VolumeReasonNotInUse},
-			{types.VolumeConditionReady, metav1.ConditionTrue, types.VolumeReasonReady},
+	volumes = []*pkgtypes.Volume{
+		newVolume("test-volume-1", "1", 4*GiB, []condition{
+			{directpvtypes.VolumeConditionTypeStaged, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonInUse},
+			{directpvtypes.VolumeConditionTypePublished, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonNotInUse},
+			{directpvtypes.VolumeConditionTypeReady, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonReady},
 		}),
 	}
 	now := metav1.Now()
@@ -233,11 +231,11 @@ func TestListener(t *testing.T) {
 	doneCh, handleFunc = getHandleFunc(t, DeleteEvent, volumes...)
 	testHandler.handleFunc = handleFunc
 	for _, volume := range volumes {
-		_, err := testHandler.directCSIClient.DirectV1beta4().DirectCSIVolumes().Update(
+		_, err := client.VolumeClient().Update(
 			ctx,
 			volume,
 			metav1.UpdateOptions{
-				TypeMeta: types.NewVolumeTypeMeta(),
+				TypeMeta: pkgtypes.NewVolumeTypeMeta(),
 			},
 		)
 		if err != nil {
@@ -247,11 +245,11 @@ func TestListener(t *testing.T) {
 	<-doneCh
 
 	// Retry on error
-	volumes = []*types.Volume{
-		newDirectCSIVolume("test-volume-1", "1", 512*GiB, []condition{
-			{types.VolumeConditionStaged, metav1.ConditionTrue, types.VolumeReasonInUse},
-			{types.VolumeConditionPublished, metav1.ConditionFalse, types.VolumeReasonNotInUse},
-			{types.VolumeConditionReady, metav1.ConditionTrue, types.VolumeReasonReady},
+	volumes = []*pkgtypes.Volume{
+		newVolume("test-volume-1", "1", 512*GiB, []condition{
+			{directpvtypes.VolumeConditionTypeStaged, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonInUse},
+			{directpvtypes.VolumeConditionTypePublished, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonNotInUse},
+			{directpvtypes.VolumeConditionTypeReady, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonReady},
 		}),
 	}
 
@@ -268,7 +266,7 @@ func TestListener(t *testing.T) {
 			t.Fatalf("expected: %v, got: %v", AddEvent, args.Event)
 		}
 
-		volume := args.Object.(*types.Volume)
+		volume := args.Object.(*pkgtypes.Volume)
 		if !reflect.DeepEqual(volumes[0], volume) {
 			t.Fatalf("received volume is not equal to volumes[0]")
 		}
@@ -276,11 +274,11 @@ func TestListener(t *testing.T) {
 	}
 
 	for _, volume := range volumes {
-		_, err := testHandler.directCSIClient.DirectV1beta4().DirectCSIVolumes().Update(
+		_, err := client.VolumeClient().Update(
 			ctx,
 			volume,
 			metav1.UpdateOptions{
-				TypeMeta: types.NewVolumeTypeMeta(),
+				TypeMeta: pkgtypes.NewVolumeTypeMeta(),
 			},
 		)
 		if err != nil {
@@ -295,21 +293,22 @@ func TestListenerParallel(t *testing.T) {
 	defer cancelFunc()
 
 	testHandler := &testEventHandler{
-		kubeClient: kubernetesfake.NewSimpleClientset(),
-		t:          t,
+		t: t,
 	}
-	testHandler.directCSIClient = clientsetfake.NewSimpleClientset(
-		toRuntimeObjects(newDirectCSIVolume("test-volume-1", "1", 2*GiB, []condition{
-			{types.VolumeConditionStaged, metav1.ConditionTrue, types.VolumeReasonInUse},
-			{types.VolumeConditionPublished, metav1.ConditionFalse, types.VolumeReasonNotInUse},
-			{types.VolumeConditionReady, metav1.ConditionTrue, types.VolumeReasonReady},
+
+	clientset := pkgtypes.NewExtFakeClientset(clientsetfake.NewSimpleClientset(
+		toRuntimeObjects(newVolume("test-volume-1", "1", 2*GiB, []condition{
+			{directpvtypes.VolumeConditionTypeStaged, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonInUse},
+			{directpvtypes.VolumeConditionTypePublished, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonNotInUse},
+			{directpvtypes.VolumeConditionTypeReady, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonReady},
 		}))...,
-	)
+	))
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
 	doneCh := make(chan struct{})
 	stopCh := make(chan struct{})
 	testHandler.handleFunc = func(args EventArgs) (err error) {
-		volume := args.Object.(*types.Volume)
+		volume := args.Object.(*pkgtypes.Volume)
 		if volume.Status.TotalCapacity == 512*GiB {
 			close(stopCh)
 		}
@@ -330,15 +329,15 @@ func TestListenerParallel(t *testing.T) {
 	}
 	startTestController(ctx, t, testHandler, 40)
 
-	_, err := testHandler.directCSIClient.DirectV1beta4().DirectCSIVolumes().Update(
+	_, err := client.VolumeClient().Update(
 		ctx,
-		newDirectCSIVolume("test-volume-1", "1", 512*GiB, []condition{
-			{types.VolumeConditionStaged, metav1.ConditionTrue, types.VolumeReasonInUse},
-			{types.VolumeConditionPublished, metav1.ConditionFalse, types.VolumeReasonNotInUse},
-			{types.VolumeConditionReady, metav1.ConditionTrue, types.VolumeReasonReady},
+		newVolume("test-volume-1", "1", 512*GiB, []condition{
+			{directpvtypes.VolumeConditionTypeStaged, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonInUse},
+			{directpvtypes.VolumeConditionTypePublished, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonNotInUse},
+			{directpvtypes.VolumeConditionTypeReady, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonReady},
 		}),
 		metav1.UpdateOptions{
-			TypeMeta: types.NewVolumeTypeMeta(),
+			TypeMeta: pkgtypes.NewVolumeTypeMeta(),
 		},
 	)
 	if err != nil {
@@ -346,15 +345,15 @@ func TestListenerParallel(t *testing.T) {
 	}
 	<-stopCh
 
-	_, err = testHandler.directCSIClient.DirectV1beta4().DirectCSIVolumes().Update(
+	_, err = client.VolumeClient().Update(
 		ctx,
-		newDirectCSIVolume("test-volume-1", "1", 1*GiB, []condition{
-			{types.VolumeConditionStaged, metav1.ConditionTrue, types.VolumeReasonInUse},
-			{types.VolumeConditionPublished, metav1.ConditionFalse, types.VolumeReasonNotInUse},
-			{types.VolumeConditionReady, metav1.ConditionTrue, types.VolumeReasonReady},
+		newVolume("test-volume-1", "1", 1*GiB, []condition{
+			{directpvtypes.VolumeConditionTypeStaged, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonInUse},
+			{directpvtypes.VolumeConditionTypePublished, metav1.ConditionFalse, directpvtypes.VolumeConditionReasonNotInUse},
+			{directpvtypes.VolumeConditionTypeReady, metav1.ConditionTrue, directpvtypes.VolumeConditionReasonReady},
 		}),
 		metav1.UpdateOptions{
-			TypeMeta: types.NewVolumeTypeMeta(),
+			TypeMeta: pkgtypes.NewVolumeTypeMeta(),
 		},
 	)
 	if err != nil {

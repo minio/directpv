@@ -21,14 +21,18 @@ import (
 	"fmt"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
+	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestGetVolumeList(t *testing.T) {
-	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset().DirectV1beta4().DirectCSIVolumes())
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
 	volumes, err := GetVolumeList(context.TODO(), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -44,7 +48,10 @@ func TestGetVolumeList(t *testing.T) {
 		)
 	}
 
-	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta4().DirectCSIVolumes())
+	clientset = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
 	volumes, err = GetVolumeList(context.TODO(), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -55,7 +62,10 @@ func TestGetVolumeList(t *testing.T) {
 }
 
 func TestGetSortedVolumeList(t *testing.T) {
-	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset().DirectV1beta4().DirectCSIVolumes())
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
 	volumes, err := GetVolumeList(context.TODO(), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -81,7 +91,10 @@ func TestGetSortedVolumeList(t *testing.T) {
 		)
 	}
 
-	SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta4().DirectCSIVolumes())
+	clientset = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
 	volumes, err = GetVolumeList(context.TODO(), nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

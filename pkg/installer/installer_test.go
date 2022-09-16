@@ -39,7 +39,7 @@ func TestTrimMinorVersion(t *testing.T) {
 			t.Parallel()
 			result, err := trimMinorVersion(testCase.minor)
 			if err != nil {
-				t.Fatalf("unexpected error; %v", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 			if result != testCase.expectedResult {
 				t.Fatalf("expected: %v, got: %v", testCase.expectedResult, result)
@@ -62,7 +62,7 @@ func TestTrimMinorVersionError(t *testing.T) {
 			t.Parallel()
 			_, err := trimMinorVersion(testCase.minor)
 			if err == nil {
-				t.Fatalf("expected error; but succeeded for %v", testCase.minor)
+				t.Fatalf("expected error but succeeded for %v", testCase.minor)
 			}
 		})
 	}

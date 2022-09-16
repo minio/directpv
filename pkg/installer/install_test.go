@@ -31,19 +31,18 @@ func init() {
 	client.FakeInit()
 }
 
-func TestInstaller(t1 *testing.T) {
+func TestInstaller(t *testing.T) {
 	installConfig := &Config{
-		Identity:              consts.Identity,
-		ContainerImage:        "test-image",
-		ContainerOrg:          "test-org",
-		ContainerRegistry:     "test-registry",
-		AdmissionControl:      false,
-		NodeSelector:          nil,
-		Tolerations:           nil,
-		SeccompProfile:        "",
-		ApparmorProfile:       "",
-		DynamicDriveDiscovery: true,
-		DryRun:                false,
+		Identity:          consts.Identity,
+		ContainerImage:    "test-image",
+		ContainerOrg:      "test-org",
+		ContainerRegistry: "test-registry",
+		AdmissionControl:  false,
+		NodeSelector:      nil,
+		Tolerations:       nil,
+		SeccompProfile:    "",
+		ApparmorProfile:   "",
+		DryRun:            false,
 	}
 
 	getDiscoveryGroupsAndMethodsFn := func() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {
@@ -138,15 +137,15 @@ func TestInstaller(t1 *testing.T) {
 		k8s.SetDiscoveryInterface(getDiscoveryGroupsAndMethodsFn, &testVersion)
 		ctx := context.TODO()
 		if err := Install(ctx, installConfig); err != nil {
-			t1.Fatalf("install failed: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		installConfig.ForceRemove = true
 		installConfig.UninstallCRD = true
 		if err := Uninstall(ctx, installConfig); err != nil {
-			t1.Fatalf("uninstall failed: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if _, err := k8s.KubeClient().CoreV1().Namespaces().Get(ctx, consts.Identity, metav1.GetOptions{}); err == nil {
-			t1.Errorf("namespace not removed upon uninstallation. version: %s.%s", testVersion.Major, testVersion.Minor)
+			t.Fatalf("namespace not removed upon uninstallation. version: %s.%s", testVersion.Major, testVersion.Minor)
 		}
 	}
 }

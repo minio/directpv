@@ -18,16 +18,10 @@ package utils
 
 import (
 	"bytes"
-	"fmt"
-	"os"
-	"path"
-	"reflect"
 	"testing"
-	"time"
 
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
-	"github.com/mitchellh/go-homedir"
+	"github.com/minio/directpv/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -35,10 +29,10 @@ import (
 func TestWriteObject(t *testing.T) {
 	var byteBuffer bytes.Buffer
 	meta := metav1.ObjectMeta{
-		Name:      k8s.SanitizeResourceName(consts.GroupName),
-		Namespace: k8s.SanitizeResourceName(consts.GroupName),
+		Name:      consts.GroupName,
+		Namespace: consts.GroupName,
 		Annotations: map[string]string{
-			string(config.CreatedByLabelKey): "kubectl/directpv",
+			string(types.CreatedByLabelKey): "kubectl/directpv",
 		},
 		Labels: map[string]string{
 			"app":  consts.GroupName,
@@ -71,38 +65,6 @@ func TestWriteObject(t *testing.T) {
 		errReturned := err != nil
 		if errReturned != test.errReturned {
 			t.Fatalf("Test %d: expected %t got %t", i+1, test.errReturned, errReturned)
-		}
-	}
-}
-
-func TestNewSafeFile(t *testing.T) {
-	tempFile, _ := os.CreateTemp("", "safefile.")
-	dirname, _ := os.UserHomeDir()
-	timeinNs := time.Now().UnixNano()
-	homeDir, _ := homedir.Dir()
-	defaultDirname := path.Join(homeDir, ".directpv")
-	testCases := []struct {
-		input       string
-		output      *SafeFile
-		errReturned bool
-	}{
-		{
-			input: fmt.Sprintf("%v/%v-%v", dirname+"/.directpv", "audit/"+"install", timeinNs),
-			output: &SafeFile{
-				filename: fmt.Sprintf("%v/%v-%v", defaultDirname, "audit/"+"install", timeinNs),
-				tempFile: tempFile,
-			},
-			errReturned: false,
-		},
-	}
-	for i, test := range testCases {
-		out, err := NewSafeFile(testCases[i].input)
-		errReturned := err != nil
-		if errReturned != test.errReturned {
-			t.Fatalf("Test %d: expected %t got %t", i+1, test.errReturned, errReturned)
-		}
-		if !reflect.DeepEqual(out.filename, test.input) {
-			t.Fatalf("Test %d: expected %v got %v", i+1, test.input, out.filename)
 		}
 	}
 }

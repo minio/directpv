@@ -21,14 +21,16 @@ import (
 	"fmt"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
+	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestGetDriveList(t *testing.T) {
-	SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset().DirectV1beta4().DirectCSIDrives())
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	drives, err := GetDriveList(context.TODO(), nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -43,7 +45,9 @@ func TestGetDriveList(t *testing.T) {
 			objects, &types.Drive{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("drive-%v", i)}},
 		)
 	}
-	SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(objects...).DirectV1beta4().DirectCSIDrives())
+
+	clientset = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	drives, err = GetDriveList(context.TODO(), nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

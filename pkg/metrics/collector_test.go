@@ -23,30 +23,19 @@ import (
 	"testing"
 	"time"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
 	"github.com/minio/directpv/pkg/client"
-	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
+	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/xfs"
 	"github.com/prometheus/client_golang/prometheus"
-	dto "github.com/prometheus/client_model/go"
+	clientmodelgo "github.com/prometheus/client_model/go"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 )
 
-const (
-	testNodeName   = "test-node-1"
-	testDriveName  = "test-drive-1"
-	testTenantName = "tenant-1"
-
-	KB = 1 << 10
-	MB = KB << 10
-
-	mb20 = 20 * MB
-	mb30 = 30 * MB
-	mb10 = 10 * MB
-)
+const MiB = 1024 * 1024
 
 type metricType string
 
@@ -55,14 +44,58 @@ const (
 	metricStatsBytesTotal metricType = consts.AppName + "_stats_bytes_total"
 )
 
+var volumes = []types.Volume{
+	{
+		TypeMeta: types.NewVolumeTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "test_volume_20MB",
+			Labels: map[string]string{tenantLabel: "tenant-1"},
+		},
+		Status: types.VolumeStatus{
+			NodeName:      "test-node-1",
+			DriveName:     "test-drive-1",
+			TotalCapacity: 20 * MiB,
+			ContainerPath: "/path/containerpath",
+			UsedCapacity:  10 * MiB,
+		},
+	},
+	{
+		TypeMeta: types.NewVolumeTypeMeta(),
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "test_volume_30MB",
+			Labels: map[string]string{tenantLabel: "tenant-1"},
+		},
+		Status: types.VolumeStatus{
+			NodeName:      "test-node-1",
+			DriveName:     "test-drive-1",
+			TotalCapacity: 30 * MiB,
+			ContainerPath: "/path/containerpath",
+			UsedCapacity:  20 * MiB,
+		},
+	},
+}
+
 func createFakeMetricsCollector() *metricsCollector {
 	return &metricsCollector{
-		desc:   prometheus.NewDesc("directcsi_stats", "Statistics exposed by DirectCSI", nil, nil),
-		nodeID: testNodeName,
+		desc:              prometheus.NewDesc(consts.AppName+"_stats", "Statistics exposed by "+consts.AppPrettyName, nil, nil),
+		nodeID:            "test-node-1",
+		getDeviceByFSUUID: func(fsuuid string) (string, error) { return "", nil },
+		getQuota: func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error) {
+			for _, volume := range volumes {
+				if volume.Name == volumeID {
+					return &xfs.Quota{
+						HardLimit:    uint64(volume.Status.TotalCapacity),
+						SoftLimit:    uint64(volume.Status.TotalCapacity),
+						CurrentSpace: uint64(volume.Status.UsedCapacity),
+					}, nil
+				}
+			}
+			return &xfs.Quota{}, nil
+		},
 	}
 }
 
-func getVolumeNameFromLabelPair(labelPair []*dto.LabelPair) string {
+func getVolumeNameFromLabelPair(labelPair []*clientmodelgo.LabelPair) string {
 	for _, lp := range labelPair {
 		if lp.GetName() == "volumeID" {
 			return lp.GetValue()
@@ -81,45 +114,16 @@ func getFQNameFromDesc(desc string) string {
 }
 
 func TestVolumeStatsEmitter(t *testing.T) {
-	testVolumeName20MB := "test_volume_20MB"
-	testVolumeName30MB := "test_volume_30MB"
-
-	createTestVolume := func(volName string, totalCap, usedCap int64) *types.Volume {
-		return &types.Volume{
-			TypeMeta: types.NewVolumeTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: volName,
-				Labels: map[string]string{
-					tenantLabel: testTenantName,
-				},
-			},
-			Status: types.VolumeStatus{
-				NodeName:      testNodeName,
-				Drive:         testDriveName,
-				TotalCapacity: totalCap,
-				ContainerPath: "/path/containerpath",
-				UsedCapacity:  usedCap,
-			},
-		}
-	}
-
-	testStatsGetter := func(_ context.Context, vol *types.Volume) (xfsVolumeStats, error) {
-		return xfsVolumeStats{
-			TotalBytes:     uint64(vol.Status.TotalCapacity),
-			UsedBytes:      uint64(vol.Status.UsedCapacity),
-			AvailableBytes: uint64(vol.Status.TotalCapacity - vol.Status.UsedCapacity),
-		}, nil
-	}
-
-	testObjects := []runtime.Object{
-		createTestVolume(testVolumeName20MB, mb20, mb10),
-		createTestVolume(testVolumeName30MB, mb30, mb20),
-	}
+	testObjects := []runtime.Object{&volumes[0], &volumes[1]}
 
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
+	defer cancel()
+
 	fmc := createFakeMetricsCollector()
-	client.SetLatestDirectCSIVolumeInterface(fakedirect.NewSimpleClientset(testObjects...).DirectV1beta4().DirectCSIVolumes())
+
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testObjects...))
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
 	metricChan := make(chan prometheus.Metric)
 	noOfMetricsExposedPerVolume := 2
@@ -137,7 +141,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 				if !ok {
 					return
 				}
-				metricOut := dto.Metric{}
+				metricOut := clientmodelgo.Metric{}
 				if err := metric.Write(&metricOut); err != nil {
 					(*t).Fatal(err)
 				}
@@ -145,7 +149,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 				mt := metricType(getFQNameFromDesc(metric.Desc().String()))
 				switch mt {
 				case metricStatsBytesUsed:
-					volObj, gErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, volumeName, metav1.GetOptions{
+					volObj, gErr := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{
 						TypeMeta: types.NewVolumeTypeMeta(),
 					})
 					if gErr != nil {
@@ -155,7 +159,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 						t.Errorf("Expected Used capacity: %v But got %v", int64(volObj.Status.UsedCapacity), int64(*metricOut.Gauge.Value))
 					}
 				case metricStatsBytesTotal:
-					volObj, gErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, volumeName, metav1.GetOptions{
+					volObj, gErr := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{
 						TypeMeta: types.NewVolumeTypeMeta(),
 					})
 					if gErr != nil {
@@ -175,8 +179,8 @@ func TestVolumeStatsEmitter(t *testing.T) {
 		}
 	}()
 
-	fmc.volumeStatsEmitter(ctx, metricChan, testStatsGetter)
+	fmc.publishVolumeStats(ctx, &volumes[0], metricChan)
+	fmc.publishVolumeStats(ctx, &volumes[1], metricChan)
 
 	wg.Wait()
-	cancel()
 }

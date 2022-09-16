@@ -396,7 +396,7 @@ func TestValidateVolumeCapabilities(t *testing.T) {
 	for i, testCase := range testCases {
 		result, err := controller.ValidateVolumeCapabilities(context.TODO(), testCase.request)
 		if err != nil {
-			t.Fatalf("case %v: unexpected error %v", i+1, err)
+			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
 
 		if !reflect.DeepEqual(result, testCase.expectedResult) {
