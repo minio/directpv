@@ -18,8 +18,8 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/consts"
@@ -29,7 +29,7 @@ import (
 
 var uninstallCmd = &cobra.Command{
 	Use:          "uninstall",
-	Short:        "Uninstall " + consts.AppPrettyName + " in kubernetes cluster",
+	Short:        "Uninstall " + consts.AppPrettyName + " in Kubernetes.",
 	SilenceUsage: true,
 	RunE: func(c *cobra.Command, args []string) error {
 		return uninstall(c.Context(), args)
@@ -42,16 +42,16 @@ var (
 )
 
 func init() {
-	uninstallCmd.PersistentFlags().BoolVarP(&uninstallCRD, "crd", "c", uninstallCRD, "unregister "+consts.GroupName+" group crds [May cause data loss]")
-	uninstallCmd.PersistentFlags().BoolVarP(&forceRemove, "force", "", forceRemove, "Removes the "+consts.GroupName+" resources [May cause data loss]")
-
+	uninstallCmd.PersistentFlags().BoolVarP(&uninstallCRD, "crd", "", uninstallCRD, "Remove "+consts.GroupName+" CRDs (CAUTION: MAY LEAD TO DATA LOSS)")
+	uninstallCmd.PersistentFlags().BoolVarP(&forceRemove, "force", "", forceRemove, "Forcefully remove "+consts.GroupName+" resources (CAUTION: MAY LEAD TO DATA LOSS)")
 	uninstallCmd.PersistentFlags().MarkHidden("crd")
 	uninstallCmd.PersistentFlags().MarkHidden("force")
 }
 
 func uninstall(ctx context.Context, args []string) error {
 	if dryRun {
-		return errors.New("uninstall does not support --dry-run flag")
+		fmt.Fprintln(os.Stderr, color.HiYellowString("No-op for --dry-run flag"))
+		return nil
 	}
 
 	installConfig := &installer.Config{

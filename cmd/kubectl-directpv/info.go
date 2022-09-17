@@ -41,17 +41,19 @@ import (
 	"k8s.io/klog/v2"
 )
 
+var errInstallationNotFound = errors.New("installation not found")
+
 var infoCmd = &cobra.Command{
 	Use:           "info",
-	Short:         "Info about " + consts.AppPrettyName + " installation",
+	Short:         "Show information about " + consts.AppPrettyName + " installation.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		return getInfo(c.Context(), args, false)
+		return getInfo(c.Context(), args)
 	},
 }
 
-func getInfo(ctx context.Context, args []string, quiet bool) error {
+func getInfo(ctx context.Context, args []string) error {
 	crds, err := k8s.CRDClient().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if !quiet {
@@ -74,16 +76,16 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		return fmt.Errorf(consts.AppPrettyName + " installation not found")
 	}
 
-	cln, gvk, err := k8s.GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
+	storageClient, gvk, err := k8s.GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
 
 	nodeList := []string{}
-
-	if gvk.Version == "v1" {
+	switch gvk.Version {
+	case "v1":
 		result := &storagev1.CSINodeList{}
-		if err := cln.Get().
+		if err := storageClient.Get().
 			Resource("csinodes").
 			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
 			Timeout(10 * time.Second).
@@ -96,16 +98,15 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == strings.ReplaceAll(identity, ".", "-") {
+				if driver.Name == consts.Identity {
 					nodeList = append(nodeList, csiNode.Name)
 					break
 				}
 			}
 		}
-	}
-	if gvk.Version == "v1beta1" {
+	case "v1beta1":
 		result := &storagev1beta1.CSINodeList{}
-		if err := cln.Get().
+		if err := storageClient.Get().
 			Resource(gvk.Kind).
 			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
 			Timeout(10 * time.Second).
@@ -118,24 +119,18 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == strings.ReplaceAll(identity, ".", "-") {
+				if driver.Name == consts.Identity {
 					nodeList = append(nodeList, csiNode.Name)
 					break
 				}
 			}
 		}
-	}
-
-	if gvk.Version == "v1alpha1" {
-		return errors.New("this version of CSINode is not supported by " + consts.AppPrettyName)
+	case "v1apha1":
+		return errors.New("storage.k8s.io/v1alpha1 is not supported")
 	}
 
 	if len(nodeList) == 0 {
-		if !quiet {
-			fmt.Printf("%s %s installation not found\n\n", color.HiRedString("Error"), consts.AppPrettyName)
-			fmt.Printf("run '%s' to get started\n", color.HiWhiteString("kubectl "+consts.AppName+" install"))
-		}
-		return fmt.Errorf(consts.AppPrettyName + " installation not found")
+		return errInstallationNotFound
 	}
 
 	drives, err := drive.GetDriveList(ctx, nil, nil, nil)
@@ -185,7 +180,7 @@ func getInfo(ctx context.Context, args []string, quiet bool) error {
 
 		if driveCount == 0 {
 			t.AppendRow([]interface{}{
-				fmt.Sprintf("%s %s", color.RedString(dot), n),
+				fmt.Sprintf("%s %s", color.YellowString(dot), n),
 				"-",
 				"-",
 				"-",

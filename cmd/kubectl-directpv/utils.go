@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/mitchellh/go-homedir"
 	corev1 "k8s.io/api/core/v1"
@@ -124,11 +125,10 @@ func getDefaultAuditDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return path.Join(homeDir, ".directpv", "audit"), nil
+	return path.Join(homeDir, "."+consts.AppName, "audit"), nil
 }
 
-// OpenAuditFile opens the file for writing
-func OpenAuditFile(auditFile string) (*utils.SafeFile, error) {
+func openAuditFile(auditFile string) (*utils.SafeFile, error) {
 	defaultAuditDir, err := getDefaultAuditDir()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get default audit directory; %w", err)
@@ -136,5 +136,5 @@ func OpenAuditFile(auditFile string) (*utils.SafeFile, error) {
 	if err := os.MkdirAll(defaultAuditDir, 0o700); err != nil {
 		return nil, fmt.Errorf("unable to create default audit directory; %w", err)
 	}
-	return utils.NewSafeFile(path.Join(defaultAuditDir, fmt.Sprintf("%v-%v", auditFile, time.Now().UnixNano())))
+	return utils.NewSafeFile(path.Join(defaultAuditDir, fmt.Sprintf("%v.%v", auditFile, time.Now().UnixNano())))
 }
