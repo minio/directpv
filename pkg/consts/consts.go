@@ -99,4 +99,7 @@ const (
 
 	// MountRootDir is mount root directory.
 	MountRootDir = AppRootDir + "/mnt"
+
+	// UnixCSIEndpoint is Unix CSI endpoint
+	UnixCSIEndpoint = "unix:///csi/csi.sock"
 )

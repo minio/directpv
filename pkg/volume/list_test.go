@@ -99,13 +99,13 @@ func TestGetSortedVolumeList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if volumes[0].ObjectMeta.Namespace != "AAA" {
-		t.Fatalf("expected volume to be in Namespace : AAA, got: %v", volumes[0].ObjectMeta.Namespace)
+	if volumes[0].Namespace != "AAA" {
+		t.Fatalf("expected volume to be in Namespace : AAA, got: %v", volumes[0].Namespace)
 	}
-	if volumes[4].ObjectMeta.Namespace != "BBB" {
-		t.Fatalf("expected volume to be in Namespace : BBB, got: %v", volumes[3].ObjectMeta.Namespace)
+	if volumes[4].Namespace != "BBB" {
+		t.Fatalf("expected volume to be in Namespace : BBB, got: %v", volumes[3].Namespace)
 	}
-	if volumes[8].ObjectMeta.Namespace != "CCC" {
-		t.Fatalf("expected volume to be in Namespace : CCC, got: %v", volumes[7].ObjectMeta.Namespace)
+	if volumes[8].Namespace != "CCC" {
+		t.Fatalf("expected volume to be in Namespace : CCC, got: %v", volumes[7].Namespace)
 	}
 }

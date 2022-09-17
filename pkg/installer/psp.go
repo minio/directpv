@@ -53,8 +53,8 @@ func createPodSecurityPolicy(ctx context.Context, i *Config) error {
 				{PathPrefix: consts.ProcFSDir, ReadOnly: true},
 				{PathPrefix: consts.SysFSDir, ReadOnly: true},
 				{PathPrefix: consts.AppRootDir},
-				{PathPrefix: "/csi"},
-				{PathPrefix: "/var/lib/kubelet"},
+				{PathPrefix: socketDir},
+				{PathPrefix: kubeletDirPath},
 			},
 			SELinux: policy.SELinuxStrategyOptions{
 				Rule: policy.SELinuxStrategyRunAsAny,

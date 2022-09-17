@@ -110,7 +110,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 		newHostPathVolume(volumeNameSocketDir, newPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", c.deploymentName()))),
 	}
 	volumeMounts := []corev1.VolumeMount{
-		newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
+		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
 	}
 
 	if c.AdmissionControl {
@@ -129,19 +129,14 @@ func createDeployment(ctx context.Context, c *Config) error {
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
-					fmt.Sprintf("--csi-address=$(%s)", endpointEnvVarCSI),
+					fmt.Sprintf("--csi-address=$(%s)", csiEndpointEnvVarName),
 					"--leader-election",
 					"--feature-gates=Topology=true",
 					"--strict-topology",
 				},
-				Env: []corev1.EnvVar{
-					{
-						Name:  endpointEnvVarCSI,
-						Value: "unix:///csi/csi.sock",
-					},
-				},
+				Env: []corev1.EnvVar{csiEndpointEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
+					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/controller-provisioner-termination-log",
@@ -163,54 +158,27 @@ func createDeployment(ctx context.Context, c *Config) error {
 				},
 			},
 			{
-				Name:  containerName,
+				Name:  "controller",
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
 				Args: []string{
+					"controller",
 					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", c.deploymentName()),
-					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
+					fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
+					fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 					fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
-					"--controller",
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
 				},
-				Ports: []corev1.ContainerPort{
-					{
-						ContainerPort: admissionControllerWebhookPort,
-						Name:          admissionControllerWebhookName,
-						Protocol:      corev1.ProtocolTCP,
-					},
-					{
-						ContainerPort: consts.ReadinessPort,
-						Name:          readinessPortName,
-						Protocol:      corev1.ProtocolTCP,
-					},
-					{
-						ContainerPort: 9898,
-						Name:          "healthz",
-						Protocol:      corev1.ProtocolTCP,
-					},
-				},
-				ReadinessProbe: &corev1.Probe{
-					ProbeHandler: getReadinessHandler(),
-				},
-				Env: []corev1.EnvVar{
-					{
-						Name: kubeNodeNameEnvVar,
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "spec.nodeName",
-							},
-						},
-					},
-					{
-						Name:  endpointEnvVarCSI,
-						Value: "unix:///csi/csi.sock",
-					},
-				},
-				VolumeMounts: volumeMounts,
+				Ports: append(commonContainerPorts, corev1.ContainerPort{
+					ContainerPort: admissionControllerWebhookPort,
+					Name:          admissionControllerWebhookName,
+					Protocol:      corev1.ProtocolTCP,
+				}),
+				ReadinessProbe: &corev1.Probe{ProbeHandler: getReadinessHandler()},
+				Env:            []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
+				VolumeMounts:   volumeMounts,
 			},
 		},
 	}
@@ -259,7 +227,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 		},
 		Status: appsv1.DeploymentStatus{},
 	}
-	deployment.ObjectMeta.Finalizers = []string{
+	deployment.Finalizers = []string{
 		c.namespace() + deleteProtectionFinalizer,
 	}
 
