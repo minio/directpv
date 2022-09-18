@@ -37,8 +37,9 @@ func createFakeServer() *Server {
 		getMounts: func() (map[string][]string, map[string][]string, error) {
 			return map[string][]string{consts.MountRootDir: {}}, nil, nil
 		},
-		bindMount: func(source, target string, readOnly bool) error { return nil },
-		unmount:   func(target string) error { return nil },
+		getDeviceByFSUUID: func(fsuuid string) (string, error) { return "", nil },
+		bindMount:         func(source, target string, readOnly bool) error { return nil },
+		unmount:           func(target string) error { return nil },
 		getQuota: func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error) {
 			return &xfs.Quota{}, nil
 		},

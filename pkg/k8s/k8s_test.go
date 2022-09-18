@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestVolumeStatusTransitions(t1 *testing.T) {
+func TestVolumeStatusTransitions(t *testing.T) {
 	statusList := []metav1.Condition{
 		{
 			Type:               "staged",
@@ -64,11 +64,11 @@ func TestVolumeStatusTransitions(t1 *testing.T) {
 		},
 	}
 
-	for _, tt := range testCases {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			UpdateCondition(statusList, tt.condType, tt.condStatus, "", "")
-			if !IsCondition(statusList, tt.condType, tt.condStatus, "", "") {
-				t1.Errorf("Test case name %s: Status transition failed (Type, Status) = (%s, %v) condition list: %v", tt.name, tt.condType, tt.condStatus, statusList)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			UpdateCondition(statusList, testCase.condType, testCase.condStatus, "", "")
+			if !IsCondition(statusList, testCase.condType, testCase.condStatus, "", "") {
+				t.Fatalf("case %v: Status transition failed (Type, Status) = (%s, %v) condition list: %v", testCase.name, testCase.condType, testCase.condStatus, statusList)
 			}
 		})
 	}

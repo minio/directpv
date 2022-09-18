@@ -21,11 +21,12 @@ import (
 	"errors"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/listener"
-	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -65,7 +66,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		},
 		Status: types.DriveStatus{
 			NodeName:          "test-node",
-			DriveStatus:       directcsi.DriveStatusInUse,
+			Status:            directpvtypes.DriveStatusOK,
 			FreeCapacity:      mb50,
 			AllocatedCapacity: mb50,
 			TotalCapacity:     mb100,
@@ -83,25 +84,25 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 			Status: types.VolumeStatus{
 				NodeName:      "test-node",
 				HostPath:      "hostpath",
-				Drive:         testDriveName,
+				DriveName:     testDriveName,
 				TotalCapacity: mb20,
 				Conditions: []metav1.Condition{
 					{
-						Type:               string(types.VolumeConditionStaged),
+						Type:               string(directpvtypes.VolumeConditionTypeStaged),
 						Status:             metav1.ConditionTrue,
 						Message:            "",
 						Reason:             string((directpvtypes.VolumeConditionReasonInUse)),
 						LastTransitionTime: metav1.Now(),
 					},
 					{
-						Type:               string(types.VolumeConditionPublished),
+						Type:               string(directpvtypes.VolumeConditionTypePublished),
 						Status:             metav1.ConditionFalse,
 						Message:            "",
-						Reason:             string(types.VolumeReasonNotInUse),
+						Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
 						LastTransitionTime: metav1.Now(),
 					},
 					{
-						Type:               string(types.VolumeConditionReady),
+						Type:               string(directpvtypes.VolumeConditionTypeReady),
 						Status:             metav1.ConditionTrue,
 						Message:            "",
 						Reason:             string((directpvtypes.VolumeConditionReasonReady)),
@@ -121,27 +122,27 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 			Status: types.VolumeStatus{
 				NodeName:      "test-node",
 				HostPath:      "hostpath",
-				Drive:         testDriveName,
+				DriveName:     testDriveName,
 				TotalCapacity: mb30,
 				StagingPath:   "/path/staging",
 				ContainerPath: "/path/container",
 				Conditions: []metav1.Condition{
 					{
-						Type:               string(types.VolumeConditionStaged),
+						Type:               string(directpvtypes.VolumeConditionTypeStaged),
 						Status:             metav1.ConditionFalse,
 						Message:            "",
-						Reason:             string(types.VolumeReasonNotInUse),
+						Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
 						LastTransitionTime: metav1.Now(),
 					},
 					{
-						Type:               string(types.VolumeConditionPublished),
+						Type:               string(directpvtypes.VolumeConditionTypePublished),
 						Status:             metav1.ConditionFalse,
 						Message:            "",
-						Reason:             string(types.VolumeReasonNotInUse),
+						Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
 						LastTransitionTime: metav1.Now(),
 					},
 					{
-						Type:               string(types.VolumeConditionReady),
+						Type:               string(directpvtypes.VolumeConditionTypeReady),
 						Status:             metav1.ConditionTrue,
 						Message:            "",
 						Reason:             string((directpvtypes.VolumeConditionReasonReady)),
@@ -154,8 +155,12 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 
 	vl := createFakeVolumeEventListener("test-node")
 	ctx := context.TODO()
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObject).DirectV1beta4().DirectCSIDrives())
-	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObjects...).DirectV1beta4().DirectCSIVolumes())
+
+	clientset1 := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testDriveObject))
+	client.SetDriveInterface(clientset1.DirectpvLatest().DirectPVDrives())
+	clientset2 := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testVolumeObjects...))
+	client.SetVolumeInterface(clientset2.DirectpvLatest().DirectPVVolumes())
+
 	for _, testObj := range testVolumeObjects {
 		var stagingUmountCalled, containerUmountCalled bool
 		vl.safeUnmount = func(target string, force, detach, expire bool) error {
@@ -174,7 +179,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		if !ok {
 			continue
 		}
-		newObj, vErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, vObj.Name, metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()})
+		newObj, vErr := client.VolumeClient().Get(ctx, vObj.Name, metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()})
 		if vErr != nil {
 			t.Fatalf("Error while getting the volume object: %+v", vErr)
 		}
@@ -182,7 +187,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		now := metav1.Now()
 		newObj.DeletionTimestamp = &now
 
-		_, vErr = client.GetLatestDirectCSIVolumeInterface().Update(
+		_, vErr = client.VolumeClient().Update(
 			ctx, newObj, metav1.UpdateOptions{TypeMeta: types.NewVolumeTypeMeta()},
 		)
 		if vErr != nil {
@@ -197,7 +202,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		if newObj.Status.ContainerPath != "" && !containerUmountCalled {
 			t.Error("container path is not umounted")
 		}
-		updatedVolume, err := client.GetLatestDirectCSIVolumeInterface().Get(
+		updatedVolume, err := client.VolumeClient().Get(
 			ctx, newObj.Name, metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()},
 		)
 		if err != nil {
@@ -208,7 +213,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		}
 	}
 
-	driveObj, dErr := client.GetLatestDirectCSIDriveInterface().Get(ctx, testDriveName, metav1.GetOptions{TypeMeta: types.NewDriveTypeMeta()})
+	driveObj, dErr := client.DriveClient().Get(ctx, testDriveName, metav1.GetOptions{TypeMeta: types.NewDriveTypeMeta()})
 	if dErr != nil {
 		t.Fatalf("Error while getting the drive object: %+v", dErr)
 	}
@@ -217,8 +222,8 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 	if len(driveFinalizers) != 1 || driveFinalizers[0] != consts.DriveFinalizerDataProtection {
 		t.Fatalf("Unexpected drive finalizers set after clean-up: %+v", driveFinalizers)
 	}
-	if driveObj.Status.DriveStatus != directpvtypes.DriveStatusOK {
-		t.Errorf("Unexpected drive status set. Expected: %s, Got: %s", string(directpvtypes.DriveStatusOK), string(driveObj.Status.DriveStatus))
+	if driveObj.Status.Status != directpvtypes.DriveStatusOK {
+		t.Errorf("Unexpected drive status set. Expected: %s, Got: %s", string(directpvtypes.DriveStatusOK), string(driveObj.Status.Status))
 	}
 	if driveObj.Status.FreeCapacity != mb100 {
 		t.Errorf("Unexpected free capacity set. Expected: %d, Got: %d", mb100, driveObj.Status.FreeCapacity)
@@ -241,25 +246,25 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 		Status: types.VolumeStatus{
 			NodeName:      "test-node",
 			HostPath:      "hostpath",
-			Drive:         "test-drive",
+			DriveName:     "test-drive",
 			TotalCapacity: int64(100),
 			Conditions: []metav1.Condition{
 				{
-					Type:               string(types.VolumeConditionStaged),
+					Type:               string(directpvtypes.VolumeConditionTypeStaged),
 					Status:             metav1.ConditionTrue,
 					Message:            "",
 					Reason:             string((directpvtypes.VolumeConditionReasonInUse)),
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(types.VolumeConditionPublished),
+					Type:               string(directpvtypes.VolumeConditionTypePublished),
 					Status:             metav1.ConditionFalse,
 					Message:            "",
-					Reason:             string(types.VolumeReasonNotInUse),
+					Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
 					LastTransitionTime: metav1.Now(),
 				},
 				{
-					Type:               string(types.VolumeConditionReady),
+					Type:               string(directpvtypes.VolumeConditionTypeReady),
 					Status:             metav1.ConditionTrue,
 					Message:            "",
 					Reason:             string((directpvtypes.VolumeConditionReasonReady)),
@@ -271,15 +276,17 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 
 	vl := createFakeVolumeEventListener("test-node")
 	ctx := context.TODO()
-	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObject).DirectV1beta4().DirectCSIVolumes())
 
-	newObj, vErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, testVolumeObject.Name, metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()})
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testVolumeObject))
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
+	newObj, vErr := client.VolumeClient().Get(ctx, testVolumeObject.Name, metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()})
 	if vErr != nil {
 		t.Fatalf("Error while getting the volume object: %+v", vErr)
 	}
 	now := metav1.Now()
 	newObj.DeletionTimestamp = &now
-	_, vErr = client.GetLatestDirectCSIVolumeInterface().Update(
+	_, vErr = client.VolumeClient().Update(
 		ctx, newObj, metav1.UpdateOptions{TypeMeta: types.NewVolumeTypeMeta()},
 	)
 	if vErr != nil {
