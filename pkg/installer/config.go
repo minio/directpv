@@ -105,10 +105,6 @@ func (c *Config) namespace() string {
 	return c.Identity
 }
 
-func (c *Config) serviceName() string {
-	return c.Identity
-}
-
 func (c *Config) identity() string {
 	return c.Identity
 }
@@ -135,6 +131,10 @@ func (c *Config) daemonsetName() string {
 
 func (c *Config) deploymentName() string {
 	return "controller"
+}
+
+func (c *Config) apiServerDeploymentName() string {
+	return "api-server"
 }
 
 func (c *Config) getPSPName() string {

@@ -26,9 +26,9 @@ type DirectPVVolumeStatus struct {
 	DriveName         string `json:"driveName"`
 	FSUUID            string `json:"fsuuid"`
 	NodeName          string `json:"nodeName"`
-	TotalCapacity     int64 `json:"totalCapacity"`
-	AvailableCapacity int64 `json:"availableCapacity"`
-	UsedCapacity      int64 `json:"usedCapacity"`
+	TotalCapacity     int64  `json:"totalCapacity"`
+	AvailableCapacity int64  `json:"availableCapacity"`
+	UsedCapacity      int64  `json:"usedCapacity"`
 	// +optional
 	// +patchMergeKey=type
 	// +patchStrategy=merge

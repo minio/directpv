@@ -31,20 +31,37 @@ import (
 )
 
 func installDaemonsetDefault(ctx context.Context, c *Config) error {
-	if err := createDaemonSet(ctx, c); err != nil {
-		return err
+	daemonSetsClient := k8s.KubeClient().AppsV1().DaemonSets(c.namespace())
+	if _, err := daemonSetsClient.Get(ctx, c.daemonsetName(), metav1.GetOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		// Deployment already created
+		return nil
 	}
-	return nil
+	return createDaemonSet(ctx, c)
 }
 
 func uninstallDaemonsetDefault(ctx context.Context, c *Config) error {
 	if err := k8s.KubeClient().AppsV1().DaemonSets(c.namespace()).Delete(ctx, c.daemonsetName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
+	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, nodeAPIServerCertsSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, nodeAPIServerCASecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
 	return nil
 }
 
 func createDaemonSet(ctx context.Context, c *Config) error {
+	// Create cert secrets for the node api-server
+	if err := generateCertSecretsForNodeAPIServer(ctx, c); err != nil {
+		return err
+	}
+	// Create deamonset
 	privileged := true
 	securityContext := &corev1.SecurityContext{Privileged: &privileged}
 
@@ -65,6 +82,8 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		newHostPathVolume(volumeNameSysDir, volumePathSysDir),
 		newHostPathVolume(volumeNameDevDir, volumePathDevDir),
 		newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData),
+		// node api server
+		newSecretVolume(nodeAPIServerCertsDir, nodeAPIServerCertsSecretName),
 	}
 	volumeMounts := []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
@@ -140,6 +159,44 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				},
 			},
 			{
+				Name:  consts.NodeAPIServerContainerName,
+				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
+				Args: func() []string {
+					args := []string{
+						"node-api-server",
+						fmt.Sprintf("-v=%d", logLevel),
+						fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
+						fmt.Sprintf("--port=%d", consts.NodeAPIPort),
+					}
+					return args
+				}(),
+				SecurityContext:          securityContext,
+				Env:                      []corev1.EnvVar{kubeNodeNameEnvVar},
+				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+				TerminationMessagePath:   "/var/log/driver-termination-log",
+				VolumeMounts:             append(volumeMounts, newVolumeMount(nodeAPIServerCertsDir, consts.NodeAPIServerCertsPath, corev1.MountPropagationNone, false)),
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: consts.NodeAPIPort,
+						Name:          consts.NodeAPIPortName,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+				/*ReadinessProbe: &corev1.Probe{ProbeHandler: getReadinessHandler()},
+				LivenessProbe: &corev1.Probe{
+					FailureThreshold:    5,
+					InitialDelaySeconds: 300,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       5,
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: healthZContainerPortPath,
+							Port: intstr.FromString(healthZContainerPortName),
+						},
+					},
+				},*/
+			},
+			{
 				Name:  livenessProbeContainerName,
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.getLivenessProbeImage()),
 				Args: []string{
@@ -204,4 +261,27 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		}
 	}
 	return c.postProc(daemonset)
+}
+
+func generateCertSecretsForNodeAPIServer(ctx context.Context, c *Config) error {
+	caCertBytes, publicCertBytes, privateKeyBytes, certErr := getCerts([]string{
+		localHostDNS,
+		// FIXME: Add clusterIP svc domain name here
+	})
+	if certErr != nil {
+		return certErr
+	}
+	return createOrUpdateNodeAPIServerSecrets(ctx, caCertBytes, publicCertBytes, privateKeyBytes, c)
+}
+
+func createOrUpdateNodeAPIServerSecrets(ctx context.Context, caCertBytes, publicCertBytes, privateKeyBytes []byte, c *Config) error {
+	if err := createOrUpdateSecret(ctx, nodeAPIServerCertsSecretName, map[string][]byte{
+		consts.PrivateKeyFileName: privateKeyBytes,
+		consts.PublicCertFileName: publicCertBytes,
+	}, c); err != nil {
+		return err
+	}
+	return createOrUpdateSecret(ctx, nodeAPIServerCASecretName, map[string][]byte{
+		consts.CACertFileName: caCertBytes,
+	}, c)
 }

@@ -49,11 +49,11 @@ type Device struct {
 	MajorMinor  string       `json:"majorMinor,omitempty"`
 	Size        uint64       `json:"size,omitempty"`
 	Model       string       `json:"model,omitempty"`
-	Vendor      string       `json:"vendor,omitmepty"`
+	Vendor      string       `json:"vendor,omitempty"`
 	Filesystem  string       `json:"filesystem,omitempty"`
 	Mountpoints []string     `json:"mountpoints,omitempty"`
 	Status      DeviceStatus `json:"status"`
-	Description string       `json:"description`
+	Description string       `json:"description"`
 	// UDevData holds the device metadata info probed from `/run/udev/data/b<maj><min>`
 	UDevData map[string]string `json:"udevData,omitempty"`
 }
@@ -93,5 +93,5 @@ type FormatDeviceStatus struct {
 // FormatMetadata represents the format metadata to be saved on the drive
 type FormatMetadata struct {
 	FSUUID      string `json:"fsuuid"`
-	FormattedBy string `json:formattedBy`
+	FormattedBy string `json:"formattedBy"`
 }

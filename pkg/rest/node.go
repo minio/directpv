@@ -39,26 +39,22 @@ import (
 	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/ellipsis"
-	"github.com/minio/directpv/pkg/matcher"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/xfs"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
-const (
-	nodeAPIPort  = "50443"
-	nodeCertPath = "/tmp/certs/node-cert.pem"
-	nodeKeyPath  = "/tmp/certs/node-key.pem"
+var (
+	nodeAPIServerPrivateKeyPath = path.Join(consts.NodeAPIServerCertsPath, consts.PrivateKeyFileName)
+	nodeAPIServerCertPath       = path.Join(consts.NodeAPIServerCertsPath, consts.PublicCertFileName)
 )
 
 // errors
 var (
-	errUDevDataMismatch  = errors.New("udev data isn't matching")
-	errForceRequired     = errors.New("force flag is required for formatting")
-	errDriveAlreadyAdded = errors.New("drive is already formatted and added")
-	errDuplicateDevice   = errors.New("found duplicate devices for drive")
+	errUDevDataMismatch = errors.New("udev data isn't matching")
+	errForceRequired    = errors.New("force flag is required for formatting")
+	errDuplicateDevice  = errors.New("found duplicate devices for drive")
 )
 
 // suggestions
@@ -69,13 +65,12 @@ var (
 
 // reasons
 var (
-	udevDataNotAccessibleReason = "couldn't read the udev data"
-	udevDataMismatchReason      = "probed udevdata isn't matching with the udev data in the request"
+	udevDataMismatchReason = "probed udevdata isn't matching with the udev data in the request"
 )
 
 // ServeNodeAPIServer starts the DirectPV Node API server
-func ServeNodeAPIServer(ctx context.Context, identity, nodeID, rack, zone, region string) error {
-	certs, err := tls.LoadX509KeyPair(nodeCertPath, nodeKeyPath)
+func ServeNodeAPIServer(ctx context.Context, nodeAPIPort int, identity, nodeID, rack, zone, region string) error {
+	certs, err := tls.LoadX509KeyPair(nodeAPIServerCertPath, nodeAPIServerPrivateKeyPath)
 	if err != nil {
 		klog.Errorf("Filed to load key pair: %v", err)
 		return err
@@ -98,6 +93,7 @@ func ServeNodeAPIServer(ctx context.Context, identity, nodeID, rack, zone, regio
 	mux := http.NewServeMux()
 	mux.HandleFunc(devicesListAPIPath, nodeHandler.listLocalDevicesHandler)
 	mux.HandleFunc(devicesFormatAPIPath, nodeHandler.formatLocalDevicesHandler)
+	mux.HandleFunc(consts.ReadinessPath, readinessHandler)
 	server.Handler = mux
 
 	lc := net.ListenConfig{}
@@ -106,14 +102,16 @@ func ServeNodeAPIServer(ctx context.Context, identity, nodeID, rack, zone, regio
 		return lErr
 	}
 
+	errCh := make(chan error)
 	go func() {
-		klog.V(3).Infof("Starting DirectPV Node API server in port: %s", nodeAPIPort)
+		klog.V(3).Infof("Starting DirectPV Node API server in port: %d", nodeAPIPort)
 		if err := server.ServeTLS(listener, "", ""); err != nil {
 			klog.Errorf("Failed to listen and serve DirectPV Node API server: %v", err)
+			errCh <- err
 		}
 	}()
 
-	return nil
+	return <-errCh
 }
 
 // listLocalDevicesHandler fetches the devices present in the node and sends back
@@ -151,7 +149,6 @@ func (n *nodeAPIHandler) listLocalDevicesHandler(w http.ResponseWriter, r *http.
 	w.Header().Set("Content-Length", strconv.Itoa(len(jsonBytes)))
 	w.WriteHeader(http.StatusOK)
 	w.Write(jsonBytes)
-	return
 }
 
 func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesRequest) ([]Device, error) {
@@ -182,11 +179,11 @@ func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesReq
 		switch len(matchedDevices) {
 		case 0:
 			// Drive which was online before is lost/detached/corrupted now
-			if len(statusSelectors) > 0 && !matcher.StringIn(statusSelectors, string(DeviceStatusUnavailable)) {
+			if len(statusSelectors) > 0 && !stringIn(statusSelectors, string(DeviceStatusUnavailable)) {
 				break
 			}
 			deviceName := path.Base(drive.Status.Path)
-			if len(driveSelectors) > 0 && !matcher.StringIn(driveSelectors, deviceName) {
+			if len(driveSelectors) > 0 && !stringIn(driveSelectors, deviceName) {
 				break
 			}
 			deviceList = append(deviceList, Device{
@@ -200,10 +197,10 @@ func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesReq
 			})
 		case 1:
 			// Drive detected
-			if len(statusSelectors) > 0 && !matcher.StringIn(statusSelectors, string(DeviceStatusUnavailable)) {
+			if len(statusSelectors) > 0 && !stringIn(statusSelectors, string(DeviceStatusUnavailable)) {
 				break
 			}
-			if len(driveSelectors) > 0 && !matcher.StringIn(driveSelectors, matchedDevices[0].Name) {
+			if len(driveSelectors) > 0 && !stringIn(driveSelectors, matchedDevices[0].Name) {
 				break
 			}
 			deviceList = append(deviceList, Device{
@@ -229,10 +226,10 @@ func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesReq
 		if isUnavailable {
 			deviceStatus = DeviceStatusUnavailable
 		}
-		if len(statusSelectors) > 0 && !matcher.StringIn(statusSelectors, string(deviceStatus)) {
+		if len(statusSelectors) > 0 && !stringIn(statusSelectors, string(deviceStatus)) {
 			continue
 		}
-		if len(drives) > 0 && !matcher.StringIn(drives, device.Name) {
+		if len(driveSelectors) > 0 && !stringIn(driveSelectors, device.Name) {
 			continue
 		}
 		deviceList = append(deviceList, Device{
@@ -301,7 +298,7 @@ func (n *nodeAPIHandler) formatLocalDevicesHandler(w http.ResponseWriter, r *htt
 			if formatStatus.Error != "" && formatStatus.mountedAt != "" {
 				if err := n.safeUnmount(formatStatus.mountedAt, false, false, false); err != nil {
 					formatStatus.Error = errwrap.Wrap(err, errors.New(formatStatus.Error)).Error()
-					formatStatus.Reason = fmt.Sprintf("failed to umount %s: %v")
+					formatStatus.Reason = fmt.Sprintf("failed to umount %s: %v", device.Name, err)
 					formatStatus.Suggestion = fmt.Sprintf("please umount %s and retry the format request", formatStatus.mountedAt)
 				}
 			}
@@ -378,7 +375,7 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 	}
 	formatStatus.mountedAt = mountTarget
 	// probe fsinfo to calculate the allocatedcapacity
-	_, _, totalCapacity, freeCapacity, err = xfs.Probe("/dev/" + device.Name)
+	_, _, totalCapacity, freeCapacity, err = n.probeXFS(device.Path())
 	if err != nil {
 		klog.Errorf("failed to probe XFS for device: %s: %s", device.Name, err.Error())
 		formatStatus.Error = err.Error()

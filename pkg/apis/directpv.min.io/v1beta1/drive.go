@@ -24,9 +24,9 @@ import (
 // DirectPVDriveStatus denotes drive information.
 type DirectPVDriveStatus struct {
 	Path              string            `json:"path"`
-	TotalCapacity     int64            `json:"totalCapacity"`
-	AllocatedCapacity int64            `json:"allocatedCapacity"`
-	FreeCapacity      int64            `json:"freeCapacity"`
+	TotalCapacity     int64             `json:"totalCapacity"`
+	AllocatedCapacity int64             `json:"allocatedCapacity"`
+	FreeCapacity      int64             `json:"freeCapacity"`
 	FSUUID            string            `json:"fsuuid"`
 	NodeName          string            `json:"nodeName"`
 	Status            types.DriveStatus `json:"status"`
@@ -53,11 +53,6 @@ type DirectPVDrive struct {
 
 	Status DirectPVDriveStatus `json:"status"`
 }
-
-// // MatchGlob does glob match of nodes/drives/statuses with drive's NodeName/Path.
-// func (drive *DirectPVDrive) MatchGlob(nodes, drives []string) bool {
-// 	return matcher.GlobMatchNodesDrives(nodes, drives, drive.Status.NodeName, drive.Status.Path)
-// }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

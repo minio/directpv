@@ -65,6 +65,10 @@ func (v *v1dot18) installDeployment(ctx context.Context) error {
 	return installDeploymentDefault(ctx, v.Config)
 }
 
+func (v *v1dot18) installAPIServerDeployment(ctx context.Context) error {
+	return installAPIServerDeploymentDefault(ctx, v.Config)
+}
+
 func (v *v1dot18) installValidationRules(ctx context.Context) error {
 	return installValidationRulesDefault(ctx, v.Config)
 }
@@ -106,6 +110,10 @@ func (v *v1dot18) uninstallDeployment(ctx context.Context) error {
 	return uninstallDeploymentDefault(ctx, v.Config)
 }
 
+func (v *v1dot18) uninstallAPIServerDeployment(ctx context.Context) error {
+	return uninstallAPIServerDeploymentDefault(ctx, v.Config)
+}
+
 func (v *v1dot18) uninstallValidationRules(ctx context.Context) error {
 	return uninstallValidationRulesDefault(ctx, v.Config)
 }
@@ -138,11 +146,17 @@ func (v *v1dot18) Install(ctx context.Context) error {
 	if err := v.installDeployment(ctx); err != nil {
 		return err
 	}
+	if err := v.installAPIServerDeployment(ctx); err != nil {
+		return err
+	}
 	return v.installValidationRules(ctx)
 }
 
 func (v *v1dot18) Uninstall(ctx context.Context) error {
 	if err := v.uninstallCRD(ctx); err != nil {
+		return err
+	}
+	if err := v.uninstallAPIServerDeployment(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallDeployment(ctx); err != nil {

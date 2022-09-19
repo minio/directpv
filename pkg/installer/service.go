@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,23 +27,24 @@ import (
 )
 
 func installServiceDefault(ctx context.Context, c *Config) error {
-	if err := createService(ctx, c); err != nil && !apierrors.IsAlreadyExists(err) {
+	if err := createNodeAPIService(ctx, c); err != nil && !apierrors.IsAlreadyExists(err) {
 		return err
 	}
+	// Add more services here..
 	return nil
 }
 
 func uninstallServiceDefault(ctx context.Context, c *Config) error {
-	if err := k8s.KubeClient().CoreV1().Services(c.namespace()).Delete(ctx, c.serviceName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := k8s.KubeClient().CoreV1().Services(c.namespace()).Delete(ctx, consts.NodeAPIServerHLSVC, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	return nil
 }
 
-func createService(ctx context.Context, c *Config) error {
-	csiPort := corev1.ServicePort{
-		Port: 12345,
-		Name: "unused",
+func createNodeAPIService(ctx context.Context, c *Config) error {
+	nodeAPIPort := corev1.ServicePort{
+		Port: consts.NodeAPIPort,
+		Name: consts.NodeAPIPortName,
 	}
 	svc := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -50,16 +52,18 @@ func createService(ctx context.Context, c *Config) error {
 			Kind:       "Service",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        c.serviceName(),
+			Name:        consts.NodeAPIServerHLSVC,
 			Namespace:   c.namespace(),
 			Annotations: defaultAnnotations,
 			Labels:      defaultLabels,
 		},
 		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{csiPort},
+			Ports: []corev1.ServicePort{nodeAPIPort},
 			Selector: map[string]string{
 				serviceSelector: selectorValueEnabled,
 			},
+			Type:      corev1.ServiceTypeClusterIP,
+			ClusterIP: corev1.ClusterIPNone,
 		},
 	}
 

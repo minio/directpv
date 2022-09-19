@@ -27,6 +27,7 @@ import (
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -148,6 +149,44 @@ func deleteDeployment(ctx context.Context, identity, name string) error {
 	}
 
 	if err := dClient.Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createOrUpdateSecret(ctx context.Context, secretName string, dataMap map[string][]byte, c *Config) error {
+	secretsClient := k8s.KubeClient().CoreV1().Secrets(c.namespace())
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        secretName,
+			Namespace:   c.namespace(),
+			Annotations: defaultAnnotations,
+			Labels:      defaultLabels,
+		},
+		Data: dataMap,
+	}
+
+	if c.DryRun {
+		return c.postProc(secret)
+	}
+
+	existingSecret, err := secretsClient.Get(ctx, secret.Name, metav1.GetOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		if _, err := secretsClient.Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	existingSecret.Data = secret.Data
+	if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
 		return err
 	}
 	return nil

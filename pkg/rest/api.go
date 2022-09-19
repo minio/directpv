@@ -26,35 +26,38 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"path"
 	"strconv"
 	"sync"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/matcher"
+	corev1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
 const (
-	apiPort              = "40443"
-	apiCertPath          = "/tmp/certs/api-cert.pem"
-	apiKeyPath           = "/tmp/certs/api-key.pem"
-	nodeCA               = "/tmp/certs/node-ca.crt"
 	devicesListAPIPath   = "/devices/list"
 	devicesFormatAPIPath = "/devices/format"
 )
 
 var (
-	errNoSubsetsFound   = errors.New("no subsets found for the node service")
-	errNoEndpointsFound = errors.New("no endpoints found for the node service")
+	apiServerPrivateKeyPath = path.Join(consts.APIServerCertsPath, consts.PrivateKeyFileName)
+	apiServerCertPath       = path.Join(consts.APIServerCertsPath, consts.PublicCertFileName)
+)
+
+var (
+	errNoSubsetsFound      = errors.New("no subsets found for the node service")
+	errNoEndpointsFound    = errors.New("no endpoints found for the node service")
+	errNodeAPIPortNotFound = errors.New("api port for the node endpoints not found")
 )
 
 // ServeAPIServer starts the DirectPV API server
-func ServeAPIServer(ctx context.Context) error {
-	certs, err := tls.LoadX509KeyPair(apiCertPath, apiKeyPath)
+func ServeAPIServer(ctx context.Context, apiPort int) error {
+	certs, err := tls.LoadX509KeyPair(apiServerCertPath, apiServerPrivateKeyPath)
 	if err != nil {
 		klog.Errorf("Filed to load key pair for the DirectPV API server: %v", err)
 		return err
@@ -66,12 +69,14 @@ func ServeAPIServer(ctx context.Context) error {
 			Certificates:       []tls.Certificate{certs},
 			InsecureSkipVerify: true,
 		},
+		// TODO: Implement GetCertificate
 	}
 
 	// define http server and server handler
 	mux := http.NewServeMux()
 	mux.HandleFunc(devicesListAPIPath, listDevicesHandler)
 	mux.HandleFunc(devicesFormatAPIPath, formatDrivesHandler)
+	mux.HandleFunc(consts.ReadinessPath, readinessHandler)
 	server.Handler = mux
 
 	lc := net.ListenConfig{}
@@ -80,14 +85,16 @@ func ServeAPIServer(ctx context.Context) error {
 		return lErr
 	}
 
+	errCh := make(chan error)
 	go func() {
-		klog.V(3).Infof("Starting DirectPV API server in port: %s", apiPort)
+		klog.V(3).Infof("Starting DirectPV API server in port: %d", apiPort)
 		if err := server.ServeTLS(listener, "", ""); err != nil {
 			klog.Errorf("Failed to listen and serve DirectPV API server: %v", err)
+			errCh <- err
 		}
 	}()
 
-	return nil
+	return <-errCh
 }
 
 // listDevicesHandler talks to the node's endpoints and gathers the list of devices
@@ -134,7 +141,7 @@ func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Dev
 			return nil, fmt.Errorf("couldn't expand the node selector %v: %v", req.Nodes, err)
 		}
 	}
-	endpointsMap, err := getNodeEndpoints(ctx)
+	endpointsMap, nodeAPIPort, err := getNodeEndpoints(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the node endpoints: %v", err)
 	}
@@ -152,13 +159,13 @@ func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Dev
 	var mutex = &sync.RWMutex{}
 	var wg sync.WaitGroup
 	for node, ip := range endpointsMap {
-		if len(nodes) > 0 && !matcher.StringIn(nodes, node) {
+		if len(nodes) > 0 && !stringIn(nodes, node) {
 			continue
 		}
 		wg.Add(1)
 		go func(node, ip string) {
 			defer wg.Done()
-			reqURL := fmt.Sprintf("https://%s:%s%s", ip, nodeAPIPort, devicesListAPIPath)
+			reqURL := fmt.Sprintf("https://%s:%d%s", ip, nodeAPIPort, devicesListAPIPath)
 			req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewReader(reqBody))
 			if err != nil {
 				klog.Infof("error while constructing request: %v", err)
@@ -228,7 +235,7 @@ func formatDrivesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][]FormatDeviceStatus, error) {
-	endpointsMap, err := getNodeEndpoints(ctx)
+	endpointsMap, nodeAPIPort, err := getNodeEndpoints(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the node endpoints: %v", err)
 	}
@@ -252,7 +259,11 @@ func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][
 					node: formatDevices,
 				},
 			})
-			reqURL := fmt.Sprintf("https://%s:%s%s", ip, nodeAPIPort, devicesFormatAPIPath)
+			if err != nil {
+				klog.Infof("error while parsing format devices request: %v", err)
+				return
+			}
+			reqURL := fmt.Sprintf("https://%s:%d%s", ip, nodeAPIPort, devicesFormatAPIPath)
 			req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewReader(reqBody))
 			if err != nil {
 				klog.Infof("error while constructing request: %v", err)
@@ -289,20 +300,32 @@ func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][
 	return formatStatus, nil
 }
 
-func getNodeEndpoints(ctx context.Context) (map[string]string, error) {
-	endpoints, err := k8s.KubeClient().CoreV1().Endpoints(consts.Namespace).Get(ctx, consts.ClusterIPNodeSVC, metav1.GetOptions{})
+func getNodeEndpoints(ctx context.Context) (endpointsMap map[string]string, apiPort int, err error) {
+	var endpoints *corev1.Endpoints
+	endpoints, err = k8s.KubeClient().CoreV1().Endpoints(consts.Namespace).Get(ctx, consts.NodeAPIServerHLSVC, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return
 	}
 	if len(endpoints.Subsets) == 0 {
-		return nil, errNoSubsetsFound
+		err = errNoSubsetsFound
+		return
 	}
-	var endpointsMap map[string]string
+	endpointsMap = make(map[string]string)
 	for _, address := range endpoints.Subsets[0].Addresses {
 		endpointsMap[*address.NodeName] = address.IP
 	}
 	if len(endpointsMap) == 0 {
-		return nil, errNoEndpointsFound
+		err = errNoEndpointsFound
+		return
 	}
-	return endpointsMap, nil
+	for _, port := range endpoints.Subsets[0].Ports {
+		if port.Name == consts.NodeAPIPortName {
+			apiPort = int(port.Port)
+			break
+		}
+	}
+	if apiPort == 0 {
+		err = errNodeAPIPortNotFound
+	}
+	return
 }

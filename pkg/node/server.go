@@ -54,7 +54,7 @@ type Server struct {
 // NewServer creates node server.
 func NewServer(ctx context.Context,
 	identity, nodeID, rack, zone, region string,
-	reflinkSupport bool, metricsPort int,
+	metricsPort int,
 ) (*Server, error) {
 	nodeServer := &Server{
 		nodeID:   nodeID,

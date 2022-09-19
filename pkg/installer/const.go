@@ -77,10 +77,6 @@ const (
 	// debug log level default
 	logLevel = 3
 
-	// key-pairs
-	privateKeyFileName = "key.pem"
-	publicCertFileName = "cert.pem"
-
 	// string-gen
 	charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 
@@ -94,4 +90,16 @@ const (
 
 	// readiness
 	readinessPortName = "readinessport"
+
+	// api-server
+	apiServerCertsDir        = "api-server-certs"
+	apiServerCertsSecretName = "apiservercerts"
+	localHostDNS             = "localhost"
+	apiServerCASecretName    = "apiservercacert"
+
+	// node-api-server
+	nodeAPIServerCertsDir        = "node-api-server-certs"
+	nodeAPIServerCertsSecretName = "nodeapiservercerts"
+	nodeAPIServerCASecretName    = "nodeapiservercacert"
+	nodeAPIServerCADir           = "node-api-server-ca"
 )

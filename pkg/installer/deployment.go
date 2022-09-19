@@ -33,8 +33,8 @@ import (
 func createControllerSecret(ctx context.Context, publicCertBytes, privateKeyBytes []byte, c *Config) error {
 	getCertsDataMap := func() map[string][]byte {
 		mp := make(map[string][]byte)
-		mp[privateKeyFileName] = privateKeyBytes
-		mp[publicCertFileName] = publicCertBytes
+		mp[consts.PrivateKeyFileName] = privateKeyBytes
+		mp[consts.PublicCertFileName] = publicCertBytes
 		return mp
 	}
 
@@ -163,7 +163,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 				Args: []string{
 					"controller",
 					fmt.Sprintf("-v=%d", logLevel),
-					fmt.Sprintf("--identity=%s", c.deploymentName()),
+					fmt.Sprintf("--identity=%s", c.identity()),
 					fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
 					fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 					fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),

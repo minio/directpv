@@ -52,6 +52,7 @@ func createPodSecurityPolicy(ctx context.Context, i *Config) error {
 			AllowedHostPaths: []policy.AllowedHostPath{
 				{PathPrefix: consts.ProcFSDir, ReadOnly: true},
 				{PathPrefix: consts.SysFSDir, ReadOnly: true},
+				{PathPrefix: consts.UdevDataDir, ReadOnly: true},
 				{PathPrefix: consts.AppRootDir},
 				{PathPrefix: socketDir},
 				{PathPrefix: kubeletDirPath},

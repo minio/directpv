@@ -38,14 +38,16 @@ func serveReadinessEndpoint(ctx context.Context) error {
 		return err
 	}
 
+	errCh := make(chan error)
 	go func() {
 		klog.V(3).Infof("Serving readiness endpoint at :%v", readinessPort)
 		if err := server.Serve(listener); err != nil {
 			klog.ErrorS(err, "unable to serve readiness endpoint")
+			errCh <- err
 		}
 	}()
 
-	return nil
+	return <-errCh
 }
 
 // readinessHandler - Checks if the process is up. Always returns success.

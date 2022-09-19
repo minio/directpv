@@ -24,10 +24,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/minio/directpv/pkg/device"
-	"github.com/minio/directpv/pkg/fs"
-	"github.com/minio/directpv/pkg/fs/xfs"
-	"github.com/minio/directpv/pkg/mount"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/xfs"
 	losetup "gopkg.in/freddierice/go-losetup.v1"
 
 	"k8s.io/klog/v2"
@@ -41,30 +40,29 @@ type nodeAPIHandler struct {
 	reflinkSupport              bool
 	topology                    map[string]string
 	mountDevice                 func(device, target string, flags []string) error
-	unmountDevice               func(device string) error
 	makeFS                      func(ctx context.Context, device, uuid string, force, reflink bool) error
 	safeUnmount                 func(target string, force, detach, expire bool) error
 	truncate                    func(name string, size int64) error
 	attachLoopDevice            func(backingFile string, offset uint64, ro bool) (losetup.Device, error)
 	readRunUdevDataByMajorMinor func(majorMinor string) (map[string]string, error)
-	probeFS                     func(ctx context.Context, device string) (fs fs.FS, err error)
+	probeXFS                    func(path string) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error)
 	// locks
 	formatLockerMutex sync.Mutex
 	formatLocker      map[string]*sync.Mutex
 }
 
+// Unmount(target string, force, detach, expire bool) error {
 func newNodeAPIHandler(ctx context.Context, identity, nodeID, rack, zone, region string) (*nodeAPIHandler, error) {
 	var err error
 	nodeAPIHandler := &nodeAPIHandler{
 		nodeID:                      nodeID,
-		mountDevice:                 mount.MountXFSDevice,
-		unmountDevice:               mount.UnmountDevice,
+		mountDevice:                 mountXFSDevice,
 		makeFS:                      xfs.MakeFS,
-		safeUnmount:                 mount.SafeUnmount,
+		safeUnmount:                 sys.Unmount,
 		truncate:                    os.Truncate,
 		attachLoopDevice:            losetup.Attach,
 		readRunUdevDataByMajorMinor: device.ReadRunUdevDataByMajorMinor,
-		probeFS:                     fs.Probe,
+		probeXFS:                    xfs.Probe,
 		formatLocker:                map[string]*sync.Mutex{},
 		topology: map[string]string{
 			string(types.TopologyDriverIdentity): identity,
@@ -151,5 +149,5 @@ func (n *nodeAPIHandler) checkXFS(ctx context.Context, reflinkSupport bool) erro
 		return errMountFailure
 	}
 
-	return n.unmountDevice(mountPoint)
+	return n.safeUnmount(mountPoint, true, true, false)
 }
