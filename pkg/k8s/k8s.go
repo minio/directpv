@@ -79,7 +79,6 @@ func GetGroupVersionKind(group, kind string, versions ...string) (*schema.GroupV
 		versions...,
 	)
 	if err != nil {
-		klog.ErrorS(err, "unable to get REST mapping")
 		return nil, err
 	}
 

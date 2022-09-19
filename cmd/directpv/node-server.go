@@ -24,17 +24,31 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/google/uuid"
 	"github.com/minio/directpv/pkg/consts"
-	pkgcontroller "github.com/minio/directpv/pkg/controller"
 	pkgidentity "github.com/minio/directpv/pkg/identity"
 	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/minio/directpv/pkg/xfs"
+	"github.com/spf13/cobra"
 	losetup "gopkg.in/freddierice/go-losetup.v1"
 	"k8s.io/klog/v2"
 )
 
 var errMountFailure = errors.New("could not mount the drive")
+
+var nodeServerCmd = &cobra.Command{
+	Use:           "node-server",
+	Short:         "Start node server of " + consts.AppPrettyName + ".",
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE: func(c *cobra.Command, args []string) error {
+		return startNodeServer(c.Context(), args)
+	},
+}
+
+func init() {
+	nodeServerCmd.PersistentFlags().IntVarP(&metricsPort, "metrics-port", "", metricsPort, "Metrics port at "+consts.AppPrettyName+" exports metrics data")
+}
 
 func checkXFS(ctx context.Context, reflinkSupport bool) error {
 	mountPoint, err := os.MkdirTemp("", "xfs.check.mnt.")
@@ -89,10 +103,10 @@ func getReflinkSupport(ctx context.Context) (reflinkSupport bool, err error) {
 	return
 }
 
-func run(ctxMain context.Context, args []string) error {
-	ctx, cancel := context.WithCancel(ctxMain)
+func startNodeServer(ctx context.Context, args []string) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
-	errChan := make(chan error)
 
 	idServer, err := pkgidentity.NewServer(identity, Version, map[string]string{})
 	if err != nil {
@@ -100,72 +114,59 @@ func run(ctxMain context.Context, args []string) error {
 	}
 	klog.V(3).Infof("Identity server started")
 
-	var nodeServer csi.NodeServer
-	if driver {
-		reflinkSupport, err := getReflinkSupport(ctx)
-		if err != nil {
-			return err
-		}
-
-		if reflinkSupport {
-			klog.V(3).Infof("reflink support is ENABLED for XFS formatting and mounting")
-		} else {
-			klog.V(3).Infof("reflink support is DISABLED for XFS formatting and mounting")
-		}
-
-		go func() {
-			if err := volume.StartController(ctx, nodeID); err != nil {
-				klog.ErrorS(err, "unable to start volume controller")
-				errChan <- err
-			}
-		}()
-
-		nodeServer, err = node.NewServer(ctx,
-			identity,
-			nodeID,
-			rack,
-			zone,
-			region,
-			reflinkSupport,
-			metricsPort,
-		)
-		if err != nil {
-			return err
-		}
-		klog.V(3).Infof("Node server started")
-
-		if err = os.Mkdir(consts.MountRootDir, 0o777); err != nil && !errors.Is(err, os.ErrExist) {
-			return err
-		}
+	reflinkSupport, err := getReflinkSupport(ctx)
+	if err != nil {
+		return err
 	}
 
-	var ctrlServer csi.ControllerServer
-	if controller {
-		ctrlServer, err = pkgcontroller.NewServer(ctx, identity, nodeID, rack, zone, region)
-		if err != nil {
-			return err
+	if reflinkSupport {
+		klog.V(3).Infof("reflink support is ENABLED for XFS formatting and mounting")
+	} else {
+		klog.V(3).Infof("reflink support is DISABLED for XFS formatting and mounting")
+	}
+
+	errCh := make(chan error)
+
+	go func() {
+		if err := volume.StartController(ctx, kubeNodeName); err != nil {
+			klog.ErrorS(err, "unable to start volume controller")
+			errCh <- err
 		}
-		klog.V(3).Infof("Controller server started")
+	}()
+
+	var nodeServer csi.NodeServer
+	nodeServer, err = node.NewServer(
+		ctx,
+		identity,
+		kubeNodeName,
+		rack,
+		zone,
+		region,
+		reflinkSupport,
+		metricsPort,
+	)
+	if err != nil {
+		return err
+	}
+	klog.V(3).Infof("Node server started")
+
+	if err = os.Mkdir(consts.MountRootDir, 0o777); err != nil && !errors.Is(err, os.ErrExist) {
+		return err
 	}
 
 	go func() {
-		if err := runServers(ctx, endpoint, idServer, ctrlServer, nodeServer); err != nil {
+		if err := runServers(ctx, csiEndpoint, idServer, nil, nodeServer); err != nil {
 			klog.ErrorS(err, "unable to start GRPC servers")
-			errChan <- err
+			errCh <- err
 		}
 	}()
 
 	go func() {
 		if err := serveReadinessEndpoint(ctx); err != nil {
 			klog.ErrorS(err, "unable to start readiness endpoint")
-			errChan <- err
+			errCh <- err
 		}
 	}()
 
-	err = <-errChan
-	if err != nil {
-		cancel()
-		return err
-	}
-	return nil
+	return <-errCh
 }

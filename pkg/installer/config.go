@@ -130,11 +130,11 @@ func (c *Config) csiDriverName() string {
 }
 
 func (c *Config) daemonsetName() string {
-	return c.Identity
+	return "node-server"
 }
 
 func (c *Config) deploymentName() string {
-	return c.Identity
+	return "controller"
 }
 
 func (c *Config) getPSPName() string {

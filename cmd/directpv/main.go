@@ -18,13 +18,109 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/consts"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
 )
+
+// Version of this application populated by `go build`
+// e.g. $ go build -ldflags="-X main.Version=v4.0.1"
+var Version string
+
+// flags
+var (
+	identity             = consts.Identity
+	kubeNodeName         = ""
+	rack                 = "default"
+	zone                 = "default"
+	region               = "default"
+	csiEndpoint          = consts.UnixCSIEndpoint
+	kubeconfig           = ""
+	conversionHealthzURL = ""
+	metricsPort          = consts.MetricsPort
+	readinessPort        = consts.ReadinessPort
+)
+
+var mainCmd = &cobra.Command{
+	Use:           consts.AppName,
+	Short:         "Start " + consts.AppPrettyName + " controller and driver. This binary is usually executed by Kubernetes.",
+	SilenceUsage:  true,
+	SilenceErrors: false,
+	Version:       Version,
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd:   true,
+		DisableNoDescFlag:   true,
+		DisableDescriptions: true,
+		HiddenDefaultCmd:    true,
+	},
+	PersistentPreRunE: func(c *cobra.Command, args []string) error {
+		if kubeNodeName == "" {
+			return fmt.Errorf("value to --kube-node-name must be provided")
+		}
+
+		client.Init()
+		return nil
+	},
+}
+
+func init() {
+	if mainCmd.Version == "" {
+		mainCmd.Version = "dev"
+	}
+
+	viper.AutomaticEnv()
+
+	kflags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(kflags)
+
+	// parse the go default flagset to get flags for glog and other packages in future
+	mainCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
+	mainCmd.PersistentFlags().AddGoFlagSet(kflags)
+
+	flag.Set("logtostderr", "true")
+	flag.Set("alsologtostderr", "true")
+
+	mainCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "Path to the kubeconfig file to use for Kubernetes requests.")
+	mainCmd.PersistentFlags().StringVarP(&identity, "identity", "", identity, "Identity of "+consts.AppPrettyName+" instances")
+	mainCmd.PersistentFlags().StringVarP(&csiEndpoint, "csi-endpoint", "", csiEndpoint, "CSI endpoint")
+	mainCmd.PersistentFlags().StringVarP(&kubeNodeName, "kube-node-name", "", kubeNodeName, "Kubernetes node name (MUST BE SET)")
+	mainCmd.PersistentFlags().StringVarP(&rack, "rack", "", rack, "Rack ID of "+consts.AppPrettyName+" instances")
+	mainCmd.PersistentFlags().StringVarP(&zone, "zone", "", zone, "Zone ID of "+consts.AppPrettyName+" instances")
+	mainCmd.PersistentFlags().StringVarP(&region, "region", "", region, "Region ID of "+consts.AppPrettyName+" instances")
+	mainCmd.PersistentFlags().StringVarP(&conversionHealthzURL, "conversion-healthz-url", "", conversionHealthzURL, "URL to conversion webhook health endpoint")
+	mainCmd.PersistentFlags().IntVarP(&readinessPort, "readiness-port", "", readinessPort, "Readiness port at "+consts.AppPrettyName+" exports readiness of services")
+
+	mainCmd.PersistentFlags().MarkHidden("alsologtostderr")
+	mainCmd.PersistentFlags().MarkHidden("add_dir_header")
+	mainCmd.PersistentFlags().MarkHidden("log_file")
+	mainCmd.PersistentFlags().MarkHidden("log_file_max_size")
+	mainCmd.PersistentFlags().MarkHidden("one_output")
+	mainCmd.PersistentFlags().MarkHidden("skip_headers")
+	mainCmd.PersistentFlags().MarkHidden("skip_log_headers")
+	mainCmd.PersistentFlags().MarkHidden("v")
+	mainCmd.PersistentFlags().MarkHidden("log_backtrace_at")
+	mainCmd.PersistentFlags().MarkHidden("log_dir")
+	mainCmd.PersistentFlags().MarkHidden("logtostderr")
+	mainCmd.PersistentFlags().MarkHidden("master")
+	mainCmd.PersistentFlags().MarkHidden("stderrthreshold")
+	mainCmd.PersistentFlags().MarkHidden("vmodule")
+
+	// suppress the incorrect prefix in glog output
+	flag.CommandLine.Parse([]string{})
+	viper.BindPFlags(mainCmd.PersistentFlags())
+
+	mainCmd.AddCommand(controllerCmd)
+	mainCmd.AddCommand(nodeServerCmd)
+}
 
 func main() {
 	sigs := make(chan os.Signal, 1)
@@ -39,7 +135,8 @@ func main() {
 		os.Exit(1)
 	}()
 
-	if err := Execute(ctx); err != nil {
+	if err := mainCmd.ExecuteContext(ctx); err != nil {
+		klog.ErrorS(err, "unable to execute command")
 		os.Exit(1)
 	}
 }

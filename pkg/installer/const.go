@@ -37,6 +37,7 @@ const (
 	appRootDir                       = consts.AppRootDir + "/"
 	nodeDriverRegistrarContainerName = "node-driver-registrar"
 	healthZContainerPortName         = "healthz"
+	healthZContainerPort             = 9898
 	livenessProbeContainerName       = "liveness-probe"
 	volumeNameSysDir                 = "sysfs"
 	volumePathSysDir                 = consts.SysFSDir
@@ -59,18 +60,19 @@ const (
 	validationWebhookConfigName = "drive.validation.controller"
 
 	// Common
-	volumeNameSocketDir         = "socket-dir"
-	selectorKey                 = "selector." + consts.GroupName
-	containerName               = consts.AppName
-	driveDiscoveryContainerName = consts.AppName + "-drive-discovery"
-	kubeNodeNameEnvVar          = "KUBE_NODE_NAME"
-	endpointEnvVarCSI           = "CSI_ENDPOINT"
-	kubeletDirPath              = "/var/lib/kubelet"
-	pluginName                  = "kubectl-" + consts.AppName
-	selectorValueEnabled        = "enabled"
-	serviceSelector             = "selector." + consts.GroupName + ".service"
-	healthZContainerPortPath    = "/healthz"
-	deleteProtectionFinalizer   = "/delete-protection"
+	volumeNameSocketDir       = "socket-dir"
+	socketDir                 = "/csi"
+	socketFile                = "/csi.sock"
+	selectorKey               = "selector." + consts.GroupName
+	containerName             = consts.AppName
+	kubeNodeNameEnvVarName    = "KUBE_NODE_NAME"
+	csiEndpointEnvVarName     = "CSI_ENDPOINT"
+	kubeletDirPath            = "/var/lib/kubelet"
+	pluginName                = "kubectl-" + consts.AppName
+	selectorValueEnabled      = "enabled"
+	serviceSelector           = "selector." + consts.GroupName + ".service"
+	healthZContainerPortPath  = "/healthz"
+	deleteProtectionFinalizer = "/delete-protection"
 
 	// debug log level default
 	logLevel = 3

@@ -57,27 +57,24 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 	}
 
 	volumes := []corev1.Volume{
-		newHostPathVolume(volumeNameSocketDir, newPluginsSocketDir(kubeletDirPath, c.daemonsetName())),
+		newHostPathVolume(volumeNameSocketDir, newPluginsSocketDir(kubeletDirPath, c.identity())),
 		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
 		newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
 		newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
 		newHostPathVolume(volumeNameAppRootDir, appRootDir),
+		newHostPathVolume(volumeNameSysDir, volumePathSysDir),
+		newHostPathVolume(volumeNameDevDir, volumePathDevDir),
+		newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData),
 	}
 	volumeMounts := []corev1.VolumeMount{
-		newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
+		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
 		newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", corev1.MountPropagationBidirectional, false),
 		newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", corev1.MountPropagationBidirectional, false),
 		newVolumeMount(volumeNameAppRootDir, appRootDir, corev1.MountPropagationBidirectional, false),
+		newVolumeMount(volumeNameSysDir, volumePathSysDir, corev1.MountPropagationBidirectional, true),
+		newVolumeMount(volumeNameDevDir, volumePathDevDir, corev1.MountPropagationHostToContainer, true),
+		newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, corev1.MountPropagationBidirectional, true),
 	}
-
-	volumes = append(volumes, newHostPathVolume(volumeNameSysDir, volumePathSysDir))
-	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameSysDir, volumePathSysDir, corev1.MountPropagationBidirectional, true))
-
-	volumes = append(volumes, newHostPathVolume(volumeNameDevDir, volumePathDevDir))
-	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameDevDir, volumePathDevDir, corev1.MountPropagationHostToContainer, true))
-
-	volumes = append(volumes, newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData))
-	volumeMounts = append(volumeMounts, newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, corev1.MountPropagationBidirectional, true))
 
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: c.serviceAccountName(),
@@ -91,82 +88,44 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.getNodeDriverRegistrarImage()),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
-					"--csi-address=unix:///csi/csi.sock",
+					"--csi-address=" + consts.UnixCSIEndpoint,
 					fmt.Sprintf("--kubelet-registration-path=%s",
-						newPluginsSocketDir(kubeletDirPath, c.daemonsetName())+"/csi.sock"),
+						newPluginsSocketDir(kubeletDirPath, c.identity())+socketFile),
 				},
-				Env: []corev1.EnvVar{
-					{
-						Name: kubeNodeNameEnvVar,
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "spec.nodeName",
-							},
-						},
-					},
-				},
+				Env: []corev1.EnvVar{kubeNodeNameEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
+					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
 					newVolumeMount(volumeNameRegistrationDir, "/registration", corev1.MountPropagationNone, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
 			},
 			{
-				Name:  containerName,
+				Name:  "node-server",
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
 				Args: func() []string {
 					args := []string{
-						fmt.Sprintf("--identity=%s", c.daemonsetName()),
+						"node-server",
 						fmt.Sprintf("-v=%d", logLevel),
-						fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
-						fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
-						fmt.Sprintf("--metrics-port=%d", consts.MetricsPort),
+						fmt.Sprintf("--identity=%s", c.identity()),
+						fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
+						fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 						fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
-						"--driver",
+						fmt.Sprintf("--metrics-port=%d", consts.MetricsPort),
 					}
 					return args
 				}(),
-				SecurityContext: securityContext,
-				Env: []corev1.EnvVar{
-					{
-						Name: kubeNodeNameEnvVar,
-						ValueFrom: &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{
-								APIVersion: "v1",
-								FieldPath:  "spec.nodeName",
-							},
-						},
-					},
-					{
-						Name:  endpointEnvVarCSI,
-						Value: "unix:///csi/csi.sock",
-					},
-				},
+				SecurityContext:          securityContext,
+				Env:                      []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-termination-log",
 				VolumeMounts:             volumeMounts,
-				Ports: []corev1.ContainerPort{
-					{
-						ContainerPort: 9898,
-						Name:          "healthz",
-						Protocol:      corev1.ProtocolTCP,
-					},
-					{
-						ContainerPort: consts.ReadinessPort,
-						Name:          readinessPortName,
-						Protocol:      corev1.ProtocolTCP,
-					},
-					{
-						ContainerPort: consts.MetricsPort,
-						Name:          metricsPortName,
-						Protocol:      corev1.ProtocolTCP,
-					},
-				},
-				ReadinessProbe: &corev1.Probe{
-					ProbeHandler: getReadinessHandler(),
-				},
+				Ports: append(commonContainerPorts, corev1.ContainerPort{
+					ContainerPort: consts.MetricsPort,
+					Name:          metricsPortName,
+					Protocol:      corev1.ProtocolTCP,
+				}),
+				ReadinessProbe: &corev1.Probe{ProbeHandler: getReadinessHandler()},
 				LivenessProbe: &corev1.Probe{
 					FailureThreshold:    5,
 					InitialDelaySeconds: 300,
@@ -184,13 +143,13 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				Name:  livenessProbeContainerName,
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.getLivenessProbeImage()),
 				Args: []string{
-					"--csi-address=/csi/csi.sock",
-					"--health-port=9898",
+					"--csi-address=" + socketDir + socketFile,
+					"--health-port=" + fmt.Sprintf("%v", healthZContainerPort),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-liveness-termination-log",
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
+					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
 				},
 			},
 		},
@@ -205,7 +164,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		annotations["container.apparmor.security.beta.kubernetes.io/"+consts.AppName] = c.ApparmorProfile
 	}
 
-	generatedSelectorValue := generateSanitizedUniqueNameFrom(c.daemonsetName())
+	generatedSelectorValue := generateSanitizedUniqueNameFrom(c.identity())
 	daemonset := &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
