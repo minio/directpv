@@ -19,15 +19,15 @@ package rest
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/fs"
 	"github.com/minio/directpv/pkg/fs/xfs"
 	"github.com/minio/directpv/pkg/mount"
-	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/types"
 	losetup "gopkg.in/freddierice/go-losetup.v1"
 
 	"k8s.io/klog/v2"
@@ -39,45 +39,40 @@ var errMountFailure = errors.New("could not mount the drive")
 type nodeAPIHandler struct {
 	nodeID                      string
 	reflinkSupport              bool
-	getDevice                   func(major, minor uint32) (string, error)
-	stat                        func(name string) (os.FileInfo, error)
+	topology                    map[string]string
 	mountDevice                 func(device, target string, flags []string) error
 	unmountDevice               func(device string) error
 	makeFS                      func(ctx context.Context, device, uuid string, force, reflink bool) error
-	isMounted                   func(target string) (bool, error)
 	safeUnmount                 func(target string, force, detach, expire bool) error
 	truncate                    func(name string, size int64) error
 	attachLoopDevice            func(backingFile string, offset uint64, ro bool) (losetup.Device, error)
-	readRunUdevDataByMajorMinor func(major, minor int) (map[string]string, error)
+	readRunUdevDataByMajorMinor func(majorMinor string) (map[string]string, error)
 	probeFS                     func(ctx context.Context, device string) (fs fs.FS, err error)
 	// locks
 	formatLockerMutex sync.Mutex
 	formatLocker      map[string]*sync.Mutex
 }
 
-func newNodeAPIHandler(ctx context.Context, nodeID string) (*nodeAPIHandler, error) {
+func newNodeAPIHandler(ctx context.Context, identity, nodeID, rack, zone, region string) (*nodeAPIHandler, error) {
 	var err error
-	getDevice := func(major, minor uint32) (string, error) {
-		name, err := sys.GetDeviceName(major, minor)
-		if err != nil {
-			return "", err
-		}
-		return "/dev/" + name, nil
-	}
 	nodeAPIHandler := &nodeAPIHandler{
 		nodeID:                      nodeID,
-		getDevice:                   getDevice,
-		stat:                        os.Stat,
 		mountDevice:                 mount.MountXFSDevice,
 		unmountDevice:               mount.UnmountDevice,
 		makeFS:                      xfs.MakeFS,
-		isMounted:                   mount.IsMounted,
 		safeUnmount:                 mount.SafeUnmount,
 		truncate:                    os.Truncate,
 		attachLoopDevice:            losetup.Attach,
-		readRunUdevDataByMajorMinor: sys.ReadRunUdevDataByMajorMinor,
+		readRunUdevDataByMajorMinor: device.ReadRunUdevDataByMajorMinor,
 		probeFS:                     fs.Probe,
 		formatLocker:                map[string]*sync.Mutex{},
+		topology: map[string]string{
+			string(types.TopologyDriverIdentity): identity,
+			string(types.TopologyDriverRack):     rack,
+			string(types.TopologyDriverZone):     zone,
+			string(types.TopologyDriverRegion):   region,
+			string(types.TopologyDriverNode):     nodeID,
+		},
 	}
 	nodeAPIHandler.reflinkSupport, err = nodeAPIHandler.isReflinkSupported(ctx)
 	if err != nil {
@@ -86,16 +81,15 @@ func newNodeAPIHandler(ctx context.Context, nodeID string) (*nodeAPIHandler, err
 	return nodeAPIHandler, nil
 }
 
-func (n *nodeAPIHandler) getFormatLock(major, minor int) *sync.Mutex {
+func (n *nodeAPIHandler) getFormatLock(majorMinor string) *sync.Mutex {
 	n.formatLockerMutex.Lock()
 	defer n.formatLockerMutex.Unlock()
 
-	key := fmt.Sprintf("%d:%d", major, minor)
-	if _, found := n.formatLocker[key]; !found {
-		n.formatLocker[key] = &sync.Mutex{}
+	if _, found := n.formatLocker[majorMinor]; !found {
+		n.formatLocker[majorMinor] = &sync.Mutex{}
 	}
 
-	return n.formatLocker[key]
+	return n.formatLocker[majorMinor]
 }
 
 func (n *nodeAPIHandler) isReflinkSupported(ctx context.Context) (bool, error) {
@@ -132,7 +126,7 @@ func (n *nodeAPIHandler) checkXFS(ctx context.Context, reflinkSupport bool) erro
 	defer os.Remove(file.Name())
 	file.Close()
 
-	if err = n.truncate(file.Name(), sys.MinSupportedDeviceSize); err != nil {
+	if err = n.truncate(file.Name(), xfs.MinSupportedDeviceSize); err != nil {
 		return err
 	}
 

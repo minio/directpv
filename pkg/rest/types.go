@@ -24,12 +24,6 @@ type Selector string
 type DeviceStatus string
 
 const (
-	// DeviceStatusOnline denotes that the device is managed by DirectPV
-	DeviceStatusOnline DeviceStatus = "Online"
-
-	// DeviceStatusOffline denotes that the Online DirectPV drive is corrupted or lost
-	DeviceStatusOffline DeviceStatus = "Offline"
-
 	// DeviceStatusAvailable denotes that the device is available for formatting
 	DeviceStatusAvailable DeviceStatus = "Available"
 
@@ -52,14 +46,14 @@ type GetDevicesResponse struct {
 // Device holds Disk information
 type Device struct {
 	Name        string       `json:"name"`
-	Major       int          `json:"major"`
-	Minor       int          `json:"minor"`
-	Size        int64        `json:"size,omitempty"`
+	MajorMinor  string       `json:"majorMinor,omitempty"`
+	Size        uint64       `json:"size,omitempty"`
 	Model       string       `json:"model,omitempty"`
 	Vendor      string       `json:"vendor,omitmepty"`
 	Filesystem  string       `json:"filesystem,omitempty"`
 	Mountpoints []string     `json:"mountpoints,omitempty"`
 	Status      DeviceStatus `json:"status"`
+	Description string       `json:"description`
 	// UDevData holds the device metadata info probed from `/run/udev/data/b<maj><min>`
 	UDevData map[string]string `json:"udevData,omitempty"`
 }
@@ -71,10 +65,9 @@ type FormatDevicesRequest struct {
 
 // FormatDevice represents the devices requested to be formatted
 type FormatDevice struct {
-	Name  string `json:"name"`
-	Major int    `json:"major"`
-	Minor int    `json:"minor"`
-	Force bool   `json:"force,omitempty"`
+	Name       string `json:"name"`
+	MajorMinor string `json:"majorMinor"`
+	Force      bool   `json:"force,omitempty"`
 	// UDevData holds the device metadata sent in the fetch drives response
 	UDevData map[string]string `json:"udevData"`
 }
@@ -91,6 +84,10 @@ type FormatDeviceStatus struct {
 	Error      string `json:"error,omitempty"`
 	Reason     string `json:"reason,omitempty"`
 	Suggestion string `json:"suggestion,omitempty"`
+	// internals
+	mountedAt     string `json:"-"`
+	totalCapacity uint64 `json:"-"`
+	freeCapacity  uint64 `json:"-"`
 }
 
 // FormatMetadata represents the format metadata to be saved on the drive

@@ -37,6 +37,12 @@ const (
 	// Identity denotes identity value.
 	Identity = AppName + "-min-io"
 
+	// Namespace denotes the namespace where the app is installed
+	Namespace = Identity
+
+	// ClusterIPNodeSVC denotes the name of the clusterIP service for the node API
+	ClusterIPNodeSVC = Identity
+
 	// StorageClassName denotes storage class name.
 	StorageClassName = Identity
 

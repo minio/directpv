@@ -99,6 +99,14 @@ func getMounts(proc1Mountinfo string) (mountPointMap, deviceMap map[string][]str
 	return
 }
 
+func getDeviceMountsByPath(proc1Mountinfo, path string) ([]string, error) {
+	_, deviceMap, err := getMounts(proc1Mountinfo)
+	if err != nil {
+		return nil, err
+	}
+	return deviceMap[path], nil
+}
+
 var mountFlagMap = map[string]uintptr{
 	"remount":     syscall.MS_REMOUNT,
 	"bind":        syscall.MS_BIND,

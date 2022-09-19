@@ -22,6 +22,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/metrics"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
@@ -63,7 +64,7 @@ func NewServer(ctx context.Context,
 		region:   region,
 
 		getMounts:         sys.GetMounts,
-		getDeviceByFSUUID: sys.GetDeviceByFSUUID,
+		getDeviceByFSUUID: device.GetDeviceByFSUUID,
 		bindMount:         xfs.BindMount,
 		unmount:           func(target string) error { return sys.Unmount(target, true, true, false) },
 		getQuota:          xfs.GetQuota,

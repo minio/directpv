@@ -1,5 +1,3 @@
-//go:build linux
-
 // This file is part of MinIO DirectPV
 // Copyright (c) 2022 MinIO, Inc.
 //

@@ -29,8 +29,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/ellipsis"
+	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/matcher"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,14 +39,12 @@ import (
 )
 
 const (
-	apiPort                 = "30443"
-	apiCertPath             = "/tmp/certs/api-cert.pem"
-	apiKeyPath              = "/tmp/certs/api-key.pem"
-	nodeCA                  = "/tmp/certs/node-ca.crt"
-	drivesList              = "/drives/list"
-	drivesFormat            = "/drives/format"
-	directPVNamespace       = "directpv-min-io"
-	directPVNodeServiceName = "directpv-min-io"
+	apiPort              = "40443"
+	apiCertPath          = "/tmp/certs/api-cert.pem"
+	apiKeyPath           = "/tmp/certs/api-key.pem"
+	nodeCA               = "/tmp/certs/node-ca.crt"
+	devicesListAPIPath   = "/devices/list"
+	devicesFormatAPIPath = "/devices/format"
 )
 
 var (
@@ -71,8 +70,8 @@ func ServeAPIServer(ctx context.Context) error {
 
 	// define http server and server handler
 	mux := http.NewServeMux()
-	mux.HandleFunc(drivesList, listDrivesHandler)
-	mux.HandleFunc(drivesFormat, formatDrivesHandler)
+	mux.HandleFunc(devicesListAPIPath, listDevicesHandler)
+	mux.HandleFunc(devicesFormatAPIPath, formatDrivesHandler)
 	server.Handler = mux
 
 	lc := net.ListenConfig{}
@@ -91,7 +90,8 @@ func ServeAPIServer(ctx context.Context) error {
 	return nil
 }
 
-func listDrivesHandler(w http.ResponseWriter, r *http.Request) {
+// listDevicesHandler talks to the node's endpoints and gathers the list of devices
+func listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("couldn't read the request: %v", err)
@@ -104,7 +104,7 @@ func listDrivesHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	deviceInfo, err := listDrives(context.Background(), req)
+	deviceInfo, err := listDevices(context.Background(), req)
 	if err != nil {
 		klog.Errorf("couldn't get the drive list: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -125,7 +125,7 @@ func listDrivesHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func listDrives(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Device, error) {
+func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Device, error) {
 	var nodes []string
 	var err error
 	if len(req.Nodes) > 0 {
@@ -158,7 +158,7 @@ func listDrives(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Devi
 		wg.Add(1)
 		go func(node, ip string) {
 			defer wg.Done()
-			reqURL := fmt.Sprintf("https://%s:%s%s", ip, nodeAPIPort, drivesList)
+			reqURL := fmt.Sprintf("https://%s:%s%s", ip, nodeAPIPort, devicesListAPIPath)
 			req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewReader(reqBody))
 			if err != nil {
 				klog.Infof("error while constructing request: %v", err)
@@ -252,7 +252,7 @@ func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][
 					node: formatDevices,
 				},
 			})
-			reqURL := fmt.Sprintf("https://%s:%s%s", ip, nodeAPIPort, drivesFormat)
+			reqURL := fmt.Sprintf("https://%s:%s%s", ip, nodeAPIPort, devicesFormatAPIPath)
 			req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewReader(reqBody))
 			if err != nil {
 				klog.Infof("error while constructing request: %v", err)
@@ -290,7 +290,7 @@ func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][
 }
 
 func getNodeEndpoints(ctx context.Context) (map[string]string, error) {
-	endpoints, err := client.GetKubeClient().CoreV1().Endpoints(directPVNamespace).Get(ctx, directPVNodeServiceName, metav1.GetOptions{})
+	endpoints, err := k8s.KubeClient().CoreV1().Endpoints(consts.Namespace).Get(ctx, consts.ClusterIPNodeSVC, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

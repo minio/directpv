@@ -32,20 +32,23 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
+	"github.com/hashicorp/errwrap"
+	apiTypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/device"
+	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/matcher"
-	"github.com/minio/directpv/pkg/node"
-	"github.com/minio/directpv/pkg/sys"
-	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/xfs"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
 const (
-	nodeAPIPort  = "40443"
+	nodeAPIPort  = "50443"
 	nodeCertPath = "/tmp/certs/node-cert.pem"
 	nodeKeyPath  = "/tmp/certs/node-key.pem"
 )
@@ -71,7 +74,7 @@ var (
 )
 
 // ServeNodeAPIServer starts the DirectPV Node API server
-func ServeNodeAPIServer(ctx context.Context, nodeID string) error {
+func ServeNodeAPIServer(ctx context.Context, identity, nodeID, rack, zone, region string) error {
 	certs, err := tls.LoadX509KeyPair(nodeCertPath, nodeKeyPath)
 	if err != nil {
 		klog.Errorf("Filed to load key pair: %v", err)
@@ -86,15 +89,15 @@ func ServeNodeAPIServer(ctx context.Context, nodeID string) error {
 		},
 	}
 
-	nodeHandler, err := newNodeAPIHandler(ctx, nodeID)
+	nodeHandler, err := newNodeAPIHandler(ctx, identity, nodeID, rack, zone, region)
 	if err != nil {
 		return err
 	}
 
 	// define http server and server handler
 	mux := http.NewServeMux()
-	mux.HandleFunc(drivesList, nodeHandler.listLocalDrivesHandler)
-	mux.HandleFunc(drivesFormat, nodeHandler.formatLocalDrivesHandler)
+	mux.HandleFunc(devicesListAPIPath, nodeHandler.listLocalDevicesHandler)
+	mux.HandleFunc(devicesFormatAPIPath, nodeHandler.formatLocalDevicesHandler)
 	server.Handler = mux
 
 	lc := net.ListenConfig{}
@@ -113,8 +116,8 @@ func ServeNodeAPIServer(ctx context.Context, nodeID string) error {
 	return nil
 }
 
-// listLocalDrivesHandler fetches the devices present in the node and sends back
-func (n *nodeAPIHandler) listLocalDrivesHandler(w http.ResponseWriter, r *http.Request) {
+// listLocalDevicesHandler fetches the devices present in the node and sends back
+func (n *nodeAPIHandler) listLocalDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("couldn't read the request: %v", err)
@@ -128,7 +131,7 @@ func (n *nodeAPIHandler) listLocalDrivesHandler(w http.ResponseWriter, r *http.R
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	deviceList, err := n.listLocalDrives(context.Background(), req)
+	deviceList, err := n.listLocalDevices(context.Background(), req)
 	if err != nil {
 		klog.Errorf("couldn't list local drives: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -151,106 +154,106 @@ func (n *nodeAPIHandler) listLocalDrivesHandler(w http.ResponseWriter, r *http.R
 	return
 }
 
-func (n *nodeAPIHandler) listLocalDrives(ctx context.Context, req GetDevicesRequest) ([]Device, error) {
-	var drives, statuses []string
+func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesRequest) ([]Device, error) {
+	var driveSelectors, statusSelectors []string
 	var err error
 	if len(req.Drives) > 0 {
-		drives, err = ellipsis.Expand(string(req.Drives))
+		driveSelectors, err = ellipsis.Expand(string(req.Drives))
 		if err != nil {
 			return nil, fmt.Errorf("couldn't expand the node selector %v: %v", req.Nodes, err)
 		}
 	}
 	for _, status := range req.Statuses {
-		statuses = append(statuses, string(status))
+		statusSelectors = append(statusSelectors, string(status))
 	}
-	// Fetch the
-	devices, err := node.ProbeDevices()
+	// Probe the devices from the node
+	devices, err := device.ProbeDevices()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't probe the devices: %v", err)
 	}
-	localDirectPVDrives, err := n.listLocalDirectPVDrives(context.Background())
+	// Fetch the local drives from the k8s
+	drives, err := n.listDrives(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't fetch the local DirectPV drives: %v", err)
 	}
-
 	var deviceList []Device
-	for _, directPVDrive := range localDirectPVDrives {
-		matchedDevices, unmatchedDevices := getMatchedDevicesForDirectPVDrive(&directPVDrive, devices)
+	for _, drive := range drives {
+		matchedDevices, unmatchedDevices := getMatchedDevicesForDrive(&drive, devices)
 		switch len(matchedDevices) {
 		case 0:
-			// Device which was online before is lost/detached/corrupted now
-			if len(statuses) > 0 && !matcher.StringIn(statuses, string(DeviceStatusOffline)) {
+			// Drive which was online before is lost/detached/corrupted now
+			if len(statusSelectors) > 0 && !matcher.StringIn(statusSelectors, string(DeviceStatusUnavailable)) {
 				break
 			}
-			deviceName := path.Base(directPVDrive.Status.Path)
-			if len(drives) > 0 && !matcher.StringIn(drives, deviceName) {
+			deviceName := path.Base(drive.Status.Path)
+			if len(driveSelectors) > 0 && !matcher.StringIn(driveSelectors, deviceName) {
 				break
 			}
 			deviceList = append(deviceList, Device{
-				Name:       deviceName,
-				Major:      int(directPVDrive.Status.MajorNumber),
-				Minor:      int(directPVDrive.Status.MinorNumber),
-				Size:       directPVDrive.Status.TotalCapacity,
-				Model:      directPVDrive.Status.ModelNumber,
-				Vendor:     directPVDrive.Status.Vendor,
-				Filesystem: "xfs",
-				Status:     DeviceStatusOffline,
+				Name:        deviceName,
+				Size:        uint64(drive.Status.TotalCapacity),
+				Model:       drive.Status.ModelNumber,
+				Vendor:      drive.Status.Vendor,
+				Filesystem:  "xfs",
+				Status:      DeviceStatusUnavailable,
+				Description: "corrupted/lost drive",
 			})
 		case 1:
-			// Online drive detected
-			if len(statuses) > 0 && !matcher.StringIn(statuses, string(DeviceStatusOnline)) {
+			// Drive detected
+			if len(statusSelectors) > 0 && !matcher.StringIn(statusSelectors, string(DeviceStatusUnavailable)) {
 				break
 			}
-			if len(drives) > 0 && !matcher.StringIn(drives, matchedDevices[0].Name) {
+			if len(driveSelectors) > 0 && !matcher.StringIn(driveSelectors, matchedDevices[0].Name) {
 				break
 			}
 			deviceList = append(deviceList, Device{
-				Name:       matchedDevices[0].Name,
-				Major:      matchedDevices[0].Major,
-				Minor:      matchedDevices[0].Minor,
-				Size:       int64(matchedDevices[0].Size), // FixMe: Remove type conversion
-				Model:      matchedDevices[0].Model,
-				Vendor:     matchedDevices[0].Vendor,
-				Filesystem: matchedDevices[0].FSType,
-				Status:     DeviceStatusOnline,
-				UDevData:   matchedDevices[0].UDevData,
+				Name:        matchedDevices[0].Name,
+				MajorMinor:  matchedDevices[0].MajorMinor,
+				Size:        matchedDevices[0].Size,
+				Model:       matchedDevices[0].Model(),
+				Vendor:      matchedDevices[0].Vendor(),
+				Filesystem:  matchedDevices[0].FSType(),
+				Status:      DeviceStatusUnavailable,
+				Description: "directpv drive",
+				UDevData:    matchedDevices[0].UDevData,
 			})
 		default:
 			// Multiple matches found for the Online drive
-			klog.ErrorS(errDuplicateDevice, "drive: ", directPVDrive.Name, " devices: ", getDeviceNames(matchedDevices))
+			klog.ErrorS(errDuplicateDevice, "drive: ", drive.Name, " devices: ", getDeviceNames(matchedDevices))
 		}
 		devices = unmatchedDevices
 	}
 	for _, device := range devices {
 		deviceStatus := DeviceStatusAvailable
-		if sys.IsDeviceUnavailable(device) {
+		isUnavailable, description := device.IsUnavailable()
+		if isUnavailable {
 			deviceStatus = DeviceStatusUnavailable
 		}
-		if len(statuses) > 0 && !matcher.StringIn(statuses, string(deviceStatus)) {
+		if len(statusSelectors) > 0 && !matcher.StringIn(statusSelectors, string(deviceStatus)) {
 			continue
 		}
 		if len(drives) > 0 && !matcher.StringIn(drives, device.Name) {
 			continue
 		}
 		deviceList = append(deviceList, Device{
-			Name:       device.Name,
-			Major:      device.Major,
-			Minor:      device.Minor,
-			Size:       int64(device.Size), // FixMe: Remove type conversion
-			Model:      device.Model,
-			Vendor:     device.Vendor,
-			Filesystem: device.FSType,
-			Status:     deviceStatus,
-			UDevData:   device.UDevData,
+			Name:        device.Name,
+			MajorMinor:  device.MajorMinor,
+			Size:        device.Size,
+			Model:       device.Model(),
+			Vendor:      device.Vendor(),
+			Filesystem:  device.FSType(),
+			Status:      deviceStatus,
+			Description: description,
+			UDevData:    device.UDevData,
 		})
 	}
 	return deviceList, nil
 
 }
 
-func (n *nodeAPIHandler) listLocalDirectPVDrives(ctx context.Context) ([]directcsi.DirectCSIDrive, error) {
-	labelSelector := fmt.Sprintf("%s=%s", utils.NodeLabelKey, utils.NewLabelValue(n.nodeID))
-	result, err := client.GetLatestDirectCSIDriveInterface().List(ctx, metav1.ListOptions{
+func (n *nodeAPIHandler) listDrives(ctx context.Context) ([]types.Drive, error) {
+	labelSelector := fmt.Sprintf("%s=%s", types.NodeLabelKey, types.NewLabelValue(n.nodeID))
+	result, err := client.DriveClient().List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
@@ -259,8 +262,8 @@ func (n *nodeAPIHandler) listLocalDirectPVDrives(ctx context.Context) ([]directc
 	return result.Items, nil
 }
 
-// formatLocalDrivesHandler formats the devices present in the node and returns back the status
-func (n *nodeAPIHandler) formatLocalDrivesHandler(w http.ResponseWriter, r *http.Request) {
+// formatLocalDevicesHandler formats the devices present in the node and returns back the status
+func (n *nodeAPIHandler) formatLocalDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("couldn't read the request: %v", err)
@@ -287,8 +290,20 @@ func (n *nodeAPIHandler) formatLocalDrivesHandler(w http.ResponseWriter, r *http
 			defer wg.Done()
 			formatStatus := n.format(context.Background(), device)
 			if formatStatus.Error == "" {
-				// ToDo: create the DirectPVDrive object with name = formatStatus.FSUUID
-				// if creation fails, umount the drive
+				if err := n.addDrive(context.Background(), device, formatStatus); err != nil {
+					formatStatus.Error = err.Error()
+					formatStatus.Reason = fmt.Sprintf("failed to create a new drive %s for %s: %s", formatStatus.FSUUID, device.Name, err.Error())
+					formatStatus.Suggestion = formatRetrySuggestion
+					klog.Errorf("failed to create a new drive %s for device %s; %w", formatStatus.FSUUID, device.Name, err)
+				}
+			}
+			// Incase of error, umount the target so that the request can be retried
+			if formatStatus.Error != "" && formatStatus.mountedAt != "" {
+				if err := n.safeUnmount(formatStatus.mountedAt, false, false, false); err != nil {
+					formatStatus.Error = errwrap.Wrap(err, errors.New(formatStatus.Error)).Error()
+					formatStatus.Reason = fmt.Sprintf("failed to umount %s: %v")
+					formatStatus.Suggestion = fmt.Sprintf("please umount %s and retry the format request", formatStatus.mountedAt)
+				}
 			}
 			formatStatusList = append(formatStatusList, formatStatus)
 		}(formatDevice)
@@ -311,12 +326,13 @@ func (n *nodeAPIHandler) formatLocalDrivesHandler(w http.ResponseWriter, r *http
 }
 
 func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (formatStatus FormatDeviceStatus) {
+	var totalCapacity, freeCapacity uint64
 	// Get format lock
-	n.getFormatLock(device.Major, device.Minor).Lock()
-	defer n.getFormatLock(device.Major, device.Minor).Unlock()
+	n.getFormatLock(device.MajorMinor).Lock()
+	defer n.getFormatLock(device.MajorMinor).Unlock()
 	formatStatus.Name = device.Name
 	// Check if the udev data is matching
-	udevData, err := n.readRunUdevDataByMajorMinor(device.Major, device.Minor)
+	udevData, err := n.readRunUdevDataByMajorMinor(device.MajorMinor)
 	if err != nil {
 		formatStatus.Error = err.Error()
 		formatStatus.Reason = "couldn't read the udev data"
@@ -341,7 +357,7 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 	}
 	// Format the device
 	fsuuid := uuid.New().String()
-	err = n.makeFS(ctx, "/dev/"+device.Name, fsuuid, device.Force, n.reflinkSupport)
+	err = n.makeFS(ctx, device.Path(), fsuuid, device.Force, n.reflinkSupport)
 	if err != nil {
 		formatStatus.Error = err.Error()
 		formatStatus.Reason = fmt.Sprintf("failed to format device %s: %s", device.Name, err.Error())
@@ -351,8 +367,8 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 	}
 	formatStatus.FSUUID = fsuuid
 	// Mount the device
-	mountTarget := path.Join(sys.MountRoot, fsuuid)
-	err = n.mountDevice("/dev/"+device.Name, mountTarget, []string{})
+	mountTarget := path.Join(consts.MountRootDir, fsuuid)
+	err = n.mountDevice(device.Path(), mountTarget, []string{})
 	if err != nil {
 		formatStatus.Error = err.Error()
 		formatStatus.Reason = fmt.Sprintf("failed to mount device %s: %s", device.Name, err.Error())
@@ -360,21 +376,22 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 		klog.Errorf("failed to mount drive %s; %w", device.Name, err)
 		return formatStatus
 	}
-	// Umount the target on error
-	defer func() {
-		if formatStatus.Error != "" {
-			if err := n.safeUnmount(mountTarget, false, false, false); err != nil {
-				formatStatus.Error = err.Error()
-				formatStatus.Reason = fmt.Sprintf("failed to umount %s: %v")
-				formatStatus.Suggestion = fmt.Sprintf("please umount %s and retry the format request", mountTarget)
-			}
-		}
-	}()
-	// FIXME: probe fsinfo to calculate the allocatedcapacity
+	formatStatus.mountedAt = mountTarget
+	// probe fsinfo to calculate the allocatedcapacity
+	_, _, totalCapacity, freeCapacity, err = xfs.Probe("/dev/" + device.Name)
+	if err != nil {
+		klog.Errorf("failed to probe XFS for device: %s: %s", device.Name, err.Error())
+		formatStatus.Error = err.Error()
+		formatStatus.Reason = fmt.Sprintf("failed to probe FS for %s: %s", device.Name, err.Error())
+		formatStatus.Suggestion = formatRetrySuggestion
+		return
+	}
+	formatStatus.totalCapacity = totalCapacity
+	formatStatus.freeCapacity = freeCapacity
 	// Write metadata
 	if err := writeFormatMetadata(FormatMetadata{
 		FSUUID:      fsuuid,
-		FormattedBy: "v1beta1", // FixMe: Remove constants
+		FormattedBy: consts.LatestAPIVersion,
 	}, path.Join(mountTarget, ".directpv.sys", "metadata.json")); err != nil {
 		klog.Errorf("failed to write metadata for device: %s: %s", device.Name, err.Error())
 		formatStatus.Error = err.Error()
@@ -390,4 +407,22 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 		formatStatus.Suggestion = formatRetrySuggestion
 	}
 	return
+}
+
+func (n *nodeAPIHandler) addDrive(ctx context.Context, formatDevice FormatDevice, formatStatus FormatDeviceStatus) error {
+	newDrive := drive.NewDrive(formatStatus.FSUUID, types.DriveStatus{
+		Path:              formatDevice.Path(),
+		TotalCapacity:     int64(formatStatus.totalCapacity),
+		AllocatedCapacity: int64(formatStatus.totalCapacity - formatStatus.freeCapacity),
+		FreeCapacity:      int64(formatStatus.freeCapacity),
+		FSUUID:            formatStatus.FSUUID,
+		NodeName:          n.nodeID,
+		Status:            apiTypes.DriveStatusOK,
+		ModelNumber:       formatDevice.Model(),
+		Vendor:            formatDevice.Vendor(),
+		AccessTier:        apiTypes.AccessTierUnknown,
+		Topology:          n.topology,
+	})
+	_, err := client.DriveClient().Create(ctx, newDrive, metav1.CreateOptions{})
+	return err
 }

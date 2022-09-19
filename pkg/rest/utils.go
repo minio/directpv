@@ -23,39 +23,34 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
-	"github.com/minio/directpv/pkg/sys"
+	"github.com/minio/directpv/pkg/device"
+	"github.com/minio/directpv/pkg/types"
 )
 
-type matchFn func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool
+type matchFn func(drive *types.Drive, device *device.Device) bool
 
-func getMatchedDevicesForDirectPVDrive(drive *directcsi.DirectCSIDrive, devices []*sys.Device) ([]*sys.Device, []*sys.Device) {
+func getMatchedDevicesForDrive(drive *types.Drive, devices []*device.Device) ([]*device.Device, []*device.Device) {
 	return getMatchedDevices(
 		drive,
 		devices,
-		func(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
+		func(drive *types.Drive, device *device.Device) bool {
 			return fsMatcher(drive, device)
 		},
 	)
 }
 
-func fsMatcher(drive *directcsi.DirectCSIDrive, device *sys.Device) bool {
-	if drive.Status.Filesystem == "" || drive.Status.FilesystemUUID == "" {
-		return false
-	}
-	if drive.Status.Filesystem != device.FSType {
-		return false
-	}
-	if drive.Status.FilesystemUUID != device.FSUUID {
+func fsMatcher(drive *types.Drive, device *device.Device) bool {
+	if drive.Status.FSUUID != device.FSUUID {
 		return false
 	}
 	return true
 }
 
-func getMatchedDevices(drive *directcsi.DirectCSIDrive, devices []*sys.Device, matchFn matchFn) (matchedDevices, unmatchedDevices []*sys.Device) {
+func getMatchedDevices(drive *types.Drive, devices []*device.Device, matchFn matchFn) (matchedDevices, unmatchedDevices []*device.Device) {
 	for _, device := range devices {
 		if matchFn(drive, device) {
 			matchedDevices = append(matchedDevices, device)
@@ -66,7 +61,7 @@ func getMatchedDevices(drive *directcsi.DirectCSIDrive, devices []*sys.Device, m
 	return matchedDevices, unmatchedDevices
 }
 
-func getDeviceNames(devices []*sys.Device) string {
+func getDeviceNames(devices []*device.Device) string {
 	var deviceNames []string
 	for _, device := range devices {
 		deviceNames = append(deviceNames, device.Name)
@@ -80,6 +75,24 @@ func writeFormatMetadata(formatMetadata FormatMetadata, filePath string) error {
 		return err
 	}
 	return ioutil.WriteFile(filePath, metaDataBytes, 0644)
+}
+
+func (d FormatDevice) Path() string {
+	return path.Join("/dev", d.Name)
+}
+
+func (d FormatDevice) Model() string {
+	if d.UDevData == nil {
+		return ""
+	}
+	return d.UDevData["ID_MODEL"]
+}
+
+func (d FormatDevice) Vendor() string {
+	if d.UDevData == nil {
+		return ""
+	}
+	return d.UDevData["ID_VENDOR"]
 }
 
 func getTransport() func() *http.Transport {
