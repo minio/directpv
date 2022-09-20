@@ -17,14 +17,12 @@
 package client
 
 import (
-	"fmt"
-	"os"
 	"sync/atomic"
 
-	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/clientset"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"k8s.io/klog/v2"
 )
 
 // Init initializes various clients.
@@ -37,23 +35,18 @@ func Init() {
 
 	cs, err := clientset.NewForConfig(k8s.KubeConfig())
 	if err != nil {
-		fmt.Printf("%s: unable to create new clientset interface; %v\n", color.HiRedString("Error"), err)
-		os.Exit(1)
+		klog.Fatalf("unable to create new clientset interface; %v", err)
 	}
 	clientsetInterface = types.NewExtClientset(cs)
 
 	restClient = clientsetInterface.DirectpvLatest().RESTClient()
 
-	driveClient, err = latestDriveClientForConfig(k8s.KubeConfig())
-	if err != nil {
-		fmt.Printf("%s: unable to create new drive interface; %v\n", color.HiRedString("Error"), err)
-		os.Exit(1)
+	if driveClient, err = latestDriveClientForConfig(k8s.KubeConfig()); err != nil {
+		klog.Fatalf("unable to create new drive interface; %v", err)
 	}
 
-	volumeClient, err = latestVolumeClientForConfig(k8s.KubeConfig())
-	if err != nil {
-		fmt.Printf("%s: unable to create new volume interface; %v\n", color.HiRedString("Error"), err)
-		os.Exit(1)
+	if volumeClient, err = latestVolumeClientForConfig(k8s.KubeConfig()); err != nil {
+		klog.Fatalf("unable to create new volume interface; %v", err)
 	}
 
 	initEvent(k8s.KubeClient())

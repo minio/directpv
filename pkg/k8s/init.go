@@ -17,14 +17,12 @@
 package k8s
 
 import (
-	"fmt"
-	"os"
 	"sync/atomic"
 
-	"github.com/fatih/color"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
 	// support gcp, azure, and oidc client auth
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
@@ -41,23 +39,19 @@ func Init() {
 	var err error
 
 	if kubeConfig, err = GetKubeConfig(); err != nil {
-		fmt.Printf("%s: unable to get kubernetes configuration\n", color.HiRedString("Error"))
-		os.Exit(1)
+		klog.Fatalf("unable to get kubernetes configuration; %v", err)
 	}
 
 	if kubeClient, err = kubernetes.NewForConfig(kubeConfig); err != nil {
-		fmt.Printf("%s: unable to create new kubernetes client interface; %v\n", color.HiRedString("Error"), err)
-		os.Exit(1)
+		klog.Fatalf("unable to create new kubernetes client interface; %v", err)
 	}
 
 	if apiextensionsClient, err = apiextensions.NewForConfig(kubeConfig); err != nil {
-		fmt.Printf("%s: unable to create new API extensions client interface; %v\n", color.HiRedString("Error"), err)
-		os.Exit(1)
+		klog.Fatalf("unable to create new API extensions client interface; %v", err)
 	}
 	crdClient = apiextensionsClient.CustomResourceDefinitions()
 
 	if discoveryClient, err = discovery.NewDiscoveryClientForConfig(kubeConfig); err != nil {
-		fmt.Printf("%s: unable to create new discovery client interface; %v\n", color.HiRedString("Error"), err)
-		os.Exit(1)
+		klog.Fatalf("unable to create new discovery client interface; %v", err)
 	}
 }
