@@ -29,7 +29,6 @@ var Versions = []string{
 }
 
 var LatestAddToScheme = directpv.AddToScheme
-
 type Interface = typeddirectpv.DirectpvV1beta1Interface
 type Client = typeddirectpv.DirectpvV1beta1Client
 

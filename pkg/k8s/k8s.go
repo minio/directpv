@@ -151,6 +151,26 @@ func UpdateCondition(conditions []metav1.Condition, ctype string, status metav1.
 	}
 }
 
+// MatchTrueConditions matches whether types and status list are in a true conditions or not.
+func MatchTrueConditions(conditions []metav1.Condition, types, statusList []string) bool {
+	for i := range types {
+		types[i] = strings.ToLower(types[i])
+	}
+	for i := range statusList {
+		statusList[i] = strings.ToLower(statusList[i])
+	}
+
+	statusMatches := 0
+	for _, condition := range conditions {
+		ctype := strings.ToLower(condition.Type)
+		if condition.Status == metav1.ConditionTrue && utils.StringIn(types, ctype) && utils.StringIn(statusList, ctype) {
+			statusMatches++
+		}
+	}
+
+	return statusMatches == len(statusList)
+}
+
 // BoolToConditionStatus converts boolean value to condition status.
 func BoolToConditionStatus(val bool) metav1.ConditionStatus {
 	if val {

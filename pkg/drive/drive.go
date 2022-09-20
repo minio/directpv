@@ -26,6 +26,7 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -37,7 +38,7 @@ func NewDrive(name string, status types.DriveStatus) *types.Drive {
 
 	types.UpdateLabels(drive, map[types.LabelKey]types.LabelValue{
 		types.NodeLabelKey:       types.NewLabelValue(status.NodeName),
-		types.PathLabelKey:       types.NewLabelValue(strings.TrimPrefix(status.Path, "/dev/")),
+		types.PathLabelKey:       types.NewLabelValue(utils.TrimDevPrefix(status.Path)),
 		types.VersionLabelKey:    types.NewLabelValue(consts.LatestAPIVersion),
 		types.CreatedByLabelKey:  consts.DriverName,
 		types.AccessTierLabelKey: types.NewLabelValue(string(status.AccessTier)),
