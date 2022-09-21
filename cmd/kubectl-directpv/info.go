@@ -28,7 +28,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
-	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/k8s"
@@ -170,7 +169,7 @@ func getInfo(ctx context.Context, args []string) error {
 		volumeSize := uint64(0)
 		for _, v := range volumes {
 			if v.Status.NodeName == n {
-				if k8s.IsConditionStatus(v.Status.Conditions, string(types.VolumeConditionTypeReady), metav1.ConditionTrue) {
+				if v.Status.IsPublished() {
 					volumeCount++
 					volumeSize += uint64(v.Status.TotalCapacity)
 				}

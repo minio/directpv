@@ -18,57 +18,46 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
-var (
-	lostOnly bool
-	showPVC  bool
-)
+var showPVC bool
 
 var listVolumesCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List volumes served by " + consts.AppPrettyName + ".",
 	Example: strings.ReplaceAll(
-		`# List all staged and published volumes
-$ kubectl {PLUGIN_NAME} volumes ls --status=staged,published
+		`# List all published volumes
+$ kubectl {PLUGIN_NAME} volumes ls
 
-# List all volumes from a particular node
+# List all published volumes from a particular node
 $ kubectl {PLUGIN_NAME} volumes ls --node=node1
 
-# Combine multiple filters using csv
-$ kubectl {PLUGIN_NAME} vol ls --node=node1,node2 --status=staged --drive=/dev/nvme0n1
+# List all staged volumes from specified nodes on specified drive
+$ kubectl {PLUGIN_NAME} vol ls --node=node1,node2 --staged --drive=/dev/nvme0n1
 
 # List all published volumes by pod name
-$ kubectl {PLUGIN_NAME} volumes ls --status=published --pod-name=minio-{1...3}
+$ kubectl {PLUGIN_NAME} volumes ls --pod-name=minio-{1...3}
 
 # List all published volumes by pod namespace
-$ kubectl {PLUGIN_NAME} volumes ls --status=published --pod-namespace=tenant-{1...3}
+$ kubectl {PLUGIN_NAME} volumes ls --pod-namespace=tenant-{1...3}
 
-# List all volumes provisioned based on drive and volume ellipses
+# List all published volumes from range of nodes and drives
 $ kubectl {PLUGIN_NAME} volumes ls --drive /dev/xvd{a...d} --node node{1...4}
 
-# List all volumes and its PVC names
-$ kubectl {PLUGIN_NAME} volumes ls --all --pvc
-
-# List all the "lost" volumes
-$ kubectl {PLUGIN_NAME} volumes ls --lost
-
-# List all the "lost" volumes with their PVC names
-$ kubectl {PLUGIN_NAME} volumes ls --lost --pvc`,
+# List all volumes including PVC names
+$ kubectl {PLUGIN_NAME} volumes ls --all --pvc`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -86,12 +75,11 @@ $ kubectl {PLUGIN_NAME} volumes ls --lost --pvc`,
 func init() {
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter output by drives optionally in ellipses pattern.")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter output by nodes optionally in ellipses pattern.")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&volumeStatusArgs, "status", "s", volumeStatusArgs, fmt.Sprintf("Filter output by volume status. One of %v|%v|%v.", strings.ToLower(string(directpvtypes.VolumeConditionTypePublished)), strings.ToLower(string(directpvtypes.VolumeConditionTypeStaged)), strings.ToLower(string(directpvtypes.VolumeConditionTypeReady))))
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNameArgs, "pod-name", "", podNameArgs, "Filter output by pod names optionally in ellipses pattern.")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNSArgs, "pod-namespace", "", podNSArgs, "Filter output by pod namespaces optionally in ellipses pattern.")
-	listVolumesCmd.PersistentFlags().BoolVarP(&lostOnly, "lost", "", lostOnly, "Show lost volumes only.")
-	listVolumesCmd.PersistentFlags().BoolVarP(&showPVC, "pvc", "", showPVC, "Show PVC names of the corresponding volumes.")
+	listVolumesCmd.PersistentFlags().BoolVarP(&stagedFlag, "staged", "", stagedFlag, "Show only volumes in staged state.")
 	listVolumesCmd.PersistentFlags().BoolVarP(&allFlag, "all", "a", allFlag, "List all volumes including not provisioned.")
+	listVolumesCmd.PersistentFlags().BoolVarP(&showPVC, "pvc", "", showPVC, "Show PVC names of the corresponding volumes.")
 }
 
 func getPVCName(ctx context.Context, volume types.Volume) string {
@@ -103,33 +91,38 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 }
 
 func listVolumes(ctx context.Context, args []string) error {
-	volumeList, err := getFilteredVolumeList(
+	resultCh, err := volume.ListVolumes(
 		ctx,
-		func(volume types.Volume) bool {
-			if lostOnly {
-				return k8s.IsCondition(volume.Status.Conditions,
-					string(directpvtypes.VolumeConditionTypeReady),
-					metav1.ConditionFalse,
-					string(directpvtypes.VolumeConditionReasonDriveLost),
-					string(directpvtypes.VolumeConditionMessageDriveLost),
-				)
-			}
-			return allFlag || k8s.IsConditionStatus(volume.Status.Conditions, string(directpvtypes.VolumeConditionTypeReady), metav1.ConditionTrue)
-		},
+		nodeSelectors,
+		driveSelectors,
+		podNameSelectors,
+		podNSSelectors,
+		k8s.MaxThreadCount,
 	)
 	if err != nil {
 		return err
 	}
 
-	wrappedVolumeList := types.VolumeList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "List",
-			APIVersion: string(types.VersionLabelKey),
-		},
-		Items: volumeList,
+	volumes := []types.Volume{}
+	for result := range resultCh {
+		if result.Err != nil {
+			return result.Err
+		}
+
+		if allFlag || (stagedFlag && result.Volume.Status.IsStaged()) || result.Volume.Status.IsPublished() {
+			volumes = append(volumes, result.Volume)
+		}
 	}
+
 	if yamlOutput || jsonOutput {
-		if err := printer(wrappedVolumeList); err != nil {
+		volumeList := types.VolumeList{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "List",
+				APIVersion: string(types.VersionLabelKey),
+			},
+			Items: volumes,
+		}
+		if err := printer(volumeList); err != nil {
 			klog.ErrorS(err, "unable to marshal volumes", "format", outputFormat)
 			return err
 		}
@@ -143,7 +136,6 @@ func listVolumes(ctx context.Context, args []string) error {
 		"DRIVE",
 		"PODNAME",
 		"PODNAMESPACE",
-		"",
 	}
 	if wideOutput {
 		headers = append(headers, "DRIVENAME")
@@ -151,39 +143,28 @@ func listVolumes(ctx context.Context, args []string) error {
 	if showPVC {
 		headers = append(headers, "PVC")
 	}
+	headers = append(headers, "STATUS")
 
 	text.DisableColors()
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
+	writer := table.NewWriter()
+	writer.SetOutputMirror(os.Stdout)
 	if !noHeaders {
-		t.AppendHeader(headers)
+		writer.AppendHeader(headers)
 	}
 
 	style := table.StyleColoredDark
 	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
-	t.SetStyle(style)
+	writer.SetStyle(style)
 
-	for _, volume := range volumeList {
-		msg := ""
-		for _, c := range volume.Status.Conditions {
-			switch c.Type {
-			case string(directpvtypes.VolumeConditionTypeReady):
-				if c.Status != metav1.ConditionTrue {
-					if c.Message != "" {
-						msg = color.HiRedString("*" + c.Message)
-					}
-				}
-			}
-		}
+	for _, volume := range volumes {
 		row := []interface{}{
-			volume.Name, // VOLUME
-			printableBytes(volume.Status.TotalCapacity),             // CAPACITY
-			volume.Status.NodeName,                                  // SERVER
-			getLabelValue(&volume, string(types.DrivePathLabelKey)), // DRIVE
+			volume.Name,
+			printableBytes(volume.Status.TotalCapacity),
+			volume.Status.NodeName,
+			getLabelValue(&volume, string(types.DrivePathLabelKey)),
 			printableString(volume.Labels[string(types.PodNameLabelKey)]),
 			printableString(volume.Labels[string(types.PodNSLabelKey)]),
-			msg,
 		}
 		if wideOutput {
 			row = append(row, getLabelValue(&volume, string(types.DriveLabelKey)))
@@ -191,16 +172,53 @@ func listVolumes(ctx context.Context, args []string) error {
 		if showPVC {
 			row = append(row, getPVCName(ctx, volume))
 		}
-		t.AppendRow(row)
+
+		status := "-"
+		switch {
+		case volume.Status.IsDriveLost():
+			status = "Lost"
+		case volume.Status.IsPublished():
+			status = "Published"
+		case volume.Status.IsStaged():
+			status = "Staged"
+		}
+		row = append(row, status)
+
+		writer.AppendRow(row)
 	}
-	t.SortBy(
+	writer.SortBy(
 		[]table.SortBy{
 			{
 				Name: "PODNAMESPACE",
 				Mode: table.Asc,
 			},
-		})
+			{
+				Name: "VOLUME",
+				Mode: table.Asc,
+			},
+			{
+				Name: "STATUS",
+				Mode: table.Asc,
+			},
+			{
+				Name: "CAPACITY",
+				Mode: table.Asc,
+			},
+			{
+				Name: "NODE",
+				Mode: table.Asc,
+			},
+			{
+				Name: "DRIVE",
+				Mode: table.Asc,
+			},
+			{
+				Name: "PODNAME",
+				Mode: table.Asc,
+			},
+		},
+	)
 
-	t.Render()
+	writer.Render()
 	return nil
 }

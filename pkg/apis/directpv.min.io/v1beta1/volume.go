@@ -16,13 +16,16 @@
 
 package v1beta1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 // DirectPVVolumeStatus denotes volume information.
 type DirectPVVolumeStatus struct {
-	HostPath          string `json:"hostPath"`
-	StagingPath       string `json:"stagingPath"`
-	ContainerPath     string `json:"containerPath"`
+	DataPath          string `json:"dataPath"`
+	StagingTargetPath string `json:"stagingTargetPath"`
+	TargetPath        string `json:"targetPath"`
 	DriveName         string `json:"driveName"`
 	FSUUID            string `json:"fsuuid"`
 	NodeName          string `json:"nodeName"`
@@ -35,6 +38,48 @@ type DirectPVVolumeStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+}
+
+func (status DirectPVVolumeStatus) IsStaged() bool {
+	return status.StagingTargetPath != ""
+}
+
+func (status DirectPVVolumeStatus) IsPublished() bool {
+	return status.TargetPath != ""
+}
+
+func (status DirectPVVolumeStatus) IsDriveLost() bool {
+	for _, condition := range status.Conditions {
+		if condition.Type == string(types.VolumeConditionTypeLost) &&
+			condition.Status == metav1.ConditionTrue &&
+			condition.Reason == string(types.VolumeConditionReasonDriveLost) &&
+			condition.Message == string(types.VolumeConditionMessageDriveLost) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (status *DirectPVVolumeStatus) SetDriveLost() {
+	c := metav1.Condition{
+		Type:               string(types.VolumeConditionTypeLost),
+		Status:             metav1.ConditionTrue,
+		Reason:             string(types.VolumeConditionReasonDriveLost),
+		Message:            string(types.VolumeConditionMessageDriveLost),
+		LastTransitionTime: metav1.Now(),
+	}
+	updated := false
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == string(types.VolumeConditionTypeLost) {
+			status.Conditions[i] = c
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		status.Conditions = append(status.Conditions, c)
+	}
 }
 
 // +genclient

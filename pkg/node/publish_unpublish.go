@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -85,7 +84,7 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	klog.V(3).InfoS("NodePublishVolume() called",
 		"volumeID", req.GetVolumeId(),
 		"stagingTargetPath", req.GetStagingTargetPath(),
-		"containerPath", req.GetTargetPath())
+		"targetPath", req.GetTargetPath())
 
 	if req.GetVolumeId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID must not be empty")
@@ -106,7 +105,7 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if volume.Status.StagingPath != req.GetStagingTargetPath() {
+	if volume.Status.StagingTargetPath != req.GetStagingTargetPath() {
 		return nil, status.Errorf(codes.FailedPrecondition, "volume %v is not yet staged, but requested with %v", volume.Name, req.GetStagingTargetPath())
 	}
 
@@ -143,14 +142,7 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "unable to bind mount staging target path to target path; %v", err)
 	}
 
-	conditions := volume.Status.Conditions
-	for i, c := range conditions {
-		if c.Type == string(directpvtypes.VolumeConditionTypePublished) {
-			conditions[i].Status = metav1.ConditionTrue
-			conditions[i].Reason = string(directpvtypes.VolumeConditionReasonInUse)
-		}
-	}
-	volume.Status.ContainerPath = req.GetTargetPath()
+	volume.Status.TargetPath = req.GetTargetPath()
 
 	_, err = client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
@@ -167,14 +159,14 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 func (server *Server) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(3).InfoS("NodeUnPublishVolume() called",
 		"volumeID", req.GetVolumeId(),
-		"ContainerPath", req.GetTargetPath())
+		"targetPath", req.GetTargetPath())
 	volumeID := req.GetVolumeId()
 	if volumeID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
 	}
-	containerPath := req.GetTargetPath()
-	if containerPath == "" {
-		return nil, status.Error(codes.InvalidArgument, "containerPath missing in request")
+	targetPath := req.GetTargetPath()
+	if targetPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "targetPath missing in request")
 	}
 
 	volume, err := client.VolumeClient().Get(ctx, volumeID, metav1.GetOptions{
@@ -187,20 +179,20 @@ func (server *Server) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if err := server.unmount(containerPath); err != nil {
-		klog.ErrorS(err, "unable to unmount container path", "ContainerPath", containerPath)
+	if !volume.Status.IsPublished() {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("unpublish is called without publish for volume %v", volume.Name))
+	}
+
+	if volume.Status.TargetPath != targetPath {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("target path %v doesn't match with requested target path %v", volume.Status.TargetPath, targetPath))
+	}
+
+	if err := server.unmount(targetPath); err != nil {
+		klog.ErrorS(err, "unable to unmount target path", "TargetPath", targetPath)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	conditions := volume.Status.Conditions
-	for i, c := range conditions {
-		switch c.Type {
-		case string(directpvtypes.VolumeConditionTypePublished):
-			conditions[i].Status = metav1.ConditionFalse
-			conditions[i].Reason = string(directpvtypes.VolumeConditionReasonNotInUse)
-		}
-	}
-	volume.Status.ContainerPath = ""
+	volume.Status.TargetPath = ""
 
 	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),

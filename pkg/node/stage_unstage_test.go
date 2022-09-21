@@ -27,20 +27,12 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-const (
-	KB = 1 << 10
-	MB = KB << 10
-
-	mb50  = 50 * MB
-	mb100 = 100 * MB
-	mb20  = 20 * MB
-)
+const MiB = 1024 * 1024
 
 func TestNodeStageVolume(t *testing.T) {
 	case1Req := &csi.NodeStageVolumeRequest{
@@ -90,7 +82,7 @@ func TestNodeStageVolume(t *testing.T) {
 			Status: types.VolumeStatus{
 				NodeName:      testNodeName,
 				DriveName:     testCase.drive.Name,
-				TotalCapacity: 100 * MB,
+				TotalCapacity: 100 * MiB,
 			},
 		}
 
@@ -131,9 +123,9 @@ func TestStageUnstageVolume(t *testing.T) {
 			Status: types.DriveStatus{
 				NodeName:          testNodeName,
 				Status:            directpvtypes.DriveStatusOK,
-				FreeCapacity:      mb50,
-				AllocatedCapacity: mb50,
-				TotalCapacity:     mb100,
+				FreeCapacity:      50 * MiB,
+				AllocatedCapacity: 50 * MiB,
+				TotalCapacity:     100 * MiB,
 			},
 		},
 		&types.Volume{
@@ -148,30 +140,7 @@ func TestStageUnstageVolume(t *testing.T) {
 				NodeName:      testNodeName,
 				DriveName:     testDriveName,
 				FSUUID:        testDriveName,
-				TotalCapacity: mb20,
-				Conditions: []metav1.Condition{
-					{
-						Type:               string(directpvtypes.VolumeConditionTypeStaged),
-						Status:             metav1.ConditionFalse,
-						Message:            "",
-						Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
-						LastTransitionTime: metav1.Now(),
-					},
-					{
-						Type:               string(directpvtypes.VolumeConditionTypePublished),
-						Status:             metav1.ConditionFalse,
-						Message:            "",
-						Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
-						LastTransitionTime: metav1.Now(),
-					},
-					{
-						Type:               string(directpvtypes.VolumeConditionTypeReady),
-						Status:             metav1.ConditionTrue,
-						Message:            "",
-						Reason:             string(directpvtypes.VolumeConditionReasonReady),
-						LastTransitionTime: metav1.Now(),
-					},
-				},
+				TotalCapacity: 20 * MiB,
 			},
 		},
 	}
@@ -202,7 +171,7 @@ func TestStageUnstageVolume(t *testing.T) {
 
 	ctx := context.TODO()
 	ns := createFakeServer()
-	hostPath := path.Join(consts.MountRootDir, testDriveName, ".FSUUID."+testDriveName, testVolumeName50MB)
+	dataPath := path.Join(consts.MountRootDir, testDriveName, ".FSUUID."+testDriveName, testVolumeName50MB)
 	ns.getMounts = func() (map[string][]string, map[string][]string, error) {
 		return map[string][]string{consts.MountRootDir: {}}, nil, nil
 	}
@@ -221,16 +190,11 @@ func TestStageUnstageVolume(t *testing.T) {
 	}
 
 	// Check if status fields were set correctly
-	if volObj.Status.HostPath != hostPath {
-		t.Errorf("Wrong HostPath set in the volume object. Expected %v, Got: %v", hostPath, volObj.Status.HostPath)
+	if volObj.Status.DataPath != dataPath {
+		t.Errorf("Wrong HostPath set in the volume object. Expected %v, Got: %v", dataPath, volObj.Status.DataPath)
 	}
-	if volObj.Status.StagingPath != stageVolumeRequest.GetStagingTargetPath() {
-		t.Errorf("Wrong StagingPath set in the volume object. Expected %v, Got: %v", stageVolumeRequest.GetStagingTargetPath(), volObj.Status.StagingPath)
-	}
-
-	// Check if conditions were toggled correctly
-	if !k8s.IsCondition(volObj.Status.Conditions, string(directpvtypes.VolumeConditionTypeStaged), metav1.ConditionTrue, string(directpvtypes.VolumeConditionReasonInUse), "") {
-		t.Errorf("unexpected status.conditions after staging = %v", volObj.Status.Conditions)
+	if volObj.Status.StagingTargetPath != stageVolumeRequest.GetStagingTargetPath() {
+		t.Errorf("Wrong StagingTargetPath set in the volume object. Expected %v, Got: %v", stageVolumeRequest.GetStagingTargetPath(), volObj.Status.StagingTargetPath)
 	}
 
 	// Unstage Volume test
@@ -246,12 +210,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	}
 
 	// Check if status fields were set correctly
-	if volObj.Status.StagingPath != "" {
-		t.Errorf("StagingPath was not set to empty. Got: %v", volObj.Status.StagingPath)
-	}
-
-	// Check if conditions were toggled correctly
-	if !k8s.IsCondition(volObj.Status.Conditions, string(directpvtypes.VolumeConditionTypeStaged), metav1.ConditionFalse, string(directpvtypes.VolumeConditionReasonNotInUse), "") {
-		t.Errorf("unexpected status.conditions after unstaging = %v", volObj.Status.Conditions)
+	if volObj.Status.StagingTargetPath != "" {
+		t.Errorf("StagingTargetPath was not set to empty. Got: %v", volObj.Status.StagingTargetPath)
 	}
 }

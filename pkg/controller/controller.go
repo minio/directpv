@@ -24,7 +24,6 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -188,30 +187,6 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 			NodeName:          drive.Status.NodeName,
 			TotalCapacity:     size,
 			AvailableCapacity: size,
-			UsedCapacity:      0,
-			Conditions: []metav1.Condition{
-				{
-					Type:               string(directpvtypes.VolumeConditionTypeStaged),
-					Status:             metav1.ConditionFalse,
-					Message:            "",
-					Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
-					LastTransitionTime: metav1.Now(),
-				},
-				{
-					Type:               string(directpvtypes.VolumeConditionTypePublished),
-					Status:             metav1.ConditionFalse,
-					Message:            "",
-					Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
-					LastTransitionTime: metav1.Now(),
-				},
-				{
-					Type:               string(directpvtypes.VolumeConditionTypeReady),
-					Status:             metav1.ConditionFalse,
-					Message:            "",
-					Reason:             string(directpvtypes.VolumeConditionReasonNotReady),
-					LastTransitionTime: metav1.Now(),
-				},
-			},
 		},
 	}
 
@@ -305,13 +280,7 @@ func (c *Server) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 		return nil, status.Errorf(codes.NotFound, "could not retrieve volume [%s]: %v", volumeID, err)
 	}
 
-	// Do not proceed if the volume hasn't been unpublished or unstaged
-	if k8s.IsConditionStatus(volume.Status.Conditions,
-		string(directpvtypes.VolumeConditionTypeStaged),
-		metav1.ConditionTrue) ||
-		k8s.IsConditionStatus(volume.Status.Conditions,
-			string(directpvtypes.VolumeConditionTypePublished),
-			metav1.ConditionTrue) {
+	if volume.Status.IsStaged() || volume.Status.IsPublished() {
 		return nil, status.Errorf(codes.FailedPrecondition,
 			"waiting for volume [%s] to be unstaged before deleting", volumeID)
 	}

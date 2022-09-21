@@ -125,7 +125,7 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 			return
 		}
 
-		if result.Volume.Status.ContainerPath != "" {
+		if result.Volume.Status.TargetPath != "" {
 			c.publishVolumeStats(ctx, &result.Volume, ch)
 		}
 	}

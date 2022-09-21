@@ -17,26 +17,21 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"regexp"
-	"strings"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
 var (
-	volumeStatusArgs []string
-	podNameArgs      []string
-	podNSArgs        []string
+	// volumeStatusArgs []string
+	podNameArgs []string
+	podNSArgs   []string
 
-	volumeStatusSelectors []string
-	podNameSelectors      []types.LabelValue
-	podNSSelectors        []types.LabelValue
+	stagedFlag       bool
+	podNameSelectors []types.LabelValue
+	podNSSelectors   []types.LabelValue
 )
 
 var volumesCmd = &cobra.Command{
@@ -51,50 +46,6 @@ var volumesCmd = &cobra.Command{
 func init() {
 	volumesCmd.AddCommand(listVolumesCmd)
 	volumesCmd.AddCommand(purgeVolumesCmd)
-}
-
-var (
-	globRegexp                = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
-	errGlobPatternUnsupported = errors.New("glob patterns are unsupported")
-)
-
-func getSelectorValues(selectors []string) (values []types.LabelValue, err error) {
-	for _, selector := range selectors {
-		if globRegexp.MatchString(selector) {
-			return nil, errGlobPatternUnsupported
-		}
-
-		result, err := ellipsis.Expand(selector)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, value := range result {
-			values = append(values, types.NewLabelValue(value))
-		}
-	}
-
-	return values, nil
-}
-
-func getDriveSelectors() ([]types.LabelValue, error) {
-	var values []string
-	for i := range driveArgs {
-		if utils.TrimDevPrefix(driveArgs[i]) == "" {
-			return nil, fmt.Errorf("empty device name %v", driveArgs[i])
-		}
-		values = append(values, utils.TrimDevPrefix(driveArgs[i]))
-	}
-	return getSelectorValues(values)
-}
-
-func getNodeSelectors() ([]types.LabelValue, error) {
-	for i := range nodeArgs {
-		if utils.TrimDevPrefix(nodeArgs[i]) == "" {
-			return nil, fmt.Errorf("empty node name %v", nodeArgs[i])
-		}
-	}
-	return getSelectorValues(nodeArgs)
 }
 
 func getPodNameSelectors() ([]types.LabelValue, error) {
@@ -115,29 +66,12 @@ func getPodNamespaceSelectors() ([]types.LabelValue, error) {
 	return getSelectorValues(podNSArgs)
 }
 
-func getVolumeStatusSelectors() ([]string, error) {
-	for _, status := range volumeStatusArgs {
-		switch directpvtypes.VolumeConditionType(strings.Title(status)) {
-		case directpvtypes.VolumeConditionTypePublished:
-		case directpvtypes.VolumeConditionTypeStaged:
-		case directpvtypes.VolumeConditionTypeReady:
-		default:
-			return nil, fmt.Errorf("unknown volume condition type %v", status)
-		}
-	}
-	return volumeStatusArgs, nil
-}
-
 func validateVolumeSelectors() (err error) {
 	if driveSelectors, err = getDriveSelectors(); err != nil {
 		return err
 	}
 
 	if nodeSelectors, err = getNodeSelectors(); err != nil {
-		return err
-	}
-
-	if volumeStatusSelectors, err = getVolumeStatusSelectors(); err != nil {
 		return err
 	}
 
