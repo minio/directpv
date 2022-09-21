@@ -110,7 +110,13 @@ func (d FormatDevice) Vendor() string {
 	return d.UDevData["ID_VENDOR"]
 }
 
-func getTransport() func() *http.Transport {
+func (s *FormatDeviceStatus) setErr(err error, message, suggestion string) {
+	s.Error = err.Error()
+	s.Message = message
+	s.Suggestion = suggestion
+}
+
+func getTransport() *http.Transport {
 	// Keep TLS config.
 	tlsConfig := &tls.Config{
 		// Can't use SSLv3 because of POODLE and BEAST
@@ -119,7 +125,7 @@ func getTransport() func() *http.Transport {
 		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: true, // FIXME: use trusted CA
 	}
-	tr := &http.Transport{
+	return &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout: 30 * time.Second,
@@ -134,9 +140,6 @@ func getTransport() func() *http.Transport {
 		// gzip disable this feature, as we are always interested
 		// in raw stream.
 		DisableCompression: true,
-	}
-	return func() *http.Transport {
-		return tr
 	}
 }
 

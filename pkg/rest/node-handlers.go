@@ -32,14 +32,12 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var errMountFailure = errors.New("could not mount the drive")
-
 // nodeAPIHandlers provides HTTP handlers for DirectPV node API.
 type nodeAPIHandler struct {
 	nodeID                      string
 	reflinkSupport              bool
 	topology                    map[string]string
-	mountDevice                 func(device, target string, flags []string) error
+	mountDevice                 func(device, target string) error
 	makeFS                      func(ctx context.Context, device, uuid string, force, reflink bool) error
 	safeUnmount                 func(target string, force, detach, expire bool) error
 	truncate                    func(name string, size int64) error
@@ -56,7 +54,7 @@ func newNodeAPIHandler(ctx context.Context, identity, nodeID, rack, zone, region
 	var err error
 	nodeAPIHandler := &nodeAPIHandler{
 		nodeID:                      nodeID,
-		mountDevice:                 mountXFSDevice,
+		mountDevice:                 xfs.Mount,
 		makeFS:                      xfs.MakeFS,
 		safeUnmount:                 sys.Unmount,
 		truncate:                    os.Truncate,
@@ -144,7 +142,7 @@ func (n *nodeAPIHandler) checkXFS(ctx context.Context, reflinkSupport bool) erro
 		}
 	}()
 
-	if err = n.mountDevice(loopDevice.Path(), mountPoint, []string{}); err != nil {
+	if err = n.mountDevice(loopDevice.Path(), mountPoint); err != nil {
 		klog.V(3).ErrorS(err, "failed to mount", "reflink", reflinkSupport)
 		return errMountFailure
 	}

@@ -82,7 +82,7 @@ type FormatDeviceStatus struct {
 	Name       string `json:"name"`
 	FSUUID     string `json"fsuuid,omitempty`
 	Error      string `json:"error,omitempty"`
-	Reason     string `json:"reason,omitempty"`
+	Message    string `json:"message,omitempty"`
 	Suggestion string `json:"suggestion,omitempty"`
 	// internals
 	mountedAt     string `json:"-"`

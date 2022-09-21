@@ -22,13 +22,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"path"
 	"reflect"
-	"strconv"
 	"sync"
 
 	"github.com/google/uuid"
@@ -48,13 +47,6 @@ import (
 var (
 	nodeAPIServerPrivateKeyPath = path.Join(consts.NodeAPIServerCertsPath, consts.PrivateKeyFileName)
 	nodeAPIServerCertPath       = path.Join(consts.NodeAPIServerCertsPath, consts.PublicCertFileName)
-)
-
-// errors
-var (
-	errUDevDataMismatch = errors.New("udev data isn't matching")
-	errForceRequired    = errors.New("force flag is required for formatting")
-	errDuplicateDevice  = errors.New("found duplicate devices for drive")
 )
 
 // suggestions
@@ -116,23 +108,23 @@ func ServeNodeAPIServer(ctx context.Context, nodeAPIPort int, identity, nodeID, 
 
 // listLocalDevicesHandler fetches the devices present in the node and sends back
 func (n *nodeAPIHandler) listLocalDevicesHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("couldn't read the request: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+		writeErrorResponse(w, http.StatusBadRequest, toAPIError(err, "couldn't read the request"))
 		return
 	}
 	// Unmarshal API request
 	var req GetDevicesRequest
 	if err = json.Unmarshal(data, &req); err != nil {
 		klog.Errorf("couldn't parse the request: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		writeErrorResponse(w, http.StatusBadRequest, toAPIError(err, "couldn't parse the request"))
 		return
 	}
 	deviceList, err := n.listLocalDevices(context.Background(), req)
 	if err != nil {
 		klog.Errorf("couldn't list local drives: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		writeErrorResponse(w, http.StatusInternalServerError, toAPIError(err, "couldn't list local drives"))
 		return
 	}
 	// Marshal API response
@@ -143,12 +135,10 @@ func (n *nodeAPIHandler) listLocalDevicesHandler(w http.ResponseWriter, r *http.
 	})
 	if err != nil {
 		klog.Errorf("Couldn't marshal the response: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		writeErrorResponse(w, http.StatusInternalServerError, toAPIError(err, "couldn't marshal the response"))
 		return
 	}
-	w.Header().Set("Content-Length", strconv.Itoa(len(jsonBytes)))
-	w.WriteHeader(http.StatusOK)
-	w.Write(jsonBytes)
+	writeSuccessResponse(w, jsonBytes)
 }
 
 func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesRequest) ([]Device, error) {
@@ -171,7 +161,7 @@ func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesReq
 	// Fetch the local drives from the k8s
 	drives, err := n.listDrives(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't fetch the local DirectPV drives: %v", err)
+		return nil, fmt.Errorf("couldn't fetch the drives: %v", err)
 	}
 	var deviceList []Device
 	for _, drive := range drives {
@@ -211,7 +201,7 @@ func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesReq
 				Vendor:      matchedDevices[0].Vendor(),
 				Filesystem:  matchedDevices[0].FSType(),
 				Status:      DeviceStatusUnavailable,
-				Description: "directpv drive",
+				Description: "formatted drive",
 				UDevData:    matchedDevices[0].UDevData,
 			})
 		default:
@@ -245,7 +235,6 @@ func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesReq
 		})
 	}
 	return deviceList, nil
-
 }
 
 func (n *nodeAPIHandler) listDrives(ctx context.Context) ([]types.Drive, error) {
@@ -261,22 +250,22 @@ func (n *nodeAPIHandler) listDrives(ctx context.Context) ([]types.Drive, error) 
 
 // formatLocalDevicesHandler formats the devices present in the node and returns back the status
 func (n *nodeAPIHandler) formatLocalDevicesHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("couldn't read the request: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+		writeErrorResponse(w, http.StatusBadRequest, toAPIError(err, "couldn't read the request"))
 		return
 	}
 	var req FormatDevicesRequest
 	if err = json.Unmarshal(data, &req); err != nil {
 		klog.Errorf("couldn't parse the request: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		writeErrorResponse(w, http.StatusBadRequest, toAPIError(err, "couldn't parse the request"))
 		return
 	}
 	formatDevices, ok := req.FormatInfo[NodeName(n.nodeID)]
 	if !ok {
-		klog.Errorf("nodename not found in the request: %s", n.nodeID)
-		w.WriteHeader(http.StatusBadRequest)
+		klog.Errorf("nodename not found in the request. expected %s", n.nodeID)
+		writeErrorResponse(w, http.StatusBadRequest, toAPIError(err, "nodename not found in the request"))
 		return
 	}
 	var formatStatusList []FormatDeviceStatus
@@ -288,18 +277,18 @@ func (n *nodeAPIHandler) formatLocalDevicesHandler(w http.ResponseWriter, r *htt
 			formatStatus := n.format(context.Background(), device)
 			if formatStatus.Error == "" {
 				if err := n.addDrive(context.Background(), device, formatStatus); err != nil {
-					formatStatus.Error = err.Error()
-					formatStatus.Reason = fmt.Sprintf("failed to create a new drive %s for %s: %s", formatStatus.FSUUID, device.Name, err.Error())
-					formatStatus.Suggestion = formatRetrySuggestion
 					klog.Errorf("failed to create a new drive %s for device %s; %w", formatStatus.FSUUID, device.Name, err)
+					formatStatus.setErr(err, "failed to create a new drive", formatRetrySuggestion)
 				}
 			}
 			// Incase of error, umount the target so that the request can be retried
 			if formatStatus.Error != "" && formatStatus.mountedAt != "" {
 				if err := n.safeUnmount(formatStatus.mountedAt, false, false, false); err != nil {
-					formatStatus.Error = errwrap.Wrap(err, errors.New(formatStatus.Error)).Error()
-					formatStatus.Reason = fmt.Sprintf("failed to umount %s: %v", device.Name, err)
-					formatStatus.Suggestion = fmt.Sprintf("please umount %s and retry the format request", formatStatus.mountedAt)
+					formatStatus.setErr(
+						errwrap.Wrap(err, errors.New(formatStatus.Error)),
+						"failed to umount on failure",
+						fmt.Sprintf("please umount %s and retry the format request", formatStatus.mountedAt),
+					)
 				}
 			}
 			formatStatusList = append(formatStatusList, formatStatus)
@@ -314,12 +303,10 @@ func (n *nodeAPIHandler) formatLocalDevicesHandler(w http.ResponseWriter, r *htt
 	})
 	if err != nil {
 		klog.Errorf("Couldn't marshal the format status: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		writeErrorResponse(w, http.StatusInternalServerError, toAPIError(err, "couldn't marshal the format status"))
 		return
 	}
-	w.Header().Set("Content-Length", strconv.Itoa(len(jsonBytes)))
-	w.WriteHeader(http.StatusOK)
-	w.Write(jsonBytes)
+	writeSuccessResponse(w, jsonBytes)
 }
 
 func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (formatStatus FormatDeviceStatus) {
@@ -331,56 +318,45 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 	// Check if the udev data is matching
 	udevData, err := n.readRunUdevDataByMajorMinor(device.MajorMinor)
 	if err != nil {
-		formatStatus.Error = err.Error()
-		formatStatus.Reason = "couldn't read the udev data"
 		klog.V(3).Infof("error while reading udevdata for device %s: %v", device.Name, err)
-		return formatStatus
+		formatStatus.setErr(err, "couldn't read the udev data", "")
+		return
 	}
 	if !reflect.DeepEqual(udevData, device.UDevData) {
-		formatStatus.Error = errUDevDataMismatch.Error()
-		formatStatus.Suggestion = formatRetrySuggestion
-		formatStatus.Reason = udevDataMismatchReason
 		klog.V(3).Infof("udev data isn't matching for device %s", device.Name)
-		return formatStatus
+		formatStatus.setErr(errUDevDataMismatch, udevDataMismatchReason, formatRetrySuggestion)
+		return
 	}
 	// Check if force is required
 	if v, ok := udevData["ID_FS_TYPE"]; ok {
 		if v != "" && !device.Force {
-			formatStatus.Error = errForceRequired.Error()
-			formatStatus.Reason = fmt.Sprintf("device %s already has a %s fs", device.Name, v)
-			formatStatus.Suggestion = formatRetryWithForceSuggestion
-			return formatStatus
+			formatStatus.setErr(errForceRequired, fmt.Sprintf("device %s already has a %s fs", device.Name, v), formatRetryWithForceSuggestion)
+			return
 		}
 	}
 	// Format the device
 	fsuuid := uuid.New().String()
 	err = n.makeFS(ctx, device.Path(), fsuuid, device.Force, n.reflinkSupport)
 	if err != nil {
-		formatStatus.Error = err.Error()
-		formatStatus.Reason = fmt.Sprintf("failed to format device %s: %s", device.Name, err.Error())
-		formatStatus.Suggestion = formatRetrySuggestion
 		klog.Errorf("failed to format drive %s; %w", device.Name, err)
-		return formatStatus
+		formatStatus.setErr(err, "failed to format device", formatRetrySuggestion)
+		return
 	}
 	formatStatus.FSUUID = fsuuid
 	// Mount the device
 	mountTarget := path.Join(consts.MountRootDir, fsuuid)
-	err = n.mountDevice(device.Path(), mountTarget, []string{})
+	err = n.mountDevice(device.Path(), mountTarget)
 	if err != nil {
-		formatStatus.Error = err.Error()
-		formatStatus.Reason = fmt.Sprintf("failed to mount device %s: %s", device.Name, err.Error())
-		formatStatus.Suggestion = formatRetrySuggestion
 		klog.Errorf("failed to mount drive %s; %w", device.Name, err)
-		return formatStatus
+		formatStatus.setErr(err, "failed to mount device", formatRetrySuggestion)
+		return
 	}
 	formatStatus.mountedAt = mountTarget
 	// probe fsinfo to calculate the allocatedcapacity
 	_, _, totalCapacity, freeCapacity, err = n.probeXFS(device.Path())
 	if err != nil {
 		klog.Errorf("failed to probe XFS for device: %s: %s", device.Name, err.Error())
-		formatStatus.Error = err.Error()
-		formatStatus.Reason = fmt.Sprintf("failed to probe FS for %s: %s", device.Name, err.Error())
-		formatStatus.Suggestion = formatRetrySuggestion
+		formatStatus.setErr(err, "failed to probe XFS after formatting", formatRetrySuggestion)
 		return
 	}
 	formatStatus.totalCapacity = totalCapacity
@@ -391,17 +367,13 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 		FormattedBy: consts.LatestAPIVersion,
 	}, path.Join(mountTarget, ".directpv.sys", "metadata.json")); err != nil {
 		klog.Errorf("failed to write metadata for device: %s: %s", device.Name, err.Error())
-		formatStatus.Error = err.Error()
-		formatStatus.Reason = fmt.Sprintf("failed to marshal device metadata for %s: %s", device.Name, err.Error())
-		formatStatus.Suggestion = formatRetrySuggestion
+		formatStatus.setErr(err, "failed to marshal device metadata", formatRetrySuggestion)
 		return
 	}
 	// Create symbolic link
 	if err := os.Symlink(mountTarget, path.Join(mountTarget, fsuuid)); err != nil {
 		klog.Errorf("failed to create symlink for target %s. device: %s err: %s", mountTarget, device.Name, err.Error())
-		formatStatus.Error = err.Error()
-		formatStatus.Reason = fmt.Sprintf("failed to create symlink for %s: %s", device.Name, err.Error())
-		formatStatus.Suggestion = formatRetrySuggestion
+		formatStatus.setErr(err, "failed to create symlink", formatRetrySuggestion)
 	}
 	return
 }

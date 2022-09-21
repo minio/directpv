@@ -21,13 +21,11 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"path"
-	"strconv"
 	"sync"
 
 	"github.com/minio/directpv/pkg/consts"
@@ -49,20 +47,13 @@ var (
 	apiServerCertPath       = path.Join(consts.APIServerCertsPath, consts.PublicCertFileName)
 )
 
-var (
-	errNoSubsetsFound      = errors.New("no subsets found for the node service")
-	errNoEndpointsFound    = errors.New("no endpoints found for the node service")
-	errNodeAPIPortNotFound = errors.New("api port for the node endpoints not found")
-)
-
-// ServeAPIServer starts the DirectPV API server
+// ServeAPIServer starts the API server
 func ServeAPIServer(ctx context.Context, apiPort int) error {
 	certs, err := tls.LoadX509KeyPair(apiServerCertPath, apiServerPrivateKeyPath)
 	if err != nil {
 		klog.Errorf("Filed to load key pair for the DirectPV API server: %v", err)
 		return err
 	}
-
 	// Create a secure http server
 	server := &http.Server{
 		TLSConfig: &tls.Config{
@@ -87,9 +78,9 @@ func ServeAPIServer(ctx context.Context, apiPort int) error {
 
 	errCh := make(chan error)
 	go func() {
-		klog.V(3).Infof("Starting DirectPV API server in port: %d", apiPort)
+		klog.V(3).Infof("Starting API server in port: %d", apiPort)
 		if err := server.ServeTLS(listener, "", ""); err != nil {
-			klog.Errorf("Failed to listen and serve DirectPV API server: %v", err)
+			klog.Errorf("Failed to listen and serve API server: %v", err)
 			errCh <- err
 		}
 	}()
@@ -97,24 +88,24 @@ func ServeAPIServer(ctx context.Context, apiPort int) error {
 	return <-errCh
 }
 
-// listDevicesHandler talks to the node's endpoints and gathers the list of devices
+// listDevicesHandler gathers the list of available and unavailable devices from the node endpoints
 func listDevicesHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("couldn't read the request: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+		writeErrorResponse(w, http.StatusBadRequest, toAPIError(err, "couldn't read the request"))
 		return
 	}
 	var req GetDevicesRequest
 	if err = json.Unmarshal(data, &req); err != nil {
 		klog.Errorf("couldn't parse the request: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		writeErrorResponse(w, http.StatusInternalServerError, toAPIError(err, "couldn't parse the request"))
 		return
 	}
 	deviceInfo, err := listDevices(context.Background(), req)
 	if err != nil {
 		klog.Errorf("couldn't get the drive list: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		writeErrorResponse(w, http.StatusInternalServerError, toAPIError(err, "couldn't get the drive list"))
 		return
 	}
 	// Marshal API response
@@ -122,14 +113,11 @@ func listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 		DeviceInfo: deviceInfo,
 	})
 	if err != nil {
-		klog.Errorf("Couldn't marshal the format status: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		klog.Errorf("couldn't marshal the format status: %v", err)
+		writeErrorResponse(w, http.StatusInternalServerError, toAPIError(err, "couldn't marshal the format status"))
 		return
 	}
-	w.Header().Set("Content-Length", strconv.Itoa(len(jsonBytes)))
-	w.WriteHeader(http.StatusOK)
-	w.Write(jsonBytes)
-	w.WriteHeader(http.StatusOK)
+	writeSuccessResponse(w, jsonBytes)
 }
 
 func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Device, error) {
@@ -146,7 +134,7 @@ func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Dev
 		return nil, fmt.Errorf("couldn't get the node endpoints: %v", err)
 	}
 	httpClient := &http.Client{
-		Transport: getTransport()(),
+		Transport: getTransport(),
 	}
 	reqBody, err := json.Marshal(GetDevicesRequest{
 		Drives:   req.Drives,
@@ -181,7 +169,7 @@ func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Dev
 				klog.Errorf("failed to get the result from node: %s, url: %s, statusCode: %d", node, req.URL, resp.StatusCode)
 				return
 			}
-			nodeResponseInBytes, err := ioutil.ReadAll(resp.Body)
+			nodeResponseInBytes, err := io.ReadAll(resp.Body)
 			if err != nil {
 				klog.Errorf("failed to read response from node: %s, url: %s: %v", node, req.URL, err)
 				return
@@ -203,21 +191,22 @@ func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Dev
 }
 
 func formatDrivesHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("couldn't read the request: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+		writeErrorResponse(w, http.StatusBadRequest, toAPIError(err, "couldn't read the request"))
 		return
 	}
 	var req FormatDevicesRequest
 	if err = json.Unmarshal(data, &req); err != nil {
 		klog.Errorf("couldn't parse the request: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		writeErrorResponse(w, http.StatusBadRequest, toAPIError(err, "couldn't parse the request"))
 		return
 	}
 	formatStatus, err := formatDrives(context.Background(), req)
 	if err != nil {
 		klog.Errorf("couldn't format the drives: %v", err)
+		writeErrorResponse(w, http.StatusBadRequest, toAPIError(err, "couldn't format the drives"))
 		return
 	}
 	// Marshal API response
@@ -226,12 +215,10 @@ func formatDrivesHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		klog.Errorf("Couldn't marshal the format status: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		writeErrorResponse(w, http.StatusInternalServerError, toAPIError(err, "couldn't format the drives"))
 		return
 	}
-	w.Header().Set("Content-Length", strconv.Itoa(len(jsonBytes)))
-	w.WriteHeader(http.StatusOK)
-	w.Write(jsonBytes)
+	writeSuccessResponse(w, jsonBytes)
 }
 
 func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][]FormatDeviceStatus, error) {
@@ -240,7 +227,7 @@ func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][
 		return nil, fmt.Errorf("couldn't get the node endpoints: %v", err)
 	}
 	httpClient := &http.Client{
-		Transport: getTransport()(),
+		Transport: getTransport(),
 	}
 	var wg sync.WaitGroup
 	var formatStatus = make(map[NodeName][]FormatDeviceStatus)
@@ -279,7 +266,7 @@ func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][
 				klog.Errorf("failed to get the result from node: %s, url: %s, statusCode: %d", node, req.URL, resp.StatusCode)
 				return
 			}
-			nodeResponseInBytes, err := ioutil.ReadAll(resp.Body)
+			nodeResponseInBytes, err := io.ReadAll(resp.Body)
 			if err != nil {
 				klog.Errorf("failed to read response from node: %s, url: %s: %v", node, req.URL, err)
 				return
