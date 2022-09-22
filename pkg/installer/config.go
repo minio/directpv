@@ -60,9 +60,6 @@ type Config struct {
 	NodeDriverRegistrarImage string
 	LivenessProbeImage       string
 
-	// Admission controller
-	AdmissionControl bool
-
 	// Selectors and tolerations
 	NodeSelector map[string]string
 	Tolerations  []corev1.Toleration
@@ -83,9 +80,6 @@ type Config struct {
 
 	// Image pull secrets
 	ImagePullSecrets []string
-
-	// internal
-	validationWebhookCaBundle []byte
 }
 
 type installer interface {

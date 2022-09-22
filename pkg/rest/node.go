@@ -58,6 +58,7 @@ var (
 // reasons
 var (
 	udevDataMismatchReason = "probed udevdata isn't matching with the udev data in the request"
+	metaDataPathSuffix     = path.Join(fmt.Sprintf(".%s.sys", consts.AppName), "metadata.json")
 )
 
 // ServeNodeAPIServer starts the DirectPV Node API server
@@ -127,7 +128,6 @@ func (n *nodeAPIHandler) listLocalDevicesHandler(w http.ResponseWriter, r *http.
 		writeErrorResponse(w, http.StatusInternalServerError, toAPIError(err, "couldn't list local drives"))
 		return
 	}
-	// Marshal API response
 	jsonBytes, err := json.Marshal(GetDevicesResponse{
 		DeviceInfo: map[NodeName][]Device{
 			NodeName(n.nodeID): deviceList,
@@ -365,7 +365,7 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 	if err := writeFormatMetadata(FormatMetadata{
 		FSUUID:      fsuuid,
 		FormattedBy: consts.LatestAPIVersion,
-	}, path.Join(mountTarget, ".directpv.sys", "metadata.json")); err != nil {
+	}, path.Join(mountTarget, metaDataPathSuffix)); err != nil {
 		klog.Errorf("failed to write metadata for device: %s: %s", device.Name, err.Error())
 		formatStatus.setErr(err, "failed to marshal device metadata", formatRetrySuggestion)
 		return

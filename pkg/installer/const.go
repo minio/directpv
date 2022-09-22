@@ -47,17 +47,7 @@ const (
 	volumePathRunUdevData            = consts.UdevDataDir
 
 	// Deployment
-	admissionWebhookSecretName     = "validationwebhookcerts"
-	admissionControllerWebhookPort = 20443
-	admissionControllerWebhookName = "validatinghook"
-	validationControllerName       = consts.AppName + "-validation-controller"
-	admissionControllerCertsDir    = "admission-webhook-certs"
-	admissionCertsDir              = "/etc/admission/certs"
-	csiProvisionerContainerName    = "csi-provisioner"
-	admissionWehookDNSName         = consts.AppName + "-validation-controller." + consts.Identity + ".svc"
-
-	// validation rules
-	validationWebhookConfigName = "drive.validation.controller"
+	csiProvisionerContainerName = "csi-provisioner"
 
 	// Common
 	volumeNameSocketDir       = "socket-dir"

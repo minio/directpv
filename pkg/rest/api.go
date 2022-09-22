@@ -88,7 +88,7 @@ func ServeAPIServer(ctx context.Context, apiPort int) error {
 	return <-errCh
 }
 
-// listDevicesHandler gathers the list of available and unavailable devices from the node endpoints
+// listDevicesHandler gathers the list of available and unavailable devices from the nodes
 func listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -108,7 +108,6 @@ func listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, http.StatusInternalServerError, toAPIError(err, "couldn't get the drive list"))
 		return
 	}
-	// Marshal API response
 	jsonBytes, err := json.Marshal(GetDevicesResponse{
 		DeviceInfo: deviceInfo,
 	})
@@ -120,6 +119,7 @@ func listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	writeSuccessResponse(w, jsonBytes)
 }
 
+// listDevices queries the nodes parallelly to get the available and unavailable devices
 func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Device, error) {
 	var nodes []string
 	var err error
@@ -190,6 +190,7 @@ func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Dev
 	return devices, nil
 }
 
+// formatDrivesHandler forwards the format requests to respective nodes
 func formatDrivesHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -221,6 +222,7 @@ func formatDrivesHandler(w http.ResponseWriter, r *http.Request) {
 	writeSuccessResponse(w, jsonBytes)
 }
 
+// formatDrives forwards the format requests to respective nodes
 func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][]FormatDeviceStatus, error) {
 	endpointsMap, nodeAPIPort, err := getNodeEndpoints(ctx)
 	if err != nil {
@@ -287,6 +289,7 @@ func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][
 	return formatStatus, nil
 }
 
+// getNodeEndpoints reads the endpoint objects present in the node svc to get the endpoints of the nodes
 func getNodeEndpoints(ctx context.Context) (endpointsMap map[string]string, apiPort int, err error) {
 	var endpoints *corev1.Endpoints
 	endpoints, err = k8s.KubeClient().CoreV1().Endpoints(consts.Namespace).Get(ctx, consts.NodeAPIServerHLSVC, metav1.GetOptions{})

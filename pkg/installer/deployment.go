@@ -27,81 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
-
-func createControllerSecret(ctx context.Context, publicCertBytes, privateKeyBytes []byte, c *Config) error {
-	getCertsDataMap := func() map[string][]byte {
-		mp := make(map[string][]byte)
-		mp[consts.PrivateKeyFileName] = privateKeyBytes
-		mp[consts.PublicCertFileName] = publicCertBytes
-		return mp
-	}
-
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        admissionWebhookSecretName,
-			Namespace:   c.namespace(),
-			Annotations: defaultAnnotations,
-			Labels:      defaultLabels,
-		},
-		Data: getCertsDataMap(),
-	}
-
-	if c.DryRun {
-		return c.postProc(secret)
-	}
-
-	if _, err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	return c.postProc(secret)
-}
-
-func createControllerService(ctx context.Context, generatedSelectorValue string, c *Config) error {
-	admissionWebhookPort := corev1.ServicePort{
-		Port: admissionControllerWebhookPort,
-		TargetPort: intstr.IntOrString{
-			Type:   intstr.String,
-			StrVal: admissionControllerWebhookName,
-		},
-	}
-	svc := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        validationControllerName,
-			Namespace:   c.namespace(),
-			Annotations: defaultAnnotations,
-			Labels:      defaultLabels,
-		},
-		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{admissionWebhookPort},
-			Selector: map[string]string{
-				selectorKey: generatedSelectorValue,
-			},
-		},
-	}
-
-	if c.DryRun {
-		return c.postProc(svc)
-	}
-
-	if _, err := k8s.KubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
-		}
-	}
-	return c.postProc(svc)
-}
 
 func createDeployment(ctx context.Context, c *Config) error {
 	var replicas int32 = 3
@@ -112,12 +38,6 @@ func createDeployment(ctx context.Context, c *Config) error {
 	volumeMounts := []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
 	}
-
-	if c.AdmissionControl {
-		volumes = append(volumes, newSecretVolume(admissionControllerCertsDir, admissionWebhookSecretName))
-		volumeMounts = append(volumeMounts, newVolumeMount(admissionControllerCertsDir, admissionCertsDir, corev1.MountPropagationNone, false))
-	}
-
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: c.serviceAccountName(),
 		Volumes:            volumes,
@@ -171,28 +91,12 @@ func createDeployment(ctx context.Context, c *Config) error {
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
 				},
-				Ports: append(commonContainerPorts, corev1.ContainerPort{
-					ContainerPort: admissionControllerWebhookPort,
-					Name:          admissionControllerWebhookName,
-					Protocol:      corev1.ProtocolTCP,
-				}),
+				Ports:          commonContainerPorts,
 				ReadinessProbe: &corev1.Probe{ProbeHandler: getReadinessHandler()},
 				Env:            []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
 				VolumeMounts:   volumeMounts,
 			},
 		},
-	}
-
-	if c.AdmissionControl {
-		caCertBytes, publicCertBytes, privateKeyBytes, certErr := getCerts([]string{admissionWehookDNSName})
-		if certErr != nil {
-			return certErr
-		}
-		c.validationWebhookCaBundle = caCertBytes
-
-		if err := createControllerSecret(ctx, publicCertBytes, privateKeyBytes, c); err != nil {
-			return err
-		}
 	}
 
 	generatedSelectorValue := generateSanitizedUniqueNameFrom(c.deploymentName())
@@ -239,11 +143,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 		}
 	}
 
-	if err := c.postProc(deployment); err != nil {
-		return err
-	}
-
-	return createControllerService(ctx, generatedSelectorValue, c)
+	return c.postProc(deployment)
 }
 
 func installDeploymentDefault(ctx context.Context, c *Config) error {
@@ -251,9 +151,6 @@ func installDeploymentDefault(ctx context.Context, c *Config) error {
 }
 
 func uninstallDeploymentDefault(ctx context.Context, c *Config) error {
-	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, admissionWebhookSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
 	if err := deleteDeployment(ctx, c.namespace(), c.deploymentName()); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}

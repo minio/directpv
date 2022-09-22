@@ -69,10 +69,6 @@ func (v *v1dot18) installAPIServerDeployment(ctx context.Context) error {
 	return installAPIServerDeploymentDefault(ctx, v.Config)
 }
 
-func (v *v1dot18) installValidationRules(ctx context.Context) error {
-	return installValidationRulesDefault(ctx, v.Config)
-}
-
 // uninstallers
 func (v *v1dot18) uninstallNS(ctx context.Context) error {
 	return uninstallNSDefault(ctx, v.Config)
@@ -114,10 +110,6 @@ func (v *v1dot18) uninstallAPIServerDeployment(ctx context.Context) error {
 	return uninstallAPIServerDeploymentDefault(ctx, v.Config)
 }
 
-func (v *v1dot18) uninstallValidationRules(ctx context.Context) error {
-	return uninstallValidationRulesDefault(ctx, v.Config)
-}
-
 func (v *v1dot18) Install(ctx context.Context) error {
 	if err := v.installNS(ctx); err != nil {
 		return err
@@ -146,10 +138,7 @@ func (v *v1dot18) Install(ctx context.Context) error {
 	if err := v.installDeployment(ctx); err != nil {
 		return err
 	}
-	if err := v.installAPIServerDeployment(ctx); err != nil {
-		return err
-	}
-	return v.installValidationRules(ctx)
+	return v.installAPIServerDeployment(ctx)
 }
 
 func (v *v1dot18) Uninstall(ctx context.Context) error {
@@ -166,9 +155,6 @@ func (v *v1dot18) Uninstall(ctx context.Context) error {
 		return err
 	}
 	if err := v.uninstallService(ctx); err != nil {
-		return err
-	}
-	if err := v.uninstallValidationRules(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallStorageClass(ctx); err != nil {
