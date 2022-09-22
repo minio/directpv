@@ -20,96 +20,96 @@ import (
 	"context"
 )
 
-type defaultInstaller struct {
+type v1dot25 struct {
 	*Config
 }
 
-func newDefaultInstaller(config *Config) *defaultInstaller {
+func newv1dot25(config *Config) *v1dot25 {
 	config.enablePodSecurityAdmission = true
-	return &defaultInstaller{
+	return &v1dot25{
 		Config: config,
 	}
 }
 
 // installers
-func (v *defaultInstaller) installNS(ctx context.Context) error {
+func (v *v1dot25) installNS(ctx context.Context) error {
 	return installNSDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) installRBAC(ctx context.Context) error {
+func (v *v1dot25) installRBAC(ctx context.Context) error {
 	return installRBACDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) installCRD(ctx context.Context) error {
+func (v *v1dot25) installCRD(ctx context.Context) error {
 	return installCRDDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) installCSIDriver(ctx context.Context) error {
+func (v *v1dot25) installCSIDriver(ctx context.Context) error {
 	return installCSIDriverDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) installStorageClass(ctx context.Context) error {
+func (v *v1dot25) installStorageClass(ctx context.Context) error {
 	return installStorageClassDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) installService(ctx context.Context) error {
+func (v *v1dot25) installService(ctx context.Context) error {
 	return installServiceDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) installDaemonset(ctx context.Context) error {
+func (v *v1dot25) installDaemonset(ctx context.Context) error {
 	return installDaemonsetDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) installDeployment(ctx context.Context) error {
+func (v *v1dot25) installDeployment(ctx context.Context) error {
 	return installDeploymentDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) installValidationRules(ctx context.Context) error {
+func (v *v1dot25) installValidationRules(ctx context.Context) error {
 	return installValidationRulesDefault(ctx, v.Config)
 }
 
 // uninstallers
-func (v *defaultInstaller) uninstallNS(ctx context.Context) error {
+func (v *v1dot25) uninstallNS(ctx context.Context) error {
 	return uninstallNSDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallRBAC(ctx context.Context) error {
+func (v *v1dot25) uninstallRBAC(ctx context.Context) error {
 	return uninstallRBACDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallConversionSecret(ctx context.Context) error {
+func (v *v1dot25) uninstallConversionSecret(ctx context.Context) error {
 	return uninstallConversionSecretDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallCRD(ctx context.Context) error {
+func (v *v1dot25) uninstallCRD(ctx context.Context) error {
 	return uninstallCRDDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallCSIDriver(ctx context.Context) error {
+func (v *v1dot25) uninstallCSIDriver(ctx context.Context) error {
 	return uninstallCSIDriverDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallStorageClass(ctx context.Context) error {
+func (v *v1dot25) uninstallStorageClass(ctx context.Context) error {
 	return uninstallStorageClassDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallService(ctx context.Context) error {
+func (v *v1dot25) uninstallService(ctx context.Context) error {
 	return uninstallServiceDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallDaemonset(ctx context.Context) error {
+func (v *v1dot25) uninstallDaemonset(ctx context.Context) error {
 	return uninstallDaemonsetDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallDeployment(ctx context.Context) error {
+func (v *v1dot25) uninstallDeployment(ctx context.Context) error {
 	return uninstallDeploymentDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallValidationRules(ctx context.Context) error {
+func (v *v1dot25) uninstallValidationRules(ctx context.Context) error {
 	return uninstallValidationRulesDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) Install(ctx context.Context) error {
+func (v *v1dot25) Install(ctx context.Context) error {
 	if err := v.installNS(ctx); err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func (v *defaultInstaller) Install(ctx context.Context) error {
 	return v.installValidationRules(ctx)
 }
 
-func (v *defaultInstaller) Uninstall(ctx context.Context) error {
+func (v *v1dot25) Uninstall(ctx context.Context) error {
 	if err := v.uninstallCRD(ctx); err != nil {
 		return err
 	}
