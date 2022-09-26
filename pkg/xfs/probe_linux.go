@@ -1,3 +1,5 @@
+//go:build linux
+
 // This file is part of MinIO DirectPV
 // Copyright (c) 2021, 2022 MinIO, Inc.
 //
@@ -18,10 +20,13 @@ package xfs
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"time"
 )
 
 // MinSupportedDeviceSize is minimum supported size for default XFS filesystem.
@@ -77,8 +82,7 @@ type superBlock struct {
 	// Ignoring the rest
 }
 
-// Probe probes FSUUID, total and free capacity.
-func Probe(reader io.Reader) (FSUUID, label string, totalCapacity, freeCapacity uint64, err error) {
+func readSuperBlock(reader io.Reader) (FSUUID, label string, totalCapacity, freeCapacity uint64, err error) {
 	var sb superBlock
 	if err = binary.Read(reader, binary.BigEndian, &sb); err != nil {
 		return
@@ -94,4 +98,32 @@ func Probe(reader io.Reader) (FSUUID, label string, totalCapacity, freeCapacity 
 	}
 
 	return
+}
+
+// probe probes FSUUID, total and free capacity.
+func probe(path string) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFunc()
+
+	doneCh := make(chan struct{})
+	go func() {
+		var devFile *os.File
+		devFile, err = os.OpenFile(path, os.O_RDONLY, os.ModeDevice)
+		if err != nil {
+			return
+		}
+		defer devFile.Close()
+		// only XFS is the supported filesystem as of now
+		fsuuid, label, totalCapacity, freeCapacity, err = readSuperBlock(devFile)
+		close(doneCh)
+	}()
+
+	select {
+	case <-ctx.Done():
+		err = fmt.Errorf("%w; %v", ErrCanceled, ctx.Err())
+		return
+	case <-doneCh:
+	}
+
+	return fsuuid, label, totalCapacity, freeCapacity, err
 }

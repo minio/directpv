@@ -47,17 +47,7 @@ const (
 	volumePathRunUdevData            = consts.UdevDataDir
 
 	// Deployment
-	admissionWebhookSecretName     = "validationwebhookcerts"
-	admissionControllerWebhookPort = 20443
-	admissionControllerWebhookName = "validatinghook"
-	validationControllerName       = consts.AppName + "-validation-controller"
-	admissionControllerCertsDir    = "admission-webhook-certs"
-	admissionCertsDir              = "/etc/admission/certs"
-	csiProvisionerContainerName    = "csi-provisioner"
-	admissionWehookDNSName         = consts.AppName + "-validation-controller." + consts.Identity + ".svc"
-
-	// validation rules
-	validationWebhookConfigName = "drive.validation.controller"
+	csiProvisionerContainerName = "csi-provisioner"
 
 	// Common
 	volumeNameSocketDir       = "socket-dir"
@@ -77,10 +67,6 @@ const (
 	// debug log level default
 	logLevel = 3
 
-	// key-pairs
-	privateKeyFileName = "key.pem"
-	publicCertFileName = "cert.pem"
-
 	// string-gen
 	charset = "abcdefghijklmnopqrstuvwxyz0123456789"
 
@@ -94,4 +80,16 @@ const (
 
 	// readiness
 	readinessPortName = "readinessport"
+
+	// api-server
+	apiServerCertsDir        = "api-server-certs"
+	apiServerCertsSecretName = "apiservercerts"
+	localHostDNS             = "localhost"
+	apiServerCASecretName    = "apiservercacert"
+
+	// node-api-server
+	nodeAPIServerCertsDir        = "node-api-server-certs"
+	nodeAPIServerCertsSecretName = "nodeapiservercerts"
+	nodeAPIServerCASecretName    = "nodeapiservercacert"
+	nodeAPIServerCADir           = "node-api-server-ca"
 )

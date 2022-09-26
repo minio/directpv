@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2022 MinIO, Inc.
+// Copyright (c) 2021, 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,10 +16,6 @@
 
 package xfs
 
-func Mount(device, target string) error {
-	return mount(device, target)
-}
-
-func BindMount(source, target string, readOnly bool) error {
-	return bindMount(source, target, readOnly)
+func Probe(path string) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error) {
+	return probe(path)
 }

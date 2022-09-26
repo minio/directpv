@@ -60,9 +60,6 @@ type Config struct {
 	NodeDriverRegistrarImage string
 	LivenessProbeImage       string
 
-	// Admission controller
-	AdmissionControl bool
-
 	// Selectors and tolerations
 	NodeSelector map[string]string
 	Tolerations  []corev1.Toleration
@@ -83,9 +80,6 @@ type Config struct {
 
 	// Image pull secrets
 	ImagePullSecrets []string
-
-	// internal
-	validationWebhookCaBundle []byte
 }
 
 type installer interface {
@@ -102,10 +96,6 @@ func (c *Config) validate() error {
 }
 
 func (c *Config) namespace() string {
-	return c.Identity
-}
-
-func (c *Config) serviceName() string {
 	return c.Identity
 }
 
@@ -135,6 +125,10 @@ func (c *Config) daemonsetName() string {
 
 func (c *Config) deploymentName() string {
 	return "controller"
+}
+
+func (c *Config) apiServerDeploymentName() string {
+	return "api-server"
 }
 
 func (c *Config) getPSPName() string {

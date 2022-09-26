@@ -1,5 +1,3 @@
-//go:build !linux
-
 // This file is part of MinIO DirectPV
 // Copyright (c) 2021, 2022 MinIO, Inc.
 //
@@ -16,13 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package rest
 
 import (
-	"fmt"
-	"runtime"
+	"k8s.io/klog/v2"
+	"net/http"
 )
 
-func getDeviceByFSUUID(fsuuid string) (device string, err error) {
-	return "", fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+// readinessHandler - Checks if the process is up. Always returns success.
+func readinessHandler(w http.ResponseWriter, r *http.Request) {
+	klog.V(5).Infof("Received readiness request %v", r)
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
 }

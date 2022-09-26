@@ -48,6 +48,8 @@ var (
 	conversionHealthzURL = ""
 	metricsPort          = consts.MetricsPort
 	readinessPort        = consts.ReadinessPort
+	apiPort              = consts.APIPort
+	nodeAPIPort          = consts.NodeAPIPort
 )
 
 var mainCmd = &cobra.Command{
@@ -120,6 +122,8 @@ func init() {
 
 	mainCmd.AddCommand(controllerCmd)
 	mainCmd.AddCommand(nodeServerCmd)
+	mainCmd.AddCommand(apiServer)
+	mainCmd.AddCommand(nodeAPIServer)
 }
 
 func main() {

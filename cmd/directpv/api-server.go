@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2022 MinIO, Inc.
+// Copyright (c) 2021, 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,44 +18,40 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"net"
-	"net/http"
 
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/rest"
+	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
 
-func serveReadinessEndpoint(ctx context.Context) error {
-	server := &http.Server{}
-	mux := http.NewServeMux()
-	mux.HandleFunc(consts.ReadinessPath, readinessHandler)
-	server.Handler = mux
+var apiServer = &cobra.Command{
+	Use:           "api-server",
+	Short:         "Start API server of " + consts.AppPrettyName + ".",
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE: func(c *cobra.Command, args []string) error {
+		return startAPIServer(c.Context(), args)
+	},
+	// FIXME: Add help messages
+}
 
-	config := net.ListenConfig{}
-	listener, err := config.Listen(ctx, "tcp", fmt.Sprintf(":%v", readinessPort))
-	if err != nil {
-		return err
-	}
+func init() {
+	apiServer.PersistentFlags().IntVarP(&apiPort, "port", "", apiPort, "port for "+consts.AppPrettyName+" API server")
+}
+
+func startAPIServer(ctx context.Context, args []string) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
 
 	errCh := make(chan error)
 	go func() {
-		klog.V(3).Infof("Serving readiness endpoint at :%v", readinessPort)
-		if err := server.Serve(listener); err != nil {
-			klog.ErrorS(err, "unable to serve readiness endpoint")
+		if err := rest.ServeAPIServer(ctx, apiPort); err != nil {
+			klog.ErrorS(err, "unable to run API server")
 			errCh <- err
 		}
 	}()
 
 	return <-errCh
-}
-
-// readinessHandler - Checks if the process is up. Always returns success.
-func readinessHandler(w http.ResponseWriter, r *http.Request) {
-	klog.V(5).Infof("Received readiness request %v", r)
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	} else {
-		w.WriteHeader(http.StatusOK)
-	}
 }

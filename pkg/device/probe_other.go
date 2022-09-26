@@ -1,5 +1,7 @@
+//go:build !linux
+
 // This file is part of MinIO DirectPV
-// Copyright (c) 2022 MinIO, Inc.
+// Copyright (c) 2021, 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,12 +16,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package xfs
+package device
 
-func Mount(device, target string) error {
-	return mount(device, target)
-}
+import (
+	"fmt"
+	"runtime"
+)
 
-func BindMount(source, target string, readOnly bool) error {
-	return bindMount(source, target, readOnly)
+func probeDevices() ([]*Device, error) {
+	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

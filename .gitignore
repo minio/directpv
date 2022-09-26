@@ -1,4 +1,8 @@
 *~
 centos*.xml
 *.qcow2*
+directpv
+!directpv/
+kubectl-directpv
+!kubectl-directpv/
 vdb.xml

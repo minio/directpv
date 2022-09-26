@@ -39,7 +39,6 @@ var installCmd = &cobra.Command{
 }
 
 var (
-	admissionControl       = false
 	image                  = consts.AppName + ":" + Version
 	registry               = "quay.io"
 	org                    = "minio"
@@ -59,7 +58,6 @@ func init() {
 	installCmd.PersistentFlags().StringSliceVarP(&imagePullSecrets, "image-pull-secrets", "", imagePullSecrets, "Image pull secrets to be set in pod specs")
 	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "Registry where "+consts.AppPrettyName+" images are available")
 	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "Organization name on the registry holds "+consts.AppPrettyName+" images")
-	installCmd.PersistentFlags().BoolVarP(&admissionControl, "admission-control", "", admissionControl, "Turn on "+consts.AppPrettyName+" admission controller")
 	installCmd.PersistentFlags().StringSliceVarP(&nodeSelectorParameters, "node-selector", "n", nodeSelectorParameters, "Node selector parameters")
 	installCmd.PersistentFlags().StringSliceVarP(&tolerationParameters, "tolerations", "t", tolerationParameters, "Tolerations parameters")
 	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "Set Seccomp profile")
@@ -95,7 +93,6 @@ func install(ctx context.Context, args []string) (err error) {
 		ContainerImage:    image,
 		ContainerOrg:      org,
 		ContainerRegistry: registry,
-		AdmissionControl:  admissionControl,
 		NodeSelector:      nodeSelector,
 		Tolerations:       tolerations,
 		SeccompProfile:    seccompProfile,

@@ -145,7 +145,7 @@ func mount(proc1Mountinfo, device, target, fsType string, flags []string, superB
 		}
 		mountFlags |= value
 	}
-
+	klog.V(3).InfoS("mouting device", "device", device, "target", target, "fsType", fsType, "mountFlags", mountFlags, "superBlockFlags", superBlockFlags)
 	return syscall.Mount(device, target, fsType, mountFlags, superBlockFlags)
 }
 
@@ -171,7 +171,7 @@ func bindMount(proc1Mountinfo, source, target, fsType string, recursive, readOnl
 	if readOnly {
 		flags |= mountFlagMap["ro"]
 	}
-	klog.V(5).InfoS("bind mounting directory", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "readOnly", readOnly, "superBlockFlags", superBlockFlags)
+	klog.V(3).InfoS("bind mounting directory", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "readOnly", readOnly, "superBlockFlags", superBlockFlags)
 	return syscall.Mount(source, target, fsType, flags, superBlockFlags)
 }
 
@@ -182,7 +182,7 @@ func unmount(proc1Mountinfo, target string, force, detach, expire bool) error {
 	}
 
 	if _, found := mountPointMap[target]; !found {
-		klog.V(5).InfoS("target already unmounted", "target", target, "force", force, "detach", detach, "expire", expire)
+		klog.V(3).InfoS("target already unmounted", "target", target, "force", force, "detach", detach, "expire", expire)
 		return nil
 	}
 
@@ -197,6 +197,6 @@ func unmount(proc1Mountinfo, target string, force, detach, expire bool) error {
 		flags |= syscall.MNT_EXPIRE
 	}
 
-	klog.V(5).InfoS("unmounting mount point", "target", target, "force", force, "detach", detach, "expire", expire)
+	klog.V(3).InfoS("unmounting mount point", "target", target, "force", force, "detach", detach, "expire", expire)
 	return syscall.Unmount(target, flags)
 }

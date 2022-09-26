@@ -1,4 +1,4 @@
-//go:build linux
+//go:build !linux
 
 // This file is part of MinIO DirectPV
 // Copyright (c) 2021, 2022 MinIO, Inc.
@@ -16,13 +16,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package sys
+package device
 
-import "path/filepath"
+import (
+	"fmt"
+	"runtime"
+)
 
 func getDeviceByFSUUID(fsuuid string) (device string, err error) {
-	if device, err = filepath.EvalSymlinks("/dev/disk/by-uuid/" + fsuuid); err == nil {
-		device = filepath.ToSlash(device)
-	}
-	return
+	return "", fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+}
+
+func GetDeviceName(major, minor uint32) (string, error) {
+	return "", fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

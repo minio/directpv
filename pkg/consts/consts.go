@@ -37,6 +37,9 @@ const (
 	// Identity denotes identity value.
 	Identity = AppName + "-min-io"
 
+	// Namespace denotes the namespace where the app is installed
+	Namespace = Identity
+
 	// StorageClassName denotes storage class name.
 	StorageClassName = Identity
 
@@ -102,4 +105,29 @@ const (
 
 	// UnixCSIEndpoint is Unix CSI endpoint
 	UnixCSIEndpoint = "unix:///csi/csi.sock"
+
+	// APIServerContainerName is the name of the api server
+	APIServerContainerName = "api-server"
+
+	// NodeAPIServerContainerName is the name of the node api server
+	NodeAPIServerContainerName = "node-api-server"
+
+	// NodeAPIServerHLSVC denotes the name of the clusterIP service for the node API
+	NodeAPIServerHLSVC = NodeAPIServerContainerName + "-hl"
+
+	// APIPort is the default port for the api-server
+	APIPortName        = "api-port"
+	APIPort            = 40443
+	APIServerCertsPath = "/tmp/apiserver/certs"
+
+	// NodeAPIPort is the default port for the node-api-server
+	NodeAPIPortName        = "node-api-port"
+	NodeAPIPort            = 50443
+	NodeAPIServerCAPath    = "/tmp/nodeapiserver/ca"
+	NodeAPIServerCertsPath = "/tmp/nodeapiserver/certs"
+
+	// key-pairs
+	PrivateKeyFileName = "key.pem"
+	PublicCertFileName = "cert.pem"
+	CACertFileName     = "ca.crt"
 )

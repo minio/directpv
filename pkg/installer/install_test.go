@@ -37,7 +37,6 @@ func TestInstaller(t *testing.T) {
 		ContainerImage:    "test-image",
 		ContainerOrg:      "test-org",
 		ContainerRegistry: "test-registry",
-		AdmissionControl:  false,
 		NodeSelector:      nil,
 		Tolerations:       nil,
 		SeccompProfile:    "",

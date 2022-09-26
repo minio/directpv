@@ -21,8 +21,8 @@ import (
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/minio/directpv/pkg/xfs"
@@ -44,7 +44,7 @@ func newMetricsCollector(nodeID string) *metricsCollector {
 	return &metricsCollector{
 		nodeID:            nodeID,
 		desc:              prometheus.NewDesc(consts.AppName+"_stats", "Statistics exposed by "+consts.AppPrettyName, nil, nil),
-		getDeviceByFSUUID: sys.GetDeviceByFSUUID,
+		getDeviceByFSUUID: device.GetDeviceByFSUUID,
 		getQuota:          xfs.GetQuota,
 	}
 }

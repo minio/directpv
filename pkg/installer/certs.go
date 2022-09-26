@@ -32,12 +32,7 @@ func getCerts(dnsNames []string) (caCertBytes, publicCertBytes, privateKeyBytes 
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
-			Organization:  []string{"MinIO, Inc."},
-			Country:       []string{"US"},
-			Province:      []string{"CA"},
-			Locality:      []string{"Redwood City"},
-			StreetAddress: []string{"275 Shoreline Dr, Ste 100,"},
-			PostalCode:    []string{"94065"},
+			Organization: []string{"MinIO, Inc."},
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
@@ -81,12 +76,7 @@ func getCerts(dnsNames []string) (caCertBytes, publicCertBytes, privateKeyBytes 
 	cert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
-			Organization:  []string{"MinIO, Inc."},
-			Country:       []string{"US"},
-			Province:      []string{"CA"},
-			Locality:      []string{"Redwood City"},
-			StreetAddress: []string{"275 Shoreline Dr, Ste 100,"},
-			PostalCode:    []string{"94065"},
+			Organization: []string{"MinIO, Inc."},
 		},
 		DNSNames:     dnsNames,
 		NotBefore:    time.Now(),

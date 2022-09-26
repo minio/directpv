@@ -164,16 +164,18 @@ func (v *defaultInstaller) installDeployment(ctx context.Context) error {
 	return err
 }
 
-func (v *defaultInstaller) installValidationRules(ctx context.Context) error {
+func (v *defaultInstaller) installAPIServerDeployment(ctx context.Context) error {
 	timer := time.AfterFunc(
 		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create Validation rules")) },
+		func() {
+			fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create API server Deployment"))
+		},
 	)
 	defer timer.Stop()
 
-	err := installValidationRulesDefault(ctx, v.Config)
+	err := installAPIServerDeploymentDefault(ctx, v.Config)
 	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create Validation rules; %v", color.HiRedString("ERROR"), err)
+		fmt.Fprintf(os.Stderr, "%v unable to create API server Deployment; %v", color.HiRedString("ERROR"), err)
 	}
 	return err
 }
@@ -307,16 +309,18 @@ func (v *defaultInstaller) uninstallDeployment(ctx context.Context) error {
 	return err
 }
 
-func (v *defaultInstaller) uninstallValidationRules(ctx context.Context) error {
+func (v *defaultInstaller) uninstallAPIServerDeployment(ctx context.Context) error {
 	timer := time.AfterFunc(
 		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete Validation rules")) },
+		func() {
+			fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete API server Deployment"))
+		},
 	)
 	defer timer.Stop()
 
-	err := uninstallValidationRulesDefault(ctx, v.Config)
+	err := uninstallAPIServerDeploymentDefault(ctx, v.Config)
 	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete Validation rules; %v", color.HiRedString("ERROR"), err)
+		fmt.Fprintf(os.Stderr, "%v unable to delete API server Deployment; %v", color.HiRedString("ERROR"), err)
 	}
 	return err
 }
@@ -349,11 +353,14 @@ func (v *defaultInstaller) Install(ctx context.Context) error {
 	if err := v.installDeployment(ctx); err != nil {
 		return err
 	}
-	return v.installValidationRules(ctx)
+	return v.installAPIServerDeployment(ctx)
 }
 
 func (v *defaultInstaller) Uninstall(ctx context.Context) error {
 	if err := v.uninstallCRD(ctx); err != nil {
+		return err
+	}
+	if err := v.uninstallAPIServerDeployment(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallDeployment(ctx); err != nil {
@@ -363,9 +370,6 @@ func (v *defaultInstaller) Uninstall(ctx context.Context) error {
 		return err
 	}
 	if err := v.uninstallService(ctx); err != nil {
-		return err
-	}
-	if err := v.uninstallValidationRules(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallStorageClass(ctx); err != nil {
