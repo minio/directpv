@@ -50,6 +50,20 @@ func (v *defaultInstaller) installNS(ctx context.Context) error {
 	return err
 }
 
+func (v *defaultInstaller) installSecrets(ctx context.Context) error {
+	timer := time.AfterFunc(
+		3*time.Second,
+		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create Secrets")) },
+	)
+	defer timer.Stop()
+
+	err := installSecretsDefault(ctx, v.Config)
+	if err != nil && !v.DryRun {
+		fmt.Fprintf(os.Stderr, "%v unable to create Secrets; %v", color.HiRedString("ERROR"), err)
+	}
+	return err
+}
+
 func (v *defaultInstaller) installRBAC(ctx context.Context) error {
 	timer := time.AfterFunc(
 		3*time.Second,
@@ -195,6 +209,20 @@ func (v *defaultInstaller) uninstallNS(ctx context.Context) error {
 	return err
 }
 
+func (v *defaultInstaller) uninstallSecrets(ctx context.Context) error {
+	timer := time.AfterFunc(
+		3*time.Second,
+		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete Secrets")) },
+	)
+	defer timer.Stop()
+
+	err := uninstallSecretsDefault(ctx, v.Config)
+	if err != nil && !v.DryRun {
+		fmt.Fprintf(os.Stderr, "%v unable to delete Secrets; %v", color.HiRedString("ERROR"), err)
+	}
+	return err
+}
+
 func (v *defaultInstaller) uninstallRBAC(ctx context.Context) error {
 	timer := time.AfterFunc(
 		3*time.Second,
@@ -329,6 +357,9 @@ func (v *defaultInstaller) Install(ctx context.Context) error {
 	if err := v.installNS(ctx); err != nil {
 		return err
 	}
+	if err := v.installSecrets(ctx); err != nil {
+		return err
+	}
 	if err := v.installRBAC(ctx); err != nil {
 		return err
 	}
@@ -382,6 +413,9 @@ func (v *defaultInstaller) Uninstall(ctx context.Context) error {
 		return err
 	}
 	if err := v.uninstallRBAC(ctx); err != nil {
+		return err
+	}
+	if err := v.uninstallSecrets(ctx); err != nil {
 		return err
 	}
 	return v.uninstallNS(ctx)

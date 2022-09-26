@@ -40,7 +40,7 @@ func writeErrorResponse(w http.ResponseWriter, statusCode int, apiErr apiError) 
 	var err error
 	responseBytes, err = json.Marshal(apiErr)
 	if err != nil {
-		klog.Errorf("couldn't marshal the apiError %v: %v", apiErr, err)
+		klog.Errorf("couldn't marshal the apierror %v: %v", apiErr, err)
 		responseBytes = []byte(apiErr.Description)
 	}
 	writeResponse(w, statusCode, responseBytes)

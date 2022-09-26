@@ -65,8 +65,8 @@ func ServeAPIServer(ctx context.Context, apiPort int) error {
 
 	// define http server and server handler
 	mux := http.NewServeMux()
-	mux.HandleFunc(devicesListAPIPath, listDevicesHandler)
-	mux.HandleFunc(devicesFormatAPIPath, formatDrivesHandler)
+	mux.HandleFunc(devicesListAPIPath, authMiddleware(listDevicesHandler))
+	mux.HandleFunc(devicesFormatAPIPath, authMiddleware(formatDevicesHandler))
 	mux.HandleFunc(consts.ReadinessPath, readinessHandler)
 	server.Handler = mux
 
@@ -122,19 +122,19 @@ func listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 // listDevices queries the nodes parallelly to get the available and unavailable devices
 func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Device, error) {
 	var nodes []string
-	var err error
-	if len(req.Nodes) > 0 {
-		nodes, err = ellipsis.Expand(string(req.Nodes))
+	for _, nodeSelector := range req.Nodes {
+		expanded, err := ellipsis.Expand(string(nodeSelector))
 		if err != nil {
-			return nil, fmt.Errorf("couldn't expand the node selector %v: %v", req.Nodes, err)
+			return nil, fmt.Errorf("couldn't expand the node selector %v: %v", nodeSelector, err)
 		}
+		nodes = append(nodes, expanded...)
 	}
 	endpointsMap, nodeAPIPort, err := getNodeEndpoints(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get the node endpoints: %v", err)
 	}
 	httpClient := &http.Client{
-		Transport: getTransport(),
+		Transport: getDefaultTransport(true),
 	}
 	reqBody, err := json.Marshal(GetDevicesRequest{
 		Drives:   req.Drives,
@@ -190,8 +190,8 @@ func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Dev
 	return devices, nil
 }
 
-// formatDrivesHandler forwards the format requests to respective nodes
-func formatDrivesHandler(w http.ResponseWriter, r *http.Request) {
+// formatDevicesHandler forwards the format requests to respective nodes
+func formatDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("couldn't read the request: %v", err)
@@ -229,7 +229,7 @@ func formatDrives(ctx context.Context, req FormatDevicesRequest) (map[NodeName][
 		return nil, fmt.Errorf("couldn't get the node endpoints: %v", err)
 	}
 	httpClient := &http.Client{
-		Transport: getTransport(),
+		Transport: getDefaultTransport(true),
 	}
 	var wg sync.WaitGroup
 	var formatStatus = make(map[NodeName][]FormatDeviceStatus)
