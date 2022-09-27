@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -24,10 +25,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/volume"
 	"github.com/mitchellh/go-homedir"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 const dot = "•"
@@ -137,4 +147,145 @@ func openAuditFile(auditFile string) (*utils.SafeFile, error) {
 		return nil, fmt.Errorf("unable to create default audit directory; %w", err)
 	}
 	return utils.NewSafeFile(path.Join(defaultAuditDir, fmt.Sprintf("%v.%v", auditFile, time.Now().UnixNano())))
+}
+
+func printableString(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}
+
+func printableBytes(value int64) string {
+	if value == 0 {
+		return "-"
+	}
+
+	return humanize.IBytes(uint64(value))
+}
+
+func getLabelValue(obj metav1.Object, key string) string {
+	if labels := obj.GetLabels(); labels != nil {
+		return labels[key]
+	}
+	return ""
+}
+
+func matchVolumeStatus(volume types.Volume, statusList []string) bool {
+	return k8s.MatchTrueConditions(
+		volume.Status.Conditions,
+		[]string{string(directpvtypes.VolumeConditionTypePublished), string(directpvtypes.VolumeConditionTypeStaged)},
+		statusList,
+	)
+}
+
+func getFilteredVolumeList(ctx context.Context, filterFunc func(types.Volume) bool) ([]types.Volume, error) {
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh, err := volume.ListVolumes(
+		ctx,
+		nodeSelectors,
+		driveSelectors,
+		podNameSelectors,
+		podNSSelectors,
+		k8s.MaxThreadCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredVolumes := []types.Volume{}
+	for result := range resultCh {
+		if result.Err != nil {
+			return nil, result.Err
+		}
+		if matchVolumeStatus(result.Volume, volumeStatusSelectors) && filterFunc(result.Volume) {
+			filteredVolumes = append(filteredVolumes, result.Volume)
+		}
+	}
+
+	return filteredVolumes, nil
+}
+
+func getVolumesByNames(ctx context.Context, names []string) <-chan volume.ListVolumeResult {
+	resultCh := make(chan volume.ListVolumeResult)
+	go func() {
+		defer close(resultCh)
+		for _, name := range names {
+			volumeName := strings.TrimSpace(name)
+			vol, err := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{})
+			switch {
+			case err == nil:
+				resultCh <- volume.ListVolumeResult{Volume: *vol}
+			case apierrors.IsNotFound(err):
+				klog.V(5).Infof("No volume found by name %v", volumeName)
+			default:
+				klog.ErrorS(err, "unable to get volume", "volumeName", volumeName)
+				return
+			}
+		}
+	}()
+	return resultCh
+}
+
+func processFilteredVolumes(
+	ctx context.Context,
+	names []string,
+	matchFunc func(*types.Volume) bool,
+	applyFunc func(*types.Volume) error,
+	processFunc func(context.Context, *types.Volume) error,
+	auditFile string,
+) error {
+	var resultCh <-chan volume.ListVolumeResult
+	var err error
+
+	if applyFunc == nil || processFunc == nil {
+		klog.Fatalf("Either applyFunc or processFunc must be provided. This should not happen.")
+	}
+
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	if len(names) == 0 {
+		resultCh, err = volume.ListVolumes(ctx,
+			nodeSelectors,
+			driveSelectors,
+			podNameSelectors,
+			podNSSelectors,
+			k8s.MaxThreadCount)
+		if err != nil {
+			return err
+		}
+	} else {
+		resultCh = getVolumesByNames(ctx, names)
+	}
+
+	file, err := openAuditFile(auditFile)
+	if err != nil {
+		klog.ErrorS(err, "unable to open audit file", "auditFile", auditFile)
+	}
+
+	defer func() {
+		if file != nil {
+			if err := file.Close(); err != nil {
+				klog.ErrorS(err, "unable to close audit file")
+			}
+		}
+	}()
+
+	return volume.ProcessVolumes(
+		ctx,
+		resultCh,
+		func(volume *types.Volume) bool {
+			if matchVolumeStatus(*volume, volumeStatusSelectors) {
+				return matchFunc == nil || matchFunc(volume)
+			}
+			return false
+		},
+		applyFunc,
+		processFunc,
+		file,
+		dryRun,
+	)
 }

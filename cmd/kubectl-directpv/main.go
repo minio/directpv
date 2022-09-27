@@ -50,12 +50,17 @@ var (
 	jsonOutput   = false
 	yamlOutput   = false
 	noHeaders    = false
+	allFlag      = false
 )
 
 var (
-	drives, nodes, driveGlobs, nodeGlobs    []string
-	driveSelectorValues, nodeSelectorValues []types.LabelValue
-	printer                                 func(interface{}) error
+	driveArgs []string
+	nodeArgs  []string
+
+	driveSelectors []types.LabelValue
+	nodeSelectors  []types.LabelValue
+
+	printer func(interface{}) error
 )
 
 var mainCmd = &cobra.Command{

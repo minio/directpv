@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"sigs.k8s.io/yaml"
 )
@@ -89,4 +90,8 @@ func (safeFile *SafeFile) Close() error {
 		return err
 	}
 	return os.Rename(safeFile.tempFile.Name(), safeFile.filename)
+}
+
+func TrimDevPrefix(name string) string {
+	return strings.TrimPrefix(name, "/dev/")
 }
