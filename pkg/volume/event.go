@@ -18,6 +18,7 @@ package volume
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -88,39 +89,51 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 		return fmt.Errorf("waiting for the volume to be released before cleaning up")
 	}
 
-	if volume.Status.ContainerPath != "" {
-		if err := handler.safeUnmount(volume.Status.ContainerPath, true, true, false); err != nil {
+	if volume.Status.TargetPath != "" {
+		if err := handler.safeUnmount(volume.Status.TargetPath, true, true, false); err != nil {
 			if _, ok := err.(*os.PathError); !ok {
 				klog.ErrorS(err, "unable to unmount container path",
 					"volume", volume.Name,
-					"containerPath", volume.Status.ContainerPath,
+					"containerPath", volume.Status.TargetPath,
 				)
 				return err
 			}
 		}
 	}
-	if volume.Status.StagingPath != "" {
-		if err := handler.safeUnmount(volume.Status.StagingPath, true, true, false); err != nil {
+	if volume.Status.StagingTargetPath != "" {
+		if err := handler.safeUnmount(volume.Status.StagingTargetPath, true, true, false); err != nil {
 			if _, ok := err.(*os.PathError); !ok {
 				klog.ErrorS(err, "unable to unmount staging path",
 					"volume", volume.Name,
-					"containerPath", volume.Status.StagingPath,
+					"StagingTargetPath", volume.Status.StagingTargetPath,
 				)
 				return err
 			}
 		}
 	}
 
-	// Remove associated directory of the volume.
-	if err := os.RemoveAll(volume.Status.HostPath); err != nil {
-		if _, ok := err.(*os.PathError); !ok {
-			klog.ErrorS(err, "unable to remove host path",
-				"volume", volume.Name,
-				"hostPath", volume.Status.HostPath,
-			)
-			return err
-		}
+	deletedDir := volume.Status.DataPath + ".deleted"
+	if err := os.Rename(volume.Status.DataPath, deletedDir); err != nil && !errors.Is(err, os.ErrNotExist) {
+		klog.ErrorS(
+			err,
+			"unable to rename data path to deleted data path",
+			"volume", volume.Name,
+			"DataPath", volume.Status.DataPath,
+			"DeletedDir", deletedDir,
+		)
+		return err
 	}
+
+	go func(volumeName, deletedDir string) {
+		if err := os.RemoveAll(deletedDir); err != nil {
+			klog.ErrorS(
+				err,
+				"unable to remove deleted data path",
+				"volume", volumeName,
+				"DeletedDir", deletedDir,
+			)
+		}
+	}(volume.Name, deletedDir)
 
 	// Release volume from associated drive.
 	if err := handler.releaseVolume(ctx, volume.Status.DriveName, volume.Name, volume.Status.TotalCapacity); err != nil {

@@ -109,17 +109,17 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              containerPath:
+              dataPath:
                 type: string
               driveName:
                 type: string
               fsuuid:
                 type: string
-              hostPath:
-                type: string
               nodeName:
                 type: string
-              stagingPath:
+              stagingTargetPath:
+                type: string
+              targetPath:
                 type: string
               totalCapacity:
                 format: int64
@@ -129,12 +129,12 @@ spec:
                 type: integer
             required:
             - availableCapacity
-            - containerPath
+            - dataPath
             - driveName
             - fsuuid
-            - hostPath
             - nodeName
-            - stagingPath
+            - stagingTargetPath
+            - targetPath
             - totalCapacity
             - usedCapacity
             type: object

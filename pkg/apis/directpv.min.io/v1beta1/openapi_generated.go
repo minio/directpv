@@ -326,21 +326,21 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeStatus(ref common.Refer
 				Description: "DirectPVVolumeStatus denotes volume information.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"hostPath": {
+					"dataPath": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
 							Format:  "",
 						},
 					},
-					"stagingPath": {
+					"stagingTargetPath": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
 							Format:  "",
 						},
 					},
-					"containerPath": {
+					"targetPath": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
@@ -413,7 +413,7 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeStatus(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"hostPath", "stagingPath", "containerPath", "driveName", "fsuuid", "nodeName", "totalCapacity", "availableCapacity", "usedCapacity"},
+				Required: []string{"dataPath", "stagingTargetPath", "targetPath", "driveName", "fsuuid", "nodeName", "totalCapacity", "availableCapacity", "usedCapacity"},
 			},
 		},
 		Dependencies: []string{

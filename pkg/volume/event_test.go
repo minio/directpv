@@ -31,15 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-const (
-	KB = 1 << 10
-	MB = KB << 10
-
-	mb50  = 50 * MB
-	mb100 = 100 * MB
-	mb20  = 20 * MB
-	mb30  = 30 * MB
-)
+const MiB = 1024 * 1024
 
 func createFakeVolumeEventListener(nodeName string) *volumeEventHandler {
 	return &volumeEventHandler{
@@ -67,9 +59,9 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		Status: types.DriveStatus{
 			NodeName:          "test-node",
 			Status:            directpvtypes.DriveStatusOK,
-			FreeCapacity:      mb50,
-			AllocatedCapacity: mb50,
-			TotalCapacity:     mb100,
+			FreeCapacity:      50 * MiB,
+			AllocatedCapacity: 50 * MiB,
+			TotalCapacity:     100 * MiB,
 		},
 	}
 	testVolumeObjects := []runtime.Object{
@@ -83,32 +75,9 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 			},
 			Status: types.VolumeStatus{
 				NodeName:      "test-node",
-				HostPath:      "hostpath",
+				DataPath:      "hostpath",
 				DriveName:     testDriveName,
-				TotalCapacity: mb20,
-				Conditions: []metav1.Condition{
-					{
-						Type:               string(directpvtypes.VolumeConditionTypeStaged),
-						Status:             metav1.ConditionTrue,
-						Message:            "",
-						Reason:             string((directpvtypes.VolumeConditionReasonInUse)),
-						LastTransitionTime: metav1.Now(),
-					},
-					{
-						Type:               string(directpvtypes.VolumeConditionTypePublished),
-						Status:             metav1.ConditionFalse,
-						Message:            "",
-						Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
-						LastTransitionTime: metav1.Now(),
-					},
-					{
-						Type:               string(directpvtypes.VolumeConditionTypeReady),
-						Status:             metav1.ConditionTrue,
-						Message:            "",
-						Reason:             string((directpvtypes.VolumeConditionReasonReady)),
-						LastTransitionTime: metav1.Now(),
-					},
-				},
+				TotalCapacity: 20 * MiB,
 			},
 		},
 		&types.Volume{
@@ -120,35 +89,12 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 				},
 			},
 			Status: types.VolumeStatus{
-				NodeName:      "test-node",
-				HostPath:      "hostpath",
-				DriveName:     testDriveName,
-				TotalCapacity: mb30,
-				StagingPath:   "/path/staging",
-				ContainerPath: "/path/container",
-				Conditions: []metav1.Condition{
-					{
-						Type:               string(directpvtypes.VolumeConditionTypeStaged),
-						Status:             metav1.ConditionFalse,
-						Message:            "",
-						Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
-						LastTransitionTime: metav1.Now(),
-					},
-					{
-						Type:               string(directpvtypes.VolumeConditionTypePublished),
-						Status:             metav1.ConditionFalse,
-						Message:            "",
-						Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
-						LastTransitionTime: metav1.Now(),
-					},
-					{
-						Type:               string(directpvtypes.VolumeConditionTypeReady),
-						Status:             metav1.ConditionTrue,
-						Message:            "",
-						Reason:             string((directpvtypes.VolumeConditionReasonReady)),
-						LastTransitionTime: metav1.Now(),
-					},
-				},
+				NodeName:          "test-node",
+				DataPath:          "hostpath",
+				DriveName:         testDriveName,
+				TotalCapacity:     30 * MiB,
+				StagingTargetPath: "/path/staging",
+				TargetPath:        "/path/target",
 			},
 		},
 	}
@@ -162,16 +108,16 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 	client.SetVolumeInterface(clientset2.DirectpvLatest().DirectPVVolumes())
 
 	for _, testObj := range testVolumeObjects {
-		var stagingUmountCalled, containerUmountCalled bool
+		var stagingUmountCalled, targetUmountCalled bool
 		vl.safeUnmount = func(target string, force, detach, expire bool) error {
-			if testObj.(*types.Volume).Status.StagingPath == "" && testObj.(*types.Volume).Status.ContainerPath == "" {
-				return errors.New("umount should never be called for volumes with empty staging and container paths")
+			if testObj.(*types.Volume).Status.StagingTargetPath == "" && testObj.(*types.Volume).Status.TargetPath == "" {
+				return errors.New("umount should never be called for volumes with empty staging and target paths")
 			}
-			if target == testObj.(*types.Volume).Status.StagingPath {
+			if target == testObj.(*types.Volume).Status.StagingTargetPath {
 				stagingUmountCalled = true
 			}
-			if target == testObj.(*types.Volume).Status.ContainerPath {
-				containerUmountCalled = true
+			if target == testObj.(*types.Volume).Status.TargetPath {
+				targetUmountCalled = true
 			}
 			return nil
 		}
@@ -196,11 +142,11 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		if err := vl.Handle(ctx, listener.EventArgs{Event: listener.DeleteEvent, Object: newObj}); err != nil {
 			t.Fatalf("Error while invoking the volume delete listener: %+v", err)
 		}
-		if newObj.Status.StagingPath != "" && !stagingUmountCalled {
-			t.Error("staging path is not umounted")
+		if newObj.Status.StagingTargetPath != "" && !stagingUmountCalled {
+			t.Error("staging target path is not umounted")
 		}
-		if newObj.Status.ContainerPath != "" && !containerUmountCalled {
-			t.Error("container path is not umounted")
+		if newObj.Status.TargetPath != "" && !targetUmountCalled {
+			t.Error("target path is not umounted")
 		}
 		updatedVolume, err := client.VolumeClient().Get(
 			ctx, newObj.Name, metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()},
@@ -225,8 +171,8 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 	if driveObj.Status.Status != directpvtypes.DriveStatusOK {
 		t.Errorf("Unexpected drive status set. Expected: %s, Got: %s", string(directpvtypes.DriveStatusOK), string(driveObj.Status.Status))
 	}
-	if driveObj.Status.FreeCapacity != mb100 {
-		t.Errorf("Unexpected free capacity set. Expected: %d, Got: %d", mb100, driveObj.Status.FreeCapacity)
+	if driveObj.Status.FreeCapacity != 100*MiB {
+		t.Errorf("Unexpected free capacity set. Expected: %d, Got: %d", 100*MiB, driveObj.Status.FreeCapacity)
 	}
 	if driveObj.Status.AllocatedCapacity != 0 {
 		t.Errorf("Unexpected allocated capacity set. Expected: 0, Got: %d", driveObj.Status.AllocatedCapacity)
@@ -245,32 +191,9 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 		},
 		Status: types.VolumeStatus{
 			NodeName:      "test-node",
-			HostPath:      "hostpath",
+			DataPath:      "hostpath",
 			DriveName:     "test-drive",
 			TotalCapacity: int64(100),
-			Conditions: []metav1.Condition{
-				{
-					Type:               string(directpvtypes.VolumeConditionTypeStaged),
-					Status:             metav1.ConditionTrue,
-					Message:            "",
-					Reason:             string((directpvtypes.VolumeConditionReasonInUse)),
-					LastTransitionTime: metav1.Now(),
-				},
-				{
-					Type:               string(directpvtypes.VolumeConditionTypePublished),
-					Status:             metav1.ConditionFalse,
-					Message:            "",
-					Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
-					LastTransitionTime: metav1.Now(),
-				},
-				{
-					Type:               string(directpvtypes.VolumeConditionTypeReady),
-					Status:             metav1.ConditionTrue,
-					Message:            "",
-					Reason:             string((directpvtypes.VolumeConditionReasonReady)),
-					LastTransitionTime: metav1.Now(),
-				},
-			},
 		},
 	}
 

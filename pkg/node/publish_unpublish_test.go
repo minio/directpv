@@ -22,11 +22,9 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -45,7 +43,7 @@ func TestNodePublishVolume(t *testing.T) {
 	volume := &types.Volume{
 		TypeMeta:   types.NewVolumeTypeMeta(),
 		ObjectMeta: metav1.ObjectMeta{Name: "volume-id-1"},
-		Status:     types.VolumeStatus{StagingPath: "volume-id-1-staging-target-path"},
+		Status:     types.VolumeStatus{StagingTargetPath: "volume-id-1-staging-target-path"},
 	}
 
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(volume))
@@ -74,11 +72,11 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	}
 	defer os.RemoveAll(testStagingPath)
 
-	testContainerPath, tErr := createTestDir("test_container_")
+	testTargetPath, tErr := createTestDir("test_target_")
 	if tErr != nil {
 		t.Fatalf("Could not create test dirs: %v", tErr)
 	}
-	defer os.RemoveAll(testContainerPath)
+	defer os.RemoveAll(testTargetPath)
 
 	testVol := &types.Volume{
 		TypeMeta: types.NewVolumeTypeMeta(),
@@ -89,39 +87,16 @@ func TestPublishUnpublishVolume(t *testing.T) {
 			},
 		},
 		Status: types.VolumeStatus{
-			NodeName:      testNodeName,
-			StagingPath:   testStagingPath,
-			TotalCapacity: mb20,
-			Conditions: []metav1.Condition{
-				{
-					Type:               string(directpvtypes.VolumeConditionTypeStaged),
-					Status:             metav1.ConditionTrue,
-					Message:            "",
-					Reason:             string(directpvtypes.VolumeConditionReasonInUse),
-					LastTransitionTime: metav1.Now(),
-				},
-				{
-					Type:               string(directpvtypes.VolumeConditionTypePublished),
-					Status:             metav1.ConditionFalse,
-					Message:            "",
-					Reason:             string(directpvtypes.VolumeConditionReasonNotInUse),
-					LastTransitionTime: metav1.Now(),
-				},
-				{
-					Type:               string(directpvtypes.VolumeConditionTypeReady),
-					Status:             metav1.ConditionTrue,
-					Message:            "",
-					Reason:             string(directpvtypes.VolumeConditionReasonReady),
-					LastTransitionTime: metav1.Now(),
-				},
-			},
+			NodeName:          testNodeName,
+			StagingTargetPath: testStagingPath,
+			TotalCapacity:     20 * MiB,
 		},
 	}
 
 	publishVolumeRequest := csi.NodePublishVolumeRequest{
 		VolumeId:          testVolumeName50MB,
 		StagingTargetPath: testStagingPath,
-		TargetPath:        testContainerPath,
+		TargetPath:        testTargetPath,
 		VolumeCapability: &csi.VolumeCapability{
 			AccessType: &csi.VolumeCapability_Mount{
 				Mount: &csi.VolumeCapability_MountVolume{
@@ -137,7 +112,7 @@ func TestPublishUnpublishVolume(t *testing.T) {
 
 	unpublishVolumeRequest := csi.NodeUnpublishVolumeRequest{
 		VolumeId:   testVolumeName50MB,
-		TargetPath: testContainerPath,
+		TargetPath: testTargetPath,
 	}
 
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testVol))
@@ -163,13 +138,8 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	}
 
 	// Check if status fields were set correctly
-	if volObj.Status.ContainerPath != testContainerPath {
-		t.Errorf("Wrong ContainerPath set in the volume object. Expected %v, Got: %v", testContainerPath, volObj.Status.ContainerPath)
-	}
-
-	// Check if conditions were toggled correctly
-	if !k8s.IsCondition(volObj.Status.Conditions, string(directpvtypes.VolumeConditionTypePublished), metav1.ConditionTrue, string(directpvtypes.VolumeConditionReasonInUse), "") {
-		t.Errorf("unexpected status.conditions after publishing = %v", volObj.Status.Conditions)
+	if volObj.Status.TargetPath != testTargetPath {
+		t.Errorf("Wrong target path set in the volume object. Expected %v, Got: %v", testTargetPath, volObj.Status.TargetPath)
 	}
 
 	// Unpublish volume test
@@ -185,12 +155,7 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	}
 
 	// Check if the status fields were unset
-	if volObj.Status.ContainerPath != "" {
-		t.Errorf("StagingPath was not set to empty. Got: %v", volObj.Status.ContainerPath)
-	}
-
-	// Check if the conditions were toggled correctly
-	if !k8s.IsCondition(volObj.Status.Conditions, string(directpvtypes.VolumeConditionTypePublished), metav1.ConditionFalse, string(directpvtypes.VolumeConditionReasonNotInUse), "") {
-		t.Errorf("unexpected status.conditions after unstaging = %v", volObj.Status.Conditions)
+	if volObj.Status.TargetPath != "" {
+		t.Errorf("StagingPath was not set to empty. Got: %v", volObj.Status.TargetPath)
 	}
 }

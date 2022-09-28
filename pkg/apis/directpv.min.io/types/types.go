@@ -79,41 +79,23 @@ func AccessTiersToStrings(accessTiers ...AccessTier) (slice []string) {
 // VolumeConditionType denotes volume condition.
 type VolumeConditionType string
 
+// Volume condition type values
 const (
-	// VolumeConditionTypePublished denotes "Published" volume condition.
-	VolumeConditionTypePublished VolumeConditionType = "Published"
-
-	// VolumeConditionTypeStaged denotes "Staged" volume condition.
-	VolumeConditionTypeStaged VolumeConditionType = "Staged"
-
-	// VolumeConditionTypeReady denotes "Ready" volume condition.
-	VolumeConditionTypeReady VolumeConditionType = "Ready"
+	VolumeConditionTypeLost VolumeConditionType = "Lost"
 )
 
 // VolumeConditionReason denotes volume reason.
 type VolumeConditionReason string
 
+// Volume condition reason values
 const (
-	// VolumeConditionReasonNotInUse denotes "NotInUse" volume reason.
-	VolumeConditionReasonNotInUse VolumeConditionReason = "NotInUse"
-
-	// VolumeConditionReasonInUse denotes "InUse" volume reason.
-	VolumeConditionReasonInUse VolumeConditionReason = "InUse"
-
-	// VolumeConditionReasonReady denotes "Ready" volume reason.
-	VolumeConditionReasonReady VolumeConditionReason = "Ready"
-
-	// VolumeConditionReasonNotReady denotes "NotReady" volume reason.
-	VolumeConditionReasonNotReady VolumeConditionReason = "NotReady"
-
-	// VolumeConditionReasonDriveLost denotes "DriveLost" volume reason.
 	VolumeConditionReasonDriveLost VolumeConditionReason = "DriveLost"
 )
 
 // VolumeConditionMessage denotes drive message.
 type VolumeConditionMessage string
 
+// Volume condition message values
 const (
-	// VolumeConditionMessageDriveLost denotes "DriveLost" drive message.
-	VolumeConditionMessageDriveLost VolumeConditionMessage = "Drive Lost"
+	VolumeConditionMessageDriveLost VolumeConditionMessage = "Associated drive was removed. Refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md"
 )

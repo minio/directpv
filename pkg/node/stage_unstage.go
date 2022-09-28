@@ -19,10 +19,10 @@ package node
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/xfs"
@@ -96,20 +96,8 @@ func (server *Server) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Errorf(codes.Internal, "unable to set quota on staging target path; %v", err)
 	}
 
-	conditions := volume.Status.Conditions
-	for i, c := range conditions {
-		switch c.Type {
-		case string(directpvtypes.VolumeConditionTypeReady):
-			conditions[i].Status = metav1.ConditionTrue
-			conditions[i].Reason = string(directpvtypes.VolumeConditionReasonReady)
-		case string(directpvtypes.VolumeConditionTypeStaged):
-			conditions[i].Status = metav1.ConditionTrue
-			conditions[i].Reason = string(directpvtypes.VolumeConditionReasonInUse)
-		}
-	}
-
-	volume.Status.HostPath = volumeDir
-	volume.Status.StagingPath = stagingTargetPath
+	volume.Status.DataPath = volumeDir
+	volume.Status.StagingTargetPath = stagingTargetPath
 
 	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
@@ -145,24 +133,20 @@ func (server *Server) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	if !volume.Status.IsStaged() {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("unstage is called without stage for volume %v", volume.Name))
+	}
+
+	if volume.Status.StagingTargetPath != stagingTargetPath {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("staging target path %v doesn't match with requested staging target path %v", volume.Status.StagingTargetPath, stagingTargetPath))
+	}
+
 	if err := server.unmount(stagingTargetPath); err != nil {
 		klog.ErrorS(err, "unable to unmount staging target path", "StagingTargetPath", stagingTargetPath)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	conditions := volume.Status.Conditions
-	for i, c := range conditions {
-		switch c.Type {
-		case string(directpvtypes.VolumeConditionTypeStaged):
-			conditions[i].Status = metav1.ConditionFalse
-			conditions[i].Reason = string(directpvtypes.VolumeConditionReasonNotInUse)
-		case string(directpvtypes.VolumeConditionTypeReady):
-			conditions[i].Status = metav1.ConditionFalse
-			conditions[i].Reason = string(directpvtypes.VolumeConditionReasonNotReady)
-		}
-	}
-
-	volume.Status.StagingPath = ""
+	volume.Status.StagingTargetPath = ""
 	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	}); err != nil {

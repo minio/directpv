@@ -21,10 +21,9 @@ import (
 	"fmt"
 	"strings"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,9 +61,9 @@ func DeleteDrive(ctx context.Context, drive *types.Drive, force bool) error {
 			return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/directpv/issues")
 		}
 
-		// if err := mount.SafeUnmount(path.Join(sys.MountRoot, drive.Status.FSUUID), false, false, false); err != nil {
-		// 	return err
-		// }
+		if err := sys.Unmount(types.GetDriveMountDir(drive.Status.FSUUID), false, false, false); err != nil {
+			return err
+		}
 
 		drive.Finalizers = []string{}
 		_, err := client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()})
@@ -83,12 +82,8 @@ func DeleteDrive(ctx context.Context, drive *types.Drive, force bool) error {
 			if err != nil {
 				return err
 			}
-			k8s.UpdateCondition(volume.Status.Conditions,
-				string(directpvtypes.VolumeConditionTypeReady),
-				metav1.ConditionFalse,
-				string(directpvtypes.VolumeConditionReasonNotReady),
-				"[DRIVE LOST] Please refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md",
-			)
+
+			volume.Status.SetDriveLost()
 			_, err = client.VolumeClient().Update(
 				ctx, volume, metav1.UpdateOptions{TypeMeta: types.NewVolumeTypeMeta()},
 			)

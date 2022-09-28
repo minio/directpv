@@ -19,16 +19,18 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -41,6 +43,11 @@ import (
 )
 
 const dot = "•"
+
+var (
+	globRegexp                = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
+	errGlobPatternUnsupported = errors.New("glob patterns are unsupported")
+)
 
 func printYAML(obj interface{}) error {
 	y, err := utils.ToYAML(obj)
@@ -171,43 +178,6 @@ func getLabelValue(obj metav1.Object, key string) string {
 	return ""
 }
 
-func matchVolumeStatus(volume types.Volume, statusList []string) bool {
-	return k8s.MatchTrueConditions(
-		volume.Status.Conditions,
-		[]string{string(directpvtypes.VolumeConditionTypePublished), string(directpvtypes.VolumeConditionTypeStaged)},
-		statusList,
-	)
-}
-
-func getFilteredVolumeList(ctx context.Context, filterFunc func(types.Volume) bool) ([]types.Volume, error) {
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh, err := volume.ListVolumes(
-		ctx,
-		nodeSelectors,
-		driveSelectors,
-		podNameSelectors,
-		podNSSelectors,
-		k8s.MaxThreadCount,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	filteredVolumes := []types.Volume{}
-	for result := range resultCh {
-		if result.Err != nil {
-			return nil, result.Err
-		}
-		if matchVolumeStatus(result.Volume, volumeStatusSelectors) && filterFunc(result.Volume) {
-			filteredVolumes = append(filteredVolumes, result.Volume)
-		}
-	}
-
-	return filteredVolumes, nil
-}
-
 func getVolumesByNames(ctx context.Context, names []string) <-chan volume.ListVolumeResult {
 	resultCh := make(chan volume.ListVolumeResult)
 	go func() {
@@ -274,18 +244,56 @@ func processFilteredVolumes(
 		}
 	}()
 
+	if matchFunc == nil {
+		matchFunc = func(volume *types.Volume) bool { return true }
+	}
+
 	return volume.ProcessVolumes(
 		ctx,
 		resultCh,
-		func(volume *types.Volume) bool {
-			if matchVolumeStatus(*volume, volumeStatusSelectors) {
-				return matchFunc == nil || matchFunc(volume)
-			}
-			return false
-		},
+		matchFunc,
 		applyFunc,
 		processFunc,
 		file,
 		dryRun,
 	)
+}
+
+func getSelectorValues(selectors []string) (values []types.LabelValue, err error) {
+	for _, selector := range selectors {
+		if globRegexp.MatchString(selector) {
+			return nil, errGlobPatternUnsupported
+		}
+
+		result, err := ellipsis.Expand(selector)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, value := range result {
+			values = append(values, types.NewLabelValue(value))
+		}
+	}
+
+	return values, nil
+}
+
+func getDriveSelectors() ([]types.LabelValue, error) {
+	var values []string
+	for i := range driveArgs {
+		if utils.TrimDevPrefix(driveArgs[i]) == "" {
+			return nil, fmt.Errorf("empty device name %v", driveArgs[i])
+		}
+		values = append(values, utils.TrimDevPrefix(driveArgs[i]))
+	}
+	return getSelectorValues(values)
+}
+
+func getNodeSelectors() ([]types.LabelValue, error) {
+	for i := range nodeArgs {
+		if nodeArgs[i] == "" {
+			return nil, fmt.Errorf("empty node name %v", nodeArgs[i])
+		}
+	}
+	return getSelectorValues(nodeArgs)
 }

@@ -486,9 +486,9 @@ func createTestVolume(volName string, apiVersion string) *types.Volume {
 			},
 		},
 		Status: types.VolumeStatus{
-			NodeName:      testNodeName,
-			DriveName:     testDrivePath,
-			ContainerPath: "/path/containerpath",
+			NodeName:   testNodeName,
+			DriveName:  testDrivePath,
+			TargetPath: "/path/targetpath",
 		},
 	}
 }
