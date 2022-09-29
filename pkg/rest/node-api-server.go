@@ -143,12 +143,12 @@ func (n *nodeAPIHandler) listLocalDevicesHandler(w http.ResponseWriter, r *http.
 
 func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesRequest) ([]Device, error) {
 	var driveSelectors, statusSelectors []string
-	var err error
-	if len(req.Drives) > 0 {
-		driveSelectors, err = ellipsis.Expand(string(req.Drives))
+	for _, driveSelector := range req.Drives {
+		expanded, err := ellipsis.Expand(string(driveSelector))
 		if err != nil {
-			return nil, fmt.Errorf("couldn't expand the node selector %v: %v", req.Nodes, err)
+			return nil, fmt.Errorf("couldn't expand the drive selector %v: %v", driveSelector, err)
 		}
+		driveSelectors = append(driveSelectors, expanded...)
 	}
 	for _, status := range req.Statuses {
 		statusSelectors = append(statusSelectors, string(status))

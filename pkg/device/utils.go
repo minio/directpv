@@ -167,19 +167,19 @@ func updateFSInfo(device *Device) error {
 	udevFSType := device.FSType()
 	if udevFSType == "" || strings.EqualFold(udevFSType, "xfs") {
 		fsuuid, _, totalCapacity, freeCapacity, err := xfs.Probe(device.Path())
-		if err != nil && device.Size > 0 {
-			switch {
-			case errors.Is(err, xfs.ErrFSNotFound), errors.Is(err, xfs.ErrCanceled), errors.Is(err, io.ErrUnexpectedEOF):
-			default:
-				return err
-			}
-		}
 		if err != nil {
-			return err
+			if device.Size > 0 {
+				switch {
+				case errors.Is(err, xfs.ErrFSNotFound), errors.Is(err, xfs.ErrCanceled), errors.Is(err, io.ErrUnexpectedEOF):
+				default:
+					return err
+				}
+			}
+		} else {
+			device.FSUUID = fsuuid
+			device.TotalCapacity = totalCapacity
+			device.FreeCapacity = freeCapacity
 		}
-		device.FSUUID = fsuuid
-		device.TotalCapacity = totalCapacity
-		device.FreeCapacity = freeCapacity
 	}
 	return nil
 }

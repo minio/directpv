@@ -20,10 +20,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -31,6 +33,11 @@ import (
 
 	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
+)
+
+var (
+	errEmptyEndpointURL = errors.New("endpoint url is empty")
 )
 
 type matchFn func(drive *types.Drive, device *device.Device) bool
@@ -46,10 +53,7 @@ func getMatchedDevicesForDrive(drive *types.Drive, devices []*device.Device) ([]
 }
 
 func fsMatcher(drive *types.Drive, device *device.Device) bool {
-	if drive.Status.FSUUID != device.FSUUID {
-		return false
-	}
-	return true
+	return drive.Status.FSUUID == device.FSUUID
 }
 
 func getMatchedDevices(drive *types.Drive, devices []*device.Device, matchFn matchFn) (matchedDevices, unmatchedDevices []*device.Device) {
@@ -116,30 +120,39 @@ func (s *FormatDeviceStatus) setErr(err error, message, suggestion string) {
 	s.Suggestion = suggestion
 }
 
-func getTransport() *http.Transport {
-	// Keep TLS config.
-	tlsConfig := &tls.Config{
-		// Can't use SSLv3 because of POODLE and BEAST
-		// Can't use TLSv1.0 because of POODLE and BEAST using CBC cipher
-		// Can't use TLSv1.1 because of RC4 cipher usage
-		MinVersion:         tls.VersionTLS12,
-		InsecureSkipVerify: true, // FIXME: use trusted CA
-	}
-	return &http.Transport{
+func getDefaultTransport(secure bool) *http.Transport {
+	tr := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
-			Timeout: 30 * time.Second,
+			Timeout: 50 * time.Second,
 		}).DialContext,
 		MaxIdleConnsPerHost:   1024,
-		IdleConnTimeout:       30 * time.Second,
+		IdleConnTimeout:       50 * time.Second,
 		ResponseHeaderTimeout: 1 * time.Minute,
-		TLSHandshakeTimeout:   5 * time.Second,
-		ExpectContinueTimeout: 5 * time.Second,
-		TLSClientConfig:       tlsConfig,
+		TLSHandshakeTimeout:   10 * time.Second,
+		// ExpectContinueTimeout: 5 * time.Second,
 		// Go net/http automatically unzip if content-type is
 		// gzip disable this feature, as we are always interested
 		// in raw stream.
 		DisableCompression: true,
+	}
+	if secure {
+		// Keep TLS config.
+		tr.TLSClientConfig = &tls.Config{
+			// Can't use SSLv3 because of POODLE and BEAST
+			// Can't use TLSv1.0 because of POODLE and BEAST using CBC cipher
+			// Can't use TLSv1.1 because of RC4 cipher usage
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true, // FIXME: use trusted CA
+		}
+	}
+	return tr
+}
+
+// Close the response properly for the RoundTripper to re-use the connections
+func closeResponse(resp *http.Response) {
+	if resp != nil {
+		drainBody(resp.Body)
 	}
 }
 
@@ -161,4 +174,55 @@ func drainBody(respBody io.ReadCloser) {
 		defer respBody.Close()
 		io.Copy(ioutil.Discard, respBody)
 	}
+}
+
+// getEndpointURL - construct a new endpoint.
+func getEndpointURL(endpoint string, secure bool) (*url.URL, error) {
+	if strings.Contains(endpoint, ":") {
+		host, _, err := net.SplitHostPort(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		if !s3utils.IsValidIP(host) && !s3utils.IsValidDomain(host) {
+			return nil, fmt.Errorf("endpoint: %s does not follow ip address or domain name standards", endpoint)
+		}
+	} else {
+		if !s3utils.IsValidIP(endpoint) && !s3utils.IsValidDomain(endpoint) {
+			return nil, fmt.Errorf("endpoint: %s does not follow ip address or domain name standards", endpoint)
+		}
+	}
+
+	// If secure is false, use 'http' scheme.
+	scheme := "https"
+	if !secure {
+		scheme = "http"
+	}
+
+	// Construct a secured endpoint URL.
+	endpointURLStr := scheme + "://" + endpoint
+	endpointURL, err := url.Parse(endpointURLStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate incoming endpoint URL.
+	if err := isValidEndpointURL(endpointURL.String()); err != nil {
+		return nil, err
+	}
+	return endpointURL, nil
+}
+
+// Verify if input endpoint URL is valid.
+func isValidEndpointURL(endpointURL string) error {
+	if endpointURL == "" {
+		return errEmptyEndpointURL
+	}
+	url, err := url.Parse(endpointURL)
+	if err != nil {
+		return fmt.Errorf("endpoint url %s cannot be parsed", endpointURL)
+	}
+	if url.Path != "/" && url.Path != "" {
+		return fmt.Errorf("endpoint url %s cannot have fully qualified paths", endpointURL)
+	}
+	return nil
 }

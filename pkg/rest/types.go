@@ -33,8 +33,8 @@ const (
 
 // GetDevicesRequest is the request type to fetch the devices present in the cluster
 type GetDevicesRequest struct {
-	Nodes    Selector       `json:"nodes,omitempty"`
-	Drives   Selector       `json:"drives,omitempty"`
+	Nodes    []Selector     `json:"nodes,omitempty"`
+	Drives   []Selector     `json:"drives,omitempty"`
 	Statuses []DeviceStatus `json:"statuses,omitempty"`
 }
 

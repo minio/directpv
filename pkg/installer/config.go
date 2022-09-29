@@ -80,6 +80,9 @@ type Config struct {
 
 	// Image pull secrets
 	ImagePullSecrets []string
+
+	// Credential
+	ConfigFile string
 }
 
 type installer interface {

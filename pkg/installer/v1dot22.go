@@ -33,6 +33,10 @@ func (v *v1dot22) installNS(ctx context.Context) error {
 	return installNSDefault(ctx, v.Config)
 }
 
+func (v *v1dot22) installSecrets(ctx context.Context) error {
+	return installSecretsDefault(ctx, v.Config)
+}
+
 func (v *v1dot22) installRBAC(ctx context.Context) error {
 	return installRBACDefault(ctx, v.Config)
 }
@@ -74,6 +78,10 @@ func (v *v1dot22) uninstallNS(ctx context.Context) error {
 	return uninstallNSDefault(ctx, v.Config)
 }
 
+func (v *v1dot22) uninstallSecrets(ctx context.Context) error {
+	return uninstallSecretsDefault(ctx, v.Config)
+}
+
 func (v *v1dot22) uninstallRBAC(ctx context.Context) error {
 	return uninstallRBACDefault(ctx, v.Config)
 }
@@ -112,6 +120,9 @@ func (v *v1dot22) uninstallAPIServerDeployment(ctx context.Context) error {
 
 func (v *v1dot22) Install(ctx context.Context) error {
 	if err := v.installNS(ctx); err != nil {
+		return err
+	}
+	if err := v.installSecrets(ctx); err != nil {
 		return err
 	}
 	if err := v.installRBAC(ctx); err != nil {
@@ -167,6 +178,9 @@ func (v *v1dot22) Uninstall(ctx context.Context) error {
 		return err
 	}
 	if err := v.uninstallRBAC(ctx); err != nil {
+		return err
+	}
+	if err := v.uninstallSecrets(ctx); err != nil {
 		return err
 	}
 	return v.uninstallNS(ctx)

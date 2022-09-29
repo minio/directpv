@@ -130,4 +130,12 @@ const (
 	PrivateKeyFileName = "key.pem"
 	PublicCertFileName = "cert.pem"
 	CACertFileName     = "ca.crt"
+
+	// Credentials
+	CredentialsSecretName = AppName + "-creds"
+	AccessKeyDataKey      = "accessKey"
+	SecretKeyDataKey      = "secretKey"
+	ConfigFileSuffix      =  "." + AppName + "/config.json"
+	AccessKeyEnv          = AppCapsName + "_ACCESS_KEY"
+	SecretKeyEnv          = AppCapsName + "_SECRET_KEY"
 )

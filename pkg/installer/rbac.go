@@ -312,6 +312,20 @@ func createClusterRole(ctx context.Context, c *Config) error {
 					"",
 				},
 			},
+			{
+				Verbs: []string{
+					clusterRoleVerbGet,
+					clusterRoleVerbList,
+					clusterRoleVerbWatch,
+				},
+				Resources: []string{
+					"secrets",
+					"secret",
+				},
+				APIGroups: []string{
+					"",
+				},
+			},
 		},
 		AggregationRule: nil,
 	}

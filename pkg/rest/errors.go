@@ -16,7 +16,13 @@
 
 package rest
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+	"io"
+	"io/ioutil"
+	"net/http"
+)
 
 var (
 	errNoSubsetsFound      = errors.New("no subsets found for the node service")
@@ -33,9 +39,36 @@ type apiError struct {
 	Message     string `json:"message"`
 }
 
+func (e apiError) Error() string {
+	return e.Description + ": " + e.Message
+}
+
 func toAPIError(err error, message string) apiError {
 	return apiError{
 		Description: err.Error(),
 		Message:     message,
 	}
+}
+
+// httpRespToErrorResponse returns a new encoded apiError structure as error.
+func httpRespToErrorResponse(resp *http.Response) error {
+	if resp == nil || resp.Body == nil {
+		return errEmptyResponse
+	}
+	defer closeResponse(resp)
+
+	// Limit to 100K
+	body, err := ioutil.ReadAll(io.LimitReader(resp.Body, 100<<10))
+	if err != nil {
+		return toAPIError(err, "failed to read server response")
+	}
+
+	// Decode the json error
+	var errResp apiError
+	err = json.Unmarshal(body, &errResp)
+	if err != nil {
+		return toAPIError(err, "failed to parse server response")
+	}
+
+	return errResp
 }
