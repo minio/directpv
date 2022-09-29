@@ -28,14 +28,17 @@ const (
 	// DriveStatusOK denotes drive is ready for volume schedule.
 	DriveStatusOK DriveStatus = "OK"
 
-	// DriveStatusError denotes drive is in error state to prevent volume schedule.
+	// DriveStatusError denotes drive is in error state and no volumes will be scheduled on it anymore.
 	DriveStatusError DriveStatus = "Error"
 
 	// DriveStatusDeleted denotes drive is deleted.
 	DriveStatusDeleted DriveStatus = "Deleted"
 
-	// DriveStatusFenced denotes drive is fenced to prevent volume schedule.
+	// DriveStatusFenced denotes drive is fenced and no volumes will be scheduled on it anymore.
 	DriveStatusFenced DriveStatus = "Fenced"
+
+	// DriveStatusError denotes drive is lost and no volumes will be scheduled on it anymore.
+	DriveStatusLost DriveStatus = "Lost"
 )
 
 // AccessTier denotes access tier.
@@ -54,6 +57,15 @@ const (
 	// AccessTierUnknown denotes "Unknown" access tier.
 	AccessTierUnknown AccessTier = "Unknown"
 )
+
+// SupportedAccessTierValues returns the supported access tier values for filtering and setting
+func SupportedAccessTierValues() []string {
+	return []string{
+		string(AccessTierHot),
+		string(AccessTierWarm),
+		string(AccessTierCold),
+	}
+}
 
 // StringsToAccessTiers converts strings to access tiers.
 func StringsToAccessTiers(values ...string) (accessTiers []AccessTier, err error) {

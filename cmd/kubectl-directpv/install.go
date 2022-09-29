@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 
 	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/consts"
@@ -49,7 +48,6 @@ var (
 	apparmorProfile        = ""
 	auditInstall           = "install"
 	imagePullSecrets       = []string{}
-	configFile             = path.Join(os.Getenv("HOME"), consts.ConfigFileSuffix)
 )
 
 func init() {
@@ -64,7 +62,6 @@ func init() {
 	installCmd.PersistentFlags().StringSliceVarP(&tolerationParameters, "tolerations", "t", tolerationParameters, "Tolerations parameters")
 	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "Set Seccomp profile")
 	installCmd.PersistentFlags().StringVarP(&apparmorProfile, "apparmor-profile", "", apparmorProfile, "Set Apparmor profile")
-	installCmd.PersistentFlags().StringVarP(&configFile, fmt.Sprintf("%s-config", consts.AppName), "", configFile, fmt.Sprintf("Specify %s config file path", consts.AppPrettyName))
 }
 
 func install(ctx context.Context, args []string) (err error) {

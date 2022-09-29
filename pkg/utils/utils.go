@@ -26,14 +26,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// StringIn checks whether value in the slice.
-func StringIn(slice []string, value string) bool {
-	for _, s := range slice {
-		if value == s {
+// ItemIn checks whether value in the slice.
+func ItemIn[s comparable](slice []s, value s) bool {
+	for _, item := range slice {
+		if value == item {
 			return true
 		}
 	}
-
 	return false
 }
 

@@ -75,16 +75,6 @@ func getDeviceNames(devices []*device.Device) string {
 	return strings.Join(deviceNames, ", ")
 }
 
-// stringIn checks whether value in the slice.
-func stringIn(slice []string, value string) bool {
-	for _, s := range slice {
-		if value == s {
-			return true
-		}
-	}
-	return false
-}
-
 func writeFormatMetadata(formatMetadata FormatMetadata, filePath string) error {
 	if err := os.Mkdir(path.Dir(filePath), 0o777); err != nil && !errors.Is(err, os.ErrExist) {
 		return err

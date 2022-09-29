@@ -129,7 +129,7 @@ func mount(proc1Mountinfo, device, target, fsType string, flags []string, superB
 	}
 
 	if devices, found := mountPointMap[target]; found {
-		if utils.StringIn(devices, device) {
+		if utils.ItemIn(devices, device) {
 			klog.V(5).InfoS("device is already mounted on target", "device", device, "target", target, "fsType", fsType, "flags", flags, "superBlockFlags", superBlockFlags)
 			return nil
 		}
@@ -156,7 +156,7 @@ func bindMount(proc1Mountinfo, source, target, fsType string, recursive, readOnl
 	}
 
 	if devices, found := mountPointMap[target]; found {
-		if utils.StringIn(devices, source) {
+		if utils.ItemIn(devices, source) {
 			klog.V(5).InfoS("source is already mounted on target", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "readOnly", readOnly, "superBlockFlags", superBlockFlags)
 			return nil
 		}

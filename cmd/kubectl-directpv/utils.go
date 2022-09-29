@@ -28,10 +28,15 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/fatih/color"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
+	"github.com/manifoldco/promptui"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/rest"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/volume"
@@ -47,6 +52,11 @@ const dot = "•"
 var (
 	globRegexp                = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
 	errGlobPatternUnsupported = errors.New("glob patterns are unsupported")
+	bold                      = color.New(color.Bold).SprintFunc()
+	italic                    = color.New(color.Italic).SprintFunc()
+	// prompt
+	answerYes = "YES"
+	answerNo  = "NO"
 )
 
 func printYAML(obj interface{}) error {
@@ -289,6 +299,34 @@ func getDriveSelectors() ([]types.LabelValue, error) {
 	return getSelectorValues(values)
 }
 
+func expandDriveArgs() ([]string, error) {
+	var values []string
+	for i := range driveArgs {
+		trimmed := utils.TrimDevPrefix(strings.TrimSpace(driveArgs[i]))
+		if trimmed == "" {
+			return nil, fmt.Errorf("empty device name %v", driveArgs[i])
+		}
+		result, err := ellipsis.Expand(trimmed)
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, result...)
+	}
+	return values, nil
+}
+
+func expandNodeArgs() ([]string, error) {
+	var values []string
+	for i := range nodeArgs {
+		result, err := ellipsis.Expand(strings.TrimSpace(nodeArgs[i]))
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, result...)
+	}
+	return values, nil
+}
+
 func getNodeSelectors() ([]types.LabelValue, error) {
 	for i := range nodeArgs {
 		if nodeArgs[i] == "" {
@@ -296,4 +334,117 @@ func getNodeSelectors() ([]types.LabelValue, error) {
 		}
 	}
 	return getSelectorValues(nodeArgs)
+}
+
+func printTable(deviceInfo map[rest.NodeName][]rest.Device) {
+	fmt.Println()
+	defer func() {
+		fmt.Println()
+	}()
+
+	if len(deviceInfo) == 0 {
+		return
+	}
+
+	getStatusAndDesc := func(device rest.Device) (string, string) {
+		switch device.Status {
+		case rest.DeviceStatusAvailable:
+			return color.GreenString(string(device.Status)), color.GreenString(italic(device.Description))
+		case rest.DeviceStatusUnavailable:
+			return color.RedString(string(device.Status)), color.RedString(italic(device.Description))
+		default:
+			return string(device.Status), device.Description
+		}
+	}
+
+	headers := table.Row{
+		"NAME",
+		"SIZE",
+		"FILESYSTEM",
+		"NODE",
+		"MODEL",
+		"VENDOR",
+		"STATUS",
+		"DESCRIPTION",
+	}
+	text.DisableColors()
+	writer := table.NewWriter()
+	writer.SetOutputMirror(os.Stdout)
+	writer.AppendHeader(headers)
+
+	style := table.StyleColoredDark
+	style.Options = table.OptionsDefault
+	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
+	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
+
+	for nodeName, deviceList := range deviceInfo {
+		for _, device := range deviceList {
+			status, desc := getStatusAndDesc(device)
+			row := []interface{}{
+				device.Name,
+				printableBytes(int64(device.Size)),
+				printableString(device.Filesystem),
+				nodeName,
+				printableString(device.Model),
+				printableString(device.Vendor),
+				status,
+				desc,
+			}
+			writer.AppendRow(row)
+		}
+	}
+
+	writer.SortBy(
+		[]table.SortBy{
+			{
+				Name: "NAME",
+				Mode: table.Asc,
+			},
+			{
+				Name: "NODE",
+				Mode: table.Asc,
+			},
+			{
+				Name: "SIZE",
+				Mode: table.Asc,
+			},
+		},
+	)
+
+	writer.SetStyle(style)
+	writer.Render()
+}
+
+// expandFormatArgs expand the format device args
+func expandFormatArgs() (err error) {
+	driveArgs, err = expandDriveArgs()
+	if err != nil {
+		return err
+	}
+	nodeArgs, err = expandNodeArgs()
+	return
+}
+
+// AskQuestion user for generic input."
+func askQuestion(question string, validate func(string) error) string {
+	fmt.Println()
+	prompt := promptui.Prompt{
+		Label: question,
+		Validate: func(input string) error {
+			if validate != nil {
+				return validate(input)
+			}
+			return nil
+		},
+	}
+	result, err := prompt.Run()
+	if err == promptui.ErrInterrupt {
+		os.Exit(-1)
+	}
+	return result
+}
+
+// Ask user for Y/N input. Return true if response is "y"
+func ask(label string) bool {
+	return askQuestion(label, nil) == answerYes
 }

@@ -1,6 +1,6 @@
 module github.com/minio/directpv
 
-go 1.17
+go 1.19
 
 require (
 	github.com/container-storage-interface/spec v1.3.0
@@ -11,6 +11,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/jedib0t/go-pretty/v6 v6.3.9
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
+	github.com/manifoldco/promptui v0.9.0
 	github.com/minio/minio-go/v7 v7.0.36
 	github.com/minio/sha256-simd v1.0.0
 	github.com/mitchellh/go-homedir v1.1.0
@@ -44,6 +45,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect

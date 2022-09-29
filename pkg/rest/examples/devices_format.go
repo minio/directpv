@@ -39,8 +39,8 @@ func main() {
 	// admClnt.TraceOn(nil)
 
 	result, err := admClnt.ListDevices(context.Background(), rest.GetDevicesRequest{
-		Drives:   []rest.Selector{},     // supports ellipsis. eg, `sda`, `sd{a...d}`, `sda,sd{b...d}`
-		Nodes:    []rest.Selector{},     // supports ellipsis. eg, `node-1`, `node-{1...4}`, `node-1, node-{2...4}`
+		Drives:   []rest.Selector{},
+		Nodes:    []rest.Selector{},
 		Statuses: []rest.DeviceStatus{}, // possible values are rest.DeviceStatusAvailable and rest.DeviceStatusUnavailable
 	})
 	if err != nil {
