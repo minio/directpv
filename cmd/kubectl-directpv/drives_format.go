@@ -25,9 +25,9 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/credential"
-	"github.com/minio/directpv/pkg/rest"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -96,7 +96,7 @@ $ kubectl {PLUGIN_NAME} drives format --display-unavailable`,
 			return fmt.Errorf("unable to load the credentials: %v", err)
 		}
 		// initialize rest client
-		admClnt, err := rest.New(u.Host, cred.AccessKey, cred.SecretKey, secure)
+		admClnt, err := admin.New(u.Host, cred.AccessKey, cred.SecretKey, secure)
 		if err != nil {
 			return fmt.Errorf("unable to initialize the admin client: %v", err)
 		}
@@ -118,7 +118,7 @@ func init() {
 	formatDrivesCmd.PersistentFlags().BoolVarP(&debug, "debug", "", debug, "Run in debug mode")
 }
 
-func formatDrives(ctx context.Context, admClient *rest.AdminClient) (err error) {
+func formatDrives(ctx context.Context, admClient *admin.Client) (err error) {
 	result, err := listDevices(ctx, admClient)
 	if err != nil {
 		return fmt.Errorf("unable to list devices: %v", err)
@@ -190,33 +190,33 @@ func formatDrives(ctx context.Context, admClient *rest.AdminClient) (err error) 
 	return nil
 }
 
-func listDevices(ctx context.Context, admClient *rest.AdminClient) (rest.GetDevicesResponse, error) {
-	var driveSelectors, nodeSelectors []rest.Selector
+func listDevices(ctx context.Context, admClient *admin.Client) (admin.GetDevicesResponse, error) {
+	var driveSelectors, nodeSelectors []admin.Selector
 	for _, driveArg := range driveArgs {
-		driveSelectors = append(driveSelectors, rest.Selector(driveArg))
+		driveSelectors = append(driveSelectors, admin.Selector(driveArg))
 	}
 	for _, nodeArg := range nodeArgs {
-		nodeSelectors = append(nodeSelectors, rest.Selector(nodeArg))
+		nodeSelectors = append(nodeSelectors, admin.Selector(nodeArg))
 	}
-	statusSelectors := []rest.DeviceStatus{rest.DeviceStatusAvailable}
+	statusSelectors := []admin.DeviceStatus{admin.DeviceStatusAvailable}
 	if displayUnavailable {
-		statusSelectors = append(statusSelectors, rest.DeviceStatusUnavailable)
+		statusSelectors = append(statusSelectors, admin.DeviceStatusUnavailable)
 	}
-	return admClient.ListDevices(context.Background(), rest.GetDevicesRequest{
+	return admClient.ListDevices(context.Background(), admin.GetDevicesRequest{
 		Drives:   driveSelectors,
 		Nodes:    nodeSelectors,
 		Statuses: statusSelectors,
 	})
 }
 
-func filterDevices(ctx context.Context, deviceInfo map[rest.NodeName][]rest.Device) (map[rest.NodeName][]rest.Device, error) {
-	devices := make(map[rest.NodeName][]rest.Device)
+func filterDevices(ctx context.Context, deviceInfo map[admin.NodeName][]admin.Device) (map[admin.NodeName][]admin.Device, error) {
+	devices := make(map[admin.NodeName][]admin.Device)
 	for nodeName, deviceList := range deviceInfo {
 		if len(nodeArgs) > 0 && !utils.ItemIn(nodeArgs, string(nodeName)) {
 			continue
 		}
 		for _, device := range deviceList {
-			if device.Status == rest.DeviceStatusUnavailable {
+			if device.Status == admin.DeviceStatusUnavailable {
 				continue
 			}
 			if len(driveArgs) > 0 && !utils.ItemIn(driveArgs, device.Name) {
@@ -228,16 +228,16 @@ func filterDevices(ctx context.Context, deviceInfo map[rest.NodeName][]rest.Devi
 	return devices, nil
 }
 
-func formatDevices(ctx context.Context, admClient *rest.AdminClient, deviceInfo map[rest.NodeName][]rest.Device) (rest.FormatDevicesResponse, error) {
-	formatInfo := make(map[rest.NodeName][]rest.FormatDevice)
+func formatDevices(ctx context.Context, admClient *admin.Client, deviceInfo map[admin.NodeName][]admin.Device) (admin.FormatDevicesResponse, error) {
+	formatInfo := make(map[admin.NodeName][]admin.FormatDevice)
 	for nodeName, deviceList := range deviceInfo {
-		var devicesToFormat []rest.FormatDevice
+		var devicesToFormat []admin.FormatDevice
 		for _, device := range deviceList {
-			if device.Status == rest.DeviceStatusUnavailable {
+			if device.Status == admin.DeviceStatusUnavailable {
 				klog.V(5).Infof(color.HiYellowString(italic("skipping %s as it is unavailable", device.Name)))
 				continue
 			}
-			devicesToFormat = append(devicesToFormat, rest.FormatDevice{
+			devicesToFormat = append(devicesToFormat, admin.FormatDevice{
 				Name:       device.Name,
 				MajorMinor: device.MajorMinor,
 				Force:      device.Filesystem != "",
@@ -245,13 +245,13 @@ func formatDevices(ctx context.Context, admClient *rest.AdminClient, deviceInfo 
 			})
 		}
 		if len(devicesToFormat) > 0 {
-			formatInfo[rest.NodeName(nodeName)] = devicesToFormat
+			formatInfo[admin.NodeName(nodeName)] = devicesToFormat
 		}
 	}
 	if len(formatInfo) == 0 {
-		return rest.FormatDevicesResponse{}, errNoDevicesToFormat
+		return admin.FormatDevicesResponse{}, errNoDevicesToFormat
 	}
-	return admClient.FormatDevices(context.Background(), rest.FormatDevicesRequest{
+	return admClient.FormatDevices(context.Background(), admin.FormatDevicesRequest{
 		FormatInfo: formatInfo,
 	})
 }

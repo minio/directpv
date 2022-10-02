@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package rest
+package admin
 
 import (
 	"bytes"
@@ -48,7 +48,7 @@ const (
 	libraryUserAgent       = libraryUserAgentPrefix + consts.AppName + "/" + libraryVersion
 )
 
-type AdminClient struct {
+type Client struct {
 	// parsed endpoint provided by the user
 	endpointURL *url.URL
 	// Authorization keys
@@ -70,7 +70,7 @@ type AdminClient struct {
 }
 
 // New initiates a new admin client
-func New(endpoint, accessKey, secretKey string, secure bool) (*AdminClient, error) {
+func New(endpoint, accessKey, secretKey string, secure bool) (*Client, error) {
 	clnt, err := privateNew(endpoint, accessKey, secretKey, secure)
 	if err != nil {
 		return nil, err
@@ -78,13 +78,13 @@ func New(endpoint, accessKey, secretKey string, secure bool) (*AdminClient, erro
 	return clnt, nil
 }
 
-func privateNew(endpoint, accessKey, secretKey string, secure bool) (*AdminClient, error) {
+func privateNew(endpoint, accessKey, secretKey string, secure bool) (*Client, error) {
 	endpointURL, err := getEndpointURL(endpoint, secure)
 	if err != nil {
 		return nil, err
 	}
 
-	clnt := new(AdminClient)
+	clnt := new(Client)
 
 	// Set the creds
 	clnt.accessKey = accessKey
@@ -105,7 +105,7 @@ func privateNew(endpoint, accessKey, secretKey string, secure bool) (*AdminClien
 }
 
 // SetAppInfo - add application details to user agent.
-func (adm *AdminClient) SetAppInfo(appName string, appVersion string) {
+func (adm *Client) SetAppInfo(appName string, appVersion string) {
 	if appName != "" && appVersion != "" {
 		adm.appInfo.appName = appName
 		adm.appInfo.appVersion = appVersion
@@ -113,7 +113,7 @@ func (adm *AdminClient) SetAppInfo(appName string, appVersion string) {
 }
 
 // SetCustomTransport - set new custom transport.
-func (adm *AdminClient) SetCustomTransport(customHTTPTransport http.RoundTripper) {
+func (adm *Client) SetCustomTransport(customHTTPTransport http.RoundTripper) {
 	// Set this to override default transport
 	// ``http.DefaultTransport``.
 	//
@@ -134,7 +134,7 @@ func (adm *AdminClient) SetCustomTransport(customHTTPTransport http.RoundTripper
 }
 
 // TraceOn - enable HTTP tracing.
-func (adm *AdminClient) TraceOn(outputStream io.Writer) {
+func (adm *Client) TraceOn(outputStream io.Writer) {
 	// if outputStream is nil then default to os.Stdout.
 	if outputStream == nil {
 		outputStream = os.Stdout
@@ -147,13 +147,13 @@ func (adm *AdminClient) TraceOn(outputStream io.Writer) {
 }
 
 // TraceOff - disable HTTP tracing.
-func (adm *AdminClient) TraceOff() {
+func (adm *Client) TraceOff() {
 	// Disable tracing.
 	adm.isTraceEnabled = false
 }
 
 // Filter out signature value from Authorization header.
-func (adm AdminClient) filterSignature(req *http.Request) {
+func (adm Client) filterSignature(req *http.Request) {
 	/// Signature V4 authorization header.
 
 	// Save the original auth.
@@ -172,7 +172,7 @@ func (adm AdminClient) filterSignature(req *http.Request) {
 }
 
 // dumpHTTP - dump HTTP request and response.
-func (adm AdminClient) dumpHTTP(req *http.Request, resp *http.Response) error {
+func (adm Client) dumpHTTP(req *http.Request, resp *http.Response) error {
 	// Starts http dump.
 	_, err := fmt.Fprintln(adm.traceOutput, "---------START-HTTP---------")
 	if err != nil {
@@ -236,7 +236,7 @@ func (adm AdminClient) dumpHTTP(req *http.Request, resp *http.Response) error {
 }
 
 // do - execute http request.
-func (adm AdminClient) do(req *http.Request) (*http.Response, error) {
+func (adm Client) do(req *http.Request) (*http.Response, error) {
 	resp, err := adm.httpClient.Do(req)
 	if err != nil {
 		// Handle this specifically for now until future Golang versions fix this issue properly.
@@ -268,7 +268,7 @@ func (adm AdminClient) do(req *http.Request) (*http.Response, error) {
 }
 
 // set User agent.
-func (adm AdminClient) setUserAgent(req *http.Request) {
+func (adm Client) setUserAgent(req *http.Request) {
 	req.Header.Set("User-Agent", libraryUserAgent)
 	if adm.appInfo.appName != "" && adm.appInfo.appVersion != "" {
 		req.Header.Set("User-Agent", libraryUserAgent+" "+adm.appInfo.appName+"/"+adm.appInfo.appVersion)
@@ -285,11 +285,11 @@ type RequestData struct {
 
 // ExecuteMethod - similar to internal method executeMethod() useful
 // for writing custom requests.
-func (adm AdminClient) ExecuteMethod(ctx context.Context, method string, reqData RequestData) (res *http.Response, err error) {
+func (adm Client) ExecuteMethod(ctx context.Context, method string, reqData RequestData) (res *http.Response, err error) {
 	return adm.executeMethod(ctx, method, reqData)
 }
 
-func (adm AdminClient) executeMethod(ctx context.Context, method string, reqData RequestData) (res *http.Response, err error) {
+func (adm Client) executeMethod(ctx context.Context, method string, reqData RequestData) (res *http.Response, err error) {
 	defer func() {
 		if err != nil {
 			// close idle connections before returning, upon error.
@@ -315,7 +315,7 @@ func (adm AdminClient) executeMethod(ctx context.Context, method string, reqData
 }
 
 // newRequest - instantiate a new HTTP request for a given method.
-func (adm AdminClient) newRequest(ctx context.Context, method string, reqData RequestData) (req *http.Request, err error) {
+func (adm Client) newRequest(ctx context.Context, method string, reqData RequestData) (req *http.Request, err error) {
 	// If no method is supplied default to 'POST'.
 	if method == "" {
 		method = "POST"
@@ -347,7 +347,7 @@ func (adm AdminClient) newRequest(ctx context.Context, method string, reqData Re
 }
 
 // makeTargetURL make a new target url.
-func (adm AdminClient) makeTargetURL(r RequestData) (*url.URL, error) {
+func (adm Client) makeTargetURL(r RequestData) (*url.URL, error) {
 	host := adm.endpointURL.Host
 	scheme := adm.endpointURL.Scheme
 

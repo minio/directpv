@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package rest
+package admin
 
 import (
-	"k8s.io/klog/v2"
 	"net/http"
+
+	"k8s.io/klog/v2"
 )
 
 // readinessHandler - Checks if the process is up. Always returns success.

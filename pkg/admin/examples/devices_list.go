@@ -25,12 +25,12 @@ import (
 	"log"
 
 	"github.com/dustin/go-humanize"
-	"github.com/minio/directpv/pkg/rest"
+	"github.com/minio/directpv/pkg/admin"
 )
 
 func main() {
 	// Note: ACCESS_KEY, SECRET_KEY are dummy values, please replace them with original values.
-	admClnt, err := rest.New("<your-api-server-host>:40443", "ACCESS_KEY", "SECRET_KEY", true)
+	admClnt, err := admin.New("<your-api-server-host>:40443", "ACCESS_KEY", "SECRET_KEY", true)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -38,10 +38,10 @@ func main() {
 	// Uncomment to enable trace
 	// admClnt.TraceOn(nil)
 
-	result, err := admClnt.ListDevices(context.Background(), rest.GetDevicesRequest{
-		Drives:   []rest.Selector{},
-		Nodes:    []rest.Selector{},
-		Statuses: []rest.DeviceStatus{}, // possible values are rest.DeviceStatusAvailable and rest.DeviceStatusUnavailable
+	result, err := admClnt.ListDevices(context.Background(), admin.GetDevicesRequest{
+		Drives:   []admin.Selector{},
+		Nodes:    []admin.Selector{},
+		Statuses: []admin.DeviceStatus{}, // possible values are admin.DeviceStatusAvailable and admin.DeviceStatusUnavailable
 	})
 	if err != nil {
 		log.Fatalln(err)

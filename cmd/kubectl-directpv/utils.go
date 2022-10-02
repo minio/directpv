@@ -32,11 +32,11 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/manifoldco/promptui"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/rest"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/volume"
@@ -336,7 +336,7 @@ func getNodeSelectors() ([]types.LabelValue, error) {
 	return getSelectorValues(nodeArgs)
 }
 
-func printTable(deviceInfo map[rest.NodeName][]rest.Device) {
+func printTable(deviceInfo map[admin.NodeName][]admin.Device) {
 	fmt.Println()
 	defer func() {
 		fmt.Println()
@@ -346,11 +346,11 @@ func printTable(deviceInfo map[rest.NodeName][]rest.Device) {
 		return
 	}
 
-	getStatusAndDesc := func(device rest.Device) (string, string) {
+	getStatusAndDesc := func(device admin.Device) (string, string) {
 		switch device.Status {
-		case rest.DeviceStatusAvailable:
+		case admin.DeviceStatusAvailable:
 			return color.GreenString(string(device.Status)), color.GreenString(italic(device.Description))
-		case rest.DeviceStatusUnavailable:
+		case admin.DeviceStatusUnavailable:
 			return color.RedString(string(device.Status)), color.RedString(italic(device.Description))
 		default:
 			return string(device.Status), device.Description
