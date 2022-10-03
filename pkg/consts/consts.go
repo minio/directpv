@@ -103,6 +103,9 @@ const (
 	// MountRootDir is mount root directory.
 	MountRootDir = AppRootDir + "/mnt"
 
+	// LegacyMountRootDir is the legacy mount dir
+	LegacyMountRootDir = "/var/lib/direct-csi/"
+
 	// UnixCSIEndpoint is Unix CSI endpoint
 	UnixCSIEndpoint = "unix:///csi/csi.sock"
 
@@ -135,11 +138,10 @@ const (
 	CredentialsSecretName = AppName + "-creds"
 	AccessKeyDataKey      = "accessKey"
 	SecretKeyDataKey      = "secretKey"
-	ConfigFileSuffix      =  "." + AppName + "/config.json"
-	AccessKeyEnv = AppCapsName + "_ACCESS_KEY"
-	SecretKeyEnv = AppCapsName + "_SECRET_KEY"
+	ConfigFileSuffix      = "." + AppName + "/config.json"
+	AccessKeyEnv          = AppCapsName + "_ACCESS_KEY"
+	SecretKeyEnv          = AppCapsName + "_SECRET_KEY"
 
 	// Format
 	APIServerEnv = AppCapsName + "_API_SERVER"
-
 )

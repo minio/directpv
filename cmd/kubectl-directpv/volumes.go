@@ -32,8 +32,6 @@ var (
 	stagedFlag       bool
 	podNameSelectors []types.LabelValue
 	podNSSelectors   []types.LabelValue
-
-	allFlag = false
 )
 
 var volumesCmd = &cobra.Command{

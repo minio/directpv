@@ -94,3 +94,14 @@ func (safeFile *SafeFile) Close() error {
 func TrimDevPrefix(name string) string {
 	return strings.TrimPrefix(name, "/dev/")
 }
+
+func ExcludeFinalizer(finalizers []string, finalizer string) (result []string, found bool) {
+	for _, f := range finalizers {
+		if f != finalizer {
+			result = append(result, f)
+		} else {
+			found = true
+		}
+	}
+	return
+}

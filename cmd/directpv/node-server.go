@@ -23,6 +23,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/drive"
 	pkgidentity "github.com/minio/directpv/pkg/identity"
 	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/volume"
@@ -62,6 +63,13 @@ func startNodeServer(ctx context.Context, args []string) error {
 	go func() {
 		if err := volume.StartController(ctx, kubeNodeName); err != nil {
 			klog.ErrorS(err, "unable to start volume controller")
+			errCh <- err
+		}
+	}()
+
+	go func() {
+		if err := drive.StartController(ctx, kubeNodeName); err != nil {
+			klog.ErrorS(err, "unable to start drive controller")
 			errCh <- err
 		}
 	}()

@@ -48,7 +48,7 @@ $ kubectl {PLUGIN_NAME} volumes ls --node=node1
 $ kubectl {PLUGIN_NAME} vol ls --node=node1,node2 --staged --drive=/dev/nvme0n1
 
 # Combine multiple filters using csv
-$ kubectl {PLUGIN_NAME} volumes list --nodes=node1,node2 --drives=/dev/nvme0n1
+$ kubectl {PLUGIN_NAME} volumes list --node=node1,node2 --drive=/dev/nvme0n1
 
 # List all published volumes filtered by specified pod-name
 $ kubectl {PLUGIN_NAME} volumes ls --pod-name=minio-1

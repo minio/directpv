@@ -178,7 +178,7 @@ func (listener *Listener) handleErr(uuid types.UID, err error) {
 		listener.eventMap.Delete(uuid)
 		return
 	}
-
+	klog.Error(err)
 	listener.queue.AddRateLimited(uuid)
 }
 

@@ -36,3 +36,8 @@ func BindMount(source, target, fsType string, recursive, readOnly bool, superBlo
 func Unmount(target string, force, detach, expire bool) error {
 	return unmount(proc1Mountinfo, target, force, detach, expire)
 }
+
+// UnmountDriveMounts umounts the device with force, detach and expire options
+func UnmountDriveMounts(devicePath string, force, detach, expire bool) error {
+	return unmountDriveMounts(proc1Mountinfo, devicePath, force, detach, expire)
+}

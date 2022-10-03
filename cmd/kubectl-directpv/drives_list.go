@@ -71,7 +71,6 @@ $ kubectl {PLUGIN_NAME} drives ls --drive /dev/xvd{a...d} --node node{1...4}`,
 	},
 }
 
-// accessTierArgs
 func init() {
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter by drive path (supports ellipses pattern).")
 	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter by nodes (supports ellipses pattern).")

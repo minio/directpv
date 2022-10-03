@@ -42,6 +42,8 @@ var drivesCmd = &cobra.Command{
 func init() {
 	drivesCmd.AddCommand(listDrivesCmd)
 	drivesCmd.AddCommand(formatDrivesCmd)
+	drivesCmd.AddCommand(accessTierCmd)
+	drivesCmd.AddCommand(releaseDrivesCmd)
 }
 
 func validateDriveSelectors() (err error) {

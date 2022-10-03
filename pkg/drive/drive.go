@@ -31,8 +31,11 @@ import (
 
 func NewDrive(name string, status types.DriveStatus) *types.Drive {
 	drive := &types.Drive{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Status:     status,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       name,
+			Finalizers: []string{consts.DriveFinalizerDataProtection},
+		},
+		Status: status,
 	}
 
 	types.UpdateLabels(drive, map[types.LabelKey]types.LabelValue{

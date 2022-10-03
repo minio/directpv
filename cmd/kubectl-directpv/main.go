@@ -62,6 +62,8 @@ var (
 
 	configFile = path.Join(os.Getenv("HOME"), consts.ConfigFileSuffix)
 	printer    func(interface{}) error
+
+	allFlag = false
 )
 
 var mainCmd = &cobra.Command{

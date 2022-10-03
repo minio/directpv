@@ -39,6 +39,9 @@ const (
 
 	// DriveStatusError denotes drive is lost and no volumes will be scheduled on it anymore.
 	DriveStatusLost DriveStatus = "Lost"
+
+	// DriveStatusReleased denotes drive is released.
+	DriveStatusReleased DriveStatus = "Released"
 )
 
 // AccessTier denotes access tier.
@@ -67,15 +70,24 @@ func SupportedAccessTierValues() []string {
 	}
 }
 
+// ToAccessTier converts a string to AccessTier
+func ToAccessTier(value string) (AccessTier, error) {
+	switch at := AccessTier(strings.Title(value)); at {
+	case AccessTierWarm, AccessTierHot, AccessTierCold, AccessTierUnknown:
+		return at, nil
+	default:
+		return at, fmt.Errorf("unknown access tier value %v", value)
+	}
+}
+
 // StringsToAccessTiers converts strings to access tiers.
 func StringsToAccessTiers(values ...string) (accessTiers []AccessTier, err error) {
 	for _, value := range values {
-		switch at := AccessTier(strings.Title(value)); at {
-		case AccessTierWarm, AccessTierHot, AccessTierCold, AccessTierUnknown:
-			accessTiers = append(accessTiers, at)
-		default:
-			return nil, fmt.Errorf("unknown access tier value %v", value)
+		aT, err := ToAccessTier(value)
+		if err != nil {
+			return nil, err
 		}
+		accessTiers = append(accessTiers, aT)
 	}
 	return accessTiers, nil
 }

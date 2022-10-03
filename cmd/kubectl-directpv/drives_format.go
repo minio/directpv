@@ -59,7 +59,7 @@ $ kubectl {PLUGIN_NAME} drives format --drive=/dev/sd{a...b}
 # List all drives filtered by specified node ellipsis for the selection
 $ kubectl {PLUGIN_NAME} drives format --node=node{0...3}
 
-# List all drives by specified combination of node and drive ellipsis
+# List all drives by specified combination of node and drive ellipsis for the selection
 $ kubectl {PLUGIN_NAME} drives format --drive /dev/xvd{a...d} --node node{1...4}
 
 # Also display unavailable devices in listing

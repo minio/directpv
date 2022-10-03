@@ -38,3 +38,7 @@ func unmount(proc1Mountinfo, target string, force, detach, expire bool) error {
 func bindMount(proc1Mountinfo, source, target, fsType string, recursive, readOnly bool, superBlockFlags string) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
+
+func unmountDriveMounts(proc1Mountinfo, devicePath string, force, detach, expire bool) error {
+	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+}
