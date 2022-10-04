@@ -28,6 +28,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/jedib0t/go-pretty/text"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/k8s"
@@ -140,7 +141,7 @@ func getInfo(ctx context.Context, args []string) error {
 		return err
 	}
 
-	volumes, err := volume.GetVolumeList(ctx, nil, nil, nil, nil)
+	volumes, err := volume.GetVolumeList(ctx, nil, nil, nil, nil, nil)
 	if err != nil {
 		if !quiet {
 			klog.ErrorS(err, "unable to get volume list")
@@ -154,22 +155,27 @@ func getInfo(ctx context.Context, args []string) error {
 
 	var totalDriveSize uint64
 	var totalVolumeSize uint64
+	var totalDriveCount int
 	for _, n := range nodeList {
 		driveCount := 0
 		driveSize := uint64(0)
 		for _, d := range drives {
+			if d.Status.Status != directpvtypes.DriveStatusOK {
+				continue
+			}
 			if d.Status.NodeName == n {
 				driveCount++
 				driveSize += uint64(d.Status.TotalCapacity)
 			}
 		}
 		totalDriveSize += driveSize
+		totalDriveCount += driveCount
 
 		volumeCount := 0
 		volumeSize := uint64(0)
 		for _, v := range volumes {
 			if v.Status.NodeName == n {
-				if v.Status.IsPublished() {
+				if v.IsPublished() {
 					volumeCount++
 					volumeSize += uint64(v.Status.TotalCapacity)
 				}
@@ -210,7 +216,7 @@ func getInfo(ctx context.Context, args []string) error {
 				humanize.IBytes(totalVolumeSize),
 				humanize.IBytes(totalDriveSize),
 				color.HiWhiteString("%d", len(volumes)),
-				color.HiWhiteString("%d", len(drives)),
+				color.HiWhiteString("%d", totalDriveCount),
 			)
 		}
 	}

@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -128,6 +129,7 @@ func listDrives(ctx context.Context, args []string) error {
 	if wideOutput {
 		headers = append(headers, "MODEL")
 		headers = append(headers, "VENDOR")
+		headers = append(headers, "DRIVE NAME")
 	}
 
 	text.DisableColors()
@@ -145,7 +147,7 @@ func listDrives(ctx context.Context, args []string) error {
 
 	for _, drive := range drives {
 		volumes := "-"
-		if len(drive.Finalizers) > 1 {
+		if len(drive.Finalizers) > 1 && (drive.Status.Status == directpvtypes.DriveStatusOK || drive.Status.Status == directpvtypes.DriveStatusCordoned) {
 			volumes = fmt.Sprintf("%v", len(drive.Finalizers)-1)
 		}
 		row := []interface{}{
@@ -159,7 +161,18 @@ func listDrives(ctx context.Context, args []string) error {
 				return "-"
 			}(),
 			volumes,
-			drive.Status.Status,
+			func() string {
+				switch drive.Status.Status {
+				case directpvtypes.DriveStatusOK:
+					return color.HiGreenString(string(drive.Status.Status))
+				case directpvtypes.DriveStatusError, directpvtypes.DriveStatusTransferred:
+					return color.HiRedString(string(drive.Status.Status))
+				case directpvtypes.DriveStatusCordoned:
+					return color.HiYellowString(string(drive.Status.Status))
+				default:
+					return color.HiWhiteString(string(drive.Status.Status))
+				}
+			}(),
 			drive.Status.NodeName,
 			func() string {
 				if drive.Status.AccessTier == directpvtypes.AccessTierUnknown {
@@ -171,6 +184,7 @@ func listDrives(ctx context.Context, args []string) error {
 		if wideOutput {
 			row = append(row, drive.Status.ModelNumber)
 			row = append(row, drive.Status.Vendor)
+			row = append(row, drive.Name)
 		}
 		writer.AppendRow(row)
 	}

@@ -58,6 +58,10 @@ func (drive DirectPVDrive) IsLost() bool {
 	return drive.Status.Status == types.DriveStatusLost
 }
 
+func (drive DirectPVDrive) IsCordoned() bool {
+	return drive.Status.Status == types.DriveStatusCordoned
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // DirectPVDriveList denotes list of drives.

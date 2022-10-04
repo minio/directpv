@@ -38,12 +38,13 @@ type ListVolumeResult struct {
 }
 
 // ListVolumes lists volumes.
-func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs []types.LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
+func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs, driveNames []types.LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
 	labelMap := map[types.LabelKey][]types.LabelValue{
 		types.DrivePathLabelKey: drives,
 		types.NodeLabelKey:      nodes,
 		types.PodNameLabelKey:   podNames,
 		types.PodNSLabelKey:     podNSs,
+		types.DriveLabelKey:     driveNames,
 	}
 	labelSelector := types.ToLabelSelector(labelMap)
 
@@ -91,8 +92,8 @@ func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs []types.La
 }
 
 // GetVolumeList gets list of volumes.
-func GetVolumeList(ctx context.Context, nodes, drives, podNames, podNSs []types.LabelValue) ([]types.Volume, error) {
-	resultCh, err := ListVolumes(ctx, nodes, drives, podNames, podNSs, k8s.MaxThreadCount)
+func GetVolumeList(ctx context.Context, nodes, drives, podNames, podNSs, driveNames []types.LabelValue) ([]types.Volume, error) {
+	resultCh, err := ListVolumes(ctx, nodes, drives, podNames, podNSs, driveNames, k8s.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}

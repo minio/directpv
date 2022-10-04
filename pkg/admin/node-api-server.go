@@ -333,7 +333,7 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 	}
 	formatStatus.FSUUID = fsuuid
 	// Mount the device
-	mountTarget := path.Join(consts.MountRootDir, fsuuid)
+	mountTarget := types.GetDriveMountDir(fsuuid)
 	err = n.mountDevice(device.Path(), mountTarget)
 	if err != nil {
 		klog.Errorf("failed to mount drive %s; %w", device.Name, err)
@@ -360,7 +360,7 @@ func (n *nodeAPIHandler) format(ctx context.Context, device FormatDevice) (forma
 		return
 	}
 	// Create symbolic link
-	if err := os.Symlink(mountTarget, path.Join(mountTarget, fsuuid)); err != nil {
+	if err := os.Symlink(mountTarget, types.GetVolumeRootDir(fsuuid)); err != nil {
 		klog.Errorf("failed to create symlink for target %s. device: %s err: %s", mountTarget, device.Name, err.Error())
 		formatStatus.setErr(err, "failed to create symlink", formatRetrySuggestion)
 	}

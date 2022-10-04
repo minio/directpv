@@ -179,7 +179,7 @@ func (server *Server) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if !volume.Status.IsPublished() {
+	if !volume.IsPublished() {
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("unpublish is called without publish for volume %v", volume.Name))
 	}
 

@@ -113,6 +113,7 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 		nil,
 		nil,
 		nil,
+		nil,
 		k8s.MaxThreadCount,
 	)
 	if err != nil {

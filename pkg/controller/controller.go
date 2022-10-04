@@ -192,7 +192,7 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 
 	labels := map[types.LabelKey]types.LabelValue{
 		types.NodeLabelKey:      types.NewLabelValue(drive.Status.NodeName),
-		types.DrivePathLabelKey: types.NewLabelValue(drive.Status.Path),
+		types.DrivePathLabelKey: types.NewLabelValue(utils.TrimDevPrefix(drive.Status.Path)),
 		types.DriveLabelKey:     types.NewLabelValue(drive.Name),
 		types.VersionLabelKey:   types.NewLabelValue(consts.LatestAPIVersion),
 		types.CreatedByLabelKey: types.NewLabelValue(consts.ControllerName),
@@ -280,7 +280,7 @@ func (c *Server) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 		return nil, status.Errorf(codes.NotFound, "could not retrieve volume [%s]: %v", volumeID, err)
 	}
 
-	if volume.Status.IsStaged() || volume.Status.IsPublished() {
+	if volume.IsStaged() || volume.IsPublished() {
 		return nil, status.Errorf(codes.FailedPrecondition,
 			"waiting for volume [%s] to be unstaged before deleting", volumeID)
 	}

@@ -87,7 +87,7 @@ func TestVolumesPurge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	volumes, err := volume.GetVolumeList(ctx, nil, nil, nil, nil)
+	volumes, err := volume.GetVolumeList(ctx, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

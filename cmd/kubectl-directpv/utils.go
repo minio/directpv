@@ -233,6 +233,7 @@ func processFilteredVolumes(
 			driveSelectors,
 			podNameSelectors,
 			podNSSelectors,
+			nil,
 			k8s.MaxThreadCount)
 		if err != nil {
 			return err
