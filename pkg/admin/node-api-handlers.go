@@ -56,7 +56,7 @@ func newNodeAPIHandler(ctx context.Context, identity, nodeID, rack, zone, region
 		nodeID:                      nodeID,
 		mountDevice:                 xfs.Mount,
 		makeFS:                      xfs.MakeFS,
-		safeUnmount:                 sys.Unmount,
+		safeUnmount:                 sys.SafeUnmount,
 		truncate:                    os.Truncate,
 		attachLoopDevice:            losetup.Attach,
 		readRunUdevDataByMajorMinor: device.ReadRunUdevDataByMajorMinor,

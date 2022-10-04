@@ -64,7 +64,7 @@ func DeleteDrive(ctx context.Context, drive *types.Drive, force bool) error {
 			return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/directpv/issues")
 		}
 
-		if err := sys.Unmount(types.GetDriveMountDir(drive.Status.FSUUID), false, false, false); err != nil {
+		if err := sys.SafeUnmount(types.GetDriveMountDir(drive.Status.FSUUID), false, false, false); err != nil {
 			return err
 		}
 

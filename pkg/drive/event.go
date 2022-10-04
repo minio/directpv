@@ -18,14 +18,13 @@ package drive
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
+	"path"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/listener"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
@@ -35,21 +34,17 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-var (
-	errDriveNotEmpty = errors.New("drive is not empty")
-)
-
 type driveEventHandler struct {
-	nodeID             string
-	getDeviceByFSUUID  func(fsuuid string) (string, error)
-	unmountDriveMounts func(devicePath string, force, detach, expire bool) error
+	nodeID    string
+	getMounts func() (mountPointMap, deviceMap map[string][]string, err error)
+	unmount   func(target string, force, detach, expire bool) error
 }
 
 func newDriveEventHandler(nodeID string) *driveEventHandler {
 	return &driveEventHandler{
-		nodeID:             nodeID,
-		getDeviceByFSUUID:  device.GetDeviceByFSUUID,
-		unmountDriveMounts: sys.UnmountDriveMounts,
+		nodeID:    nodeID,
+		getMounts: sys.GetMounts,
+		unmount:   sys.Unmount,
 	}
 }
 
@@ -82,17 +77,12 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *types
 }
 
 func (handler *driveEventHandler) release(ctx context.Context, drive *types.Drive) error {
-	if err := handler.verifyDriveState(ctx, drive); err != nil {
-		return err
-	}
 	finalizers := drive.GetFinalizers()
 	if len(finalizers) > 1 {
 		return fmt.Errorf("unable to release drive %s. the drive still has volumes to be cleaned up", drive.Name)
 	}
-	if err := handler.unmountDriveMounts(drive.Status.Path, true, true, false); err != nil {
-		if _, ok := err.(*os.PathError); !ok {
-			return err
-		}
+	if err := handler.unmountDrive(ctx, drive); err != nil {
+		return err
 	}
 	drive.Finalizers, _ = utils.ExcludeFinalizer(
 		finalizers, consts.DriveFinalizerDataProtection,
@@ -103,13 +93,27 @@ func (handler *driveEventHandler) release(ctx context.Context, drive *types.Driv
 	return client.DriveClient().Delete(ctx, drive.Name, metav1.DeleteOptions{})
 }
 
-func (handler *driveEventHandler) verifyDriveState(ctx context.Context, drive *types.Drive) error {
-	device, err := handler.getDeviceByFSUUID(drive.Status.FSUUID)
+func (handler *driveEventHandler) unmountDrive(ctx context.Context, drive *types.Drive) error {
+	mountPointMap, deviceMap, err := handler.getMounts()
 	if err != nil {
 		return err
 	}
-	if drive.Status.Path != device {
-		return fmt.Errorf("path mismatch. expected: %s found: %s", drive.Status.Path, device)
+	devices, ok := mountPointMap[path.Join(consts.MountRootDir, drive.Status.FSUUID)]
+	if !ok {
+		devices, ok = mountPointMap[path.Join(consts.LegacyMountRootDir, drive.Status.FSUUID)]
+		if !ok {
+			// Device umounted already
+			return nil
+		}
+	}
+	if len(devices) > 1 {
+		return fmt.Errorf("drive %s mounted is mounted in more than one place", drive.Name)
+	}
+	mountpoints := deviceMap[devices[0]]
+	for _, mountPoint := range mountpoints {
+		if err := handler.unmount(mountPoint, true, true, false); err != nil {
+			return err
+		}
 	}
 	return nil
 }

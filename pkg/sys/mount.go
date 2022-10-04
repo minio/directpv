@@ -22,9 +22,10 @@ func GetMounts() (mountPointMap, deviceMap map[string][]string, err error) {
 	return getMounts(proc1Mountinfo)
 }
 
-// Mount mounts device to target using fsType, flags and superBlockFlags.
-func Mount(device, target, fsType string, flags []string, superBlockFlags string) error {
-	return mount(proc1Mountinfo, device, target, fsType, flags, superBlockFlags)
+// SafeMount mounts device to target using fsType, flags and superBlockFlags.
+// Ignores if the target is already mounted to source
+func SafeMount(device, target, fsType string, flags []string, superBlockFlags string) error {
+	return safeMount(proc1Mountinfo, device, target, fsType, flags, superBlockFlags)
 }
 
 // BindMount does bind-mount of source to target.
@@ -32,12 +33,13 @@ func BindMount(source, target, fsType string, recursive, readOnly bool, superBlo
 	return bindMount(proc1Mountinfo, source, target, fsType, recursive, readOnly, superBlockFlags)
 }
 
-// Unmount unmounts target with force, detach and expire options.
-func Unmount(target string, force, detach, expire bool) error {
-	return unmount(proc1Mountinfo, target, force, detach, expire)
+// SafeUnmount unmounts target with force, detach and expire options.
+// Ignores is the target is already umounted
+func SafeUnmount(target string, force, detach, expire bool) error {
+	return safeUnmount(proc1Mountinfo, target, force, detach, expire)
 }
 
-// UnmountDriveMounts umounts the device with force, detach and expire options
-func UnmountDriveMounts(devicePath string, force, detach, expire bool) error {
-	return unmountDriveMounts(proc1Mountinfo, devicePath, force, detach, expire)
+// Unmount unmounts target with force, detach and expire options.
+func Unmount(target string, force, detach, expire bool) error {
+	return unmount(target, force, detach, expire)
 }

@@ -104,7 +104,7 @@ const (
 	MountRootDir = AppRootDir + "/mnt"
 
 	// LegacyMountRootDir is the legacy mount dir
-	LegacyMountRootDir = "/var/lib/direct-csi/"
+	LegacyMountRootDir = "/var/lib/direct-csi/mnt"
 
 	// UnixCSIEndpoint is Unix CSI endpoint
 	UnixCSIEndpoint = "unix:///csi/csi.sock"

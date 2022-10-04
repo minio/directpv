@@ -27,7 +27,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/klog/v2"
 )
@@ -123,7 +122,7 @@ var mountFlagMap = map[string]uintptr{
 	"sync":        syscall.MS_SYNCHRONOUS,
 }
 
-func mount(proc1Mountinfo, device, target, fsType string, flags []string, superBlockFlags string) error {
+func safeMount(proc1Mountinfo, device, target, fsType string, flags []string, superBlockFlags string) error {
 	mountPointMap, _, err := getMounts(proc1Mountinfo)
 	if err != nil {
 		return err
@@ -176,7 +175,7 @@ func bindMount(proc1Mountinfo, source, target, fsType string, recursive, readOnl
 	return syscall.Mount(source, target, fsType, flags, superBlockFlags)
 }
 
-func unmount(proc1Mountinfo, target string, force, detach, expire bool) error {
+func safeUnmount(proc1Mountinfo, target string, force, detach, expire bool) error {
 	mountPointMap, _, err := getMounts(proc1Mountinfo)
 	if err != nil {
 		return err
@@ -187,33 +186,10 @@ func unmount(proc1Mountinfo, target string, force, detach, expire bool) error {
 		return nil
 	}
 
-	flags := 0
-	if force {
-		flags |= syscall.MNT_FORCE
-	}
-	if detach {
-		flags |= syscall.MNT_DETACH
-	}
-	if expire {
-		flags |= syscall.MNT_EXPIRE
-	}
-
-	klog.V(3).InfoS("unmounting mount point", "target", target, "force", force, "detach", detach, "expire", expire)
-	return syscall.Unmount(target, flags)
+	return unmount(target, force, detach, expire)
 }
 
-func unmountDriveMounts(proc1Mountinfo, devicePath string, force, detach, expire bool) error {
-	_, deviceMap, err := getMounts(proc1Mountinfo)
-	if err != nil {
-		return err
-	}
-
-	mountPoints, found := deviceMap[devicePath]
-	if !found {
-		klog.V(3).InfoS("device already unmounted", "devicePath", devicePath, "force", force, "detach", detach, "expire", expire)
-		return nil
-	}
-
+func unmount(target string, force, detach, expire bool) error {
 	flags := 0
 	if force {
 		flags |= syscall.MNT_FORCE
@@ -224,15 +200,6 @@ func unmountDriveMounts(proc1Mountinfo, devicePath string, force, detach, expire
 	if expire {
 		flags |= syscall.MNT_EXPIRE
 	}
-
-	for _, mountPoint := range mountPoints {
-		if strings.Contains(mountPoint, consts.MountRootDir) || strings.Contains(mountPoint, consts.LegacyMountRootDir) {
-			klog.V(3).InfoS("unmounting mount point", "target", mountPoint, "force", force, "detach", detach, "expire", expire)
-			if err := syscall.Unmount(mountPoint, flags); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	klog.V(3).InfoS("unmounting mount point", "target", target, "force", force, "detach", detach, "expire", expire)
+	return syscall.Unmount(target, flags)
 }
