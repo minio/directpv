@@ -122,14 +122,14 @@ var mountFlagMap = map[string]uintptr{
 	"sync":        syscall.MS_SYNCHRONOUS,
 }
 
-func mount(proc1Mountinfo, device, target, fsType string, flags []string, superBlockFlags string) error {
+func safeMount(proc1Mountinfo, device, target, fsType string, flags []string, superBlockFlags string) error {
 	mountPointMap, _, err := getMounts(proc1Mountinfo)
 	if err != nil {
 		return err
 	}
 
 	if devices, found := mountPointMap[target]; found {
-		if utils.StringIn(devices, device) {
+		if utils.ItemIn(devices, device) {
 			klog.V(5).InfoS("device is already mounted on target", "device", device, "target", target, "fsType", fsType, "flags", flags, "superBlockFlags", superBlockFlags)
 			return nil
 		}
@@ -156,7 +156,7 @@ func bindMount(proc1Mountinfo, source, target, fsType string, recursive, readOnl
 	}
 
 	if devices, found := mountPointMap[target]; found {
-		if utils.StringIn(devices, source) {
+		if utils.ItemIn(devices, source) {
 			klog.V(5).InfoS("source is already mounted on target", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "readOnly", readOnly, "superBlockFlags", superBlockFlags)
 			return nil
 		}
@@ -175,7 +175,7 @@ func bindMount(proc1Mountinfo, source, target, fsType string, recursive, readOnl
 	return syscall.Mount(source, target, fsType, flags, superBlockFlags)
 }
 
-func unmount(proc1Mountinfo, target string, force, detach, expire bool) error {
+func safeUnmount(proc1Mountinfo, target string, force, detach, expire bool) error {
 	mountPointMap, _, err := getMounts(proc1Mountinfo)
 	if err != nil {
 		return err
@@ -186,6 +186,10 @@ func unmount(proc1Mountinfo, target string, force, detach, expire bool) error {
 		return nil
 	}
 
+	return unmount(target, force, detach, expire)
+}
+
+func unmount(target string, force, detach, expire bool) error {
 	flags := 0
 	if force {
 		flags |= syscall.MNT_FORCE
@@ -196,7 +200,6 @@ func unmount(proc1Mountinfo, target string, force, detach, expire bool) error {
 	if expire {
 		flags |= syscall.MNT_EXPIRE
 	}
-
 	klog.V(3).InfoS("unmounting mount point", "target", target, "force", force, "detach", detach, "expire", expire)
 	return syscall.Unmount(target, flags)
 }

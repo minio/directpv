@@ -36,7 +36,7 @@ var showPVC bool
 
 var listVolumesCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List volumes served by " + consts.AppPrettyName + ".",
+	Short: "List volumes created by " + consts.AppPrettyName + ".",
 	Example: strings.ReplaceAll(
 		`# List all published volumes
 $ kubectl {PLUGIN_NAME} volumes ls
@@ -44,16 +44,25 @@ $ kubectl {PLUGIN_NAME} volumes ls
 # List all published volumes from a particular node
 $ kubectl {PLUGIN_NAME} volumes ls --node=node1
 
-# List all staged volumes from specified nodes on specified drive
+# List all staged volumes provisioned on specified drives from specified nodes
 $ kubectl {PLUGIN_NAME} vol ls --node=node1,node2 --staged --drive=/dev/nvme0n1
 
-# List all published volumes by pod name
+# Combine multiple filters using csv
+$ kubectl {PLUGIN_NAME} volumes list --node=node1,node2 --drive=/dev/nvme0n1
+
+# List all published volumes filtered by specified pod-name
+$ kubectl {PLUGIN_NAME} volumes ls --pod-name=minio-1
+
+# List all published volumes filtered by specified pod-name ellipses
 $ kubectl {PLUGIN_NAME} volumes ls --pod-name=minio-{1...3}
 
-# List all published volumes by pod namespace
+# List all published volumes filtered by specified pod namespace
+$ kubectl {PLUGIN_NAME} volumes ls --pod-namespace=tenant-1
+
+# List all published volumes filtered by specified pod namespace ellipses
 $ kubectl {PLUGIN_NAME} volumes ls --pod-namespace=tenant-{1...3}
 
-# List all published volumes from range of nodes and drives
+# List all published volumes by specified combination of node and drive ellipses
 $ kubectl {PLUGIN_NAME} volumes ls --drive /dev/xvd{a...d} --node node{1...4}
 
 # List all volumes including PVC names
@@ -73,12 +82,12 @@ $ kubectl {PLUGIN_NAME} volumes ls --all --pvc`,
 }
 
 func init() {
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter output by drives optionally in ellipses pattern.")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter output by nodes optionally in ellipses pattern.")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNameArgs, "pod-name", "", podNameArgs, "Filter output by pod names optionally in ellipses pattern.")
-	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNSArgs, "pod-namespace", "", podNSArgs, "Filter output by pod namespaces optionally in ellipses pattern.")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter by drive paths (supports ellipses pattern).")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter by nodes (supports ellipses pattern).")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNameArgs, "pod-name", "", podNameArgs, "Filter by pod names (supports ellipses pattern).")
+	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNSArgs, "pod-namespace", "", podNSArgs, "Filter by pod namespaces (supports ellipses pattern).")
 	listVolumesCmd.PersistentFlags().BoolVarP(&stagedFlag, "staged", "", stagedFlag, "Show only volumes in staged state.")
-	listVolumesCmd.PersistentFlags().BoolVarP(&allFlag, "all", "a", allFlag, "List all volumes including not provisioned.")
+	listVolumesCmd.PersistentFlags().BoolVarP(&allFlag, "all", "a", allFlag, "List all volumes including non-provisioned.")
 	listVolumesCmd.PersistentFlags().BoolVarP(&showPVC, "pvc", "", showPVC, "Show PVC names of the corresponding volumes.")
 }
 

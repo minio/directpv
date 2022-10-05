@@ -27,22 +27,12 @@ import (
 	"github.com/minio/directpv/pkg/listener"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
-
-func excludeFinalizer(finalizers []string, finalizer string) (result []string, found bool) {
-	for _, f := range finalizers {
-		if f != finalizer {
-			result = append(result, f)
-		} else {
-			found = true
-		}
-	}
-	return
-}
 
 type volumeEventHandler struct {
 	nodeID      string
@@ -82,7 +72,7 @@ func (handler *volumeEventHandler) Handle(ctx context.Context, args listener.Eve
 }
 
 func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Volume) error {
-	finalizers, _ := excludeFinalizer(
+	finalizers, _ := utils.ExcludeFinalizer(
 		volume.GetFinalizers(), string(consts.VolumeFinalizerPurgeProtection),
 	)
 	if len(finalizers) > 0 {
@@ -156,7 +146,7 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName,
 		return err
 	}
 
-	finalizers, found := excludeFinalizer(
+	finalizers, found := utils.ExcludeFinalizer(
 		drive.GetFinalizers(), consts.DriveFinalizerPrefix+volumeName,
 	)
 

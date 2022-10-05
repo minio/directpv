@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package rest
+package admin
 
 import (
 	"crypto/tls"
@@ -73,16 +73,6 @@ func getDeviceNames(devices []*device.Device) string {
 		deviceNames = append(deviceNames, device.Name)
 	}
 	return strings.Join(deviceNames, ", ")
-}
-
-// stringIn checks whether value in the slice.
-func stringIn(slice []string, value string) bool {
-	for _, s := range slice {
-		if value == s {
-			return true
-		}
-	}
-	return false
 }
 
 func writeFormatMetadata(formatMetadata FormatMetadata, filePath string) error {

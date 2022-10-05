@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package rest
+package admin
 
 import (
 	"bytes"
@@ -29,8 +29,8 @@ import (
 	"sync"
 
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -123,11 +123,7 @@ func listDevicesHandler(w http.ResponseWriter, r *http.Request) {
 func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Device, error) {
 	var nodes []string
 	for _, nodeSelector := range req.Nodes {
-		expanded, err := ellipsis.Expand(string(nodeSelector))
-		if err != nil {
-			return nil, fmt.Errorf("couldn't expand the node selector %v: %v", nodeSelector, err)
-		}
-		nodes = append(nodes, expanded...)
+		nodes = append(nodes, string(nodeSelector))
 	}
 	endpointsMap, nodeAPIPort, err := getNodeEndpoints(ctx)
 	if err != nil {
@@ -147,7 +143,7 @@ func listDevices(ctx context.Context, req GetDevicesRequest) (map[NodeName][]Dev
 	var mutex = &sync.RWMutex{}
 	var wg sync.WaitGroup
 	for node, ip := range endpointsMap {
-		if len(nodes) > 0 && !stringIn(nodes, node) {
+		if len(nodes) > 0 && !utils.ItemIn(nodes, node) {
 			continue
 		}
 		wg.Add(1)

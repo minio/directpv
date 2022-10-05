@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package rest
+package admin
 
 import (
 	"context"
@@ -37,8 +37,8 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/drive"
-	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -97,7 +97,7 @@ func ServeNodeAPIServer(ctx context.Context, nodeAPIPort int, identity, nodeID, 
 
 	errCh := make(chan error)
 	go func() {
-		klog.V(3).Infof("Starting DirectPV Node API server in port: %d", nodeAPIPort)
+		klog.V(3).Infof("Starting %s Node API server in port: %d", consts.AppPrettyName, nodeAPIPort)
 		if err := server.ServeTLS(listener, "", ""); err != nil {
 			klog.Errorf("Failed to listen and serve DirectPV Node API server: %v", err)
 			errCh <- err
@@ -142,17 +142,6 @@ func (n *nodeAPIHandler) listLocalDevicesHandler(w http.ResponseWriter, r *http.
 }
 
 func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesRequest) ([]Device, error) {
-	var driveSelectors, statusSelectors []string
-	for _, driveSelector := range req.Drives {
-		expanded, err := ellipsis.Expand(string(driveSelector))
-		if err != nil {
-			return nil, fmt.Errorf("couldn't expand the drive selector %v: %v", driveSelector, err)
-		}
-		driveSelectors = append(driveSelectors, expanded...)
-	}
-	for _, status := range req.Statuses {
-		statusSelectors = append(statusSelectors, string(status))
-	}
 	// Probe the devices from the node
 	devices, err := device.ProbeDevices()
 	if err != nil {
@@ -169,11 +158,11 @@ func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesReq
 		switch len(matchedDevices) {
 		case 0:
 			// Drive which was online before is lost/detached/corrupted now
-			if len(statusSelectors) > 0 && !stringIn(statusSelectors, string(DeviceStatusUnavailable)) {
+			if len(req.Statuses) > 0 && !utils.ItemIn(req.Statuses, DeviceStatusUnavailable) {
 				break
 			}
 			deviceName := path.Base(drive.Status.Path)
-			if len(driveSelectors) > 0 && !stringIn(driveSelectors, deviceName) {
+			if len(req.Drives) > 0 && !utils.ItemIn(req.Drives, Selector(deviceName)) {
 				break
 			}
 			deviceList = append(deviceList, Device{
@@ -187,10 +176,10 @@ func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesReq
 			})
 		case 1:
 			// Drive detected
-			if len(statusSelectors) > 0 && !stringIn(statusSelectors, string(DeviceStatusUnavailable)) {
+			if len(req.Statuses) > 0 && !utils.ItemIn(req.Statuses, DeviceStatusUnavailable) {
 				break
 			}
-			if len(driveSelectors) > 0 && !stringIn(driveSelectors, matchedDevices[0].Name) {
+			if len(req.Drives) > 0 && !utils.ItemIn(req.Drives, Selector(matchedDevices[0].Name)) {
 				break
 			}
 			deviceList = append(deviceList, Device{
@@ -216,10 +205,10 @@ func (n *nodeAPIHandler) listLocalDevices(ctx context.Context, req GetDevicesReq
 		if isUnavailable {
 			deviceStatus = DeviceStatusUnavailable
 		}
-		if len(statusSelectors) > 0 && !stringIn(statusSelectors, string(deviceStatus)) {
-			continue
+		if len(req.Statuses) > 0 && !utils.ItemIn(req.Statuses, deviceStatus) {
+			break
 		}
-		if len(driveSelectors) > 0 && !stringIn(driveSelectors, device.Name) {
+		if len(req.Drives) > 0 && !utils.ItemIn(req.Drives, Selector(device.Name)) {
 			continue
 		}
 		deviceList = append(deviceList, Device{

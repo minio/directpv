@@ -163,7 +163,7 @@ func MatchTrueConditions(conditions []metav1.Condition, types, statusList []stri
 	statusMatches := 0
 	for _, condition := range conditions {
 		ctype := strings.ToLower(condition.Type)
-		if condition.Status == metav1.ConditionTrue && utils.StringIn(types, ctype) && utils.StringIn(statusList, ctype) {
+		if condition.Status == metav1.ConditionTrue && utils.ItemIn(types, ctype) && utils.ItemIn(statusList, ctype) {
 			statusMatches++
 		}
 	}

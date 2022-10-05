@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package rest
+package admin
 
 import (
 	"context"
@@ -56,7 +56,7 @@ func newNodeAPIHandler(ctx context.Context, identity, nodeID, rack, zone, region
 		nodeID:                      nodeID,
 		mountDevice:                 xfs.Mount,
 		makeFS:                      xfs.MakeFS,
-		safeUnmount:                 sys.Unmount,
+		safeUnmount:                 sys.SafeUnmount,
 		truncate:                    os.Truncate,
 		attachLoopDevice:            losetup.Attach,
 		readRunUdevDataByMajorMinor: device.ReadRunUdevDataByMajorMinor,

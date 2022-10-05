@@ -19,8 +19,8 @@ package main
 import (
 	"context"
 
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/rest"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
@@ -47,7 +47,7 @@ func startAPIServer(ctx context.Context, args []string) error {
 
 	errCh := make(chan error)
 	go func() {
-		if err := rest.ServeAPIServer(ctx, apiPort); err != nil {
+		if err := admin.ServeAPIServer(ctx, apiPort); err != nil {
 			klog.ErrorS(err, "unable to run API server")
 			errCh <- err
 		}

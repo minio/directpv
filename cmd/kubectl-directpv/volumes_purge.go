@@ -43,10 +43,10 @@ $ kubectl {PLUGIN_NAME} volumes purge --all
 $ kubectl {PLUGIN_NAME} volumes purge <volume-name>
 
 # Purge all released|failed volumes from a particular node
-$ kubectl {PLUGIN_NAME} volumes purge --nodes=node1
+$ kubectl {PLUGIN_NAME} volumes purge --node=node1
 
 # Combine multiple filters using csv
-$ kubectl {PLUGIN_NAME} volumes purge --nodes=node1,node2 --drives=/dev/nvme0n1
+$ kubectl {PLUGIN_NAME} volumes purge --node=node1,node2 --drive=/dev/nvme0n1
 
 # Purge all released|failed volumes by pod name
 $ kubectl {PLUGIN_NAME} volumes purge --pod-name=minio-{1...3}
@@ -55,13 +55,13 @@ $ kubectl {PLUGIN_NAME} volumes purge --pod-name=minio-{1...3}
 $ kubectl {PLUGIN_NAME} volumes purge --pod-namespace=tenant-{1...3}
 
 # Purge all released|failed volumes based on drive and volume ellipses
-$ kubectl {PLUGIN_NAME} volumes purge --drives /dev/xvd{a...d} --nodes node-{1...4}`,
+$ kubectl {PLUGIN_NAME} volumes purge --drive /dev/xvd{a...d} --node node-{1...4}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	RunE: func(c *cobra.Command, args []string) error {
 		if !allFlag && len(driveArgs) == 0 && len(nodeArgs) == 0 && len(podNameArgs) == 0 && len(podNSArgs) == 0 && len(args) == 0 {
-			return fmt.Errorf("atleast one of '--all', '--drives', '--nodes', '--pod-name' or '--pod-namespace' must be specified")
+			return fmt.Errorf("atleast one of '--all', '--drive', '--node', '--pod-name' or '--pod-namespace' must be specified")
 		}
 		if err := validateVolumeSelectors(); err != nil {
 			return err
@@ -72,11 +72,11 @@ $ kubectl {PLUGIN_NAME} volumes purge --drives /dev/xvd{a...d} --nodes node-{1..
 }
 
 func init() {
-	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter output by drives optionally in ellipses pattern.")
-	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter output by nodes optionally in ellipses pattern.")
+	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter by drive paths (supports ellipses pattern).")
+	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter by nodes (supports ellipses pattern).")
 	purgeVolumesCmd.PersistentFlags().BoolVarP(&allFlag, "all", "a", allFlag, "Purge all released|failed volumes.")
-	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&podNameArgs, "pod-name", "", podNameArgs, "Filter output by pod names optionally in ellipses pattern.")
-	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&podNSArgs, "pod-namespace", "", podNSArgs, "Filter output by pod namespaces optionally in ellipses pattern.")
+	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&podNameArgs, "pod-name", "", podNameArgs, "Filter by pod names (supports ellipses pattern).")
+	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&podNSArgs, "pod-namespace", "", podNSArgs, "Filter by pod namespaces (supports ellipses pattern).")
 }
 
 func purgeVolumes(ctx context.Context, names []string) error {

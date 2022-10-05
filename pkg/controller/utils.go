@@ -94,7 +94,7 @@ func getFilteredDrives(ctx context.Context, req *csi.CreateVolumeRequest) (drive
 			return nil, result.Err
 		}
 
-		if utils.StringIn(result.Drive.Finalizers, consts.DriveFinalizerPrefix+req.GetName()) {
+		if utils.ItemIn(result.Drive.Finalizers, consts.DriveFinalizerPrefix+req.GetName()) {
 			return []types.Drive{result.Drive}, nil
 		}
 

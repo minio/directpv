@@ -21,8 +21,8 @@ import (
 	"errors"
 	"os"
 
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/rest"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
@@ -54,7 +54,7 @@ func startNodeAPIServer(ctx context.Context, args []string) error {
 
 	errCh := make(chan error)
 	go func() {
-		if err := rest.ServeNodeAPIServer(ctx,
+		if err := admin.ServeNodeAPIServer(ctx,
 			nodeAPIPort,
 			identity,
 			kubeNodeName,

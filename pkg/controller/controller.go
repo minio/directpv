@@ -227,7 +227,7 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 	}
 
 	finalizer := consts.DriveFinalizerPrefix + req.GetName()
-	if !utils.StringIn(drive.Finalizers, finalizer) {
+	if !utils.ItemIn(drive.Finalizers, finalizer) {
 		drive.Status.FreeCapacity -= size
 		drive.Status.AllocatedCapacity += size
 		drive.SetFinalizers(append(drive.GetFinalizers(), finalizer))

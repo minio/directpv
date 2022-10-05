@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package rest
+package admin
 
 import (
 	"context"
@@ -24,14 +24,14 @@ import (
 	"net/http"
 )
 
-// FormatDevices - formats the requested devices and responds with results
-func (adm *AdminClient) FormatDevices(ctx context.Context, req FormatDevicesRequest) (result FormatDevicesResponse, err error) {
+// ListDevices - lists the available and unavailable devices present in the nodes. Also honours the selectors for filtering
+func (adm *Client) ListDevices(ctx context.Context, req GetDevicesRequest) (result GetDevicesResponse, err error) {
 	reqBodyInBytes, err := json.Marshal(req)
 	if err != nil {
 		return result, fmt.Errorf("errror while marshalling the request: %v", err)
 	}
 	resp, err := adm.executeMethod(ctx, "", RequestData{
-		RelPath: devicesFormatAPIPath,
+		RelPath: devicesListAPIPath,
 		Content: reqBodyInBytes,
 	})
 	defer closeResponse(resp)

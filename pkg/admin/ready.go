@@ -1,5 +1,3 @@
-//go:build linux
-
 // This file is part of MinIO DirectPV
 // Copyright (c) 2021, 2022 MinIO, Inc.
 //
@@ -16,23 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package xfs
+package admin
 
 import (
-	"errors"
-	"os"
+	"net/http"
 
-	"github.com/minio/directpv/pkg/sys"
+	"k8s.io/klog/v2"
 )
 
-func mount(device, target string) error {
-	if err := os.Mkdir(target, 0o777); err != nil && !errors.Is(err, os.ErrExist) {
-		return err
+// readinessHandler - Checks if the process is up. Always returns success.
+func readinessHandler(w http.ResponseWriter, r *http.Request) {
+	klog.V(5).Infof("Received readiness request %v", r)
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
-
-	return sys.SafeMount(device, target, "xfs", []string{"noatime"}, "prjquota")
-}
-
-func bindMount(source, target string, readOnly bool) error {
-	return sys.BindMount(source, target, "xfs", false, readOnly, "prjquota")
 }

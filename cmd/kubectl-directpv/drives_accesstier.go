@@ -14,19 +14,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package rest
+package main
 
 import (
-	"k8s.io/klog/v2"
-	"net/http"
+	"fmt"
+
+	"github.com/minio/directpv/pkg/consts"
+	"github.com/spf13/cobra"
 )
 
-// readinessHandler - Checks if the process is up. Always returns success.
-func readinessHandler(w http.ResponseWriter, r *http.Request) {
-	klog.V(5).Infof("Received readiness request %v", r)
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	} else {
-		w.WriteHeader(http.StatusOK)
-	}
+var accessTierCmd = &cobra.Command{
+	Use:   "access-tier",
+	Short: fmt.Sprintf("Manage access-tier configuration on %s drives", consts.AppPrettyName),
+	Aliases: []string{
+		"accesstier",
+	},
+}
+
+func init() {
+	accessTierCmd.AddCommand(accessTierSetCmd)
+	accessTierCmd.AddCommand(accessTierUnsetCmd)
 }

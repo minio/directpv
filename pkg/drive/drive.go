@@ -31,8 +31,11 @@ import (
 
 func NewDrive(name string, status types.DriveStatus) *types.Drive {
 	drive := &types.Drive{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Status:     status,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       name,
+			Finalizers: []string{consts.DriveFinalizerDataProtection},
+		},
+		Status: status,
 	}
 
 	types.UpdateLabels(drive, map[types.LabelKey]types.LabelValue{
@@ -61,7 +64,7 @@ func DeleteDrive(ctx context.Context, drive *types.Drive, force bool) error {
 			return fmt.Errorf("invalid state reached. Report this issue at https://github.com/minio/directpv/issues")
 		}
 
-		if err := sys.Unmount(types.GetDriveMountDir(drive.Status.FSUUID), false, false, false); err != nil {
+		if err := sys.SafeUnmount(types.GetDriveMountDir(drive.Status.FSUUID), false, false, false); err != nil {
 			return err
 		}
 

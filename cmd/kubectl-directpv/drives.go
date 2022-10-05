@@ -19,67 +19,55 @@ package main
 import (
 	"fmt"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
 var (
-	podNameArgs []string
-	podNSArgs   []string
-
-	stagedFlag       bool
-	podNameSelectors []types.LabelValue
-	podNSSelectors   []types.LabelValue
+	accessTierArgs      []string
+	accessTierSelectors []types.LabelValue
 )
 
-var volumesCmd = &cobra.Command{
-	Use:   "volumes",
-	Short: fmt.Sprintf("Manage %s Volumes", consts.AppPrettyName),
+var drivesCmd = &cobra.Command{
+	Use:   "drives",
+	Short: fmt.Sprintf("Manage %s drives", consts.AppPrettyName),
 	Aliases: []string{
-		"volume",
-		"vol",
+		"drive",
+		"dr",
 	},
 }
 
 func init() {
-	volumesCmd.AddCommand(listVolumesCmd)
-	volumesCmd.AddCommand(purgeVolumesCmd)
+	drivesCmd.AddCommand(listDrivesCmd)
+	drivesCmd.AddCommand(formatDrivesCmd)
+	drivesCmd.AddCommand(accessTierCmd)
+	drivesCmd.AddCommand(releaseDrivesCmd)
 }
 
-func getPodNameSelectors() ([]types.LabelValue, error) {
-	for i := range podNameArgs {
-		if utils.TrimDevPrefix(podNameArgs[i]) == "" {
-			return nil, fmt.Errorf("empty pod name %v", podNameArgs[i])
-		}
-	}
-	return getSelectorValues(podNameArgs)
-}
-
-func getPodNamespaceSelectors() ([]types.LabelValue, error) {
-	for i := range podNSArgs {
-		if utils.TrimDevPrefix(podNSArgs[i]) == "" {
-			return nil, fmt.Errorf("empty pod namespace %v", podNSArgs[i])
-		}
-	}
-	return getSelectorValues(podNSArgs)
-}
-
-func validateVolumeSelectors() (err error) {
+func validateDriveSelectors() (err error) {
 	if driveSelectors, err = getDriveSelectors(); err != nil {
 		return err
 	}
-
 	if nodeSelectors, err = getNodeSelectors(); err != nil {
 		return err
 	}
-
-	if podNameSelectors, err = getPodNameSelectors(); err != nil {
-		return err
-	}
-
-	podNSSelectors, err = getPodNamespaceSelectors()
+	accessTierSelectors, err = getAccessTierSelectors()
 
 	return err
+}
+
+func getAccessTierSelectors() ([]types.LabelValue, error) {
+	accessTierSet, err := directpvtypes.StringsToAccessTiers(accessTierArgs...)
+	if err != nil {
+		return nil, err
+	}
+
+	var labelValues []types.LabelValue
+	for _, accessTier := range accessTierSet {
+		labelValues = append(labelValues, types.NewLabelValue(string(accessTier)))
+	}
+
+	return labelValues, nil
 }

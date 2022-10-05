@@ -24,13 +24,13 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/minio/directpv/pkg/rest"
+	"github.com/minio/directpv/pkg/admin"
 )
 
 func main() {
 	// Note: ACCESS_KEY, SECRET_KEY are dummy values, please replace them with original values.
 	// CAUTION: This example may format the drives. Please be careful when executing this
-	admClnt, err := rest.New("<your-api-server-host>:40443", "ACCESS_KEY", "SECRET_KEY", true)
+	admClnt, err := admin.New("<your-api-server-host>:40443", "ACCESS_KEY", "SECRET_KEY", true)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -38,20 +38,20 @@ func main() {
 	// Uncomment to enable trace
 	// admClnt.TraceOn(nil)
 
-	result, err := admClnt.ListDevices(context.Background(), rest.GetDevicesRequest{
-		Drives:   []rest.Selector{},     // supports ellipsis. eg, `sda`, `sd{a...d}`, `sda,sd{b...d}`
-		Nodes:    []rest.Selector{},     // supports ellipsis. eg, `node-1`, `node-{1...4}`, `node-1, node-{2...4}`
-		Statuses: []rest.DeviceStatus{}, // possible values are rest.DeviceStatusAvailable and rest.DeviceStatusUnavailable
+	result, err := admClnt.ListDevices(context.Background(), admin.GetDevicesRequest{
+		Drives:   []admin.Selector{},
+		Nodes:    []admin.Selector{},
+		Statuses: []admin.DeviceStatus{}, // possible values are admin.DeviceStatusAvailable and admin.DeviceStatusUnavailable
 	})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	formatInfo := make(map[rest.NodeName][]rest.FormatDevice)
+	formatInfo := make(map[admin.NodeName][]admin.FormatDevice)
 	for nodeName, deviceList := range result.DeviceInfo {
-		var devicesToFormat []rest.FormatDevice
+		var devicesToFormat []admin.FormatDevice
 		for _, device := range deviceList {
-			devicesToFormat = append(devicesToFormat, rest.FormatDevice{
+			devicesToFormat = append(devicesToFormat, admin.FormatDevice{
 				Name:       device.Name,
 				MajorMinor: device.MajorMinor,
 				Force:      device.Filesystem != "",
@@ -59,7 +59,7 @@ func main() {
 			})
 		}
 		if len(devicesToFormat) > 0 {
-			formatInfo[rest.NodeName(nodeName)] = devicesToFormat
+			formatInfo[admin.NodeName(nodeName)] = devicesToFormat
 		}
 	}
 
@@ -67,7 +67,7 @@ func main() {
 		log.Fatal("no devices listed for formatting")
 	}
 
-	formatResult, err := admClnt.FormatDevices(context.Background(), rest.FormatDevicesRequest{
+	formatResult, err := admClnt.FormatDevices(context.Background(), admin.FormatDevicesRequest{
 		FormatInfo: formatInfo,
 	})
 	if err != nil {

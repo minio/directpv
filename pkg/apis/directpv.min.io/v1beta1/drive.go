@@ -54,6 +54,10 @@ type DirectPVDrive struct {
 	Status DirectPVDriveStatus `json:"status"`
 }
 
+func (drive DirectPVDrive) IsLost() bool {
+	return drive.Status.Status == types.DriveStatusLost
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // DirectPVDriveList denotes list of drives.
