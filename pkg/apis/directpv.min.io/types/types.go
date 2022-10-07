@@ -46,11 +46,11 @@ const (
 	// DriveStatusCordoned denotes drive is crdoned.
 	DriveStatusCordoned DriveStatus = "Cordoned"
 
-	// DriveStatusTransferring denotes that the drive is processing the transfer request
-	DriveStatusTransferring DriveStatus = "Transferring"
+	// DriveStatusMoving denotes that the drive is processing the move request
+	DriveStatusMoving DriveStatus = "Moving"
 
-	// DriveStatusTransferred denotes that the drive is transfered to a target drive
-	DriveStatusTransferred DriveStatus = "Transferred"
+	// DriveStatusMoved denotes that the drive is moved to a target drive
+	DriveStatusMoved DriveStatus = "Moved"
 )
 
 // AccessTier denotes access tier.

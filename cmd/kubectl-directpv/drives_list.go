@@ -165,7 +165,7 @@ func listDrives(ctx context.Context, args []string) error {
 				switch drive.Status.Status {
 				case directpvtypes.DriveStatusOK:
 					return color.HiGreenString(string(drive.Status.Status))
-				case directpvtypes.DriveStatusError, directpvtypes.DriveStatusTransferred:
+				case directpvtypes.DriveStatusError, directpvtypes.DriveStatusMoved:
 					return color.HiRedString(string(drive.Status.Status))
 				case directpvtypes.DriveStatusCordoned:
 					return color.HiYellowString(string(drive.Status.Status))

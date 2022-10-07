@@ -85,15 +85,15 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *types
 	switch drive.Status.Status {
 	case directpvtypes.DriveStatusReleased:
 		return handler.release(ctx, drive)
-	case directpvtypes.DriveStatusTransferring:
-		return handler.transfer(ctx, drive)
+	case directpvtypes.DriveStatusMoving:
+		return handler.move(ctx, drive)
 	default:
 		return nil
 	}
 }
 
-// transfer processes the transfer request by staging the trasferred target volumes
-func (handler *driveEventHandler) transfer(ctx context.Context, drive *types.Drive) error {
+// move processes the move request by staging the moved target volumes
+func (handler *driveEventHandler) move(ctx context.Context, drive *types.Drive) error {
 	driveClient := client.DriveClient()
 	volumeClient := client.VolumeClient()
 	finalizers := drive.GetFinalizers()
@@ -133,14 +133,18 @@ func (handler *driveEventHandler) transfer(ctx context.Context, drive *types.Dri
 				return err
 			}
 		}
-
+		// update the volume
+		types.UpdateLabels(volume, map[types.LabelKey]types.LabelValue{
+			types.DrivePathLabelKey: types.NewLabelValue(utils.TrimDevPrefix(drive.Status.Path)),
+			types.DriveLabelKey:     types.NewLabelValue(drive.Name),
+		})
 		if _, err := volumeClient.Update(ctx, volume, metav1.UpdateOptions{
 			TypeMeta: types.NewVolumeTypeMeta(),
 		}); err != nil {
 			return err
 		}
 	}
-	// update the source drive's status as "Transferred"
+	// update the source drive's status as "Moved"
 	sourceDrive, err := driveClient.Get(ctx, sourceDriveName, metav1.GetOptions{})
 	if err != nil {
 		klog.ErrorS(err, "unable to get the source drive",
@@ -148,7 +152,7 @@ func (handler *driveEventHandler) transfer(ctx context.Context, drive *types.Dri
 		)
 		return err
 	}
-	sourceDrive.Status.Status = directpvtypes.DriveStatusTransferred
+	sourceDrive.Status.Status = directpvtypes.DriveStatusMoved
 	if _, err := driveClient.Update(ctx, sourceDrive, metav1.UpdateOptions{
 		TypeMeta: types.NewDriveTypeMeta(),
 	}); err != nil {

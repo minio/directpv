@@ -44,12 +44,12 @@ var (
 	errCapacityNotAvailable = errors.New("the drive do not have enough capacity to accomodate")
 )
 
-var transferDriveCmd = &cobra.Command{
-	Use:   "transfer",
-	Short: "Transfer a drive to another drive within the same node (without data)",
+var moveDriveCmd = &cobra.Command{
+	Use:   "move",
+	Short: "Move a drive to another drive within the same node (without data)",
 	Example: strings.ReplaceAll(
-		`# Trasfer a drive to another drive
-$ kubectl {PLUGIN_NAME} drives transfer --from <drive_id> --to <drive_id>`,
+		`# Move a drive to another drive
+$ kubectl {PLUGIN_NAME} drives move --from <drive_id> --to <drive_id>`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -60,16 +60,16 @@ $ kubectl {PLUGIN_NAME} drives transfer --from <drive_id> --to <drive_id>`,
 		if toDrive == "" {
 			return errToFlagNotSet
 		}
-		return transferDrive(c.Context())
+		return moveDrive(c.Context())
 	},
 }
 
 func init() {
-	transferDriveCmd.PersistentFlags().StringVarP(&fromDrive, "from", "", fromDrive, fmt.Sprintf("the name of the source %s drive that needs to be transferred", consts.AppPrettyName))
-	transferDriveCmd.PersistentFlags().StringVarP(&toDrive, "to", "", toDrive, fmt.Sprintf("the name of the target %s drive to which the source has to be transferred", consts.AppPrettyName))
+	moveDriveCmd.PersistentFlags().StringVarP(&fromDrive, "from", "", fromDrive, fmt.Sprintf("the name of the source %s drive that needs to be moved", consts.AppPrettyName))
+	moveDriveCmd.PersistentFlags().StringVarP(&toDrive, "to", "", toDrive, fmt.Sprintf("the name of the target %s drive to which the source has to be moved", consts.AppPrettyName))
 }
 
-func transferDrive(ctx context.Context) error {
+func moveDrive(ctx context.Context) error {
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		driveClient := client.DriveClient()
 		sourceDrive, err := driveClient.Get(ctx, strings.TrimSpace(fromDrive), metav1.GetOptions{})
@@ -80,13 +80,13 @@ func transferDrive(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if err := validateTransferRequest(sourceDrive, targetDrive); err != nil {
+		if err := validateMoveRequest(sourceDrive, targetDrive); err != nil {
 			return err
 		}
-		if err := transfer(ctx, sourceDrive, targetDrive); err != nil {
+		if err := move(ctx, sourceDrive, targetDrive); err != nil {
 			return err
 		}
-		targetDrive.Status.Status = directpvtypes.DriveStatusTransferring
+		targetDrive.Status.Status = directpvtypes.DriveStatusMoving
 		_, err = driveClient.Update(
 			ctx, targetDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 		)
@@ -97,7 +97,7 @@ func transferDrive(ctx context.Context) error {
 	return nil
 }
 
-func validateTransferRequest(sourceDrive, targetDrive *types.Drive) error {
+func validateMoveRequest(sourceDrive, targetDrive *types.Drive) error {
 	if !(sourceDrive.IsCordoned() || sourceDrive.IsLost()) || !targetDrive.IsCordoned() {
 		klog.Error("please make sure both the source and target drives are cordoned")
 		return errInvalidState
@@ -113,7 +113,7 @@ func validateTransferRequest(sourceDrive, targetDrive *types.Drive) error {
 	return nil
 }
 
-func transfer(ctx context.Context, sourceDrive, targetDrive *types.Drive) error {
+func move(ctx context.Context, sourceDrive, targetDrive *types.Drive) error {
 	selector, err := getDriveNameSelectors([]string{sourceDrive.Name})
 	if err != nil {
 		return err

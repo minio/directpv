@@ -104,6 +104,7 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 
 	deletedDir := volume.Status.DataPath + ".deleted"
 	if err := os.Rename(volume.Status.DataPath, deletedDir); err != nil && !errors.Is(err, os.ErrNotExist) {
+		// FIXME: Also handle input/output error
 		klog.ErrorS(
 			err,
 			"unable to rename data path to deleted data path",
