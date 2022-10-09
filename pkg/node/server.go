@@ -21,23 +21,21 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
-	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/metrics"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/minio/directpv/pkg/xfs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
 // Server denotes node server.
 type Server struct {
-	nodeID   string
+	nodeID   directpvtypes.NodeID
 	identity string
 	rack     string
 	zone     string
@@ -47,15 +45,14 @@ type Server struct {
 	getDeviceByFSUUID func(fsuuid string) (string, error)
 	bindMount         func(source, target string, readOnly bool) error
 	unmount           func(target string) error
-	getQuota          func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error)
-	setQuota          func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error)
-	mkdir             func(path string, perm os.FileMode) error
-	stageVolume       func(ctx context.Context, volume *types.Volume) error
+	getQuota          func(ctx context.Context, device, volumeName string) (quota *xfs.Quota, err error)
+	setQuota          func(ctx context.Context, device, path, volumeName string, quota xfs.Quota) (err error)
+	mkdir             func(path string) error
 }
 
 // NewServer creates node server.
 func NewServer(ctx context.Context,
-	identity, nodeID, rack, zone, region string,
+	identity string, nodeID directpvtypes.NodeID, rack, zone, region string,
 	metricsPort int,
 ) (*Server, error) {
 	nodeServer := &Server{
@@ -66,13 +63,14 @@ func NewServer(ctx context.Context,
 		region:   region,
 
 		getMounts:         sys.GetMounts,
-		getDeviceByFSUUID: device.GetDeviceByFSUUID,
+		getDeviceByFSUUID: sys.GetDeviceByFSUUID,
 		bindMount:         xfs.BindMount,
-		unmount:           func(target string) error { return sys.SafeUnmount(target, true, true, false) },
+		unmount:           func(target string) error { return sys.Unmount(target, true, true, false) },
 		getQuota:          xfs.GetQuota,
 		setQuota:          xfs.SetQuota,
-		mkdir:             os.Mkdir,
-		stageVolume:       volume.Stage,
+		mkdir: func(dir string) error {
+			return os.Mkdir(dir, 0o755)
+		},
 	}
 
 	go metrics.ServeMetrics(ctx, nodeID, metricsPort)
@@ -85,16 +83,16 @@ func NewServer(ctx context.Context,
 func (server *Server) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	topology := &csi.Topology{
 		Segments: map[string]string{
-			string(types.TopologyDriverIdentity): server.identity,
-			string(types.TopologyDriverRack):     server.rack,
-			string(types.TopologyDriverZone):     server.zone,
-			string(types.TopologyDriverRegion):   server.region,
-			string(types.TopologyDriverNode):     server.nodeID,
+			string(directpvtypes.TopologyDriverIdentity): server.identity,
+			string(directpvtypes.TopologyDriverRack):     server.rack,
+			string(directpvtypes.TopologyDriverZone):     server.zone,
+			string(directpvtypes.TopologyDriverRegion):   server.region,
+			string(directpvtypes.TopologyDriverNode):     string(server.nodeID),
 		},
 	}
 
 	return &csi.NodeGetInfoResponse{
-		NodeId:             server.nodeID,
+		NodeId:             string(server.nodeID),
 		MaxVolumesPerNode:  100,
 		AccessibleTopology: topology,
 	}, nil
@@ -150,7 +148,7 @@ func (server *Server) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 				"on the host to reload",
 			"FSUUID", volume.Status.FSUUID)
 		client.Eventf(
-			volume, corev1.EventTypeWarning, "NodeStageVolume",
+			volume, client.EventTypeWarning, client.EventReasonMetrics,
 			"unable to find device by FSUUID %v; "+
 				"either device is removed or run command "+
 				"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+

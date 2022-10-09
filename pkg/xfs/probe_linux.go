@@ -22,18 +22,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"time"
 )
-
-// MinSupportedDeviceSize is minimum supported size for default XFS filesystem.
-const MinSupportedDeviceSize = 16 * 1024 * 1024 // 16 MiB
-
-// ErrFSNotFound denotes filesystem not found error.
-var ErrFSNotFound = errors.New("filesystem not found")
 
 func bytesToUUIDString(uuid [16]byte) string {
 	return fmt.Sprintf(

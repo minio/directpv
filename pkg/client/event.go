@@ -25,6 +25,23 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
+type EventType string
+
+const (
+	EventTypeNormal  EventType = EventType(apicorev1.EventTypeNormal)
+	EventTypeWarning EventType = EventType(apicorev1.EventTypeWarning)
+)
+
+type EventReason string
+
+const (
+	EventReasonStageVolume       EventReason = "StageVolume"
+	EventReasonVolumeMoved       EventReason = "VolumeMoved"
+	EventReasonMetrics           EventReason = "Metrics"
+	EventReasonVolumeProvisioned EventReason = "VolumeProvisioned"
+	EventReasonVolumeAdded       EventReason = "VolumeAdded"
+)
+
 var (
 	eventBroadcaster record.EventBroadcaster
 	eventRecorder    record.EventRecorder
@@ -43,6 +60,6 @@ func initEvent(kubeClient kubernetes.Interface) {
 }
 
 // Eventf raises kubernetes events.
-func Eventf(object runtime.Object, eventType, reason, messageFmt string, args ...interface{}) {
-	eventRecorder.Eventf(object, eventType, reason, messageFmt, args...)
+func Eventf(object runtime.Object, eventType EventType, reason EventReason, messageFmt string, args ...interface{}) {
+	eventRecorder.Eventf(object, string(eventType), string(reason), messageFmt, args...)
 }

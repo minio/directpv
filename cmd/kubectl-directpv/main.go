@@ -20,17 +20,14 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
-	"path"
 	"syscall"
 	"time"
 
-	"github.com/fatih/color"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
@@ -51,19 +48,19 @@ var (
 	jsonOutput   = false
 	yamlOutput   = false
 	noHeaders    = false
+	allFlag      = false
 )
 
 var (
-	driveArgs []string
 	nodeArgs  []string
+	driveArgs []string
 
-	driveSelectors []types.LabelValue
-	nodeSelectors  []types.LabelValue
+	nodeSelectors  []directpvtypes.LabelValue
+	driveSelectors []directpvtypes.LabelValue
 
-	configFile = path.Join(os.Getenv("HOME"), consts.ConfigFileSuffix)
-	printer    func(interface{}) error
+	printer func(interface{}) error
 
-	allFlag = false
+	configDir = getDefaultConfigDir()
 )
 
 var mainCmd = &cobra.Command{
@@ -72,7 +69,7 @@ var mainCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: false,
 	Version:       Version,
-	PersistentPreRunE: func(c *cobra.Command, args []string) error {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		switch outputFormat {
 		case "":
 		case "wide":
@@ -119,7 +116,6 @@ func init() {
 	mainCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "", dryRun, "Run in dry-run mode and output yaml")
 	mainCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "", quiet, "Supress printing error logs")
 	mainCmd.PersistentFlags().BoolVarP(&noHeaders, "no-headers", "", noHeaders, "When using the default or custom-column output format, don't print headers (default print headers).")
-	mainCmd.PersistentFlags().StringVarP(&configFile, fmt.Sprintf("%s-config", consts.AppName), "", configFile, fmt.Sprintf("Specify %s config file path", consts.AppPrettyName))
 
 	mainCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	mainCmd.PersistentFlags().MarkHidden("add_dir_header")
@@ -143,8 +139,8 @@ func init() {
 	mainCmd.AddCommand(infoCmd)
 	mainCmd.AddCommand(installCmd)
 	mainCmd.AddCommand(uninstallCmd)
-	mainCmd.AddCommand(drivesCmd)
 	mainCmd.AddCommand(volumesCmd)
+	mainCmd.AddCommand(drivesCmd)
 }
 
 func main() {
@@ -161,12 +157,7 @@ func main() {
 	}()
 
 	if err := mainCmd.ExecuteContext(ctx); err != nil {
-		fmt.Fprintln(os.Stderr, color.HiRedString("ERROR")+" "+err.Error())
-
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "run '%s' to get started\n", color.HiWhiteString("kubectl "+consts.AppName+" install"))
-		}
-
+		eprintf(err.Error(), true)
 		os.Exit(1)
 	}
 }

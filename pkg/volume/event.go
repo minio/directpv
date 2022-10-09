@@ -22,12 +22,13 @@ import (
 	"fmt"
 	"os"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/listener"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/xfs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -35,19 +36,39 @@ import (
 )
 
 type volumeEventHandler struct {
-	nodeID      string
-	safeUnmount func(target string, force, detach, expire bool) error
+	nodeID            directpvtypes.NodeID
+	unmount           func(target string) error
+	getDeviceByFSUUID func(fsuuid string) (string, error)
+	mkdir             func(path string) error
+	setQuota          func(ctx context.Context, device, path, volumeName string, quota xfs.Quota) (err error)
+	bindMount         func(source, target string, readOnly bool) error
 }
 
-func newVolumeEventHandler(nodeID string) *volumeEventHandler {
+func newVolumeEventHandler(nodeID directpvtypes.NodeID) *volumeEventHandler {
 	return &volumeEventHandler{
-		nodeID:      nodeID,
-		safeUnmount: sys.Unmount,
+		nodeID: nodeID,
+		unmount: func(mountPoint string) error {
+			return sys.Unmount(mountPoint, true, true, false)
+		},
+		getDeviceByFSUUID: sys.GetDeviceByFSUUID,
+		mkdir: func(dir string) error {
+			return os.Mkdir(dir, 0o755)
+		},
+		setQuota:  xfs.SetQuota,
+		bindMount: xfs.BindMount,
 	}
 }
 
 func (handler *volumeEventHandler) ListerWatcher() cache.ListerWatcher {
-	return VolumesListerWatcher(handler.nodeID)
+	labelSelector := fmt.Sprintf("%s=%s", directpvtypes.NodeLabelKey, handler.nodeID)
+	return cache.NewFilteredListWatchFromClient(
+		client.RESTClient(),
+		consts.VolumeResource,
+		"",
+		func(options *metav1.ListOptions) {
+			options.LabelSelector = labelSelector
+		},
+	)
 }
 
 func (handler *volumeEventHandler) Name() string {
@@ -65,22 +86,21 @@ func (handler *volumeEventHandler) Handle(ctx context.Context, args listener.Eve
 	if err != nil {
 		return err
 	}
+
 	if !volume.GetDeletionTimestamp().IsZero() {
 		return handler.delete(ctx, volume)
 	}
+
 	return nil
 }
 
 func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Volume) error {
-	finalizers, _ := utils.ExcludeFinalizer(
-		volume.GetFinalizers(), string(consts.VolumeFinalizerPurgeProtection),
-	)
-	if len(finalizers) > 0 {
-		return fmt.Errorf("waiting for the volume to be released before cleaning up")
+	if !volume.IsReleased() {
+		return fmt.Errorf("volume %v must be released before cleaning up", volume.Name)
 	}
 
 	if volume.Status.TargetPath != "" {
-		if err := handler.safeUnmount(volume.Status.TargetPath, true, true, false); err != nil {
+		if err := handler.unmount(volume.Status.TargetPath); err != nil {
 			if _, ok := err.(*os.PathError); !ok {
 				klog.ErrorS(err, "unable to unmount container path",
 					"volume", volume.Name,
@@ -91,7 +111,7 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 		}
 	}
 	if volume.Status.StagingTargetPath != "" {
-		if err := handler.safeUnmount(volume.Status.StagingTargetPath, true, true, false); err != nil {
+		if err := handler.unmount(volume.Status.StagingTargetPath); err != nil {
 			if _, ok := err.(*os.PathError); !ok {
 				klog.ErrorS(err, "unable to unmount staging path",
 					"volume", volume.Name,
@@ -127,11 +147,11 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	}(volume.Name, deletedDir)
 
 	// Release volume from associated drive.
-	if err := handler.releaseVolume(ctx, volume.Status.DriveName, volume.Name, volume.Status.TotalCapacity); err != nil {
+	if err := handler.releaseVolume(ctx, volume.GetDriveID(), volume.Name, volume.Status.TotalCapacity); err != nil {
 		return err
 	}
 
-	volume.SetFinalizers(finalizers)
+	volume.RemovePurgeProtection()
 	_, err := client.VolumeClient().Update(
 		ctx, volume, metav1.UpdateOptions{TypeMeta: types.NewVolumeTypeMeta()},
 	)
@@ -139,20 +159,16 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	return err
 }
 
-func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName, volumeName string, capacity int64) error {
+func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveID directpvtypes.DriveID, volumeName string, capacity int64) error {
 	drive, err := client.DriveClient().Get(
-		ctx, driveName, metav1.GetOptions{TypeMeta: types.NewDriveTypeMeta()},
+		ctx, string(driveID), metav1.GetOptions{TypeMeta: types.NewDriveTypeMeta()},
 	)
 	if err != nil {
 		return err
 	}
 
-	finalizers, found := utils.ExcludeFinalizer(
-		drive.GetFinalizers(), consts.DriveFinalizerPrefix+volumeName,
-	)
-
+	found := drive.RemoveVolumeFinalizer(volumeName)
 	if found {
-		drive.SetFinalizers(finalizers)
 		drive.Status.FreeCapacity += capacity
 		drive.Status.AllocatedCapacity = drive.Status.TotalCapacity - drive.Status.FreeCapacity
 
@@ -165,12 +181,7 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveName,
 }
 
 // StartController starts volume controller.
-func StartController(ctx context.Context, nodeID string) error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-
-	listener := listener.NewListener(newVolumeEventHandler(nodeID), "volume-controller", hostname, 40)
+func StartController(ctx context.Context, nodeID directpvtypes.NodeID) error {
+	listener := listener.NewListener(newVolumeEventHandler(nodeID), "volume-controller", string(nodeID), 40)
 	return listener.Run(ctx)
 }

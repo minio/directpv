@@ -33,7 +33,7 @@ spec:
           metadata:
             type: object
           status:
-            description: DirectPVVolumeStatus denotes volume information.
+            description: VolumeStatus denotes volume information.
             properties:
               availableCapacity:
                 format: int64
@@ -111,13 +111,11 @@ spec:
                 x-kubernetes-list-type: map
               dataPath:
                 type: string
-              driveName:
-                type: string
               fsuuid:
                 type: string
-              nodeName:
-                type: string
               stagingTargetPath:
+                type: string
+              status:
                 type: string
               targetPath:
                 type: string
@@ -130,10 +128,9 @@ spec:
             required:
             - availableCapacity
             - dataPath
-            - driveName
             - fsuuid
-            - nodeName
             - stagingTargetPath
+            - status
             - targetPath
             - totalCapacity
             - usedCapacity

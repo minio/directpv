@@ -16,9 +16,16 @@
 
 package xfs
 
-import "context"
+import (
+	"context"
+
+	"github.com/minio/directpv/pkg/consts"
+)
+
+// FSLabel is filesystem label.
+const FSLabel = consts.AppCapsName
 
 // MakeFS is a utility function to format a device
-func MakeFS(ctx context.Context, device, uuid string, force, reflink bool) error {
+func MakeFS(ctx context.Context, device, uuid string, force, reflink bool) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error) {
 	return makeFS(ctx, device, uuid, force, reflink)
 }

@@ -24,9 +24,9 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/types"
 	"k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -47,6 +47,19 @@ func setNoneConversionStrategy(crd *apiextensions.CustomResourceDefinition) {
 	crd.Spec.Conversion = &apiextensions.CustomResourceConversion{
 		Strategy: apiextensions.NoneConverter,
 	}
+}
+
+func updateLabels(object metav1.Object, labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) {
+	values := object.GetLabels()
+	if values == nil {
+		values = make(map[string]string)
+	}
+
+	for key, value := range labels {
+		values[string(key)] = string(value)
+	}
+
+	object.SetLabels(values)
 }
 
 func getLatestCRDVersionObject(newCRD *apiextensions.CustomResourceDefinition) (crdVersion apiextensions.CustomResourceDefinitionVersion, err error) {
@@ -89,7 +102,7 @@ func syncCRD(ctx context.Context, existingCRD, newCRD *apiextensions.CustomResou
 	setNoneConversionStrategy(existingCRD)
 
 	if c.DryRun {
-		types.UpdateLabels(existingCRD, map[types.LabelKey]types.LabelValue{types.VersionLabelKey: consts.LatestAPIVersion})
+		updateLabels(existingCRD, map[directpvtypes.LabelKey]directpvtypes.LabelValue{directpvtypes.VersionLabelKey: consts.LatestAPIVersion})
 		existingCRD.TypeMeta = newCRD.TypeMeta
 	} else {
 		if _, err := k8s.CRDClient().Update(ctx, existingCRD, metav1.UpdateOptions{}); err != nil {
@@ -123,7 +136,7 @@ func registerCRDs(ctx context.Context, c *Config) error {
 			setNoneConversionStrategy(&crd)
 
 			if c.DryRun {
-				types.UpdateLabels(&crd, map[types.LabelKey]types.LabelValue{types.VersionLabelKey: consts.LatestAPIVersion})
+				updateLabels(&crd, map[directpvtypes.LabelKey]directpvtypes.LabelValue{directpvtypes.VersionLabelKey: consts.LatestAPIVersion})
 			} else if _, err = k8s.CRDClient().Create(ctx, &crd, metav1.CreateOptions{}); err != nil {
 				return err
 			}

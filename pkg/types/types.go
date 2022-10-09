@@ -19,6 +19,7 @@ package types
 import (
 	"path"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -26,7 +27,7 @@ import (
 // NewDriveTypeMeta gets new drive CRD type meta.
 func NewDriveTypeMeta() metav1.TypeMeta {
 	return metav1.TypeMeta{
-		APIVersion: string(LatestVersionLabelKey),
+		APIVersion: string(directpvtypes.LatestVersionLabelKey),
 		Kind:       consts.DriveKind,
 	}
 }
@@ -34,7 +35,7 @@ func NewDriveTypeMeta() metav1.TypeMeta {
 // NewVolumeTypeMeta gets new drive CRD type meta.
 func NewVolumeTypeMeta() metav1.TypeMeta {
 	return metav1.TypeMeta{
-		APIVersion: string(LatestVersionLabelKey),
+		APIVersion: string(directpvtypes.LatestVersionLabelKey),
 		Kind:       consts.VolumeKind,
 	}
 }
@@ -43,10 +44,18 @@ func GetDriveMountDir(fsuuid string) string {
 	return path.Join(consts.MountRootDir, fsuuid)
 }
 
+func GetDriveMetaDir(fsuuid string) string {
+	return path.Join(GetDriveMountDir(fsuuid), "."+consts.AppName)
+}
+
+func GetDriveMetaFile(fsuuid string) string {
+	return path.Join(GetDriveMetaDir(fsuuid), "meta.info")
+}
+
 func GetVolumeRootDir(fsuuid string) string {
 	return path.Join(GetDriveMountDir(fsuuid), ".FSUUID."+fsuuid)
 }
 
-func GetVolumeDir(fsuuid, volumeID string) string {
-	return path.Join(GetVolumeRootDir(fsuuid), volumeID)
+func GetVolumeDir(fsuuid, volumeName string) string {
+	return path.Join(GetVolumeRootDir(fsuuid), volumeName)
 }

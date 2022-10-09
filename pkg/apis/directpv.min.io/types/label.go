@@ -1,5 +1,5 @@
-// This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// This file is part of MinIO
+// Copyright (c) 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/minio/directpv/pkg/consts"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/klog/v2"
 )
@@ -30,23 +29,17 @@ import (
 type LabelKey string
 
 const (
-	// PodNameLabelKey label key for pod name
-	PodNameLabelKey LabelKey = consts.GroupName + "/pod.name"
-
-	// PodNSLabelKey label key for pod namespace
-	PodNSLabelKey LabelKey = consts.GroupName + "/pod.namespace"
-
 	// NodeLabelKey label key for node
 	NodeLabelKey LabelKey = consts.GroupName + "/node"
 
-	// DriveLabelKey label key for drive
-	DriveLabelKey LabelKey = consts.GroupName + "/drive"
-
-	// PathLabelKey key for path
-	PathLabelKey LabelKey = consts.GroupName + "/path"
+	// DriveNameLabelKey key for drive name
+	DriveNameLabelKey LabelKey = consts.GroupName + "/drive-name"
 
 	// AccessTierLabelKey label key for access-tier
 	AccessTierLabelKey LabelKey = consts.GroupName + "/access-tier"
+
+	// DriveLabelKey label key for drive
+	DriveLabelKey LabelKey = consts.GroupName + "/drive"
 
 	// VersionLabelKey label key for version
 	VersionLabelKey LabelKey = consts.GroupName + "/version"
@@ -54,8 +47,11 @@ const (
 	// CreatedByLabelKey label key for created by
 	CreatedByLabelKey LabelKey = consts.GroupName + "/created-by"
 
-	// DrivePathLabelKey label key for drive path
-	DrivePathLabelKey LabelKey = consts.GroupName + "/drive-path"
+	// PodNameLabelKey label key for pod name
+	PodNameLabelKey LabelKey = consts.GroupName + "/pod.name"
+
+	// PodNSLabelKey label key for pod namespace
+	PodNSLabelKey LabelKey = consts.GroupName + "/pod.namespace"
 
 	// LatestVersionLabelKey label key for group and version
 	LatestVersionLabelKey LabelKey = consts.GroupName + "/" + consts.LatestAPIVersion
@@ -64,7 +60,7 @@ const (
 	TopologyDriverIdentity LabelKey = consts.GroupName + "/identity"
 
 	// TopologyDriverNode label key for node
-	TopologyDriverNode LabelKey = consts.GroupName + "/node"
+	TopologyDriverNode LabelKey = NodeLabelKey
 
 	// TopologyDriverRack label key for rack
 	TopologyDriverRack LabelKey = consts.GroupName + "/rack"
@@ -128,27 +124,4 @@ func ToLabelSelector(labels map[LabelKey][]LabelValue) string {
 		}
 	}
 	return strings.Join(selectors, ",")
-}
-
-// SetLabels sets labels in object.
-func SetLabels(object metav1.Object, labels map[LabelKey]LabelValue) {
-	values := make(map[string]string)
-	for key, value := range labels {
-		values[string(key)] = string(value)
-	}
-	object.SetLabels(values)
-}
-
-// UpdateLabels updates labels in object.
-func UpdateLabels(object metav1.Object, labels map[LabelKey]LabelValue) {
-	values := object.GetLabels()
-	if values == nil {
-		values = make(map[string]string)
-	}
-
-	for key, value := range labels {
-		values[string(key)] = string(value)
-	}
-
-	object.SetLabels(values)
 }

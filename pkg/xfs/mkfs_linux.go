@@ -22,11 +22,9 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-
-	"github.com/minio/directpv/pkg/consts"
 )
 
-func makeFS(ctx context.Context, device, uuid string, force, reflink bool) error {
+func makeFS(ctx context.Context, device, uuid string, force, reflink bool) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error) {
 	args := []string{"-i", "maxpct=50", "-m", fmt.Sprintf("uuid=%v", uuid)}
 	if !reflink {
 		args = append(args, "-m", "reflink=0")
@@ -34,14 +32,16 @@ func makeFS(ctx context.Context, device, uuid string, force, reflink bool) error
 	if force {
 		args = append(args, "-f")
 	}
-	args = append(args, "-L", consts.FSLabel, device)
+	args = append(args, "-L", FSLabel, device)
 
-	if output, err := exec.CommandContext(ctx, "mkfs.xfs", args...).CombinedOutput(); err != nil {
-		return fmt.Errorf(
+	var output []byte
+	if output, err = exec.CommandContext(ctx, "mkfs.xfs", args...).CombinedOutput(); err != nil {
+		err = fmt.Errorf(
 			"unable to execute command %v; output=%v; error=%w",
 			append([]string{"mkfs.xfs"}, args...), string(output), err,
 		)
+		return
 	}
 
-	return nil
+	return probe(device)
 }

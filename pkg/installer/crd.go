@@ -32,7 +32,7 @@ func removeVolumes(ctx context.Context, c *Config) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := volume.ListVolumes(ctx, nil, nil, nil, nil, nil, k8s.MaxThreadCount)
+	resultCh, err := volume.ListVolumes(ctx, nil, nil, nil, nil, k8s.MaxThreadCount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -75,7 +75,7 @@ func removeDrives(ctx context.Context, c *Config) error {
 
 	defer cancelFunc()
 
-	resultCh, err := drive.ListDrives(ctx, nil, nil, nil, k8s.MaxThreadCount)
+	resultCh, err := drive.ListDrives(ctx, nil, nil, nil, nil, k8s.MaxThreadCount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil

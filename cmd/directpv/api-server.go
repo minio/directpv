@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -17,13 +17,12 @@
 package main
 
 import (
-	"context"
-
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 )
+
+var apiPort = consts.APIPort
 
 var apiServer = &cobra.Command{
 	Use:           "api-server",
@@ -31,27 +30,10 @@ var apiServer = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		return startAPIServer(c.Context(), args)
+		return admin.StartAPIServer(c.Context(), apiPort)
 	},
-	// FIXME: Add help messages
 }
 
 func init() {
-	apiServer.PersistentFlags().IntVarP(&apiPort, "port", "", apiPort, "port for "+consts.AppPrettyName+" API server")
-}
-
-func startAPIServer(ctx context.Context, args []string) error {
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-	defer cancel()
-
-	errCh := make(chan error)
-	go func() {
-		if err := admin.ServeAPIServer(ctx, apiPort); err != nil {
-			klog.ErrorS(err, "unable to run API server")
-			errCh <- err
-		}
-	}()
-
-	return <-errCh
+	apiServer.PersistentFlags().IntVarP(&apiPort, "port", "", apiPort, "API server port number")
 }

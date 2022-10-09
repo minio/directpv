@@ -33,17 +33,20 @@ var LatestAddToScheme = directpv.AddToScheme
 type Interface = typeddirectpv.DirectpvV1beta1Interface
 type Client = typeddirectpv.DirectpvV1beta1Client
 
-type DriveStatus = directpv.DirectPVDriveStatus
+type DriveStatus = directpv.DriveStatus
 type Drive = directpv.DirectPVDrive
 type DriveStatusList = []directpv.DirectPVDrive
 type DriveList = directpv.DirectPVDriveList
 type LatestDriveInterface = typeddirectpv.DirectPVDriveInterface
 
-type VolumeStatus = directpv.DirectPVVolumeStatus
+type VolumeStatus = directpv.VolumeStatus
 type Volume = directpv.DirectPVVolume
 type VolumeStatusList = []directpv.DirectPVVolume
 type VolumeList = directpv.DirectPVVolumeList
 type LatestVolumeInterface = typeddirectpv.DirectPVVolumeInterface
+
+var NewDrive = directpv.NewDirectPVDrive
+var NewVolume = directpv.NewDirectPVVolume
 
 type ExtClientsetInterface interface {
 	clientset.Interface

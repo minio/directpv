@@ -311,7 +311,6 @@ func (listener *Listener) controllerLoop(ctx context.Context) {
 	defer utilruntime.HandleCrash()
 	defer listener.queue.ShutDown()
 
-	klog.V(3).Infof("Starting %v controller", listener.handler.Name())
 	go ctrlr.Run(ctx.Done())
 
 	if !cache.WaitForCacheSync(ctx.Done(), ctrlr.HasSynced) {

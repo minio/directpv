@@ -21,14 +21,12 @@ import (
 	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/dustin/go-humanize"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -74,24 +72,11 @@ import (
  */
 
 // Server contains controller server properties
-type Server struct {
-	NodeID   string
-	Identity string
-	Rack     string
-	Zone     string
-	Region   string
-}
+type Server struct{}
 
 // NewServer returns the instance of controller server with the provided properties
-func NewServer(ctx context.Context, identity, nodeID, rack, zone, region string) (*Server, error) {
-	controller := &Server{
-		NodeID:   nodeID,
-		Identity: identity,
-		Rack:     rack,
-		Zone:     zone,
-		Region:   region,
-	}
-	return controller, nil
+func NewServer() *Server {
+	return &Server{}
 }
 
 // ControllerGetCapabilities constructs ControllerGetCapabilitiesResponse
@@ -134,26 +119,31 @@ func (c *Server) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valida
 // CreateVolume - Creates a volume
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#createvolume
 func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	klog.V(3).InfoS("CreateVolume() called", "name", req.GetName())
+	requiredBytes := int64(-1)
+	if req.GetCapacityRange() != nil {
+		requiredBytes = req.GetCapacityRange().GetRequiredBytes()
+	}
+	klog.V(3).InfoS("Create volume requested", "name", req.GetName(), "requiredBytes", humanize.Comma(requiredBytes))
+
 	name := req.GetName()
 	if name == "" {
-		return nil, status.Error(codes.InvalidArgument, "volume name cannot be empty")
+		return nil, status.Error(codes.InvalidArgument, "empty volume name in the request")
 	}
 
 	for _, vcap := range req.GetVolumeCapabilities() {
 		if vcap.GetAccessMode() != nil && vcap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-			return nil, status.Errorf(codes.InvalidArgument, "unsupported access mode: %s", vcap.GetAccessMode().GetMode())
+			return nil, status.Errorf(codes.InvalidArgument, "unsupported access mode %s for volume %v", vcap.GetAccessMode().GetMode(), name)
 		}
 	}
 
 	if len(req.GetVolumeCapabilities()) > 0 && req.GetVolumeCapabilities()[0].GetMount().GetFsType() != "xfs" {
-		return nil, status.Errorf(codes.InvalidArgument, "unsupported filesystem type %v", req.GetVolumeCapabilities()[0].GetMount().GetFsType())
+		return nil, status.Errorf(codes.InvalidArgument, "unsupported filesystem type %v for volume %v", req.GetVolumeCapabilities()[0].GetMount().GetFsType(), name)
 	}
 
 	for key, value := range req.GetParameters() {
-		if key == string(types.AccessTierLabelKey) {
+		if key == string(directpvtypes.AccessTierLabelKey) {
 			if _, err := directpvtypes.StringsToAccessTiers(value); err != nil {
-				return nil, status.Errorf(codes.InvalidArgument, "unknown access-tier %v; %v", value, err)
+				return nil, status.Errorf(codes.InvalidArgument, "unknown access-tier %v for volume %v; %v", value, name, err)
 			}
 		}
 	}
@@ -164,8 +154,9 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 	}
 
 	klog.V(4).InfoS("Selected drive",
-		"drive-name", drive.Name,
-		"node", drive.Status.NodeName,
+		"drive", drive.GetDriveID(),
+		"node", drive.GetNodeID(),
+		"name", drive.GetDriveName(),
 		"volume", name)
 
 	size := drive.Status.FreeCapacity
@@ -173,35 +164,18 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 		size = req.GetCapacityRange().GetRequiredBytes()
 	}
 
-	newVolume := &types.Volume{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Finalizers: []string{
-				consts.VolumeFinalizerPVProtection,
-				consts.VolumeFinalizerPurgeProtection,
-			},
-		},
-		Status: types.VolumeStatus{
-			DriveName:         drive.Name,
-			FSUUID:            drive.Status.FSUUID,
-			NodeName:          drive.Status.NodeName,
-			TotalCapacity:     size,
-			AvailableCapacity: size,
-		},
-	}
-
-	labels := map[types.LabelKey]types.LabelValue{
-		types.NodeLabelKey:      types.NewLabelValue(drive.Status.NodeName),
-		types.DrivePathLabelKey: types.NewLabelValue(utils.TrimDevPrefix(drive.Status.Path)),
-		types.DriveLabelKey:     types.NewLabelValue(drive.Name),
-		types.VersionLabelKey:   types.NewLabelValue(consts.LatestAPIVersion),
-		types.CreatedByLabelKey: types.NewLabelValue(consts.ControllerName),
-	}
-	types.UpdateLabels(newVolume, labels)
+	newVolume := types.NewVolume(
+		name,
+		drive.Status.FSUUID,
+		drive.GetNodeID(),
+		drive.GetDriveID(),
+		drive.GetDriveName(),
+		size,
+	)
 
 	if _, err := client.VolumeClient().Create(ctx, newVolume, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return nil, status.Errorf(codes.Internal, "could not create volume %s; %v", name, err)
+			return nil, status.Errorf(codes.Internal, "unable to create volume %v; %v", name, err)
 		}
 
 		volume, err := client.VolumeClient().Get(
@@ -211,7 +185,7 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
 
-		types.SetLabels(volume, labels)
+		volume.CopyLabels(newVolume)
 		volume.Finalizers = newVolume.Finalizers
 		volume.Status = newVolume.Status
 		_, err = client.VolumeClient().Update(
@@ -221,35 +195,34 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 			return nil, err
 		}
 
-		client.Eventf(volume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v provisioned", volume.Name)
+		client.Eventf(volume, client.EventTypeNormal, client.EventReasonVolumeProvisioned, "volume is reused")
 	} else {
-		client.Eventf(newVolume, corev1.EventTypeNormal, "VolumeProvisioningSucceeded", "volume %v is created", newVolume.Name)
+		client.Eventf(newVolume, client.EventTypeNormal, client.EventReasonVolumeProvisioned, "volume is created")
 	}
 
-	finalizer := consts.DriveFinalizerPrefix + req.GetName()
-	if !utils.ItemIn(drive.Finalizers, finalizer) {
+	if drive.AddVolumeFinalizer(req.GetName()) {
 		drive.Status.FreeCapacity -= size
 		drive.Status.AllocatedCapacity += size
-		drive.SetFinalizers(append(drive.GetFinalizers(), finalizer))
 
 		klog.V(4).InfoS("Reserving drive",
-			"drive-name", drive.Name,
-			"node", drive.Status.NodeName,
+			"drive", drive.GetDriveID(),
+			"node", drive.GetNodeID(),
+			"name", drive.GetDriveName(),
 			"volume", name)
 
 		_, err = client.DriveClient().Update(
 			ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 		)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "could not reserve drive[%s] %v", drive.Name, err)
+			return nil, status.Errorf(codes.Internal, "unable to update reserved drive for volume %v; drive=%v, node=%v, name=%v; %v", name, drive.GetDriveID(), drive.GetNodeID(), drive.GetDriveName(), err)
 		}
-		client.Eventf(drive, corev1.EventTypeNormal, "DriveReservationSucceded", "reserved drive %v on node %v and volume %v", drive.Name, drive.Status.NodeName, name)
+		client.Eventf(drive, client.EventTypeNormal, client.EventReasonVolumeAdded, "volume %v with size %v is added", name, humanize.Comma(size))
 	}
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      name,
-			CapacityBytes: int64(size),
+			CapacityBytes: size,
 			VolumeContext: req.GetParameters(),
 			ContentSource: req.GetVolumeContentSource(),
 			AccessibleTopology: []*csi.Topology{
@@ -264,10 +237,10 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 // DeleteVolume implements DeleteVolume controller RPC
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#deletevolume
 func (c *Server) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	klog.V(3).InfoS("DeleteVolume() called", "name", req.GetVolumeId())
+	klog.V(3).InfoS("Delete volume requested", "name", req.GetVolumeId())
 	volumeID := req.GetVolumeId()
 	if volumeID == "" {
-		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+		return nil, status.Error(codes.InvalidArgument, "empty volume ID in the request")
 	}
 
 	volume, err := client.VolumeClient().Get(ctx, volumeID, metav1.GetOptions{
@@ -277,33 +250,23 @@ func (c *Server) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 		if errors.IsNotFound(err) {
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		return nil, status.Errorf(codes.NotFound, "could not retrieve volume [%s]: %v", volumeID, err)
+		return nil, status.Errorf(codes.Internal, "unable to get volume %v; %v", volumeID, err)
 	}
 
 	if volume.IsStaged() || volume.IsPublished() {
-		return nil, status.Errorf(codes.FailedPrecondition,
-			"waiting for volume [%s] to be unstaged before deleting", volumeID)
+		return nil, status.Errorf(codes.FailedPrecondition, "volume %v is not yet unstaged for deletion", volumeID)
 	}
 
-	finalizers := volume.GetFinalizers()
-	updatedFinalizers := []string{}
-	for _, f := range finalizers {
-		if f == consts.VolumeFinalizerPVProtection {
-			continue
-		}
-		updatedFinalizers = append(updatedFinalizers, f)
-	}
-	volume.SetFinalizers(updatedFinalizers)
-
+	volume.RemovePVProtection()
 	_, err = client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not remove finalizer for volume [%s]: %v", volumeID, err)
+		return nil, status.Errorf(codes.Internal, "unable to update volume %v; %v", volumeID, err)
 	}
 
 	if err = client.VolumeClient().Delete(ctx, volume.Name, metav1.DeleteOptions{}); err != nil {
-		return nil, status.Errorf(codes.Internal, "could not delete volume [%s]: %v", volumeID, err)
+		return nil, status.Errorf(codes.Internal, "unable to delete volume %v; %v", volumeID, err)
 	}
 
 	return &csi.DeleteVolumeResponse{}, nil

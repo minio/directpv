@@ -18,16 +18,14 @@ package volume
 
 import (
 	"context"
-	"fmt"
 	"io"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
@@ -38,15 +36,14 @@ type ListVolumeResult struct {
 }
 
 // ListVolumes lists volumes.
-func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs, driveNames []types.LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
-	labelMap := map[types.LabelKey][]types.LabelValue{
-		types.DrivePathLabelKey: drives,
-		types.NodeLabelKey:      nodes,
-		types.PodNameLabelKey:   podNames,
-		types.PodNSLabelKey:     podNSs,
-		types.DriveLabelKey:     driveNames,
+func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs []directpvtypes.LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
+	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
+		directpvtypes.DriveNameLabelKey: drives,
+		directpvtypes.NodeLabelKey:      nodes,
+		directpvtypes.PodNameLabelKey:   podNames,
+		directpvtypes.PodNSLabelKey:     podNSs,
 	}
-	labelSelector := types.ToLabelSelector(labelMap)
+	labelSelector := directpvtypes.ToLabelSelector(labelMap)
 
 	resultCh := make(chan ListVolumeResult)
 	go func() {
@@ -92,8 +89,8 @@ func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs, driveName
 }
 
 // GetVolumeList gets list of volumes.
-func GetVolumeList(ctx context.Context, nodes, drives, podNames, podNSs, driveNames []types.LabelValue) ([]types.Volume, error) {
-	resultCh, err := ListVolumes(ctx, nodes, drives, podNames, podNSs, driveNames, k8s.MaxThreadCount)
+func GetVolumeList(ctx context.Context, nodes, drives, podNames, podNSs []directpvtypes.LabelValue) ([]types.Volume, error) {
+	resultCh, err := ListVolumes(ctx, nodes, drives, podNames, podNSs, k8s.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}
@@ -153,24 +150,5 @@ func ProcessVolumes(
 		},
 		writer,
 		dryRun,
-	)
-}
-
-// VolumesListerWatcher is the lister watcher for volumes.
-func VolumesListerWatcher(nodeID string) cache.ListerWatcher {
-	labelSelector := ""
-	if nodeID != "" {
-		labelSelector = fmt.Sprintf("%s=%s", types.NodeLabelKey, types.NewLabelValue(nodeID))
-	}
-
-	optionsModifier := func(options *metav1.ListOptions) {
-		options.LabelSelector = labelSelector
-	}
-
-	return cache.NewFilteredListWatchFromClient(
-		client.RESTClient(),
-		consts.VolumeResource,
-		"",
-		optionsModifier,
 	)
 }

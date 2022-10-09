@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -26,9 +25,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
-	"github.com/jedib0t/go-pretty/table"
-	"github.com/jedib0t/go-pretty/text"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/k8s"
@@ -38,28 +35,23 @@ import (
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog/v2"
 )
-
-var errInstallationNotFound = errors.New("installation not found")
 
 var infoCmd = &cobra.Command{
 	Use:           "info",
 	Short:         "Show information about " + consts.AppPrettyName + " installation.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	RunE: func(c *cobra.Command, args []string) error {
-		return getInfo(c.Context(), args)
+	Run: func(c *cobra.Command, args []string) {
+		infoMain(c.Context())
 	},
 }
 
-func getInfo(ctx context.Context, args []string) error {
+func infoMain(ctx context.Context) {
 	crds, err := k8s.CRDClient().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		if !quiet {
-			klog.ErrorS(err, "unable to list CRDs")
-		}
-		return err
+		eprintf(fmt.Sprintf("unable to list CRDs; %v", err), true)
+		os.Exit(1)
 	}
 
 	drivesFound := false
@@ -73,12 +65,14 @@ func getInfo(ctx context.Context, args []string) error {
 		}
 	}
 	if !drivesFound || !volumesFound {
-		return fmt.Errorf(consts.AppPrettyName + " installation not found")
+		eprintf(consts.AppPrettyName+" installation not found", false)
+		os.Exit(1)
 	}
 
 	storageClient, gvk, err := k8s.GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
-		return err
+		eprintf(err.Error(), true)
+		os.Exit(1)
 	}
 
 	nodeList := []string{}
@@ -91,10 +85,8 @@ func getInfo(ctx context.Context, args []string) error {
 			Timeout(10 * time.Second).
 			Do(ctx).
 			Into(result); err != nil {
-			if !quiet {
-				klog.ErrorS(err, "unable to get CSI nodes")
-			}
-			return err
+			eprintf(fmt.Sprintf("unable to get CSI nodes; %v", err), true)
+			os.Exit(1)
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
@@ -112,10 +104,8 @@ func getInfo(ctx context.Context, args []string) error {
 			Timeout(10 * time.Second).
 			Do(ctx).
 			Into(result); err != nil {
-			if !quiet {
-				klog.ErrorS(err, "unable to get CSI nodes")
-			}
-			return err
+			eprintf(fmt.Sprintf("unable to get CSI nodes; %v", err), true)
+			os.Exit(1)
 		}
 		for _, csiNode := range result.Items {
 			for _, driver := range csiNode.Spec.Drivers {
@@ -126,55 +116,71 @@ func getInfo(ctx context.Context, args []string) error {
 			}
 		}
 	case "v1apha1":
-		return errors.New("storage.k8s.io/v1alpha1 is not supported")
+		eprintf("storage.k8s.io/v1alpha1 is not supported", true)
+		os.Exit(1)
 	}
 
 	if len(nodeList) == 0 {
-		return errInstallationNotFound
+		eprintf("installation not found", true)
+		os.Exit(1)
 	}
 
-	drives, err := drive.GetDriveList(ctx, nil, nil, nil)
+	drives, err := drive.GetDriveList(ctx, nil, nil, nil, nil)
 	if err != nil {
-		if !quiet {
-			klog.ErrorS(err, "unable to get drive list")
-		}
-		return err
+		eprintf(fmt.Sprintf("unable to get drive list; %v", err), true)
+		os.Exit(1)
 	}
 
-	volumes, err := volume.GetVolumeList(ctx, nil, nil, nil, nil, nil)
+	volumes, err := volume.GetVolumeList(ctx, nil, nil, nil, nil)
 	if err != nil {
-		if !quiet {
-			klog.ErrorS(err, "unable to get volume list")
-		}
-		return err
+		eprintf(fmt.Sprintf("unable to get volume list; %v", err), true)
+		os.Exit(1)
 	}
 
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"NODE", "CAPACITY", "ALLOCATED", "VOLUMES", "DRIVES"})
+	writer := newTableWriter(
+		table.Row{"NODE", "CAPACITY", "ALLOCATED", "VOLUMES", "DRIVES"},
+		[]table.SortBy{
+			{
+				Name: "DRIVES",
+				Mode: table.Asc,
+			},
+			{
+				Name: "VOLUMES",
+				Mode: table.Asc,
+			},
+			{
+				Name: "ALLOCATED",
+				Mode: table.Asc,
+			},
+			{
+				Name: "CAPACITY",
+				Mode: table.Asc,
+			},
+			{
+				Name: "NODE",
+				Mode: table.Asc,
+			},
+		},
+		false,
+	)
 
 	var totalDriveSize uint64
 	var totalVolumeSize uint64
-	var totalDriveCount int
 	for _, n := range nodeList {
 		driveCount := 0
 		driveSize := uint64(0)
 		for _, d := range drives {
-			if d.Status.Status != directpvtypes.DriveStatusOK {
-				continue
-			}
-			if d.Status.NodeName == n {
+			if string(d.GetNodeID()) == n {
 				driveCount++
 				driveSize += uint64(d.Status.TotalCapacity)
 			}
 		}
 		totalDriveSize += driveSize
-		totalDriveCount += driveCount
 
 		volumeCount := 0
 		volumeSize := uint64(0)
 		for _, v := range volumes {
-			if v.Status.NodeName == n {
+			if string(v.GetNodeID()) == n {
 				if v.IsPublished() {
 					volumeCount++
 					volumeSize += uint64(v.Status.TotalCapacity)
@@ -184,7 +190,7 @@ func getInfo(ctx context.Context, args []string) error {
 		totalVolumeSize += volumeSize
 
 		if driveCount == 0 {
-			t.AppendRow([]interface{}{
+			writer.AppendRow([]interface{}{
 				fmt.Sprintf("%s %s", color.YellowString(dot), n),
 				"-",
 				"-",
@@ -192,7 +198,7 @@ func getInfo(ctx context.Context, args []string) error {
 				"-",
 			})
 		} else {
-			t.AppendRow([]interface{}{
+			writer.AppendRow([]interface{}{
 				fmt.Sprintf("%s %s", color.GreenString(dot), n),
 				humanize.IBytes(driveSize),
 				humanize.IBytes(volumeSize),
@@ -202,24 +208,16 @@ func getInfo(ctx context.Context, args []string) error {
 		}
 	}
 
-	text.DisableColors()
-
-	style := table.StyleColoredDark
-	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
-	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
-	t.SetStyle(style)
 	if !quiet {
-		t.Render()
+		writer.Render()
 		if len(drives) > 0 {
 			fmt.Printf(
 				"\n%s/%s used, %s volumes, %s drives\n",
 				humanize.IBytes(totalVolumeSize),
 				humanize.IBytes(totalDriveSize),
 				color.HiWhiteString("%d", len(volumes)),
-				color.HiWhiteString("%d", totalDriveCount),
+				color.HiWhiteString("%d", len(drives)),
 			)
 		}
 	}
-
-	return nil
 }

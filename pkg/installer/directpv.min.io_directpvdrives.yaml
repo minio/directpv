@@ -32,12 +32,14 @@ spec:
             type: string
           metadata:
             type: object
-          status:
-            description: DirectPVDriveStatus denotes drive information.
+          spec:
             properties:
-              accessTier:
-                description: AccessTier denotes access tier.
-                type: string
+              unschedulable:
+                type: boolean
+            type: object
+          status:
+            description: DriveStatus denotes drive information.
+            properties:
               allocatedCapacity:
                 format: int64
                 type: integer
@@ -46,11 +48,7 @@ spec:
                 type: integer
               fsuuid:
                 type: string
-              modelNumber:
-                type: string
-              nodeName:
-                type: string
-              path:
+              make:
                 type: string
               status:
                 description: DriveStatus denotes drive status
@@ -62,14 +60,10 @@ spec:
               totalCapacity:
                 format: int64
                 type: integer
-              vendor:
-                type: string
             required:
             - allocatedCapacity
             - freeCapacity
             - fsuuid
-            - nodeName
-            - path
             - status
             - topology
             - totalCapacity

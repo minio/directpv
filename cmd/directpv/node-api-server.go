@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -17,15 +17,15 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"os"
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 )
+
+var nodeAPIPort = consts.NodeAPIPort
 
 var nodeAPIServer = &cobra.Command{
 	Use:           "node-api-server",
@@ -33,39 +33,22 @@ var nodeAPIServer = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		return startNodeAPIServer(c.Context(), args)
-	},
-	// FIXME: Add help messages
-}
+		if err := os.Mkdir(consts.MountRootDir, 0o777); err != nil && !errors.Is(err, os.ErrExist) {
+			return err
+		}
 
-func init() {
-	nodeAPIServer.PersistentFlags().IntVarP(&nodeAPIPort, "port", "", nodeAPIPort, "port for "+consts.AppPrettyName+" Node API server")
-}
-
-// ServeNodeAPIServer(ctx context.Context, nodeAPIPort int, identity, nodeID, rack, zone, region string) error {
-func startNodeAPIServer(ctx context.Context, args []string) error {
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-	defer cancel()
-
-	if err := os.Mkdir(consts.MountRootDir, 0o777); err != nil && !errors.Is(err, os.ErrExist) {
-		return err
-	}
-
-	errCh := make(chan error)
-	go func() {
-		if err := admin.ServeNodeAPIServer(ctx,
+		return admin.StartNodeAPIServer(
+			c.Context(),
 			nodeAPIPort,
 			identity,
-			kubeNodeName,
+			nodeID,
 			rack,
 			zone,
 			region,
-		); err != nil {
-			klog.ErrorS(err, "unable to run node API server")
-			errCh <- err
-		}
-	}()
+		)
+	},
+}
 
-	return <-errCh
+func init() {
+	nodeAPIServer.PersistentFlags().IntVarP(&nodeAPIPort, "port", "", nodeAPIPort, "Node API server port number")
 }

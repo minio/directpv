@@ -19,6 +19,15 @@ package installer
 import "github.com/minio/directpv/pkg/consts"
 
 const (
+	UnixCSIEndpoint = "unix:///csi/csi.sock"
+
+	apiPortName            = "api-port"
+	apiServerContainerName = "api-server"
+	caCertFileName         = "ca.crt"
+	nodeAPIServerCAPath    = "/tmp/nodeapiserver/ca"
+
+	procFSDir = "/proc"
+
 	// rbac
 	clusterRoleVerbList   = "list"
 	clusterRoleVerbUse    = "use"
@@ -40,9 +49,9 @@ const (
 	healthZContainerPort             = 9898
 	livenessProbeContainerName       = "liveness-probe"
 	volumeNameSysDir                 = "sysfs"
-	volumePathSysDir                 = consts.SysFSDir
+	volumePathSysDir                 = "/sys"
 	volumeNameDevDir                 = "devfs"
-	volumePathDevDir                 = consts.DevDir
+	volumePathDevDir                 = "/dev"
 	volumeNameRunUdevData            = "run-udev-data-dir"
 	volumePathRunUdevData            = consts.UdevDataDir
 

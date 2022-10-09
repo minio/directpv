@@ -18,50 +18,21 @@ package installer
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"os"
 
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/credential"
 	"github.com/minio/directpv/pkg/k8s"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func installSecretsDefault(ctx context.Context, c *Config) error {
-	if err := installCredSecret(ctx, c); err != nil {
-		return err
-	}
-	// Add more secrets here..
-	return nil
+	return createOrUpdateSecret(ctx, consts.CredentialsSecretName, c.Credential.ToSecretData(), c)
 }
 
 func uninstallSecretsDefault(ctx context.Context, c *Config) error {
-	if err := uninstallCredSecret(ctx, c); err != nil {
-		return err
-	}
-	// Delete more secrets here
-	return nil
-}
-
-func installCredSecret(ctx context.Context, c *Config) error {
-	cred, err := credential.Load(c.ConfigFile)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			err = fmt.Errorf("credentials not found: please configure access and secret keys via ENV or config file (%s)", c.ConfigFile)
-		}
-		return err
-	}
-	return createOrUpdateSecret(ctx, consts.CredentialsSecretName, map[string][]byte{
-		consts.AccessKeyDataKey: []byte(cred.AccessKey),
-		consts.SecretKeyDataKey: []byte(cred.SecretKey),
-	}, c)
-}
-
-func uninstallCredSecret(ctx context.Context, c *Config) error {
 	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, consts.CredentialsSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
+
 	return nil
 }

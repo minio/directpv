@@ -23,25 +23,10 @@ import (
 	"path"
 	"time"
 
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-)
-
-var (
-	defaultLabels = map[string]string{ // labels
-		appNameLabel: consts.GroupName,
-		appTypeLabel: "CSIDriver",
-
-		string(types.CreatedByLabelKey): pluginName,
-		string(types.VersionLabelKey):   consts.LatestAPIVersion,
-	}
-
-	defaultAnnotations = map[string]string{}
 )
 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -98,16 +83,6 @@ func newVolumeMount(name, path string, mountPropogation corev1.MountPropagationM
 	}
 }
 
-func getReadinessHandler() corev1.ProbeHandler {
-	return corev1.ProbeHandler{
-		HTTPGet: &corev1.HTTPGetAction{
-			Path:   consts.ReadinessPath,
-			Port:   intstr.FromString(readinessPortName),
-			Scheme: corev1.URISchemeHTTP,
-		},
-	}
-}
-
 func generateSanitizedUniqueNameFrom(name string) string {
 	sanitizedName := k8s.SanitizeResourceName(name)
 	// Max length of name is 255. If needed, cut out last 6 bytes
@@ -124,6 +99,20 @@ func generateSanitizedUniqueNameFrom(name string) string {
 	return fmt.Sprintf("%s-%s", sanitizedName, shortUUID)
 }
 
+func removeFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
+	removeByIndex := func(s []string, index int) []string {
+		return append(s[:index], s[index+1:]...)
+	}
+	finalizers := objectMeta.GetFinalizers()
+	for index, f := range finalizers {
+		if f == finalizer {
+			finalizers = removeByIndex(finalizers, index)
+			break
+		}
+	}
+	return finalizers
+}
+
 func deleteDeployment(ctx context.Context, identity, name string) error {
 	dClient := k8s.KubeClient().AppsV1().Deployments(k8s.SanitizeResourceName(identity))
 
@@ -137,7 +126,7 @@ func deleteDeployment(ctx context.Context, identity, name string) error {
 			return err
 		}
 		finalizer := getDeleteProtectionFinalizer()
-		deployment.SetFinalizers(k8s.RemoveFinalizer(&deployment.ObjectMeta, finalizer))
+		deployment.SetFinalizers(removeFinalizer(&deployment.ObjectMeta, finalizer))
 		if _, err := dClient.Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
@@ -154,7 +143,7 @@ func deleteDeployment(ctx context.Context, identity, name string) error {
 	return nil
 }
 
-func createOrUpdateSecret(ctx context.Context, secretName string, dataMap map[string][]byte, c *Config) error {
+func createOrUpdateSecret(ctx context.Context, secretName string, data map[string][]byte, c *Config) error {
 	secretsClient := k8s.KubeClient().CoreV1().Secrets(c.namespace())
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -167,7 +156,7 @@ func createOrUpdateSecret(ctx context.Context, secretName string, dataMap map[st
 			Annotations: defaultAnnotations,
 			Labels:      defaultLabels,
 		},
-		Data: dataMap,
+		Data: data,
 	}
 
 	if c.DryRun {

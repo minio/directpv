@@ -41,18 +41,6 @@ const (
 	// StorageClassName denotes storage class name.
 	StorageClassName = Identity
 
-	// DriveFinalizerDataProtection denotes data protection finalizer.
-	DriveFinalizerDataProtection = GroupName + "/data-protection"
-
-	// DriveFinalizerPrefix denotes prefix finalizer.
-	DriveFinalizerPrefix = GroupName + ".volume/"
-
-	// VolumeFinalizerPVProtection denotes PV protection finalizer.
-	VolumeFinalizerPVProtection = GroupName + "/pv-protection"
-
-	// VolumeFinalizerPurgeProtection denotes purge protection finalizer.
-	VolumeFinalizerPurgeProtection = GroupName + "/purge-protection"
-
 	// ControllerName is the name of the controller.
 	ControllerName = AppName + "-controller"
 
@@ -74,17 +62,8 @@ const (
 	// AppRootDir is application root directory.
 	AppRootDir = "/var/lib/" + AppName
 
-	// SysFSDir is sysfs directory.
-	SysFSDir = "/sys"
-
-	// DevDir is /dev directory
-	DevDir = "/dev"
-
 	// UdevDataDir is Udev data directory.
 	UdevDataDir = "/run/udev/data"
-
-	// ProcFSDir is Udev data directory.
-	ProcFSDir = "/proc"
 
 	// MetricsPort is default metrics port.
 	MetricsPort = 10443
@@ -95,52 +74,20 @@ const (
 	// ReadinessPath is default readiness path.
 	ReadinessPath = "/ready"
 
-	// FSLabel is filesystem label.
-	FSLabel = AppCapsName
-
 	// MountRootDir is mount root directory.
 	MountRootDir = AppRootDir + "/mnt"
 
-	// LegacyMountRootDir is the legacy mount dir
-	LegacyMountRootDir = "/var/lib/direct-csi/mnt"
+	CredentialsSecretName = AppName + "-creds"
 
-	// UnixCSIEndpoint is Unix CSI endpoint
-	UnixCSIEndpoint = "unix:///csi/csi.sock"
-
-	// APIServerContainerName is the name of the api server
-	APIServerContainerName = "api-server"
-
-	// NodeAPIServerContainerName is the name of the node api server
-	NodeAPIServerContainerName = "node-api-server"
-
-	// NodeAPIServerHLSVC denotes the name of the clusterIP service for the node API
-	NodeAPIServerHLSVC = NodeAPIServerContainerName + "-hl"
-
-	// APIPort is the default port for the api-server
-	APIPortName        = "api-port"
-	APIPort            = 40443
-	APIServerCertsPath = "/tmp/apiserver/certs"
-
-	// NodeAPIPort is the default port for the node-api-server
-	NodeAPIPortName        = "node-api-port"
-	NodeAPIPort            = 50443
-	NodeAPIServerCAPath    = "/tmp/nodeapiserver/ca"
-	NodeAPIServerCertsPath = "/tmp/nodeapiserver/certs"
-
-	// key-pairs
 	PrivateKeyFileName = "key.pem"
 	PublicCertFileName = "cert.pem"
-	CACertFileName     = "ca.crt"
 
-	// Credentials
-	CredentialsSecretName = AppName + "-creds"
-	AccessKeyDataKey      = "accessKey"
-	SecretKeyDataKey      = "secretKey"
-	ConfigFileSuffix      =  "." + AppName + "/config.json"
-	AccessKeyEnv = AppCapsName + "_ACCESS_KEY"
-	SecretKeyEnv = AppCapsName + "_SECRET_KEY"
+	NodeAPIServerContainerName = "node-api-server"
+	NodeAPIPortName            = "node-api-port"
+	NodeAPIPort                = 50443
+	NodeAPIServerCertsPath     = "/tmp/nodeapiserver/certs"
+	NodeAPIServerHLSVC         = NodeAPIServerContainerName + "-hl"
 
-	// Format
-	APIServerEnv = AppCapsName + "_API_SERVER"
-
+	APIPort            = 40443
+	APIServerCertsPath = "/tmp/apiserver/certs"
 )
