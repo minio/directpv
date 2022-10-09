@@ -18,23 +18,28 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
 
+const installAuditFile = "install.log"
+
 var installCmd = &cobra.Command{
 	Use:           "install",
 	Short:         "Install " + consts.AppPrettyName + " in Kubernetes.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	RunE: func(c *cobra.Command, args []string) error {
-		return install(c.Context(), args)
+	Run: func(c *cobra.Command, args []string) {
+		installMain(c.Context(), args)
 	},
 }
 
@@ -46,7 +51,6 @@ var (
 	tolerationParameters   = []string{}
 	seccompProfile         = ""
 	apparmorProfile        = ""
-	auditInstall           = "install"
 	imagePullSecrets       = []string{}
 )
 
@@ -62,21 +66,47 @@ func init() {
 	installCmd.PersistentFlags().StringSliceVarP(&tolerationParameters, "tolerations", "t", tolerationParameters, "Tolerations parameters")
 	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "Set Seccomp profile")
 	installCmd.PersistentFlags().StringVarP(&apparmorProfile, "apparmor-profile", "", apparmorProfile, "Set Apparmor profile")
+	installCmd.PersistentFlags().StringVarP(&configDir, "config-dir", "", configDir, "Path to configuration directory")
 }
 
-func install(ctx context.Context, args []string) (err error) {
+func getCredential() (*admin.Credential, bool, error) {
+	file, err := os.Open(getCredFile())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return &admin.Credential{
+				AccessKey: "directpvadmin",
+				SecretKey: "directpvadmin",
+			}, false, nil
+		}
+
+		return nil, false, err
+	}
+	defer file.Close()
+
+	var cred admin.Credential
+	if err := json.NewDecoder(file).Decode(&cred); err != nil {
+		return nil, false, err
+	}
+
+	eprintf(color.HiYellowString("Using credential from "+getCredFile()), false)
+	return &cred, true, nil
+}
+
+func installMain(ctx context.Context, args []string) {
 	nodeSelector, err := parseNodeSelector(nodeSelectorParameters)
 	if err != nil {
-		return fmt.Errorf("%w; format of '--node-selector' flag value must be [<key>=<value>]", err)
+		eprintf(fmt.Sprintf("%v; format of '--node-selector' flag value must be [<key>=<value>]", err), true)
+		os.Exit(-1)
 	}
 	tolerations, err := parseTolerations(tolerationParameters)
 	if err != nil {
-		return fmt.Errorf("%w; format of '--tolerations' flag value must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>", err)
+		eprintf(fmt.Sprintf("%v; format of '--tolerations' flag value must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>", err), true)
+		os.Exit(-1)
 	}
 
-	file, err := openAuditFile(auditInstall)
+	file, err := openAuditFile(installAuditFile)
 	if err != nil {
-		klog.ErrorS(err, "unable to open audit file", "file", auditInstall)
+		eprintf(fmt.Sprintf("unable to open audit file %v; %v", installAuditFile, err), true)
 		fmt.Fprintln(os.Stderr, color.HiYellowString("Skipping audit logging"))
 	}
 
@@ -87,6 +117,12 @@ func install(ctx context.Context, args []string) (err error) {
 			}
 		}
 	}()
+
+	cred, fromFile, err := getCredential()
+	if err != nil {
+		eprintf(fmt.Sprintf("unable to get credential; %v", err), true)
+		os.Exit(1)
+	}
 
 	installConfig := &installer.Config{
 		Identity:          identity,
@@ -100,12 +136,28 @@ func install(ctx context.Context, args []string) (err error) {
 		DryRun:            dryRun,
 		AuditFile:         file,
 		ImagePullSecrets:  imagePullSecrets,
-		ConfigFile:        configFile,
+		Credential:        cred,
 	}
 
-	if err = installer.Install(ctx, installConfig); err == nil && !dryRun {
+	if err = installer.Install(ctx, installConfig); err != nil {
+		eprintf(fmt.Sprintf("unable to install %v; %v", consts.AppPrettyName, err), true)
+		os.Exit(1)
+	}
+
+	if !dryRun {
+		if !fromFile {
+			data, err := json.Marshal(cred)
+			if err == nil {
+				err = os.WriteFile(getCredFile(), data, 0o644)
+			}
+			if err != nil {
+				eprintf(fmt.Sprintf("unable to create credential file %v; %v", getCredFile(), err), true)
+				eprintf(fmt.Sprintf("Below credential is set on server\nAccessKey: %v, SecretKey: %v", cred.AccessKey, cred.SecretKey), false)
+			} else {
+				eprintf(fmt.Sprintf("Credential is saved at %v", getCredFile()), false)
+			}
+		}
+
 		fmt.Println(color.HiWhiteString(consts.AppPrettyName), "is installed successfully")
 	}
-
-	return err
 }

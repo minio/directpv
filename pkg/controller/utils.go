@@ -23,11 +23,9 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -38,8 +36,13 @@ func matchDrive(drive *types.Drive, req *csi.CreateVolumeRequest) bool {
 		return false
 	}
 
-	// Skip drives if status is not OK
-	if drive.Status.Status != directpvtypes.DriveStatusOK {
+	// Skip drives if status is not ready
+	if drive.Status.Status != directpvtypes.DriveStatusReady {
+		return false
+	}
+
+	// Skip drives if unschedulable
+	if drive.IsUnschedulable() {
 		return false
 	}
 
@@ -50,9 +53,9 @@ func matchDrive(drive *types.Drive, req *csi.CreateVolumeRequest) bool {
 
 	// Match drive by access-tier if requested.
 	for key, value := range req.GetParameters() {
-		if key == string(types.AccessTierLabelKey) {
+		if key == string(directpvtypes.AccessTierLabelKey) {
 			accessTiers, _ := directpvtypes.StringsToAccessTiers(value)
-			if len(accessTiers) > 0 && drive.Status.AccessTier != accessTiers[0] {
+			if len(accessTiers) > 0 && drive.GetAccessTier() != accessTiers[0] {
 				return false
 			}
 		}
@@ -84,7 +87,7 @@ func matchDrive(drive *types.Drive, req *csi.CreateVolumeRequest) bool {
 }
 
 func getFilteredDrives(ctx context.Context, req *csi.CreateVolumeRequest) (drives []types.Drive, err error) {
-	resultCh, err := drive.ListDrives(ctx, nil, nil, nil, k8s.MaxThreadCount)
+	resultCh, err := drive.ListDrives(ctx, nil, nil, nil, nil, k8s.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +97,7 @@ func getFilteredDrives(ctx context.Context, req *csi.CreateVolumeRequest) (drive
 			return nil, result.Err
 		}
 
-		if utils.ItemIn(result.Drive.Finalizers, consts.DriveFinalizerPrefix+req.GetName()) {
+		if result.Drive.VolumeExist(req.GetName()) {
 			return []types.Drive{result.Drive}, nil
 		}
 

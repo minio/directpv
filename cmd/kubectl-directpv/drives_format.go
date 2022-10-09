@@ -20,29 +20,35 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/manifoldco/promptui"
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/credential"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 )
+
+const apiServerEnvName = consts.AppCapsName + "_API_SERVER"
 
 var (
-	errServerEndpointEnvNotSet = errors.New(consts.APIServerEnv + " not set")
-	errInvalidURL              = errors.New("invalid url provided")
-	errNoDevicesToFormat       = errors.New("no available devices selected for formatting")
+	apiServer   = ""
+	allowedFlag = false
+	deniedFlag  = false
+	forceFlag   = false
+
+	errFormatDenied = errors.New("format denied")
+	errFormatFailed = errors.New("format failed")
 )
 
-var displayUnavailable, debug bool
-var formatDrivesCmd = &cobra.Command{
+var drivesFormatCmd = &cobra.Command{
 	Use:   "format",
-	Short: "Interactively format the devices present in the " + consts.AppPrettyName + " cluster.",
+	Short: "Format and add drives.",
 	Example: strings.ReplaceAll(
 		`# List all the drives for selection
 $ kubectl {PLUGIN_NAME} drives format
@@ -67,191 +73,402 @@ $ kubectl {PLUGIN_NAME} drives format --display-unavailable`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
-	RunE: func(c *cobra.Command, args []string) error {
-		// Validate the API Server URL
-		var secure bool
-		endpointURL, ok := os.LookupEnv(consts.APIServerEnv)
-		if !ok {
-			return errServerEndpointEnvNotSet
+	Run: func(c *cobra.Command, args []string) {
+		var err error
+		if nodeArgs, err = expandNodeArgs(); err != nil {
+			eprintf(fmt.Sprintf("invalid node arguments; %v", err), true)
+			os.Exit(-1)
 		}
-		u, err := url.Parse(endpointURL)
-		if err != nil {
-			return fmt.Errorf("unable to parse the url %s: %v", endpointURL, err)
+		if driveArgs, err = expandDriveArgs(); err != nil {
+			eprintf(fmt.Sprintf("invalid drive arguments; %v", err), true)
+			os.Exit(-1)
 		}
-		switch u.Scheme {
-		case "http":
-			secure = false
-		case "https":
-			secure = true
-		default:
-			klog.Error("the server url is expected to be in [scheme:][//[host:port]] format")
-			return errInvalidURL
-		}
-		// Load the access and secret keys
-		cred, err := credential.Load(configFile)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("credentials not found: please configure access and secret keys via ENV or config file (%s)", configFile)
+
+		if apiServer == "" {
+			var found bool
+			if apiServer, found = os.LookupEnv(apiServerEnvName); !found {
+				eprintf(fmt.Sprintf("environment variable %v or --api-server argument must be set", apiServerEnvName), true)
+				os.Exit(-1)
 			}
-			return fmt.Errorf("unable to load the credentials: %v", err)
+			if apiServer == "" {
+				eprintf(fmt.Sprintf("valid value must be set to %v environment variable", apiServerEnvName), true)
+				os.Exit(-1)
+			}
 		}
-		// initialize rest client
-		admClnt, err := admin.New(u.Host, cred.AccessKey, cred.SecretKey, secure)
+
+		host, port, err := net.SplitHostPort(apiServer)
 		if err != nil {
-			return fmt.Errorf("unable to initialize the admin client: %v", err)
+			eprintf(fmt.Sprintf("invalid api server; %v", err), true)
+			os.Exit(-1)
 		}
-		if debug {
-			admClnt.TraceOn(nil)
+		if host == "" {
+			eprintf("invalid host of api server", true)
+			os.Exit(-1)
 		}
-		// Expand the args
-		if err := expandFormatArgs(); err != nil {
-			return err
+		if port == "" {
+			eprintf("invalid port number of api server", true)
+			os.Exit(-1)
 		}
-		return formatDrives(c.Context(), admClnt)
+
+		drivesFormatMain(c.Context())
 	},
 }
 
 func init() {
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter by drive path for selection (supports ellipses pattern)")
-	formatDrivesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter by nodes for selection (supports ellipses pattern)")
-	formatDrivesCmd.PersistentFlags().BoolVarP(&displayUnavailable, "display-unavailable", "", displayUnavailable, "Display unavailable devices also during listing")
-	formatDrivesCmd.PersistentFlags().BoolVarP(&debug, "debug", "", debug, "Run in debug mode")
+	drivesFormatCmd.PersistentFlags().BoolVarP(&allowedFlag, "allowed", "", allowedFlag, "Filter output by drives are allowed to format.")
+	drivesFormatCmd.PersistentFlags().BoolVarP(&deniedFlag, "denied", "", deniedFlag, "Filter output by drives are denied to format.")
+	drivesFormatCmd.PersistentFlags().BoolVarP(&forceFlag, "force", "", forceFlag, "Force format selected drives.")
+	drivesFormatCmd.PersistentFlags().StringVarP(&apiServer, "api-server", "", apiServer, "Admin API server in host:port format.")
 }
 
-func formatDrives(ctx context.Context, admClient *admin.Client) (err error) {
-	result, err := listDevices(ctx, admClient)
+func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.ListDevicesResult, error) {
+	req := admin.ListDevicesRequest{
+		Nodes:   nodeArgs,
+		Devices: driveArgs,
+	}
+	req.FormatAllowed = allowedFlag
+	req.FormatDenied = deniedFlag
+
+	cred, err := admin.GetCredential(ctx, getCredFile())
 	if err != nil {
-		return fmt.Errorf("unable to list devices: %v", err)
+		return nil, err
 	}
-	deviceInfo := result.DeviceInfo
-	printTable(deviceInfo)
-
-	var rePrint bool
-	if len(deviceInfo) > 0 && len(driveArgs) == 0 {
-		rePrint = true
-		if answer := askQuestion(color.HiBlueString(bold("Please select the drives to format (supports ellipses and comma seperated values)")), nil); answer != "" {
-			driveArgs = strings.Split(
-				answer,
-				",")
-		}
-	}
-	if len(deviceInfo) > 0 && len(nodeArgs) == 0 {
-		rePrint = true
-		if answer := askQuestion(color.HiBlueString(bold("Please select the nodes (supports ellipses and comma seperated values)")), nil); answer != "" {
-			nodeArgs = strings.Split(
-				answer,
-				",")
-		}
-	}
-	if rePrint {
-		if err := expandFormatArgs(); err != nil {
-			return err
-		}
-		deviceInfo, err = filterDevices(ctx, deviceInfo)
-		if err != nil {
-			return fmt.Errorf("unable to filtert devices: %v", err)
-		}
-		printTable(deviceInfo)
-	}
-
-	if len(deviceInfo) == 0 {
-		outputStr := "no devices are available for formatting"
-		if len(driveArgs) > 0 || len(nodeArgs) > 0 {
-			outputStr = outputStr + ", please try again with correct selectors"
-		}
-		fmt.Println(color.HiRedString(outputStr + "\n"))
-		return nil
-	}
-
-	if !ask(color.HiBlueString(fmt.Sprintf(bold("Please confirm if the above listed (available) drives can be formatted (%s|%s)"), answerYes, answerNo))) {
-		fmt.Println(color.HiRedString("\nAborting the format request\n"))
-		return nil
-	}
-
-	formatResult, err := formatDevices(ctx, admClient, deviceInfo)
+	resp, err := client.ListDevices(&req, cred)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	for nodeName, formatDeviceStatusList := range formatResult.DeviceInfo {
-		for _, formatDeviceStatus := range formatDeviceStatusList {
-			if formatDeviceStatus.Error != "" {
-				fmt.Println(color.HiRedString("failed to format %s/%s: %s, error: %s, %s",
-					nodeName,
-					formatDeviceStatus.Name,
-					formatDeviceStatus.Message,
-					formatDeviceStatus.Error,
-					formatDeviceStatus.Suggestion,
-				))
-			} else {
-				fmt.Println(color.HiGreenString("successfully formatted %s/%s", nodeName, formatDeviceStatus.Name))
+
+	if resp.Error != "" {
+		return nil, fmt.Errorf(resp.Error)
+	}
+
+	writer := newTableWriter(
+		table.Row{
+			"NODE",
+			"NAME",
+			"MAKE",
+			"SIZE",
+			"FILESYSTEM",
+			"FORMAT",
+			"DENIED",
+		},
+		[]table.SortBy{
+			{
+				Name: "NODE",
+				Mode: table.Asc,
+			},
+			{
+				Name: "FORMAT",
+				Mode: table.Asc,
+			},
+			{
+				Name: "NAME",
+				Mode: table.Asc,
+			},
+		},
+		false,
+	)
+
+	formatDenied := true
+	errs := map[string]string{}
+	for node, result := range resp.Nodes {
+		if result.Error != "" {
+			errs[node] = result.Error
+			continue
+		}
+
+		for _, device := range result.Devices {
+			var allow string
+			if !device.FormatDenied {
+				formatDenied = false
+				allow = "Yes"
 			}
+			writer.AppendRow(
+				[]interface{}{
+					node,
+					device.Name,
+					printableString(device.Make()),
+					printableBytes(int64(device.Size)),
+					printableString(device.FSType()),
+					printableString(allow),
+					device.DeniedReason,
+				},
+			)
 		}
 	}
+
+	if writer.Length() > 0 {
+		writer.Render()
+	}
+
+	if len(errs) != 0 {
+		for node, err := range errs {
+			eprintf(fmt.Sprintf("%v: %v", node, err), true)
+		}
+
+		return nil, errFormatDenied
+	}
+
+	if writer.Length() == 0 || formatDenied {
+		fmt.Fprintf(os.Stderr, "%v\n", color.YellowString("No drives found to format"))
+		return nil, errFormatDenied
+	}
+
+	return resp.Nodes, nil
+}
+
+func getInput(msg string) string {
+	prompt := promptui.Prompt{
+		Label:    msg,
+		Validate: func(input string) error { return nil },
+	}
+	result, err := prompt.Run()
+	if err == promptui.ErrInterrupt {
+		fmt.Fprintf(os.Stderr, "Exiting by interrupt\n")
+		os.Exit(-1)
+	}
+	return result
+}
+
+func getSelections() error {
+	if len(nodeArgs) == 0 {
+		nodes := getInput(color.YellowString("Select nodes (comma separated values, ellipses or ALL)"))
+		if nodes == "" {
+			return errors.New("no node selected")
+		}
+		if nodes == "ALL" {
+			nodeArgs = nil
+		} else {
+			nodeArgs = strings.Split(nodes, ",")
+		}
+	}
+
+	if len(driveArgs) == 0 {
+		devices := getInput(color.YellowString("Select drives (comma separated values, ellipses or ALL)"))
+		if devices == "" {
+			return errors.New("no drive selected")
+		}
+		if devices == "ALL" {
+			driveArgs = nil
+		} else {
+			driveArgs = strings.Split(devices, ",")
+		}
+	}
+
+	var err error
+	if nodeArgs, err = expandNodeArgs(); err != nil {
+		return fmt.Errorf("invalid node selections; %w", err)
+	}
+	if driveArgs, err = expandDriveArgs(); err != nil {
+		return fmt.Errorf("invalid drive selections; %w", err)
+	}
+
 	return nil
 }
 
-func listDevices(ctx context.Context, admClient *admin.Client) (admin.GetDevicesResponse, error) {
-	var driveSelectors, nodeSelectors []admin.Selector
-	for _, driveArg := range driveArgs {
-		driveSelectors = append(driveSelectors, admin.Selector(driveArg))
-	}
-	for _, nodeArg := range nodeArgs {
-		nodeSelectors = append(nodeSelectors, admin.Selector(nodeArg))
-	}
-	statusSelectors := []admin.DeviceStatus{admin.DeviceStatusAvailable}
-	if displayUnavailable {
-		statusSelectors = append(statusSelectors, admin.DeviceStatusUnavailable)
-	}
-	return admClient.ListDevices(context.Background(), admin.GetDevicesRequest{
-		Drives:   driveSelectors,
-		Nodes:    nodeSelectors,
-		Statuses: statusSelectors,
-	})
-}
+func getFormatDevices(resultMap map[string]admin.ListDevicesResult) (map[string][]admin.FormatDevice, error) {
+	writer := newTableWriter(
+		table.Row{
+			"NODE",
+			"NAME",
+			"MAKE",
+			"SIZE",
+			"FILESYSTEM",
+		},
+		[]table.SortBy{
+			{
+				Name: "NODE",
+				Mode: table.Asc,
+			},
+			{
+				Name: "FORMAT",
+				Mode: table.Asc,
+			},
+			{
+				Name: "NAME",
+				Mode: table.Asc,
+			},
+		},
+		false,
+	)
 
-func filterDevices(ctx context.Context, deviceInfo map[admin.NodeName][]admin.Device) (map[admin.NodeName][]admin.Device, error) {
-	devices := make(map[admin.NodeName][]admin.Device)
-	for nodeName, deviceList := range deviceInfo {
-		if len(nodeArgs) > 0 && !utils.ItemIn(nodeArgs, string(nodeName)) {
+	forceRequired := false
+
+	nodeMap := map[string][]admin.FormatDevice{}
+	for node, result := range resultMap {
+		if result.Error != "" {
 			continue
 		}
-		for _, device := range deviceList {
-			if device.Status == admin.DeviceStatusUnavailable {
+
+		if len(nodeArgs) > 0 && !utils.Contains(nodeArgs, node) {
+			continue
+		}
+
+		for _, device := range result.Devices {
+			if device.FormatDenied {
 				continue
 			}
-			if len(driveArgs) > 0 && !utils.ItemIn(driveArgs, device.Name) {
+
+			if len(driveArgs) > 0 && !utils.Contains(driveArgs, device.Name) {
 				continue
 			}
-			devices[nodeName] = append(devices[nodeName], device)
+
+			nodeMap[node] = append(nodeMap[node], admin.NewFormatDevice(device, forceFlag))
+
+			if !forceRequired {
+				forceRequired = device.FSType() != ""
+			}
+
+			fsType := device.FSType()
+			if fsType == "" {
+				fsType = "Unknown"
+			}
+
+			writer.AppendRow(
+				[]interface{}{
+					node,
+					device.Name,
+					printableString(device.Make()),
+					printableBytes(int64(device.Size)),
+					fsType,
+				},
+			)
 		}
 	}
-	return devices, nil
+
+	if len(nodeMap) == 0 {
+		return nil, nil
+	}
+
+	if forceRequired && !forceFlag {
+		return nil, fmt.Errorf("--force flag must be set to format drives with known filesystem")
+	}
+
+	writer.Render()
+
+	confirm := getInput(color.HiRedString("Format may lead to data loss. Type 'Yes' if you really want to do"))
+	if confirm == "Yes" {
+		return nodeMap, nil
+	}
+
+	return nil, nil
 }
 
-func formatDevices(ctx context.Context, admClient *admin.Client, deviceInfo map[admin.NodeName][]admin.Device) (admin.FormatDevicesResponse, error) {
-	formatInfo := make(map[admin.NodeName][]admin.FormatDevice)
-	for nodeName, deviceList := range deviceInfo {
-		var devicesToFormat []admin.FormatDevice
-		for _, device := range deviceList {
-			if device.Status == admin.DeviceStatusUnavailable {
-				klog.V(5).Infof(color.HiYellowString(italic("skipping %s as it is unavailable", device.Name)))
-				continue
+func formatDevices(ctx context.Context, client *admin.Client, nodes map[string][]admin.FormatDevice) error {
+	cred, err := admin.GetCredential(ctx, getCredFile())
+	if err != nil {
+		return err
+	}
+
+	req := admin.FormatDevicesRequest{Nodes: nodes}
+	resp, err := client.FormatDevices(&req, cred)
+	if err != nil {
+		return err
+	}
+
+	if resp.Error != "" {
+		return errors.New(resp.Error)
+	}
+
+	writer := newTableWriter(
+		table.Row{
+			"NODE",
+			"NAME",
+			"MESSAGE",
+		},
+		[]table.SortBy{
+			{
+				Name: "MESSAGE",
+				Mode: table.Asc,
+			},
+			{
+				Name: "NODE",
+				Mode: table.Asc,
+			},
+			{
+				Name: "NAME",
+				Mode: table.Asc,
+			},
+		},
+		false,
+	)
+
+	errs := map[string]string{}
+	for node, result := range resp.Nodes {
+		if result.Error != "" {
+			errs[node] = result.Error
+			continue
+		}
+
+		for _, device := range result.Devices {
+			msg := "Success"
+			if device.Error != "" {
+				msg = "ERROR: " + device.Error
 			}
-			devicesToFormat = append(devicesToFormat, admin.FormatDevice{
-				Name:       device.Name,
-				MajorMinor: device.MajorMinor,
-				Force:      device.Filesystem != "",
-				UDevData:   device.UDevData,
-			})
-		}
-		if len(devicesToFormat) > 0 {
-			formatInfo[admin.NodeName(nodeName)] = devicesToFormat
+
+			writer.AppendRow(
+				[]interface{}{
+					node,
+					device.Name,
+					msg,
+				},
+			)
 		}
 	}
-	if len(formatInfo) == 0 {
-		return admin.FormatDevicesResponse{}, errNoDevicesToFormat
+
+	writer.Render()
+
+	if len(errs) != 0 {
+		for node, err := range errs {
+			eprintf(fmt.Sprintf("%v: %v", node, err), true)
+		}
+
+		return errFormatFailed
 	}
-	return admClient.FormatDevices(context.Background(), admin.FormatDevicesRequest{
-		FormatInfo: formatInfo,
-	})
+
+	return nil
+}
+
+func drivesFormatMain(ctx context.Context) {
+	client := admin.NewClient(
+		&url.URL{
+			Scheme: "https",
+			Host:   apiServer,
+		},
+	)
+
+	resultMap, err := listDevices(ctx, client)
+	if err != nil {
+		if !errors.Is(err, errFormatDenied) {
+			eprintf(err.Error(), true)
+		}
+		os.Exit(1)
+	}
+
+	if deniedFlag && !allowedFlag {
+		return
+	}
+
+	if err := getSelections(); err != nil {
+		eprintf(err.Error(), true)
+		os.Exit(1)
+	}
+
+	nodeMap, err := getFormatDevices(resultMap)
+	if err != nil {
+		eprintf(err.Error(), true)
+		os.Exit(1)
+	}
+
+	if len(nodeMap) == 0 {
+		return
+	}
+
+	err = formatDevices(ctx, client, nodeMap)
+	if err != nil {
+		if !errors.Is(err, errFormatFailed) {
+			eprintf(err.Error(), true)
+		}
+		os.Exit(1)
+	}
 }

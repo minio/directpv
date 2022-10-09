@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/controller"
 	pkgidentity "github.com/minio/directpv/pkg/identity"
@@ -33,11 +32,11 @@ var controllerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		return startController(c.Context(), args)
+		return startController(c.Context())
 	},
 }
 
-func startController(ctx context.Context, args []string) error {
+func startController(ctx context.Context) error {
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
@@ -48,11 +47,7 @@ func startController(ctx context.Context, args []string) error {
 	}
 	klog.V(3).Infof("Identity server started")
 
-	var ctrlServer csi.ControllerServer
-	ctrlServer, err = controller.NewServer(ctx, identity, kubeNodeName, rack, zone, region)
-	if err != nil {
-		return err
-	}
+	ctrlServer := controller.NewServer()
 	klog.V(3).Infof("Controller server started")
 
 	errCh := make(chan error)

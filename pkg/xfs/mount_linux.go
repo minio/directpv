@@ -30,7 +30,7 @@ func mount(device, target string) error {
 		return err
 	}
 
-	return sys.SafeMount(device, target, "xfs", []string{"noatime"}, "prjquota")
+	return sys.Mount(device, target, "xfs", []string{"noatime"}, "prjquota")
 }
 
 func bindMount(source, target string, readOnly bool) error {

@@ -31,31 +31,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type ErrDeviceAlreadyMounted struct {
-	Device      string
-	MountPoints []string
-}
-
-func (e *ErrDeviceAlreadyMounted) Error() string {
-	return fmt.Sprintf("device %v already mounted on %v", e.Device, e.MountPoints)
-}
-
-type ErrMountPointAlreadyMounted struct {
-	MountPoint string
-	Devices    []string
-}
-
-func (e *ErrMountPointAlreadyMounted) Error() string {
-	return fmt.Sprintf("mount point %v already mounted by %v", e.MountPoint, e.Devices)
-}
-
-func getMounts(proc1Mountinfo string) (mountPointMap, deviceMap map[string][]string, err error) {
-	file, err := os.Open(proc1Mountinfo)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer file.Close()
-	reader := bufio.NewReader(file)
+func parseProc1Mountinfo(r io.Reader) (mountPointMap, deviceMap map[string][]string, err error) {
+	reader := bufio.NewReader(r)
 
 	mountPointMap = map[string][]string{}
 	deviceMap = map[string][]string{}
@@ -75,10 +52,6 @@ func getMounts(proc1Mountinfo string) (mountPointMap, deviceMap map[string][]str
 			continue
 		}
 
-		if _, found := mountPointMap[tokens[4]]; !found {
-			mountPointMap[tokens[4]] = []string{}
-		}
-
 		// Skip mount tags.
 		var i int
 		for i = 6; i < len(tokens); i++ {
@@ -88,15 +61,58 @@ func getMounts(proc1Mountinfo string) (mountPointMap, deviceMap map[string][]str
 			}
 		}
 
-		if _, found := deviceMap[tokens[i+1]]; !found {
-			deviceMap[tokens[i+1]] = []string{}
-		}
-
 		mountPointMap[tokens[4]] = append(mountPointMap[tokens[4]], tokens[i+1])
 		deviceMap[tokens[i+1]] = append(mountPointMap[tokens[i+1]], tokens[4])
 	}
 
 	return
+}
+
+func parseProcMounts(r io.Reader) (mountPointMap, deviceMap map[string][]string, err error) {
+	reader := bufio.NewReader(r)
+
+	mountPointMap = map[string][]string{}
+	deviceMap = map[string][]string{}
+	for {
+		s, err := reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, nil, err
+		}
+
+		// Refer /proc/mounts section in https://man7.org/linux/man-pages/man5/proc.5.html
+		// to know about this logic.
+		tokens := strings.Fields(strings.TrimSpace(s))
+		if len(tokens) < 2 {
+			continue
+		}
+
+		mountPointMap[tokens[1]] = append(mountPointMap[tokens[1]], tokens[0])
+		deviceMap[tokens[0]] = append(mountPointMap[tokens[0]], tokens[1])
+	}
+
+	return
+}
+
+func getMounts() (mountPointMap, deviceMap map[string][]string, err error) {
+	file, err := os.Open("/proc/1/mountinfo")
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, nil, err
+		}
+	} else {
+		defer file.Close()
+		return parseProc1Mountinfo(file)
+	}
+
+	if file, err = os.Open("/proc/mounts"); err != nil {
+		return nil, nil, err
+	}
+
+	defer file.Close()
+	return parseProcMounts(file)
 }
 
 var mountFlagMap = map[string]uintptr{
@@ -122,14 +138,14 @@ var mountFlagMap = map[string]uintptr{
 	"sync":        syscall.MS_SYNCHRONOUS,
 }
 
-func safeMount(proc1Mountinfo, device, target, fsType string, flags []string, superBlockFlags string) error {
-	mountPointMap, _, err := getMounts(proc1Mountinfo)
+func mount(device, target, fsType string, flags []string, superBlockFlags string) error {
+	mountPointMap, _, err := getMounts()
 	if err != nil {
 		return err
 	}
 
 	if devices, found := mountPointMap[target]; found {
-		if utils.ItemIn(devices, device) {
+		if utils.Contains(devices, device) {
 			klog.V(5).InfoS("device is already mounted on target", "device", device, "target", target, "fsType", fsType, "flags", flags, "superBlockFlags", superBlockFlags)
 			return nil
 		}
@@ -145,18 +161,18 @@ func safeMount(proc1Mountinfo, device, target, fsType string, flags []string, su
 		}
 		mountFlags |= value
 	}
-	klog.V(3).InfoS("mouting device", "device", device, "target", target, "fsType", fsType, "mountFlags", mountFlags, "superBlockFlags", superBlockFlags)
+	klog.V(5).InfoS("mounting device", "device", device, "target", target, "fsType", fsType, "mountFlags", mountFlags, "superBlockFlags", superBlockFlags)
 	return syscall.Mount(device, target, fsType, mountFlags, superBlockFlags)
 }
 
-func bindMount(proc1Mountinfo, source, target, fsType string, recursive, readOnly bool, superBlockFlags string) error {
-	mountPointMap, _, err := getMounts(proc1Mountinfo)
+func bindMount(source, target, fsType string, recursive, readOnly bool, superBlockFlags string) error {
+	mountPointMap, _, err := getMounts()
 	if err != nil {
 		return err
 	}
 
 	if devices, found := mountPointMap[target]; found {
-		if utils.ItemIn(devices, source) {
+		if utils.Contains(devices, source) {
 			klog.V(5).InfoS("source is already mounted on target", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "readOnly", readOnly, "superBlockFlags", superBlockFlags)
 			return nil
 		}
@@ -171,25 +187,21 @@ func bindMount(proc1Mountinfo, source, target, fsType string, recursive, readOnl
 	if readOnly {
 		flags |= mountFlagMap["ro"]
 	}
-	klog.V(3).InfoS("bind mounting directory", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "readOnly", readOnly, "superBlockFlags", superBlockFlags)
+	klog.V(5).InfoS("bind mounting directory", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "readOnly", readOnly, "superBlockFlags", superBlockFlags)
 	return syscall.Mount(source, target, fsType, flags, superBlockFlags)
 }
 
-func safeUnmount(proc1Mountinfo, target string, force, detach, expire bool) error {
-	mountPointMap, _, err := getMounts(proc1Mountinfo)
+func unmount(target string, force, detach, expire bool) error {
+	mountPointMap, _, err := getMounts()
 	if err != nil {
 		return err
 	}
 
 	if _, found := mountPointMap[target]; !found {
-		klog.V(3).InfoS("target already unmounted", "target", target, "force", force, "detach", detach, "expire", expire)
+		klog.V(5).InfoS("target already unmounted", "target", target, "force", force, "detach", detach, "expire", expire)
 		return nil
 	}
 
-	return unmount(target, force, detach, expire)
-}
-
-func unmount(target string, force, detach, expire bool) error {
 	flags := 0
 	if force {
 		flags |= syscall.MNT_FORCE
@@ -200,6 +212,7 @@ func unmount(target string, force, detach, expire bool) error {
 	if expire {
 		flags |= syscall.MNT_EXPIRE
 	}
-	klog.V(3).InfoS("unmounting mount point", "target", target, "force", force, "detach", detach, "expire", expire)
+
+	klog.V(5).InfoS("unmounting mount point", "target", target, "force", force, "detach", detach, "expire", expire)
 	return syscall.Unmount(target, flags)
 }

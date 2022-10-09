@@ -19,21 +19,20 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/types"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var uncordonDrivesCmd = &cobra.Command{
+var drivesUncordonCmd = &cobra.Command{
 	Use:   "uncordon",
-	Short: "Uncordon drives to resume scheduling of new volumes",
+	Short: "Uncordon drives.",
 	Example: strings.ReplaceAll(
 		`# Uncordon all the drives from all the nodes
 $ kubectl {PLUGIN_NAME} drives uncordon --all
@@ -55,53 +54,67 @@ $ kubectl {PLUGIN_NAME} drives uncordon --drive /dev/xvd{a...d} --node node{1...
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
-	RunE: func(c *cobra.Command, _ []string) error {
-		if !allFlag {
-			if len(driveArgs) == 0 && len(nodeArgs) == 0 && len(accessTierArgs) == 0 {
-				return fmt.Errorf("atleast one of '%s', '%s', '%s' or '%s' must be specified",
-					bold("--all"),
-					bold("--drive"),
-					bold("--node"),
-					bold("--access-tier"),
-				)
-			}
+	Run: func(c *cobra.Command, _ []string) {
+		if !allFlag && len(driveArgs) == 0 && len(nodeArgs) == 0 && len(accessTierArgs) == 0 {
+			eprintf("atleast one of --all, --drive, --node, or --access-tier flag must be specified", true)
+			os.Exit(-1)
 		}
-		if err := validateDriveSelectors(); err != nil {
-			return err
-		}
-		return uncordonDrives(c.Context())
+		drivesUncordonMain(c.Context())
 	},
 }
 
 func init() {
-	uncordonDrivesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Uncordon drives filtered by drive path (supports ellipses pattern)")
-	uncordonDrivesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Uncordon drives filtered by nodes (supports ellipses pattern)")
-	uncordonDrivesCmd.PersistentFlags().StringSliceVarP(&accessTierArgs, "access-tier", "", accessTierArgs, fmt.Sprintf("Uncordon drives filtered by access tier set on the drive [%s]", strings.Join(directpvtypes.SupportedAccessTierValues(), ", ")))
-	uncordonDrivesCmd.PersistentFlags().BoolVarP(&allFlag, "all", "a", allFlag, "Uncordon all the drives from all the nodes")
+	drivesUncordonCmd.PersistentFlags().BoolVarP(&allFlag, "all", "a", allFlag, "Uncordon all drives on all nodes.")
 }
 
-func uncordonDrives(ctx context.Context) error {
+func drivesUncordonMain(ctx context.Context) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
-	resultCh, err := drive.ListDrives(ctx, nodeSelectors, driveSelectors, accessTierSelectors, k8s.MaxThreadCount)
-	if err != nil {
-		return err
+
+	var err error
+	var resultCh <-chan drive.ListDriveResult
+	if allFlag {
+		resultCh, err = drive.ListDrives(ctx, nil, nil, nil, nil, k8s.MaxThreadCount)
+	} else {
+		resultCh, err = drive.ListDrives(ctx, nodeSelectors, driveSelectors, accessTierSelectors, driveStatusArgs, k8s.MaxThreadCount)
 	}
-	return drive.ProcessDrives(
-		ctx,
-		resultCh,
-		func(drive *types.Drive) bool {
-			return drive.Status.Status == directpvtypes.DriveStatusCordoned
-		},
-		func(drive *types.Drive) error {
-			drive.Status.Status = directpvtypes.DriveStatusOK
-			return nil
-		},
-		func(ctx context.Context, drive *types.Drive) error {
-			_, err := client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{})
-			return err
-		},
-		nil,
-		dryRun,
-	)
+	if err != nil {
+		eprintf(err.Error(), true)
+		os.Exit(1)
+	}
+
+	var processed bool
+	for result := range resultCh {
+		if result.Err != nil {
+			eprintf(result.Err.Error(), true)
+			os.Exit(1)
+		}
+
+		processed = true
+
+		if !result.Drive.IsUnschedulable() {
+			fmt.Printf("Drive %v already uncordoned\n", result.Drive.GetDriveID())
+			continue
+		}
+
+		result.Drive.Schedulable()
+		if !dryRun {
+			if _, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{}); err != nil {
+				eprintf(fmt.Sprintf("unable to uncordon drive %v; %v", result.Drive.GetDriveID(), err), true)
+				os.Exit(1)
+			}
+		}
+
+		fmt.Printf("Drive %v uncordoned\n", result.Drive.GetDriveID())
+	}
+
+	if !processed {
+		if allFlag {
+			eprintf("No resources found", false)
+		} else {
+			eprintf("No matching resources found", false)
+		}
+
+		os.Exit(1)
+	}
 }

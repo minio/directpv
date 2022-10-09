@@ -25,8 +25,10 @@ import (
 	"syscall"
 	"time"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/installer"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
@@ -43,13 +45,12 @@ var (
 	rack                 = "default"
 	zone                 = "default"
 	region               = "default"
-	csiEndpoint          = consts.UnixCSIEndpoint
+	csiEndpoint          = installer.UnixCSIEndpoint
 	kubeconfig           = ""
 	conversionHealthzURL = ""
-	metricsPort          = consts.MetricsPort
 	readinessPort        = consts.ReadinessPort
-	apiPort              = consts.APIPort
-	nodeAPIPort          = consts.NodeAPIPort
+
+	nodeID directpvtypes.NodeID
 )
 
 var mainCmd = &cobra.Command{
@@ -68,6 +69,8 @@ var mainCmd = &cobra.Command{
 		if kubeNodeName == "" {
 			return fmt.Errorf("value to --kube-node-name must be provided")
 		}
+
+		nodeID = directpvtypes.NodeID(kubeNodeName)
 
 		client.Init()
 		return nil

@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -81,7 +82,7 @@ func getPodInfo(ctx context.Context, req *csi.NodePublishVolumeRequest) (podName
 // NodePublishVolume is node publish volume request handler.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodepublishvolume
 func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.V(3).InfoS("NodePublishVolume() called",
+	klog.V(3).InfoS("Publish volume requested",
 		"volumeID", req.GetVolumeId(),
 		"stagingTargetPath", req.GetStagingTargetPath(),
 		"targetPath", req.GetTargetPath())
@@ -109,18 +110,13 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.FailedPrecondition, "volume %v is not yet staged, but requested with %v", volume.Name, req.GetStagingTargetPath())
 	}
 
-	volumeLabels := volume.GetLabels()
-	if volumeLabels == nil {
-		volumeLabels = make(map[string]string)
-	}
-	volumeLabels[string(types.PodNameLabelKey)] = podName
-	volumeLabels[string(types.PodNSLabelKey)] = podNS
+	volume.SetPodName(podName)
+	volume.SetPodNS(podNS)
 	for key, value := range podLabels {
 		if strings.HasPrefix(key, consts.GroupName+"/") {
-			volumeLabels[key] = value
+			volume.SetLabel(directpvtypes.LabelKey(key), directpvtypes.LabelValue(value))
 		}
 	}
-	volume.Labels = volumeLabels
 
 	mountPointMap, _, err := server.getMounts()
 	if err != nil {
@@ -143,7 +139,6 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	volume.Status.TargetPath = req.GetTargetPath()
-
 	_, err = client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	})
@@ -157,7 +152,7 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 // NodeUnpublishVolume is node unpublish volume handler.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodeunpublishvolume
 func (server *Server) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	klog.V(3).InfoS("NodeUnPublishVolume() called",
+	klog.V(3).InfoS("Unpublish volume requested",
 		"volumeID", req.GetVolumeId(),
 		"targetPath", req.GetTargetPath())
 	volumeID := req.GetVolumeId()
@@ -193,7 +188,6 @@ func (server *Server) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	volume.Status.TargetPath = ""
-
 	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	}); err != nil {

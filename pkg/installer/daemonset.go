@@ -107,7 +107,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.getNodeDriverRegistrarImage()),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
-					"--csi-address=" + consts.UnixCSIEndpoint,
+					"--csi-address=" + UnixCSIEndpoint,
 					fmt.Sprintf("--kubelet-registration-path=%s",
 						newPluginsSocketDir(kubeletDirPath, c.identity())+socketFile),
 				},
@@ -144,7 +144,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 					Name:          metricsPortName,
 					Protocol:      corev1.ProtocolTCP,
 				}),
-				ReadinessProbe: &corev1.Probe{ProbeHandler: getReadinessHandler()},
+				ReadinessProbe: &corev1.Probe{ProbeHandler: readinessHandler},
 				LivenessProbe: &corev1.Probe{
 					FailureThreshold:    5,
 					InitialDelaySeconds: 300,
@@ -182,7 +182,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
-				/*ReadinessProbe: &corev1.Probe{ProbeHandler: getReadinessHandler()},
+				/*ReadinessProbe: &corev1.Probe{ProbeHandler: readinessHandler},
 				LivenessProbe: &corev1.Probe{
 					FailureThreshold:    5,
 					InitialDelaySeconds: 300,
@@ -282,6 +282,6 @@ func createOrUpdateNodeAPIServerSecrets(ctx context.Context, caCertBytes, public
 		return err
 	}
 	return createOrUpdateSecret(ctx, nodeAPIServerCASecretName, map[string][]byte{
-		consts.CACertFileName: caCertBytes,
+		caCertFileName: caCertBytes,
 	}, c)
 }

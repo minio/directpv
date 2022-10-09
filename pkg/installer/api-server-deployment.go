@@ -30,16 +30,15 @@ import (
 )
 
 func installAPIServerDeploymentDefault(ctx context.Context, c *Config) error {
-	deploymentsClient := k8s.KubeClient().AppsV1().Deployments(c.namespace())
-	if _, err := deploymentsClient.Get(ctx, c.apiServerDeploymentName(), metav1.GetOptions{}); err != nil {
+	if _, err := k8s.KubeClient().AppsV1().Deployments(c.namespace()).Get(ctx, c.apiServerDeploymentName(), metav1.GetOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}
-	} else {
-		// Deployment already created
-		return nil
+
+		return createAPIServerDeployment(ctx, c)
 	}
-	return createAPIServerDeployment(ctx, c)
+
+	return nil
 }
 
 func uninstallAPIServerDeploymentDefault(ctx context.Context, c *Config) error {
@@ -72,7 +71,7 @@ func createAPIServerDeployment(ctx context.Context, c *Config) error {
 		ImagePullSecrets: c.getImagePullSecrets(),
 		Containers: []corev1.Container{
 			{
-				Name:  consts.APIServerContainerName,
+				Name:  apiServerContainerName,
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
 				Args: []string{
 					"api-server",
@@ -85,16 +84,15 @@ func createAPIServerDeployment(ctx context.Context, c *Config) error {
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
 				},
-				// ReadinessProbe: &corev1.Probe{ProbeHandler: getReadinessHandler()},
 				Env: []corev1.EnvVar{kubeNodeNameEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(apiServerCertsDir, consts.APIServerCertsPath, corev1.MountPropagationNone, false),
-					newVolumeMount(nodeAPIServerCADir, consts.NodeAPIServerCAPath, corev1.MountPropagationNone, false),
+					newVolumeMount(nodeAPIServerCADir, nodeAPIServerCAPath, corev1.MountPropagationNone, false),
 				},
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: consts.APIPort,
-						Name:          consts.APIPortName,
+						Name:          apiPortName,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
@@ -165,6 +163,6 @@ func createOrUpdateAPIServerSecrets(ctx context.Context, caCertBytes, publicCert
 		return err
 	}
 	return createOrUpdateSecret(ctx, apiServerCASecretName, map[string][]byte{
-		consts.CACertFileName: caCertBytes,
+		caCertFileName: caCertBytes,
 	}, c)
 }

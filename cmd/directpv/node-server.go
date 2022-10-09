@@ -31,7 +31,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var errMountFailure = errors.New("could not mount the drive")
+var metricsPort = consts.MetricsPort
 
 var nodeServerCmd = &cobra.Command{
 	Use:           "node-server",
@@ -61,14 +61,14 @@ func startNodeServer(ctx context.Context, args []string) error {
 	errCh := make(chan error)
 
 	go func() {
-		if err := volume.StartController(ctx, kubeNodeName); err != nil {
+		if err := volume.StartController(ctx, nodeID); err != nil {
 			klog.ErrorS(err, "unable to start volume controller")
 			errCh <- err
 		}
 	}()
 
 	go func() {
-		if err := drive.StartController(ctx, kubeNodeName); err != nil {
+		if err := drive.StartController(ctx, nodeID); err != nil {
 			klog.ErrorS(err, "unable to start drive controller")
 			errCh <- err
 		}
@@ -78,7 +78,7 @@ func startNodeServer(ctx context.Context, args []string) error {
 	nodeServer, err = node.NewServer(
 		ctx,
 		identity,
-		kubeNodeName,
+		nodeID,
 		rack,
 		zone,
 		region,

@@ -19,10 +19,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"strings"
 
-	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/types"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
@@ -35,26 +33,11 @@ var (
 	podNameArgs []string
 	podNSArgs   []string
 
-	stagedFlag       bool
-	podNameSelectors []types.LabelValue
-	podNSSelectors   []types.LabelValue
+	podNameSelectors []directpvtypes.LabelValue
+	podNSSelectors   []directpvtypes.LabelValue
 )
 
-var volumesCmd = &cobra.Command{
-	Use:   "volumes",
-	Short: fmt.Sprintf("Manage %s Volumes", consts.AppPrettyName),
-	Aliases: []string{
-		"volume",
-		"vol",
-	},
-}
-
-func init() {
-	volumesCmd.AddCommand(listVolumesCmd)
-	volumesCmd.AddCommand(purgeVolumesCmd)
-}
-
-func getPodNameSelectors() ([]types.LabelValue, error) {
+func getPodNameSelectors() ([]directpvtypes.LabelValue, error) {
 	for i := range podNameArgs {
 		if utils.TrimDevPrefix(podNameArgs[i]) == "" {
 			return nil, fmt.Errorf("empty pod name %v", podNameArgs[i])
@@ -63,24 +46,13 @@ func getPodNameSelectors() ([]types.LabelValue, error) {
 	return getSelectorValues(podNameArgs)
 }
 
-func getPodNamespaceSelectors() ([]types.LabelValue, error) {
+func getPodNamespaceSelectors() ([]directpvtypes.LabelValue, error) {
 	for i := range podNSArgs {
 		if utils.TrimDevPrefix(podNSArgs[i]) == "" {
 			return nil, fmt.Errorf("empty pod namespace %v", podNSArgs[i])
 		}
 	}
 	return getSelectorValues(podNSArgs)
-}
-
-func getDriveNameSelectors(args []string) (values []types.LabelValue, err error) {
-	for i := range args {
-		trimmed := strings.TrimSpace(args[i])
-		if trimmed == "" {
-			return nil, errEmptyValue
-		}
-		values = append(values, types.NewLabelValue(trimmed))
-	}
-	return
 }
 
 func validateVolumeSelectors() (err error) {
@@ -99,4 +71,27 @@ func validateVolumeSelectors() (err error) {
 	podNSSelectors, err = getPodNamespaceSelectors()
 
 	return err
+}
+
+var volumesCmd = &cobra.Command{
+	Use:     "volumes",
+	Aliases: []string{"volume", "vol"},
+	Short:   "Manage volumes.",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if parent := cmd.Parent(); parent != nil {
+			parent.PersistentPreRunE(parent, args)
+		}
+		return validateVolumeSelectors()
+	},
+}
+
+func init() {
+	volumesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter output by nodes optionally in ellipses pattern.")
+	volumesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter output by drives optionally in ellipses pattern.")
+	volumesCmd.PersistentFlags().BoolVarP(&allFlag, "all", "A", allFlag, "List all volumes.")
+	volumesCmd.PersistentFlags().StringSliceVarP(&podNameArgs, "pod-name", "", podNameArgs, "Filter output by pod names optionally in ellipses pattern.")
+	volumesCmd.PersistentFlags().StringSliceVarP(&podNSArgs, "pod-namespace", "", podNSArgs, "Filter output by pod namespaces optionally in ellipses pattern.")
+
+	volumesCmd.AddCommand(volumesListCmd)
+	volumesCmd.AddCommand(volumesPurgeCmd)
 }

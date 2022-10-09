@@ -22,12 +22,13 @@ import (
 	"net"
 	"net/http"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/klog/v2"
 )
 
-func metricsHandler(nodeID string) http.Handler {
+func metricsHandler(nodeID directpvtypes.NodeID) http.Handler {
 	mc := newMetricsCollector(nodeID)
 	prometheus.MustRegister(mc)
 
@@ -50,7 +51,7 @@ func metricsHandler(nodeID string) http.Handler {
 }
 
 // ServeMetrics starts metrics service.
-func ServeMetrics(ctx context.Context, nodeID string, port int) {
+func ServeMetrics(ctx context.Context, nodeID directpvtypes.NodeID, port int) {
 	config := net.ListenConfig{}
 	listener, err := config.Listen(ctx, "tcp", fmt.Sprintf(":%v", port))
 	if err != nil {

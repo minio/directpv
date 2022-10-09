@@ -19,7 +19,6 @@ package node
 import (
 	"context"
 	"errors"
-	"os"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/xfs"
@@ -40,11 +39,13 @@ func createFakeServer() *Server {
 		getDeviceByFSUUID: func(fsuuid string) (string, error) { return "", nil },
 		bindMount:         func(source, target string, readOnly bool) error { return nil },
 		unmount:           func(target string) error { return nil },
-		getQuota: func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error) {
+		getQuota: func(ctx context.Context, device, volumeName string) (quota *xfs.Quota, err error) {
 			return &xfs.Quota{}, nil
 		},
-		setQuota: func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error) { return nil },
-		mkdir: func(path string, perm os.FileMode) error {
+		setQuota: func(ctx context.Context, device, path, volumeName string, quota xfs.Quota) (err error) {
+			return nil
+		},
+		mkdir: func(path string) error {
 			if path == "" {
 				return errors.New("path is empty")
 			}

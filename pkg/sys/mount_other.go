@@ -23,22 +23,18 @@ import (
 	"runtime"
 )
 
-func getMounts(proc1Mountinfo string) (mountPointMap, deviceMap map[string][]string, err error) {
+func getMounts() (mountPointMap, deviceMap map[string][]string, err error) {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func safeMount(proc1Mountinfo, device, target, fsType string, flags []string, superBlockFlags string) error {
-	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
-}
-
-func safeUnmount(proc1Mountinfo, target string, force, detach, expire bool) error {
-	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
-}
-
-func bindMount(proc1Mountinfo, source, target, fsType string, recursive, readOnly bool, superBlockFlags string) error {
+func mount(device, target, fsType string, flags []string, superBlockFlags string) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
 func unmount(target string, force, detach, expire bool) error {
+	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+}
+
+func bindMount(source, target, fsType string, recursive, readOnly bool, superBlockFlags string) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
