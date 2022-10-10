@@ -44,6 +44,9 @@ func init() {
 	drivesCmd.AddCommand(formatDrivesCmd)
 	drivesCmd.AddCommand(accessTierCmd)
 	drivesCmd.AddCommand(releaseDrivesCmd)
+	drivesCmd.AddCommand(cordonDrivesCmd)
+	drivesCmd.AddCommand(uncordonDrivesCmd)
+	drivesCmd.AddCommand(moveDriveCmd)
 }
 
 func validateDriveSelectors() (err error) {

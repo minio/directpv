@@ -42,6 +42,15 @@ const (
 
 	// DriveStatusReleased denotes drive is released.
 	DriveStatusReleased DriveStatus = "Released"
+
+	// DriveStatusCordoned denotes drive is crdoned.
+	DriveStatusCordoned DriveStatus = "Cordoned"
+
+	// DriveStatusMoving denotes that the drive is processing the move request
+	DriveStatusMoving DriveStatus = "Moving"
+
+	// DriveStatusMoved denotes that the drive is moved to a target drive
+	DriveStatusMoved DriveStatus = "Moved"
 )
 
 // AccessTier denotes access tier.

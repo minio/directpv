@@ -26,6 +26,7 @@ import (
 	"github.com/minio/directpv/pkg/metrics"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/volume"
 	"github.com/minio/directpv/pkg/xfs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -49,6 +50,7 @@ type Server struct {
 	getQuota          func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error)
 	setQuota          func(ctx context.Context, device, path, volumeID string, quota xfs.Quota) (err error)
 	mkdir             func(path string, perm os.FileMode) error
+	stageVolume       func(ctx context.Context, volume *types.Volume) error
 }
 
 // NewServer creates node server.
@@ -70,6 +72,7 @@ func NewServer(ctx context.Context,
 		getQuota:          xfs.GetQuota,
 		setQuota:          xfs.SetQuota,
 		mkdir:             os.Mkdir,
+		stageVolume:       volume.Stage,
 	}
 
 	go metrics.ServeMetrics(ctx, nodeID, metricsPort)

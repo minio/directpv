@@ -86,7 +86,7 @@ func DeleteDrive(ctx context.Context, drive *types.Drive, force bool) error {
 				return err
 			}
 
-			volume.Status.SetDriveLost()
+			volume.SetDriveLost()
 			_, err = client.VolumeClient().Update(
 				ctx, volume, metav1.UpdateOptions{TypeMeta: types.NewVolumeTypeMeta()},
 			)

@@ -17,12 +17,18 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
+)
+
+var (
+	errEmptyValue = errors.New("empty value provided")
 )
 
 var (
@@ -64,6 +70,17 @@ func getPodNamespaceSelectors() ([]types.LabelValue, error) {
 		}
 	}
 	return getSelectorValues(podNSArgs)
+}
+
+func getDriveNameSelectors(args []string) (values []types.LabelValue, err error) {
+	for i := range args {
+		trimmed := strings.TrimSpace(args[i])
+		if trimmed == "" {
+			return nil, errEmptyValue
+		}
+		values = append(values, types.NewLabelValue(trimmed))
+	}
+	return
 }
 
 func validateVolumeSelectors() (err error) {

@@ -106,6 +106,7 @@ func listVolumes(ctx context.Context, args []string) error {
 		driveSelectors,
 		podNameSelectors,
 		podNSSelectors,
+		nil,
 		k8s.MaxThreadCount,
 	)
 	if err != nil {
@@ -118,7 +119,7 @@ func listVolumes(ctx context.Context, args []string) error {
 			return result.Err
 		}
 
-		if allFlag || (stagedFlag && result.Volume.Status.IsStaged()) || result.Volume.Status.IsPublished() {
+		if allFlag || (stagedFlag && result.Volume.IsStaged()) || result.Volume.IsPublished() {
 			volumes = append(volumes, result.Volume)
 		}
 	}
@@ -184,11 +185,11 @@ func listVolumes(ctx context.Context, args []string) error {
 
 		status := "-"
 		switch {
-		case volume.Status.IsDriveLost():
+		case volume.IsDriveLost():
 			status = "Lost"
-		case volume.Status.IsPublished():
+		case volume.IsPublished():
 			status = "Published"
-		case volume.Status.IsStaged():
+		case volume.IsStaged():
 			status = "Staged"
 		}
 		row = append(row, status)

@@ -96,13 +96,17 @@ func releaseDrives(ctx context.Context) error {
 				klog.Errorf("%s already in 'released' state", bold(drive.Status.Path))
 				return false
 			}
-			if len(drive.Finalizers) > 1 {
+			if drive.Status.Status != directpvtypes.DriveStatusMoved && len(drive.Finalizers) > 1 {
 				klog.Errorf("%s has volumes. please purge them before releasing", bold(drive.Status.Path))
 				return false
 			}
 			return true
 		},
 		func(drive *types.Drive) error {
+			if drive.Status.Status == directpvtypes.DriveStatusMoved {
+				// Moved drives won't have any volumes allocated, simply empty them and proceed.
+				drive.SetFinalizers([]string{consts.DriveFinalizerDataProtection})
+			}
 			drive.Status.Status = directpvtypes.DriveStatusReleased
 			return nil
 		},
