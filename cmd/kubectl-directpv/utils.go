@@ -31,8 +31,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/manifoldco/promptui"
-	"github.com/minio/directpv/pkg/admin"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/ellipsis"
@@ -52,11 +51,6 @@ const dot = "•"
 var (
 	globRegexp                = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
 	errGlobPatternUnsupported = errors.New("glob patterns are unsupported")
-	bold                      = color.New(color.Bold).SprintFunc()
-	italic                    = color.New(color.Italic).SprintFunc()
-	// prompt
-	answerYes = "YES"
-	answerNo  = "NO"
 )
 
 func printYAML(obj interface{}) error {
@@ -147,6 +141,15 @@ func parseTolerations(values []string) ([]corev1.Toleration, error) {
 	return tolerations, nil
 }
 
+func getDefaultConfigDir() string {
+	homeDir, err := homedir.Dir()
+	if err != nil {
+		klog.ErrorS(err, "unable to find home directory")
+		return ""
+	}
+	return path.Join(homeDir, "."+consts.AppName)
+}
+
 func getDefaultAuditDir() (string, error) {
 	homeDir, err := homedir.Dir()
 	if err != nil {
@@ -163,7 +166,7 @@ func openAuditFile(auditFile string) (*utils.SafeFile, error) {
 	if err := os.MkdirAll(defaultAuditDir, 0o700); err != nil {
 		return nil, fmt.Errorf("unable to create default audit directory; %w", err)
 	}
-	return utils.NewSafeFile(path.Join(defaultAuditDir, fmt.Sprintf("%v.%v", auditFile, time.Now().UnixNano())))
+	return utils.NewSafeFile(path.Join(defaultAuditDir, fmt.Sprintf("%v.%v", auditFile, time.Now().UTC().Format(time.RFC3339Nano))))
 }
 
 func printableString(s string) string {
@@ -181,14 +184,7 @@ func printableBytes(value int64) string {
 	return humanize.IBytes(uint64(value))
 }
 
-func getLabelValue(obj metav1.Object, key string) string {
-	if labels := obj.GetLabels(); labels != nil {
-		return labels[key]
-	}
-	return ""
-}
-
-func getVolumesByNames(ctx context.Context, names []string) <-chan volume.ListVolumeResult {
+func getVolumesByNames(ctx context.Context, names []string, ignoreNotFound bool) <-chan volume.ListVolumeResult {
 	resultCh := make(chan volume.ListVolumeResult)
 	go func() {
 		defer close(resultCh)
@@ -199,9 +195,13 @@ func getVolumesByNames(ctx context.Context, names []string) <-chan volume.ListVo
 			case err == nil:
 				resultCh <- volume.ListVolumeResult{Volume: *vol}
 			case apierrors.IsNotFound(err):
-				klog.V(5).Infof("No volume found by name %v", volumeName)
+				if !ignoreNotFound {
+					resultCh <- volume.ListVolumeResult{Err: err}
+					return
+				}
+				klog.V(5).Infof("Volume %v not found", volumeName)
 			default:
-				klog.ErrorS(err, "unable to get volume", "volumeName", volumeName)
+				resultCh <- volume.ListVolumeResult{Err: err}
 				return
 			}
 		}
@@ -233,13 +233,12 @@ func processFilteredVolumes(
 			driveSelectors,
 			podNameSelectors,
 			podNSSelectors,
-			nil,
 			k8s.MaxThreadCount)
 		if err != nil {
 			return err
 		}
 	} else {
-		resultCh = getVolumesByNames(ctx, names)
+		resultCh = getVolumesByNames(ctx, names, true)
 	}
 
 	file, err := openAuditFile(auditFile)
@@ -270,7 +269,7 @@ func processFilteredVolumes(
 	)
 }
 
-func getSelectorValues(selectors []string) (values []types.LabelValue, err error) {
+func getSelectorValues(selectors []string) (values []directpvtypes.LabelValue, err error) {
 	for _, selector := range selectors {
 		if globRegexp.MatchString(selector) {
 			return nil, errGlobPatternUnsupported
@@ -282,14 +281,14 @@ func getSelectorValues(selectors []string) (values []types.LabelValue, err error
 		}
 
 		for _, value := range result {
-			values = append(values, types.NewLabelValue(value))
+			values = append(values, directpvtypes.NewLabelValue(value))
 		}
 	}
 
 	return values, nil
 }
 
-func getDriveSelectors() ([]types.LabelValue, error) {
+func getDriveSelectors() ([]directpvtypes.LabelValue, error) {
 	var values []string
 	for i := range driveArgs {
 		if utils.TrimDevPrefix(driveArgs[i]) == "" {
@@ -298,6 +297,15 @@ func getDriveSelectors() ([]types.LabelValue, error) {
 		values = append(values, utils.TrimDevPrefix(driveArgs[i]))
 	}
 	return getSelectorValues(values)
+}
+
+func getNodeSelectors() ([]directpvtypes.LabelValue, error) {
+	for i := range nodeArgs {
+		if nodeArgs[i] == "" {
+			return nil, fmt.Errorf("empty node name %v", nodeArgs[i])
+		}
+	}
+	return getSelectorValues(nodeArgs)
 }
 
 func expandDriveArgs() ([]string, error) {
@@ -328,124 +336,32 @@ func expandNodeArgs() ([]string, error) {
 	return values, nil
 }
 
-func getNodeSelectors() ([]types.LabelValue, error) {
-	for i := range nodeArgs {
-		if nodeArgs[i] == "" {
-			return nil, fmt.Errorf("empty node name %v", nodeArgs[i])
-		}
-	}
-	return getSelectorValues(nodeArgs)
-}
-
-func printTable(deviceInfo map[admin.NodeName][]admin.Device) {
-	fmt.Println()
-	defer func() {
-		fmt.Println()
-	}()
-
-	if len(deviceInfo) == 0 {
-		return
-	}
-
-	getStatusAndDesc := func(device admin.Device) (string, string) {
-		switch device.Status {
-		case admin.DeviceStatusAvailable:
-			return color.GreenString(string(device.Status)), color.GreenString(italic(device.Description))
-		case admin.DeviceStatusUnavailable:
-			return color.RedString(string(device.Status)), color.RedString(italic(device.Description))
-		default:
-			return string(device.Status), device.Description
-		}
-	}
-
-	headers := table.Row{
-		"NAME",
-		"SIZE",
-		"FILESYSTEM",
-		"NODE",
-		"MODEL",
-		"VENDOR",
-		"STATUS",
-		"DESCRIPTION",
-	}
+func newTableWriter(header table.Row, sortBy []table.SortBy, noHeader bool) table.Writer {
 	text.DisableColors()
+
 	writer := table.NewWriter()
 	writer.SetOutputMirror(os.Stdout)
-	writer.AppendHeader(headers)
+	writer.AppendHeader(header)
+	writer.SortBy(sortBy)
+	if noHeader {
+		writer.ResetHeaders()
+	}
 
 	style := table.StyleColoredDark
-	style.Options = table.OptionsDefault
 	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
-
-	for nodeName, deviceList := range deviceInfo {
-		for _, device := range deviceList {
-			status, desc := getStatusAndDesc(device)
-			row := []interface{}{
-				device.Name,
-				printableBytes(int64(device.Size)),
-				printableString(device.Filesystem),
-				nodeName,
-				printableString(device.Model),
-				printableString(device.Vendor),
-				status,
-				desc,
-			}
-			writer.AppendRow(row)
-		}
-	}
-
-	writer.SortBy(
-		[]table.SortBy{
-			{
-				Name: "NAME",
-				Mode: table.Asc,
-			},
-			{
-				Name: "NODE",
-				Mode: table.Asc,
-			},
-			{
-				Name: "SIZE",
-				Mode: table.Asc,
-			},
-		},
-	)
-
 	writer.SetStyle(style)
-	writer.Render()
+
+	return writer
 }
 
-// expandFormatArgs expand the format device args
-func expandFormatArgs() (err error) {
-	driveArgs, err = expandDriveArgs()
-	if err != nil {
-		return err
+func eprintf(msg string, asErr bool) {
+	if asErr {
+		fmt.Fprintf(os.Stderr, "%v ", color.RedString("ERROR"))
 	}
-	nodeArgs, err = expandNodeArgs()
-	return
+	fmt.Fprintf(os.Stderr, "%v\n", msg)
 }
 
-// AskQuestion user for generic input."
-func askQuestion(question string, validate func(string) error) string {
-	fmt.Println()
-	prompt := promptui.Prompt{
-		Label: question,
-		Validate: func(input string) error {
-			if validate != nil {
-				return validate(input)
-			}
-			return nil
-		},
-	}
-	result, err := prompt.Run()
-	if err == promptui.ErrInterrupt {
-		os.Exit(-1)
-	}
-	return result
-}
-
-// Ask user for Y/N input. Return true if response is "y"
-func ask(label string) bool {
-	return askQuestion(label, nil) == answerYes
+func getCredFile() string {
+	return path.Join(configDir, "cred.json")
 }

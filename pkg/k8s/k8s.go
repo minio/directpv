@@ -163,7 +163,7 @@ func MatchTrueConditions(conditions []metav1.Condition, types, statusList []stri
 	statusMatches := 0
 	for _, condition := range conditions {
 		ctype := strings.ToLower(condition.Type)
-		if condition.Status == metav1.ConditionTrue && utils.ItemIn(types, ctype) && utils.ItemIn(statusList, ctype) {
+		if condition.Status == metav1.ConditionTrue && utils.Contains(types, ctype) && utils.Contains(statusList, ctype) {
 			statusMatches++
 		}
 	}
@@ -177,21 +177,6 @@ func BoolToConditionStatus(val bool) metav1.ConditionStatus {
 		return metav1.ConditionTrue
 	}
 	return metav1.ConditionFalse
-}
-
-// RemoveFinalizer removes finalizer in object meta.
-func RemoveFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
-	removeByIndex := func(s []string, index int) []string {
-		return append(s[:index], s[index+1:]...)
-	}
-	finalizers := objectMeta.GetFinalizers()
-	for index, f := range finalizers {
-		if f == finalizer {
-			finalizers = removeByIndex(finalizers, index)
-			break
-		}
-	}
-	return finalizers
 }
 
 // SanitizeResourceName - Sanitize given name to a valid kubernetes name format.

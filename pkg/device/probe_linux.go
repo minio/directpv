@@ -1,7 +1,7 @@
 //go:build linux
 
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -19,155 +19,127 @@
 package device
 
 import (
+	"errors"
 	"os"
-	"strings"
 
 	"github.com/minio/directpv/pkg/sys"
-	"k8s.io/klog/v2"
+	"github.com/minio/directpv/pkg/utils"
 )
 
-func probeDevices() ([]*Device, error) {
-	dir, err := os.Open(runUdevData)
+func newDevice(mountMap map[string][]string, cdroms, swaps map[string]struct{}, name, majorMinor string, udevData map[string]string) (device *Device, err error) {
+	_, swapFound := swaps[utils.AddDevPrefix(name)]
+	_, cdromFound := cdroms[name]
+
+	device = &Device{
+		Name:        name,
+		MajorMinor:  majorMinor,
+		MountPoints: mountMap[utils.AddDevPrefix(name)],
+		SwapOn:      swapFound,
+		CDROM:       cdromFound,
+		UDevData:    udevData,
+	}
+
+	if device.Size, err = getSize(name); err != nil {
+		return nil, err
+	}
+
+	device.Hidden = getHidden(name)
+
+	if device.Removable, err = getRemovable(name); err != nil {
+		return nil, err
+	}
+
+	if device.ReadOnly, err = getReadOnly(name); err != nil {
+		return nil, err
+	}
+
+	if device.Holders, err = getHolders(name); err != nil {
+		return nil, err
+	}
+
+	if partitions, err := getPartitions(name); err != nil {
+		return nil, err
+	} else {
+		device.Partitioned = len(partitions) != 0
+	}
+
+	if device.DMName, err = getDMName(name); err != nil {
+		return nil, err
+	}
+
+	return device, nil
+}
+
+func probe() (devices []Device, err error) {
+	deviceMap, udevDataMap, err := probeFromUdev()
 	if err != nil {
 		return nil, err
 	}
-	defer dir.Close()
 
-	names, err := dir.Readdirnames(-1)
+	_, mountMap, err := sys.GetMounts()
 	if err != nil {
 		return nil, err
 	}
 
-	var devices []*Device
-	for _, name := range names {
-		if !strings.HasPrefix(name, "b") {
-			continue
-		}
-		majMinInStr := strings.TrimPrefix(name, "b")
-		major, minor, err := getMajorMinorFromStr(majMinInStr)
+	cdroms, err := getCDROMs()
+	if err != nil {
+		return nil, err
+	}
+
+	swaps, err := getSwaps()
+	if err != nil {
+		return nil, err
+	}
+
+	for name, udevData := range udevDataMap {
+		device, err := newDevice(mountMap, cdroms, swaps, name, deviceMap[name], udevData)
 		if err != nil {
-			klog.V(5).Infof("error while parsing maj:min for file: %s: %v", name, err)
-			continue
+			return nil, err
 		}
-		devName, err := getDeviceName(major, minor)
-		if err != nil {
-			klog.V(5).Infof("error while getting device name for maj:min (%v:%v): %v", major, minor, err)
-			continue
-		}
-		if isLoopBackDevice("/dev/" + devName) {
-			klog.V(5).InfoS("loopback device is ignored while syncing", "DEVNAME", devName)
-			continue
-		}
-		data, err := ReadRunUdevDataByMajorMinor(majMinInStr)
-		if err != nil {
-			klog.V(5).Infof("error while reading udevdata for device %s: %v", devName, err)
-			continue
-		}
-		device := &Device{
-			Name:       devName,
-			MajorMinor: majMinInStr,
-			UDevData:   data,
-		}
-		// Probe from /sys/
-		if err := device.probeSysInfo(); err != nil {
-			klog.V(5).Infof("error while probing sys info for device %s: %v", devName, err)
-			continue
-		}
-		// Probe from /proc/1/mountinfo
-		if err := device.probeMountInfo(); err != nil {
-			klog.V(5).Infof("error while probing dev info for device %s: %v", devName, err)
-			continue
-		}
-		// Probe from /proc/
-		if err := device.probeProcInfo(); err != nil {
-			klog.V(5).Infof("error while probing dev info for device %s: %v", devName, err)
-			continue
-		}
-		// Opens the device `/dev/` to probe XFS
-		if err := device.probeDevInfo(); err != nil {
-			klog.V(5).Infof("error while validating device %s: %v", devName, err)
-			continue
-		}
-		devices = append(devices, device)
+		devices = append(devices, *device)
 	}
 
 	return devices, nil
 }
 
-// ProbeSysInfo probes device information from /sys
-func (device *Device) probeSysInfo() (err error) {
-	device.Hidden = getHidden(device.Name)
-	if device.Removable, err = getRemovable(device.Name); err != nil {
-		return err
-	}
-
-	if device.ReadOnly, err = getReadOnly(device.Name); err != nil {
-		return err
-	}
-
-	if device.Size, err = getSize(device.Name); err != nil {
-		return err
-	}
-
-	// No partitions for hidden devices.
-	if !device.Hidden {
-		partitionNo, err := device.PartitionNumber()
-		if err != nil {
-			return err
-		}
-		if partitionNo <= 0 {
-			names, err := getPartitions(device.Name)
-			if err != nil {
-				return err
-			}
-			device.Partitioned = len(names) > 0
-		}
-		device.Holders, err = getHolders(device.Name)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ProbeMountInfo probes mount information from /proc/1/mountinfo
-func (device *Device) probeMountInfo() (err error) {
-	_, deviceMap, err := sys.GetMounts()
+func probeDevices(majorMinor ...string) (devices []Device, err error) {
+	_, mountMap, err := sys.GetMounts()
 	if err != nil {
-		klog.ErrorS(err, "unable to probe mounts", "device", device.Name)
-		return err
+		return nil, err
 	}
-	device.MountPoints = deviceMap[device.Path()]
-	return nil
-}
 
-// ProbeProcInfo probes the device information from /proc
-func (device *Device) probeProcInfo() (err error) {
-	if !device.Hidden {
-		CDROMs, err := getCDROMs()
-		if err != nil {
-			return err
-		}
-		if _, found := CDROMs[device.Name]; found {
-			device.CDRom = true
-		}
-		swaps, err := getSwaps()
-		if err != nil {
-			return err
-		}
-		if _, found := swaps[device.MajorMinor]; found {
-			device.SwapOn = true
-		}
+	cdroms, err := getCDROMs()
+	if err != nil {
+		return nil, err
 	}
-	return nil
-}
 
-// ProbeDevInfo probes device information from /dev
-func (device *Device) probeDevInfo() (err error) {
-	// No FS information needed for hidden devices
-	if !device.Hidden && !device.CDRom {
-		return updateFSInfo(device)
+	swaps, err := getSwaps()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	for i := range majorMinor {
+		udevData, err := readUdevData(majorMinor[i])
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+
+			return nil, err
+		}
+
+		name, err := getDeviceName(majorMinor[i])
+		if err != nil {
+			return nil, err
+		}
+
+		device, err := newDevice(mountMap, cdroms, swaps, name, majorMinor[i], udevData)
+		if err != nil {
+			return nil, err
+		}
+
+		devices = append(devices, *device)
+	}
+
+	return devices, nil
 }

@@ -22,8 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/types"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -93,8 +93,8 @@ func migrate(object *unstructured.Unstructured, toVersion string) error {
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	if _, ok := labels[string(types.VersionLabelKey)]; !ok {
-		labels[string(types.VersionLabelKey)] = filepath.Base(fromVersion)
+	if _, ok := labels[string(directpvtypes.VersionLabelKey)]; !ok {
+		labels[string(directpvtypes.VersionLabelKey)] = filepath.Base(fromVersion)
 	}
 	object.SetLabels(labels)
 

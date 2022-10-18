@@ -457,7 +457,7 @@ func TestGetDrive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !utils.ItemIn([]string{"drive-2", "drive-3"}, result.Name) {
+	if !utils.StringIn([]string{"drive-2", "drive-3"}, result.Name) {
 		t.Fatalf("result: expected: %v, got: %v", []string{"drive-2", "drive-3"}, result.Name)
 	}
 }

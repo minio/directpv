@@ -21,42 +21,57 @@ import (
 	"strings"
 )
 
+type DriveName string
+
+type NodeID string
+
+type DriveID string
+
 // DriveStatus denotes drive status
 type DriveStatus string
 
 const (
-	// DriveStatusOK denotes drive is ready for volume schedule.
-	DriveStatusOK DriveStatus = "OK"
+	// DriveStatusReady denotes drive is ready for volume schedule.
+	DriveStatusReady DriveStatus = "Ready"
 
-	// DriveStatusError denotes drive is in error state and no volumes will be scheduled on it anymore.
-	DriveStatusError DriveStatus = "Error"
-
-	// DriveStatusDeleted denotes drive is deleted.
-	DriveStatusDeleted DriveStatus = "Deleted"
-
-	// DriveStatusFenced denotes drive is fenced and no volumes will be scheduled on it anymore.
-	DriveStatusFenced DriveStatus = "Fenced"
-
-	// DriveStatusError denotes drive is lost and no volumes will be scheduled on it anymore.
+	// DriveStatusLost denotes associated data by FSUUID is lost.
 	DriveStatusLost DriveStatus = "Lost"
 
-	// DriveStatusReleased denotes drive is released.
+	// DriveStatusError denotes drive is in error state to prevent volume schedule.
+	DriveStatusError DriveStatus = "Error"
+
+	// DriveStatusReleased denotes drive is removed.
 	DriveStatusReleased DriveStatus = "Released"
 
-	// DriveStatusCordoned denotes drive is crdoned.
-	DriveStatusCordoned DriveStatus = "Cordoned"
-
-	// DriveStatusMoving denotes that the drive is processing the move request
+	// DriveStatusMoving denotes drive is moving volumes.
 	DriveStatusMoving DriveStatus = "Moving"
+)
 
-	// DriveStatusMoved denotes that the drive is moved to a target drive
-	DriveStatusMoved DriveStatus = "Moved"
+func ToDriveStatus(value string) (status DriveStatus, err error) {
+	status = DriveStatus(strings.Title(value))
+	switch status {
+	case DriveStatusReady, DriveStatusLost, DriveStatusError, DriveStatusReleased, DriveStatusMoving:
+		return status, nil
+	}
+
+	err = fmt.Errorf("unknown drive status %v", value)
+	return
+}
+
+type VolumeStatus string
+
+const (
+	VolumeStatusPending VolumeStatus = "Pending"
+	VolumeStatusReady   VolumeStatus = "Ready"
 )
 
 // AccessTier denotes access tier.
 type AccessTier string
 
 const (
+	// AccessTierDefault denotes "Default" access tier.
+	AccessTierDefault AccessTier = "Default"
+
 	// AccessTierWarm denotes "Warm" access tier.
 	AccessTierWarm AccessTier = "Warm"
 
@@ -65,38 +80,17 @@ const (
 
 	// AccessTierCold denotes "Cold" access tier.
 	AccessTierCold AccessTier = "Cold"
-
-	// AccessTierUnknown denotes "Unknown" access tier.
-	AccessTierUnknown AccessTier = "Unknown"
 )
-
-// SupportedAccessTierValues returns the supported access tier values for filtering and setting
-func SupportedAccessTierValues() []string {
-	return []string{
-		string(AccessTierHot),
-		string(AccessTierWarm),
-		string(AccessTierCold),
-	}
-}
-
-// ToAccessTier converts a string to AccessTier
-func ToAccessTier(value string) (AccessTier, error) {
-	switch at := AccessTier(strings.Title(value)); at {
-	case AccessTierWarm, AccessTierHot, AccessTierCold, AccessTierUnknown:
-		return at, nil
-	default:
-		return at, fmt.Errorf("unknown access tier value %v", value)
-	}
-}
 
 // StringsToAccessTiers converts strings to access tiers.
 func StringsToAccessTiers(values ...string) (accessTiers []AccessTier, err error) {
 	for _, value := range values {
-		aT, err := ToAccessTier(value)
-		if err != nil {
-			return nil, err
+		switch at := AccessTier(strings.Title(value)); at {
+		case AccessTierDefault, AccessTierWarm, AccessTierHot, AccessTierCold:
+			accessTiers = append(accessTiers, at)
+		default:
+			return nil, fmt.Errorf("unknown access tier value %v", value)
 		}
-		accessTiers = append(accessTiers, aT)
 	}
 	return accessTiers, nil
 }

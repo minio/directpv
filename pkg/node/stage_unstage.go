@@ -22,6 +22,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -33,7 +34,7 @@ import (
 // NodeStageVolume is node stage volume request handler.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodestagevolume
 func (server *Server) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	klog.V(3).InfoS("NodeStageVolume() called",
+	klog.V(3).InfoS("Stage volume requested",
 		"volumeID", req.GetVolumeId(),
 		"StagingTargetPath", req.GetStagingTargetPath())
 
@@ -53,16 +54,17 @@ func (server *Server) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	volume.Status.DataPath = types.GetVolumeDir(volume.Status.FSUUID, volume.Name)
-	volume.Status.StagingTargetPath = stagingTargetPath
-	if err := server.stageVolume(ctx, volume); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
-		TypeMeta: types.NewVolumeTypeMeta(),
-	}); err != nil {
-		return nil, err
+	code, err := drive.StageVolume(
+		ctx,
+		volume,
+		stagingTargetPath,
+		server.getDeviceByFSUUID,
+		server.mkdir,
+		server.setQuota,
+		server.bindMount,
+	)
+	if err != nil {
+		return nil, status.Error(code, err.Error())
 	}
 
 	return &csi.NodeStageVolumeResponse{}, nil
@@ -71,7 +73,7 @@ func (server *Server) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 // NodeUnstageVolume is node unstage volume request handler.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodeunstagevolume
 func (server *Server) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	klog.V(3).InfoS("NodeUnstageVolume() called",
+	klog.V(3).InfoS("Unstage volume requested",
 		"volumeID", req.GetVolumeId(),
 		"StagingTargetPath", req.GetStagingTargetPath())
 	volumeID := req.GetVolumeId()
@@ -110,7 +112,7 @@ func (server *Server) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	}); err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &csi.NodeUnstageVolumeResponse{}, nil

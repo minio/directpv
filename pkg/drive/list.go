@@ -18,16 +18,16 @@ package drive
 
 import (
 	"context"
-	"fmt"
 	"io"
+	"strings"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
@@ -38,13 +38,13 @@ type ListDriveResult struct {
 }
 
 // ListDrives lists drives.
-func ListDrives(ctx context.Context, nodes, drives, accessTiers []types.LabelValue, maxObjects int64) (<-chan ListDriveResult, error) {
-	labelMap := map[types.LabelKey][]types.LabelValue{
-		types.PathLabelKey:       drives,
-		types.NodeLabelKey:       nodes,
-		types.AccessTierLabelKey: accessTiers,
+func ListDrives(ctx context.Context, nodes, drives, accessTiers []directpvtypes.LabelValue, statusList []string, maxObjects int64) (<-chan ListDriveResult, error) {
+	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
+		directpvtypes.NodeLabelKey:       nodes,
+		directpvtypes.DriveNameLabelKey:  drives,
+		directpvtypes.AccessTierLabelKey: accessTiers,
 	}
-	labelSelector := types.ToLabelSelector(labelMap)
+	labelSelector := directpvtypes.ToLabelSelector(labelMap)
 
 	resultCh := make(chan ListDriveResult)
 	go func() {
@@ -72,8 +72,10 @@ func ListDrives(ctx context.Context, nodes, drives, accessTiers []types.LabelVal
 			}
 
 			for _, item := range result.Items {
-				if !send(ListDriveResult{Drive: item}) {
-					return
+				if len(statusList) == 0 || utils.Contains(statusList, strings.ToLower(string(item.Status.Status))) {
+					if !send(ListDriveResult{Drive: item}) {
+						return
+					}
 				}
 			}
 
@@ -89,8 +91,8 @@ func ListDrives(ctx context.Context, nodes, drives, accessTiers []types.LabelVal
 }
 
 // GetDriveList gets list of drives.
-func GetDriveList(ctx context.Context, nodes, drives, accessTiers []types.LabelValue) ([]types.Drive, error) {
-	resultCh, err := ListDrives(ctx, nodes, drives, accessTiers, k8s.MaxThreadCount)
+func GetDriveList(ctx context.Context, nodes, drives, accessTiers []directpvtypes.LabelValue, statusList []string) ([]types.Drive, error) {
+	resultCh, err := ListDrives(ctx, nodes, drives, accessTiers, statusList, k8s.MaxThreadCount)
 	if err != nil {
 		return nil, err
 	}
@@ -150,24 +152,5 @@ func ProcessDrives(
 		},
 		writer,
 		dryRun,
-	)
-}
-
-// DrivesListerWatcher is the lister watcher for drives.
-func DrivesListerWatcher(nodeID string) cache.ListerWatcher {
-	labelSelector := ""
-	if nodeID != "" {
-		labelSelector = fmt.Sprintf("%s=%s", types.NodeLabelKey, types.NewLabelValue(nodeID))
-	}
-
-	optionsModifier := func(options *metav1.ListOptions) {
-		options.LabelSelector = labelSelector
-	}
-
-	return cache.NewFilteredListWatchFromClient(
-		client.RESTClient(),
-		consts.DriveResource,
-		"",
-		optionsModifier,
 	)
 }

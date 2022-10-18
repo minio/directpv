@@ -50,8 +50,8 @@ func createPodSecurityPolicy(ctx context.Context, i *Config) error {
 			AllowedCapabilities: []corev1.Capability{policy.AllowAllCapabilities},
 			Volumes:             []policy.FSType{policy.HostPath},
 			AllowedHostPaths: []policy.AllowedHostPath{
-				{PathPrefix: consts.ProcFSDir, ReadOnly: true},
-				{PathPrefix: consts.SysFSDir, ReadOnly: true},
+				{PathPrefix: procFSDir, ReadOnly: true},
+				{PathPrefix: volumePathSysDir, ReadOnly: true},
 				{PathPrefix: consts.UdevDataDir, ReadOnly: true},
 				{PathPrefix: consts.AppRootDir},
 				{PathPrefix: socketDir},

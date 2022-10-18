@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/minio/directpv/pkg/client"
@@ -29,10 +30,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 )
 
-var purgeVolumesCmd = &cobra.Command{
+var volumesPurgeCmd = &cobra.Command{
 	Use:   "purge",
 	Short: "Purge released and failed " + consts.AppName + "volumes. CAUTION: THIS MAY LEAD TO DATA LOSS",
 	Example: strings.ReplaceAll(
@@ -43,10 +43,10 @@ $ kubectl {PLUGIN_NAME} volumes purge --all
 $ kubectl {PLUGIN_NAME} volumes purge <volume-name>
 
 # Purge all released|failed volumes from a particular node
-$ kubectl {PLUGIN_NAME} volumes purge --node=node1
+$ kubectl {PLUGIN_NAME} volumes purge --nodes=node1
 
 # Combine multiple filters using csv
-$ kubectl {PLUGIN_NAME} volumes purge --node=node1,node2 --drive=/dev/nvme0n1
+$ kubectl {PLUGIN_NAME} volumes purge --nodes=node1,node2 --drives=/dev/nvme0n1
 
 # Purge all released|failed volumes by pod name
 $ kubectl {PLUGIN_NAME} volumes purge --pod-name=minio-{1...3}
@@ -55,32 +55,22 @@ $ kubectl {PLUGIN_NAME} volumes purge --pod-name=minio-{1...3}
 $ kubectl {PLUGIN_NAME} volumes purge --pod-namespace=tenant-{1...3}
 
 # Purge all released|failed volumes based on drive and volume ellipses
-$ kubectl {PLUGIN_NAME} volumes purge --drive /dev/xvd{a...d} --node node-{1...4}`,
+$ kubectl {PLUGIN_NAME} volumes purge --drives /dev/xvd{a...d} --nodes node-{1...4}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
-	RunE: func(c *cobra.Command, args []string) error {
+	Run: func(c *cobra.Command, args []string) {
 		if !allFlag && len(driveArgs) == 0 && len(nodeArgs) == 0 && len(podNameArgs) == 0 && len(podNSArgs) == 0 && len(args) == 0 {
-			return fmt.Errorf("atleast one of '--all', '--drive', '--node', '--pod-name' or '--pod-namespace' must be specified")
-		}
-		if err := validateVolumeSelectors(); err != nil {
-			return err
+			eprintf("one of '--all', '--drives', '--nodes', '--pod-name' or '--pod-namespace' must be specified", true)
+			os.Exit(-1)
 		}
 
-		return purgeVolumes(c.Context(), args)
+		volumesPurgeMain(c.Context(), args)
 	},
 }
 
-func init() {
-	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter by drive paths (supports ellipses pattern).")
-	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter by nodes (supports ellipses pattern).")
-	purgeVolumesCmd.PersistentFlags().BoolVarP(&allFlag, "all", "a", allFlag, "Purge all released|failed volumes.")
-	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&podNameArgs, "pod-name", "", podNameArgs, "Filter by pod names (supports ellipses pattern).")
-	purgeVolumesCmd.PersistentFlags().StringSliceVarP(&podNSArgs, "pod-namespace", "", podNSArgs, "Filter by pod namespaces (supports ellipses pattern).")
-}
-
-func purgeVolumes(ctx context.Context, names []string) error {
-	return processFilteredVolumes(
+func volumesPurgeMain(ctx context.Context, names []string) {
+	err := processFilteredVolumes(
 		ctx,
 		names,
 		func(volume *types.Volume) bool {
@@ -89,7 +79,7 @@ func purgeVolumes(ctx context.Context, names []string) error {
 				if apierrors.IsNotFound(err) {
 					return true
 				}
-				klog.ErrorS(err, "unable to get PV for volume", "volumeName", volume.Name)
+				eprintf(fmt.Sprintf("unable to get PV for volume %v; %v", volume.Name, err), true)
 				return false
 			}
 			switch pv.Status.Phase {
@@ -97,21 +87,13 @@ func purgeVolumes(ctx context.Context, names []string) error {
 				return true
 			default:
 				if !quiet {
-					klog.Infof("Skipping volume %v as associated PV is in %v phase", volume.Name, pv.Status.Phase)
+					eprintf(fmt.Sprintf("Skipping volume %v as associated PV is in %v phase", volume.Name, pv.Status.Phase), false)
 				}
 				return false
 			}
 		},
 		func(volume *types.Volume) error {
-			finalizers := volume.GetFinalizers()
-			updatedFinalizers := []string{}
-			for _, f := range finalizers {
-				if f == consts.VolumeFinalizerPVProtection {
-					continue
-				}
-				updatedFinalizers = append(updatedFinalizers, f)
-			}
-			volume.SetFinalizers(updatedFinalizers)
+			volume.RemovePVProtection()
 			return nil
 		},
 		func(ctx context.Context, volume *types.Volume) error {
@@ -127,4 +109,9 @@ func purgeVolumes(ctx context.Context, names []string) error {
 		},
 		"drive-purge",
 	)
+
+	if err != nil {
+		eprintf(err.Error(), true)
+		os.Exit(1)
+	}
 }

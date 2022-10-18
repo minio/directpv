@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -30,38 +29,124 @@ import (
 	"github.com/minio/directpv/pkg/listener"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
+	"github.com/minio/directpv/pkg/xfs"
+	"google.golang.org/grpc/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
 
-var (
-	errDriveInUse = errors.New("drive still has volumes in-use")
-)
+func StageVolume(
+	ctx context.Context,
+	volume *types.Volume,
+	stagingTargetPath string,
+	getDeviceByFSUUID func(fsuuid string) (string, error),
+	mkdir func(volumeDir string) error,
+	setQuota func(ctx context.Context, device, stagingTargetPath, volumeName string, quota xfs.Quota) error,
+	bindMount func(volumeDir, stagingTargetPath string, readOnly bool) error,
+) (codes.Code, error) {
+	device, err := getDeviceByFSUUID(volume.Status.FSUUID)
+	if err != nil {
+		klog.ErrorS(
+			err,
+			"unable to find device by FSUUID; "+
+				"either device is removed or run command "+
+				"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+
+				"on the host to reload",
+			"FSUUID", volume.Status.FSUUID)
+		client.Eventf(
+			volume, client.EventTypeWarning, client.EventReasonStageVolume,
+			"unable to find device by FSUUID %v; "+
+				"either device is removed or run command "+
+				"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+
+				" on the host to reload", volume.Status.FSUUID)
+		return codes.Internal, fmt.Errorf("unable to find device by FSUUID %v; %w", volume.Status.FSUUID, err)
+	}
 
-type driveEventHandler struct {
-	nodeID      string
-	getMounts   func() (mountPointMap, deviceMap map[string][]string, err error)
-	unmount     func(target string, force, detach, expire bool) error
-	safeUnmount func(target string, force, detach, expire bool) error
-	stageVolume func(ctx context.Context, volume *types.Volume) error
+	volumeDir := types.GetVolumeDir(volume.Status.FSUUID, volume.Name)
+	if err := mkdir(volumeDir); err != nil && !errors.Is(err, os.ErrExist) {
+		// FIXME: handle I/O error and mark associated drive's status as ERROR.
+		klog.ErrorS(err, "unable to create volume directory", "VolumeDir", volumeDir)
+		return codes.Internal, err
+	}
+
+	quota := xfs.Quota{
+		HardLimit: uint64(volume.Status.TotalCapacity),
+		SoftLimit: uint64(volume.Status.TotalCapacity),
+	}
+
+	if err := setQuota(ctx, device, volumeDir, volume.Name, quota); err != nil {
+		klog.ErrorS(err, "unable to set quota on volume data path", "DataPath", volumeDir)
+		return codes.Internal, fmt.Errorf("unable to set quota on volume data path; %w", err)
+	}
+
+	if stagingTargetPath != "" {
+		if err := bindMount(volumeDir, stagingTargetPath, false); err != nil {
+			return codes.Internal, fmt.Errorf("unable to bind mount volume directory to staging target path; %w", err)
+		}
+	}
+
+	volume.Status.DataPath = volumeDir
+	volume.Status.StagingTargetPath = stagingTargetPath
+	volume.SetStatus(directpvtypes.VolumeStatusReady)
+	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
+		TypeMeta: types.NewVolumeTypeMeta(),
+	}); err != nil {
+		return codes.Internal, err
+	}
+
+	return codes.OK, nil
 }
 
-func newDriveEventHandler(nodeID string) *driveEventHandler {
+type driveEventHandler struct {
+	nodeID            directpvtypes.NodeID
+	getMounts         func() (mountPointMap, deviceMap map[string][]string, err error)
+	unmount           func(target string) error
+	mkdir             func(path string) error
+	bindMount         func(source, target string, readOnly bool) error
+	getDeviceByFSUUID func(fsuuid string) (string, error)
+	setQuota          func(ctx context.Context, device, path, volumeName string, quota xfs.Quota) (err error)
+	rmdir             func(fsuuid string) error
+}
+
+func newDriveEventHandler(nodeID directpvtypes.NodeID) *driveEventHandler {
 	return &driveEventHandler{
-		nodeID:      nodeID,
-		getMounts:   sys.GetMounts,
-		unmount:     sys.Unmount,
-		safeUnmount: sys.SafeUnmount,
-		stageVolume: volume.Stage,
+		nodeID:    nodeID,
+		getMounts: sys.GetMounts,
+		unmount: func(mountPoint string) error {
+			return sys.Unmount(mountPoint, true, true, false)
+		},
+		mkdir: func(dir string) error {
+			return os.Mkdir(dir, 0o755)
+		},
+		bindMount:         xfs.BindMount,
+		getDeviceByFSUUID: sys.GetDeviceByFSUUID,
+		setQuota:          xfs.SetQuota,
+		rmdir: func(fsuuid string) (err error) {
+			driveMountPoint := types.GetDriveMountDir(fsuuid)
+			if err = os.Remove(driveMountPoint); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+			driveMountPoint = path.Join("/var/lib/direct-csi/mnt", fsuuid)
+			if err = os.Remove(driveMountPoint); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+			return nil
+		},
 	}
 }
 
 func (handler *driveEventHandler) ListerWatcher() cache.ListerWatcher {
-	return DrivesListerWatcher(handler.nodeID)
+	labelSelector := fmt.Sprintf("%s=%s", directpvtypes.NodeLabelKey, handler.nodeID)
+	return cache.NewFilteredListWatchFromClient(
+		client.RESTClient(),
+		consts.DriveResource,
+		"",
+		func(options *metav1.ListOptions) {
+			options.LabelSelector = labelSelector
+		},
+	)
 }
 
 func (handler *driveEventHandler) Name() string {
@@ -72,13 +157,126 @@ func (handler *driveEventHandler) ObjectType() runtime.Object {
 	return &types.Drive{}
 }
 
-func (handler *driveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
-	switch args.Event {
-	case listener.AddEvent, listener.UpdateEvent:
-		return handler.handleUpdate(ctx, args.Object.(*types.Drive))
-	case listener.DeleteEvent:
+func (handler *driveEventHandler) unmountDrive(ctx context.Context, drive *types.Drive, skipDriveMount bool) error {
+	mountPointMap, deviceMap, err := handler.getMounts()
+	if err != nil {
+		return err
+	}
+	driveMountPoint := types.GetDriveMountDir(drive.Status.FSUUID)
+	devices, found := mountPointMap[driveMountPoint]
+	if !found {
+		// Check for legacy mount for backward compatibility.
+		driveMountPoint = path.Join("/var/lib/direct-csi/mnt", drive.Status.FSUUID)
+		if devices, found = mountPointMap[driveMountPoint]; !found {
+			return nil // Device already umounted
+		}
+	}
+	if len(devices) > 1 {
+		return fmt.Errorf("multiple devices %v are mounted for FSUUID %v", devices, drive.Status.FSUUID)
+	}
+	mountpoints := deviceMap[devices[0]]
+	for _, mountPoint := range mountpoints {
+		if skipDriveMount && mountPoint == driveMountPoint {
+			continue
+		}
+
+		if err := handler.unmount(mountPoint); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func (handler *driveEventHandler) release(ctx context.Context, drive *types.Drive) error {
+	volumeCount := drive.GetVolumeCount()
+	if volumeCount > 0 {
+		return fmt.Errorf("drive %v still contains %v volumes", drive.GetDriveID(), volumeCount)
+	}
+	if err := handler.unmountDrive(ctx, drive, false); err != nil {
+		return err
+	}
+	drive.RemoveFinalizers()
+	if _, err := client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()}); err != nil {
+		return err
+	}
+	if err := client.DriveClient().Delete(ctx, drive.Name, metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+
+	if err := handler.rmdir(drive.Status.FSUUID); err != nil {
+		klog.ErrorS(err, "unable to remove drive mount directory", "drive", drive.GetDriveID())
+	}
+
+	return nil
+}
+
+func (handler *driveEventHandler) move(ctx context.Context, drive *types.Drive) error {
+	for _, volumeName := range drive.GetVolumes() {
+		volume, err := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{})
+		if err != nil {
+			klog.ErrorS(err, "unable to retrieve volume", "volume", volume.Name)
+			return err
+		}
+
+		if volume.Status.FSUUID == drive.Status.FSUUID {
+			continue
+		}
+
+		if volume.IsPublished() {
+			return fmt.Errorf("cannot move published volume %v to drive ID %v", volume.Name, drive.GetDriveID())
+		}
+
+		if volume.GetNodeID() != drive.GetNodeID() {
+			return fmt.Errorf(
+				"volume %v must be on same node of destination drive; volume node %v; desination node %v",
+				volume.GetNodeID(),
+				drive.GetNodeID(),
+			)
+		}
+
+		srcDriveID := volume.GetDriveID()
+		volume.Status.FSUUID = drive.Status.FSUUID
+		volume.SetDriveID(drive.GetDriveID())
+		volume.SetDriveName(drive.GetDriveName())
+		volume.Status.DataPath = ""
+		if volume.IsStaged() {
+			_, err = StageVolume(
+				ctx,
+				volume,
+				volume.Status.StagingTargetPath,
+				handler.getDeviceByFSUUID,
+				handler.mkdir,
+				handler.setQuota,
+				handler.bindMount,
+			)
+			if err != nil {
+				klog.ErrorS(err, "unable to stage volume after volume move",
+					"volume", volume.Name,
+					"dataPath", volume.Status.DataPath,
+					"stagingTargetPath", volume.Status.StagingTargetPath,
+				)
+				return err
+			}
+		} else {
+			volume.SetStatus(directpvtypes.VolumeStatusPending)
+			if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
+				TypeMeta: types.NewVolumeTypeMeta(),
+			}); err != nil {
+				return err
+			}
+		}
+
+		client.Eventf(
+			volume, client.EventTypeNormal, client.EventReasonVolumeMoved,
+			"Volume moved from drive %v to drive %v", srcDriveID, volume.GetDriveID(),
+		)
+	}
+
+	drive.Status.Status = directpvtypes.DriveStatusReady
+	_, err := client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{
+		TypeMeta: types.NewDriveTypeMeta(),
+	})
+	return err
 }
 
 func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *types.Drive) error {
@@ -87,160 +285,22 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *types
 		return handler.release(ctx, drive)
 	case directpvtypes.DriveStatusMoving:
 		return handler.move(ctx, drive)
-	default:
-		return nil
 	}
-}
 
-// move processes the move request by staging the moved target volumes
-func (handler *driveEventHandler) move(ctx context.Context, drive *types.Drive) error {
-	driveClient := client.DriveClient()
-	volumeClient := client.VolumeClient()
-	finalizers := drive.GetFinalizers()
-	sourceDriveName := ""
-	for _, finalizer := range finalizers {
-		if finalizer == consts.DriveFinalizerDataProtection {
-			continue
-		}
-		volumeName := strings.TrimPrefix(finalizer, consts.DriveFinalizerPrefix)
-		volume, err := volumeClient.Get(ctx, volumeName, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorf("unable to retrieve volume %s: %v", volume.Name, err)
-			return err
-		}
-		if sourceDriveName == "" {
-			sourceDriveName = volume.Status.DriveName
-		}
-		if volume.IsPublished() {
-			klog.Errorf("drive still has published volume: %s", volume.Name)
-			return errDriveInUse
-		}
-		if err := handler.unmountVolume(ctx, volume); err != nil {
-			klog.Errorf("unable to umount volume: %s: %v", volume.Name, err)
-			return err
-		}
-		volume.Status.FSUUID = drive.Status.FSUUID
-		volume.Status.DriveName = drive.Name
-		if volume.IsStaged() {
-			// Stage the volume if the volume in the source is staged already
-			volume.Status.DataPath = types.GetVolumeDir(volume.Status.FSUUID, volume.Name)
-			if err := handler.stageVolume(ctx, volume); err != nil {
-				klog.ErrorS(err, "unable to stage volume",
-					"volume", volume.Name,
-					"dataPath", volume.Status.DataPath,
-					"stagingTargetPath", volume.Status.StagingTargetPath,
-				)
-				return err
-			}
-		}
-		// update the volume
-		types.UpdateLabels(volume, map[types.LabelKey]types.LabelValue{
-			types.DrivePathLabelKey: types.NewLabelValue(utils.TrimDevPrefix(drive.Status.Path)),
-			types.DriveLabelKey:     types.NewLabelValue(drive.Name),
-		})
-		if _, err := volumeClient.Update(ctx, volume, metav1.UpdateOptions{
-			TypeMeta: types.NewVolumeTypeMeta(),
-		}); err != nil {
-			return err
-		}
-	}
-	// update the source drive's status as "Moved"
-	sourceDrive, err := driveClient.Get(ctx, sourceDriveName, metav1.GetOptions{})
-	if err != nil {
-		klog.ErrorS(err, "unable to get the source drive",
-			"sourcerive", sourceDrive.Name,
-		)
-		return err
-	}
-	sourceDrive.Status.Status = directpvtypes.DriveStatusMoved
-	if _, err := driveClient.Update(ctx, sourceDrive, metav1.UpdateOptions{
-		TypeMeta: types.NewDriveTypeMeta(),
-	}); err != nil {
-		return err
-	}
-	// Revert the status back to "Cordoned" as the transfer is successful
-	drive.Status.Status = directpvtypes.DriveStatusCordoned
-	_, err = driveClient.Update(ctx, drive, metav1.UpdateOptions{
-		TypeMeta: types.NewDriveTypeMeta(),
-	})
-	return err
-}
-
-func (handler *driveEventHandler) unmountVolume(ctx context.Context, volume *types.Volume) error {
-	if volume.Status.TargetPath != "" {
-		if err := handler.safeUnmount(volume.Status.TargetPath, true, true, false); err != nil {
-			if _, ok := err.(*os.PathError); !ok {
-				klog.ErrorS(err, "unable to unmount container path",
-					"volume", volume.Name,
-					"targetPath", volume.Status.TargetPath,
-				)
-				return err
-			}
-		}
-	}
-	if volume.Status.StagingTargetPath != "" {
-		if err := handler.safeUnmount(volume.Status.StagingTargetPath, true, true, false); err != nil {
-			if _, ok := err.(*os.PathError); !ok {
-				klog.ErrorS(err, "unable to unmount staging path",
-					"volume", volume.Name,
-					"StagingTargetPath", volume.Status.StagingTargetPath,
-				)
-				return err
-			}
-		}
-	}
 	return nil
 }
 
-func (handler *driveEventHandler) release(ctx context.Context, drive *types.Drive) error {
-	finalizers := drive.GetFinalizers()
-	if len(finalizers) > 1 {
-		return fmt.Errorf("unable to release drive %s. the drive still has volumes to be cleaned up", drive.Name)
+func (handler *driveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
+	switch args.Event {
+	case listener.AddEvent, listener.UpdateEvent:
+		return handler.handleUpdate(ctx, args.Object.(*types.Drive))
 	}
-	if err := handler.unmountDrive(ctx, drive); err != nil {
-		return err
-	}
-	drive.Finalizers, _ = utils.ExcludeFinalizer(
-		finalizers, consts.DriveFinalizerDataProtection,
-	)
-	if _, err := client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()}); err != nil {
-		return err
-	}
-	return client.DriveClient().Delete(ctx, drive.Name, metav1.DeleteOptions{})
-}
 
-func (handler *driveEventHandler) unmountDrive(ctx context.Context, drive *types.Drive) error {
-	mountPointMap, deviceMap, err := handler.getMounts()
-	if err != nil {
-		return err
-	}
-	devices, ok := mountPointMap[path.Join(consts.MountRootDir, drive.Status.FSUUID)]
-	if !ok {
-		devices, ok = mountPointMap[path.Join(consts.LegacyMountRootDir, drive.Status.FSUUID)]
-		if !ok {
-			// Device umounted already
-			return nil
-		}
-	}
-	if len(devices) > 1 {
-		return fmt.Errorf("drive %s mounted is mounted in more than one place", drive.Name)
-	}
-	mountpoints := deviceMap[devices[0]]
-	for _, mountPoint := range mountpoints {
-		if err := handler.unmount(mountPoint, true, true, false); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
 // StartController starts drive controller.
-func StartController(ctx context.Context, nodeID string) error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-
-	listener := listener.NewListener(newDriveEventHandler(nodeID), "drive-controller", hostname, 40)
+func StartController(ctx context.Context, nodeID directpvtypes.NodeID) error {
+	listener := listener.NewListener(newDriveEventHandler(nodeID), "drive-controller", string(nodeID), 40)
 	return listener.Run(ctx)
 }

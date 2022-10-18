@@ -1,7 +1,7 @@
 //go:build !linux
 
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,11 +18,10 @@
 
 package device
 
-import (
-	"fmt"
-	"runtime"
-)
+func probe() (devices []Device, err error) {
+	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+}
 
-func probeDevices() ([]*Device, error) {
+func probeDevices(majorMinor ...string) (devices []Device, err error) {
 	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

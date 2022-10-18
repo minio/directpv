@@ -19,32 +19,30 @@ package metrics
 import (
 	"context"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/minio/directpv/pkg/xfs"
 	"github.com/prometheus/client_golang/prometheus"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 )
 
-const tenantLabel = consts.AppName + ".min.io/tenant"
-
 type metricsCollector struct {
-	nodeID            string
+	nodeID            directpvtypes.NodeID
 	desc              *prometheus.Desc
 	getDeviceByFSUUID func(fsuuid string) (string, error)
 	getQuota          func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error)
 }
 
-func newMetricsCollector(nodeID string) *metricsCollector {
+func newMetricsCollector(nodeID directpvtypes.NodeID) *metricsCollector {
 	return &metricsCollector{
 		nodeID:            nodeID,
 		desc:              prometheus.NewDesc(consts.AppName+"_stats", "Statistics exposed by "+consts.AppPrettyName, nil, nil),
-		getDeviceByFSUUID: device.GetDeviceByFSUUID,
+		getDeviceByFSUUID: sys.GetDeviceByFSUUID,
 		getQuota:          xfs.GetQuota,
 	}
 }
@@ -65,7 +63,7 @@ func (mc *metricsCollector) publishVolumeStats(ctx context.Context, volume *type
 				"on the host to reload",
 			"FSUUID", volume.Status.FSUUID)
 		client.Eventf(
-			volume, corev1.EventTypeWarning, "NodeStageVolume",
+			volume, client.EventTypeWarning, client.EventReasonMetrics,
 			"unable to find device by FSUUID %v; "+
 				"either device is removed or run command "+
 				"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+
@@ -78,10 +76,7 @@ func (mc *metricsCollector) publishVolumeStats(ctx context.Context, volume *type
 		return
 	}
 
-	var tenantName string
-	if labels := volume.GetLabels(); labels != nil {
-		tenantName = labels[tenantLabel]
-	}
+	tenantName := volume.GetTenantName()
 
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(
@@ -89,7 +84,7 @@ func (mc *metricsCollector) publishVolumeStats(ctx context.Context, volume *type
 			"Total number of bytes used by the volume",
 			[]string{"tenant", "volumeID", "node"}, nil),
 		prometheus.GaugeValue,
-		float64(quota.CurrentSpace), string(tenantName), volume.Name, volume.Status.NodeName,
+		float64(quota.CurrentSpace), string(tenantName), volume.Name, string(volume.GetNodeID()),
 	)
 
 	ch <- prometheus.MustNewConstMetric(
@@ -98,7 +93,7 @@ func (mc *metricsCollector) publishVolumeStats(ctx context.Context, volume *type
 			"Total number of bytes allocated to the volume",
 			[]string{"tenant", "volumeID", "node"}, nil),
 		prometheus.GaugeValue,
-		float64(volume.Status.TotalCapacity), string(tenantName), volume.Name, volume.Status.NodeName,
+		float64(volume.Status.TotalCapacity), string(tenantName), volume.Name, string(volume.GetNodeID()),
 	)
 }
 
@@ -109,8 +104,7 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	resultCh, err := volume.ListVolumes(
 		ctx,
-		[]types.LabelValue{types.NewLabelValue(c.nodeID)},
-		nil,
+		[]directpvtypes.LabelValue{directpvtypes.NewLabelValue(string(c.nodeID))},
 		nil,
 		nil,
 		nil,

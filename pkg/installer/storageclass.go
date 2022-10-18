@@ -20,8 +20,8 @@ import (
 	"context"
 	"errors"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
@@ -50,8 +50,8 @@ func createStorageClass(ctx context.Context, c *Config, name string) error {
 	allowTopologiesWithName := corev1.TopologySelectorTerm{
 		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
 			{
-				Key:    string(types.TopologyDriverIdentity),
-				Values: []string{string(types.NewLabelValue(c.driverIdentity()))},
+				Key:    string(directpvtypes.TopologyDriverIdentity),
+				Values: []string{string(directpvtypes.NewLabelValue(c.driverIdentity()))},
 			},
 		},
 	}

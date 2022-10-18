@@ -24,6 +24,7 @@ import (
 	"runtime"
 )
 
-func makeFS(ctx context.Context, device, uuid string, force, reflink bool) error {
-	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+func makeFS(ctx context.Context, device, uuid string, force, reflink bool) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error) {
+	err = fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+	return
 }

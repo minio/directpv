@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/utils"
@@ -81,8 +82,7 @@ type Config struct {
 	// Image pull secrets
 	ImagePullSecrets []string
 
-	// Credential
-	ConfigFile string
+	Credential *admin.Credential
 }
 
 type installer interface {

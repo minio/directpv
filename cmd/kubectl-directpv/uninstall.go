@@ -31,8 +31,8 @@ var uninstallCmd = &cobra.Command{
 	Use:          "uninstall",
 	Short:        "Uninstall " + consts.AppPrettyName + " in Kubernetes.",
 	SilenceUsage: true,
-	RunE: func(c *cobra.Command, args []string) error {
-		return uninstall(c.Context(), args)
+	Run: func(c *cobra.Command, args []string) {
+		uninstallMain(c.Context())
 	},
 }
 
@@ -48,10 +48,10 @@ func init() {
 	uninstallCmd.PersistentFlags().MarkHidden("force")
 }
 
-func uninstall(ctx context.Context, args []string) error {
+func uninstallMain(ctx context.Context) {
 	if dryRun {
 		fmt.Fprintln(os.Stderr, color.HiYellowString("No-op for --dry-run flag"))
-		return nil
+		return
 	}
 
 	installConfig := &installer.Config{
@@ -60,9 +60,10 @@ func uninstall(ctx context.Context, args []string) error {
 		ForceRemove:  forceRemove,
 	}
 
-	err := installer.Uninstall(ctx, installConfig)
-	if err == nil {
-		fmt.Println(color.HiWhiteString(consts.AppPrettyName), "is uninstalled successfully")
+	if err := installer.Uninstall(ctx, installConfig); err != nil {
+		eprintf(err.Error(), true)
+		os.Exit(1)
 	}
-	return err
+
+	fmt.Println(color.HiWhiteString(consts.AppPrettyName), "is uninstalled successfully")
 }

@@ -26,13 +26,14 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// ItemIn checks whether value in the slice.
-func ItemIn[s comparable](slice []s, value s) bool {
-	for _, item := range slice {
-		if value == item {
+// Contains checks whether value in the slice.
+func Contains[ctype comparable](slice []ctype, value ctype) bool {
+	for _, s := range slice {
+		if value == s {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -95,13 +96,10 @@ func TrimDevPrefix(name string) string {
 	return strings.TrimPrefix(name, "/dev/")
 }
 
-func ExcludeFinalizer(finalizers []string, finalizer string) (result []string, found bool) {
-	for _, f := range finalizers {
-		if f != finalizer {
-			result = append(result, f)
-		} else {
-			found = true
-		}
+func AddDevPrefix(name string) string {
+	if strings.HasPrefix(name, "/dev/") {
+		return name
 	}
-	return
+
+	return "/dev/" + name
 }

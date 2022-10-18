@@ -30,12 +30,13 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDrive":        schema_pkg_apis_directpvminio_v1beta1_DirectPVDrive(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDriveList":    schema_pkg_apis_directpvminio_v1beta1_DirectPVDriveList(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDriveStatus":  schema_pkg_apis_directpvminio_v1beta1_DirectPVDriveStatus(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolume":       schema_pkg_apis_directpvminio_v1beta1_DirectPVVolume(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolumeList":   schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeList(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolumeStatus": schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeStatus(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDrive":      schema_pkg_apis_directpvminio_v1beta1_DirectPVDrive(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDriveList":  schema_pkg_apis_directpvminio_v1beta1_DirectPVDriveList(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolume":     schema_pkg_apis_directpvminio_v1beta1_DirectPVVolume(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolumeList": schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeList(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveSpec":          schema_pkg_apis_directpvminio_v1beta1_DriveSpec(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveStatus":        schema_pkg_apis_directpvminio_v1beta1_DriveStatus(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.VolumeStatus":       schema_pkg_apis_directpvminio_v1beta1_VolumeStatus(ref),
 	}
 }
 
@@ -66,10 +67,16 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVDrive(ref common.ReferenceCal
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveSpec"),
+						},
+					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDriveStatus"),
+							Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveStatus"),
 						},
 					},
 				},
@@ -77,7 +84,7 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVDrive(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDriveStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveSpec", "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -131,102 +138,6 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVDriveList(ref common.Referenc
 	}
 }
 
-func schema_pkg_apis_directpvminio_v1beta1_DirectPVDriveStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DirectPVDriveStatus denotes drive information.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"path": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"totalCapacity": {
-						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
-						},
-					},
-					"allocatedCapacity": {
-						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
-						},
-					},
-					"freeCapacity": {
-						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int64",
-						},
-					},
-					"fsuuid": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"nodeName": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"topology": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"modelNumber": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"vendor": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"accessTier": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-				},
-				Required: []string{"path", "totalCapacity", "allocatedCapacity", "freeCapacity", "fsuuid", "nodeName", "status", "topology"},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolume(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -257,7 +168,7 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolume(ref common.ReferenceCa
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolumeStatus"),
+							Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.VolumeStatus"),
 						},
 					},
 				},
@@ -265,7 +176,7 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolume(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolumeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.VolumeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -319,11 +230,99 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeList(ref common.Referen
 	}
 }
 
-func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_directpvminio_v1beta1_DriveSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DirectPVVolumeStatus denotes volume information.",
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"unschedulable": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_DriveStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DriveStatus denotes drive information.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"totalCapacity": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
+						},
+					},
+					"allocatedCapacity": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
+						},
+					},
+					"freeCapacity": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
+						},
+					},
+					"fsuuid": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"topology": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"make": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"totalCapacity", "allocatedCapacity", "freeCapacity", "fsuuid", "status", "topology"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_VolumeStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "VolumeStatus denotes volume information.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"dataPath": {
@@ -347,21 +346,7 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeStatus(ref common.Refer
 							Format:  "",
 						},
 					},
-					"driveName": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
 					"fsuuid": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"nodeName": {
 						SchemaProps: spec.SchemaProps{
 							Default: "",
 							Type:    []string{"string"},
@@ -389,6 +374,13 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeStatus(ref common.Refer
 							Format:  "int64",
 						},
 					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
 					"conditions": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
@@ -413,7 +405,7 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeStatus(ref common.Refer
 						},
 					},
 				},
-				Required: []string{"dataPath", "stagingTargetPath", "targetPath", "driveName", "fsuuid", "nodeName", "totalCapacity", "availableCapacity", "usedCapacity"},
+				Required: []string{"dataPath", "stagingTargetPath", "targetPath", "fsuuid", "totalCapacity", "availableCapacity", "usedCapacity", "status"},
 			},
 		},
 		Dependencies: []string{

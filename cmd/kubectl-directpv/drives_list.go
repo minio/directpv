@@ -22,24 +22,19 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/jedib0t/go-pretty/v6/text"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 )
 
-var showLostOnly bool
-
-var listDrivesCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List drives formatted by " + consts.AppPrettyName + ".",
+var drivesListCmd = &cobra.Command{
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List drives.",
 	Example: strings.ReplaceAll(
 		`# List all drives
 $ kubectl {PLUGIN_NAME} drives ls
@@ -61,141 +56,59 @@ $ kubectl {PLUGIN_NAME} drives ls --drive /dev/xvd{a...d} --node node{1...4}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
-	RunE: func(c *cobra.Command, args []string) error {
-		if err := validateDriveSelectors(); err != nil {
-			return err
-		}
-		return listDrives(c.Context(), args)
-	},
-	Aliases: []string{
-		"ls",
+	Run: func(c *cobra.Command, args []string) {
+		drivesListMain(c.Context(), args)
 	},
 }
 
-func init() {
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&driveArgs, "drive", "d", driveArgs, "Filter by drive path (supports ellipses pattern).")
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, "Filter by nodes (supports ellipses pattern).")
-	listDrivesCmd.PersistentFlags().StringSliceVarP(&accessTierArgs, "access-tier", "", accessTierArgs, fmt.Sprintf("Filter by access tier set on the drive [%s]", strings.Join(directpvtypes.SupportedAccessTierValues(), ", ")))
-	listDrivesCmd.PersistentFlags().BoolVarP(&showLostOnly, "lost", "", showLostOnly, "Show only \"Lost\" drives")
-}
-
-func listDrives(ctx context.Context, args []string) error {
-	resultCh, err := drive.ListDrives(
-		ctx,
-		nodeSelectors,
-		driveSelectors,
-		accessTierSelectors,
-		k8s.MaxThreadCount,
-	)
+func drivesListMain(ctx context.Context, args []string) {
+	drives, err := drive.GetDriveList(ctx, nodeSelectors, driveSelectors, accessTierSelectors, driveStatusArgs)
 	if err != nil {
-		return err
-	}
-
-	drives := []types.Drive{}
-	for result := range resultCh {
-		if result.Err != nil {
-			return result.Err
-		}
-		if showLostOnly && !result.Drive.IsLost() {
-			continue
-		}
-		drives = append(drives, result.Drive)
+		eprintf(err.Error(), true)
+		os.Exit(1)
 	}
 
 	if yamlOutput || jsonOutput {
 		driveList := types.DriveList{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "List",
-				APIVersion: string(types.VersionLabelKey),
+				APIVersion: string(directpvtypes.VersionLabelKey),
 			},
 			Items: drives,
 		}
 		if err := printer(driveList); err != nil {
-			klog.ErrorS(err, "unable to marshal drives", "format", outputFormat)
-			return err
+			eprintf(fmt.Sprintf("unable to %v marshal drives; %v", outputFormat, err), true)
+			os.Exit(1)
 		}
-		return nil
+		return
 	}
 
 	headers := table.Row{
-		"PATH",
+		"NODE",
+		"NAME",
+		"MAKE",
 		"SIZE",
-		"ALLOCATED",
+		"FREE",
 		"VOLUMES",
 		"STATUS",
-		"NODE",
 		"ACCESSTIER",
 	}
 	if wideOutput {
-		headers = append(headers, "MODEL")
-		headers = append(headers, "VENDOR")
-		headers = append(headers, "DRIVE NAME")
+		headers = append(headers, "DRIVE ID")
 	}
-
-	text.DisableColors()
-	writer := table.NewWriter()
-	writer.SetOutputMirror(os.Stdout)
-	if !noHeaders {
-		writer.AppendHeader(headers)
-	}
-
-	style := table.StyleColoredDark
-	style.Options = table.OptionsDefault
-	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
-	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
-	writer.SetStyle(style)
-
-	for _, drive := range drives {
-		volumes := "-"
-		if len(drive.Finalizers) > 1 && (drive.Status.Status == directpvtypes.DriveStatusOK || drive.Status.Status == directpvtypes.DriveStatusCordoned) {
-			volumes = fmt.Sprintf("%v", len(drive.Finalizers)-1)
-		}
-		row := []interface{}{
-			drive.Status.Path,
-			printableBytes(drive.Status.TotalCapacity),
-			func() string {
-				// Show allocated capacity only if the drive has volumes scheduled in it
-				if volumes != "-" {
-					return printableBytes(drive.Status.AllocatedCapacity)
-				}
-				return "-"
-			}(),
-			volumes,
-			func() string {
-				switch drive.Status.Status {
-				case directpvtypes.DriveStatusOK:
-					return color.HiGreenString(string(drive.Status.Status))
-				case directpvtypes.DriveStatusError, directpvtypes.DriveStatusMoved:
-					return color.HiRedString(string(drive.Status.Status))
-				case directpvtypes.DriveStatusCordoned:
-					return color.HiYellowString(string(drive.Status.Status))
-				default:
-					return color.HiWhiteString(string(drive.Status.Status))
-				}
-			}(),
-			drive.Status.NodeName,
-			func() string {
-				if drive.Status.AccessTier == directpvtypes.AccessTierUnknown {
-					return "-"
-				}
-				return string(drive.Status.AccessTier)
-			}(),
-		}
-		if wideOutput {
-			row = append(row, drive.Status.ModelNumber)
-			row = append(row, drive.Status.Vendor)
-			row = append(row, drive.Name)
-		}
-		writer.AppendRow(row)
-	}
-	writer.SortBy(
+	writer := newTableWriter(
+		headers,
 		[]table.SortBy{
 			{
-				Name: "PATH",
+				Name: "NODE",
 				Mode: table.Asc,
 			},
 			{
-				Name: "NODE",
+				Name: "STATUS",
+				Mode: table.Asc,
+			},
+			{
+				Name: "ACCESSTIER",
 				Mode: table.Asc,
 			},
 			{
@@ -203,11 +116,59 @@ func listDrives(ctx context.Context, args []string) error {
 				Mode: table.Asc,
 			},
 			{
-				Name: "ALLOCATED",
+				Name: "FREE",
+				Mode: table.Asc,
+			},
+			{
+				Name: "NAME",
 				Mode: table.Asc,
 			},
 		},
+		noHeaders,
 	)
-	writer.Render()
-	return nil
+
+	for _, drive := range drives {
+		volumeCount := drive.GetVolumeCount()
+		volumes := "-"
+		if volumeCount > 0 {
+			volumes = fmt.Sprintf("%v", volumeCount)
+		}
+		status := drive.Status.Status
+		if drive.IsUnschedulable() {
+			status += ",SchedulingDisabled"
+		}
+		row := []interface{}{
+			drive.GetNodeID(),
+			drive.GetDriveName(),
+			drive.Status.Make,
+			printableBytes(drive.Status.TotalCapacity),
+			printableBytes(drive.Status.FreeCapacity),
+			volumes,
+			status,
+			func() string {
+				if drive.GetAccessTier() == directpvtypes.AccessTierDefault {
+					return "-"
+				}
+				return string(drive.GetAccessTier())
+			}(),
+		}
+		if wideOutput {
+			row = append(row, drive.GetDriveID())
+		}
+
+		writer.AppendRow(row)
+	}
+
+	if writer.Length() != 0 {
+		writer.Render()
+		return
+	}
+
+	if len(driveStatusArgs) == 0 && len(accessTierArgs) == 0 {
+		eprintf("No resources found", false)
+	} else {
+		eprintf("No matching resources found", false)
+	}
+
+	os.Exit(1)
 }

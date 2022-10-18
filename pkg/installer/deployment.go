@@ -92,7 +92,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 					Privileged: &privileged,
 				},
 				Ports:          commonContainerPorts,
-				ReadinessProbe: &corev1.Probe{ProbeHandler: getReadinessHandler()},
+				ReadinessProbe: &corev1.Probe{ProbeHandler: readinessHandler},
 				Env:            []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
 				VolumeMounts:   volumeMounts,
 			},
