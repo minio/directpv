@@ -19,6 +19,7 @@ package device
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -29,6 +30,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 )
 
 type device struct {
@@ -71,80 +73,100 @@ func probeDeviceMap() (map[string][]device, error) {
 	return deviceMap, nil
 }
 
-func Sync(ctx context.Context) error {
+func syncDrive(drive *types.Drive, device device) (updated bool) {
+	if string(drive.GetDriveName()) != device.Name {
+		updated = true
+		drive.SetDriveName(directpvtypes.DriveName(device.Name))
+	}
+	if drive.Status.TotalCapacity != device.TotalCapacity {
+		updated = true
+		drive.Status.TotalCapacity = device.TotalCapacity
+		drive.Status.FreeCapacity = drive.Status.TotalCapacity - drive.Status.AllocatedCapacity
+		if drive.Status.FreeCapacity < 0 {
+			drive.Status.FreeCapacity = 0
+		}
+	}
+	if drive.Status.Make != device.Make() {
+		updated = true
+		drive.Status.Make = device.Make()
+	}
+	return
+}
+
+// Sync - matches and syncs the drive with locally probed device
+func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 	deviceMap, err := probeDeviceMap()
 	if err != nil {
 		return err
 	}
-
-	drives, err := drive.NewLister().Get(ctx)
+	drives, err := drive.NewLister().NodeSelector([]directpvtypes.LabelValue{directpvtypes.NewLabelValue(string(nodeID))}).Get(ctx)
 	if err != nil {
 		return err
 	}
-
 	for i := range drives {
-		var drive *types.Drive
-		var mountCheck bool
 		updateFunc := func() error {
-			mountCheck = false
-
-			if drive, err = client.DriveClient().Get(ctx, drives[i].Name, metav1.GetOptions{}); err != nil {
+			drive, err := client.DriveClient().Get(ctx, drives[i].Name, metav1.GetOptions{})
+			if err != nil {
 				if apierrors.IsNotFound(err) {
 					return nil
 				}
-
 				return err
 			}
-
-			updated := true
-			switch devices := deviceMap[drive.Status.FSUUID]; len(devices) {
+			var updated bool
+			devices := deviceMap[drive.Status.FSUUID]
+			switch len(devices) {
 			case 0:
-				drive.Status.Status = directpvtypes.DriveStatusLost
+				// no match
+				if drive.Status.Status != directpvtypes.DriveStatusLost {
+					updated = true
+					drive.Status.Status = directpvtypes.DriveStatusLost
+				}
 			case 1:
-				mountCheck = true
-				changed := false
-				if string(drive.GetDriveName()) != devices[0].Name {
-					changed = true
-					drive.SetDriveName(directpvtypes.DriveName(devices[0].Name))
+				// device found
+				if syncDrive(drive, devices[0]) {
+					updated = true
 				}
-				switch {
-				case drive.Status.TotalCapacity > devices[0].TotalCapacity:
-					changed = true
-					drive.Status.TotalCapacity = devices[0].TotalCapacity
-					drive.Status.FreeCapacity = drive.Status.TotalCapacity - drive.Status.AllocatedCapacity
-					if drive.Status.FreeCapacity < 0 {
-						drive.Status.FreeCapacity = 0
+				// verify mount
+				if drive.Status.Status == directpvtypes.DriveStatusReady {
+					source := utils.AddDevPrefix(string(drive.GetDriveName()))
+					target := types.GetDriveMountDir(drive.Status.FSUUID)
+					if err = xfs.Mount(source, target); err != nil {
+						updated = true
+						drive.Status.Status = directpvtypes.DriveStatusError
+						drive.SetMountErrorCondition(fmt.Sprintf("unable to mount: %s", err.Error()))
+						// Events and logs
+						client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveMountError, "unable to mount the drive due to %v", err)
+						klog.ErrorS(err, "unable to mount the drive", "Source", source, "Target", target)
+
+					} else {
+						client.Eventf(drive, client.EventTypeNormal, client.EventReasonDriveMounted, "Drive mounted successfully to %s", target)
 					}
-				case drive.Status.TotalCapacity < devices[0].TotalCapacity:
-					changed = true
-					drive.Status.TotalCapacity = devices[0].TotalCapacity
-					drive.Status.FreeCapacity = drive.Status.TotalCapacity - drive.Status.AllocatedCapacity
 				}
-				if drive.Status.Make != devices[0].Make() {
-					changed = true
-					drive.Status.Make = devices[0].Make()
-				}
-				updated = changed
 			default:
+				// more than one matching devices
+				updated = true
+				var deviceNames string
+				for i := range devices {
+					deviceNames = deviceNames + devices[i].Name
+					if i != len(devices)-1 {
+						deviceNames = deviceNames + ", "
+					}
+				}
 				drive.Status.Status = directpvtypes.DriveStatusError
-				// FIXME: add/update conditions to denote too many devices are found by FSUUID
+				drive.SetMultipleMatchesErrorCondition(fmt.Sprintf("multiple matches found by the same FSUUID: %s", deviceNames))
+				// Events and logs
+				client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveHasMultipleMatches, "unable to mount the drive due to %v", err)
+				klog.ErrorS(err, "drive has multiple matches", "drive", drive.GetDriveName(), "matched devices", deviceNames)
 			}
-
 			if updated {
-				_, err = client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()})
+				if _, err := client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()}); err != nil {
+					return err
+				}
 			}
-
-			return err
+			return nil
 		}
-
 		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
 			return err
-		}
-
-		if mountCheck {
-			if err = xfs.Mount(utils.AddDevPrefix(string(drive.GetDriveName())), types.GetVolumeRootDir(drive.Status.FSUUID)); err != nil {
-				return err
-			}
 		}
 	}
 

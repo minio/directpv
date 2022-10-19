@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"syscall"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -35,8 +36,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 )
+
+func SetIOError(ctx context.Context, driveID directpvtypes.DriveID) error {
+	updateFunc := func() error {
+		drive, err := client.DriveClient().Get(ctx, string(driveID), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveIOError, "drive has Input/Output error")
+		drive.Status.Status = directpvtypes.DriveStatusError
+		drive.SetIOErrorCondition()
+		_, err = client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()})
+		return err
+	}
+	if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
+		return err
+	}
+	return nil
+}
 
 func StageVolume(
 	ctx context.Context,
@@ -66,8 +86,13 @@ func StageVolume(
 	}
 
 	volumeDir := types.GetVolumeDir(volume.Status.FSUUID, volume.Name)
+
 	if err := mkdir(volumeDir); err != nil && !errors.Is(err, os.ErrExist) {
-		// FIXME: handle I/O error and mark associated drive's status as ERROR.
+		if errors.Unwrap(err) == syscall.EIO {
+			if err := SetIOError(ctx, volume.GetDriveID()); err != nil {
+				return codes.Internal, fmt.Errorf("unable to set drive error; %w", err)
+			}
+		}
 		klog.ErrorS(err, "unable to create volume directory", "VolumeDir", volumeDir)
 		return codes.Internal, err
 	}
@@ -122,7 +147,7 @@ func newDriveEventHandler(nodeID directpvtypes.NodeID) *driveEventHandler {
 			return sys.Unmount(mountPoint, true, true, false)
 		},
 		mkdir: func(dir string) error {
-			return os.Mkdir(dir, 0o755)
+			return sys.Mkdir(dir, 0o755)
 		},
 		bindMount:         xfs.BindMount,
 		getDeviceByFSUUID: sys.GetDeviceByFSUUID,

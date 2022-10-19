@@ -114,7 +114,7 @@ func AccessTiersToStrings(accessTiers ...AccessTier) (slice []string) {
 	return slice
 }
 
-// VolumeConditionType denotes volume condition.
+// VolumeConditionType denotes volume condition. Allows maximum upto 316 chars.
 type VolumeConditionType string
 
 // Volume condition type values
@@ -122,7 +122,7 @@ const (
 	VolumeConditionTypeLost VolumeConditionType = "Lost"
 )
 
-// VolumeConditionReason denotes volume reason.
+// VolumeConditionReason denotes volume reason. Allows maximum upto 1024 chars.
 type VolumeConditionReason string
 
 // Volume condition reason values
@@ -130,10 +130,37 @@ const (
 	VolumeConditionReasonDriveLost VolumeConditionReason = "DriveLost"
 )
 
-// VolumeConditionMessage denotes drive message.
+// VolumeConditionMessage denotes drive message. Allows maximum upto 32768 chars.
 type VolumeConditionMessage string
 
 // Volume condition message values
 const (
 	VolumeConditionMessageDriveLost VolumeConditionMessage = "Associated drive was removed. Refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md"
+)
+
+// DriveConditionType denotes drive condition. Allows maximum upto 316 chars.
+type DriveConditionType string
+
+// Drive condition type values
+const (
+	DriveConditionTypeMountError      DriveConditionType = "MountError"
+	DriveConditionTypeMultipleMatches DriveConditionType = "MultipleMatches"
+	DriveConditionTypeIOError         DriveConditionType = "IOError"
+)
+
+// DriveConditionReason denotes the reason for the drive condition type. Allows maximum upto 1024 chars.
+type DriveConditionReason string
+
+// Drive condition reason values
+const (
+	DriveConditionReasonMountError      DriveConditionReason = "DriveHasMountError"
+	DriveConditionReasonMultipleMatches DriveConditionReason = "DriveHasMultipleMatches"
+	DriveConditionReasonIOError         DriveConditionReason = "DriveHasIOError"
+)
+
+// DriveConditionMessage denotes drive message. Allows maximum upto 32768 chars
+type DriveConditionMessage string
+
+const (
+	DriveConditionMessageIOError DriveConditionMessage = "Drive has Input/Output error"
 )

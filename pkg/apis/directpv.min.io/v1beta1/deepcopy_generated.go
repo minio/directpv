@@ -173,6 +173,13 @@ func (in *DriveStatus) DeepCopyInto(out *DriveStatus) {
 			(*out)[key] = val
 		}
 	}
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]v1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	return
 }
 

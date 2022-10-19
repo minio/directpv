@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"google.golang.org/grpc/codes"
@@ -128,9 +130,14 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, fmt.Sprintf("stagingPath %v is not mounted", req.GetStagingTargetPath()))
 	}
 
-	if err := os.Mkdir(req.GetTargetPath(), 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+	if err := server.mkdir(req.GetTargetPath()); err != nil && !errors.Is(err, os.ErrExist) {
+		if errors.Unwrap(err) == syscall.EIO {
+			if err := drive.SetIOError(ctx, volume.GetDriveID()); err != nil {
+				return nil, status.Errorf(codes.Internal, "unable to set drive error; %v", err)
+			}
+		}
 		klog.ErrorS(err, "unable to create target path", "TargetPath", req.GetTargetPath())
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "unable to create target path: %v", err)
 	}
 
 	if err := server.bindMount(req.GetStagingTargetPath(), req.GetTargetPath(), req.GetReadonly()); err != nil {
@@ -143,7 +150,7 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		TypeMeta: types.NewVolumeTypeMeta(),
 	})
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "unable to update volume: %v", err)
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
