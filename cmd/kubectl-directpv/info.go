@@ -50,7 +50,7 @@ var infoCmd = &cobra.Command{
 func infoMain(ctx context.Context) {
 	crds, err := k8s.CRDClient().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		eprintf(fmt.Sprintf("unable to list CRDs; %v", err), true)
+		eprintf(quietFlag, true, "unable to list CRDs; %v\n", err)
 		os.Exit(1)
 	}
 
@@ -65,13 +65,13 @@ func infoMain(ctx context.Context) {
 		}
 	}
 	if !drivesFound || !volumesFound {
-		eprintf(consts.AppPrettyName+" installation not found", false)
+		eprintf(quietFlag, false, "%v installation not found\n", consts.AppPrettyName)
 		os.Exit(1)
 	}
 
 	storageClient, gvk, err := k8s.GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
-		eprintf(err.Error(), true)
+		eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -85,7 +85,7 @@ func infoMain(ctx context.Context) {
 			Timeout(10 * time.Second).
 			Do(ctx).
 			Into(result); err != nil {
-			eprintf(fmt.Sprintf("unable to get CSI nodes; %v", err), true)
+			eprintf(quietFlag, true, "unable to get CSI nodes; %v\n", err)
 			os.Exit(1)
 		}
 		for _, csiNode := range result.Items {
@@ -104,7 +104,7 @@ func infoMain(ctx context.Context) {
 			Timeout(10 * time.Second).
 			Do(ctx).
 			Into(result); err != nil {
-			eprintf(fmt.Sprintf("unable to get CSI nodes; %v", err), true)
+			eprintf(quietFlag, true, "unable to get CSI nodes; %v\n", err)
 			os.Exit(1)
 		}
 		for _, csiNode := range result.Items {
@@ -116,24 +116,24 @@ func infoMain(ctx context.Context) {
 			}
 		}
 	case "v1apha1":
-		eprintf("storage.k8s.io/v1alpha1 is not supported", true)
+		eprintf(quietFlag, true, "storage.k8s.io/v1alpha1 is not supported\n")
 		os.Exit(1)
 	}
 
 	if len(nodeList) == 0 {
-		eprintf("installation not found", true)
+		eprintf(quietFlag, true, "%v not installed\n", consts.AppPrettyName)
 		os.Exit(1)
 	}
 
-	drives, err := drive.GetDriveList(ctx, nil, nil, nil, nil)
+	drives, err := drive.NewLister().Get(ctx)
 	if err != nil {
-		eprintf(fmt.Sprintf("unable to get drive list; %v", err), true)
+		eprintf(quietFlag, true, "unable to get drive list; %v\n", err)
 		os.Exit(1)
 	}
 
-	volumes, err := volume.GetVolumeList(ctx, nil, nil, nil, nil)
+	volumes, err := volume.NewLister().Get(ctx)
 	if err != nil {
-		eprintf(fmt.Sprintf("unable to get volume list; %v", err), true)
+		eprintf(quietFlag, true, "unable to get volume list; %v\n", err)
 		os.Exit(1)
 	}
 
@@ -191,7 +191,7 @@ func infoMain(ctx context.Context) {
 
 		if driveCount == 0 {
 			writer.AppendRow([]interface{}{
-				fmt.Sprintf("%s %s", color.YellowString(dot), n),
+				fmt.Sprintf("%s %s", color.HiYellowString(dot), n),
 				"-",
 				"-",
 				"-",
@@ -208,7 +208,7 @@ func infoMain(ctx context.Context) {
 		}
 	}
 
-	if !quiet {
+	if !quietFlag {
 		writer.Render()
 		if len(drives) > 0 {
 			fmt.Printf(

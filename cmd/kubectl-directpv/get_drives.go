@@ -31,40 +31,93 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var drivesListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
-	Short:   "List drives.",
+var getDrivesCmd = &cobra.Command{
+	Use:     "drives [DRIVE ...]",
+	Aliases: []string{"drive", "dr"},
+	Short:   "Get drives.",
 	Example: strings.ReplaceAll(
-		`# List all drives
-$ kubectl {PLUGIN_NAME} drives ls
+		`# Get all drives
+$ kubectl {PLUGIN_NAME} get drives
 
-# List all drives from a particular node
-$ kubectl {PLUGIN_NAME} drives ls --node=node1
+# Get all drives from a particular node
+$ kubectl {PLUGIN_NAME} get drives --node=node1
 
-# List specified drives from specified nodes
-$ kubectl {PLUGIN_NAME} drives ls --node=node1,node2 --drive=/dev/nvme0n1
+# Get specified drives from specified nodes
+$ kubectl {PLUGIN_NAME} get drives --node=node1,node2 --drive=nvme0n1
 
-# List all drives filtered by specified drive ellipsis
-$ kubectl {PLUGIN_NAME} drives ls --drive=/dev/sd{a...b}
+# Get all drives filtered by specified drive ellipsis
+$ kubectl {PLUGIN_NAME} get drives --drive=sd{a...b}
 
-# List all drives filtered by specified node ellipsis
-$ kubectl {PLUGIN_NAME} drives ls --node=node{0...3}
+# Get all drives filtered by specified node ellipsis
+$ kubectl {PLUGIN_NAME} get drives --node=node{0...3}
 
-# List all drives by specified combination of node and drive ellipsis
-$ kubectl {PLUGIN_NAME} drives ls --drive /dev/xvd{a...d} --node node{1...4}`,
+# Get all drives by specified combination of node and drive ellipsis
+$ kubectl {PLUGIN_NAME} get drives --drive xvd{a...d} --node node{1...4}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
-		drivesListMain(c.Context(), args)
+		driveIDArgs = args
+
+		if err := validateGetDrivesCmd(); err != nil {
+			eprintf(quietFlag, true, "%v\n", err)
+			os.Exit(-1)
+		}
+
+		getDrivesMain(c.Context(), args)
 	},
 }
 
-func drivesListMain(ctx context.Context, args []string) {
-	drives, err := drive.GetDriveList(ctx, nodeSelectors, driveSelectors, accessTierSelectors, driveStatusArgs)
+func init() {
+	addAccessTierFlag(getDrivesCmd, "Filter output by access tier")
+	addDriveStatusFlag(getDrivesCmd, "Filter output by drive status")
+}
+
+func validateGetDrivesCmd() error {
+	if err := validateAccessTierArgs(); err != nil {
+		return err
+	}
+
+	if err := validateDriveStatusArgs(); err != nil {
+		return err
+	}
+
+	if err := validateDriveIDArgs(); err != nil {
+		return err
+	}
+
+	switch {
+	case allFlag:
+	case len(nodeArgs) != 0:
+	case len(driveNameArgs) != 0:
+	case len(accessTierArgs) != 0:
+	case len(driveStatusArgs) != 0:
+	case len(driveIDArgs) != 0:
+	default:
+		driveStatusSelectors = append(driveStatusSelectors, directpvtypes.DriveStatusReady)
+	}
+
+	if allFlag {
+		nodeArgs = nil
+		driveNameArgs = nil
+		accessTierArgs = nil
+		driveStatusSelectors = nil
+		driveIDSelectors = nil
+	}
+
+	return nil
+}
+
+func getDrivesMain(ctx context.Context, args []string) {
+	drives, err := drive.NewLister().
+		NodeSelector(toLabelValues(nodeArgs)).
+		DriveNameSelector(toLabelValues(driveNameArgs)).
+		AccessTierSelector(toLabelValues(accessTierArgs)).
+		StatusSelector(driveStatusSelectors).
+		DriveIDSelector(driveIDSelectors).
+		Get(ctx)
 	if err != nil {
-		eprintf(err.Error(), true)
+		eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -77,7 +130,7 @@ func drivesListMain(ctx context.Context, args []string) {
 			Items: drives,
 		}
 		if err := printer(driveList); err != nil {
-			eprintf(fmt.Sprintf("unable to %v marshal drives; %v", outputFormat, err), true)
+			eprintf(quietFlag, true, "unable to %v marshal drives; %v\n", outputFormat, err)
 			os.Exit(1)
 		}
 		return
@@ -164,10 +217,10 @@ func drivesListMain(ctx context.Context, args []string) {
 		return
 	}
 
-	if len(driveStatusArgs) == 0 && len(accessTierArgs) == 0 {
-		eprintf("No resources found", false)
+	if allFlag {
+		eprintf(quietFlag, false, "No resources found\n")
 	} else {
-		eprintf("No matching resources found", false)
+		eprintf(quietFlag, false, "No matching resources found\n")
 	}
 
 	os.Exit(1)

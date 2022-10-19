@@ -89,7 +89,7 @@ func StageVolume(
 
 	volume.Status.DataPath = volumeDir
 	volume.Status.StagingTargetPath = stagingTargetPath
-	volume.SetStatus(directpvtypes.VolumeStatusReady)
+	volume.Status.Status = directpvtypes.VolumeStatusReady
 	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	}); err != nil {
@@ -258,7 +258,7 @@ func (handler *driveEventHandler) move(ctx context.Context, drive *types.Drive) 
 				return err
 			}
 		} else {
-			volume.SetStatus(directpvtypes.VolumeStatusPending)
+			volume.Status.Status = directpvtypes.VolumeStatusPending
 			if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 				TypeMeta: types.NewVolumeTypeMeta(),
 			}); err != nil {

@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
@@ -32,47 +31,101 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	showPVC    bool
-	stagedFlag bool
-)
+var volumeNameArgs []string
 
-var volumesListCmd = &cobra.Command{
-	Use:     "list",
-	Aliases: []string{"ls"},
+var getVolumesCmd = &cobra.Command{
+	Use:     "volumes [VOLUME ...]",
+	Aliases: []string{"volume", "vol"},
 	Short:   "List volumes.",
 	Example: strings.ReplaceAll(
-		`# List all published volumes
-$ kubectl {PLUGIN_NAME} volumes ls
+		`# Get all published volumes
+$ kubectl {PLUGIN_NAME} get volumes
 
-# List all published volumes from a particular node
-$ kubectl {PLUGIN_NAME} volumes ls --node=node1
+# Get all published volumes from a particular node
+$ kubectl {PLUGIN_NAME} get volumes --node=node1
 
-# List all staged volumes from specified nodes on specified drive
-$ kubectl {PLUGIN_NAME} vol ls --node=node1,node2 --staged --drive=/dev/nvme0n1
+# Get all staged volumes from specified nodes on specified drive
+$ kubectl {PLUGIN_NAME} vol ls --node=node1,node2 --staged --drive=nvme0n1
 
-# List all published volumes by pod name
-$ kubectl {PLUGIN_NAME} volumes ls --pod-name=minio-{1...3}
+# Get all published volumes by pod name
+$ kubectl {PLUGIN_NAME} get volumes --pod-name=minio-{1...3}
 
-# List all published volumes by pod namespace
-$ kubectl {PLUGIN_NAME} volumes ls --pod-namespace=tenant-{1...3}
+# Get all published volumes by pod namespace
+$ kubectl {PLUGIN_NAME} get volumes --pod-namespace=tenant-{1...3}
 
-# List all published volumes from range of nodes and drives
-$ kubectl {PLUGIN_NAME} volumes ls --drive /dev/xvd{a...d} --node node{1...4}
+# Get all published volumes from range of nodes and drives
+$ kubectl {PLUGIN_NAME} get volumes --drive xvd{a...d} --node node{1...4}
 
-# List all volumes including PVC names
-$ kubectl {PLUGIN_NAME} volumes ls --all --pvc`,
+# Get all volumes including PVC names
+$ kubectl {PLUGIN_NAME} get volumes --all --pvc`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
-		volumesListMain(c.Context(), args)
+		volumeNameArgs = args
+
+		if err := validateGetVolumesCmd(); err != nil {
+			eprintf(quietFlag, true, "%v\n", err)
+			os.Exit(-1)
+		}
+
+		getVolumesMain(c.Context(), args)
 	},
 }
 
 func init() {
-	volumesListCmd.PersistentFlags().BoolVarP(&stagedFlag, "staged", "", stagedFlag, "Show only volumes in staged state.")
-	volumesListCmd.PersistentFlags().BoolVarP(&showPVC, "pvc", "", showPVC, "Show PVC names of the corresponding volumes.")
+	addDriveIDFlag(getVolumesCmd, "Filter output by drive IDs")
+	addPodNameFlag(getVolumesCmd, "Filter output by pod names")
+	addPodNSFlag(getVolumesCmd, "Filter output by pod namespaces")
+	getVolumesCmd.PersistentFlags().BoolVar(&pvcFlag, "pvc", pvcFlag, "Add PVC names in the output")
+	addVolumeStatusFlag(getVolumesCmd, "Filter output by volume status")
+}
+
+func validateGetVolumesCmd() error {
+	if err := validateDriveIDArgs(); err != nil {
+		return err
+	}
+
+	if err := validatePodNameArgs(); err != nil {
+		return err
+	}
+
+	if err := validatePodNSArgs(); err != nil {
+		return err
+	}
+
+	if err := validateVolumeNameArgs(); err != nil {
+		return err
+	}
+
+	if err := validateVolumeStatusArgs(); err != nil {
+		return err
+	}
+
+	switch {
+	case allFlag:
+	case len(nodeArgs) != 0:
+	case len(driveNameArgs) != 0:
+	case len(driveIDArgs) != 0:
+	case len(podNameArgs) != 0:
+	case len(podNSArgs) != 0:
+	case len(volumeNameArgs) != 0:
+	case len(volumeStatusArgs) != 0:
+	default:
+		volumeStatusSelectors = append(volumeStatusSelectors, directpvtypes.VolumeStatusReady)
+	}
+
+	if allFlag {
+		nodeArgs = nil
+		driveNameArgs = nil
+		driveIDSelectors = nil
+		podNameArgs = nil
+		podNSArgs = nil
+		volumeNameArgs = nil
+		volumeStatusSelectors = nil
+	}
+
+	return nil
 }
 
 func getPVCName(ctx context.Context, volume types.Volume) string {
@@ -83,30 +136,19 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 	return "-"
 }
 
-func volumesListMain(ctx context.Context, args []string) {
-	resultCh, err := volume.ListVolumes(
-		ctx,
-		nodeSelectors,
-		driveSelectors,
-		podNameSelectors,
-		podNSSelectors,
-		k8s.MaxThreadCount,
-	)
+func getVolumesMain(ctx context.Context, args []string) {
+	volumes, err := volume.NewLister().
+		NodeSelector(toLabelValues(nodeArgs)).
+		DriveNameSelector(toLabelValues(driveNameArgs)).
+		DriveIDSelector(toLabelValues(driveIDArgs)).
+		PodNameSelector(toLabelValues(podNameArgs)).
+		PodNSSelector(toLabelValues(podNSArgs)).
+		StatusSelector(volumeStatusSelectors).
+		VolumeNameSelector(volumeNameArgs).
+		Get(ctx)
 	if err != nil {
-		eprintf(err.Error(), true)
+		eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
-	}
-
-	volumes := []types.Volume{}
-	for result := range resultCh {
-		if result.Err != nil {
-			eprintf(result.Err.Error(), true)
-			os.Exit(1)
-		}
-
-		if allFlag || (stagedFlag && result.Volume.IsStaged()) || result.Volume.IsPublished() {
-			volumes = append(volumes, result.Volume)
-		}
 	}
 
 	if yamlOutput || jsonOutput {
@@ -118,7 +160,7 @@ func volumesListMain(ctx context.Context, args []string) {
 			Items: volumes,
 		}
 		if err := printer(volumeList); err != nil {
-			eprintf(fmt.Sprintf("unable to %v marshal volumes; %v", outputFormat, err), true)
+			eprintf(quietFlag, true, "unable to %v marshal volumes; %v\n", outputFormat, err)
 			os.Exit(1)
 		}
 
@@ -137,7 +179,7 @@ func volumesListMain(ctx context.Context, args []string) {
 	if wideOutput {
 		headers = append(headers, "DRIVE ID")
 	}
-	if showPVC {
+	if pvcFlag {
 		headers = append(headers, "PVC")
 	}
 	writer := newTableWriter(
@@ -175,7 +217,7 @@ func volumesListMain(ctx context.Context, args []string) {
 		noHeaders)
 
 	for _, volume := range volumes {
-		status := string(volume.GetStatus())
+		status := string(volume.Status.Status)
 		switch {
 		case volume.IsReleased():
 			status = "Released"
@@ -197,7 +239,7 @@ func volumesListMain(ctx context.Context, args []string) {
 		if wideOutput {
 			row = append(row, volume.GetDriveID())
 		}
-		if showPVC {
+		if pvcFlag {
 			row = append(row, getPVCName(ctx, volume))
 		}
 
@@ -209,10 +251,10 @@ func volumesListMain(ctx context.Context, args []string) {
 		return
 	}
 
-	if len(nodeSelectors) != 0 || len(driveSelectors) != 0 || len(podNameSelectors) != 0 || len(podNSSelectors) != 0 || stagedFlag {
-		eprintf("No matching resources found", false)
+	if allFlag {
+		eprintf(quietFlag, false, "No resources found\n")
 	} else {
-		eprintf("No resources found", false)
+		eprintf(quietFlag, false, "No matching resources found\n")
 	}
 
 	os.Exit(1)

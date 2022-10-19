@@ -29,14 +29,14 @@ const (
 
 // VolumeStatus denotes volume information.
 type VolumeStatus struct {
-	DataPath          string `json:"dataPath"`
-	StagingTargetPath string `json:"stagingTargetPath"`
-	TargetPath        string `json:"targetPath"`
-	FSUUID            string `json:"fsuuid"`
-	TotalCapacity     int64  `json:"totalCapacity"`
-	AvailableCapacity int64  `json:"availableCapacity"`
-	UsedCapacity      int64  `json:"usedCapacity"`
-	Status            string `json:"status"`
+	DataPath          string             `json:"dataPath"`
+	StagingTargetPath string             `json:"stagingTargetPath"`
+	TargetPath        string             `json:"targetPath"`
+	FSUUID            string             `json:"fsuuid"`
+	TotalCapacity     int64              `json:"totalCapacity"`
+	AvailableCapacity int64              `json:"availableCapacity"`
+	UsedCapacity      int64              `json:"usedCapacity"`
+	Status            types.VolumeStatus `json:"status"`
 	// +optional
 	// +patchMergeKey=type
 	// +patchStrategy=merge
@@ -91,7 +91,7 @@ func NewDirectPVVolume(
 			FSUUID:            fsuuid,
 			TotalCapacity:     size,
 			AvailableCapacity: size,
-			Status:            string(types.VolumeStatusPending),
+			Status:            types.VolumeStatusPending,
 		},
 	}
 }
@@ -236,14 +236,6 @@ func (volume DirectPVVolume) GetPodNS() string {
 
 func (volume DirectPVVolume) GetTenantName() string {
 	return string(volume.getLabel(types.LabelKey(Group + "/tenant")))
-}
-
-func (volume *DirectPVVolume) SetStatus(status types.VolumeStatus) {
-	volume.Status.Status = string(status)
-}
-
-func (volume DirectPVVolume) GetStatus() types.VolumeStatus {
-	return types.VolumeStatus(volume.Status.Status)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

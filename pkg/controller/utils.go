@@ -24,7 +24,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/drive"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -87,12 +86,10 @@ func matchDrive(drive *types.Drive, req *csi.CreateVolumeRequest) bool {
 }
 
 func getFilteredDrives(ctx context.Context, req *csi.CreateVolumeRequest) (drives []types.Drive, err error) {
-	resultCh, err := drive.ListDrives(ctx, nil, nil, nil, nil, k8s.MaxThreadCount)
-	if err != nil {
-		return nil, err
-	}
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
 
-	for result := range resultCh {
+	for result := range drive.NewLister().List(ctx) {
 		if result.Err != nil {
 			return nil, result.Err
 		}

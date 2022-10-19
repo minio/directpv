@@ -17,32 +17,21 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path"
 	"regexp"
-	"strings"
-	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/ellipsis"
-	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/mitchellh/go-homedir"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
@@ -71,76 +60,6 @@ func printJSON(obj interface{}) error {
 	return nil
 }
 
-func parseNodeSelector(values []string) (map[string]string, error) {
-	nodeSelector := map[string]string{}
-	for _, value := range values {
-		tokens := strings.Split(value, "=")
-		if len(tokens) != 2 {
-			return nil, fmt.Errorf("invalid node selector value %v", value)
-		}
-		if tokens[0] == "" {
-			return nil, fmt.Errorf("invalid key in node selector value %v", value)
-		}
-		nodeSelector[tokens[0]] = tokens[1]
-	}
-	return nodeSelector, nil
-}
-
-func parseTolerations(values []string) ([]corev1.Toleration, error) {
-	tolerations := []corev1.Toleration{}
-	for _, value := range values {
-		var k, v, e string
-		tokens := strings.SplitN(value, "=", 2)
-		switch len(tokens) {
-		case 1:
-			k = tokens[0]
-			tokens = strings.Split(k, ":")
-			switch len(tokens) {
-			case 1:
-			case 2:
-				k, e = tokens[0], tokens[1]
-			default:
-				if len(tokens) != 2 {
-					return nil, fmt.Errorf("invalid toleration %v", value)
-				}
-			}
-		case 2:
-			k, v = tokens[0], tokens[1]
-		default:
-			if len(tokens) != 2 {
-				return nil, fmt.Errorf("invalid toleration %v", value)
-			}
-		}
-		if k == "" {
-			return nil, fmt.Errorf("invalid key in toleration %v", value)
-		}
-		if v != "" {
-			if tokens = strings.Split(v, ":"); len(tokens) != 2 {
-				return nil, fmt.Errorf("invalid value in toleration %v", value)
-			}
-			v, e = tokens[0], tokens[1]
-		}
-		effect := corev1.TaintEffect(e)
-		switch effect {
-		case corev1.TaintEffectNoSchedule, corev1.TaintEffectPreferNoSchedule, corev1.TaintEffectNoExecute:
-		default:
-			return nil, fmt.Errorf("invalid toleration effect in toleration %v", value)
-		}
-		operator := corev1.TolerationOpExists
-		if v != "" {
-			operator = corev1.TolerationOpEqual
-		}
-		tolerations = append(tolerations, corev1.Toleration{
-			Key:      k,
-			Operator: operator,
-			Value:    v,
-			Effect:   effect,
-		})
-	}
-
-	return tolerations, nil
-}
-
 func getDefaultConfigDir() string {
 	homeDir, err := homedir.Dir()
 	if err != nil {
@@ -166,7 +85,7 @@ func openAuditFile(auditFile string) (*utils.SafeFile, error) {
 	if err := os.MkdirAll(defaultAuditDir, 0o700); err != nil {
 		return nil, fmt.Errorf("unable to create default audit directory; %w", err)
 	}
-	return utils.NewSafeFile(path.Join(defaultAuditDir, fmt.Sprintf("%v.%v", auditFile, time.Now().UTC().Format(time.RFC3339Nano))))
+	return utils.NewSafeFile(path.Join(defaultAuditDir, auditFile))
 }
 
 func printableString(s string) string {
@@ -182,158 +101,6 @@ func printableBytes(value int64) string {
 	}
 
 	return humanize.IBytes(uint64(value))
-}
-
-func getVolumesByNames(ctx context.Context, names []string, ignoreNotFound bool) <-chan volume.ListVolumeResult {
-	resultCh := make(chan volume.ListVolumeResult)
-	go func() {
-		defer close(resultCh)
-		for _, name := range names {
-			volumeName := strings.TrimSpace(name)
-			vol, err := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{})
-			switch {
-			case err == nil:
-				resultCh <- volume.ListVolumeResult{Volume: *vol}
-			case apierrors.IsNotFound(err):
-				if !ignoreNotFound {
-					resultCh <- volume.ListVolumeResult{Err: err}
-					return
-				}
-				klog.V(5).Infof("Volume %v not found", volumeName)
-			default:
-				resultCh <- volume.ListVolumeResult{Err: err}
-				return
-			}
-		}
-	}()
-	return resultCh
-}
-
-func processFilteredVolumes(
-	ctx context.Context,
-	names []string,
-	matchFunc func(*types.Volume) bool,
-	applyFunc func(*types.Volume) error,
-	processFunc func(context.Context, *types.Volume) error,
-	auditFile string,
-) error {
-	var resultCh <-chan volume.ListVolumeResult
-	var err error
-
-	if applyFunc == nil || processFunc == nil {
-		klog.Fatalf("Either applyFunc or processFunc must be provided. This should not happen.")
-	}
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	if len(names) == 0 {
-		resultCh, err = volume.ListVolumes(ctx,
-			nodeSelectors,
-			driveSelectors,
-			podNameSelectors,
-			podNSSelectors,
-			k8s.MaxThreadCount)
-		if err != nil {
-			return err
-		}
-	} else {
-		resultCh = getVolumesByNames(ctx, names, true)
-	}
-
-	file, err := openAuditFile(auditFile)
-	if err != nil {
-		klog.ErrorS(err, "unable to open audit file", "auditFile", auditFile)
-	}
-
-	defer func() {
-		if file != nil {
-			if err := file.Close(); err != nil {
-				klog.ErrorS(err, "unable to close audit file")
-			}
-		}
-	}()
-
-	if matchFunc == nil {
-		matchFunc = func(volume *types.Volume) bool { return true }
-	}
-
-	return volume.ProcessVolumes(
-		ctx,
-		resultCh,
-		matchFunc,
-		applyFunc,
-		processFunc,
-		file,
-		dryRun,
-	)
-}
-
-func getSelectorValues(selectors []string) (values []directpvtypes.LabelValue, err error) {
-	for _, selector := range selectors {
-		if globRegexp.MatchString(selector) {
-			return nil, errGlobPatternUnsupported
-		}
-
-		result, err := ellipsis.Expand(selector)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, value := range result {
-			values = append(values, directpvtypes.NewLabelValue(value))
-		}
-	}
-
-	return values, nil
-}
-
-func getDriveSelectors() ([]directpvtypes.LabelValue, error) {
-	var values []string
-	for i := range driveArgs {
-		if utils.TrimDevPrefix(driveArgs[i]) == "" {
-			return nil, fmt.Errorf("empty device name %v", driveArgs[i])
-		}
-		values = append(values, utils.TrimDevPrefix(driveArgs[i]))
-	}
-	return getSelectorValues(values)
-}
-
-func getNodeSelectors() ([]directpvtypes.LabelValue, error) {
-	for i := range nodeArgs {
-		if nodeArgs[i] == "" {
-			return nil, fmt.Errorf("empty node name %v", nodeArgs[i])
-		}
-	}
-	return getSelectorValues(nodeArgs)
-}
-
-func expandDriveArgs() ([]string, error) {
-	var values []string
-	for i := range driveArgs {
-		trimmed := utils.TrimDevPrefix(strings.TrimSpace(driveArgs[i]))
-		if trimmed == "" {
-			return nil, fmt.Errorf("empty device name %v", driveArgs[i])
-		}
-		result, err := ellipsis.Expand(trimmed)
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, result...)
-	}
-	return values, nil
-}
-
-func expandNodeArgs() ([]string, error) {
-	var values []string
-	for i := range nodeArgs {
-		result, err := ellipsis.Expand(strings.TrimSpace(nodeArgs[i]))
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, result...)
-	}
-	return values, nil
 }
 
 func newTableWriter(header table.Row, sortBy []table.SortBy, noHeader bool) table.Writer {
@@ -355,13 +122,30 @@ func newTableWriter(header table.Row, sortBy []table.SortBy, noHeader bool) tabl
 	return writer
 }
 
-func eprintf(msg string, asErr bool) {
+func eprintf(quiet, asErr bool, format string, a ...any) {
+	if quiet {
+		return
+	}
 	if asErr {
 		fmt.Fprintf(os.Stderr, "%v ", color.RedString("ERROR"))
 	}
-	fmt.Fprintf(os.Stderr, "%v\n", msg)
+	fmt.Fprintf(os.Stderr, format, a...)
 }
 
 func getCredFile() string {
 	return path.Join(configDir, "cred.json")
+}
+
+func toLabelValues(slice []string) (values []directpvtypes.LabelValue) {
+	for _, s := range slice {
+		values = append(values, directpvtypes.NewLabelValue(s))
+	}
+	return
+}
+
+func getInput(msg string) string {
+	fmt.Printf("%v", msg)
+	var input string
+	fmt.Scanln(&input)
+	return input
 }

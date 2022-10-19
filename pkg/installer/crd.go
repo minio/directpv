@@ -21,8 +21,6 @@ import (
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/drive"
-	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/volume"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,39 +30,24 @@ func removeVolumes(ctx context.Context, c *Config) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh, err := volume.ListVolumes(ctx, nil, nil, nil, nil, k8s.MaxThreadCount)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
+	for result := range volume.NewLister().List(ctx) {
+		if result.Err != nil && !apierrors.IsNotFound(result.Err) {
+			return result.Err
 		}
-		return err
-	}
 
-	err = volume.ProcessVolumes(
-		ctx,
-		resultCh,
-		func(volume *types.Volume) bool {
-			return true
-		},
-		func(volume *types.Volume) error {
-			volume.SetFinalizers([]string{})
-			return nil
-		},
-		func(ctx context.Context, volume *types.Volume) error {
-			if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{}); err != nil {
-				return err
-			}
-			if err := client.VolumeClient().Delete(ctx, volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-				return err
-			}
-			return nil
-		},
-		nil,
-		c.DryRun,
-	)
+		result.Volume.RemovePVProtection()
+		result.Volume.RemovePurgeProtection()
 
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+		if c.DryRun {
+			continue
+		}
+
+		if _, err := client.VolumeClient().Update(ctx, &result.Volume, metav1.UpdateOptions{}); err != nil {
+			return err
+		}
+		if err := client.VolumeClient().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil
@@ -72,45 +55,24 @@ func removeVolumes(ctx context.Context, c *Config) error {
 
 func removeDrives(ctx context.Context, c *Config) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
-
 	defer cancelFunc()
 
-	resultCh, err := drive.ListDrives(ctx, nil, nil, nil, nil, k8s.MaxThreadCount)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
+	for result := range drive.NewLister().List(ctx) {
+		if result.Err != nil && !apierrors.IsNotFound(result.Err) {
+			return result.Err
 		}
-		return err
-	}
 
-	err = drive.ProcessDrives(
-		ctx,
-		resultCh,
-		func(drive *types.Drive) bool {
-			return true
-		},
-		func(drive *types.Drive) error {
-			drive.SetFinalizers([]string{})
-			return nil
-		},
-		func(ctx context.Context, drive *types.Drive) error {
-			if _, err := client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{}); err != nil {
-				if apierrors.IsNotFound(err) {
-					return nil
-				}
-				return err
-			}
-			if err := client.DriveClient().Delete(ctx, drive.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-				return err
-			}
-			return nil
-		},
-		nil,
-		c.DryRun,
-	)
+		result.Drive.RemoveFinalizers()
+		if c.DryRun {
+			continue
+		}
 
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+		if _, err := client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+		if err := client.DriveClient().Delete(ctx, result.Drive.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil

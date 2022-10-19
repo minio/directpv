@@ -65,6 +65,17 @@ const (
 	VolumeStatusReady   VolumeStatus = "Ready"
 )
 
+func ToVolumeStatus(value string) (status VolumeStatus, err error) {
+	status = VolumeStatus(strings.Title(value))
+	switch status {
+	case VolumeStatusReady, VolumeStatusPending:
+		return status, nil
+	}
+
+	err = fmt.Errorf("unknown volume status %v", value)
+	return
+}
+
 // AccessTier denotes access tier.
 type AccessTier string
 

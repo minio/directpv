@@ -22,7 +22,6 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/volume"
@@ -102,19 +101,9 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	resultCh, err := volume.ListVolumes(
-		ctx,
-		[]directpvtypes.LabelValue{directpvtypes.NewLabelValue(string(c.nodeID))},
-		nil,
-		nil,
-		nil,
-		k8s.MaxThreadCount,
-	)
-	if err != nil {
-		klog.V(3).ErrorS(err, "unable to get volume list")
-		return
-	}
-
+	resultCh := volume.NewLister().
+		NodeSelector([]directpvtypes.LabelValue{directpvtypes.NewLabelValue(string(c.nodeID))}).
+		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
 			return
