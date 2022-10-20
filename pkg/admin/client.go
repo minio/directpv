@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -87,7 +88,12 @@ func (c *nodeClient) ListDevices(devices []string, formatAllowed, formatDenied b
 	}
 
 	if r.StatusCode < 200 || r.StatusCode > 299 {
-		return nil, fmt.Errorf("request failed with %v", r.StatusCode)
+		var errResp ErrorResponse
+		if err := json.NewDecoder(r.Body).Decode(&errResp); err != nil {
+			return nil, err
+		}
+
+		return nil, errors.New(errResp.Error)
 	}
 
 	var resp NodeListDevicesResponse
@@ -122,7 +128,12 @@ func (c *nodeClient) FormatDevices(devices []FormatDevice) (results []FormatResu
 	}
 
 	if r.StatusCode < 200 || r.StatusCode > 299 {
-		return nil, fmt.Errorf("request failed with %v", r.StatusCode)
+		var errResp ErrorResponse
+		if err := json.NewDecoder(r.Body).Decode(&errResp); err != nil {
+			return nil, err
+		}
+
+		return nil, errors.New(errResp.Error)
 	}
 
 	var resp NodeFormatDevicesResponse
@@ -183,7 +194,12 @@ func (c *Client) ListDevices(req *ListDevicesRequest, cred *Credential) (*ListDe
 	}
 
 	if r.StatusCode < 200 || r.StatusCode > 299 {
-		return nil, fmt.Errorf("request failed with %v", r.StatusCode)
+		var errResp ErrorResponse
+		if err := json.NewDecoder(r.Body).Decode(&errResp); err != nil {
+			return nil, err
+		}
+
+		return nil, errors.New(errResp.Error)
 	}
 
 	var resp ListDevicesResponse
@@ -211,7 +227,12 @@ func (c *Client) FormatDevices(req *FormatDevicesRequest, cred *Credential) (*Fo
 	}
 
 	if r.StatusCode < 200 || r.StatusCode > 299 {
-		return nil, fmt.Errorf("request failed with %v", r.StatusCode)
+		var errResp ErrorResponse
+		if err := json.NewDecoder(r.Body).Decode(&errResp); err != nil {
+			return nil, err
+		}
+
+		return nil, errors.New(errResp.Error)
 	}
 
 	var resp FormatDevicesResponse
