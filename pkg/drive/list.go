@@ -18,17 +18,14 @@ package drive
 
 import (
 	"context"
-	"io"
-	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
 )
 
 // ListDriveResult denotes list of drive result.
@@ -37,19 +34,75 @@ type ListDriveResult struct {
 	Err   error
 }
 
-// ListDrives lists drives.
-func ListDrives(ctx context.Context, nodes, drives, accessTiers []directpvtypes.LabelValue, statusList []string, maxObjects int64) (<-chan ListDriveResult, error) {
-	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-		directpvtypes.NodeLabelKey:       nodes,
-		directpvtypes.DriveNameLabelKey:  drives,
-		directpvtypes.AccessTierLabelKey: accessTiers,
+type Lister struct {
+	nodes          []directpvtypes.LabelValue
+	driveNames     []directpvtypes.LabelValue
+	accessTiers    []directpvtypes.LabelValue
+	statusList     []directpvtypes.DriveStatus
+	driveIDs       []directpvtypes.DriveID
+	maxObjects     int64
+	ignoreNotFound bool
+}
+
+func NewLister() *Lister {
+	return &Lister{
+		maxObjects: k8s.MaxThreadCount,
 	}
-	labelSelector := directpvtypes.ToLabelSelector(labelMap)
+}
+
+func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
+	lister.nodes = nodes
+	return lister
+}
+
+func (lister *Lister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *Lister {
+	lister.driveNames = driveNames
+	return lister
+}
+
+func (lister *Lister) AccessTierSelector(accessTiers []directpvtypes.LabelValue) *Lister {
+	lister.accessTiers = accessTiers
+	return lister
+}
+
+func (lister *Lister) StatusSelector(statusList []directpvtypes.DriveStatus) *Lister {
+	lister.statusList = statusList
+	return lister
+}
+
+func (lister *Lister) DriveIDSelector(driveIDs []directpvtypes.DriveID) *Lister {
+	lister.driveIDs = driveIDs
+	return lister
+}
+
+func (lister *Lister) MaxObjects(n int64) *Lister {
+	lister.maxObjects = n
+	return lister
+}
+
+func (lister *Lister) IgnoreNotFound(b bool) *Lister {
+	lister.ignoreNotFound = b
+	return lister
+}
+
+func (lister *Lister) List(ctx context.Context) <-chan ListDriveResult {
+	getOnly := len(lister.nodes) == 0 &&
+		len(lister.driveNames) == 0 &&
+		len(lister.accessTiers) == 0 &&
+		len(lister.statusList) == 0 &&
+		len(lister.driveIDs) != 0
+
+	labelSelector := directpvtypes.ToLabelSelector(
+		map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
+			directpvtypes.NodeLabelKey:       lister.nodes,
+			directpvtypes.DriveNameLabelKey:  lister.driveNames,
+			directpvtypes.AccessTierLabelKey: lister.accessTiers,
+		},
+	)
 
 	resultCh := make(chan ListDriveResult)
 	go func() {
 		defer close(resultCh)
-		klog.V(5).InfoS("Listing drives", "limit", maxObjects, "selectors", labelSelector)
 
 		send := func(result ListDriveResult) bool {
 			select {
@@ -60,45 +113,75 @@ func ListDrives(ctx context.Context, nodes, drives, accessTiers []directpvtypes.
 			}
 		}
 
-		options := metav1.ListOptions{
-			Limit:         maxObjects,
-			LabelSelector: labelSelector,
+		if !getOnly {
+			options := metav1.ListOptions{
+				Limit:         lister.maxObjects,
+				LabelSelector: labelSelector,
+			}
+			for {
+				result, err := client.DriveClient().List(ctx, options)
+				if err != nil {
+					if apierrors.IsNotFound(err) && lister.ignoreNotFound {
+						break
+					}
+
+					send(ListDriveResult{Err: err})
+					return
+				}
+
+				for _, item := range result.Items {
+					var found bool
+					var values []directpvtypes.DriveID
+					for i := range lister.driveIDs {
+						if lister.driveIDs[i] == item.GetDriveID() {
+							found = true
+						} else {
+							values = append(values, lister.driveIDs[i])
+						}
+					}
+					lister.driveIDs = values
+
+					if found || len(lister.statusList) == 0 || utils.Contains(lister.statusList, item.Status.Status) {
+						if !send(ListDriveResult{Drive: item}) {
+							return
+						}
+					}
+				}
+
+				if result.Continue == "" {
+					break
+				}
+
+				options.Continue = result.Continue
+			}
 		}
-		for {
-			result, err := client.DriveClient().List(ctx, options)
+
+		for _, driveID := range lister.driveIDs {
+			drive, err := client.DriveClient().Get(ctx, string(driveID), metav1.GetOptions{})
 			if err != nil {
+				if apierrors.IsNotFound(err) && lister.ignoreNotFound {
+					continue
+				}
+
 				send(ListDriveResult{Err: err})
 				return
 			}
 
-			for _, item := range result.Items {
-				if len(statusList) == 0 || utils.Contains(statusList, strings.ToLower(string(item.Status.Status))) {
-					if !send(ListDriveResult{Drive: item}) {
-						return
-					}
-				}
-			}
-
-			if result.Continue == "" {
+			if !send(ListDriveResult{Drive: *drive}) {
 				return
 			}
-
-			options.Continue = result.Continue
 		}
 	}()
 
-	return resultCh, nil
+	return resultCh
 }
 
-// GetDriveList gets list of drives.
-func GetDriveList(ctx context.Context, nodes, drives, accessTiers []directpvtypes.LabelValue, statusList []string) ([]types.Drive, error) {
-	resultCh, err := ListDrives(ctx, nodes, drives, accessTiers, statusList, k8s.MaxThreadCount)
-	if err != nil {
-		return nil, err
-	}
+func (lister *Lister) Get(ctx context.Context) ([]types.Drive, error) {
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
 
 	driveList := []types.Drive{}
-	for result := range resultCh {
+	for result := range lister.List(ctx) {
 		if result.Err != nil {
 			return driveList, result.Err
 		}
@@ -106,51 +189,4 @@ func GetDriveList(ctx context.Context, nodes, drives, accessTiers []directpvtype
 	}
 
 	return driveList, nil
-}
-
-// ProcessDrives processes the drives by applying the provided filter functions
-func ProcessDrives(
-	ctx context.Context,
-	resultCh <-chan ListDriveResult,
-	matchFunc func(*types.Drive) bool,
-	applyFunc func(*types.Drive) error,
-	processFunc func(context.Context, *types.Drive) error,
-	writer io.Writer,
-	dryRun bool,
-) error {
-	objectCh := make(chan k8s.ObjectResult)
-	go func() {
-		defer close(objectCh)
-		for result := range resultCh {
-			var oresult k8s.ObjectResult
-			if result.Err != nil {
-				oresult.Err = result.Err
-			} else {
-				drive := result.Drive
-				oresult.Object = &drive
-			}
-
-			select {
-			case <-ctx.Done():
-				return
-			case objectCh <- oresult:
-			}
-		}
-	}()
-
-	return k8s.ProcessObjects(
-		ctx,
-		objectCh,
-		func(object runtime.Object) bool {
-			return matchFunc(object.(*types.Drive))
-		},
-		func(object runtime.Object) error {
-			return applyFunc(object.(*types.Drive))
-		},
-		func(ctx context.Context, object runtime.Object) error {
-			return processFunc(ctx, object.(*types.Drive))
-		},
-		writer,
-		dryRun,
-	)
 }

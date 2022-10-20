@@ -18,14 +18,11 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/spf13/cobra"
@@ -37,58 +34,14 @@ import (
 // e.g. $ go build -ldflags="-X main.Version=v4.0.1"
 var Version string
 
-// flags
-var (
-	kubeconfig   = ""
-	identity     = consts.Identity
-	dryRun       = false
-	quiet        = false
-	outputFormat = ""
-	wideOutput   = false
-	jsonOutput   = false
-	yamlOutput   = false
-	noHeaders    = false
-	allFlag      = false
-)
-
-var (
-	nodeArgs  []string
-	driveArgs []string
-
-	nodeSelectors  []directpvtypes.LabelValue
-	driveSelectors []directpvtypes.LabelValue
-
-	printer func(interface{}) error
-
-	configDir = getDefaultConfigDir()
-)
-
 var mainCmd = &cobra.Command{
 	Use:           consts.AppName,
 	Short:         "Kubectl plugin for managing " + consts.AppPrettyName + " drives and volumes.",
-	SilenceUsage:  true,
+	SilenceUsage:  false,
 	SilenceErrors: false,
 	Version:       Version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		switch outputFormat {
-		case "":
-		case "wide":
-			wideOutput = true
-		case "yaml":
-			yamlOutput = true
-		case "json":
-			jsonOutput = true
-		default:
-			return errors.New("'--output' flag value should be one of wide|json|yaml or empty")
-		}
-
-		printer = printYAML
-		if jsonOutput {
-			printer = printJSON
-		}
-
 		client.Init()
-
 		return nil
 	},
 }
@@ -111,11 +64,20 @@ func init() {
 	flag.Set("logtostderr", "true")
 	flag.Set("alsologtostderr", "true")
 
-	mainCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "Path to the kubeconfig file to use for Kubernetes requests.")
-	mainCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", outputFormat, "Output format. One of: json|yaml|wide")
-	mainCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "", dryRun, "Run in dry-run mode and output yaml")
-	mainCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "", quiet, "Supress printing error logs")
-	mainCmd.PersistentFlags().BoolVarP(&noHeaders, "no-headers", "", noHeaders, "When using the default or custom-column output format, don't print headers (default print headers).")
+	mainCmd.PersistentFlags().StringVarP(
+		&kubeconfig,
+		"kubeconfig",
+		"",
+		kubeconfig,
+		"Path to the kubeconfig file to use for CLI requests.",
+	)
+	mainCmd.PersistentFlags().BoolVarP(
+		&quietFlag,
+		"quiet",
+		"",
+		quietFlag,
+		"Supress printing error messages",
+	)
 
 	mainCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	mainCmd.PersistentFlags().MarkHidden("add_dir_header")
@@ -139,25 +101,35 @@ func init() {
 	mainCmd.AddCommand(infoCmd)
 	mainCmd.AddCommand(installCmd)
 	mainCmd.AddCommand(uninstallCmd)
-	mainCmd.AddCommand(volumesCmd)
-	mainCmd.AddCommand(drivesCmd)
+	mainCmd.AddCommand(getCmd)
+	mainCmd.AddCommand(cordonCmd)
+	mainCmd.AddCommand(uncordonCmd)
+	mainCmd.AddCommand(formatCmd)
+	mainCmd.AddCommand(moveCmd)
+	mainCmd.AddCommand(releaseCmd)
+	mainCmd.AddCommand(setCmd)
+	mainCmd.AddCommand(purgeCmd)
 }
 
 func main() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSEGV)
+	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// We must use a buffered channel or risk missing the signal
+	// if we're not ready to receive when the signal is sent.
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		s := <-sigs
-		klog.V(1).Infof("Exiting on signal %v; %#v", s.String(), s)
-		cancel()
-		<-time.After(1 * time.Second)
-		os.Exit(1)
+		select {
+		case signal := <-signalCh:
+			eprintf(quietFlag, false, "\nExiting on signal %v\n", signal)
+			cancelFunc()
+			os.Exit(1)
+		case <-ctx.Done():
+		}
 	}()
 
 	if err := mainCmd.ExecuteContext(ctx); err != nil {
-		eprintf(err.Error(), true)
+		eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 }

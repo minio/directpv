@@ -17,20 +17,13 @@
 package k8s
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"io"
 	"os"
 	"path"
 	"strings"
-	"sync"
-	"sync/atomic"
 
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -206,124 +199,4 @@ func SanitizeResourceName(name string) string {
 	}
 
 	return string(result)
-}
-
-type ObjectResult struct {
-	Object runtime.Object
-	Err    error
-}
-
-func logYAML(obj interface{}) error {
-	yamlString, err := utils.ToYAML(obj)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s\n---\n\n", yamlString)
-	return nil
-}
-
-func ProcessObjects(
-	ctx context.Context,
-	resultCh <-chan ObjectResult,
-	matchFunc func(runtime.Object) bool,
-	applyFunc func(runtime.Object) error,
-	processFunc func(context.Context, runtime.Object) error,
-	writer io.Writer,
-	dryRun bool,
-) error {
-	stopCh := make(chan struct{})
-	var stopChMu int32
-	closeStopCh := func() {
-		if atomic.AddInt32(&stopChMu, 1) == 1 {
-			close(stopCh)
-		}
-	}
-	defer closeStopCh()
-
-	objectCh := make(chan runtime.Object)
-	var wg sync.WaitGroup
-
-	// Start MaxThreadCount workers.
-	var errs []error
-	for i := 0; i < MaxThreadCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-stopCh:
-					return
-				case object, ok := <-objectCh:
-					if !ok {
-						return
-					}
-					if err := processFunc(ctx, object); err != nil {
-						errs = append(errs, err)
-						defer closeStopCh()
-						return
-					}
-				}
-			}
-		}()
-	}
-
-	var err error
-	for result := range resultCh {
-		if result.Err != nil {
-			err = result.Err
-			break
-		}
-
-		if !matchFunc(result.Object) {
-			continue
-		}
-
-		if err = applyFunc(result.Object); err != nil {
-			break
-		}
-
-		if dryRun {
-			if err := logYAML(result.Object); err != nil {
-				klog.ErrorS(err, "unable log object as YAML string")
-			}
-			continue
-		}
-		if writer != nil {
-			if err := utils.WriteObject(writer, result.Object); err != nil {
-				return err
-			}
-		}
-
-		breakLoop := false
-		select {
-		case <-ctx.Done():
-			breakLoop = true
-		case <-stopCh:
-			breakLoop = true
-		case objectCh <- result.Object:
-		}
-
-		if breakLoop {
-			break
-		}
-	}
-
-	close(objectCh)
-	wg.Wait()
-
-	if err != nil {
-		return err
-	}
-
-	msgs := []string{}
-	for _, err := range errs {
-		msgs = append(msgs, err.Error())
-	}
-	if msg := strings.Join(msgs, "; "); msg != "" {
-		return errors.New(msg)
-	}
-
-	return nil
 }

@@ -77,7 +77,7 @@ func Sync(ctx context.Context) error {
 		return err
 	}
 
-	drives, err := drive.GetDriveList(ctx, nil, nil, nil, nil)
+	drives, err := drive.NewLister().Get(ctx)
 	if err != nil {
 		return err
 	}

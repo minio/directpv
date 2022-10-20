@@ -16,22 +16,38 @@
 
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+)
 
-var drivesSetCmd = &cobra.Command{
+var setCmd = &cobra.Command{
 	Use:   "set",
-	Short: "Set drive properties.",
+	Short: "Set properties drives and volumes.",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if parent := cmd.Parent(); parent != nil {
 			parent.PersistentPreRunE(parent, args)
 		}
-		return nil
+
+		return validateSetCmd()
 	},
 }
 
 func init() {
-	drivesSetCmd.PersistentFlags().BoolVarP(&allFlag, "all", "a", allFlag, "Select all drives on all nodes.")
+	addNodeFlag(setCmd, "If present, select objects from given nodes")
+	addDriveNameFlag(setCmd, "If present, select objects by given drive names")
+	addAllFlag(setCmd, "If present, select all objects")
 
-	drivesSetCmd.AddCommand(drivesSetAccessTierCmd)
-	drivesSetCmd.AddCommand(drivesSetStatusCmd)
+	setCmd.AddCommand(setDrivesCmd)
+}
+
+func validateSetCmd() error {
+	if err := validateNodeArgs(); err != nil {
+		return err
+	}
+
+	if err := validateDriveNameArgs(); err != nil {
+		return err
+	}
+
+	return nil
 }

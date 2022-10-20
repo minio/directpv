@@ -27,7 +27,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/manifoldco/promptui"
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
@@ -37,94 +36,95 @@ import (
 const apiServerEnvName = consts.AppCapsName + "_API_SERVER"
 
 var (
-	apiServer   = ""
-	allowedFlag = false
-	deniedFlag  = false
-	forceFlag   = false
+	apiServer   string
+	allowedFlag bool
+	deniedFlag  bool
+	forceFlag   bool
 
 	errFormatDenied = errors.New("format denied")
 	errFormatFailed = errors.New("format failed")
 )
 
-var drivesFormatCmd = &cobra.Command{
+var formatCmd = &cobra.Command{
 	Use:   "format",
 	Short: "Format and add drives.",
 	Example: strings.ReplaceAll(
-		`# List all the drives for selection
-$ kubectl {PLUGIN_NAME} drives format
+		`# Format the drives for selection
+$ kubectl {PLUGIN_NAME} format
 
-# List all drives from a particular node for the selection
-$ kubectl {PLUGIN_NAME} drives format --node=node1
+# Format drives from a particular node for the selection
+$ kubectl {PLUGIN_NAME} format --node=node1
 
 # List specified drives from specified nodes for the selection
-$ kubectl {PLUGIN_NAME} drives format --node=node1,node2 --drive=/dev/nvme0n1
+$ kubectl {PLUGIN_NAME} format --node=node1,node2 --drive=nvme0n1
 
-# List all drives filtered by specified drive ellipsis for the selection
-$ kubectl {PLUGIN_NAME} drives format --drive=/dev/sd{a...b}
+# Format drives filtered by specified drive ellipsis for the selection
+$ kubectl {PLUGIN_NAME} format --drive=sd{a...b}
 
-# List all drives filtered by specified node ellipsis for the selection
-$ kubectl {PLUGIN_NAME} drives format --node=node{0...3}
+# Format drives filtered by specified node ellipsis for the selection
+$ kubectl {PLUGIN_NAME} format --node=node{0...3}
 
-# List all drives by specified combination of node and drive ellipsis for the selection
-$ kubectl {PLUGIN_NAME} drives format --drive /dev/xvd{a...d} --node node{1...4}
-
-# Also display unavailable devices in listing
-$ kubectl {PLUGIN_NAME} drives format --display-unavailable`,
+# Format drives by specified combination of node and drive ellipsis for the selection
+$ kubectl {PLUGIN_NAME} format --drive xvd{a...d} --node node{1...4}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
-		var err error
-		if nodeArgs, err = expandNodeArgs(); err != nil {
-			eprintf(fmt.Sprintf("invalid node arguments; %v", err), true)
-			os.Exit(-1)
-		}
-		if driveArgs, err = expandDriveArgs(); err != nil {
-			eprintf(fmt.Sprintf("invalid drive arguments; %v", err), true)
+		if err := validateFormatCmd(); err != nil {
+			eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
-		if apiServer == "" {
-			var found bool
-			if apiServer, found = os.LookupEnv(apiServerEnvName); !found {
-				eprintf(fmt.Sprintf("environment variable %v or --api-server argument must be set", apiServerEnvName), true)
-				os.Exit(-1)
-			}
-			if apiServer == "" {
-				eprintf(fmt.Sprintf("valid value must be set to %v environment variable", apiServerEnvName), true)
-				os.Exit(-1)
-			}
-		}
-
-		host, port, err := net.SplitHostPort(apiServer)
-		if err != nil {
-			eprintf(fmt.Sprintf("invalid api server; %v", err), true)
-			os.Exit(-1)
-		}
-		if host == "" {
-			eprintf("invalid host of api server", true)
-			os.Exit(-1)
-		}
-		if port == "" {
-			eprintf("invalid port number of api server", true)
-			os.Exit(-1)
-		}
-
-		drivesFormatMain(c.Context())
+		formatMain(c.Context())
 	},
 }
 
 func init() {
-	drivesFormatCmd.PersistentFlags().BoolVarP(&allowedFlag, "allowed", "", allowedFlag, "Filter output by drives are allowed to format.")
-	drivesFormatCmd.PersistentFlags().BoolVarP(&deniedFlag, "denied", "", deniedFlag, "Filter output by drives are denied to format.")
-	drivesFormatCmd.PersistentFlags().BoolVarP(&forceFlag, "force", "", forceFlag, "Force format selected drives.")
-	drivesFormatCmd.PersistentFlags().StringVarP(&apiServer, "api-server", "", apiServer, "Admin API server in host:port format.")
+	addNodeFlag(formatCmd, "If present, select drives from given nodes")
+	addDriveNameFlag(formatCmd, "If present, select drives by given names")
+	formatCmd.PersistentFlags().BoolVar(&allowedFlag, "allowed", allowedFlag, "If present, select drives those are allowed to format")
+	formatCmd.PersistentFlags().BoolVar(&deniedFlag, "denied", deniedFlag, "If present, select drives those are denied to format")
+	formatCmd.PersistentFlags().BoolVar(&forceFlag, "force", forceFlag, "If present, force format selected drives")
+	formatCmd.PersistentFlags().StringVar(&apiServer, "api-server", apiServer, fmt.Sprintf("If present, use this value to connect to admin API server instead of %v environment variable", apiServerEnvName))
+}
+
+func validateFormatCmd() error {
+	if err := validateNodeArgs(); err != nil {
+		return err
+	}
+
+	if err := validateDriveNameArgs(); err != nil {
+		return err
+	}
+
+	if apiServer == "" {
+		var found bool
+		if apiServer, found = os.LookupEnv(apiServerEnvName); !found {
+			return fmt.Errorf("environment variable %v or --api-server argument must be set", apiServerEnvName)
+		}
+		if apiServer == "" {
+			return fmt.Errorf("valid value must be set to %v environment variable", apiServerEnvName)
+		}
+	}
+
+	host, port, err := net.SplitHostPort(apiServer)
+	if err != nil {
+		return fmt.Errorf("invalid api server value %v; %w", apiServer, err)
+	}
+	if host == "" {
+		return fmt.Errorf("invalid host of api server value %v", apiServer)
+	}
+	if port == "" {
+		return fmt.Errorf("invalid port number of api server value %v", apiServer)
+	}
+
+	return nil
 }
 
 func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.ListDevicesResult, error) {
 	req := admin.ListDevicesRequest{
 		Nodes:   nodeArgs,
-		Devices: driveArgs,
+		Devices: driveNameArgs,
 	}
 	req.FormatAllowed = allowedFlag
 	req.FormatDenied = deniedFlag
@@ -203,36 +203,23 @@ func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.Li
 
 	if len(errs) != 0 {
 		for node, err := range errs {
-			eprintf(fmt.Sprintf("%v: %v", node, err), true)
+			eprintf(quietFlag, true, "%v: %v\n", node, err)
 		}
 
 		return nil, errFormatDenied
 	}
 
 	if writer.Length() == 0 || formatDenied {
-		fmt.Fprintf(os.Stderr, "%v\n", color.YellowString("No drives found to format"))
+		eprintf(false, false, "%v\n", color.HiYellowString("No drives found to format"))
 		return nil, errFormatDenied
 	}
 
 	return resp.Nodes, nil
 }
 
-func getInput(msg string) string {
-	prompt := promptui.Prompt{
-		Label:    msg,
-		Validate: func(input string) error { return nil },
-	}
-	result, err := prompt.Run()
-	if err == promptui.ErrInterrupt {
-		fmt.Fprintf(os.Stderr, "Exiting by interrupt\n")
-		os.Exit(-1)
-	}
-	return result
-}
-
 func getSelections() error {
 	if len(nodeArgs) == 0 {
-		nodes := getInput(color.YellowString("Select nodes (comma separated values, ellipses or ALL)"))
+		nodes := getInput(color.HiYellowString("Select nodes (comma separated values, ellipses or ALL):\n"))
 		if nodes == "" {
 			return errors.New("no node selected")
 		}
@@ -241,26 +228,24 @@ func getSelections() error {
 		} else {
 			nodeArgs = strings.Split(nodes, ",")
 		}
+		if err := validateNodeArgs(); err != nil {
+			return err
+		}
 	}
 
-	if len(driveArgs) == 0 {
-		devices := getInput(color.YellowString("Select drives (comma separated values, ellipses or ALL)"))
+	if len(driveNameArgs) == 0 {
+		devices := getInput(color.HiYellowString("Select drives (comma separated values, ellipses or ALL):\n"))
 		if devices == "" {
 			return errors.New("no drive selected")
 		}
 		if devices == "ALL" {
-			driveArgs = nil
+			driveNameArgs = nil
 		} else {
-			driveArgs = strings.Split(devices, ",")
+			driveNameArgs = strings.Split(devices, ",")
 		}
-	}
-
-	var err error
-	if nodeArgs, err = expandNodeArgs(); err != nil {
-		return fmt.Errorf("invalid node selections; %w", err)
-	}
-	if driveArgs, err = expandDriveArgs(); err != nil {
-		return fmt.Errorf("invalid drive selections; %w", err)
+		if err := validateDriveNameArgs(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -309,7 +294,7 @@ func getFormatDevices(resultMap map[string]admin.ListDevicesResult) (map[string]
 				continue
 			}
 
-			if len(driveArgs) > 0 && !utils.Contains(driveArgs, device.Name) {
+			if len(driveNameArgs) > 0 && !utils.Contains(driveNameArgs, device.Name) {
 				continue
 			}
 
@@ -337,6 +322,7 @@ func getFormatDevices(resultMap map[string]admin.ListDevicesResult) (map[string]
 	}
 
 	if len(nodeMap) == 0 {
+		eprintf(false, false, "%v\n", color.HiYellowString("No drives selected to format"))
 		return nil, nil
 	}
 
@@ -346,11 +332,12 @@ func getFormatDevices(resultMap map[string]admin.ListDevicesResult) (map[string]
 
 	writer.Render()
 
-	confirm := getInput(color.HiRedString("Format may lead to data loss. Type 'Yes' if you really want to do"))
+	confirm := getInput(color.HiRedString("Format may lead to data loss. Type 'Yes' if you really want to do: "))
 	if confirm == "Yes" {
 		return nodeMap, nil
 	}
 
+	eprintf(false, false, "%v\n", color.HiYellowString("No drives selected to format"))
 	return nil, nil
 }
 
@@ -420,7 +407,7 @@ func formatDevices(ctx context.Context, client *admin.Client, nodes map[string][
 
 	if len(errs) != 0 {
 		for node, err := range errs {
-			eprintf(fmt.Sprintf("%v: %v", node, err), true)
+			eprintf(quietFlag, true, "%v: %v\n", node, err)
 		}
 
 		return errFormatFailed
@@ -429,7 +416,7 @@ func formatDevices(ctx context.Context, client *admin.Client, nodes map[string][
 	return nil
 }
 
-func drivesFormatMain(ctx context.Context) {
+func formatMain(ctx context.Context) {
 	client := admin.NewClient(
 		&url.URL{
 			Scheme: "https",
@@ -440,7 +427,7 @@ func drivesFormatMain(ctx context.Context) {
 	resultMap, err := listDevices(ctx, client)
 	if err != nil {
 		if !errors.Is(err, errFormatDenied) {
-			eprintf(err.Error(), true)
+			eprintf(quietFlag, true, "%v\n", err)
 		}
 		os.Exit(1)
 	}
@@ -450,13 +437,13 @@ func drivesFormatMain(ctx context.Context) {
 	}
 
 	if err := getSelections(); err != nil {
-		eprintf(err.Error(), true)
+		eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
 	nodeMap, err := getFormatDevices(resultMap)
 	if err != nil {
-		eprintf(err.Error(), true)
+		eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -467,7 +454,7 @@ func drivesFormatMain(ctx context.Context) {
 	err = formatDevices(ctx, client, nodeMap)
 	if err != nil {
 		if !errors.Is(err, errFormatFailed) {
-			eprintf(err.Error(), true)
+			eprintf(quietFlag, true, "%v\n", err)
 		}
 		os.Exit(1)
 	}

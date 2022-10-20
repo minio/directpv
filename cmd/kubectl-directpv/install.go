@@ -22,16 +22,29 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
+	corev1 "k8s.io/api/core/v1"
 )
 
-const installAuditFile = "install.log"
+var (
+	image            = consts.AppName + ":" + Version
+	registry         = "quay.io"
+	org              = "minio"
+	nodeSelectorArgs = []string{}
+	tolerationArgs   = []string{}
+	seccompProfile   = ""
+	apparmorProfile  = ""
+	imagePullSecrets = []string{}
+	nodeSelector     map[string]string
+	tolerations      []corev1.Toleration
+)
 
 var installCmd = &cobra.Command{
 	Use:           "install",
@@ -39,34 +52,110 @@ var installCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Run: func(c *cobra.Command, args []string) {
-		installMain(c.Context(), args)
+		if err := validateInstallCmd(); err != nil {
+			eprintf(quietFlag, true, "%v\n", err)
+			os.Exit(-1)
+		}
+
+		installMain(c.Context())
 	},
 }
-
-var (
-	image                  = consts.AppName + ":" + Version
-	registry               = "quay.io"
-	org                    = "minio"
-	nodeSelectorParameters = []string{}
-	tolerationParameters   = []string{}
-	seccompProfile         = ""
-	apparmorProfile        = ""
-	imagePullSecrets       = []string{}
-)
 
 func init() {
 	if Version == "" {
 		image = consts.AppName + ":0.0.0-dev"
 	}
-	installCmd.PersistentFlags().StringVarP(&image, "image", "i", image, consts.AppPrettyName+" image")
-	installCmd.PersistentFlags().StringSliceVarP(&imagePullSecrets, "image-pull-secrets", "", imagePullSecrets, "Image pull secrets to be set in pod specs")
-	installCmd.PersistentFlags().StringVarP(&registry, "registry", "r", registry, "Registry where "+consts.AppPrettyName+" images are available")
-	installCmd.PersistentFlags().StringVarP(&org, "org", "g", org, "Organization name on the registry holds "+consts.AppPrettyName+" images")
-	installCmd.PersistentFlags().StringSliceVarP(&nodeSelectorParameters, "node-selector", "n", nodeSelectorParameters, "Node selector parameters")
-	installCmd.PersistentFlags().StringSliceVarP(&tolerationParameters, "tolerations", "t", tolerationParameters, "Tolerations parameters")
-	installCmd.PersistentFlags().StringVarP(&seccompProfile, "seccomp-profile", "", seccompProfile, "Set Seccomp profile")
-	installCmd.PersistentFlags().StringVarP(&apparmorProfile, "apparmor-profile", "", apparmorProfile, "Set Apparmor profile")
-	installCmd.PersistentFlags().StringVarP(&configDir, "config-dir", "", configDir, "Path to configuration directory")
+	installCmd.PersistentFlags().StringVar(&image, "image", image, consts.AppPrettyName+" image")
+	installCmd.PersistentFlags().StringSliceVar(&imagePullSecrets, "image-pull-secrets", imagePullSecrets, "Image pull secrets to be set in pod specs")
+	installCmd.PersistentFlags().StringVar(&registry, "registry", registry, "Registry where "+consts.AppPrettyName+" images are available")
+	installCmd.PersistentFlags().StringVar(&org, "org", org, "Organization name on the registry holds "+consts.AppPrettyName+" images")
+	installCmd.PersistentFlags().StringSliceVar(&nodeSelectorArgs, "node-selector", nodeSelectorArgs, "Node selector parameters")
+	installCmd.PersistentFlags().StringSliceVar(&tolerationArgs, "tolerations", tolerationArgs, "Tolerations parameters")
+	installCmd.PersistentFlags().StringVar(&seccompProfile, "seccomp-profile", seccompProfile, "Set Seccomp profile")
+	installCmd.PersistentFlags().StringVar(&apparmorProfile, "apparmor-profile", apparmorProfile, "Set Apparmor profile")
+	installCmd.PersistentFlags().StringVar(&configDir, "config-dir", configDir, "Path to configuration directory")
+	addDryRunFlag(installCmd)
+}
+
+func validateNodeSelectorArgs() error {
+	nodeSelector = map[string]string{}
+	for _, value := range nodeSelectorArgs {
+		tokens := strings.Split(value, "=")
+		if len(tokens) != 2 {
+			return fmt.Errorf("invalid node selector value %v", value)
+		}
+		if tokens[0] == "" {
+			return fmt.Errorf("invalid key in node selector value %v", value)
+		}
+		nodeSelector[tokens[0]] = tokens[1]
+	}
+	return nil
+}
+
+func validateTolerationsArgs() error {
+	for _, value := range tolerationArgs {
+		var k, v, e string
+		tokens := strings.SplitN(value, "=", 2)
+		switch len(tokens) {
+		case 1:
+			k = tokens[0]
+			tokens = strings.Split(k, ":")
+			switch len(tokens) {
+			case 1:
+			case 2:
+				k, e = tokens[0], tokens[1]
+			default:
+				if len(tokens) != 2 {
+					return fmt.Errorf("invalid toleration %v", value)
+				}
+			}
+		case 2:
+			k, v = tokens[0], tokens[1]
+		default:
+			if len(tokens) != 2 {
+				return fmt.Errorf("invalid toleration %v", value)
+			}
+		}
+		if k == "" {
+			return fmt.Errorf("invalid key in toleration %v", value)
+		}
+		if v != "" {
+			if tokens = strings.Split(v, ":"); len(tokens) != 2 {
+				return fmt.Errorf("invalid value in toleration %v", value)
+			}
+			v, e = tokens[0], tokens[1]
+		}
+		effect := corev1.TaintEffect(e)
+		switch effect {
+		case corev1.TaintEffectNoSchedule, corev1.TaintEffectPreferNoSchedule, corev1.TaintEffectNoExecute:
+		default:
+			return fmt.Errorf("invalid toleration effect in toleration %v", value)
+		}
+		operator := corev1.TolerationOpExists
+		if v != "" {
+			operator = corev1.TolerationOpEqual
+		}
+		tolerations = append(tolerations, corev1.Toleration{
+			Key:      k,
+			Operator: operator,
+			Value:    v,
+			Effect:   effect,
+		})
+	}
+
+	return nil
+}
+
+func validateInstallCmd() error {
+	if err := validateNodeSelectorArgs(); err != nil {
+		return fmt.Errorf("%v; format of '--node-selector' flag value must be [<key>=<value>]", err)
+	}
+
+	if err := validateTolerationsArgs(); err != nil {
+		return fmt.Errorf("%v; format of '--tolerations' flag value must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>", err)
+	}
+
+	return nil
 }
 
 func getCredential() (*admin.Credential, bool, error) {
@@ -88,44 +177,34 @@ func getCredential() (*admin.Credential, bool, error) {
 		return nil, false, err
 	}
 
-	eprintf(color.HiYellowString("Using credential from "+getCredFile()), false)
+	eprintf(false, false, "%v\n", color.HiYellowString("Using credential from "+getCredFile()))
 	return &cred, true, nil
 }
 
-func installMain(ctx context.Context, args []string) {
-	nodeSelector, err := parseNodeSelector(nodeSelectorParameters)
+func installMain(ctx context.Context) {
+	auditFile := fmt.Sprintf("install.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
+	file, err := openAuditFile(auditFile)
 	if err != nil {
-		eprintf(fmt.Sprintf("%v; format of '--node-selector' flag value must be [<key>=<value>]", err), true)
-		os.Exit(-1)
-	}
-	tolerations, err := parseTolerations(tolerationParameters)
-	if err != nil {
-		eprintf(fmt.Sprintf("%v; format of '--tolerations' flag value must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>", err), true)
-		os.Exit(-1)
-	}
-
-	file, err := openAuditFile(installAuditFile)
-	if err != nil {
-		eprintf(fmt.Sprintf("unable to open audit file %v; %v", installAuditFile, err), true)
-		fmt.Fprintln(os.Stderr, color.HiYellowString("Skipping audit logging"))
+		eprintf(quietFlag, true, "unable to open audit file %v; %v\n", auditFile, err)
+		eprintf(false, false, "%v\n", color.HiYellowString("Skipping audit logging"))
 	}
 
 	defer func() {
 		if file != nil {
 			if err := file.Close(); err != nil {
-				klog.ErrorS(err, "unable to close audit file")
+				eprintf(quietFlag, true, "unable to close audit file; %v\n", err)
 			}
 		}
 	}()
 
 	cred, fromFile, err := getCredential()
 	if err != nil {
-		eprintf(fmt.Sprintf("unable to get credential; %v", err), true)
+		eprintf(quietFlag, true, "unable to get credential; %v\n", err)
 		os.Exit(1)
 	}
 
 	installConfig := &installer.Config{
-		Identity:          identity,
+		Identity:          consts.Identity,
 		ContainerImage:    image,
 		ContainerOrg:      org,
 		ContainerRegistry: registry,
@@ -133,28 +212,28 @@ func installMain(ctx context.Context, args []string) {
 		Tolerations:       tolerations,
 		SeccompProfile:    seccompProfile,
 		ApparmorProfile:   apparmorProfile,
-		DryRun:            dryRun,
+		DryRun:            dryRunFlag,
 		AuditFile:         file,
 		ImagePullSecrets:  imagePullSecrets,
 		Credential:        cred,
 	}
 
 	if err = installer.Install(ctx, installConfig); err != nil {
-		eprintf(fmt.Sprintf("unable to install %v; %v", consts.AppPrettyName, err), true)
+		eprintf(quietFlag, true, "unable to install %v; %v\n", consts.AppPrettyName, err)
 		os.Exit(1)
 	}
 
-	if !dryRun {
+	if !dryRunFlag {
 		if !fromFile {
 			data, err := json.Marshal(cred)
 			if err == nil {
 				err = os.WriteFile(getCredFile(), data, 0o644)
 			}
 			if err != nil {
-				eprintf(fmt.Sprintf("unable to create credential file %v; %v", getCredFile(), err), true)
-				eprintf(fmt.Sprintf("Below credential is set on server\nAccessKey: %v, SecretKey: %v", cred.AccessKey, cred.SecretKey), false)
+				eprintf(quietFlag, true, "unable to create credential file %v; %v\n", getCredFile(), err)
+				fmt.Printf("Below credential is set on server\nAccessKey: %v, SecretKey: %v\n", cred.AccessKey, cred.SecretKey)
 			} else {
-				eprintf(fmt.Sprintf("Credential is saved at %v", getCredFile()), false)
+				eprintf(false, false, "Credential is saved at %v\n", getCredFile())
 			}
 		}
 

@@ -27,43 +27,45 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var crdFlag bool
+
 var uninstallCmd = &cobra.Command{
 	Use:          "uninstall",
 	Short:        "Uninstall " + consts.AppPrettyName + " in Kubernetes.",
 	SilenceUsage: true,
 	Run: func(c *cobra.Command, args []string) {
+		if crdFlag || forceFlag {
+			input := getInput(color.HiRedString("CRD removal may cause data loss. Type 'Yes' if you really want to do: "))
+			if input != "Yes" {
+				eprintf(quietFlag, false, "Aborting...\n")
+				os.Exit(1)
+			}
+		}
+
 		uninstallMain(c.Context())
 	},
 }
 
-var (
-	uninstallCRD = false
-	forceRemove  = false
-)
-
 func init() {
-	uninstallCmd.PersistentFlags().BoolVarP(&uninstallCRD, "crd", "", uninstallCRD, "Remove "+consts.GroupName+" CRDs (CAUTION: MAY LEAD TO DATA LOSS)")
-	uninstallCmd.PersistentFlags().BoolVarP(&forceRemove, "force", "", forceRemove, "Forcefully remove "+consts.GroupName+" resources (CAUTION: MAY LEAD TO DATA LOSS)")
+	uninstallCmd.PersistentFlags().BoolVar(&crdFlag, "crd", crdFlag, "If present, remove CRDs")
+	uninstallCmd.PersistentFlags().BoolVar(&forceFlag, "force", forceFlag, "If present, uninstall forcefully")
 	uninstallCmd.PersistentFlags().MarkHidden("crd")
 	uninstallCmd.PersistentFlags().MarkHidden("force")
 }
 
 func uninstallMain(ctx context.Context) {
-	if dryRun {
-		fmt.Fprintln(os.Stderr, color.HiYellowString("No-op for --dry-run flag"))
-		return
-	}
-
 	installConfig := &installer.Config{
-		Identity:     identity,
-		UninstallCRD: uninstallCRD,
-		ForceRemove:  forceRemove,
+		Identity:     consts.Identity,
+		UninstallCRD: crdFlag,
+		ForceRemove:  forceFlag,
 	}
 
 	if err := installer.Uninstall(ctx, installConfig); err != nil {
-		eprintf(err.Error(), true)
+		eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Println(color.HiWhiteString(consts.AppPrettyName), "is uninstalled successfully")
+	if !quietFlag {
+		fmt.Println(color.HiWhiteString(consts.AppPrettyName), "is uninstalled successfully")
+	}
 }

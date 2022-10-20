@@ -18,15 +18,13 @@ package volume
 
 import (
 	"context"
-	"io"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
 )
 
 // ListVolumeResult denotes list of volume result.
@@ -35,20 +33,91 @@ type ListVolumeResult struct {
 	Err    error
 }
 
-// ListVolumes lists volumes.
-func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs []directpvtypes.LabelValue, maxObjects int64) (<-chan ListVolumeResult, error) {
-	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-		directpvtypes.DriveNameLabelKey: drives,
-		directpvtypes.NodeLabelKey:      nodes,
-		directpvtypes.PodNameLabelKey:   podNames,
-		directpvtypes.PodNSLabelKey:     podNSs,
+type Lister struct {
+	nodes          []directpvtypes.LabelValue
+	driveNames     []directpvtypes.LabelValue
+	driveIDs       []directpvtypes.LabelValue
+	podNames       []directpvtypes.LabelValue
+	podNSs         []directpvtypes.LabelValue
+	statusList     []directpvtypes.VolumeStatus
+	volumeNames    []string
+	maxObjects     int64
+	ignoreNotFound bool
+}
+
+func NewLister() *Lister {
+	return &Lister{
+		maxObjects: k8s.MaxThreadCount,
 	}
-	labelSelector := directpvtypes.ToLabelSelector(labelMap)
+}
+
+func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
+	lister.nodes = nodes
+	return lister
+}
+
+func (lister *Lister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *Lister {
+	lister.driveNames = driveNames
+	return lister
+}
+
+func (lister *Lister) DriveIDSelector(driveIDs []directpvtypes.LabelValue) *Lister {
+	lister.driveIDs = driveIDs
+	return lister
+}
+
+func (lister *Lister) PodNameSelector(podNames []directpvtypes.LabelValue) *Lister {
+	lister.podNames = podNames
+	return lister
+}
+
+func (lister *Lister) PodNSSelector(podNSs []directpvtypes.LabelValue) *Lister {
+	lister.podNSs = podNSs
+	return lister
+}
+
+func (lister *Lister) StatusSelector(statusList []directpvtypes.VolumeStatus) *Lister {
+	lister.statusList = statusList
+	return lister
+}
+
+func (lister *Lister) VolumeNameSelector(volumeNames []string) *Lister {
+	lister.volumeNames = volumeNames
+	return lister
+}
+
+func (lister *Lister) MaxObjects(n int64) *Lister {
+	lister.maxObjects = n
+	return lister
+}
+
+func (lister *Lister) IgnoreNotFound(b bool) *Lister {
+	lister.ignoreNotFound = b
+	return lister
+}
+
+func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
+	getOnly := len(lister.nodes) == 0 &&
+		len(lister.driveNames) == 0 &&
+		len(lister.driveIDs) == 0 &&
+		len(lister.podNames) == 0 &&
+		len(lister.podNSs) == 0 &&
+		len(lister.statusList) == 0 &&
+		len(lister.volumeNames) != 0
+
+	labelSelector := directpvtypes.ToLabelSelector(
+		map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
+			directpvtypes.NodeLabelKey:      lister.nodes,
+			directpvtypes.DriveNameLabelKey: lister.driveNames,
+			directpvtypes.DriveLabelKey:     lister.driveIDs,
+			directpvtypes.PodNameLabelKey:   lister.podNames,
+			directpvtypes.PodNSLabelKey:     lister.podNSs,
+		},
+	)
 
 	resultCh := make(chan ListVolumeResult)
 	go func() {
 		defer close(resultCh)
-		klog.V(5).InfoS("Listing volumes", "limit", maxObjects, "selectors", labelSelector)
 
 		send := func(result ListVolumeResult) bool {
 			select {
@@ -59,44 +128,67 @@ func ListVolumes(ctx context.Context, nodes, drives, podNames, podNSs []directpv
 			}
 		}
 
-		options := metav1.ListOptions{
-			Limit:         maxObjects,
-			LabelSelector: labelSelector,
+		if !getOnly {
+			options := metav1.ListOptions{
+				Limit:         lister.maxObjects,
+				LabelSelector: labelSelector,
+			}
+
+			for {
+				result, err := client.VolumeClient().List(ctx, options)
+				if err != nil {
+					send(ListVolumeResult{Err: err})
+					return
+				}
+
+				for _, item := range result.Items {
+					var found bool
+					var values []string
+					for i := range lister.volumeNames {
+						if lister.volumeNames[i] == item.Name {
+							found = true
+						} else {
+							values = append(values, lister.volumeNames[i])
+						}
+					}
+					lister.volumeNames = values
+
+					if found || len(lister.statusList) == 0 || utils.Contains(lister.statusList, item.Status.Status) {
+						if !send(ListVolumeResult{Volume: item}) {
+							return
+						}
+					}
+				}
+
+				if result.Continue == "" {
+					break
+				}
+
+				options.Continue = result.Continue
+			}
 		}
 
-		for {
-			result, err := client.VolumeClient().List(ctx, options)
+		for _, volumeName := range lister.volumeNames {
+			volume, err := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{})
 			if err != nil {
 				send(ListVolumeResult{Err: err})
 				return
 			}
-
-			for _, item := range result.Items {
-				if !send(ListVolumeResult{Volume: item}) {
-					return
-				}
-			}
-
-			if result.Continue == "" {
+			if !send(ListVolumeResult{Volume: *volume}) {
 				return
 			}
-
-			options.Continue = result.Continue
 		}
 	}()
 
-	return resultCh, nil
+	return resultCh
 }
 
-// GetVolumeList gets list of volumes.
-func GetVolumeList(ctx context.Context, nodes, drives, podNames, podNSs []directpvtypes.LabelValue) ([]types.Volume, error) {
-	resultCh, err := ListVolumes(ctx, nodes, drives, podNames, podNSs, k8s.MaxThreadCount)
-	if err != nil {
-		return nil, err
-	}
+func (lister *Lister) Get(ctx context.Context) ([]types.Volume, error) {
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
 
 	volumeList := []types.Volume{}
-	for result := range resultCh {
+	for result := range lister.List(ctx) {
 		if result.Err != nil {
 			return volumeList, result.Err
 		}
@@ -104,51 +196,4 @@ func GetVolumeList(ctx context.Context, nodes, drives, podNames, podNSs []direct
 	}
 
 	return volumeList, nil
-}
-
-// ProcessVolumes processes the volumes by applying the provided filter functions
-func ProcessVolumes(
-	ctx context.Context,
-	resultCh <-chan ListVolumeResult,
-	matchFunc func(*types.Volume) bool,
-	applyFunc func(*types.Volume) error,
-	processFunc func(context.Context, *types.Volume) error,
-	writer io.Writer,
-	dryRun bool,
-) error {
-	objectCh := make(chan k8s.ObjectResult)
-	go func() {
-		defer close(objectCh)
-		for result := range resultCh {
-			var oresult k8s.ObjectResult
-			if result.Err != nil {
-				oresult.Err = result.Err
-			} else {
-				volume := result.Volume
-				oresult.Object = &volume
-			}
-
-			select {
-			case <-ctx.Done():
-				return
-			case objectCh <- oresult:
-			}
-		}
-	}()
-
-	return k8s.ProcessObjects(
-		ctx,
-		objectCh,
-		func(object runtime.Object) bool {
-			return matchFunc(object.(*types.Volume))
-		},
-		func(object runtime.Object) error {
-			return applyFunc(object.(*types.Volume))
-		},
-		func(ctx context.Context, object runtime.Object) error {
-			return processFunc(ctx, object.(*types.Volume))
-		},
-		writer,
-		dryRun,
-	)
 }

@@ -26,12 +26,13 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var drivesMoveCmd = &cobra.Command{
-	Use:     "move <src-drive-id> <dest-drive-id>",
+var moveCmd = &cobra.Command{
+	Use:     "move SRC-DRIVE DEST-DRIVE",
 	Aliases: []string{"mv"},
 	Short:   "Move volumes excluding data from source drive to destination drive on a same node.",
 	Example: strings.ReplaceAll(
@@ -42,53 +43,53 @@ $ kubectl {PLUGIN_NAME} drives move af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 834e8f4
 	),
 	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 2 {
-			eprintf("only one source and one destination drive must be provided", true)
+			eprintf(quietFlag, true, "only one source and one destination drive must be provided\n")
 			os.Exit(-1)
 		}
 
 		src := strings.TrimSpace(args[0])
 		if src == "" {
-			eprintf("empty source drive", true)
+			eprintf(quietFlag, true, "empty source drive\n")
 			os.Exit(-1)
 		}
 
 		dest := strings.TrimSpace(args[1])
 		if dest == "" {
-			eprintf("empty destination drive", true)
+			eprintf(quietFlag, true, "empty destination drive\n")
 			os.Exit(-1)
 		}
 
-		drivesMoveMain(c.Context(), src, dest)
+		moveMain(c.Context(), src, dest)
 	},
 }
 
-func drivesMoveMain(ctx context.Context, src, dest string) {
+func moveMain(ctx context.Context, src, dest string) {
 	if src == dest {
-		eprintf("source and destination drives are same", true)
+		eprintf(quietFlag, true, "source and destination drives are same\n")
 		os.Exit(1)
 	}
 
 	srcDrive, err := client.DriveClient().Get(ctx, src, metav1.GetOptions{})
 	if err != nil {
-		eprintf(fmt.Sprintf("unable to get source drive; %v", err), true)
+		eprintf(quietFlag, true, "unable to get source drive; %v\n", err)
 		os.Exit(1)
 	}
 
 	if !srcDrive.IsUnschedulable() {
-		eprintf("source drive is not cordoned", true)
+		eprintf(quietFlag, true, "source drive is not cordoned\n")
 		os.Exit(1)
 	}
 
 	var requiredCapacity int64
 	var volumes []types.Volume
-	for result := range getVolumesByNames(ctx, srcDrive.GetVolumes(), true) {
+	for result := range volume.NewLister().VolumeNameSelector(srcDrive.GetVolumes()).List(ctx) {
 		if result.Err != nil {
-			eprintf(result.Err.Error(), true)
+			eprintf(quietFlag, true, "%v\n", result.Err)
 			os.Exit(1)
 		}
 
 		if result.Volume.IsPublished() {
-			eprintf(fmt.Sprintf("cannot move published volume %v", result.Volume.Name), true)
+			eprintf(quietFlag, true, "cannot move published volume %v\n", result.Volume.Name)
 			os.Exit(1)
 		}
 
@@ -97,59 +98,56 @@ func drivesMoveMain(ctx context.Context, src, dest string) {
 	}
 
 	if len(volumes) == 0 {
-		eprintf(fmt.Sprintf("No volumes found in source drive %v", src), false)
+		eprintf(quietFlag, false, "No volumes found in source drive %v\n", src)
 		return
 	}
 
 	destDrive, err := client.DriveClient().Get(ctx, dest, metav1.GetOptions{})
 	if err != nil {
-		eprintf(fmt.Sprintf("unable to get destination drive; %v", err), true)
+		eprintf(quietFlag, true, "unable to get destination drive; %v\n", err)
 		os.Exit(1)
 	}
 
 	if destDrive.GetNodeID() != srcDrive.GetNodeID() {
 		eprintf(
-			fmt.Sprintf(
-				"source and destination drives must be in same node; source node %v; desination node %v",
-				srcDrive.GetNodeID(),
-				destDrive.GetNodeID(),
-			),
+			quietFlag,
 			true,
+			"source and destination drives must be in same node; source node %v; desination node %v\n",
+			srcDrive.GetNodeID(),
+			destDrive.GetNodeID(),
 		)
 		os.Exit(1)
 	}
 
 	if !destDrive.IsUnschedulable() {
-		eprintf("destination drive is not cordoned", true)
+		eprintf(quietFlag, true, "destination drive is not cordoned\n")
 		os.Exit(1)
 	}
 
 	if destDrive.Status.Status != directpvtypes.DriveStatusReady {
-		eprintf("destination drive is not ready state", true)
+		eprintf(quietFlag, true, "destination drive is not ready state\n")
 		os.Exit(1)
 	}
 
 	if srcDrive.GetAccessTier() != destDrive.GetAccessTier() {
 		eprintf(
-			fmt.Sprintf(
-				"source drive access-tier %v and destination drive access-tier %v are different",
-				srcDrive.GetAccessTier(),
-				destDrive.GetAccessTier(),
-			),
+			quietFlag,
 			true,
+			"source drive access-tier %v and destination drive access-tier %v differ\n",
+			srcDrive.GetAccessTier(),
+			destDrive.GetAccessTier(),
 		)
 		os.Exit(1)
 	}
 
 	if destDrive.Status.FreeCapacity < requiredCapacity {
 		eprintf(
-			fmt.Sprintf(
-				"insufficient free capacity on destination drive; required=%v free=%v",
-				destDrive.Name,
-				printableBytes(requiredCapacity),
-				printableBytes(destDrive.Status.FreeCapacity),
-			),
+			quietFlag,
 			true,
+			"insufficient free capacity on destination drive; required=%v free=%v\n",
+			destDrive.Name,
+			printableBytes(requiredCapacity),
+			printableBytes(destDrive.Status.FreeCapacity),
 		)
 		os.Exit(1)
 	}
@@ -165,12 +163,14 @@ func drivesMoveMain(ctx context.Context, src, dest string) {
 		ctx, destDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 	)
 	if err != nil {
-		eprintf(fmt.Sprintf("unable to move volumes to destination drive; %v", err), true)
+		eprintf(quietFlag, true, "unable to move volumes to destination drive; %v\n", err)
 		os.Exit(1)
 	}
 
 	for _, volume := range volumes {
-		eprintf(fmt.Sprintf("Moving volume %v", volume.Name), false)
+		if !quietFlag {
+			fmt.Println("Moving volume", volume.Name)
+		}
 	}
 
 	srcDrive.ResetFinalizers()
@@ -178,7 +178,7 @@ func drivesMoveMain(ctx context.Context, src, dest string) {
 		ctx, srcDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 	)
 	if err != nil {
-		eprintf(fmt.Sprintf("unable to remove volume references in source drive; %v", err), true)
+		eprintf(quietFlag, true, "unable to remove volume references in source drive; %v\n", err)
 		os.Exit(1)
 	}
 }
