@@ -61,17 +61,25 @@ func authHandler(handler func(w http.ResponseWriter, r *http.Request)) func(w ht
 		contentLength, err := getHeaderValue(r.Header, "Content-Length")
 		if err != nil {
 			w.WriteHeader(http.StatusLengthRequired)
+			w.Write(apiErrorf("invalid content-length header; %v", err))
 			return
 		}
 		size, err := strconv.ParseUint(contentLength, 10, 64)
-		if err != nil || size > 5*1024*1024 {
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			w.Write(apiErrorf("invalid content-length; %v", err))
+			return
+		}
+		if size > 5*1024*1024 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(apiErrorf("content-length too big; supports 5 MiB"))
 			return
 		}
 
 		contentSha256, err := getHeaderValue(r.Header, "x-amz-content-sha256")
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			w.Write(apiErrorf("invalid x-amz-content-sha256 header; %v", err))
 			return
 		}
 		if contentSha256 != "UNSIGNED-PAYLOAD" {
@@ -79,11 +87,13 @@ func authHandler(handler func(w http.ResponseWriter, r *http.Request)) func(w ht
 			written, err := io.CopyN(body, r.Body, int64(size))
 			if err != nil || written != int64(size) {
 				w.WriteHeader(http.StatusBadRequest)
+				w.Write(apiErrorf("body too small; %v", err))
 				return
 			}
 			computed := sha256Hash(body.Bytes())
 			if contentSha256 != computed {
 				w.WriteHeader(http.StatusBadRequest)
+				w.Write(apiErrorf("x-amz-content-sha256 mismatch; passed: %v, computed: %v", contentSha256, computed))
 				return
 			}
 			r.Body = io.NopCloser(body)
@@ -92,12 +102,14 @@ func authHandler(handler func(w http.ResponseWriter, r *http.Request)) func(w ht
 		cred, err := getCredentialFromSecrets(context.Background())
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			w.Write(apiErrorf("credential: %v", err))
 			return
 		}
 
 		r.Header.Add("host", r.Host)
 		if err := CheckSignV4CSI(r.Header, r.URL.EscapedPath(), cred, contentSha256); err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
+			w.Write(apiErrorf("signature mismatch; %v", err))
 			return
 		}
 
@@ -109,6 +121,7 @@ func postHandler(handler func(w http.ResponseWriter, r *http.Request)) func(w ht
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			w.Write(apiErrorf("method %v not allowed", r.Method))
 			return
 		}
 
@@ -129,46 +142,46 @@ func (handler *nodeHttpHandler) ListDevicesHandler(w http.ResponseWriter, r *htt
 	var request NodeListDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write(apiErrorf("invalid node list devices request; %v", err))
 		return
 	}
 
 	response, err := handler.rpc.ListDevices(&request)
 	if err != nil {
-		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(apiErrorf("rpc error: %v", err))
 		return
 	}
 
 	body, err := json.Marshal(response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(apiErrorf("json: %v", err))
 		return
 	}
 
 	w.Write(body)
-
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
-	}
 }
 
 func (handler *nodeHttpHandler) FormatDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	var request NodeFormatDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write(apiErrorf("invalid node format devices request; %v", err))
 		return
 	}
 
 	response, err := handler.rpc.FormatDevices(&request)
 	if err != nil {
-		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(apiErrorf("rpc error: %v", err))
 		return
 	}
 
 	body, err := json.Marshal(response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(apiErrorf("json: %v", err))
 		return
 	}
 
@@ -183,19 +196,21 @@ func (handler *adminHttpHandler) ListDevicesHandler(w http.ResponseWriter, r *ht
 	var request ListDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write(apiErrorf("invalid list devices request; %v", err))
 		return
 	}
 
 	response, err := handler.rpc.ListDevices(&request)
 	if err != nil {
-		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(apiErrorf("rpc error: %v", err))
 		return
 	}
 
 	body, err := json.Marshal(response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(apiErrorf("json: %v", err))
 		return
 	}
 
@@ -206,19 +221,21 @@ func (handler *adminHttpHandler) FormatDevicesHandler(w http.ResponseWriter, r *
 	var request FormatDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write(apiErrorf("invalid format devices request; %v", err))
 		return
 	}
 
 	response, err := handler.rpc.FormatDevices(&request)
 	if err != nil {
-		klog.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(apiErrorf("rpc error: %v", err))
 		return
 	}
 
 	body, err := json.Marshal(response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(apiErrorf("json: %v", err))
 		return
 	}
 
