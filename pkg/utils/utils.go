@@ -103,3 +103,21 @@ func AddDevPrefix(name string) string {
 
 	return "/dev/" + name
 }
+
+type StringSet map[string]struct{}
+
+func (set StringSet) Set(value string) {
+	set[value] = struct{}{}
+}
+
+func (set StringSet) Exist(value string) (found bool) {
+	_, found = set[value]
+	return
+}
+
+func (set StringSet) ToSlice() (values []string) {
+	for value := range set {
+		values = append(values, value)
+	}
+	return
+}

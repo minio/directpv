@@ -28,21 +28,23 @@ import (
 	"syscall"
 
 	"github.com/minio/directpv/pkg/utils"
+	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
 
-func parseProc1Mountinfo(r io.Reader) (mountPointMap, deviceMap map[string][]string, err error) {
+func parseProc1Mountinfo(r io.Reader) (mountPointMap, deviceMap, majorMinorMap map[string]utils.StringSet, err error) {
 	reader := bufio.NewReader(r)
 
-	mountPointMap = map[string][]string{}
-	deviceMap = map[string][]string{}
+	mountPointMap = make(map[string]utils.StringSet)
+	deviceMap = make(map[string]utils.StringSet)
+	majorMinorMap = make(map[string]utils.StringSet)
 	for {
 		s, err := reader.ReadString('\n')
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		// Refer /proc/[pid]/mountinfo section in https://man7.org/linux/man-pages/man5/proc.5.html
@@ -61,25 +63,49 @@ func parseProc1Mountinfo(r io.Reader) (mountPointMap, deviceMap map[string][]str
 			}
 		}
 
-		mountPointMap[tokens[4]] = append(mountPointMap[tokens[4]], tokens[i+1])
-		deviceMap[tokens[i+1]] = append(mountPointMap[tokens[i+1]], tokens[4])
+		majorMinor := tokens[2]
+		mountPoint := tokens[4]
+		device := tokens[i+1]
+
+		if _, found := mountPointMap[mountPoint]; !found {
+			mountPointMap[mountPoint] = make(utils.StringSet)
+		}
+		mountPointMap[mountPoint].Set(device)
+
+		if _, found := deviceMap[device]; !found {
+			deviceMap[device] = make(utils.StringSet)
+		}
+		deviceMap[device].Set(mountPoint)
+
+		if _, found := majorMinorMap[majorMinor]; !found {
+			majorMinorMap[majorMinor] = make(utils.StringSet)
+		}
+		majorMinorMap[majorMinor].Set(device)
 	}
 
 	return
 }
 
-func parseProcMounts(r io.Reader) (mountPointMap, deviceMap map[string][]string, err error) {
+func getMajorMinor(device string) (majorMinor string, err error) {
+	stat := syscall.Stat_t{}
+	if err = syscall.Stat(device, &stat); err == nil {
+		majorMinor = fmt.Sprintf("%v:%v", unix.Major(stat.Rdev), unix.Minor(stat.Rdev))
+	}
+	return
+}
+
+func parseProcMounts(r io.Reader, includeMajorMinorMap bool) (mountPointMap, deviceMap, majorMinorMap map[string]utils.StringSet, err error) {
 	reader := bufio.NewReader(r)
 
-	mountPointMap = map[string][]string{}
-	deviceMap = map[string][]string{}
+	mountPointMap = make(map[string]utils.StringSet)
+	deviceMap = make(map[string]utils.StringSet)
 	for {
 		s, err := reader.ReadString('\n')
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		// Refer /proc/mounts section in https://man7.org/linux/man-pages/man5/proc.5.html
@@ -89,18 +115,50 @@ func parseProcMounts(r io.Reader) (mountPointMap, deviceMap map[string][]string,
 			continue
 		}
 
-		mountPointMap[tokens[1]] = append(mountPointMap[tokens[1]], tokens[0])
-		deviceMap[tokens[0]] = append(mountPointMap[tokens[0]], tokens[1])
+		mountPoint := tokens[1]
+		device := tokens[0]
+
+		if _, found := mountPointMap[mountPoint]; !found {
+			mountPointMap[mountPoint] = make(utils.StringSet)
+		}
+		mountPointMap[mountPoint].Set(device)
+
+		if _, found := deviceMap[device]; !found {
+			deviceMap[device] = make(utils.StringSet)
+		}
+		deviceMap[device].Set(mountPoint)
+	}
+
+	if !includeMajorMinorMap {
+		return
+	}
+
+	majorMinorMap = make(map[string]utils.StringSet)
+	for device := range deviceMap {
+		// Ignore pseudo devices.
+		if !strings.HasPrefix(device, "/") {
+			continue
+		}
+
+		majorMinor, err := getMajorMinor(device)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		if _, found := majorMinorMap[device]; !found {
+			majorMinorMap[majorMinor] = make(utils.StringSet)
+		}
+		majorMinorMap[majorMinor].Set(device)
 	}
 
 	return
 }
 
-func getMounts() (mountPointMap, deviceMap map[string][]string, err error) {
+func getMounts(includeMajorMinorMap bool) (mountPointMap, deviceMap, majorMinorMap map[string]utils.StringSet, err error) {
 	file, err := os.Open("/proc/1/mountinfo")
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	} else {
 		defer file.Close()
@@ -108,11 +166,11 @@ func getMounts() (mountPointMap, deviceMap map[string][]string, err error) {
 	}
 
 	if file, err = os.Open("/proc/mounts"); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	defer file.Close()
-	return parseProcMounts(file)
+	return parseProcMounts(file, includeMajorMinorMap)
 }
 
 var mountFlagMap = map[string]uintptr{
@@ -139,18 +197,18 @@ var mountFlagMap = map[string]uintptr{
 }
 
 func mount(device, target, fsType string, flags []string, superBlockFlags string) error {
-	mountPointMap, _, err := getMounts()
+	mountPointMap, _, _, err := getMounts(false)
 	if err != nil {
 		return err
 	}
 
 	if devices, found := mountPointMap[target]; found {
-		if utils.Contains(devices, device) {
+		if devices.Exist(device) {
 			klog.V(5).InfoS("device is already mounted on target", "device", device, "target", target, "fsType", fsType, "flags", flags, "superBlockFlags", superBlockFlags)
 			return nil
 		}
 
-		return &ErrMountPointAlreadyMounted{MountPoint: target, Devices: devices}
+		return &ErrMountPointAlreadyMounted{MountPoint: target, Devices: devices.ToSlice()}
 	}
 
 	mountFlags := uintptr(0)
@@ -166,18 +224,18 @@ func mount(device, target, fsType string, flags []string, superBlockFlags string
 }
 
 func bindMount(source, target, fsType string, recursive, readOnly bool, superBlockFlags string) error {
-	mountPointMap, _, err := getMounts()
+	mountPointMap, _, _, err := getMounts(false)
 	if err != nil {
 		return err
 	}
 
 	if devices, found := mountPointMap[target]; found {
-		if utils.Contains(devices, source) {
+		if devices.Exist(source) {
 			klog.V(5).InfoS("source is already mounted on target", "source", source, "target", target, "fsType", fsType, "recursive", recursive, "readOnly", readOnly, "superBlockFlags", superBlockFlags)
 			return nil
 		}
 
-		return &ErrMountPointAlreadyMounted{MountPoint: target, Devices: devices}
+		return &ErrMountPointAlreadyMounted{MountPoint: target, Devices: devices.ToSlice()}
 	}
 
 	flags := mountFlagMap["bind"]
@@ -192,7 +250,7 @@ func bindMount(source, target, fsType string, recursive, readOnly bool, superBlo
 }
 
 func unmount(target string, force, detach, expire bool) error {
-	mountPointMap, _, err := getMounts()
+	mountPointMap, _, _, err := getMounts(false)
 	if err != nil {
 		return err
 	}

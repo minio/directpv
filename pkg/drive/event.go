@@ -29,6 +29,7 @@ import (
 	"github.com/minio/directpv/pkg/listener"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/xfs"
 	"google.golang.org/grpc/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -101,7 +102,7 @@ func StageVolume(
 
 type driveEventHandler struct {
 	nodeID            directpvtypes.NodeID
-	getMounts         func() (mountPointMap, deviceMap map[string][]string, err error)
+	getMounts         func() (mountPointMap, deviceMap map[string]utils.StringSet, err error)
 	unmount           func(target string) error
 	mkdir             func(path string) error
 	bindMount         func(source, target string, readOnly bool) error
@@ -112,8 +113,11 @@ type driveEventHandler struct {
 
 func newDriveEventHandler(nodeID directpvtypes.NodeID) *driveEventHandler {
 	return &driveEventHandler{
-		nodeID:    nodeID,
-		getMounts: sys.GetMounts,
+		nodeID: nodeID,
+		getMounts: func() (mountPointMap, deviceMap map[string]utils.StringSet, err error) {
+			mountPointMap, deviceMap, _, err = sys.GetMounts(false)
+			return
+		},
 		unmount: func(mountPoint string) error {
 			return sys.Unmount(mountPoint, true, true, false)
 		},
@@ -174,8 +178,8 @@ func (handler *driveEventHandler) unmountDrive(ctx context.Context, drive *types
 	if len(devices) > 1 {
 		return fmt.Errorf("multiple devices %v are mounted for FSUUID %v", devices, drive.Status.FSUUID)
 	}
-	mountpoints := deviceMap[devices[0]]
-	for _, mountPoint := range mountpoints {
+	mountpoints := deviceMap[devices.ToSlice()[0]]
+	for _, mountPoint := range mountpoints.ToSlice() {
 		if skipDriveMount && mountPoint == driveMountPoint {
 			continue
 		}

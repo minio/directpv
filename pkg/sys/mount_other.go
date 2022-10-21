@@ -23,7 +23,7 @@ import (
 	"runtime"
 )
 
-func getMounts() (mountPointMap, deviceMap map[string][]string, err error) {
+func getMounts(includeMajorMinorMap bool) (mountPointMap, deviceMap, majorMinorMap map[string]utils.StringSet, err error) {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 

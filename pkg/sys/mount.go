@@ -19,6 +19,8 @@ package sys
 import (
 	"fmt"
 	"path/filepath"
+
+	"github.com/minio/directpv/pkg/utils"
 )
 
 type ErrMountPointAlreadyMounted struct {
@@ -31,8 +33,8 @@ func (e *ErrMountPointAlreadyMounted) Error() string {
 }
 
 // GetMounts returns mount-point to devices and devices to mount-point maps.
-func GetMounts() (mountPointMap, deviceMap map[string][]string, err error) {
-	return getMounts()
+func GetMounts(includeMajorMinorMap bool) (mountPointMap, deviceMap, majorMinorMap map[string]utils.StringSet, err error) {
+	return getMounts(includeMajorMinorMap)
 }
 
 // Mount mounts device to target using fsType, flags and superBlockFlags.
