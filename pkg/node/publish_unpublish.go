@@ -118,7 +118,7 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	mountPointMap, _, err := server.getMounts()
+	mountPointMap, err := server.getMounts()
 	if err != nil {
 		klog.ErrorS(err, "unable to get mounts")
 		return nil, status.Error(codes.Internal, err.Error())

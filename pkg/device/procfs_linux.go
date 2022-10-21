@@ -24,11 +24,13 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/minio/directpv/pkg/utils"
 )
 
-func parseCDROMs(r io.Reader) (map[string]struct{}, error) {
+func parseCDROMs(r io.Reader) (utils.StringSet, error) {
 	reader := bufio.NewReader(r)
-	names := map[string]struct{}{}
+	names := make(utils.StringSet)
 	for {
 		s, err := reader.ReadString('\n')
 		if err != nil {
@@ -41,7 +43,7 @@ func parseCDROMs(r io.Reader) (map[string]struct{}, error) {
 		if tokens := strings.SplitAfterN(s, "drive name:", 2); len(tokens) == 2 {
 			for _, token := range strings.Fields(tokens[1]) {
 				if token != "" {
-					names[token] = struct{}{}
+					names.Set(token)
 				}
 			}
 			break
@@ -50,11 +52,11 @@ func parseCDROMs(r io.Reader) (map[string]struct{}, error) {
 	return names, nil
 }
 
-func getCDROMs() (map[string]struct{}, error) {
+func getCDROMs() (utils.StringSet, error) {
 	file, err := os.Open("/proc/sys/dev/cdrom/info")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return map[string]struct{}{}, nil
+			return make(utils.StringSet), nil
 		}
 		return nil, err
 	}
@@ -63,10 +65,10 @@ func getCDROMs() (map[string]struct{}, error) {
 	return parseCDROMs(file)
 }
 
-func parseSwaps(r io.Reader) (map[string]struct{}, error) {
+func parseSwaps(r io.Reader) (utils.StringSet, error) {
 	reader := bufio.NewReader(r)
 
-	filenames := map[string]struct{}{}
+	filenames := make(utils.StringSet)
 	for {
 		s, err := reader.ReadString('\n')
 		if err != nil {
@@ -76,17 +78,17 @@ func parseSwaps(r io.Reader) (map[string]struct{}, error) {
 			return nil, err
 		}
 
-		filenames[strings.Fields(s)[0]] = struct{}{}
+		filenames.Set(strings.Fields(s)[0])
 	}
 
 	return filenames, nil
 }
 
-func getSwaps() (map[string]struct{}, error) {
+func getSwaps() (utils.StringSet, error) {
 	file, err := os.Open("/proc/swaps")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return map[string]struct{}{}, nil
+			return make(utils.StringSet), nil
 		}
 		return nil, err
 	}

@@ -26,16 +26,28 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 )
 
-func newDevice(mountMap map[string][]string, cdroms, swaps map[string]struct{}, name, majorMinor string, udevData map[string]string) (device *Device, err error) {
-	_, swapFound := swaps[utils.AddDevPrefix(name)]
-	_, cdromFound := cdroms[name]
+func newDevice(
+	deviceMountMap map[string]utils.StringSet,
+	majorMinorMap map[string]utils.StringSet,
+	cdroms utils.StringSet,
+	swaps utils.StringSet,
+	name string,
+	majorMinor string,
+	udevData map[string]string,
+) (device *Device, err error) {
+	var mountPoints []string
+	if devices, found := majorMinorMap[majorMinor]; found {
+		for _, device := range devices.ToSlice() {
+			mountPoints = append(mountPoints, deviceMountMap[device].ToSlice()...)
+		}
+	}
 
 	device = &Device{
 		Name:        name,
 		MajorMinor:  majorMinor,
-		MountPoints: mountMap[utils.AddDevPrefix(name)],
-		SwapOn:      swapFound,
-		CDROM:       cdromFound,
+		MountPoints: mountPoints,
+		CDROM:       cdroms.Exist(name),
+		SwapOn:      swaps.Exist(utils.AddDevPrefix(name)),
 		UDevData:    udevData,
 	}
 
@@ -76,7 +88,7 @@ func probe() (devices []Device, err error) {
 		return nil, err
 	}
 
-	_, mountMap, err := sys.GetMounts()
+	_, deviceMountMap, majorMinorMap, err := sys.GetMounts(true)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +104,7 @@ func probe() (devices []Device, err error) {
 	}
 
 	for name, udevData := range udevDataMap {
-		device, err := newDevice(mountMap, cdroms, swaps, name, deviceMap[name], udevData)
+		device, err := newDevice(deviceMountMap, majorMinorMap, cdroms, swaps, name, deviceMap[name], udevData)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +115,7 @@ func probe() (devices []Device, err error) {
 }
 
 func probeDevices(majorMinor ...string) (devices []Device, err error) {
-	_, mountMap, err := sys.GetMounts()
+	_, deviceMountMap, majorMinorMap, err := sys.GetMounts(true)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +145,7 @@ func probeDevices(majorMinor ...string) (devices []Device, err error) {
 			return nil, err
 		}
 
-		device, err := newDevice(mountMap, cdroms, swaps, name, majorMinor[i], udevData)
+		device, err := newDevice(deviceMountMap, majorMinorMap, cdroms, swaps, name, majorMinor[i], udevData)
 		if err != nil {
 			return nil, err
 		}

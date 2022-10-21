@@ -109,7 +109,7 @@ type nodeRPCServer struct {
 
 	probeDevices func() ([]pkgdevice.Device, error)
 	getDevices   func(majorMinor ...string) ([]pkgdevice.Device, error)
-	getMounts    func() (map[string][]string, error)
+	getMounts    func() (map[string]utils.StringSet, map[string]utils.StringSet, error)
 	makeFS       func(device, fsuuid string, force, reflink bool) (string, string, uint64, uint64, error)
 	mount        func(device, fsuuid string) error
 	unmount      func(fsuuid string) error
@@ -138,8 +138,8 @@ func newNodeRPCServer(ctx context.Context, nodeID directpvtypes.NodeID, topology
 
 		probeDevices: pkgdevice.Probe,
 		getDevices:   pkgdevice.ProbeDevices,
-		getMounts: func() (deviceMap map[string][]string, err error) {
-			if _, deviceMap, err = sys.GetMounts(); err != nil {
+		getMounts: func() (deviceMap, majorMinorMap map[string]utils.StringSet, err error) {
+			if _, deviceMap, majorMinorMap, err = sys.GetMounts(true); err != nil {
 				err = fmt.Errorf("unable get mount points; %w", err)
 			}
 			return
@@ -252,12 +252,18 @@ func (server *nodeRPCServer) format(mutex *sync.Mutex, device pkgdevice.Device, 
 
 	devPath := utils.AddDevPrefix(device.Name)
 
-	deviceMap, err := server.getMounts()
+	deviceMap, majorMinorMap, err := server.getMounts()
 	if err != nil {
 		return err
 	}
 
-	if mountPoints, found := deviceMap[devPath]; found {
+	var mountPoints []string
+	if devices, found := majorMinorMap[device.MajorMinor]; found {
+		for _, name := range devices.ToSlice() {
+			mountPoints = append(mountPoints, deviceMap[name].ToSlice()...)
+		}
+	}
+	if len(mountPoints) != 0 {
 		return fmt.Errorf("device %v mounted at %v", devPath, mountPoints)
 	}
 
