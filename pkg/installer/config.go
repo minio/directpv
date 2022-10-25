@@ -83,6 +83,9 @@ type Config struct {
 	ImagePullSecrets []string
 
 	Credential *admin.Credential
+
+	// Internal
+	enablePodSecurityAdmission bool
 }
 
 type installer interface {

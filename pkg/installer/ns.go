@@ -23,10 +23,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	podsecurityadmission "k8s.io/pod-security-admission/api"
 )
 
 func installNSDefault(ctx context.Context, i *Config) error {
 	name := i.identity()
+	annotations := defaultAnnotations
+	if i.enablePodSecurityAdmission {
+		// Policy violations will cause the pods to be rejected
+		annotations[podsecurityadmission.EnforceLevelLabel] = string(podsecurityadmission.LevelPrivileged)
+	}
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Namespace"},
 		ObjectMeta: metav1.ObjectMeta{
