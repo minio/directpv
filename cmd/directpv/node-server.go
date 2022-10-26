@@ -23,9 +23,11 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/drive"
 	pkgidentity "github.com/minio/directpv/pkg/identity"
 	"github.com/minio/directpv/pkg/node"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -39,6 +41,9 @@ var nodeServerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
+		if err := device.Sync(c.Context(), nodeID); err != nil {
+			return err
+		}
 		return startNodeServer(c.Context(), args)
 	},
 }
@@ -89,7 +94,7 @@ func startNodeServer(ctx context.Context, args []string) error {
 	}
 	klog.V(3).Infof("Node server started")
 
-	if err = os.Mkdir(consts.MountRootDir, 0o777); err != nil && !errors.Is(err, os.ErrExist) {
+	if err = sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 		return err
 	}
 

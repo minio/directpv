@@ -35,11 +35,15 @@ const (
 type EventReason string
 
 const (
-	EventReasonStageVolume       EventReason = "StageVolume"
-	EventReasonVolumeMoved       EventReason = "VolumeMoved"
-	EventReasonMetrics           EventReason = "Metrics"
-	EventReasonVolumeProvisioned EventReason = "VolumeProvisioned"
-	EventReasonVolumeAdded       EventReason = "VolumeAdded"
+	EventReasonStageVolume             EventReason = "StageVolume"
+	EventReasonVolumeMoved             EventReason = "VolumeMoved"
+	EventReasonMetrics                 EventReason = "Metrics"
+	EventReasonVolumeProvisioned       EventReason = "VolumeProvisioned"
+	EventReasonVolumeAdded             EventReason = "VolumeAdded"
+	EventReasonDriveMountError         EventReason = "DriveHasMountError"
+	EventReasonDriveMounted            EventReason = "DriveMounted"
+	EventReasonDriveHasMultipleMatches EventReason = "DriveHasMultipleMatches"
+	EventReasonDriveIOError            EventReason = "DriveHasIOError"
 )
 
 var (

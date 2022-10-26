@@ -114,7 +114,7 @@ type nodeRPCServer struct {
 	mount        func(device, fsuuid string) error
 	unmount      func(fsuuid string) error
 	symlink      func(fsuuid string) error
-	mkdir        func(fsuuid string) error
+	makeMetaDir  func(fsuuid string) error
 	writeFile    func(fsuuid, data string) error
 }
 
@@ -169,8 +169,8 @@ func newNodeRPCServer(ctx context.Context, nodeID directpvtypes.NodeID, topology
 			}
 			return
 		},
-		mkdir: func(fsuuid string) (err error) {
-			if err = os.Mkdir(types.GetDriveMetaDir(fsuuid), 0o750); err != nil {
+		makeMetaDir: func(fsuuid string) (err error) {
+			if err = sys.Mkdir(types.GetDriveMetaDir(fsuuid), 0o750); err != nil {
 				err = fmt.Errorf("unable to create meta directory %v; %w", types.GetDriveMetaDir(fsuuid), err)
 			}
 			return
@@ -290,7 +290,7 @@ func (server *nodeRPCServer) format(mutex *sync.Mutex, device pkgdevice.Device, 
 		return err
 	}
 
-	if err = server.mkdir(fsuuid); err != nil {
+	if err = server.makeMetaDir(fsuuid); err != nil {
 		return err
 	}
 

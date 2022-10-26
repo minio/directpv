@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -73,7 +72,7 @@ func NewServer(ctx context.Context,
 		getQuota:          xfs.GetQuota,
 		setQuota:          xfs.SetQuota,
 		mkdir: func(dir string) error {
-			return os.Mkdir(dir, 0o755)
+			return sys.Mkdir(dir, 0o755)
 		},
 	}
 

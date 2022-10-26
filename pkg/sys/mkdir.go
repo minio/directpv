@@ -1,5 +1,3 @@
-//go:build !linux
-
 // This file is part of MinIO DirectPV
 // Copyright (c) 2022 MinIO, Inc.
 //
@@ -16,17 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package device
+package sys
 
 import (
-	"fmt"
-	"runtime"
+	"errors"
+	"os"
+	"path"
 )
 
-func probe() (devices []Device, err error) {
-	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
-}
-
-func probeDevices(majorMinor ...string) (devices []Device, err error) {
-	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+// Mkdir is a util to mkdir with some special error handling
+func Mkdir(name string, perm os.FileMode) (err error) {
+	if err = os.Mkdir(name, perm); err != nil && errors.Is(err, os.ErrExist) {
+		// If the device has Input/Output error, mkdir fails with "file exists" (https://github.com/golang/go/issues/8283)
+		// Doing a Stat to confirm if we see I/O errors on the drive
+		if _, err = os.Stat(path.Dir(name)); err == nil {
+			return os.ErrExist
+		}
+	}
+	return err
 }

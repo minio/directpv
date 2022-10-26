@@ -45,6 +45,12 @@ type DriveStatus struct {
 	Topology          map[string]string `json:"topology"`
 	// +optional
 	Make string `json:"make,omitempty"`
+	// +optional
+	// +patchMergeKey=type
+	// +patchStrategy=merge
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +genclient
@@ -204,6 +210,39 @@ func (drive *DirectPVDrive) SetAccessTier(value types.AccessTier) {
 
 func (drive DirectPVDrive) GetAccessTier() types.AccessTier {
 	return types.AccessTier(drive.getLabel(types.AccessTierLabelKey))
+}
+
+func (drive *DirectPVDrive) SetMountErrorCondition(message string) {
+	drive.setErrorCondition(string(types.DriveConditionTypeMountError), string(types.DriveConditionReasonMountError), message)
+}
+
+func (drive *DirectPVDrive) SetMultipleMatchesErrorCondition(message string) {
+	drive.setErrorCondition(string(types.DriveConditionTypeMultipleMatches), string(types.DriveConditionReasonMultipleMatches), message)
+}
+
+func (drive *DirectPVDrive) SetIOErrorCondition() {
+	drive.setErrorCondition(string(types.DriveConditionTypeIOError), string(types.DriveConditionReasonIOError), string(types.DriveConditionMessageIOError))
+}
+
+func (drive *DirectPVDrive) setErrorCondition(errType, reason, message string) {
+	c := metav1.Condition{
+		Type:               errType,
+		Status:             metav1.ConditionTrue,
+		Reason:             reason,
+		Message:            message,
+		LastTransitionTime: metav1.Now(),
+	}
+	updated := false
+	for i := range drive.Status.Conditions {
+		if drive.Status.Conditions[i].Type == errType {
+			drive.Status.Conditions[i] = c
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		drive.Status.Conditions = append(drive.Status.Conditions, c)
+	}
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

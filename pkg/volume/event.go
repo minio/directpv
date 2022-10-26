@@ -28,7 +28,6 @@ import (
 	"github.com/minio/directpv/pkg/listener"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/xfs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -36,12 +35,8 @@ import (
 )
 
 type volumeEventHandler struct {
-	nodeID            directpvtypes.NodeID
-	unmount           func(target string) error
-	getDeviceByFSUUID func(fsuuid string) (string, error)
-	mkdir             func(path string) error
-	setQuota          func(ctx context.Context, device, path, volumeName string, quota xfs.Quota) (err error)
-	bindMount         func(source, target string, readOnly bool) error
+	nodeID  directpvtypes.NodeID
+	unmount func(target string) error
 }
 
 func newVolumeEventHandler(nodeID directpvtypes.NodeID) *volumeEventHandler {
@@ -50,12 +45,6 @@ func newVolumeEventHandler(nodeID directpvtypes.NodeID) *volumeEventHandler {
 		unmount: func(mountPoint string) error {
 			return sys.Unmount(mountPoint, true, true, false)
 		},
-		getDeviceByFSUUID: sys.GetDeviceByFSUUID,
-		mkdir: func(dir string) error {
-			return os.Mkdir(dir, 0o755)
-		},
-		setQuota:  xfs.SetQuota,
-		bindMount: xfs.BindMount,
 	}
 }
 
