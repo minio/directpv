@@ -120,11 +120,11 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
 			},
 			{
-				Name:  "node-server",
+				Name:  consts.NodeServerName,
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
 				Args: func() []string {
 					args := []string{
-						"node-server",
+						consts.NodeServerName,
 						fmt.Sprintf("-v=%d", logLevel),
 						fmt.Sprintf("--identity=%s", c.identity()),
 						fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
@@ -159,11 +159,11 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				},
 			},
 			{
-				Name:  consts.NodeAPIServerContainerName,
+				Name:  consts.NodeAPIServerName,
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
 				Args: func() []string {
 					args := []string{
-						"node-api-server",
+						consts.NodeAPIServerName,
 						fmt.Sprintf("-v=%d", logLevel),
 						fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 						fmt.Sprintf("--port=%d", consts.NodeAPIPort),

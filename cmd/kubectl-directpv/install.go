@@ -238,5 +238,11 @@ func installMain(ctx context.Context) {
 		}
 
 		fmt.Println(color.HiWhiteString(consts.AppPrettyName), "is installed successfully")
+		eprintf(quietFlag, false, "%v",
+			color.HiYellowString(`
+Note: admin-server should be exported to add drives.
+A simple port-forward can be done like below;
+$ kubectl port-forward pod/admin-server-XXXXXXXXXX-XXXXX 40443:40443 -n directpv-min-io
+`))
 	}
 }

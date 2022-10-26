@@ -36,8 +36,8 @@ import (
 var metricsPort = consts.MetricsPort
 
 var nodeServerCmd = &cobra.Command{
-	Use:           "node-server",
-	Short:         "Start node server of " + consts.AppPrettyName + ".",
+	Use:           consts.NodeServerName,
+	Short:         "Start node server.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {

@@ -78,10 +78,10 @@ func createDeployment(ctx context.Context, c *Config) error {
 				},
 			},
 			{
-				Name:  "controller",
+				Name:  consts.ControllerServerName,
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
 				Args: []string{
-					"controller",
+					consts.ControllerServerName,
 					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", c.identity()),
 					fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
