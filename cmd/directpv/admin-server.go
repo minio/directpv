@@ -24,9 +24,9 @@ import (
 
 var apiPort = consts.APIPort
 
-var apiServer = &cobra.Command{
-	Use:           "api-server",
-	Short:         "Start API server of " + consts.AppPrettyName + ".",
+var adminServerCmd = &cobra.Command{
+	Use:           consts.AdminServerName,
+	Short:         "Start admin server.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
@@ -35,5 +35,5 @@ var apiServer = &cobra.Command{
 }
 
 func init() {
-	apiServer.PersistentFlags().IntVarP(&apiPort, "port", "", apiPort, "API server port number")
+	adminServerCmd.PersistentFlags().IntVar(&apiPort, "port", apiPort, "API server port number")
 }

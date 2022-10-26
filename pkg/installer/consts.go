@@ -21,10 +21,9 @@ import "github.com/minio/directpv/pkg/consts"
 const (
 	UnixCSIEndpoint = "unix:///csi/csi.sock"
 
-	apiPortName            = "api-port"
-	apiServerContainerName = "api-server"
-	caCertFileName         = "ca.crt"
-	nodeAPIServerCAPath    = "/tmp/nodeapiserver/ca"
+	apiPortName         = "api-port"
+	caCertFileName      = "ca.crt"
+	nodeAPIServerCAPath = "/tmp/nodeapiserver/ca"
 
 	procFSDir = "/proc"
 

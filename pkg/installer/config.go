@@ -126,15 +126,15 @@ func (c *Config) csiDriverName() string {
 }
 
 func (c *Config) daemonsetName() string {
-	return "node-server"
+	return consts.NodeServerName
 }
 
 func (c *Config) deploymentName() string {
-	return "controller"
+	return consts.ControllerServerName
 }
 
 func (c *Config) apiServerDeploymentName() string {
-	return "api-server"
+	return consts.AdminServerName
 }
 
 func (c *Config) getPSPName() string {

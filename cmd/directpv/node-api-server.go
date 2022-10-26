@@ -28,9 +28,9 @@ import (
 
 var nodeAPIPort = consts.NodeAPIPort
 
-var nodeAPIServer = &cobra.Command{
-	Use:           "node-api-server",
-	Short:         "Start Node API server of " + consts.AppPrettyName + ".",
+var nodeAPIServerCmd = &cobra.Command{
+	Use:           consts.NodeAPIServerName,
+	Short:         "Start node API server.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
@@ -51,5 +51,5 @@ var nodeAPIServer = &cobra.Command{
 }
 
 func init() {
-	nodeAPIServer.PersistentFlags().IntVarP(&nodeAPIPort, "port", "", nodeAPIPort, "Node API server port number")
+	nodeAPIServerCmd.PersistentFlags().IntVar(&nodeAPIPort, "port", nodeAPIPort, "Node API server port number")
 }

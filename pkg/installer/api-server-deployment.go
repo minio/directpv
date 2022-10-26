@@ -71,10 +71,10 @@ func createAPIServerDeployment(ctx context.Context, c *Config) error {
 		ImagePullSecrets: c.getImagePullSecrets(),
 		Containers: []corev1.Container{
 			{
-				Name:  apiServerContainerName,
+				Name:  consts.AdminServerName,
 				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
 				Args: []string{
-					"api-server",
+					consts.AdminServerName,
 					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", c.identity()),
 					fmt.Sprintf("--port=%d", consts.APIPort),

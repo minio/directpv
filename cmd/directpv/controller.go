@@ -27,8 +27,8 @@ import (
 )
 
 var controllerCmd = &cobra.Command{
-	Use:           "controller",
-	Short:         "Start controller server of " + consts.AppPrettyName + ".",
+	Use:           consts.ControllerServerName,
+	Short:         "Start controller server.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
