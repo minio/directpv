@@ -30,6 +30,7 @@ type defaultInstaller struct {
 }
 
 func newDefaultInstaller(config *Config) *defaultInstaller {
+	config.enablePodSecurityAdmission = true
 	return &defaultInstaller{
 		Config: config,
 	}
@@ -74,22 +75,6 @@ func (v *defaultInstaller) installRBAC(ctx context.Context) error {
 	err := installRBACDefault(ctx, v.Config)
 	if err != nil && !v.DryRun {
 		fmt.Fprintf(os.Stderr, "%v unable to create RBAC; %v", color.HiRedString("ERROR"), err)
-	}
-	return err
-}
-
-func (v *defaultInstaller) installPSP(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() {
-			fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create PodSecurityPolicies"))
-		},
-	)
-	defer timer.Stop()
-
-	err := installPSPDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create PodSecurityPolicies; %v", color.HiRedString("ERROR"), err)
 	}
 	return err
 }
@@ -237,22 +222,6 @@ func (v *defaultInstaller) uninstallRBAC(ctx context.Context) error {
 	return err
 }
 
-func (v *defaultInstaller) uninstallPSP(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() {
-			fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete PodSecurityPolicies"))
-		},
-	)
-	defer timer.Stop()
-
-	err := uninstallPSPDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete PodSecurityPolicies; %v", color.HiRedString("ERROR"), err)
-	}
-	return err
-}
-
 func (v *defaultInstaller) uninstallCRD(ctx context.Context) error {
 	timer := time.AfterFunc(
 		3*time.Second,
@@ -363,9 +332,6 @@ func (v *defaultInstaller) Install(ctx context.Context) error {
 	if err := v.installRBAC(ctx); err != nil {
 		return err
 	}
-	if err := v.installPSP(ctx); err != nil {
-		return err
-	}
 	if err := v.installCRD(ctx); err != nil {
 		return err
 	}
@@ -407,9 +373,6 @@ func (v *defaultInstaller) Uninstall(ctx context.Context) error {
 		return err
 	}
 	if err := v.uninstallCSIDriver(ctx); err != nil {
-		return err
-	}
-	if err := v.uninstallPSP(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallRBAC(ctx); err != nil {
