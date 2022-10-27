@@ -49,7 +49,7 @@ func probeDeviceMap() (map[string][]device, error) {
 
 	deviceMap := map[string][]device{}
 	for _, dev := range devices {
-		if dev.Hidden || dev.Partitioned || len(dev.Holders) != 0 || dev.SwapOn || dev.CDROM {
+		if dev.Hidden || dev.Partitioned || len(dev.Holders) != 0 || dev.SwapOn || dev.CDROM || dev.Size == 0 {
 			continue
 		}
 
