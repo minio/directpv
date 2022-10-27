@@ -145,6 +145,10 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 		ctx, volume, metav1.UpdateOptions{TypeMeta: types.NewVolumeTypeMeta()},
 	)
 
+	if err == nil {
+		client.Eventf(volume, client.EventTypeNormal, client.EventReasonVolumeReleased, "volume is released")
+	}
+
 	return err
 }
 

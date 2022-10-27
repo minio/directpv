@@ -55,22 +55,23 @@ function setup_base_image() {
     cat > setup-minikube.sh <<EOF
 #!/bin/bash
 set -ex
+hostnamectl set-hostname c7
 setenforce Permissive
 sed -i -e s:SELINUX=enforcing:SELINUX=permissive:g /etc/selinux/config
 yum remove -y docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine
 yum install -y yum-utils
 yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 yum update -y
-yum install -y docker-ce docker-ce-cli containerd.io conntrack-tools wget lvm2 cryptsetup
+yum install -y docker-ce docker-ce-cli containerd.io conntrack-tools wget lvm2 cryptsetup socat
 systemctl enable docker
 systemctl start docker
 docker run hello-world
-wget --quiet --output-document /usr/bin/minikube https://github.com/kubernetes/minikube/releases/download/v1.24.0/minikube-linux-amd64
+wget --quiet --output-document /usr/bin/minikube https://github.com/kubernetes/minikube/releases/download/v1.27.1/minikube-linux-amd64
 chmod a+x /usr/bin/minikube
 wget --quiet --output-document /usr/bin/kubectl "https://dl.k8s.io/release/\$(wget -q -O - https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 chmod a+x /usr/bin/kubectl
 echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
-minikube start --driver=none
+minikube start --kubernetes-version=v1.23.13 --driver=none
 minikube status
 minikube stop
 EOF
@@ -110,19 +111,6 @@ function remove_test_vm() {
     rm -f "${VM_IMAGE}"
 }
 
-function build_directpv_image() {
-    export VM_NAME="centos-7-directpv-test-${BUILD_TAG}-${RANDOM}"
-    export VM_IMAGE="${VM_NAME}.qcow2c"
-    start_test_vm
-
-    scp_cmd CREDITS LICENSE centos.repo directpv kubectl-directpv Dockerfile "root@${VM_IPADDR}:"
-    ssh_cmd "${VM_IPADDR}" "docker build -t quay.io/minio/directpv:${BUILD_TAG} -f Dockerfile ."
-    ssh_cmd "${VM_IPADDR}" "minikube start --driver=none"
-
-    echo "VM is ready to access by:"
-    echo ssh -o GSSAPIAuthentication=no -o StrictHostKeyChecking=no -i "$rsa_private_key" -l root "${VM_IPADDR}"
-}
-
 function run_functional_test() {
     export VM_NAME="centos-7-directpv-test-${BUILD_TAG}-${RANDOM}"
     export VM_IMAGE="${VM_NAME}.qcow2c"
@@ -134,71 +122,9 @@ function run_functional_test() {
     scp_cmd -r functests "root@${VM_IPADDR}:"
     ssh_cmd "${VM_IPADDR}" "RHEL7_TEST=1 functests/run.sh ${BUILD_TAG}"
 
-    ssh_cmd "${VM_IPADDR}" "functests/run-install-directpv.sh ${BUILD_TAG}"
-
-    qemu-img create -f raw "${VM_NAME}-vdb.img" 512M
-    cat > vdb.xml <<EOF
-<disk type='file' device='disk'>
-  <source file='${PWD}/${VM_NAME}-vdb.img'/>
-  <target dev='vdb'/>
-  <serial>thisisdeviceB</serial>
-</disk>
-EOF
-
-    # attach/detach drive in Available state
-    sudo virsh attach-device "${VM_NAME}" vdb.xml --live
-    sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Available"
-    sudo virsh detach-device "${VM_NAME}" vdb.xml --live
-    sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-not-exist.sh /dev/vdb"
-
-
-    # attach/detach drive in Available and Ready state
-    sudo virsh attach-device "${VM_NAME}" vdb.xml --live
-    sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Available"
-    ssh_cmd "${VM_IPADDR}" "./kubectl-directpv drive format --drives /dev/vdb"
-    sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdb Ready"
-    sudo virsh detach-device "${VM_NAME}" vdb.xml --live
-    sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-lost-or-corrupted.sh /dev/vdb"
-
-   # attach a new device to test InUse
-    qemu-img create -f raw "${VM_NAME}-vdc.img" 512M
-    cat > vdc.xml <<EOF
-<disk type='file' device='disk'>
-  <source file='${PWD}/${VM_NAME}-vdc.img'/>
-  <target dev='vdc'/>
-  <serial>thisisdeviceC</serial>
-</disk>
-EOF
-
-    # attach/detach drive in Available, Ready, InUse
-    sudo virsh attach-device "${VM_NAME}" vdc.xml --live
-    sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdc Available"
-    ssh_cmd "${VM_IPADDR}" "./kubectl-directpv drive format --drives /dev/vdc"
-    sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdc Ready"
-    ssh_cmd "${VM_IPADDR}" "functests/run-deploy-minio.sh"
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-state.sh /dev/vdc InUse"
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-volume-exist.sh /dev/vdc true"
-
-    sudo virsh detach-device "${VM_NAME}" vdc.xml --live
-    sleep 1
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-drive-lost-or-corrupted.sh /dev/vdc"
-    sleep 3
-    ssh_cmd "${VM_IPADDR}" "functests/run-check-volume-exist.sh /dev/vdc false"
-
-    rm -f vdb.xml "${VM_NAME}-vdb.img"
-    rm -f vdc.xml "${VM_NAME}-vdc.img"
-
     remove_test_vm
 }
 
 setup_base_image
 build_directpv
-build_directpv_image
-# run_functional_test
+run_functional_test

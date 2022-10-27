@@ -121,6 +121,7 @@ func validateReleaseCmd() error {
 
 func releaseMain(ctx context.Context) {
 	var processed bool
+	var failed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
@@ -147,6 +148,7 @@ func releaseMain(ctx context.Context) {
 		default:
 			volumeCount := result.Drive.GetVolumeCount()
 			if volumeCount > 0 {
+				failed = true
 				eprintf(quietFlag, true, "%v/%v: %v volumes still exist\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), volumeCount)
 			} else {
 				result.Drive.Status.Status = directpvtypes.DriveStatusReleased
@@ -155,6 +157,7 @@ func releaseMain(ctx context.Context) {
 					_, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
 				}
 				if err != nil {
+					failed = true
 					eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
 				} else {
 					fmt.Printf("Releasing %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
@@ -170,6 +173,10 @@ func releaseMain(ctx context.Context) {
 			eprintf(quietFlag, false, "No matching resources found\n")
 		}
 
+		os.Exit(1)
+	}
+
+	if failed {
 		os.Exit(1)
 	}
 }
