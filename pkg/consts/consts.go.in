@@ -82,16 +82,17 @@ const (
 	PrivateKeyFileName = "key.pem"
 	PublicCertFileName = "cert.pem"
 
-	NodeAPIPortName            = "node-api-port"
-	NodeAPIPort                = 50443
-	NodeAPIServerCertsPath     = "/tmp/nodeapiserver/certs"
-	NodeAPIServerHLSVC         = NodeAPIServerName + "-hl"
-
-	APIPort            = 40443
-	APIServerCertsPath = "/tmp/apiserver/certs"
-
-	NodeServerName = "node-server"
+	NodeServerName       = "node-server"
 	ControllerServerName = "controller"
-	AdminServerName = "admin-server"
-	NodeAPIServerName = "node-api-server"
+
+	NodeAPIServerName      = "node-api-server"
+	NodeAPIPortName        = "node-api-port"
+	NodeAPIPort            = 50443
+	NodeAPIServerCertsPath = "/tmp/nodeapiserver/certs"
+	NodeAPIServerHLSVC     = NodeAPIServerName + "-hl"
+
+	AdminServerName      = "admin-server"
+	AdminServerPortName  = "admin-server-port"
+	AdminServerPort      = 40443
+	AdminServerCertsPath = "/tmp/adminserver/certs"
 )

@@ -16,15 +16,13 @@
 
 package installer
 
-import (
-	"context"
-)
+import "context"
 
 type v1dot24 struct {
 	*Config
 }
 
-func newv1dot24(config *Config) *v1dot24 {
+func newV1Dot24(config *Config) *v1dot24 {
 	return &v1dot24{
 		Config: config,
 	}
@@ -33,6 +31,10 @@ func newv1dot24(config *Config) *v1dot24 {
 // installers
 func (v *v1dot24) installNS(ctx context.Context) error {
 	return installNSDefault(ctx, v.Config)
+}
+
+func (v *v1dot24) installSecrets(ctx context.Context) error {
+	return installSecretsDefault(ctx, v.Config)
 }
 
 func (v *v1dot24) installRBAC(ctx context.Context) error {
@@ -67,9 +69,17 @@ func (v *v1dot24) installDeployment(ctx context.Context) error {
 	return installDeploymentDefault(ctx, v.Config)
 }
 
+func (v *v1dot24) installAdminServerDeployment(ctx context.Context) error {
+	return installAdminServerDeploymentDefault(ctx, v.Config)
+}
+
 // uninstallers
 func (v *v1dot24) uninstallNS(ctx context.Context) error {
 	return uninstallNSDefault(ctx, v.Config)
+}
+
+func (v *v1dot24) uninstallSecrets(ctx context.Context) error {
+	return uninstallSecretsDefault(ctx, v.Config)
 }
 
 func (v *v1dot24) uninstallRBAC(ctx context.Context) error {
@@ -104,8 +114,15 @@ func (v *v1dot24) uninstallDeployment(ctx context.Context) error {
 	return uninstallDeploymentDefault(ctx, v.Config)
 }
 
+func (v *v1dot24) uninstallAdminServerDeployment(ctx context.Context) error {
+	return uninstallAdminServerDeploymentDefault(ctx, v.Config)
+}
+
 func (v *v1dot24) Install(ctx context.Context) error {
 	if err := v.installNS(ctx); err != nil {
+		return err
+	}
+	if err := v.installSecrets(ctx); err != nil {
 		return err
 	}
 	if err := v.installRBAC(ctx); err != nil {
@@ -129,11 +146,17 @@ func (v *v1dot24) Install(ctx context.Context) error {
 	if err := v.installDaemonset(ctx); err != nil {
 		return err
 	}
-	return v.installDeployment(ctx)
+	if err := v.installDeployment(ctx); err != nil {
+		return err
+	}
+	return v.installAdminServerDeployment(ctx)
 }
 
 func (v *v1dot24) Uninstall(ctx context.Context) error {
 	if err := v.uninstallCRD(ctx); err != nil {
+		return err
+	}
+	if err := v.uninstallAdminServerDeployment(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallDeployment(ctx); err != nil {
@@ -155,6 +178,9 @@ func (v *v1dot24) Uninstall(ctx context.Context) error {
 		return err
 	}
 	if err := v.uninstallRBAC(ctx); err != nil {
+		return err
+	}
+	if err := v.uninstallSecrets(ctx); err != nil {
 		return err
 	}
 	return v.uninstallNS(ctx)

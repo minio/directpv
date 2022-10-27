@@ -29,43 +29,90 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func installAPIServerDeploymentDefault(ctx context.Context, c *Config) error {
-	if _, err := k8s.KubeClient().AppsV1().Deployments(c.namespace()).Get(ctx, c.apiServerDeploymentName(), metav1.GetOptions{}); err != nil {
+func installAdminServerDeploymentDefault(ctx context.Context, c *Config) error {
+	if _, err := k8s.KubeClient().AppsV1().Deployments(c.namespace()).Get(ctx, c.adminServerDeploymentName(), metav1.GetOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}
-
-		return createAPIServerDeployment(ctx, c)
+		if err := createAdminServerDeployment(ctx, c); err != nil {
+			return err
+		}
 	}
+	if c.DisableAdminService {
+		return nil
+	}
+	return installAdminServerService(ctx, c)
+}
 
+func uninstallAdminServerDeploymentDefault(ctx context.Context, c *Config) error {
+	if err := deleteDeployment(ctx, c.namespace(), c.adminServerDeploymentName()); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, adminServerCertsSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, adminServerCASecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := k8s.KubeClient().CoreV1().Services(c.namespace()).Delete(ctx, adminServerSVC, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
 	return nil
 }
 
-func uninstallAPIServerDeploymentDefault(ctx context.Context, c *Config) error {
-	if err := deleteDeployment(ctx, c.namespace(), c.apiServerDeploymentName()); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, apiServerCertsSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, apiServerCASecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+func installAdminServerService(ctx context.Context, c *Config) error {
+	if err := createAdminServerService(ctx, c); err != nil && !apierrors.IsAlreadyExists(err) {
 		return err
 	}
 	return nil
 }
 
-func createAPIServerDeployment(ctx context.Context, c *Config) error {
-	// Create cert secrets for the api-server
-	if err := generateCertSecretsForAPIServer(ctx, c); err != nil {
+func createAdminServerService(ctx context.Context, c *Config) error {
+	apiPort := corev1.ServicePort{
+		Port: consts.AdminServerPort,
+		Name: consts.AdminServerPortName,
+	}
+	svc := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        adminServerSVC,
+			Namespace:   c.namespace(),
+			Annotations: defaultAnnotations,
+			Labels:      defaultLabels,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{apiPort},
+			Selector: map[string]string{
+				serviceSelector: adminServerSelectorValue,
+			},
+			Type: corev1.ServiceTypeNodePort,
+		},
+	}
+
+	if !c.DryRun {
+		if _, err := k8s.KubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return c.postProc(svc)
+}
+
+func createAdminServerDeployment(ctx context.Context, c *Config) error {
+	// Create cert secrets for the admin-server
+	if err := generateCertSecretsForAdminServer(ctx, c); err != nil {
 		return err
 	}
-	// Create api-server deployment
+	// Create admin-server deployment
 	var replicas int32 = 1
 	privileged := false
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: c.serviceAccountName(),
 		Volumes: []corev1.Volume{
-			newSecretVolume(apiServerCertsDir, apiServerCertsSecretName),
+			newSecretVolume(adminServerCertsDir, adminServerCertsSecretName),
 			newSecretVolume(nodeAPIServerCADir, nodeAPIServerCASecretName),
 		},
 		ImagePullSecrets: c.getImagePullSecrets(),
@@ -77,7 +124,7 @@ func createAPIServerDeployment(ctx context.Context, c *Config) error {
 					consts.AdminServerName,
 					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", c.identity()),
-					fmt.Sprintf("--port=%d", consts.APIPort),
+					fmt.Sprintf("--port=%d", consts.AdminServerPort),
 					fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
 					fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 				},
@@ -86,12 +133,12 @@ func createAPIServerDeployment(ctx context.Context, c *Config) error {
 				},
 				Env: []corev1.EnvVar{kubeNodeNameEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(apiServerCertsDir, consts.APIServerCertsPath, corev1.MountPropagationNone, false),
+					newVolumeMount(adminServerCertsDir, consts.AdminServerCertsPath, corev1.MountPropagationNone, false),
 					newVolumeMount(nodeAPIServerCADir, nodeAPIServerCAPath, corev1.MountPropagationNone, false),
 				},
 				Ports: []corev1.ContainerPort{
 					{
-						ContainerPort: consts.APIPort,
+						ContainerPort: consts.AdminServerPort,
 						Name:          apiPortName,
 						Protocol:      corev1.ProtocolTCP,
 					},
@@ -100,14 +147,14 @@ func createAPIServerDeployment(ctx context.Context, c *Config) error {
 		},
 	}
 
-	generatedSelectorValue := generateSanitizedUniqueNameFrom(c.apiServerDeploymentName())
+	generatedSelectorValue := generateSanitizedUniqueNameFrom(c.adminServerDeploymentName())
 	deployment := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        c.apiServerDeploymentName(),
+			Name:        c.adminServerDeploymentName(),
 			Namespace:   c.namespace(),
 			Annotations: defaultAnnotations,
 			Labels:      defaultLabels,
@@ -117,13 +164,14 @@ func createAPIServerDeployment(ctx context.Context, c *Config) error {
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, generatedSelectorValue),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      c.apiServerDeploymentName(),
+					Name:      c.adminServerDeploymentName(),
 					Namespace: c.namespace(),
 					Annotations: map[string]string{
 						createdByLabel: pluginName,
 					},
 					Labels: map[string]string{
-						selectorKey: generatedSelectorValue,
+						selectorKey:     generatedSelectorValue,
+						serviceSelector: adminServerSelectorValue,
 					},
 				},
 				Spec: podSpec,
@@ -144,7 +192,7 @@ func createAPIServerDeployment(ctx context.Context, c *Config) error {
 	return c.postProc(deployment)
 }
 
-func generateCertSecretsForAPIServer(ctx context.Context, c *Config) error {
+func generateCertSecretsForAdminServer(ctx context.Context, c *Config) error {
 	caCertBytes, publicCertBytes, privateKeyBytes, certErr := getCerts([]string{
 		localHostDNS,
 		// FIXME: Add nodeport svc domain name here
@@ -152,17 +200,17 @@ func generateCertSecretsForAPIServer(ctx context.Context, c *Config) error {
 	if certErr != nil {
 		return certErr
 	}
-	return createOrUpdateAPIServerSecrets(ctx, caCertBytes, publicCertBytes, privateKeyBytes, c)
+	return createOrUpdateAdminServerSecrets(ctx, caCertBytes, publicCertBytes, privateKeyBytes, c)
 }
 
-func createOrUpdateAPIServerSecrets(ctx context.Context, caCertBytes, publicCertBytes, privateKeyBytes []byte, c *Config) error {
-	if err := createOrUpdateSecret(ctx, apiServerCertsSecretName, map[string][]byte{
+func createOrUpdateAdminServerSecrets(ctx context.Context, caCertBytes, publicCertBytes, privateKeyBytes []byte, c *Config) error {
+	if err := createOrUpdateSecret(ctx, adminServerCertsSecretName, map[string][]byte{
 		consts.PrivateKeyFileName: privateKeyBytes,
 		consts.PublicCertFileName: publicCertBytes,
 	}, c); err != nil {
 		return err
 	}
-	return createOrUpdateSecret(ctx, apiServerCASecretName, map[string][]byte{
+	return createOrUpdateSecret(ctx, adminServerCASecretName, map[string][]byte{
 		caCertFileName: caCertBytes,
 	}, c)
 }
