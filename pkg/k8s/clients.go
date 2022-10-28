@@ -35,18 +35,22 @@ var (
 	discoveryClient     discovery.DiscoveryInterface
 )
 
+// KubeConfig gets kubernetes client configuration.
 func KubeConfig() *rest.Config {
 	return kubeConfig
 }
 
+// KubeClient gets kubernetes client.
 func KubeClient() kubernetes.Interface {
 	return kubeClient
 }
 
+// CRDClient gets kubernetes CRD client.
 func CRDClient() apiextensions.CustomResourceDefinitionInterface {
 	return crdClient
 }
 
+// DiscoveryClient gets kubernetes discovery client.
 func DiscoveryClient() discovery.DiscoveryInterface {
 	return discoveryClient
 }

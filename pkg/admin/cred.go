@@ -38,6 +38,7 @@ type Credential struct {
 	SecretKey string `json:"secretKey"`
 }
 
+// ToSecretData converts to kubernetes secret data.
 func (cred Credential) ToSecretData() map[string][]byte {
 	return map[string][]byte{
 		"accessKey": []byte(cred.AccessKey),
@@ -49,8 +50,8 @@ func getCredentialFromEnv() (cred *Credential, err error) {
 	if accessKey, found := os.LookupEnv(accessKeyEnv); found {
 		if secretKey, found := os.LookupEnv(secretKeyEnv); found {
 			return &Credential{
-				AccessKey: string(accessKey),
-				SecretKey: string(secretKey),
+				AccessKey: accessKey,
+				SecretKey: secretKey,
 			}, nil
 		}
 	}

@@ -68,6 +68,6 @@ func NewExtClientset(cs *clientset.Clientset) *ExtClientset {
 	return &ExtClientset{cs}
 }
 
-func (c *extFakeClientset) DirectpvLatest() Interface {
+func (c *ExtFakeClientset) DirectpvLatest() Interface {
 	return c.DirectpvV1beta1()
 }

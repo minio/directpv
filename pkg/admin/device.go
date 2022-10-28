@@ -29,6 +29,7 @@ import (
 
 const minSupportedDeviceSize = 512 * 1024 * 1024 // 512 MiB
 
+// Device represents device information of devices list response.
 type Device struct {
 	device.Device
 	FormatDenied bool   `json:"formatDenied,omitempty"`
@@ -91,11 +92,13 @@ func newDevice(dev device.Device) Device {
 	}
 }
 
+// FormatDevice represents a device in device format request.
 type FormatDevice struct {
 	device.Device
 	Force bool `json:"force"`
 }
 
+// NewFormatDevice creates format device.
 func NewFormatDevice(d Device, force bool) FormatDevice {
 	return FormatDevice{
 		Device: d.Device,

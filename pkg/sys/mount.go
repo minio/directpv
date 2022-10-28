@@ -23,11 +23,13 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 )
 
+// ErrMountPointAlreadyMounted denotes mount point already mounted error.
 type ErrMountPointAlreadyMounted struct {
 	MountPoint string
 	Devices    []string
 }
 
+// Error is error interface compatible method.
 func (e *ErrMountPointAlreadyMounted) Error() string {
 	return fmt.Sprintf("mount point %v already mounted by %v", e.MountPoint, e.Devices)
 }
@@ -52,6 +54,7 @@ func Unmount(target string, force, detach, expire bool) error {
 	return unmount(target, force, detach, expire)
 }
 
+// GetDeviceByFSUUID get device name by it's FSUUID.
 func GetDeviceByFSUUID(fsuuid string) (device string, err error) {
 	if device, err = filepath.EvalSymlinks("/dev/disk/by-uuid/" + fsuuid); err == nil {
 		device = filepath.ToSlash(device)

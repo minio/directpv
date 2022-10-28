@@ -34,6 +34,7 @@ type ListDriveResult struct {
 	Err   error
 }
 
+// Lister is drive lister.
 type Lister struct {
 	nodes          []directpvtypes.LabelValue
 	driveNames     []directpvtypes.LabelValue
@@ -44,47 +45,56 @@ type Lister struct {
 	ignoreNotFound bool
 }
 
+// NewLister creates new drive lister.
 func NewLister() *Lister {
 	return &Lister{
 		maxObjects: k8s.MaxThreadCount,
 	}
 }
 
+// NodeSelector adds filter listing by nodes.
 func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
 	lister.nodes = nodes
 	return lister
 }
 
+// DriveNameSelector adds filter listing by drive names.
 func (lister *Lister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *Lister {
 	lister.driveNames = driveNames
 	return lister
 }
 
+// AccessTierSelector adds filter listing by access-tiers.
 func (lister *Lister) AccessTierSelector(accessTiers []directpvtypes.LabelValue) *Lister {
 	lister.accessTiers = accessTiers
 	return lister
 }
 
+// StatusSelector adds filter listing by drive status.
 func (lister *Lister) StatusSelector(statusList []directpvtypes.DriveStatus) *Lister {
 	lister.statusList = statusList
 	return lister
 }
 
+// DriveIDSelector adds filter listing by drive IDs.
 func (lister *Lister) DriveIDSelector(driveIDs []directpvtypes.DriveID) *Lister {
 	lister.driveIDs = driveIDs
 	return lister
 }
 
+// MaxObjects controls number of items to be fetched in every iteration.
 func (lister *Lister) MaxObjects(n int64) *Lister {
 	lister.maxObjects = n
 	return lister
 }
 
+// IgnoreNotFound controls listing to ignore drive not found error.
 func (lister *Lister) IgnoreNotFound(b bool) *Lister {
 	lister.ignoreNotFound = b
 	return lister
 }
 
+// List returns channel to loop through drive items.
 func (lister *Lister) List(ctx context.Context) <-chan ListDriveResult {
 	getOnly := len(lister.nodes) == 0 &&
 		len(lister.driveNames) == 0 &&
@@ -176,6 +186,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListDriveResult {
 	return resultCh
 }
 
+// Get returns list of drives.
 func (lister *Lister) Get(ctx context.Context) ([]types.Drive, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()

@@ -19,7 +19,6 @@ package installer
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"fmt"
 	"os"
 
@@ -34,8 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
-
-var errEmptyCABundle = errors.New("CA bundle is empty")
 
 //go:embed directpv.min.io_directpvdrives.yaml
 var drivesYAML []byte

@@ -21,6 +21,7 @@ import (
 	"fmt"
 )
 
+// ErrorResponse is admin RPC error response.
 type ErrorResponse struct {
 	Error string `json:"error:omitempty"`
 }

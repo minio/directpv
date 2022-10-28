@@ -141,7 +141,7 @@ func setProjectID(path string, projectID uint32) error {
 		return os.NewSyscallError("FS_IOC_FSGETXATTR", errno)
 	}
 
-	fsx.fsXProjID = uint32(projectID)
+	fsx.fsXProjID = projectID
 	fsx.fsXXFlags |= uint32(flagProjectInherit)
 	_, _, errno = syscall.Syscall(
 		syscall.SYS_IOCTL,
@@ -164,7 +164,7 @@ func setProjectQuota(device string, projectID uint32, quota Quota) error {
 		version:         int8(fsDiskQuotaVersion),
 		flags:           int8(xfsProjectQuotaFlag),
 		fieldmask:       uint16(fieldMaskBHard | fieldMaskBSoft),
-		id:              uint32(projectID),
+		id:              projectID,
 		hardLimitBlocks: hardLimitBlocks,
 		softLimitBlocks: softLimitBlocks,
 	}

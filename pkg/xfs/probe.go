@@ -24,6 +24,7 @@ const MinSupportedDeviceSize = 16 * 1024 * 1024 // 16 MiB
 // ErrFSNotFound denotes filesystem not found error.
 var ErrFSNotFound = errors.New("filesystem not found")
 
-func Probe(path string) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error) {
-	return probe(path)
+// Probe probes XFS filesystem on device.
+func Probe(device string) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error) {
+	return probe(device)
 }

@@ -116,6 +116,7 @@ spec:
               stagingTargetPath:
                 type: string
               status:
+                description: VolumeStatus represents status of a volume.
                 type: string
               targetPath:
                 type: string

@@ -161,10 +161,8 @@ func setDrivesMain(ctx context.Context, accessTier directpvtypes.AccessTier) {
 			}
 			if err != nil {
 				eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
-			} else {
-				if !quietFlag {
-					fmt.Printf("Processed %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-				}
+			} else if !quietFlag {
+				fmt.Printf("Processed %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 			}
 		}
 	}

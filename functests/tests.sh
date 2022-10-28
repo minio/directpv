@@ -21,7 +21,7 @@ set -ex
 source "${SCRIPT_DIR}/common.sh"
 
 function test_build() {
-    DIRECTPV_CLIENT=./kubectl-directpv
+    export DIRECTPV_CLIENT=./kubectl-directpv
     install_directpv
     add_drives
     deploy_minio

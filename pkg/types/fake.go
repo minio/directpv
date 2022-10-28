@@ -18,10 +18,12 @@ package types
 
 import "github.com/minio/directpv/pkg/clientset/fake"
 
-type extFakeClientset struct {
+// ExtFakeClientset denotes extended fake clientset.
+type ExtFakeClientset struct {
 	*fake.Clientset
 }
 
-func NewExtFakeClientset(cs *fake.Clientset) *extFakeClientset {
-	return &extFakeClientset{cs}
+// NewExtFakeClientset creates new extended fake clientset.
+func NewExtFakeClientset(cs *fake.Clientset) *ExtFakeClientset {
+	return &ExtFakeClientset{cs}
 }

@@ -21,10 +21,13 @@ import (
 	"strings"
 )
 
+// DriveName is drive name type.
 type DriveName string
 
+// NodeID is node ID type.
 type NodeID string
 
+// DriveID is drive ID type.
 type DriveID string
 
 // DriveStatus denotes drive status
@@ -47,6 +50,7 @@ const (
 	DriveStatusMoving DriveStatus = "Moving"
 )
 
+// ToDriveStatus converts string value to DriveStatus.
 func ToDriveStatus(value string) (status DriveStatus, err error) {
 	status = DriveStatus(strings.Title(value))
 	switch status {
@@ -58,13 +62,16 @@ func ToDriveStatus(value string) (status DriveStatus, err error) {
 	return
 }
 
+// VolumeStatus represents status of a volume.
 type VolumeStatus string
 
+// Enum of VolumeStatus type.
 const (
 	VolumeStatusPending VolumeStatus = "Pending"
 	VolumeStatusReady   VolumeStatus = "Ready"
 )
 
+// ToVolumeStatus converts string value to VolumeStatus.
 func ToVolumeStatus(value string) (status VolumeStatus, err error) {
 	status = VolumeStatus(strings.Title(value))
 	switch status {
@@ -79,18 +86,12 @@ func ToVolumeStatus(value string) (status VolumeStatus, err error) {
 // AccessTier denotes access tier.
 type AccessTier string
 
+// Enum values of AccessTier type.
 const (
-	// AccessTierDefault denotes "Default" access tier.
 	AccessTierDefault AccessTier = "Default"
-
-	// AccessTierWarm denotes "Warm" access tier.
-	AccessTierWarm AccessTier = "Warm"
-
-	// AccessTierHot denotes "Hot" access tier.
-	AccessTierHot AccessTier = "Hot"
-
-	// AccessTierCold denotes "Cold" access tier.
-	AccessTierCold AccessTier = "Cold"
+	AccessTierWarm    AccessTier = "Warm"
+	AccessTierHot     AccessTier = "Hot"
+	AccessTierCold    AccessTier = "Cold"
 )
 
 // StringsToAccessTiers converts strings to access tiers.
@@ -117,7 +118,7 @@ func AccessTiersToStrings(accessTiers ...AccessTier) (slice []string) {
 // VolumeConditionType denotes volume condition. Allows maximum upto 316 chars.
 type VolumeConditionType string
 
-// Volume condition type values
+// Enum value of VolumeConditionType type.
 const (
 	VolumeConditionTypeLost VolumeConditionType = "Lost"
 )
@@ -125,7 +126,7 @@ const (
 // VolumeConditionReason denotes volume reason. Allows maximum upto 1024 chars.
 type VolumeConditionReason string
 
-// Volume condition reason values
+// Enum values of VolumeConditionReason type.
 const (
 	VolumeConditionReasonDriveLost VolumeConditionReason = "DriveLost"
 )
@@ -133,7 +134,7 @@ const (
 // VolumeConditionMessage denotes drive message. Allows maximum upto 32768 chars.
 type VolumeConditionMessage string
 
-// Volume condition message values
+// Enum values of VolumeConditionMessage type.
 const (
 	VolumeConditionMessageDriveLost VolumeConditionMessage = "Associated drive was removed. Refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md"
 )
@@ -141,7 +142,7 @@ const (
 // DriveConditionType denotes drive condition. Allows maximum upto 316 chars.
 type DriveConditionType string
 
-// Drive condition type values
+// Enum values of DriveConditionType type.
 const (
 	DriveConditionTypeMountError      DriveConditionType = "MountError"
 	DriveConditionTypeMultipleMatches DriveConditionType = "MultipleMatches"
@@ -151,7 +152,7 @@ const (
 // DriveConditionReason denotes the reason for the drive condition type. Allows maximum upto 1024 chars.
 type DriveConditionReason string
 
-// Drive condition reason values
+// Enum values of DriveConditionReason type.
 const (
 	DriveConditionReasonMountError      DriveConditionReason = "DriveHasMountError"
 	DriveConditionReasonMultipleMatches DriveConditionReason = "DriveHasMultipleMatches"
@@ -161,6 +162,7 @@ const (
 // DriveConditionMessage denotes drive message. Allows maximum upto 32768 chars
 type DriveConditionMessage string
 
+// Enum values of DriveConditionMessage type.
 const (
-	DriveConditionMessageIOError DriveConditionMessage = "Drive has Input/Output error"
+	DriveConditionMessageIOError DriveConditionMessage = "Drive has I/O error"
 )

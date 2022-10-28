@@ -105,7 +105,7 @@ func getCanonicalQueryString(query url.Values) string {
 	return strings.Join(canonicalValues, "&")
 }
 
-func getCanonicalRequestHash(canonicalHeaders, signedHeaders, canonicalQueryString string, method, escapedPath, contentSha256 string) string {
+func getCanonicalRequestHash(canonicalHeaders, signedHeaders, canonicalQueryString, method, escapedPath, contentSha256 string) string {
 	// CanonicalRequest =
 	//   HTTPRequestMethod + '\n' +
 	//   CanonicalURI + '\n' +
@@ -129,13 +129,13 @@ func getCanonicalRequestHash(canonicalHeaders, signedHeaders, canonicalQueryStri
 	return sha256Hash([]byte(canonicalRequest))
 }
 
-func getStringToSign(date time.Time, scope string, canonical_request_hash string) string {
+func getStringToSign(date time.Time, scope, canonicalRequestHash string) string {
 	return strings.Join(
 		[]string{
 			"AWS4-HMAC-SHA256",
 			date.Format(iso8601UTCLayout),
 			scope,
-			canonical_request_hash,
+			canonicalRequestHash,
 		},
 		"\n",
 	)
@@ -169,7 +169,7 @@ func signV4(serviceName string, headers http.Header, query url.Values, escapedPa
 	return getAuthorization(accessKey, scope, signedHeaders, signature)
 }
 
-func SignV4CSI(headers http.Header, escapedPath string, cred *Credential, contentSha256 string, date time.Time) string {
+func signV4CSI(headers http.Header, escapedPath string, cred *Credential, contentSha256 string, date time.Time) string {
 	return signV4("CSI", headers, nil, escapedPath, http.MethodPost, "", cred.AccessKey, cred.SecretKey, contentSha256, date)
 }
 
@@ -301,6 +301,6 @@ func checkSignV4(serviceName string, headers http.Header, query url.Values, esca
 	return nil
 }
 
-func CheckSignV4CSI(headers http.Header, escapedPath string, cred *Credential, contentSha256 string) error {
+func checkSignV4CSI(headers http.Header, escapedPath string, cred *Credential, contentSha256 string) error {
 	return checkSignV4("CSI", headers, nil, escapedPath, http.MethodPost, "", cred.AccessKey, cred.SecretKey, contentSha256)
 }

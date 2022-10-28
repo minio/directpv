@@ -69,11 +69,11 @@ func newDevice(
 		return nil, err
 	}
 
-	if partitions, err := getPartitions(name); err != nil {
+	partitions, err := getPartitions(name)
+	if err != nil {
 		return nil, err
-	} else {
-		device.Partitioned = len(partitions) != 0
 	}
+	device.Partitioned = len(partitions) != 0
 
 	if device.DMName, err = getDMName(name); err != nil {
 		return nil, err

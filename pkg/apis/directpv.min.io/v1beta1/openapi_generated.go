@@ -234,7 +234,8 @@ func schema_pkg_apis_directpvminio_v1beta1_DriveSpec(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DriveSpec represents DirectPV drive specification values.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"unschedulable": {
 						SchemaProps: spec.SchemaProps{

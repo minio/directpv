@@ -137,8 +137,8 @@ func TestVolumeStatsEmitter(t *testing.T) {
 					if gErr != nil {
 						(*t).Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
 					}
-					if int64(volObj.Status.UsedCapacity) != int64(*metricOut.Gauge.Value) {
-						t.Errorf("Expected Used capacity: %v But got %v", int64(volObj.Status.UsedCapacity), int64(*metricOut.Gauge.Value))
+					if volObj.Status.UsedCapacity != int64(*metricOut.Gauge.Value) {
+						t.Errorf("Expected Used capacity: %v But got %v", volObj.Status.UsedCapacity, *metricOut.Gauge.Value)
 					}
 				case metricStatsBytesTotal:
 					volObj, gErr := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{
@@ -147,13 +147,13 @@ func TestVolumeStatsEmitter(t *testing.T) {
 					if gErr != nil {
 						(*t).Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
 					}
-					if int64(volObj.Status.TotalCapacity) != int64(*metricOut.Gauge.Value) {
-						t.Errorf("Expected Total capacity: %v But got %v", int64(volObj.Status.TotalCapacity), int64(*metricOut.Gauge.Value))
+					if volObj.Status.TotalCapacity != int64(*metricOut.Gauge.Value) {
+						t.Errorf("Expected Total capacity: %v But got %v", volObj.Status.TotalCapacity, *metricOut.Gauge.Value)
 					}
 				default:
 					t.Errorf("Invalid metric type caught")
 				}
-				noOfMetricsReceived = noOfMetricsReceived + 1
+				noOfMetricsReceived++
 				if noOfMetricsReceived == expectedNoOfMetrics {
 					return
 				}

@@ -39,6 +39,7 @@ type Device struct {
 	UDevData    map[string]string `json:"udevData"`    // Read from /run/udev/data/b<Major:Minor>
 }
 
+// Equal checks whether two devices are equal or not.
 func (d Device) Equal(d2 Device) bool {
 	return reflect.DeepEqual(d, d2)
 }

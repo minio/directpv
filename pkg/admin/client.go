@@ -51,7 +51,7 @@ func newRequest(url *url.URL, data []byte, cred *Credential) (*http.Request, err
 	headers.Add("x-amz-date", date.Format(iso8601UTCLayout))
 	headers.Add("x-amz-content-sha256", contentSha256)
 
-	headers.Add("Authorization", SignV4CSI(headers, url.EscapedPath(), cred, contentSha256, date))
+	headers.Add("Authorization", signV4CSI(headers, url.EscapedPath(), cred, contentSha256, date))
 	request.Header = headers
 
 	return request, nil
@@ -62,6 +62,7 @@ type nodeClient struct {
 	client *http.Client
 }
 
+// ListDevices returns device information.
 func (c *nodeClient) ListDevices(devices []string, formatAllowed, formatDenied bool) (results []Device, err error) {
 	data, err := json.Marshal(NodeListDevicesRequest{
 		Devices:       devices,
@@ -104,6 +105,7 @@ func (c *nodeClient) ListDevices(devices []string, formatAllowed, formatDenied b
 	return resp.Devices, nil
 }
 
+// FormatDevices formats requested devices and returns their status.
 func (c *nodeClient) FormatDevices(devices []FormatDevice) (results []FormatResult, err error) {
 	data, err := json.Marshal(NodeFormatDevicesRequest{
 		Devices: devices,
@@ -144,11 +146,13 @@ func (c *nodeClient) FormatDevices(devices []FormatDevice) (results []FormatResu
 	return resp.Devices, nil
 }
 
+// Client is an admin client.
 type Client struct {
 	url    *url.URL
 	client *http.Client
 }
 
+// NewClient creates new admin client.
 func NewClient(url *url.URL) *Client {
 	if url.Path == "" {
 		url.Path = "/"
@@ -177,6 +181,7 @@ func NewClient(url *url.URL) *Client {
 	}
 }
 
+// ListDevices returns device information from nodes.
 func (c *Client) ListDevices(req *ListDevicesRequest, cred *Credential) (*ListDevicesResponse, error) {
 	data, err := json.Marshal(req)
 	if err != nil {
@@ -210,6 +215,7 @@ func (c *Client) ListDevices(req *ListDevicesRequest, cred *Credential) (*ListDe
 	return &resp, nil
 }
 
+// FormatDevices formats requested devices and returns their status from nodes.
 func (c *Client) FormatDevices(req *FormatDevicesRequest, cred *Credential) (*FormatDevicesResponse, error) {
 	data, err := json.Marshal(req)
 	if err != nil {

@@ -16,10 +16,12 @@
 
 package xfs
 
+// Mount mounts device to target.
 func Mount(device, target string) error {
 	return mount(device, target)
 }
 
+// BindMount bind-mounts source to target.
 func BindMount(source, target string, readOnly bool) error {
 	return bindMount(source, target, readOnly)
 }

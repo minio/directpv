@@ -133,11 +133,10 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 					if err = xfs.Mount(source, target); err != nil {
 						updated = true
 						drive.Status.Status = directpvtypes.DriveStatusError
-						drive.SetMountErrorCondition(fmt.Sprintf("unable to mount: %s", err.Error()))
+						drive.SetMountErrorCondition(fmt.Sprintf("unable to mount; %v", err))
 						// Events and logs
-						client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveMountError, "unable to mount the drive due to %v", err)
+						client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveMountError, "unable to mount the drive; %v", err)
 						klog.ErrorS(err, "unable to mount the drive", "Source", source, "Target", target)
-
 					} else {
 						client.Eventf(drive, client.EventTypeNormal, client.EventReasonDriveMounted, "Drive mounted successfully to %s", target)
 					}
@@ -147,16 +146,15 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 				updated = true
 				var deviceNames string
 				for i := range devices {
-					deviceNames = deviceNames + devices[i].Name
-					if i != len(devices)-1 {
-						deviceNames = deviceNames + ", "
+					if deviceNames != "" {
+						deviceNames += ", "
 					}
+					deviceNames += devices[i].Name
 				}
 				drive.Status.Status = directpvtypes.DriveStatusError
-				drive.SetMultipleMatchesErrorCondition(fmt.Sprintf("multiple matches found by the same FSUUID: %s", deviceNames))
-				// Events and logs
+				drive.SetMultipleMatchesErrorCondition(fmt.Sprintf("multiple devices found by FSUUID; %v", deviceNames))
 				client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveHasMultipleMatches, "unable to mount the drive due to %v", err)
-				klog.ErrorS(err, "drive has multiple matches", "drive", drive.GetDriveName(), "matched devices", deviceNames)
+				klog.ErrorS(err, "multiple devices found by FSUUID", "drive", drive.GetDriveName(), "FSUUID", drive.Status.FSUUID, "devices", deviceNames)
 			}
 			if updated {
 				if _, err := client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()}); err != nil {

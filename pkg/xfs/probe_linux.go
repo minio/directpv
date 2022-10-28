@@ -75,14 +75,14 @@ type superBlock struct {
 	// Ignoring the rest
 }
 
-func readSuperBlock(reader io.Reader) (FSUUID, label string, totalCapacity, freeCapacity uint64, err error) {
+func readSuperBlock(reader io.Reader) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error) {
 	var sb superBlock
 	if err = binary.Read(reader, binary.BigEndian, &sb); err != nil {
 		return
 	}
 
 	if sb.MagicNumber == 0x58465342 {
-		FSUUID = bytesToUUIDString(sb.UUID)
+		fsuuid = bytesToUUIDString(sb.UUID)
 		label = string(bytes.TrimRightFunc(sb.FilesystemName[:], func(r rune) bool { return r == 0 }))
 		totalCapacity = sb.TotalBlocks * uint64(sb.BlockSize)
 		freeCapacity = sb.FreeBlocks * uint64(sb.BlockSize)
