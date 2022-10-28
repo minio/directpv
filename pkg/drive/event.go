@@ -258,6 +258,7 @@ func (handler *driveEventHandler) move(ctx context.Context, drive *types.Drive) 
 		if volume.GetNodeID() != drive.GetNodeID() {
 			return fmt.Errorf(
 				"volume %v must be on same node of destination drive; volume node %v; desination node %v",
+				volume.Name,
 				volume.GetNodeID(),
 				drive.GetNodeID(),
 			)

@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/uuid"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
@@ -102,27 +103,19 @@ func newFakeLatestVolumeClientForList(backendVersion, resource, value string, un
 	return &latestVolumeClient{newFakeDynamicInterfaceForList(backendVersion, resource, value, unstructuredObjects)}
 }
 
-func createTestDrive(node, drive, backendVersion string, labels map[string]string) *types.Drive {
-	return &types.Drive{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: consts.GroupName + "/" + backendVersion,
-			Kind:       consts.DriveKind,
+func createTestDrive(nodeID directpvtypes.NodeID, driveID directpvtypes.DriveID, accessTier directpvtypes.AccessTier) *types.Drive {
+	return types.NewDrive(
+		driveID,
+		types.DriveStatus{
+			TotalCapacity: 20 * MiB,
+			FreeCapacity:  20 * MiB,
+			FSUUID:        string(driveID),
+			Status:        directpvtypes.DriveStatusReady,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: drive,
-			Finalizers: []string{
-				string(consts.DriveFinalizerDataProtection),
-			},
-			Labels: labels,
-		},
-		Status: types.DriveStatus{
-			NodeName:          node,
-			Status:            directpvtypes.DriveStatusOK,
-			FreeCapacity:      20 * MiB,
-			AllocatedCapacity: 0,
-			TotalCapacity:     20 * MiB,
-		},
-	}
+		nodeID,
+		directpvtypes.DriveName("sda"),
+		accessTier,
+	)
 }
 
 func getFakeLatestDriveClient(t *testing.T, i int, drive runtime.Object, version string) *latestDriveClient {
@@ -142,7 +135,7 @@ func TestGetDrive(t *testing.T) {
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "drive1",
-			object:     createTestDrive("node1", "drive1", consts.LatestAPIVersion, map[string]string{}),
+			object:     createTestDrive("node1", "drive1", directpvtypes.AccessTierDefault),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -170,8 +163,8 @@ func TestListDrive(t *testing.T) {
 			apiVersion: consts.LatestAPIVersion,
 			name:       "drive1",
 			objects: []runtime.Object{
-				createTestDrive("node1", "drive1", consts.LatestAPIVersion, map[string]string{}),
-				createTestDrive("node1", "drive2", consts.LatestAPIVersion, map[string]string{}),
+				createTestDrive("node1", "drive1", directpvtypes.AccessTierDefault),
+				createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
 			},
 		},
 	}
@@ -208,12 +201,9 @@ func TestListDriveWithOption(t *testing.T) {
 			apiVersion: consts.LatestAPIVersion,
 			names:      []string{"drive2", "drive3"},
 			objects: []runtime.Object{
-				createTestDrive("node1", "drive1", consts.LatestAPIVersion,
-					map[string]string{string(types.NodeLabelKey): "node1", string(types.AccessTierLabelKey): "Hot"}),
-				createTestDrive("node2", "drive2", consts.LatestAPIVersion,
-					map[string]string{string(types.NodeLabelKey): "node2", string(types.AccessTierLabelKey): "Hot"}),
-				createTestDrive("node2", "drive3", consts.LatestAPIVersion,
-					map[string]string{string(types.NodeLabelKey): "node2", string(types.AccessTierLabelKey): "Hot"}),
+				createTestDrive("node1", "drive1", directpvtypes.AccessTierHot),
+				createTestDrive("node2", "drive2", directpvtypes.AccessTierHot),
+				createTestDrive("node2", "drive3", directpvtypes.AccessTierHot),
 			},
 		},
 	}
@@ -230,13 +220,13 @@ func TestListDriveWithOption(t *testing.T) {
 		}
 
 		client := newFakeLatestDriveClientForList(testCase.apiVersion, consts.DriveResource, "DirectPVDriveList", unstructuredObjects...)
-		labelMap := map[types.LabelKey][]types.LabelValue{
-			types.NodeLabelKey: {types.NewLabelValue("node2")},
+		labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
+			directpvtypes.NodeLabelKey: {directpvtypes.NewLabelValue("node2")},
 		}
 		if testCase.apiVersion == consts.LatestAPIVersion {
-			labelMap[types.AccessTierLabelKey] = []types.LabelValue{types.NewLabelValue("Hot")}
+			labelMap[directpvtypes.AccessTierLabelKey] = []directpvtypes.LabelValue{directpvtypes.NewLabelValue("Hot")}
 		}
-		driveList, err := client.List(ctx, metav1.ListOptions{LabelSelector: types.ToLabelSelector(labelMap)})
+		driveList, err := client.List(ctx, metav1.ListOptions{LabelSelector: directpvtypes.ToLabelSelector(labelMap)})
 		if err != nil {
 			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
@@ -264,8 +254,8 @@ func TestCreateDrive(t *testing.T) {
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "drive3",
-			inputDrive: createTestDrive("node1", "drive3", consts.LatestAPIVersion, map[string]string{string(types.NodeLabelKey): "node1"}),
-			newDrive:   createTestDrive("node1", "new-drive3", consts.LatestAPIVersion, map[string]string{string(types.NodeLabelKey): "node1"}),
+			inputDrive: createTestDrive("node1", "drive3", directpvtypes.AccessTierHot),
+			newDrive:   createTestDrive("node1", "new-drive3", directpvtypes.AccessTierHot),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -291,7 +281,7 @@ func TestDeleteDrive(t *testing.T) {
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "drive2",
-			inputDrive: createTestDrive("node1", "drive2", consts.LatestAPIVersion, map[string]string{string(types.NodeLabelKey): "node1"}),
+			inputDrive: createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -316,7 +306,7 @@ func TestDeleteCollectionDrive(t *testing.T) {
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "drive2",
-			inputDrive: createTestDrive("node1", "drive2", consts.LatestAPIVersion, map[string]string{string(types.NodeLabelKey): "node1"}),
+			inputDrive: createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -343,14 +333,14 @@ func TestUpdateDrive(t *testing.T) {
 			apiVersion: consts.LatestAPIVersion,
 			name:       "drive2",
 			accessTier: directpvtypes.AccessTierHot,
-			inputDrive: createTestDrive("node1", "drive2", consts.LatestAPIVersion, map[string]string{string(types.NodeLabelKey): "node1"}),
+			inputDrive: createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
-		testCase.inputDrive.Status.AccessTier = testCase.accessTier
+		testCase.inputDrive.SetAccessTier(testCase.accessTier)
 		updatedDrive, err := client.Update(ctx, testCase.inputDrive, metav1.UpdateOptions{})
 		if err != nil {
 			t.Fatalf("case %v: unexpected error: %v", i+1, err)
@@ -358,8 +348,8 @@ func TestUpdateDrive(t *testing.T) {
 		if expectedGV != updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion())
 		}
-		if updatedDrive.Status.AccessTier != testCase.accessTier {
-			t.Fatalf("case %v: accessTier: expected: %v, got: %v", i+1, updatedDrive.Status.AccessTier, testCase.accessTier)
+		if updatedDrive.GetAccessTier() != testCase.accessTier {
+			t.Fatalf("case %v: accessTier: expected: %v, got: %v", i+1, updatedDrive.GetAccessTier(), testCase.accessTier)
 		}
 	}
 }
@@ -375,14 +365,14 @@ func TestUpdateStatusDrive(t *testing.T) {
 			apiVersion: consts.LatestAPIVersion,
 			name:       "drive2",
 			accessTier: directpvtypes.AccessTierHot,
-			inputDrive: createTestDrive("node1", "drive2", consts.LatestAPIVersion, map[string]string{string(types.NodeLabelKey): "node1"}),
+			inputDrive: createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
-		testCase.inputDrive.Status.AccessTier = testCase.accessTier
+		testCase.inputDrive.SetAccessTier(testCase.accessTier)
 		updatedDrive, err := client.UpdateStatus(ctx, testCase.inputDrive, metav1.UpdateOptions{})
 		if err != nil {
 			t.Fatalf("case %v: unexpected error: %v", i+1, err)
@@ -390,8 +380,8 @@ func TestUpdateStatusDrive(t *testing.T) {
 		if expectedGV != updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion())
 		}
-		if updatedDrive.Status.AccessTier != testCase.accessTier {
-			t.Fatalf("case %v: accessTier: expected: %v, got: %v", i+1, updatedDrive.Status.AccessTier, testCase.accessTier)
+		if updatedDrive.GetAccessTier() != testCase.accessTier {
+			t.Fatalf("case %v: accessTier: expected: %v, got: %v", i+1, updatedDrive.GetAccessTier(), testCase.accessTier)
 		}
 	}
 }
@@ -414,7 +404,7 @@ func TestWatcher(t *testing.T) {
 		return nil
 	}
 
-	inputDrive := createTestDrive("node1", "drive1", consts.LatestAPIVersion, map[string]string{string(types.NodeLabelKey): "node1"})
+	inputDrive := createTestDrive("node1", "drive1", directpvtypes.AccessTierDefault)
 	fakeDriveClient := getFakeLatestDriveClient(t, 0, inputDrive, consts.LatestAPIVersion)
 	fakeWatchInterface, err := fakeDriveClient.Watch(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -473,24 +463,18 @@ func TestWatcher(t *testing.T) {
 	}
 }
 
-func createTestVolume(volName string, apiVersion string) *types.Volume {
-	return &types.Volume{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: string(consts.GroupName + "/" + apiVersion),
-			Kind:       consts.VolumeKind,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: volName,
-			Labels: map[string]string{
-				tenantLabel: testTenantName,
-			},
-		},
-		Status: types.VolumeStatus{
-			NodeName:   testNodeName,
-			DriveName:  testDrivePath,
-			TargetPath: "/path/targetpath",
-		},
-	}
+func createTestVolume(volName string) *types.Volume {
+	fsuuid := uuid.NewString()
+	volume := types.NewVolume(
+		volName,
+		fsuuid,
+		testNodeName,
+		directpvtypes.DriveID(fsuuid),
+		testDrivePath,
+		10*MiB,
+	)
+	volume.SetLabel(consts.GroupName+"/tenant", testTenantName)
+	return volume
 }
 
 func getFakeLatestVolumeClient(drive runtime.Object, i int, version string, t *testing.T) *latestVolumeClient {
@@ -510,7 +494,7 @@ func TestGetVolume(t *testing.T) {
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "volume2",
-			volume:     createTestVolume("volume2", consts.LatestAPIVersion),
+			volume:     createTestVolume("volume2"),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -536,7 +520,7 @@ func TestListVolume(t *testing.T) {
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "drive2",
-			volumes:    []runtime.Object{createTestVolume("volume1", consts.LatestAPIVersion), createTestVolume("volume2", consts.LatestAPIVersion)},
+			volumes:    []runtime.Object{createTestVolume("volume1"), createTestVolume("volume2")},
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -572,8 +556,8 @@ func TestCreateVolume(t *testing.T) {
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "volume2",
-			volume:     createTestVolume("volume2", consts.LatestAPIVersion),
-			newVolume:  createTestVolume("new-volume2", consts.LatestAPIVersion),
+			volume:     createTestVolume("volume2"),
+			newVolume:  createTestVolume("new-volume2"),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -599,7 +583,7 @@ func TestDeleteVolume(t *testing.T) {
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "volume2",
-			volume:     createTestVolume("volume2", consts.LatestAPIVersion),
+			volume:     createTestVolume("volume2"),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -624,7 +608,7 @@ func TestVolumeDeleteCollection(t *testing.T) {
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "volume2",
-			volume:     createTestVolume("volume2", consts.LatestAPIVersion),
+			volume:     createTestVolume("volume2"),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -651,7 +635,7 @@ func TestUpdateVolume(t *testing.T) {
 			apiVersion:        consts.LatestAPIVersion,
 			name:              "volume2",
 			availableCapacity: 20 * MiB,
-			volume:            createTestVolume("volume2", consts.LatestAPIVersion),
+			volume:            createTestVolume("volume2"),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -683,7 +667,7 @@ func TestUpdateStatusVolume(t *testing.T) {
 			apiVersion:        consts.LatestAPIVersion,
 			name:              "volume2",
 			availableCapacity: 20 * MiB,
-			volume:            createTestVolume("volume2", consts.LatestAPIVersion),
+			volume:            createTestVolume("volume2"),
 		},
 	}
 	ctx, cancelFunc := context.WithCancel(context.Background())

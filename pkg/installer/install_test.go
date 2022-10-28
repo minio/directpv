@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -42,6 +43,7 @@ func TestInstaller(t *testing.T) {
 		SeccompProfile:    "",
 		ApparmorProfile:   "",
 		DryRun:            false,
+		Credential:        &admin.Credential{AccessKey: "directpvadmin", SecretKey: "directpvadmin"},
 	}
 
 	getDiscoveryGroupsAndMethodsFn := func() ([]*metav1.APIGroup, []*metav1.APIResourceList, error) {

@@ -28,6 +28,7 @@ import (
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -44,55 +45,39 @@ func TestNodeStageVolume(t *testing.T) {
 		},
 	}
 
-	case1Drive := &types.Drive{
-		TypeMeta:   types.NewDriveTypeMeta(),
-		ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-	}
-
-	case2Drive := &types.Drive{
-		TypeMeta:   types.NewDriveTypeMeta(),
-		ObjectMeta: metav1.ObjectMeta{Name: "drive-1"},
-		Status:     types.DriveStatus{Status: directpvtypes.DriveStatusOK},
-	}
-
-	case3Drive := &types.Drive{
-		TypeMeta: types.NewDriveTypeMeta(),
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "drive-1",
-			Finalizers: []string{consts.DriveFinalizerPrefix + "volume-id-1"},
-		},
-		Status: types.DriveStatus{Status: directpvtypes.DriveStatusOK},
-	}
+	case1Drive := types.NewDrive("drive-1", types.DriveStatus{}, "node-1", "sda", directpvtypes.AccessTierDefault)
+	case2Drive := types.NewDrive("drive-1", types.DriveStatus{Status: directpvtypes.DriveStatusReady}, "node-1", "sda", directpvtypes.AccessTierDefault)
+	case3Drive := types.NewDrive("drive-1", types.DriveStatus{Status: directpvtypes.DriveStatusReady}, "node-1", "sda", directpvtypes.AccessTierDefault)
+	case3Drive.AddVolumeFinalizer("volume-id-1")
 
 	testCases := []struct {
 		req       *csi.NodeStageVolumeRequest
 		drive     *types.Drive
-		mountInfo map[string][]string
+		mountInfo map[string]utils.StringSet
 	}{
 		{case1Req, case1Drive, nil},
 		{case1Req, case2Drive, nil},
-		{case1Req, case3Drive, map[string][]string{consts.MountRootDir: {}}},
-		{case1Req, case3Drive, map[string][]string{consts.MountRootDir: {}}},
+		{case1Req, case3Drive, map[string]utils.StringSet{consts.MountRootDir: nil}},
+		{case1Req, case3Drive, map[string]utils.StringSet{consts.MountRootDir: nil}},
 	}
 
 	for i, testCase := range testCases {
-		volume := &types.Volume{
-			TypeMeta:   types.NewVolumeTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{Name: testCase.req.VolumeId},
-			Status: types.VolumeStatus{
-				NodeName:      testNodeName,
-				DriveName:     testCase.drive.Name,
-				TotalCapacity: 100 * MiB,
-			},
-		}
+		volume := types.NewVolume(
+			testCase.req.VolumeId,
+			"fsuuid1",
+			testNodeName,
+			"sda",
+			directpvtypes.DriveName(testCase.drive.Name),
+			100*MiB,
+		)
 
 		clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(volume, testCase.drive))
 		client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 		client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
 		nodeServer := createFakeServer()
-		nodeServer.getMounts = func() (map[string][]string, map[string][]string, error) {
-			return testCase.mountInfo, nil, nil
+		nodeServer.getMounts = func() (map[string]utils.StringSet, error) {
+			return testCase.mountInfo, nil
 		}
 		nodeServer.bindMount = func(source, stagingTargetPath string, readOnly bool) error {
 			if _, found := testCase.mountInfo[source]; !found {
@@ -110,39 +95,29 @@ func TestStageUnstageVolume(t *testing.T) {
 	testDriveName := "test_drive"
 	testVolumeName50MB := "test_volume_50MB"
 
+	drive := types.NewDrive(
+		directpvtypes.DriveID(testDriveName),
+		types.DriveStatus{
+			TotalCapacity:     100 * MiB,
+			FreeCapacity:      50 * MiB,
+			AllocatedCapacity: 50 * MiB,
+			Status:            directpvtypes.DriveStatusReady,
+		},
+		testNodeName,
+		"sda",
+		directpvtypes.AccessTierDefault,
+	)
+	drive.AddVolumeFinalizer(testVolumeName50MB)
 	testObjects := []runtime.Object{
-		&types.Drive{
-			TypeMeta: types.NewDriveTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: testDriveName,
-				Finalizers: []string{
-					string(consts.DriveFinalizerDataProtection),
-					consts.DriveFinalizerPrefix + testVolumeName50MB,
-				},
-			},
-			Status: types.DriveStatus{
-				NodeName:          testNodeName,
-				Status:            directpvtypes.DriveStatusOK,
-				FreeCapacity:      50 * MiB,
-				AllocatedCapacity: 50 * MiB,
-				TotalCapacity:     100 * MiB,
-			},
-		},
-		&types.Volume{
-			TypeMeta: types.NewVolumeTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: testVolumeName50MB,
-				Finalizers: []string{
-					string(consts.VolumeFinalizerPurgeProtection),
-				},
-			},
-			Status: types.VolumeStatus{
-				NodeName:      testNodeName,
-				DriveName:     testDriveName,
-				FSUUID:        testDriveName,
-				TotalCapacity: 20 * MiB,
-			},
-		},
+		drive,
+		types.NewVolume(
+			testVolumeName50MB,
+			testDriveName,
+			testNodeName,
+			directpvtypes.DriveID(testDriveName),
+			directpvtypes.DriveName(testDriveName),
+			20*MiB,
+		),
 	}
 
 	stageVolumeRequest := csi.NodeStageVolumeRequest{
@@ -172,8 +147,8 @@ func TestStageUnstageVolume(t *testing.T) {
 	ctx := context.TODO()
 	ns := createFakeServer()
 	dataPath := path.Join(consts.MountRootDir, testDriveName, ".FSUUID."+testDriveName, testVolumeName50MB)
-	ns.getMounts = func() (map[string][]string, map[string][]string, error) {
-		return map[string][]string{consts.MountRootDir: {}}, nil, nil
+	ns.getMounts = func() (map[string]utils.StringSet, error) {
+		return map[string]utils.StringSet{consts.MountRootDir: nil}, nil
 	}
 
 	// Stage Volume test

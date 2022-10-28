@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/google/uuid"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
@@ -38,16 +39,6 @@ func init() {
 
 const MiB = 1024 * 1024
 
-func createFakeController() *Server {
-	return &Server{
-		NodeID:   "test-node-1",
-		Identity: "test-identity-1",
-		Rack:     "test-rack-1",
-		Zone:     "test-zone-1",
-		Region:   "test-region-1",
-	}
-}
-
 func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	getTopologySegmentsForNode := func(node string) map[string]string {
 		switch node {
@@ -60,24 +51,20 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		}
 	}
 
-	createTestDrive100MB := func(node, drive string) *types.Drive {
-		return &types.Drive{
-			TypeMeta: types.NewDriveTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: drive,
-				Finalizers: []string{
-					string(consts.DriveFinalizerDataProtection),
-				},
+	createTestDrive100MB := func(nodeID directpvtypes.NodeID, driveID directpvtypes.DriveID) *types.Drive {
+		return types.NewDrive(
+			driveID,
+			types.DriveStatus{
+				TotalCapacity: 100 * MiB,
+				FreeCapacity:  100 * MiB,
+				FSUUID:        string(driveID),
+				Status:        directpvtypes.DriveStatusReady,
+				Topology:      getTopologySegmentsForNode(string(nodeID)),
 			},
-			Status: types.DriveStatus{
-				NodeName:          node,
-				Status:            directpvtypes.DriveStatusOK,
-				FreeCapacity:      100 * MiB,
-				AllocatedCapacity: int64(0),
-				TotalCapacity:     100 * MiB,
-				Topology:          getTopologySegmentsForNode(node),
-			},
-		}
+			nodeID,
+			directpvtypes.DriveName("sda"),
+			directpvtypes.AccessTierDefault,
+		)
 	}
 
 	create20MBVolumeRequest := func(volName string, requestedNode string) csi.CreateVolumeRequest {
@@ -141,7 +128,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	}
 
 	ctx := context.TODO()
-	cl := createFakeController()
+	cl := NewServer()
 
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testDriveObjects...))
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
@@ -176,8 +163,8 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		volFinalizers := volObj.GetFinalizers()
 		for _, f := range volFinalizers {
 			switch f {
-			case consts.VolumeFinalizerPVProtection:
-			case consts.VolumeFinalizerPurgeProtection:
+			case consts.GroupName + "/pv-protection":
+			case consts.GroupName + "/purge-protection":
 			default:
 				t.Errorf("[%s] Unknown finalizer found: %v", volName, f)
 			}
@@ -190,7 +177,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 
 	// Fetch the drive objects
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	driveList, err := drive.GetDriveList(ctx, nil, nil, nil)
+	driveList, err := drive.NewLister().Get(ctx)
 	if err != nil {
 		t.Errorf("Listing drives failed: %v", err)
 	}
@@ -201,8 +188,8 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		if len(drive.GetFinalizers()) > 2 {
 			t.Errorf("Volumes were not equally distributed among drives. Drive name: %v Finaliers: %v", drive.Name, drive.GetFinalizers())
 		}
-		if drive.Status.Status != directpvtypes.DriveStatusOK {
-			t.Errorf("Expected drive(%s) status: %s, But got: %v", drive.Name, string(directpvtypes.DriveStatusOK), string(drive.Status.Status))
+		if drive.Status.Status != directpvtypes.DriveStatusReady {
+			t.Errorf("Expected drive(%s) status: %s, But got: %v", drive.Name, string(directpvtypes.DriveStatusReady), string(drive.Status.Status))
 		}
 		if drive.Status.FreeCapacity != (100*MiB - 20*MiB) {
 			t.Errorf("Expected drive(%s) FreeCapacity: %d, But got: %d", drive.Name, (100*MiB - 20*MiB), drive.Status.FreeCapacity)
@@ -229,44 +216,23 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 }
 
 func TestAbnormalDeleteVolume(t1 *testing.T) {
-	testVolumeObjects := []runtime.Object{
-		&types.Volume{
-			TypeMeta: types.NewVolumeTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-volume-1",
-				Finalizers: []string{
-					string(consts.VolumeFinalizerPVProtection),
-					string(consts.VolumeFinalizerPurgeProtection),
-				},
-			},
-			Status: types.VolumeStatus{
-				NodeName:          "node-1",
-				DriveName:         "test-drive",
-				TotalCapacity:     100,
-				TargetPath:        "",
-				StagingTargetPath: "/path/staging/targetpath",
-				UsedCapacity:      50,
-			},
-		},
-		&types.Volume{
-			TypeMeta: types.NewVolumeTypeMeta(),
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-volume-2",
-				Finalizers: []string{
-					string(consts.VolumeFinalizerPVProtection),
-					string(consts.VolumeFinalizerPurgeProtection),
-				},
-			},
-			Status: types.VolumeStatus{
-				NodeName:          "node-1",
-				DriveName:         "test-drive",
-				TotalCapacity:     100,
-				StagingTargetPath: "/path/staging/targetpath",
-				TargetPath:        "/path/targetpath",
-				UsedCapacity:      50,
-			},
-		},
-	}
+	fsuuid := uuid.NewString()
+	volume1 := types.NewVolume(
+		"test-volume-1",
+		fsuuid,
+		"node-1",
+		directpvtypes.DriveID(fsuuid),
+		"test-drive",
+		100,
+	)
+	volume1.Status.StagingTargetPath = "/path/staging/targetpath"
+	volume1.Status.UsedCapacity = 50
+
+	volume2 := *volume1
+	volume2.Name = "test-volume-2"
+	volume2.Status.TargetPath = "/path/targetpath"
+
+	testVolumeObjects := []runtime.Object{volume1, &volume2}
 
 	deleteVolumeRequests := []csi.DeleteVolumeRequest{
 		{
@@ -278,7 +244,7 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 	}
 
 	ctx := context.TODO()
-	cl := createFakeController()
+	cl := NewServer()
 
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testVolumeObjects...))
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
@@ -292,7 +258,7 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 }
 
 func TestControllerGetCapabilities(t *testing.T) {
-	result, err := createFakeController().ControllerGetCapabilities(context.TODO(), nil)
+	result, err := NewServer().ControllerGetCapabilities(context.TODO(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +312,7 @@ func TestValidateVolumeCapabilities(t *testing.T) {
 		},
 	}
 
-	controller := createFakeController()
+	controller := NewServer()
 	for i, testCase := range testCases {
 		result, err := controller.ValidateVolumeCapabilities(context.TODO(), testCase.request)
 		if err != nil {
@@ -360,55 +326,55 @@ func TestValidateVolumeCapabilities(t *testing.T) {
 }
 
 func TestListVolumes(t *testing.T) {
-	if _, err := createFakeController().ListVolumes(context.TODO(), nil); err == nil {
+	if _, err := NewServer().ListVolumes(context.TODO(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestControllerPublishVolume(t *testing.T) {
-	if _, err := createFakeController().ControllerPublishVolume(context.TODO(), nil); err == nil {
+	if _, err := NewServer().ControllerPublishVolume(context.TODO(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestControllerUnpublishVolume(t *testing.T) {
-	if _, err := createFakeController().ControllerUnpublishVolume(context.TODO(), nil); err == nil {
+	if _, err := NewServer().ControllerUnpublishVolume(context.TODO(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestControllerExpandVolume(t *testing.T) {
-	if _, err := createFakeController().ControllerExpandVolume(context.TODO(), nil); err == nil {
+	if _, err := NewServer().ControllerExpandVolume(context.TODO(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestControllerGetVolume(t *testing.T) {
-	if _, err := createFakeController().ControllerGetVolume(context.TODO(), nil); err == nil {
+	if _, err := NewServer().ControllerGetVolume(context.TODO(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestListSnapshots(t *testing.T) {
-	if _, err := createFakeController().ListSnapshots(context.TODO(), nil); err == nil {
+	if _, err := NewServer().ListSnapshots(context.TODO(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestCreateSnapshot(t *testing.T) {
-	if _, err := createFakeController().CreateSnapshot(context.TODO(), nil); err == nil {
+	if _, err := NewServer().CreateSnapshot(context.TODO(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestDeleteSnapshot(t *testing.T) {
-	if _, err := createFakeController().DeleteSnapshot(context.TODO(), nil); err == nil {
+	if _, err := NewServer().DeleteSnapshot(context.TODO(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestGetCapacity(t *testing.T) {
-	if _, err := createFakeController().GetCapacity(context.TODO(), nil); err == nil {
+	if _, err := NewServer().GetCapacity(context.TODO(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }

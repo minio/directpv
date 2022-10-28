@@ -19,10 +19,10 @@ package converter
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,6 +30,25 @@ import (
 )
 
 func TestMigrate(t *testing.T) {
+	fsuuid1 := uuid.NewString()
+	srcObject := types.NewDrive(
+		directpvtypes.DriveID(fsuuid1),
+		types.DriveStatus{
+			TotalCapacity:     3072,
+			FreeCapacity:      2048,
+			AllocatedCapacity: 1024,
+			FSUUID:            fsuuid1,
+			Status:            directpvtypes.DriveStatusReady,
+		},
+		directpvtypes.NodeID("node-name"),
+		directpvtypes.DriveName("sda"),
+		directpvtypes.AccessTierDefault,
+	)
+	srcObject.AddVolumeFinalizer("volume-1")
+	srcObject.AddVolumeFinalizer("volume-2")
+
+	destObject := *srcObject
+
 	testCases := []struct {
 		srcObject    runtime.Object
 		destObject   runtime.Object
@@ -37,42 +56,8 @@ func TestMigrate(t *testing.T) {
 	}{
 		// upgrade/downgrade drive LatestAPIVersion => LatestAPIVersion i.e. no-op
 		{
-			srcObject: &types.Drive{
-				TypeMeta: types.NewDriveTypeMeta(),
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-drive",
-					Finalizers: []string{
-						string(consts.DriveFinalizerDataProtection),
-						consts.DriveFinalizerPrefix + "volume-1",
-						consts.DriveFinalizerPrefix + "volume-2",
-					},
-				},
-				Status: types.DriveStatus{
-					NodeName:          "node-name",
-					Status:            directpvtypes.DriveStatusOK,
-					FreeCapacity:      2048,
-					AllocatedCapacity: 1024,
-					TotalCapacity:     3072,
-				},
-			},
-			destObject: &types.Drive{
-				TypeMeta: types.NewDriveTypeMeta(),
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-drive",
-					Finalizers: []string{
-						string(consts.DriveFinalizerDataProtection),
-						consts.DriveFinalizerPrefix + "volume-1",
-						consts.DriveFinalizerPrefix + "volume-2",
-					},
-				},
-				Status: types.DriveStatus{
-					NodeName:          "node-name",
-					Status:            directpvtypes.DriveStatusOK,
-					FreeCapacity:      2048,
-					AllocatedCapacity: 1024,
-					TotalCapacity:     3072,
-				},
-			},
+			srcObject:  srcObject,
+			destObject: &destObject,
 			groupVersion: schema.GroupVersion{
 				Group:   consts.GroupName,
 				Version: consts.LatestAPIVersion,
