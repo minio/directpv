@@ -67,6 +67,17 @@ function remove_luks() {
     rm -f testluks.img
 }
 
+# wait_for_service <service>
+function wait_for_service() {
+    service="$1"
+    endpoints=$(kubectl get endpoints -n directpv-min-io "${service}" --no-headers | awk '{ print $2 }')
+    while [[ $endpoints == '<none>' ]]; do
+        echo "$ME: waiting for ${service} available"
+        sleep 5
+        endpoints=$(kubectl get endpoints -n directpv-min-io "${service}" --no-headers | awk '{ print $2 }')
+    done
+}
+
 function install_directpv() {
     "${DIRECTPV_CLIENT}" install --quiet
 
@@ -82,6 +93,10 @@ function install_directpv() {
         echo "$ME: waiting for DirectPV to come up"
         sleep 5
     done
+
+    wait_for_service node-api-server-hl
+    wait_for_service admin-service
+    sleep 1m
 }
 
 function uninstall_directpv() {
@@ -118,7 +133,6 @@ function check_drives_status() {
 }
 
 function add_drives() {
-    # Get the nodeport service url
     url=$(minikube service --namespace=directpv-min-io admin-service --url)
     admin_server=${url#"http://"}
 

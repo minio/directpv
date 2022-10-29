@@ -22,13 +22,4 @@ export ME
 SCRIPT_DIR=$(dirname "$0")
 export SCRIPT_DIR
 
-if [[ $# -ne 1 ]]; then
-    echo "error: build version must be provided"
-    echo "usage: $ME <BUILD-VERSION>"
-    exit 255
-fi
-
-BUILD_VERSION="$1"
-export BUILD_VERSION
-
 "${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/tests.sh"
