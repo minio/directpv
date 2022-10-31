@@ -44,7 +44,7 @@ import (
 )
 
 func reflinkSupported(ctx context.Context) (bool, error) {
-	var errMountFailed = errors.New("unable to mount")
+	errMountFailed := errors.New("unable to mount")
 
 	checkXFS := func(ctx context.Context, reflink bool) error {
 		mountPoint, err := os.MkdirTemp("", "xfs.check.mnt.")
@@ -435,6 +435,7 @@ type ListDevicesRequest struct {
 	FormatDenied  bool     `json:"formatDenied,omitempty"`
 }
 
+// ListDevicesResult is devices list result on a single node.
 type ListDevicesResult struct {
 	Devices []Device `json:"devices,omitempty"`
 	Error   string   `json:"error,omitempty"`
@@ -502,6 +503,7 @@ type FormatDevicesRequest struct {
 	Nodes map[string][]FormatDevice `json:"nodes,omitempty"`
 }
 
+// FormatDevicesResult is format devices result on a single node.
 type FormatDevicesResult struct {
 	Devices []FormatResult `json:"devices,omitempty"`
 	Error   string         `json:"error,omitempty"`

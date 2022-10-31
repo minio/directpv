@@ -33,6 +33,7 @@ type ListVolumeResult struct {
 	Err    error
 }
 
+// Lister is volume lister.
 type Lister struct {
 	nodes          []directpvtypes.LabelValue
 	driveNames     []directpvtypes.LabelValue
@@ -45,57 +46,68 @@ type Lister struct {
 	ignoreNotFound bool
 }
 
+// NewLister creates new volume lister.
 func NewLister() *Lister {
 	return &Lister{
 		maxObjects: k8s.MaxThreadCount,
 	}
 }
 
+// NodeSelector adds filter listing by nodes.
 func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
 	lister.nodes = nodes
 	return lister
 }
 
+// DriveNameSelector adds filter listing by drive names.
 func (lister *Lister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *Lister {
 	lister.driveNames = driveNames
 	return lister
 }
 
+// DriveIDSelector adds filter listing by drive IDs.
 func (lister *Lister) DriveIDSelector(driveIDs []directpvtypes.LabelValue) *Lister {
 	lister.driveIDs = driveIDs
 	return lister
 }
 
+// PodNameSelector adds filter listing by pod names.
 func (lister *Lister) PodNameSelector(podNames []directpvtypes.LabelValue) *Lister {
 	lister.podNames = podNames
 	return lister
 }
 
+// PodNSSelector adds filter listing by pod namespaces.
 func (lister *Lister) PodNSSelector(podNSs []directpvtypes.LabelValue) *Lister {
 	lister.podNSs = podNSs
 	return lister
 }
 
+// StatusSelector adds filter listing by volume status.
 func (lister *Lister) StatusSelector(statusList []directpvtypes.VolumeStatus) *Lister {
 	lister.statusList = statusList
 	return lister
 }
 
+// VolumeNameSelector adds filter listing by volume names.
 func (lister *Lister) VolumeNameSelector(volumeNames []string) *Lister {
 	lister.volumeNames = volumeNames
 	return lister
 }
 
+// MaxObjects controls number of items to be fetched in every iteration.
 func (lister *Lister) MaxObjects(n int64) *Lister {
 	lister.maxObjects = n
 	return lister
 }
 
+// IgnoreNotFound controls listing to ignore drive not found error.
 func (lister *Lister) IgnoreNotFound(b bool) *Lister {
 	lister.ignoreNotFound = b
 	return lister
 }
 
+// List returns channel to loop through volume items.
 func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 	getOnly := len(lister.nodes) == 0 &&
 		len(lister.driveNames) == 0 &&
@@ -183,6 +195,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 	return resultCh
 }
 
+// Get returns list of volumes.
 func (lister *Lister) Get(ctx context.Context) ([]types.Volume, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()

@@ -40,13 +40,14 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// SetIOError sets I/O error condition to specified drive.
 func SetIOError(ctx context.Context, driveID directpvtypes.DriveID) error {
 	updateFunc := func() error {
 		drive, err := client.DriveClient().Get(ctx, string(driveID), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveIOError, "drive has Input/Output error")
+		client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveIOError, "I/O error occurred")
 		drive.Status.Status = directpvtypes.DriveStatusError
 		drive.SetIOErrorCondition()
 		_, err = client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()})
@@ -58,6 +59,7 @@ func SetIOError(ctx context.Context, driveID directpvtypes.DriveID) error {
 	return nil
 }
 
+// StageVolume creates and mounts staging target path of the volume to the drive.
 func StageVolume(
 	ctx context.Context,
 	volume *types.Volume,

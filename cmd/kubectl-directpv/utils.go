@@ -18,11 +18,9 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path"
-	"regexp"
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
@@ -36,11 +34,6 @@ import (
 )
 
 const dot = "•"
-
-var (
-	globRegexp                = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
-	errGlobPatternUnsupported = errors.New("glob patterns are unsupported")
-)
 
 func printYAML(obj interface{}) error {
 	y, err := utils.ToYAML(obj)

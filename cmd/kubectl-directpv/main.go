@@ -76,7 +76,7 @@ func init() {
 		"quiet",
 		"",
 		quietFlag,
-		"Supress printing error messages",
+		"Suppress printing error messages",
 	)
 
 	mainCmd.PersistentFlags().MarkHidden("alsologtostderr")

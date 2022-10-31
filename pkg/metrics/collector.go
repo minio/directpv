@@ -51,8 +51,8 @@ func (c *metricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.desc
 }
 
-func (mc *metricsCollector) publishVolumeStats(ctx context.Context, volume *types.Volume, ch chan<- prometheus.Metric) {
-	device, err := mc.getDeviceByFSUUID(volume.Status.FSUUID)
+func (c *metricsCollector) publishVolumeStats(ctx context.Context, volume *types.Volume, ch chan<- prometheus.Metric) {
+	device, err := c.getDeviceByFSUUID(volume.Status.FSUUID)
 	if err != nil {
 		klog.ErrorS(
 			err,
@@ -69,7 +69,7 @@ func (mc *metricsCollector) publishVolumeStats(ctx context.Context, volume *type
 				" on the host to reload", volume.Status.FSUUID)
 		return
 	}
-	quota, err := mc.getQuota(ctx, device, volume.Name)
+	quota, err := c.getQuota(ctx, device, volume.Name)
 	if err != nil {
 		klog.ErrorS(err, "unable to get quota information", "volume", volume.Name)
 		return
@@ -83,7 +83,7 @@ func (mc *metricsCollector) publishVolumeStats(ctx context.Context, volume *type
 			"Total number of bytes used by the volume",
 			[]string{"tenant", "volumeID", "node"}, nil),
 		prometheus.GaugeValue,
-		float64(quota.CurrentSpace), string(tenantName), volume.Name, string(volume.GetNodeID()),
+		float64(quota.CurrentSpace), tenantName, volume.Name, string(volume.GetNodeID()),
 	)
 
 	ch <- prometheus.MustNewConstMetric(
@@ -92,7 +92,7 @@ func (mc *metricsCollector) publishVolumeStats(ctx context.Context, volume *type
 			"Total number of bytes allocated to the volume",
 			[]string{"tenant", "volumeID", "node"}, nil),
 		prometheus.GaugeValue,
-		float64(volume.Status.TotalCapacity), string(tenantName), volume.Name, string(volume.GetNodeID()),
+		float64(volume.Status.TotalCapacity), tenantName, volume.Name, string(volume.GetNodeID()),
 	)
 }
 

@@ -92,10 +92,12 @@ func (safeFile *SafeFile) Close() error {
 	return os.Rename(safeFile.tempFile.Name(), safeFile.filename)
 }
 
+// TrimDevPrefix trims dev directory prefix.
 func TrimDevPrefix(name string) string {
 	return strings.TrimPrefix(name, "/dev/")
 }
 
+// AddDevPrefix adds dev directory prefix.
 func AddDevPrefix(name string) string {
 	if strings.HasPrefix(name, "/dev/") {
 		return name
@@ -104,17 +106,21 @@ func AddDevPrefix(name string) string {
 	return "/dev/" + name
 }
 
+// StringSet is set of strings.
 type StringSet map[string]struct{}
 
+// Set sets a string value.
 func (set StringSet) Set(value string) {
 	set[value] = struct{}{}
 }
 
+// Exist checks whether given value is in the set or not.
 func (set StringSet) Exist(value string) (found bool) {
 	_, found = set[value]
 	return
 }
 
+// ToSlice converts set to slice of strings.
 func (set StringSet) ToSlice() (values []string) {
 	for value := range set {
 		values = append(values, value)

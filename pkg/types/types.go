@@ -40,22 +40,27 @@ func NewVolumeTypeMeta() metav1.TypeMeta {
 	}
 }
 
+// GetDriveMountDir returns drive mount directory.
 func GetDriveMountDir(fsuuid string) string {
 	return path.Join(consts.MountRootDir, fsuuid)
 }
 
+// GetDriveMetaDir returns drive meta directory.
 func GetDriveMetaDir(fsuuid string) string {
 	return path.Join(GetDriveMountDir(fsuuid), "."+consts.AppName)
 }
 
+// GetDriveMetaFile returns drive meta file.
 func GetDriveMetaFile(fsuuid string) string {
 	return path.Join(GetDriveMetaDir(fsuuid), "meta.info")
 }
 
+// GetVolumeRootDir returns volume root directory.
 func GetVolumeRootDir(fsuuid string) string {
 	return path.Join(GetDriveMountDir(fsuuid), ".FSUUID."+fsuuid)
 }
 
+// GetVolumeDir returns volume directory.
 func GetVolumeDir(fsuuid, volumeName string) string {
 	return path.Join(GetVolumeRootDir(fsuuid), volumeName)
 }

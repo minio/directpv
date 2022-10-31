@@ -30,6 +30,7 @@ const (
 	driveFinalizerVolumePrefix   = Group + ".volume/"
 )
 
+// DriveSpec represents DirectPV drive specification values.
 type DriveSpec struct {
 	// +optional
 	Unschedulable bool `json:"unschedulable,omitempty"`
@@ -69,6 +70,7 @@ type DirectPVDrive struct {
 	Status DriveStatus `json:"status"`
 }
 
+// NewDirectPVDrive creates new DirectPV drive.
 func NewDirectPVDrive(
 	driveID types.DriveID,
 	status DriveStatus,
@@ -96,30 +98,37 @@ func NewDirectPVDrive(
 	}
 }
 
+// Unschedulable marks this drive not to schedule volumes.
 func (drive *DirectPVDrive) Unschedulable() {
 	drive.Spec.Unschedulable = true
 }
 
+// Schedulable marks this drive to schedule volumes.
 func (drive *DirectPVDrive) Schedulable() {
 	drive.Spec.Unschedulable = false
 }
 
+// IsUnschedulable returns whether this drive is in unschedulable state.
 func (drive DirectPVDrive) IsUnschedulable() bool {
 	return drive.Spec.Unschedulable
 }
 
+// GetDriveID returns this drive's ID.
 func (drive DirectPVDrive) GetDriveID() types.DriveID {
 	return types.DriveID(drive.Name)
 }
 
+// GetVolumeCount returns number of volumes on this drive.
 func (drive DirectPVDrive) GetVolumeCount() int {
 	return len(drive.Finalizers) - 1
 }
 
+// VolumeExist returns whether given volume is on this drive or not.
 func (drive DirectPVDrive) VolumeExist(volume string) bool {
 	return utils.Contains(drive.Finalizers, driveFinalizerVolumePrefix+volume)
 }
 
+// GetVolumes returns volume names on this drive.
 func (drive DirectPVDrive) GetVolumes() (names []string) {
 	for _, finalizer := range drive.Finalizers {
 		if strings.HasPrefix(finalizer, driveFinalizerVolumePrefix) {
@@ -129,10 +138,12 @@ func (drive DirectPVDrive) GetVolumes() (names []string) {
 	return
 }
 
+// ResetFinalizers removes all volume finalizers.
 func (drive *DirectPVDrive) ResetFinalizers() {
 	drive.Finalizers = []string{driveFinalizerDataProtection}
 }
 
+// RemoveFinalizers removes finalizers.
 func (drive *DirectPVDrive) RemoveFinalizers() bool {
 	if len(drive.Finalizers) == 1 && drive.Finalizers[0] == driveFinalizerDataProtection {
 		drive.Finalizers = []string{}
@@ -141,23 +152,25 @@ func (drive *DirectPVDrive) RemoveFinalizers() bool {
 	return false
 }
 
+// AddVolumeFinalizer adds volume to this drive's finalizer.
 func (drive *DirectPVDrive) AddVolumeFinalizer(volume string) (added bool) {
 	value := driveFinalizerVolumePrefix + volume
 	for _, finalizer := range drive.Finalizers {
-		if finalizer == string(value) {
+		if finalizer == value {
 			return false
 		}
 	}
 
-	drive.Finalizers = append(drive.Finalizers, string(value))
+	drive.Finalizers = append(drive.Finalizers, value)
 	return true
 }
 
+// RemoveVolumeFinalizer remove volume from this drive's finalizer.
 func (drive *DirectPVDrive) RemoveVolumeFinalizer(volume string) (found bool) {
 	value := driveFinalizerVolumePrefix + volume
 	finalizers := []string{}
 	for _, finalizer := range drive.Finalizers {
-		if finalizer == string(value) {
+		if finalizer == value {
 			found = true
 		} else {
 			finalizers = append(finalizers, finalizer)
@@ -188,38 +201,47 @@ func (drive DirectPVDrive) getLabel(key types.LabelKey) types.LabelValue {
 	return types.NewLabelValue(values[string(key)])
 }
 
+// SetDriveName sets name to this drive.
 func (drive *DirectPVDrive) SetDriveName(name types.DriveName) {
 	drive.setLabel(types.DriveNameLabelKey, types.NewLabelValue(string(name)))
 }
 
+// GetDriveName returns name of this drive.
 func (drive DirectPVDrive) GetDriveName() types.DriveName {
 	return types.DriveName(drive.getLabel(types.DriveNameLabelKey))
 }
 
+// SetNodeID sets node ID to this drive.
 func (drive *DirectPVDrive) SetNodeID(name types.NodeID) {
 	drive.setLabel(types.NodeLabelKey, types.NewLabelValue(string(name)))
 }
 
+// GetNodeID returns node ID of this drive.
 func (drive DirectPVDrive) GetNodeID() types.NodeID {
 	return types.NodeID(drive.getLabel(types.NodeLabelKey))
 }
 
+// SetAccessTier sets access-tier to this drive.
 func (drive *DirectPVDrive) SetAccessTier(value types.AccessTier) {
 	drive.setLabel(types.AccessTierLabelKey, types.NewLabelValue(string(value)))
 }
 
+// GetAccessTier returns access-tier of this drive.
 func (drive DirectPVDrive) GetAccessTier() types.AccessTier {
 	return types.AccessTier(drive.getLabel(types.AccessTierLabelKey))
 }
 
+// SetMountErrorCondition sets mount error condition to this drive.
 func (drive *DirectPVDrive) SetMountErrorCondition(message string) {
 	drive.setErrorCondition(string(types.DriveConditionTypeMountError), string(types.DriveConditionReasonMountError), message)
 }
 
+// SetMultipleMatchesErrorCondition sets multiple matches error condition to this drive.
 func (drive *DirectPVDrive) SetMultipleMatchesErrorCondition(message string) {
 	drive.setErrorCondition(string(types.DriveConditionTypeMultipleMatches), string(types.DriveConditionReasonMultipleMatches), message)
 }
 
+// SetIOErrorCondition sets I/O error condition to this drive.
 func (drive *DirectPVDrive) SetIOErrorCondition() {
 	drive.setErrorCondition(string(types.DriveConditionTypeIOError), string(types.DriveConditionReasonIOError), string(types.DriveConditionMessageIOError))
 }

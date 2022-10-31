@@ -19,6 +19,7 @@ package installer
 import "github.com/minio/directpv/pkg/consts"
 
 const (
+	// UnixCSIEndpoint is csi drive control socket.
 	UnixCSIEndpoint = "unix:///csi/csi.sock"
 
 	apiPortName         = "api-port"

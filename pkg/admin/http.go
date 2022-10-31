@@ -107,7 +107,7 @@ func authHandler(handler func(w http.ResponseWriter, r *http.Request)) func(w ht
 		}
 
 		r.Header.Add("host", r.Host)
-		if err := CheckSignV4CSI(r.Header, r.URL.EscapedPath(), cred, contentSha256); err != nil {
+		if err := checkSignV4CSI(r.Header, r.URL.EscapedPath(), cred, contentSha256); err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write(apiErrorf("signature mismatch; %v", err))
 			return
@@ -134,11 +134,11 @@ type httpHandler interface {
 	FormatDevicesHandler(res http.ResponseWriter, req *http.Request)
 }
 
-type nodeHttpHandler struct {
+type nodeHTTPHandler struct {
 	rpc *nodeRPCServer
 }
 
-func (handler *nodeHttpHandler) ListDevicesHandler(w http.ResponseWriter, r *http.Request) {
+func (handler *nodeHTTPHandler) ListDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	var request NodeListDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -163,7 +163,7 @@ func (handler *nodeHttpHandler) ListDevicesHandler(w http.ResponseWriter, r *htt
 	w.Write(body)
 }
 
-func (handler *nodeHttpHandler) FormatDevicesHandler(w http.ResponseWriter, r *http.Request) {
+func (handler *nodeHTTPHandler) FormatDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	var request NodeFormatDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -188,11 +188,11 @@ func (handler *nodeHttpHandler) FormatDevicesHandler(w http.ResponseWriter, r *h
 	w.Write(body)
 }
 
-type adminHttpHandler struct {
+type adminHTTPHandler struct {
 	rpc *rpcServer
 }
 
-func (handler *adminHttpHandler) ListDevicesHandler(w http.ResponseWriter, r *http.Request) {
+func (handler *adminHTTPHandler) ListDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	var request ListDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -217,7 +217,7 @@ func (handler *adminHttpHandler) ListDevicesHandler(w http.ResponseWriter, r *ht
 	w.Write(body)
 }
 
-func (handler *adminHttpHandler) FormatDevicesHandler(w http.ResponseWriter, r *http.Request) {
+func (handler *adminHTTPHandler) FormatDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	var request FormatDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -242,7 +242,7 @@ func (handler *adminHttpHandler) FormatDevicesHandler(w http.ResponseWriter, r *
 	w.Write(body)
 }
 
-func startHttpServer(ctx context.Context, port int, certFile, keyFile string, handler httpHandler) error {
+func startHTTPServer(ctx context.Context, port int, certFile, keyFile string, handler httpHandler) error {
 	certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return err
@@ -275,16 +275,18 @@ func startHttpServer(ctx context.Context, port int, certFile, keyFile string, ha
 	}
 }
 
+// StartServer starts admin server.
 func StartServer(ctx context.Context, port int) error {
-	return startHttpServer(
+	return startHTTPServer(
 		ctx,
 		port,
 		path.Join(consts.AdminServerCertsPath, consts.PublicCertFileName),
 		path.Join(consts.AdminServerCertsPath, consts.PrivateKeyFileName),
-		&adminHttpHandler{newRPCServer()},
+		&adminHTTPHandler{newRPCServer()},
 	)
 }
 
+// StartNodeAPIServer starts node API server.
 func StartNodeAPIServer(ctx context.Context, port int, identity string, nodeID directpvtypes.NodeID, rack, zone, region string) error {
 	server, err := newNodeRPCServer(
 		ctx,
@@ -301,11 +303,11 @@ func StartNodeAPIServer(ctx context.Context, port int, identity string, nodeID d
 		return err
 	}
 
-	return startHttpServer(
+	return startHTTPServer(
 		ctx,
 		port,
 		path.Join(consts.NodeAPIServerCertsPath, consts.PublicCertFileName),
 		path.Join(consts.NodeAPIServerCertsPath, consts.PrivateKeyFileName),
-		&nodeHttpHandler{server},
+		&nodeHTTPHandler{server},
 	)
 }

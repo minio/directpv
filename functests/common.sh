@@ -122,7 +122,7 @@ function add_drives() {
     url=$(minikube service --namespace=directpv-min-io admin-service --url)
     admin_server=${url#"http://"}
 
-    echo -e 'ALL\nALL\nYes\n' | ./kubectl-directpv format --admin-server ${admin_server} --allowed --force
+    echo -e 'ALL\nALL\nYes\n' | ./kubectl-directpv format --admin-server "${admin_server}"
 
     # Show output for manual debugging.
     "${DIRECTPV_CLIENT}" get drives --all

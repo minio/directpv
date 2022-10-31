@@ -25,15 +25,19 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
+// EventType denotes kubernetes event type.
 type EventType string
 
+// Enum values of EventType type.
 const (
 	EventTypeNormal  EventType = EventType(apicorev1.EventTypeNormal)
 	EventTypeWarning EventType = EventType(apicorev1.EventTypeWarning)
 )
 
+// EventReason denotes kubernetes event reason.
 type EventReason string
 
+// Enum values of EventReason type.
 const (
 	EventReasonStageVolume             EventReason = "StageVolume"
 	EventReasonVolumeMoved             EventReason = "VolumeMoved"
