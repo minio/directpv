@@ -24,8 +24,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -78,20 +78,8 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	}
 	defer os.RemoveAll(testTargetPath)
 
-	testVol := &types.Volume{
-		TypeMeta: types.NewVolumeTypeMeta(),
-		ObjectMeta: metav1.ObjectMeta{
-			Name: testVolumeName50MB,
-			Finalizers: []string{
-				string(consts.VolumeFinalizerPurgeProtection),
-			},
-		},
-		Status: types.VolumeStatus{
-			NodeName:          testNodeName,
-			StagingTargetPath: testStagingPath,
-			TotalCapacity:     20 * MiB,
-		},
-	}
+	testVol := types.NewVolume(testVolumeName50MB, "fsuuid1", testNodeName, "sda", "sda", 20*MiB)
+	testVol.Status.StagingTargetPath = testStagingPath
 
 	publishVolumeRequest := csi.NodePublishVolumeRequest{
 		VolumeId:          testVolumeName50MB,
@@ -122,8 +110,8 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	ns := createFakeServer()
 
 	// Publish volume test
-	ns.getMounts = func() (map[string][]string, map[string][]string, error) {
-		return map[string][]string{testStagingPath: {}}, nil, nil
+	ns.getMounts = func() (map[string]utils.StringSet, error) {
+		return map[string]utils.StringSet{testStagingPath: nil}, nil
 	}
 	_, err := ns.NodePublishVolume(ctx, &publishVolumeRequest)
 	if err != nil {

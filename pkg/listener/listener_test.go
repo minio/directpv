@@ -25,7 +25,6 @@ import (
 
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
-	"github.com/minio/directpv/pkg/consts"
 	pkgtypes "github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -86,22 +85,17 @@ func startTestController(ctx context.Context, t *testing.T, handler *testEventHa
 }
 
 func newVolume(name, uid string, capacity int64) *pkgtypes.Volume {
-	return &pkgtypes.Volume{
-		TypeMeta: pkgtypes.NewVolumeTypeMeta(),
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Finalizers: []string{
-				string(consts.VolumeFinalizerPurgeProtection),
-			},
-			UID: types.UID(uid),
-		},
-		Status: pkgtypes.VolumeStatus{
-			NodeName:      nodeID,
-			DataPath:      "datapath",
-			DriveName:     "test-drive",
-			TotalCapacity: capacity,
-		},
-	}
+	volume := pkgtypes.NewVolume(
+		name,
+		uid,
+		nodeID,
+		"sda",
+		"sda",
+		capacity,
+	)
+	volume.UID = types.UID(uid)
+	volume.Status.DataPath = "datapath"
+	return volume
 }
 
 func getHandleFunc(t *testing.T, event EventType, volumes ...*pkgtypes.Volume) (<-chan struct{}, func(EventArgs) error) {

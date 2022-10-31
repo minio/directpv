@@ -145,7 +145,6 @@ func moveMain(ctx context.Context, src, dest string) {
 			quietFlag,
 			true,
 			"insufficient free capacity on destination drive; required=%v free=%v\n",
-			destDrive.Name,
 			printableBytes(requiredCapacity),
 			printableBytes(destDrive.Status.FreeCapacity),
 		)

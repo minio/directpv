@@ -1,3 +1,5 @@
+//go:build linux
+
 // This file is part of MinIO DirectPV
 // Copyright (c) 2021, 2022 MinIO, Inc.
 //
@@ -21,7 +23,7 @@ import (
 	"testing"
 )
 
-func TestProbe(t *testing.T) {
+func TestReadSuperBlock(t *testing.T) {
 	testCases := []struct {
 		filename      string
 		fsuuid        string
@@ -43,7 +45,7 @@ func TestProbe(t *testing.T) {
 			}
 			defer file.Close()
 
-			fsuuid, label, totalCapacity, freeCapacity, err := Probe(file)
+			fsuuid, label, totalCapacity, freeCapacity, err := readSuperBlock(file)
 			if testCase.expectErr {
 				if err == nil {
 					t.Fatalf("case %v: expected error, but succeeded", i+1)

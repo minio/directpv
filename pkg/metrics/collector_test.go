@@ -44,35 +44,17 @@ const (
 	metricStatsBytesTotal metricType = consts.AppName + "_stats_bytes_total"
 )
 
-var volumes = []types.Volume{
-	{
-		TypeMeta: types.NewVolumeTypeMeta(),
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "test_volume_20MB",
-			Labels: map[string]string{tenantLabel: "tenant-1"},
-		},
-		Status: types.VolumeStatus{
-			NodeName:      "test-node-1",
-			DriveName:     "test-drive-1",
-			TotalCapacity: 20 * MiB,
-			TargetPath:    "/path/targetpath",
-			UsedCapacity:  10 * MiB,
-		},
-	},
-	{
-		TypeMeta: types.NewVolumeTypeMeta(),
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "test_volume_30MB",
-			Labels: map[string]string{tenantLabel: "tenant-1"},
-		},
-		Status: types.VolumeStatus{
-			NodeName:      "test-node-1",
-			DriveName:     "test-drive-1",
-			TotalCapacity: 30 * MiB,
-			TargetPath:    "/path/targetpath",
-			UsedCapacity:  20 * MiB,
-		},
-	},
+var volumes []types.Volume
+
+func init() {
+	volumes = []types.Volume{
+		*types.NewVolume("test_volume_20MB", "fsuuid1", "test-node-1", "test-drive-1", "test-drive-1", 20*MiB),
+		*types.NewVolume("test_volume_30MB", "fsuuid1", "test-node-1", "test-drive-1", "test-drive-1", 30*MiB),
+	}
+	volumes[0].Status.UsedCapacity = 10 * MiB
+	volumes[0].Status.TargetPath = "/path/targetpath"
+	volumes[1].Status.UsedCapacity = 20 * MiB
+	volumes[1].Status.TargetPath = "/path/targetpath"
 }
 
 func createFakeMetricsCollector() *metricsCollector {

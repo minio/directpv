@@ -33,7 +33,7 @@ func TestGetVolumeList(t *testing.T) {
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	volumes, err := GetVolumeList(context.TODO(), nil, nil, nil, nil, nil)
+	volumes, err := NewLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestGetVolumeList(t *testing.T) {
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	volumes, err = GetVolumeList(context.TODO(), nil, nil, nil, nil, nil)
+	volumes, err = NewLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestGetSortedVolumeList(t *testing.T) {
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	volumes, err := GetVolumeList(context.TODO(), nil, nil, nil, nil, nil)
+	volumes, err := NewLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestGetSortedVolumeList(t *testing.T) {
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	volumes, err = GetVolumeList(context.TODO(), nil, nil, nil, nil, nil)
+	volumes, err = NewLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

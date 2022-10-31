@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,7 +31,7 @@ func TestWriteObject(t *testing.T) {
 		Name:      consts.GroupName,
 		Namespace: consts.GroupName,
 		Annotations: map[string]string{
-			string(types.CreatedByLabelKey): "kubectl/directpv",
+			consts.GroupName + "/created-by": "kubectl/directpv",
 		},
 		Labels: map[string]string{
 			"app":  consts.GroupName,

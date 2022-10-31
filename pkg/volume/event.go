@@ -146,7 +146,9 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	)
 
 	if err == nil {
-		client.Eventf(volume, client.EventTypeNormal, client.EventReasonVolumeReleased, "volume is released")
+		if len(volume.Finalizers) != 0 { // This should not happen here.
+			client.Eventf(volume, client.EventTypeNormal, client.EventReasonVolumeReleased, "volume is released")
+		}
 	}
 
 	return err
