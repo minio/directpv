@@ -19,7 +19,6 @@ package admin
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -38,67 +37,9 @@ import (
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/xfs"
-	losetup "gopkg.in/freddierice/go-losetup.v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
-
-func reflinkSupported(ctx context.Context) (bool, error) {
-	errMountFailed := errors.New("unable to mount")
-
-	checkXFS := func(ctx context.Context, reflink bool) error {
-		mountPoint, err := os.MkdirTemp("", "xfs.check.mnt.")
-		if err != nil {
-			return err
-		}
-		defer os.Remove(mountPoint)
-
-		file, err := os.CreateTemp("", "xfs.check.file.")
-		if err != nil {
-			return err
-		}
-		defer os.Remove(file.Name())
-		file.Close()
-
-		if err = os.Truncate(file.Name(), xfs.MinSupportedDeviceSize); err != nil {
-			return err
-		}
-
-		if _, _, _, _, err = xfs.MakeFS(ctx, file.Name(), uuid.New().String(), false, reflink); err != nil {
-			return err
-		}
-
-		loopDevice, err := losetup.Attach(file.Name(), 0, false)
-		if err != nil {
-			return err
-		}
-
-		defer func() {
-			if err := loopDevice.Detach(); err != nil {
-				klog.Error(err)
-			}
-		}()
-
-		if err = xfs.Mount(loopDevice.Path(), mountPoint); err != nil {
-			return fmt.Errorf("%w; %v", errMountFailed, err)
-		}
-
-		return sys.Unmount(mountPoint, true, true, false)
-	}
-
-	reflinkSupport := true
-	err := checkXFS(ctx, reflinkSupport)
-	if err == nil {
-		return reflinkSupport, nil
-	}
-
-	if !errors.Is(err, errMountFailed) {
-		return false, err
-	}
-
-	reflinkSupport = false
-	return reflinkSupport, checkXFS(ctx, reflinkSupport)
-}
 
 type nodeRPCServer struct {
 	nodeID    directpvtypes.NodeID

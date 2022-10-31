@@ -13,7 +13,7 @@ release:
 
 before:
   hooks:
-    - go mod tidy -compat=1.17
+    - go mod tidy -compat=1.19
     - go mod download
 
 builds:
@@ -34,31 +34,6 @@ builds:
       - -tags="osusergo netgo static_build"
     ldflags:
       - -s -w -X main.Version={{ .Tag }}
-
-  -
-    main: ./cmd/kubectl-direct_csi
-    id: kubectl-direct_csi
-    binary: kubectl-direct_csi
-    goos:
-      - linux
-      - windows
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-      - ppc64le
-    ignore:
-      - goos: windows
-        goarch: arm64
-    env:
-      - CGO_ENABLED=0
-    flags:
-      - -trimpath
-      - -tags="osusergo netgo static_build"
-    ldflags:
-      - -s -w -X main.Version={{ .Tag }}
-    hooks:
-      post: ./package.sh {{ .Path }}
 
   -
     main: ./cmd/kubectl-directpv
