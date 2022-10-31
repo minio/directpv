@@ -86,6 +86,9 @@ type Config struct {
 
 	// Internal
 	enablePodSecurityAdmission bool
+
+	// NodePort SVC setting for admin server
+	DisableAdminService bool
 }
 
 type installer interface {
@@ -133,7 +136,7 @@ func (c *Config) deploymentName() string {
 	return consts.ControllerServerName
 }
 
-func (c *Config) apiServerDeploymentName() string {
+func (c *Config) adminServerDeploymentName() string {
 	return consts.AdminServerName
 }
 

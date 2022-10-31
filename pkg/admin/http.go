@@ -275,12 +275,12 @@ func startHttpServer(ctx context.Context, port int, certFile, keyFile string, ha
 	}
 }
 
-func StartAPIServer(ctx context.Context, port int) error {
+func StartServer(ctx context.Context, port int) error {
 	return startHttpServer(
 		ctx,
 		port,
-		path.Join(consts.APIServerCertsPath, consts.PublicCertFileName),
-		path.Join(consts.APIServerCertsPath, consts.PrivateKeyFileName),
+		path.Join(consts.AdminServerCertsPath, consts.PublicCertFileName),
+		path.Join(consts.AdminServerCertsPath, consts.PrivateKeyFileName),
 		&adminHttpHandler{newRPCServer()},
 	)
 }

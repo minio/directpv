@@ -163,7 +163,7 @@ func (v *defaultInstaller) installDeployment(ctx context.Context) error {
 	return err
 }
 
-func (v *defaultInstaller) installAPIServerDeployment(ctx context.Context) error {
+func (v *defaultInstaller) installAdminServerDeployment(ctx context.Context) error {
 	timer := time.AfterFunc(
 		3*time.Second,
 		func() {
@@ -172,7 +172,7 @@ func (v *defaultInstaller) installAPIServerDeployment(ctx context.Context) error
 	)
 	defer timer.Stop()
 
-	err := installAPIServerDeploymentDefault(ctx, v.Config)
+	err := installAdminServerDeploymentDefault(ctx, v.Config)
 	if err != nil && !v.DryRun {
 		fmt.Fprintf(os.Stderr, "%v unable to create API server Deployment; %v", color.HiRedString("ERROR"), err)
 	}
@@ -306,7 +306,7 @@ func (v *defaultInstaller) uninstallDeployment(ctx context.Context) error {
 	return err
 }
 
-func (v *defaultInstaller) uninstallAPIServerDeployment(ctx context.Context) error {
+func (v *defaultInstaller) uninstallAdminServerDeployment(ctx context.Context) error {
 	timer := time.AfterFunc(
 		3*time.Second,
 		func() {
@@ -315,7 +315,7 @@ func (v *defaultInstaller) uninstallAPIServerDeployment(ctx context.Context) err
 	)
 	defer timer.Stop()
 
-	err := uninstallAPIServerDeploymentDefault(ctx, v.Config)
+	err := uninstallAdminServerDeploymentDefault(ctx, v.Config)
 	if err != nil && !v.DryRun {
 		fmt.Fprintf(os.Stderr, "%v unable to delete API server Deployment; %v", color.HiRedString("ERROR"), err)
 	}
@@ -350,14 +350,14 @@ func (v *defaultInstaller) Install(ctx context.Context) error {
 	if err := v.installDeployment(ctx); err != nil {
 		return err
 	}
-	return v.installAPIServerDeployment(ctx)
+	return v.installAdminServerDeployment(ctx)
 }
 
 func (v *defaultInstaller) Uninstall(ctx context.Context) error {
 	if err := v.uninstallCRD(ctx); err != nil {
 		return err
 	}
-	if err := v.uninstallAPIServerDeployment(ctx); err != nil {
+	if err := v.uninstallAdminServerDeployment(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallDeployment(ctx); err != nil {

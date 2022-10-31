@@ -33,10 +33,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const apiServerEnvName = consts.AppCapsName + "_API_SERVER"
+const adminServerEnvName = consts.AppCapsName + "_ADMIN_SERVER"
 
 var (
-	apiServer   string
+	adminServer string
 	allowedFlag bool
 	deniedFlag  bool
 	forceFlag   bool
@@ -85,7 +85,7 @@ func init() {
 	formatCmd.PersistentFlags().BoolVar(&allowedFlag, "allowed", allowedFlag, "If present, select drives those are allowed to format")
 	formatCmd.PersistentFlags().BoolVar(&deniedFlag, "denied", deniedFlag, "If present, select drives those are denied to format")
 	formatCmd.PersistentFlags().BoolVar(&forceFlag, "force", forceFlag, "If present, force format selected drives")
-	formatCmd.PersistentFlags().StringVar(&apiServer, "api-server", apiServer, fmt.Sprintf("If present, use this value to connect to admin API server instead of %v environment variable", apiServerEnvName))
+	formatCmd.PersistentFlags().StringVar(&adminServer, "admin-server", adminServer, fmt.Sprintf("If present, use this value to connect to admin API server instead of %v environment variable", adminServerEnvName))
 }
 
 func validateFormatCmd() error {
@@ -97,25 +97,25 @@ func validateFormatCmd() error {
 		return err
 	}
 
-	if apiServer == "" {
+	if adminServer == "" {
 		var found bool
-		if apiServer, found = os.LookupEnv(apiServerEnvName); !found {
-			return fmt.Errorf("environment variable %v or --api-server argument must be set", apiServerEnvName)
+		if adminServer, found = os.LookupEnv(adminServerEnvName); !found {
+			return fmt.Errorf("environment variable %v or --admin-server argument must be set", adminServerEnvName)
 		}
-		if apiServer == "" {
-			return fmt.Errorf("valid value must be set to %v environment variable", apiServerEnvName)
+		if adminServer == "" {
+			return fmt.Errorf("valid value must be set to %v environment variable", adminServerEnvName)
 		}
 	}
 
-	host, port, err := net.SplitHostPort(apiServer)
+	host, port, err := net.SplitHostPort(adminServer)
 	if err != nil {
-		return fmt.Errorf("invalid api server value %v; %w", apiServer, err)
+		return fmt.Errorf("invalid api server value %v; %w", adminServer, err)
 	}
 	if host == "" {
-		return fmt.Errorf("invalid host of api server value %v", apiServer)
+		return fmt.Errorf("invalid host of api server value %v", adminServer)
 	}
 	if port == "" {
-		return fmt.Errorf("invalid port number of api server value %v", apiServer)
+		return fmt.Errorf("invalid port number of api server value %v", adminServer)
 	}
 
 	return nil
@@ -420,7 +420,7 @@ func formatMain(ctx context.Context) {
 	client := admin.NewClient(
 		&url.URL{
 			Scheme: "https",
-			Host:   apiServer,
+			Host:   adminServer,
 		},
 	)
 

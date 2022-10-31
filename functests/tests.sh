@@ -23,9 +23,7 @@ source "${SCRIPT_DIR}/common.sh"
 function test_build() {
     DIRECTPV_CLIENT=./kubectl-directpv
     install_directpv
-    export_admin_server
     add_drives
-    unexport_admin_server
     deploy_minio
     uninstall_minio
     remove_drives

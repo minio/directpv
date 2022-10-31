@@ -69,8 +69,8 @@ func (v *v1dot18) installDeployment(ctx context.Context) error {
 	return installDeploymentDefault(ctx, v.Config)
 }
 
-func (v *v1dot18) installAPIServerDeployment(ctx context.Context) error {
-	return installAPIServerDeploymentDefault(ctx, v.Config)
+func (v *v1dot18) installAdminServerDeployment(ctx context.Context) error {
+	return installAdminServerDeploymentDefault(ctx, v.Config)
 }
 
 // uninstallers
@@ -114,8 +114,8 @@ func (v *v1dot18) uninstallDeployment(ctx context.Context) error {
 	return uninstallDeploymentDefault(ctx, v.Config)
 }
 
-func (v *v1dot18) uninstallAPIServerDeployment(ctx context.Context) error {
-	return uninstallAPIServerDeploymentDefault(ctx, v.Config)
+func (v *v1dot18) uninstallAdminServerDeployment(ctx context.Context) error {
+	return uninstallAdminServerDeploymentDefault(ctx, v.Config)
 }
 
 func (v *v1dot18) Install(ctx context.Context) error {
@@ -149,14 +149,14 @@ func (v *v1dot18) Install(ctx context.Context) error {
 	if err := v.installDeployment(ctx); err != nil {
 		return err
 	}
-	return v.installAPIServerDeployment(ctx)
+	return v.installAdminServerDeployment(ctx)
 }
 
 func (v *v1dot18) Uninstall(ctx context.Context) error {
 	if err := v.uninstallCRD(ctx); err != nil {
 		return err
 	}
-	if err := v.uninstallAPIServerDeployment(ctx); err != nil {
+	if err := v.uninstallAdminServerDeployment(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallDeployment(ctx); err != nil {

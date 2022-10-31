@@ -74,9 +74,9 @@ func getInstaller(config *Config) (installer, error) {
 		case "23":
 			return newV1Dot23(config), nil
 		case "24":
-			return newv1dot24(config), nil
+			return newV1Dot24(config), nil
 		case "25":
-			return newv1dot25(config), nil
+			return newV1Dot25(config), nil
 		}
 	}
 

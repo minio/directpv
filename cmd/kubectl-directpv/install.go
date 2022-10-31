@@ -34,16 +34,17 @@ import (
 )
 
 var (
-	image            = consts.AppName + ":" + Version
-	registry         = "quay.io"
-	org              = "minio"
-	nodeSelectorArgs = []string{}
-	tolerationArgs   = []string{}
-	seccompProfile   = ""
-	apparmorProfile  = ""
-	imagePullSecrets = []string{}
-	nodeSelector     map[string]string
-	tolerations      []corev1.Toleration
+	image               = consts.AppName + ":" + Version
+	registry            = "quay.io"
+	org                 = "minio"
+	nodeSelectorArgs    = []string{}
+	tolerationArgs      = []string{}
+	seccompProfile      = ""
+	apparmorProfile     = ""
+	imagePullSecrets    = []string{}
+	nodeSelector        map[string]string
+	tolerations         []corev1.Toleration
+	disableAdminService bool
 )
 
 var installCmd = &cobra.Command{
@@ -74,6 +75,7 @@ func init() {
 	installCmd.PersistentFlags().StringVar(&seccompProfile, "seccomp-profile", seccompProfile, "Set Seccomp profile")
 	installCmd.PersistentFlags().StringVar(&apparmorProfile, "apparmor-profile", apparmorProfile, "Set Apparmor profile")
 	installCmd.PersistentFlags().StringVar(&configDir, "config-dir", configDir, "Path to configuration directory")
+	installCmd.PersistentFlags().BoolVar(&disableAdminService, "disable-admin-service", disableAdminService, "Skip installing a node-port service for admin server")
 	addDryRunFlag(installCmd)
 }
 
@@ -204,18 +206,19 @@ func installMain(ctx context.Context) {
 	}
 
 	installConfig := &installer.Config{
-		Identity:          consts.Identity,
-		ContainerImage:    image,
-		ContainerOrg:      org,
-		ContainerRegistry: registry,
-		NodeSelector:      nodeSelector,
-		Tolerations:       tolerations,
-		SeccompProfile:    seccompProfile,
-		ApparmorProfile:   apparmorProfile,
-		DryRun:            dryRunFlag,
-		AuditFile:         file,
-		ImagePullSecrets:  imagePullSecrets,
-		Credential:        cred,
+		Identity:            consts.Identity,
+		ContainerImage:      image,
+		ContainerOrg:        org,
+		ContainerRegistry:   registry,
+		NodeSelector:        nodeSelector,
+		Tolerations:         tolerations,
+		SeccompProfile:      seccompProfile,
+		ApparmorProfile:     apparmorProfile,
+		DryRun:              dryRunFlag,
+		AuditFile:           file,
+		ImagePullSecrets:    imagePullSecrets,
+		Credential:          cred,
+		DisableAdminService: disableAdminService,
 	}
 
 	if err = installer.Install(ctx, installConfig); err != nil {
@@ -238,11 +241,13 @@ func installMain(ctx context.Context) {
 		}
 
 		fmt.Println(color.HiWhiteString(consts.AppPrettyName), "is installed successfully")
-		eprintf(quietFlag, false, "%v",
-			color.HiYellowString(`
+		if disableAdminService {
+			eprintf(quietFlag, false, "%v",
+				color.HiYellowString(`
 Note: admin-server should be exported to add drives.
 A simple port-forward can be done like below;
 $ kubectl port-forward pod/admin-server-XXXXXXXXXX-XXXXX 40443:40443 -n directpv-min-io
 `))
+		}
 	}
 }

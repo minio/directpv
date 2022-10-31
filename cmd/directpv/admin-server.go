@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var apiPort = consts.APIPort
+var apiPort = consts.AdminServerPort
 
 var adminServerCmd = &cobra.Command{
 	Use:           consts.AdminServerName,
@@ -30,10 +30,10 @@ var adminServerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		return admin.StartAPIServer(c.Context(), apiPort)
+		return admin.StartServer(c.Context(), apiPort)
 	},
 }
 
 func init() {
-	adminServerCmd.PersistentFlags().IntVar(&apiPort, "port", apiPort, "API server port number")
+	adminServerCmd.PersistentFlags().IntVar(&apiPort, "port", apiPort, "Admin server port number")
 }

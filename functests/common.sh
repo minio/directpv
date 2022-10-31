@@ -117,19 +117,12 @@ function check_drives_status() {
     fi
 }
 
-function export_admin_server() {
-    admin_server=$(kubectl get pods -n directpv-min-io --no-headers | awk '/^admin-server/ { print $1 }')
-    (kubectl port-forward pod/"${admin_server}" 40443:40443 -n directpv-min-io &)
-    sleep 3
-}
-
-function unexport_admin_server() {
-    pid=$(ps ax | awk '/[k]ubectl port-forward/ { print $1 }')
-    kill "${pid}"
-}
-
 function add_drives() {
-    echo -e 'ALL\nALL\nYes\n' | ./kubectl-directpv format --api-server localhost:40443 --allowed --force
+    # Get the nodeport service url
+    url=$(minikube service --namespace=directpv-min-io admin-service --url)
+    admin_server=${url#"http://"}
+
+    echo -e 'ALL\nALL\nYes\n' | ./kubectl-directpv format --admin-server ${admin_server} --allowed --force
 
     # Show output for manual debugging.
     "${DIRECTPV_CLIENT}" get drives --all

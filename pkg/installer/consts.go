@@ -89,11 +89,13 @@ const (
 	// readiness
 	readinessPortName = "readinessport"
 
-	// api-server
-	apiServerCertsDir        = "api-server-certs"
-	apiServerCertsSecretName = "apiservercerts"
-	localHostDNS             = "localhost"
-	apiServerCASecretName    = "apiservercacert"
+	// admin-server
+	adminServerCertsDir        = "admin-server-certs"
+	adminServerCertsSecretName = "adminservercerts"
+	localHostDNS               = "localhost"
+	adminServerCASecretName    = "adminservercacert"
+	adminServerSelectorValue   = "admin-server"
+	adminServerSVC             = "admin-service"
 
 	// node-api-server
 	nodeAPIServerCertsDir        = "node-api-server-certs"
