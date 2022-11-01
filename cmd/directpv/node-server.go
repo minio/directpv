@@ -49,7 +49,7 @@ var nodeServerCmd = &cobra.Command{
 }
 
 func init() {
-	nodeServerCmd.PersistentFlags().IntVarP(&metricsPort, "metrics-port", "", metricsPort, "Metrics port at "+consts.AppPrettyName+" exports metrics data")
+	nodeServerCmd.PersistentFlags().IntVar(&metricsPort, "metrics-port", metricsPort, "Metrics port at "+consts.AppPrettyName+" exports metrics data")
 }
 
 func startNodeServer(ctx context.Context, args []string) error {

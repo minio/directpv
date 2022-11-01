@@ -38,26 +38,26 @@ var purgeCmd = &cobra.Command{
 	Use:   "purge [VOLUME ...]",
 	Short: "Purge released and failed " + consts.AppName + "volumes. CAUTION: THIS MAY LEAD TO DATA LOSS",
 	Example: strings.ReplaceAll(
-		`# Purge all released|failed volumes
+		`# Purge all released and failed volumes
 $ kubectl {PLUGIN_NAME} purge --all
 
-# Purge the volume by its name(id)
-$ kubectl {PLUGIN_NAME} purge <volume-name>
+# Purge a volume
+$ kubectl {PLUGIN_NAME} purge pvc-6355041d-f9c6-4bd6-9335-f2bccbe73929
 
-# Purge all released|failed volumes from a particular node
+# Purge volumes served by drive
+$ kubectl {PLUGIN_NAME} purge --drive=78e6486e-22d2-4c93-99d0-00f4e3a8411f
+
+# Purge volumes served by a node
 $ kubectl {PLUGIN_NAME} purge --nodes=node1
 
-# Combine multiple filters using csv
-$ kubectl {PLUGIN_NAME} purge --nodes=node1,node2 --drives=nvme0n1
+# Purge volumes served by drive name in all nodes.
+$ kubectl {PLUGIN_NAME} purge --drive-name=sda
 
-# Purge all released|failed volumes by pod name
+# Purge volumes by pod name
 $ kubectl {PLUGIN_NAME} purge --pod-name=minio-{1...3}
 
-# Purge all released|failed volumes by pod namespace
-$ kubectl {PLUGIN_NAME} purge --pod-namespace=tenant-{1...3}
-
-# Purge all released|failed volumes based on drive and volume ellipses
-$ kubectl {PLUGIN_NAME} purge --drives xvd{a...d} --nodes node-{1...4}`,
+# Purge volumes by pod namespace
+$ kubectl {PLUGIN_NAME} purge --pod-namespace=tenant-{1...3}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),

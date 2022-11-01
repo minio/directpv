@@ -35,23 +35,23 @@ var releaseCmd = &cobra.Command{
 	Use:   "release [DRIVE ...]",
 	Short: "Release drives.",
 	Example: strings.ReplaceAll(
-		`# Release all the drives from all the nodes
+		`# Release all drives from all nodes
 $ kubectl {PLUGIN_NAME} release --all
 
-# Release all the drives from a particular node
+# Release all drives from a node
 $ kubectl {PLUGIN_NAME} release --node=node1
 
-# Release specific drives from specified nodes
-$ kubectl {PLUGIN_NAME} release --node=node1,node2 --drive=nvme0n1
+# Release drives from all nodes
+$ kubectl {PLUGIN_NAME} release --drive-name=sda
 
-# Release specific drives from all the nodes filtered by drive ellipsis
-$ kubectl {PLUGIN_NAME} release --drive=sd{a...b}
+# Release specific drives from specific nodes
+$ kubectl {PLUGIN_NAME} release --node=node{1...4} --drive-name=sd{a...f}
 
-# Release all the drives from specific nodes filtered by node ellipsis
-$ kubectl {PLUGIN_NAME} release --node=node{0...3}
+# Release drives are in 'warm' access-tier
+$ kubectl {PLUGIN_NAME} release --access-tier=warm
 
-# Release specific drives from specific nodes filtered by the combination of node and drive ellipsis
-$ kubectl {PLUGIN_NAME} release --drive xvd{a...d} --node node{1...4}`,
+# Release drives are in 'error' status
+$ kubectl {PLUGIN_NAME} release --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),

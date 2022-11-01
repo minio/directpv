@@ -38,26 +38,29 @@ var getVolumesCmd = &cobra.Command{
 	Aliases: []string{"volume", "vol"},
 	Short:   "List volumes.",
 	Example: strings.ReplaceAll(
-		`# Get all published volumes
+		`# Get all ready volumes
 $ kubectl {PLUGIN_NAME} get volumes
 
-# Get all published volumes from a particular node
+# Get all volumes from all nodes with all information include PVC name.
+$ kubectl {PLUGIN_NAME} get drives --all --pvc --output wide
+
+# Get volumes in Pending state
+$ kubectl {PLUGIN_NAME} get volumes --status=pending
+
+# Get volumes served by a node
 $ kubectl {PLUGIN_NAME} get volumes --node=node1
 
-# Get all staged volumes from specified nodes on specified drive
-$ kubectl {PLUGIN_NAME} vol ls --node=node1,node2 --staged --drive=nvme0n1
+# Get volumes served by a drive ID
+$ kubectl {PLUGIN_NAME} get volumes --drive=b84758b0-866f-4a12-9d00-d8f7da76ceb3
 
-# Get all published volumes by pod name
+# Get volumes served by drives on nodes
+$ kubectl {PLUGIN_NAME} get volumes --node=node1,node2 --drive=nvme0n1
+
+# Get volumes by pod name
 $ kubectl {PLUGIN_NAME} get volumes --pod-name=minio-{1...3}
 
-# Get all published volumes by pod namespace
-$ kubectl {PLUGIN_NAME} get volumes --pod-namespace=tenant-{1...3}
-
-# Get all published volumes from range of nodes and drives
-$ kubectl {PLUGIN_NAME} get volumes --drive xvd{a...d} --node node{1...4}
-
-# Get all volumes including PVC names
-$ kubectl {PLUGIN_NAME} get volumes --all --pvc`,
+# Get volumes by pod namespace
+$ kubectl {PLUGIN_NAME} get volumes --pod-namespace=tenant-{1...3}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
