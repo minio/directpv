@@ -30,14 +30,14 @@ import (
 
 // CSI provisioner images
 const (
-	// quay.io/minio/csi-provisioner:v2.2.0-go1.18
-	CSIImageCSIProvisioner = "csi-provisioner@sha256:c185db49ba02c384633165894147f8d7041b34b173e82a49d7145e50e809b8d6"
+	// quay.io/minio/csi-provisioner:v3.3.0
+	CSIImageCSIProvisioner = "csi-provisioner:v3.3.0"
 
-	// quay.io/minio/csi-node-driver-registrar:v2.2.0-go1.18
-	CSIImageNodeDriverRegistrar = "csi-node-driver-registrar@sha256:d46524376ffccf2c29f2fb373a67faa0d14a875ae01380fa148b4c5a8d47a6c6"
+	// quay.io/minio/csi-node-driver-registrar:v2.6.0
+	CSIImageNodeDriverRegistrar = "csi-node-driver-registrar:v2.6.0"
 
-	// quay.io/minio/livenessprobe:v2.2.0-go1.18
-	CSIImageLivenessProbe = "livenessprobe@sha256:a3a5f8e046ece910505a7f9529c615547b1152c661f34a64b13ac7d9e13df4a7"
+	// quay.io/minio/livenessprobe:v2.8.0
+	CSIImageLivenessProbe = "livenessprobe:v2.8.0"
 )
 
 func defaultOnEmpty(s, d string) string {

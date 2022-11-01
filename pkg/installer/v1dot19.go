@@ -66,6 +66,8 @@ func (v *v1dot19) installDaemonset(ctx context.Context) error {
 }
 
 func (v *v1dot19) installDeployment(ctx context.Context) error {
+	// the default csi provisioner image doesn't support k8s version < 1.20
+	v.CSIProvisionerImage = "csi-provisioner:v2.2.0-go1.18"
 	return installDeploymentDefault(ctx, v.Config)
 }
 
