@@ -21,10 +21,9 @@ import (
 	"fmt"
 	"math/rand"
 	"path"
-	"strings"
 	"time"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 
@@ -64,16 +63,6 @@ func newDirectCSIPluginsSocketDir(kubeletDir, name string) string {
 	return path.Join(kubeletDir, "plugins", utils.SanitizeKubeResourceName(name))
 }
 
-func getConversionWebhookDNSName(identity string) string {
-	return strings.Join([]string{utils.SanitizeKubeResourceName(identity), utils.SanitizeKubeResourceName(identity), "svc"}, ".") // "direct-csi-min-io.direct-csi-min-io.svc"
-}
-
-func getConversionHealthzURL(identity string) (conversionWebhookURL string) {
-	conversionWebhookDNSName := getConversionWebhookDNSName(identity)
-	conversionWebhookURL = fmt.Sprintf("https://%s:%d%s", conversionWebhookDNSName, conversionWebhookPort, healthZContainerPortPath) // https://direct-csi-min-io.direct-csi-min-io.svc:30443/healthz
-	return
-}
-
 func newHostPathVolume(name, path string) corev1.Volume {
 	hostPathType := corev1.HostPathDirectoryOrCreate
 	volumeSource := corev1.VolumeSource{
@@ -110,12 +99,12 @@ func newVolumeMount(name, path string, mountPropogation corev1.MountPropagationM
 	}
 }
 
-func getConversionHealthzHandler() corev1.ProbeHandler {
+func getReadinessHandler() corev1.ProbeHandler {
 	return corev1.ProbeHandler{
 		HTTPGet: &corev1.HTTPGetAction{
-			Path:   healthZContainerPortPath,
-			Port:   intstr.FromString(conversionWebhookPortName),
-			Scheme: corev1.URISchemeHTTPS,
+			Path:   readinessPath,
+			Port:   intstr.FromString(readinessPortName),
+			Scheme: corev1.URISchemeHTTP,
 		},
 	}
 }

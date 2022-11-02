@@ -24,6 +24,7 @@ import (
 	directv1beta2 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta2"
 	directv1beta3 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta3"
 	directv1beta4 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directv1beta5 "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,6 +32,15 @@ import (
 
 func downgradeVolumeObject(object *unstructured.Unstructured, toVersion string) error {
 	switch object.GetAPIVersion() {
+	case versionV1Beta5:
+		if toVersion == versionV1Beta5 {
+			klog.V(10).Info("Successfully migrated")
+			break
+		}
+		if err := volumeDowngradeV1Beta5ToV1Beta4(object); err != nil {
+			return err
+		}
+		fallthrough
 	case versionV1Beta4:
 		if toVersion == versionV1Beta4 {
 			klog.V(10).Info("Successfully migrated")
@@ -168,6 +178,31 @@ func volumeDowngradeV1Beta4ToV1Beta3(unstructured *unstructured.Unstructured) er
 
 	v1beta3DirectCSIVolume.TypeMeta = v1beta4DirectCSIVolume.TypeMeta
 	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta3DirectCSIVolume)
+	if err != nil {
+		return err
+	}
+
+	unstructured.Object = convertedObj
+	return nil
+}
+
+func volumeDowngradeV1Beta5ToV1Beta4(unstructured *unstructured.Unstructured) error {
+	unstructuredObject := unstructured.Object
+
+	var v1beta5DirectCSIVolume directv1beta5.DirectCSIVolume
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObject, &v1beta5DirectCSIVolume); err != nil {
+		return err
+	}
+
+	klog.V(10).Infof("Converting directpvivolume: %v to v1beta4", v1beta5DirectCSIVolume.Name)
+
+	var v1beta4DirectCSIVolume directv1beta4.DirectCSIVolume
+	if err := directv1beta5.Convert_v1beta5_DirectCSIVolume_To_v1beta4_DirectCSIVolume(&v1beta5DirectCSIVolume, &v1beta4DirectCSIVolume, nil); err != nil {
+		return err
+	}
+
+	v1beta4DirectCSIVolume.TypeMeta = v1beta5DirectCSIVolume.TypeMeta
+	convertedObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&v1beta4DirectCSIVolume)
 	if err != nil {
 		return err
 	}

@@ -26,7 +26,7 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -155,8 +155,8 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 
 	vl := createFakeVolumeEventListener("test-node")
 	ctx := context.TODO()
-	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObject).DirectV1beta4().DirectCSIDrives())
-	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObjects...).DirectV1beta4().DirectCSIVolumes())
+	client.SetLatestDirectCSIDriveInterface(clientsetfake.NewSimpleClientset(testDriveObject).DirectV1beta5().DirectCSIDrives())
+	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObjects...).DirectV1beta5().DirectCSIVolumes())
 	for _, testObj := range testVolumeObjects {
 		var stagingUmountCalled, containerUmountCalled bool
 		vl.safeUnmount = func(target string, force, detach, expire bool) error {
@@ -272,7 +272,7 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 
 	vl := createFakeVolumeEventListener("test-node")
 	ctx := context.TODO()
-	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObject).DirectV1beta4().DirectCSIVolumes())
+	client.SetLatestDirectCSIVolumeInterface(clientsetfake.NewSimpleClientset(testVolumeObject).DirectV1beta5().DirectCSIVolumes())
 
 	newObj, vErr := client.GetLatestDirectCSIVolumeInterface().Get(ctx, testVolumeObject.Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()})
 	if vErr != nil {

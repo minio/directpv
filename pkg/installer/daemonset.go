@@ -72,16 +72,12 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
 		newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
 		newHostPathVolume(volumeNameCSIRootDir, csiRootPath),
-		newSecretVolume(conversionCACert, conversionCACert),
-		newSecretVolume(conversionKeyPair, conversionKeyPair),
 	}
 	volumeMounts := []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
 		newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", corev1.MountPropagationBidirectional, false),
 		newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", corev1.MountPropagationBidirectional, false),
 		newVolumeMount(volumeNameCSIRootDir, csiRootPath, corev1.MountPropagationBidirectional, false),
-		newVolumeMount(conversionCACert, conversionCADir, corev1.MountPropagationNone, false),
-		newVolumeMount(conversionKeyPair, conversionCertsDir, corev1.MountPropagationNone, false),
 	}
 
 	volumes = append(volumes, newHostPathVolume(volumeNameSysDir, volumePathSysDir))
@@ -137,8 +133,8 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 						fmt.Sprintf("-v=%d", logLevel),
 						fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
 						fmt.Sprintf("--node-id=$(%s)", kubeNodeNameEnvVar),
-						fmt.Sprintf("--conversion-healthz-url=%s", c.conversionHealthzURL()),
 						fmt.Sprintf("--metrics-port=%d", metricsPort),
+						fmt.Sprintf("--readiness-port=%d", readinessPort),
 						"--driver",
 					}
 					if c.DynamicDriveDiscovery {
@@ -172,8 +168,8 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						ContainerPort: conversionWebhookPort,
-						Name:          conversionWebhookPortName,
+						ContainerPort: readinessPort,
+						Name:          readinessPortName,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
@@ -183,7 +179,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 					},
 				},
 				ReadinessProbe: &corev1.Probe{
-					ProbeHandler: getConversionHealthzHandler(),
+					ProbeHandler: getReadinessHandler(),
 				},
 				LivenessProbe: &corev1.Probe{
 					FailureThreshold:    5,
@@ -285,7 +281,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 					Annotations: annotations,
 					Labels: map[string]string{
 						directCSISelector: generatedSelectorValue,
-						webhookSelector:   selectorValueEnabled,
+						serviceSelector:   selectorValueEnabled,
 					},
 				},
 				Spec: podSpec,

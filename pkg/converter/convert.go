@@ -24,8 +24,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -34,22 +33,6 @@ import (
 type migrateFunc func(object *unstructured.Unstructured, toVersion string) error
 
 var errUnsupportedCRDKind = errors.New("unsupported CRD Kind")
-
-func convertDriveCRD(Object *unstructured.Unstructured, toVersion string) (*unstructured.Unstructured, metav1.Status) {
-	convertedObject := Object.DeepCopy()
-	if err := migrate(convertedObject, toVersion); err != nil {
-		return nil, statusErrorWithMessage(err.Error())
-	}
-	return convertedObject, statusSucceed()
-}
-
-func convertVolumeCRD(Object *unstructured.Unstructured, toVersion string) (*unstructured.Unstructured, metav1.Status) {
-	convertedObject := Object.DeepCopy()
-	if err := migrate(convertedObject, toVersion); err != nil {
-		return nil, statusErrorWithMessage(err.Error())
-	}
-	return convertedObject, statusSucceed()
-}
 
 // MigrateList migrate the list to the provided group version
 func MigrateList(fromList, toList *unstructured.UnstructuredList, groupVersion schema.GroupVersion) error {

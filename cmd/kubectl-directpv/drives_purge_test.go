@@ -24,7 +24,7 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -86,7 +86,7 @@ func TestPurgeDrives(t1 *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	testClientSet := clientsetfake.NewSimpleClientset(testDriveObjects...)
-	driveInterface := testClientSet.DirectV1beta4().DirectCSIDrives()
+	driveInterface := testClientSet.DirectV1beta5().DirectCSIDrives()
 	client.SetLatestDirectCSIDriveInterface(driveInterface)
 
 	if err := validateDriveSelectors(); err != nil {

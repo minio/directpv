@@ -18,16 +18,11 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
-	"net/http"
 	"os"
-	"time"
 
 	"github.com/google/uuid"
 	ctrl "github.com/minio/directpv/pkg/controller"
-	"github.com/minio/directpv/pkg/converter"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/fs/xfs"
 	id "github.com/minio/directpv/pkg/identity"
@@ -39,66 +34,10 @@ import (
 	losetup "gopkg.in/freddierice/go-losetup.v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 )
 
-const (
-	conversionCAFile = "/etc/conversion/CAs/ca.pem"
-)
-
-var (
-	errInvalidConversionHealthzURL = errors.New("the `--conversion-webhook-healthz-url` flag is unset/empty")
-	errMountFailure                = errors.New("could not mount the drive")
-)
-
-func waitForConversionWebhook(ctx context.Context) error {
-	if conversionHealthzURL == "" {
-		return errInvalidConversionHealthzURL
-	}
-
-	caCert, err := os.ReadFile(conversionCAFile)
-	if err != nil {
-		klog.V(2).Infof("Error while reading cacert %v", err)
-		return err
-	}
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: caCertPool,
-			},
-		},
-		Timeout: 2 * time.Second,
-	}
-	defer client.CloseIdleConnections()
-
-	if err := retry.OnError(
-		wait.Backoff{
-			Duration: 1 * time.Second,
-			Factor:   2.0,
-			Jitter:   0.1,
-			Steps:    5,
-			Cap:      1 * time.Minute,
-		},
-		func(err error) bool {
-			return err != nil
-		},
-		func() error {
-			_, err := client.Get(conversionHealthzURL)
-			if err != nil {
-				klog.V(2).Infof("Waiting for conversion webhook: %v", err)
-			}
-			return err
-		}); err != nil {
-		return err
-	}
-
-	return nil
-}
+var errMountFailure = errors.New("could not mount the drive")
 
 func checkXFS(ctx context.Context, reflinkSupport bool) error {
 	mountPoint, err := os.MkdirTemp("", "xfs.check.mnt.")
@@ -158,16 +97,6 @@ func run(ctxMain context.Context, args []string) error {
 			disableUDevListener,
 		)
 	}
-
-	// Start conversion webserver
-	if err := converter.ServeConversionWebhook(ctx); err != nil {
-		return err
-	}
-
-	if err := waitForConversionWebhook(ctx); err != nil {
-		return err
-	}
-	klog.V(3).Info("The conversion webhook is live!")
 
 	idServer, err := id.NewIdentityServer(identity, Version, map[string]string{})
 	if err != nil {
@@ -236,6 +165,13 @@ func run(ctxMain context.Context, args []string) error {
 	go func() {
 		if err := grpc.Run(ctx, endpoint, idServer, ctrlServer, nodeSrv); err != nil {
 			klog.ErrorS(err, "failed to start grpc server")
+			errChan <- err
+		}
+	}()
+
+	go func() {
+		if err := serveReadinessEndpoint(ctx); err != nil {
+			klog.ErrorS(err, "failed to serve readiness endpoint")
 			errChan <- err
 		}
 	}()

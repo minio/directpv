@@ -91,12 +91,13 @@ type Config struct {
 	// Image pull secrets
 	ImagePullSecrets []string
 
-	// internal
-	conversionWebhookCaBundle []byte
-	validationWebhookCaBundle []byte
-
 	// Drive discovery
 	DisableUDevListener bool
+
+	// internal
+	conversionWebhookCaBundle  []byte
+	validationWebhookCaBundle  []byte
+	enablePodSecurityAdmission bool
 }
 
 type installer interface {
@@ -121,10 +122,6 @@ func (c *Config) serviceName() string {
 
 func (c *Config) identity() string {
 	return utils.SanitizeKubeResourceName(c.Identity)
-}
-
-func (c *Config) conversionHealthzURL() string {
-	return getConversionHealthzURL(c.identity())
 }
 
 func (c *Config) getCSIProvisionerImage() string {

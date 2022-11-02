@@ -20,7 +20,7 @@ import (
 	"sort"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -581,6 +581,7 @@ func TestConclusiveMatcher(t *testing.T) {
 				Status: directcsi.DirectCSIDriveStatus{
 					PartitionNum: int(1),
 					WWID:         "naa.6002248032bf1752a69bdaee7b0ceb33",
+					UeventSerial: "ueventserial-xxx",
 				},
 			},
 			device: &sys.Device{
@@ -609,6 +610,7 @@ func TestConclusiveMatcher(t *testing.T) {
 				Status: directcsi.DirectCSIDriveStatus{
 					PartitionNum: int(1),
 					WWID:         "wwid-xxx",
+					UeventSerial: "ueventserial-xxx",
 				},
 			},
 			device: &sys.Device{
@@ -626,6 +628,67 @@ func TestConclusiveMatcher(t *testing.T) {
 				FSUUID:       "fsuuid-xxx",
 			},
 			expectedResult: true,
+		},
+		// WWIDWithExtension
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:      int(1),
+					WWIDWithExtension: "naa.6002248032bf1752a69bdaee7b0ceb33",
+					WWID:              "wwid-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:         1,
+				WWIDWithExtension: "naa.6002248032bf1752a69bdaee7b0ceb33",
+				WWID:              "wwid-xxx",
+				UeventSerial:      "ueventserial-xxx",
+				SerialLong:        "seriallong-xxx",
+				DMUUID:            "dmuuid-xxx",
+				MDUUID:            "mduuid-xxx",
+				Model:             "model-xxx",
+				Vendor:            "vendor-xxx",
+				PartUUID:          "partuuid-xxx",
+				PTUUID:            "ptuuid-xxx",
+				UeventFSUUID:      "ueventfsuuid-xxx",
+				FSUUID:            "fsuuid-xxx",
+			},
+			expectedResult: true,
+		},
+		{
+			drive: &directcsi.DirectCSIDrive{
+				TypeMeta: utils.DirectCSIDriveTypeMeta(),
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-drive",
+					Namespace: metav1.NamespaceNone,
+				},
+				Status: directcsi.DirectCSIDriveStatus{
+					PartitionNum:      int(1),
+					WWIDWithExtension: "naa.YYY",
+					WWID:              "wwid-xxx",
+				},
+			},
+			device: &sys.Device{
+				Partition:         1,
+				WWIDWithExtension: "naa.6002248032bf1752a69bdaee7b0ceb33",
+				WWID:              "wwid-xxx",
+				UeventSerial:      "ueventserial-xxx",
+				SerialLong:        "seriallong-xxx",
+				DMUUID:            "dmuuid-xxx",
+				MDUUID:            "mduuid-xxx",
+				Model:             "model-xxx",
+				Vendor:            "vendor-xxx",
+				PartUUID:          "partuuid-xxx",
+				PTUUID:            "ptuuid-xxx",
+				UeventFSUUID:      "ueventfsuuid-xxx",
+				FSUUID:            "fsuuid-xxx",
+			},
+			expectedResult: false,
 		},
 		// UeventSerial
 		{

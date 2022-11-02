@@ -20,7 +20,7 @@ import (
 	"context"
 	"testing"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/client"
 	fakedirect "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/sys"
@@ -56,6 +56,7 @@ func TestAddHandler(t *testing.T) {
 				Minor:             2,
 				Size:              uint64(5368709120),
 				WWID:              "wwid",
+				WWIDWithExtension: "wwidwithextension",
 				Model:             "model",
 				Serial:            "serial",
 				Vendor:            "vendor",
@@ -86,6 +87,7 @@ func TestAddHandler(t *testing.T) {
 				Minor:             2,
 				Size:              uint64(5368709120),
 				WWID:              "wwid",
+				WWIDWithExtension: "wwidwithextension",
 				Model:             "model",
 				Serial:            "serial",
 				Vendor:            "vendor",
@@ -116,6 +118,7 @@ func TestAddHandler(t *testing.T) {
 				Minor:             2,
 				Size:              uint64(5368709120),
 				WWID:              "wwid",
+				WWIDWithExtension: "wwidwithextension",
 				Model:             "model",
 				Serial:            "serial",
 				Vendor:            "vendor",
@@ -143,6 +146,7 @@ func TestAddHandler(t *testing.T) {
 				Minor:             2,
 				Size:              uint64(sys.MinSupportedDeviceSize - 1),
 				WWID:              "wwid",
+				WWIDWithExtension: "wwidwithextension",
 				Model:             "model",
 				Serial:            "serial",
 				Vendor:            "vendor",
@@ -168,6 +172,7 @@ func TestAddHandler(t *testing.T) {
 				Minor:             2,
 				Size:              uint64(5368709120),
 				WWID:              "wwid",
+				WWIDWithExtension: "wwidwithextension",
 				Model:             "model",
 				Serial:            "serial",
 				Vendor:            "vendor",
@@ -196,6 +201,7 @@ func TestAddHandler(t *testing.T) {
 				Minor:             2,
 				Size:              uint64(5368709120),
 				WWID:              "wwid",
+				WWIDWithExtension: "wwidwithextension",
 				Model:             "model",
 				Serial:            "serial",
 				Vendor:            "vendor",
@@ -224,6 +230,7 @@ func TestAddHandler(t *testing.T) {
 				Minor:             2,
 				Size:              uint64(5368709120),
 				WWID:              "wwid",
+				WWIDWithExtension: "wwidwithextension",
 				Model:             "model",
 				Serial:            "serial",
 				Vendor:            "vendor",
@@ -252,6 +259,7 @@ func TestAddHandler(t *testing.T) {
 				Minor:             2,
 				Size:              uint64(5368709120),
 				WWID:              "wwid",
+				WWIDWithExtension: "wwidwithextension",
 				Model:             "model",
 				Serial:            "serial",
 				Vendor:            "vendor",
@@ -281,7 +289,7 @@ func TestAddHandler(t *testing.T) {
 	ctx := context.TODO()
 	handler := createDriveEventHandler()
 	for i, testCase := range testCases {
-		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset().DirectV1beta4().DirectCSIDrives())
+		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset().DirectV1beta5().DirectCSIDrives())
 
 		if err := handler.Add(ctx, testCase.device); err != nil {
 			t.Fatalf("case %d could not create drive: %v", i, err)
@@ -314,6 +322,9 @@ func TestAddHandler(t *testing.T) {
 		}
 		if drive.Status.WWID != testCase.device.WWID {
 			t.Fatalf("case %d unexpected drive drive.Status.WWID. expected %v but got %v", i, testCase.device.WWID, drive.Status.WWID)
+		}
+		if drive.Status.WWIDWithExtension != testCase.device.WWIDWithExtension {
+			t.Fatalf("case %d unexpected drive drive.Status.WWIDWithExtension. expected %v but got %v", i, testCase.device.WWIDWithExtension, drive.Status.WWIDWithExtension)
 		}
 		if drive.Status.ModelNumber != testCase.device.Model {
 			t.Fatalf("case %d unexpected drive drive.Status.ModelNumber. expected %v but got %v", i, testCase.device.Model, drive.Status.ModelNumber)
@@ -412,6 +423,7 @@ func TestUpdateHandler(t *testing.T) {
 				Minor:             1,
 				Size:              uint64(512000),
 				WWID:              "ABCD000000001234567",
+				WWIDWithExtension: "ABCD000000001234567-ext",
 				Model:             "QEMU",
 				Serial:            "1A2B3C4D",
 				Vendor:            "KVM",
@@ -467,6 +479,7 @@ func TestUpdateHandler(t *testing.T) {
 					UeventSerial:      "12345ABCD678",
 					UeventFSUUID:      "d79dff9e-2884-46f2-8919-dada2eecb12d",
 					WWID:              "ABCD000000001234567",
+					WWIDWithExtension: "ABCD000000001234567-ext",
 					Vendor:            "KVM",
 					DMName:            "vg0-lv0",
 					DMUUID:            "0361196e-e683-46cf-9f38-711ee498af05",
@@ -524,6 +537,7 @@ func TestUpdateHandler(t *testing.T) {
 				Minor:             1,
 				Size:              uint64(512000),
 				WWID:              "ABCD000000001234567",
+				WWIDWithExtension: "ABCD000000001234567-ext",
 				Model:             "QEMU",
 				Serial:            "1A2B3C4D",
 				Vendor:            "KVM",
@@ -626,6 +640,7 @@ func TestUpdateHandler(t *testing.T) {
 				Minor:             1,
 				Size:              uint64(512000),
 				WWID:              "ABCD000000001234567",
+				WWIDWithExtension: "ABCD000000001234567-ext",
 				Model:             "QEMU",
 				Serial:            "1A2B3C4D",
 				Vendor:            "KVM",
@@ -725,7 +740,7 @@ func TestUpdateHandler(t *testing.T) {
 	ctx := context.TODO()
 	handler := createDriveEventHandler()
 	for i, testCase := range testCases {
-		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testCase.drive).DirectV1beta4().DirectCSIDrives())
+		client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testCase.drive).DirectV1beta5().DirectCSIDrives())
 
 		if err := handler.Update(ctx, testCase.device, testCase.drive); err != nil {
 			t.Fatalf("case %d could not create drive: %v", i, err)
@@ -750,6 +765,9 @@ func TestUpdateHandler(t *testing.T) {
 		}
 		if drive.Status.WWID != testCase.device.WWID {
 			t.Fatalf("case %d unexpected drive drive.Status.WWID. expected %v but got %v", i, testCase.device.WWID, drive.Status.WWID)
+		}
+		if drive.Status.WWIDWithExtension != testCase.device.WWIDWithExtension {
+			t.Fatalf("case %d unexpected drive drive.Status.WWIDWithExtension. expected %v but got %v", i, testCase.device.WWIDWithExtension, drive.Status.WWIDWithExtension)
 		}
 		if drive.Status.ModelNumber != testCase.device.Model {
 			t.Fatalf("case %d unexpected drive drive.Status.ModelNumber. expected %v but got %v", i, testCase.device.Model, drive.Status.ModelNumber)
@@ -886,7 +904,7 @@ func TestRemoveHandlerWithManagedDrive(t *testing.T) {
 
 	ctx := context.TODO()
 	handler := createDriveEventHandler()
-	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testDrive).DirectV1beta4().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testDrive).DirectV1beta5().DirectCSIDrives())
 
 	if err := handler.Remove(ctx, testDrive); err != nil {
 		t.Fatalf("error while handling remove: %v", err)
@@ -980,7 +998,7 @@ func TestRemoveHandlerWithNonManagedDrive(t *testing.T) {
 
 	ctx := context.TODO()
 	handler := createDriveEventHandler()
-	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testDrive).DirectV1beta4().DirectCSIDrives())
+	client.SetLatestDirectCSIDriveInterface(fakedirect.NewSimpleClientset(testDrive).DirectV1beta5().DirectCSIDrives())
 
 	if err := handler.Remove(ctx, testDrive); err != nil {
 		t.Fatalf("error while handling remove: %v", err)

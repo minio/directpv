@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/utils"
 
 	"github.com/spf13/cobra"

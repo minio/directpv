@@ -37,7 +37,6 @@ const (
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -160,13 +159,10 @@ type DirectCSIDriveStatus struct {
 	Master string `json:"master,omitempty"`
 	// +listType=atomic
 	// +optional
-	// +k8s:conversion-gen=false
 	OtherMountsInfo []OtherMountsInfo `json:"otherMountsInfo,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	PCIPath string `json:"pciPath,omitempty"`
 	// +optional
-	// +k8s:conversion-gen=false
 	SerialNumberLong string `json:"serialNumberLong,omitempty"`
 	// +patchMergeKey=type
 	// +patchStrategy=merge
@@ -301,7 +297,6 @@ type DirectCSIVolumeList struct {
 // +genclient
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 // +k8s:openapi-gen=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

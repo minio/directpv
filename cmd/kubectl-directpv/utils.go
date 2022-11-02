@@ -31,7 +31,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/ellipsis"
@@ -54,6 +54,7 @@ var (
 	globRegexp                  = regexp.MustCompile(`(^|[^\\])[\*\?\[]`)
 	errMixedSelectorUsage       = errors.New("either glob or ellipsis pattern is supported")
 	errMixedStatusSelectorUsage = fmt.Errorf("either glob or [%s] is supported", strings.Join(directcsi.SupportedStatusSelectorValues(), ", "))
+	errEmptyApplyProcessFn      = errors.New("apply and process functions can't be nil")
 )
 
 // Command defines the directpv drives sub-command
@@ -122,6 +123,11 @@ func processFilteredDrives(
 ) error {
 	var resultCh <-chan client.ListDriveResult
 	var err error
+
+	if applyFunc == nil || processFunc == nil {
+		return errEmptyApplyProcessFn
+	}
+
 	if len(idArgs) > 0 {
 		resultCh = getDrivesByIds(ctx, idArgs)
 	} else {
@@ -155,10 +161,10 @@ func processFilteredDrives(
 		ctx,
 		resultCh,
 		func(drive *directcsi.DirectCSIDrive) bool {
-			return drive.MatchGlob(
-				nodeGlobs,
-				driveGlobs,
-				statusGlobs) && matchFunc(drive)
+			if match := drive.MatchGlob(nodeGlobs, driveGlobs, statusGlobs); match {
+				return matchFunc == nil || matchFunc(drive)
+			}
+			return false
 		},
 		applyFunc,
 		processFunc,
@@ -357,6 +363,11 @@ func processFilteredVolumes(
 ) error {
 	var resultCh <-chan client.ListVolumeResult
 	var err error
+
+	if applyFunc == nil || processFunc == nil {
+		return errEmptyApplyProcessFn
+	}
+
 	if len(idArgs) > 0 {
 		resultCh = getVolumesByIds(ctx, idArgs)
 	} else {
@@ -389,11 +400,13 @@ func processFilteredVolumes(
 		ctx,
 		resultCh,
 		func(volume *directcsi.DirectCSIVolume) bool {
-			return volume.MatchNodeDrives(nodeGlobs, driveGlobs) &&
+			if match := volume.MatchNodeDrives(nodeGlobs, driveGlobs) &&
 				volume.MatchPodName(podNameGlobs) &&
 				volume.MatchPodNamespace(podNsGlobs) &&
-				volume.MatchStatus(volumeStatusList) &&
-				matchFunc(volume)
+				volume.MatchStatus(volumeStatusList); match {
+				return matchFunc == nil || matchFunc(volume)
+			}
+			return false
 		},
 		applyFunc,
 		processFunc,

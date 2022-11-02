@@ -144,22 +144,28 @@ setup_luks
 echo "$ME: ================================= Run build test ================================="
 test_build
 
-# run v1.4.6 upgrade test only on 18.04 as there was a regression caused in
-# virtual environment version upgrade
-# refer: https://github.com/actions/virtual-environments/issues/5934
-version=$(lsb_release -r | cut -f2)
-if [ "$version" = "18.04" ]; then
-    echo "$ME: ================================= Run upgrade test from v1.4.6 ================================="
-    do_upgrade_test "1.4.6"
-fi
-
-# kubernetes version 1.22+ is not supported in directpv:v2.0.9
-# skipping v2.0.9 upgrade test for v1.22+ versions
+# get the kubernetes version
 minor=$(kubectl version -o json | jq .serverVersion.minor)
 minor=$(echo "$minor" | tr -d '"')
-if [ "$minor" -lt 23 ]; then
-    echo "$ME: ================================= Run upgrade test from v2.0.9 ================================="
-    do_upgrade_test "2.0.9"
+
+# skipping upgrade test as directpv versions <= v3.1.0 doesn't support kubernetes v1.25 and above
+if [ "$minor" -lt 25 ]; then
+    # run v1.4.6 upgrade test only on 18.04 as there was a regression caused in
+    # virtual environment version upgrade
+    # refer: https://github.com/actions/virtual-environments/issues/5934
+    version=$(lsb_release -r | cut -f2)
+    if [ "$version" = "18.04" ]; then
+            echo "$ME: ================================= Run upgrade test from v1.4.6 ================================="
+            do_upgrade_test "1.4.6"
+    fi
+    # kubernetes version 1.22+ is not supported in directpv:v2.0.9
+    # skipping v2.0.9 upgrade test for v1.22+ versions
+    if [ "$minor" -lt 23 ]; then
+        echo "$ME: ================================= Run upgrade test from v2.0.9 ================================="
+        do_upgrade_test "2.0.9"
+    fi
+    echo "$ME: ================================= Run upgrade test from v3.0.4 ================================="
+    do_upgrade_test "3.0.4"
 fi
 
 # unmount all direct-csi mounts of previous installation if any.

@@ -110,13 +110,9 @@ func createDeployment(ctx context.Context, c *Config) error {
 	privileged := true
 	volumes := []corev1.Volume{
 		newHostPathVolume(volumeNameSocketDir, newDirectCSIPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", c.deploymentName()))),
-		newSecretVolume(conversionCACert, conversionCACert),
-		newSecretVolume(conversionKeyPair, conversionKeyPair),
 	}
 	directCSIVolumeMounts := []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, "/csi", corev1.MountPropagationNone, false),
-		newVolumeMount(conversionCACert, conversionCADir, corev1.MountPropagationNone, false),
-		newVolumeMount(conversionKeyPair, conversionCertsDir, corev1.MountPropagationNone, false),
 	}
 
 	if c.AdmissionControl {
@@ -175,7 +171,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 					fmt.Sprintf("-v=%d", logLevel),
 					fmt.Sprintf("--identity=%s", c.deploymentName()),
 					fmt.Sprintf("--endpoint=$(%s)", endpointEnvVarCSI),
-					fmt.Sprintf("--conversion-healthz-url=%s", c.conversionHealthzURL()),
+					fmt.Sprintf("--readiness-port=%d", readinessPort),
 					"--controller",
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -188,18 +184,18 @@ func createDeployment(ctx context.Context, c *Config) error {
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
+						ContainerPort: readinessPort,
+						Name:          readinessPortName,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
 						ContainerPort: 9898,
 						Name:          "healthz",
 						Protocol:      corev1.ProtocolTCP,
 					},
-					{
-						ContainerPort: conversionWebhookPort,
-						Name:          conversionWebhookPortName,
-						Protocol:      corev1.ProtocolTCP,
-					},
 				},
 				ReadinessProbe: &corev1.Probe{
-					ProbeHandler: getConversionHealthzHandler(),
+					ProbeHandler: getReadinessHandler(),
 				},
 				Env: []corev1.EnvVar{
 					{
@@ -258,7 +254,6 @@ func createDeployment(ctx context.Context, c *Config) error {
 					},
 					Labels: map[string]string{
 						directCSISelector: generatedSelectorValue,
-						webhookSelector:   selectorValueEnabled,
 					},
 				},
 				Spec: podSpec,

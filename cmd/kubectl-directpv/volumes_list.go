@@ -21,7 +21,8 @@ import (
 	"os"
 	"strings"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
 
@@ -31,6 +32,11 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
+)
+
+var (
+	lostOnly bool
+	showPVC  bool
 )
 
 var listVolumesCmd = &cobra.Command{
@@ -57,6 +63,15 @@ $ kubectl {{ . }} volumes ls --status=published --pod-namespace=tenant-{1...3}
 # List all volumes provisioned based on drive and volume ellipses
 $ kubectl {{ . }} volumes ls --drives '/dev/xvd{a...d} --nodes 'node-{1...4}''
 
+# List all volumes and its PVC names
+$ kubectl {{ . }} volumes ls --all --pvc
+
+# List all the "lost" volumes
+$ kubectl {{ . }} volumes ls --lost
+
+# List all the "lost" volumes with their PVC names
+$ kubectl {{ . }} volumes ls --lost --pvc
+
 `),
 	RunE: func(c *cobra.Command, args []string) error {
 		if err := validateVolumeSelectors(); err != nil {
@@ -78,6 +93,8 @@ func init() {
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&volumeStatus, "status", "s", volumeStatus, "match based on volume status. The possible values are [staged,published]")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNames, "pod-name", "", podNames, "filter by pod name(s) (also accepts ellipses range notations)")
 	listVolumesCmd.PersistentFlags().StringSliceVarP(&podNss, "pod-namespace", "", podNss, "filter by pod namespace(s) (also accepts ellipses range notations)")
+	listVolumesCmd.PersistentFlags().BoolVarP(&lostOnly, "lost", "", lostOnly, "show lost volumes only")
+	listVolumesCmd.PersistentFlags().BoolVarP(&showPVC, "pvc", "", showPVC, "show pvc names of the corresponding volumes")
 	listVolumesCmd.PersistentFlags().BoolVarP(&all, "all", "a", all, "list all volumes (including non-provisioned)")
 }
 
@@ -85,6 +102,14 @@ func listVolumes(ctx context.Context, args []string) error {
 	volumeList, err := getFilteredVolumeList(
 		ctx,
 		func(volume directcsi.DirectCSIVolume) bool {
+			if lostOnly {
+				return utils.IsCondition(volume.Status.Conditions,
+					string(directcsi.DirectCSIVolumeConditionReady),
+					metav1.ConditionFalse,
+					string(directcsi.DirectCSIVolumeReasonDriveLost),
+					string(directcsi.DirectCSIVolumeMessageDriveLost),
+				)
+			}
 			return all || utils.IsConditionStatus(volume.Status.Conditions, string(directcsi.DirectCSIVolumeConditionReady), metav1.ConditionTrue)
 		},
 	)
@@ -118,6 +143,9 @@ func listVolumes(ctx context.Context, args []string) error {
 	}
 	if wide {
 		headers = append(headers, "DRIVENAME")
+	}
+	if showPVC {
+		headers = append(headers, "PVC")
 	}
 
 	text.DisableColors()
@@ -160,6 +188,9 @@ func listVolumes(ctx context.Context, args []string) error {
 		if wide {
 			row = append(row, getLabelValue(&volume, string(utils.DriveLabelKey)))
 		}
+		if showPVC {
+			row = append(row, getPVCName(ctx, volume))
+		}
 		t.AppendRow(row)
 	}
 	t.SortBy(
@@ -172,4 +203,12 @@ func listVolumes(ctx context.Context, args []string) error {
 
 	t.Render()
 	return nil
+}
+
+func getPVCName(ctx context.Context, volume directcsi.DirectCSIVolume) string {
+	pv, err := client.GetKubeClient().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
+	if err == nil && pv != nil && pv.Spec.ClaimRef != nil {
+		return pv.Spec.ClaimRef.Name
+	}
+	return "-"
 }

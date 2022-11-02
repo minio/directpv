@@ -25,6 +25,7 @@ type defaultInstaller struct {
 }
 
 func newDefaultInstaller(config *Config) *defaultInstaller {
+	config.enablePodSecurityAdmission = true
 	return &defaultInstaller{
 		Config: config,
 	}
@@ -37,14 +38,6 @@ func (v *defaultInstaller) installNS(ctx context.Context) error {
 
 func (v *defaultInstaller) installRBAC(ctx context.Context) error {
 	return installRBACDefault(ctx, v.Config)
-}
-
-func (v *defaultInstaller) installPSP(ctx context.Context) error {
-	return installPSPDefault(ctx, v.Config)
-}
-
-func (v *defaultInstaller) installConversionSecret(ctx context.Context) error {
-	return installConversionSecretDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installCRD(ctx context.Context) error {
@@ -84,10 +77,6 @@ func (v *defaultInstaller) uninstallRBAC(ctx context.Context) error {
 	return uninstallRBACDefault(ctx, v.Config)
 }
 
-func (v *defaultInstaller) uninstallPSP(ctx context.Context) error {
-	return uninstallPSPDefault(ctx, v.Config)
-}
-
 func (v *defaultInstaller) uninstallConversionSecret(ctx context.Context) error {
 	return uninstallConversionSecretDefault(ctx, v.Config)
 }
@@ -125,12 +114,6 @@ func (v *defaultInstaller) Install(ctx context.Context) error {
 		return err
 	}
 	if err := v.installRBAC(ctx); err != nil {
-		return err
-	}
-	if err := v.installPSP(ctx); err != nil {
-		return err
-	}
-	if err := v.installConversionSecret(ctx); err != nil {
 		return err
 	}
 	if err := v.installCRD(ctx); err != nil {
@@ -177,9 +160,6 @@ func (v *defaultInstaller) Uninstall(ctx context.Context) error {
 		return err
 	}
 	if err := v.uninstallConversionSecret(ctx); err != nil {
-		return err
-	}
-	if err := v.uninstallPSP(ctx); err != nil {
 		return err
 	}
 	if err := v.uninstallRBAC(ctx); err != nil {

@@ -28,8 +28,18 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const (
+	enforceLevelLabel = "pod-security.kubernetes.io/enforce"
+	levelPrivileged   = "privileged"
+)
+
 func installNSDefault(ctx context.Context, i *Config) error {
 	name := i.identity()
+	annotations := defaultAnnotations
+	if i.enablePodSecurityAdmission {
+		// Policy violations will cause the pods to be rejected
+		annotations[enforceLevelLabel] = levelPrivileged
+	}
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Namespace"},
 		ObjectMeta: metav1.ObjectMeta{

@@ -27,7 +27,7 @@ import (
 	"syscall"
 	"time"
 
-	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta4"
+	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/utils"
@@ -239,25 +239,26 @@ func (l *listener) handle(ctx context.Context, dEvent *deviceEvent) error {
 	}
 
 	device := &sys.Device{
-		Name:         filepath.Base(dEvent.devPath),
-		Major:        dEvent.major,
-		Minor:        dEvent.minor,
-		Virtual:      strings.Contains(dEvent.devPath, "/virtual/"),
-		Partition:    dEvent.udevData.Partition,
-		WWID:         dEvent.udevData.WWID,
-		Model:        dEvent.udevData.Model,
-		UeventSerial: dEvent.udevData.UeventSerial,
-		Vendor:       dEvent.udevData.Vendor,
-		DMName:       dEvent.udevData.DMName,
-		DMUUID:       dEvent.udevData.DMUUID,
-		MDUUID:       dEvent.udevData.MDUUID,
-		PTUUID:       dEvent.udevData.PTUUID,
-		PTType:       dEvent.udevData.PTType,
-		PartUUID:     dEvent.udevData.PartUUID,
-		UeventFSUUID: dEvent.udevData.UeventFSUUID,
-		FSType:       dEvent.udevData.FSType,
-		PCIPath:      dEvent.udevData.PCIPath,
-		SerialLong:   dEvent.udevData.UeventSerialLong,
+		Name:              filepath.Base(dEvent.devPath),
+		Major:             dEvent.major,
+		Minor:             dEvent.minor,
+		Virtual:           strings.Contains(dEvent.devPath, "/virtual/"),
+		Partition:         dEvent.udevData.Partition,
+		WWID:              dEvent.udevData.WWID,
+		WWIDWithExtension: dEvent.udevData.WWIDWithExtension,
+		Model:             dEvent.udevData.Model,
+		UeventSerial:      dEvent.udevData.UeventSerial,
+		Vendor:            dEvent.udevData.Vendor,
+		DMName:            dEvent.udevData.DMName,
+		DMUUID:            dEvent.udevData.DMUUID,
+		MDUUID:            dEvent.udevData.MDUUID,
+		PTUUID:            dEvent.udevData.PTUUID,
+		PTType:            dEvent.udevData.PTType,
+		PartUUID:          dEvent.udevData.PartUUID,
+		UeventFSUUID:      dEvent.udevData.UeventFSUUID,
+		FSType:            dEvent.udevData.FSType,
+		PCIPath:           dEvent.udevData.PCIPath,
+		SerialLong:        dEvent.udevData.UeventSerialLong,
 	}
 
 	if dEvent.action != Remove {
@@ -468,6 +469,15 @@ func (dEvent *deviceEvent) fillMissingUdevData(runUdevData *sys.UDevData) error 
 			return errValueMismatch(dEvent.devPath, "WWID", dEvent.udevData.WWID, runUdevData.WWID)
 		}
 	}
+
+	if runUdevData.WWIDWithExtension != "" {
+		if dEvent.udevData.WWIDWithExtension == "" {
+			dEvent.udevData.WWIDWithExtension = runUdevData.WWIDWithExtension
+		} else if dEvent.udevData.WWIDWithExtension != runUdevData.WWIDWithExtension {
+			return errValueMismatch(dEvent.devPath, "WWIDWithExtension", dEvent.udevData.WWIDWithExtension, runUdevData.WWIDWithExtension)
+		}
+	}
+
 	if runUdevData.Model != "" {
 		if dEvent.udevData.Model == "" {
 			dEvent.udevData.Model = runUdevData.Model
