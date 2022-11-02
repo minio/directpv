@@ -23,13 +23,18 @@ import (
 	"path"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+var (
+	bold       = color.New(color.Bold).SprintFunc()
+	seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	tick       = color.HiGreenString("\u2713")
+)
 
 func stringWithCharset(length int, charset string) string {
 	b := make([]byte, length)
@@ -159,24 +164,23 @@ func createOrUpdateSecret(ctx context.Context, secretName string, data map[strin
 		Data: data,
 	}
 
-	if c.DryRun {
-		return c.postProc(secret)
-	}
+	if !c.DryRun {
+		existingSecret, err := secretsClient.Get(ctx, secret.Name, metav1.GetOptions{})
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+			if _, err := secretsClient.Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+				return err
+			}
+			return c.postProc(secret, "installed '%s' secret %s", bold(secretName), tick)
+		}
 
-	existingSecret, err := secretsClient.Get(ctx, secret.Name, metav1.GetOptions{})
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
+		existingSecret.Data = secret.Data
+		if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
-		if _, err := secretsClient.Create(ctx, secret, metav1.CreateOptions{}); err != nil {
-			return err
-		}
-		return nil
+		return c.postProc(existingSecret, "updated '%s' secret %s", bold(secretName), tick)
 	}
-
-	existingSecret.Data = secret.Data
-	if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
-		return err
-	}
-	return nil
+	return c.postProc(secret, "")
 }

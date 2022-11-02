@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fatih/color"
 	"sigs.k8s.io/yaml"
 )
 
@@ -126,4 +127,22 @@ func (set StringSet) ToSlice() (values []string) {
 		values = append(values, value)
 	}
 	return
+}
+
+// Eprintf prints the message to the stdout and stderr based on inputs
+func Eprintf(quiet, asErr bool, format string, a ...any) {
+	if quiet {
+		return
+	}
+	if asErr {
+		fmt.Fprintf(os.Stderr, "%v ", color.RedString("ERROR"))
+	}
+	fmt.Fprintf(os.Stderr, format, a...)
+}
+
+func Log(quiet bool, format string, a ...any) {
+	if quiet {
+		return
+	}
+	fmt.Fprintf(os.Stdout, format+"\n", a...)
 }

@@ -53,7 +53,7 @@ func uninstallDaemonsetDefault(ctx context.Context, c *Config) error {
 	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, nodeAPIServerCASecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	return nil
+	return c.postProc(nil, "uninstalled '%s' daemonset %s", bold(c.daemonsetName()), tick)
 }
 
 func createDaemonSet(ctx context.Context, c *Config) error {
@@ -251,16 +251,14 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		Status: appsv1.DaemonSetStatus{},
 	}
 
-	if c.DryRun {
-		return c.postProc(daemonset)
-	}
-
-	if _, err := k8s.KubeClient().AppsV1().DaemonSets(c.namespace()).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
+	if !c.DryRun {
+		if _, err := k8s.KubeClient().AppsV1().DaemonSets(c.namespace()).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 	}
-	return c.postProc(daemonset)
+	return c.postProc(daemonset, "installed '%s' daemonset %s", bold(daemonset.Name), tick)
 }
 
 func generateCertSecretsForNodeAPIServer(ctx context.Context, c *Config) error {

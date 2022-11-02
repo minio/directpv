@@ -57,7 +57,7 @@ func uninstallAdminServerDeploymentDefault(ctx context.Context, c *Config) error
 	if err := k8s.KubeClient().CoreV1().Services(c.namespace()).Delete(ctx, adminServerSVC, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	return nil
+	return c.postProc(nil, "uninstalled '%s' deployment %s", bold(c.adminServerDeploymentName()), tick)
 }
 
 func installAdminServerService(ctx context.Context, c *Config) error {
@@ -98,7 +98,7 @@ func createAdminServerService(ctx context.Context, c *Config) error {
 		}
 	}
 
-	return c.postProc(svc)
+	return c.postProc(svc, "installed '%s' service %s", bold(svc.Name), tick)
 }
 
 func createAdminServerDeployment(ctx context.Context, c *Config) error {
@@ -189,7 +189,7 @@ func createAdminServerDeployment(ctx context.Context, c *Config) error {
 		}
 	}
 
-	return c.postProc(deployment)
+	return c.postProc(deployment, "installed '%s' deployment %s", bold(deployment.Name), tick)
 }
 
 func generateCertSecretsForAdminServer(ctx context.Context, c *Config) error {

@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
@@ -84,11 +85,14 @@ type Config struct {
 
 	Credential *admin.Credential
 
+	// NodePort SVC setting for admin server
+	DisableAdminService bool
+
 	// Internal
 	enablePodSecurityAdmission bool
 
-	// NodePort SVC setting for admin server
-	DisableAdminService bool
+	// Discard any messages to be printed on the stdout
+	Quiet bool
 }
 
 type installer interface {
@@ -182,18 +186,23 @@ func (c *Config) getImagePullSecrets() []corev1.LocalObjectReference {
 	return localObjectReferences
 }
 
-func (c *Config) postProc(obj interface{}) error {
-	if c.DryRun {
-		yamlString, err := utils.ToYAML(obj)
-		if err != nil {
-			return err
+func (c *Config) postProc(obj interface{}, errFormat string, errArgs ...any) error {
+	if obj != nil {
+		if c.DryRun {
+			yamlString, err := utils.ToYAML(obj)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s\n---\n", yamlString)
 		}
-		fmt.Printf("%s\n---\n", yamlString)
+		if c.AuditFile != nil {
+			if err := utils.WriteObject(c.AuditFile, obj); err != nil {
+				return err
+			}
+		}
 	}
-	if c.AuditFile != nil {
-		if err := utils.WriteObject(c.AuditFile, obj); err != nil {
-			return err
-		}
+	if !c.DryRun && !c.Quiet {
+		fmt.Fprintf(os.Stdout, errFormat+"\n", errArgs...)
 	}
 	return nil
 }

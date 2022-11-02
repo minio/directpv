@@ -60,13 +60,13 @@ $ kubectl {PLUGIN_NAME} set drives --node=node{1...4} --drive-name=sd{a...f} --a
 		driveIDArgs = args
 
 		if err := validateSetDrivesCmd(); err != nil {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
 		accessTiers, err := directpvtypes.StringsToAccessTiers(accessTierArg)
 		if err != nil {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -142,14 +142,14 @@ func setDrivesMain(ctx context.Context, accessTier directpvtypes.AccessTier) {
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			eprintf(quietFlag, true, "%v\n", result.Err)
+			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
 			os.Exit(1)
 		}
 
 		processed = true
 		switch {
 		case result.Drive.GetAccessTier() == accessTier:
-			eprintf(quietFlag, false, "%v/%v already set\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+			utils.Eprintf(quietFlag, false, "%v/%v already set\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 		default:
 			result.Drive.SetAccessTier(accessTier)
 			var err error
@@ -157,7 +157,7 @@ func setDrivesMain(ctx context.Context, accessTier directpvtypes.AccessTier) {
 				_, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
 			}
 			if err != nil {
-				eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
+				utils.Eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
 			} else if !quietFlag {
 				fmt.Printf("Processed %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 			}
@@ -166,9 +166,9 @@ func setDrivesMain(ctx context.Context, accessTier directpvtypes.AccessTier) {
 
 	if !processed {
 		if allFlag {
-			eprintf(quietFlag, false, "No resources found\n")
+			utils.Eprintf(quietFlag, false, "No resources found\n")
 		} else {
-			eprintf(quietFlag, false, "No matching resources found\n")
+			utils.Eprintf(quietFlag, false, "No matching resources found\n")
 		}
 
 		os.Exit(1)

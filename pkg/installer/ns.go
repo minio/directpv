@@ -27,7 +27,7 @@ import (
 )
 
 func installNSDefault(ctx context.Context, i *Config) error {
-	name := i.identity()
+	name := i.namespace()
 	annotations := defaultAnnotations
 	if i.enablePodSecurityAdmission {
 		// Policy violations will cause the pods to be rejected
@@ -44,23 +44,21 @@ func installNSDefault(ctx context.Context, i *Config) error {
 		},
 	}
 
-	if i.DryRun {
-		return i.postProc(ns)
+	if !i.DryRun {
+		if _, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
+		}
 	}
 
-	if _, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-
-	return i.postProc(ns)
+	return i.postProc(ns, "installed '%s' namespace %s", bold(name), tick)
 }
 
 func uninstallNSDefault(ctx context.Context, i *Config) error {
 	foregroundDeletePropagation := metav1.DeletePropagationForeground
-	if err := k8s.KubeClient().CoreV1().Namespaces().Delete(ctx, i.identity(), metav1.DeleteOptions{
+	if err := k8s.KubeClient().CoreV1().Namespaces().Delete(ctx, i.namespace(), metav1.DeleteOptions{
 		PropagationPolicy: &foregroundDeletePropagation,
 	}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	return nil
+	return i.postProc(nil, "uninstalled '%s' namespace %s", bold(i.namespace()), tick)
 }

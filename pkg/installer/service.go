@@ -38,7 +38,7 @@ func uninstallServiceDefault(ctx context.Context, c *Config) error {
 	if err := k8s.KubeClient().CoreV1().Services(c.namespace()).Delete(ctx, consts.NodeAPIServerHLSVC, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	return nil
+	return c.postProc(nil, "uninstalled '%s' service %s", bold(consts.NodeAPIServerHLSVC), tick)
 }
 
 func createNodeAPIService(ctx context.Context, c *Config) error {
@@ -67,12 +67,11 @@ func createNodeAPIService(ctx context.Context, c *Config) error {
 		},
 	}
 
-	if c.DryRun {
-		return c.postProc(svc)
+	if !c.DryRun {
+		if _, err := k8s.KubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+			return err
+		}
 	}
 
-	if _, err := k8s.KubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
-		return err
-	}
-	return c.postProc(svc)
+	return c.postProc(svc, "installed '%s' service %s", bold(svc.Name), tick)
 }

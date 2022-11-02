@@ -27,6 +27,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func installRBACDefault(ctx context.Context, c *Config) error {
+	if err := createServiceAccount(ctx, c); err != nil {
+		return err
+	}
+	if err := createClusterRole(ctx, c); err != nil {
+		return err
+	}
+	return createClusterRoleBinding(ctx, c)
+}
+
+func uninstallRBACDefault(ctx context.Context, c *Config) error {
+	if err := k8s.KubeClient().CoreV1().ServiceAccounts(c.namespace()).Delete(ctx, c.serviceAccountName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := k8s.KubeClient().RbacV1().ClusterRoles().Delete(ctx, c.clusterRoleName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, c.roleBindingName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return c.postProc(nil, "uninstalled '%s' serviceaccount, '%s' clusterrole, '%s' rolebinding %s", bold(c.serviceAccountName()), bold(c.clusterRoleName()), bold(c.roleBindingName()), tick)
+}
+
 func createServiceAccount(ctx context.Context, c *Config) error {
 	serviceAccount := &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
@@ -43,18 +66,14 @@ func createServiceAccount(ctx context.Context, c *Config) error {
 		ImagePullSecrets:             []corev1.LocalObjectReference{},
 		AutomountServiceAccountToken: nil,
 	}
-
-	if c.DryRun {
-		return c.postProc(serviceAccount)
-	}
-
-	if _, err := k8s.KubeClient().CoreV1().ServiceAccounts(c.namespace()).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
+	if !c.DryRun {
+		if _, err := k8s.KubeClient().CoreV1().ServiceAccounts(c.namespace()).Create(ctx, serviceAccount, metav1.CreateOptions{}); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 	}
-
-	return c.postProc(serviceAccount)
+	return c.postProc(serviceAccount, "installed '%s' service account %s", bold(c.serviceAccountName()), tick)
 }
 
 func createClusterRoleBinding(ctx context.Context, c *Config) error {
@@ -82,19 +101,15 @@ func createClusterRoleBinding(ctx context.Context, c *Config) error {
 			Name:     c.clusterRoleName(),
 		},
 	}
-
 	clusterRoleBinding.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
-	if c.DryRun {
-		return c.postProc(clusterRoleBinding)
-	}
-
-	if _, err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
+	if !c.DryRun {
+		if _, err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, clusterRoleBinding, metav1.CreateOptions{}); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 	}
-
-	return c.postProc(clusterRoleBinding)
+	return c.postProc(clusterRoleBinding, "installed '%s' clusterrolebinding %s", bold(c.roleBindingName()), tick)
 }
 
 func createClusterRole(ctx context.Context, c *Config) error {
@@ -329,41 +344,13 @@ func createClusterRole(ctx context.Context, c *Config) error {
 		},
 		AggregationRule: nil,
 	}
-
 	clusterRole.Annotations["rbac.authorization.kubernetes.io/autoupdate"] = "true"
-
-	if c.DryRun {
-		return c.postProc(clusterRole)
-	}
-
-	if _, err := k8s.KubeClient().RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
-			return err
+	if !c.DryRun {
+		if _, err := k8s.KubeClient().RbacV1().ClusterRoles().Create(ctx, clusterRole, metav1.CreateOptions{}); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 	}
-
-	return c.postProc(clusterRole)
-}
-
-func installRBACDefault(ctx context.Context, c *Config) error {
-	if err := createServiceAccount(ctx, c); err != nil {
-		return err
-	}
-	if err := createClusterRole(ctx, c); err != nil {
-		return err
-	}
-	return createClusterRoleBinding(ctx, c)
-}
-
-func uninstallRBACDefault(ctx context.Context, c *Config) error {
-	if err := k8s.KubeClient().CoreV1().ServiceAccounts(c.namespace()).Delete(ctx, c.serviceAccountName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	if err := k8s.KubeClient().RbacV1().ClusterRoles().Delete(ctx, c.clusterRoleName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	if err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, c.roleBindingName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	return nil
+	return c.postProc(clusterRole, "installed '%s' clusterrole %s", bold(c.clusterRoleName()), tick)
 }

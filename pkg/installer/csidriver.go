@@ -29,6 +29,20 @@ import (
 
 var errCSIDriverVersionUnsupported = errors.New("unsupported CSIDriver version found")
 
+func installCSIDriverDefault(ctx context.Context, c *Config) error {
+	if err := createCSIDriver(ctx, c); err != nil && !apierrors.IsAlreadyExists(err) {
+		return err
+	}
+	return nil
+}
+
+func uninstallCSIDriverDefault(ctx context.Context, c *Config) error {
+	if err := deleteCSIDriver(ctx, c); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
 func createCSIDriver(ctx context.Context, c *Config) error {
 	podInfoOnMount := true
 	attachRequired := false
@@ -62,16 +76,13 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 			},
 		}
 
-		if c.DryRun {
-			return c.postProc(csiDriver)
+		if !c.DryRun {
+			// Create CSIDriver Obj
+			if _, err := k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
+				return err
+			}
 		}
-
-		// Create CSIDriver Obj
-		if _, err := k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
-			return err
-		}
-
-		return c.postProc(csiDriver)
+		return c.postProc(csiDriver, "installed '%s' CSI Driver %s", bold(c.csiDriverName()), tick)
 
 	case "v1beta1":
 		csiDriver := &storagev1beta1.CSIDriver{
@@ -95,16 +106,13 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 			},
 		}
 
-		if c.DryRun {
-			return c.postProc(csiDriver)
+		if !c.DryRun {
+			// Create CSIDriver Obj
+			if _, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
+				return err
+			}
 		}
-
-		// Create CSIDriver Obj
-		if _, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
-			return err
-		}
-
-		return c.postProc(csiDriver)
+		return c.postProc(csiDriver, "installed '%s' CSI Driver %s", bold(c.csiDriverName()), tick)
 
 	default:
 		return errCSIDriverVersionUnsupported
@@ -131,19 +139,5 @@ func deleteCSIDriver(ctx context.Context, c *Config) error {
 	default:
 		return errCSIDriverVersionUnsupported
 	}
-	return nil
-}
-
-func installCSIDriverDefault(ctx context.Context, c *Config) error {
-	if err := createCSIDriver(ctx, c); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-	return nil
-}
-
-func uninstallCSIDriverDefault(ctx context.Context, c *Config) error {
-	if err := deleteCSIDriver(ctx, c); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	return nil
+	return c.postProc(nil, "uninstalled '%s' CSI Driver %s", c.csiDriverName(), tick)
 }

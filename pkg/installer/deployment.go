@@ -29,6 +29,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func installDeploymentDefault(ctx context.Context, c *Config) error {
+	return createDeployment(ctx, c)
+}
+
+func uninstallDeploymentDefault(ctx context.Context, c *Config) error {
+	if err := deleteDeployment(ctx, c.namespace(), c.deploymentName()); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return c.postProc(nil, "uninstalled '%s' deployment %s", bold(c.deploymentName()), tick)
+}
+
 func createDeployment(ctx context.Context, c *Config) error {
 	var replicas int32 = 3
 	privileged := true
@@ -143,16 +154,5 @@ func createDeployment(ctx context.Context, c *Config) error {
 		}
 	}
 
-	return c.postProc(deployment)
-}
-
-func installDeploymentDefault(ctx context.Context, c *Config) error {
-	return createDeployment(ctx, c)
-}
-
-func uninstallDeploymentDefault(ctx context.Context, c *Config) error {
-	if err := deleteDeployment(ctx, c.namespace(), c.deploymentName()); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	return nil
+	return c.postProc(deployment, "installed '%s' deployment %s", bold(deployment.Name), tick)
 }

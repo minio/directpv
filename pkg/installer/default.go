@@ -18,11 +18,8 @@ package installer
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"time"
 
-	"github.com/fatih/color"
+	"github.com/minio/directpv/pkg/utils"
 )
 
 type defaultInstaller struct {
@@ -38,286 +35,162 @@ func newDefaultInstaller(config *Config) *defaultInstaller {
 
 // installers
 func (v *defaultInstaller) installNS(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create Namespace")) },
-	)
-	defer timer.Stop()
-
 	err := installNSDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create Namespace; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create Namespace; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) installSecrets(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create Secrets")) },
-	)
-	defer timer.Stop()
-
 	err := installSecretsDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create Secrets; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create Secrets; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) installRBAC(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create RBAC")) },
-	)
-	defer timer.Stop()
-
 	err := installRBACDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create RBAC; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create RBAC; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) installCRD(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create CRDs")) },
-	)
-	defer timer.Stop()
-
 	err := installCRDDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create CRDs; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create CRDs; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) installCSIDriver(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create CSI driver")) },
-	)
-	defer timer.Stop()
-
 	err := installCSIDriverDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create CSI driver; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create CSI driver; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) installStorageClass(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create Storage class")) },
-	)
-	defer timer.Stop()
-
 	err := installStorageClassDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create Storage class; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create storage class; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) installService(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create Service")) },
-	)
-	defer timer.Stop()
-
 	err := installServiceDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create Service; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create service; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) installDaemonset(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create Daemon set")) },
-	)
-	defer timer.Stop()
-
 	err := installDaemonsetDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create Daemon set; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create daemonset; %v")
 	}
 	return err
 }
 
 func (v *defaultInstaller) installDeployment(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create Deployment")) },
-	)
-	defer timer.Stop()
-
 	err := installDeploymentDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create Deployment; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create deployment; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) installAdminServerDeployment(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() {
-			fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to create API server Deployment"))
-		},
-	)
-	defer timer.Stop()
-
 	err := installAdminServerDeploymentDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to create API server Deployment; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to create API server deployment; %v", err)
 	}
 	return err
 }
 
 // uninstallers
 func (v *defaultInstaller) uninstallNS(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete Namespace")) },
-	)
-	defer timer.Stop()
-
 	err := uninstallNSDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete Namespace; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete namespace; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) uninstallSecrets(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete Secrets")) },
-	)
-	defer timer.Stop()
-
 	err := uninstallSecretsDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete Secrets; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete secrets; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) uninstallRBAC(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete RBAC")) },
-	)
-	defer timer.Stop()
-
 	err := uninstallRBACDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete RBAC; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete RBAC; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) uninstallCRD(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete CRDs")) },
-	)
-	defer timer.Stop()
-
 	err := uninstallCRDDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete CRDs; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete CRDs; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) uninstallCSIDriver(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete CSI driver")) },
-	)
-	defer timer.Stop()
-
 	err := uninstallCSIDriverDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete CSI driver; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete CSI driver; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) uninstallStorageClass(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete Storage class")) },
-	)
-	defer timer.Stop()
-
 	err := uninstallStorageClassDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete Storage class; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete storage class; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) uninstallService(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete Service")) },
-	)
-	defer timer.Stop()
-
 	err := uninstallServiceDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete Service; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete service; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) uninstallDaemonset(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete Daemon set")) },
-	)
-	defer timer.Stop()
-
 	err := uninstallDaemonsetDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete Daemon set; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete daemonset; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) uninstallDeployment(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() { fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete Deployment")) },
-	)
-	defer timer.Stop()
-
 	err := uninstallDeploymentDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete Deployment; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete deployment; %v", err)
 	}
 	return err
 }
 
 func (v *defaultInstaller) uninstallAdminServerDeployment(ctx context.Context) error {
-	timer := time.AfterFunc(
-		3*time.Second,
-		func() {
-			fmt.Fprintln(os.Stderr, color.HiYellowString("WARNING: too long to delete API server Deployment"))
-		},
-	)
-	defer timer.Stop()
-
 	err := uninstallAdminServerDeploymentDefault(ctx, v.Config)
-	if err != nil && !v.DryRun {
-		fmt.Fprintf(os.Stderr, "%v unable to delete API server Deployment; %v", color.HiRedString("ERROR"), err)
+	if err != nil {
+		utils.Eprintf(v.Quiet, true, "unable to delete API server Deployment; %v", err)
 	}
 	return err
 }

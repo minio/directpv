@@ -33,6 +33,5 @@ func uninstallSecretsDefault(ctx context.Context, c *Config) error {
 	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, consts.CredentialsSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-
-	return nil
+	return c.postProc(nil, "uninstalled '%s' secret %s", bold(consts.CredentialsSecretName), tick)
 }
