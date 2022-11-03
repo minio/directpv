@@ -27,25 +27,25 @@ VERSIONS=(v1beta1)
 
 function install_code_generator() {
     if [ ! -x "$GOPATH/bin/deepcopy-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/deepcopy-gen@v0.24.3
+        go install -v k8s.io/code-generator/cmd/deepcopy-gen@v0.25.3
     fi
 
     if [ ! -x "$GOPATH/bin/openapi-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/openapi-gen@v0.24.3
+        go install -v k8s.io/code-generator/cmd/openapi-gen@v0.25.3
     fi
 
     if [ ! -x "$GOPATH/bin/client-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/client-gen@v0.24.3
+        go install -v k8s.io/code-generator/cmd/client-gen@v0.25.3
     fi
 
     if [ ! -x "$GOPATH/bin/conversion-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/conversion-gen@v0.24.3
+        go install -v k8s.io/code-generator/cmd/conversion-gen@v0.25.3
     fi
 }
 
 function install_controller_tools() {
     if [ ! -x "$GOPATH/bin/controller-gen" ]; then
-        go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.2
+        go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0
     fi
 }
 
