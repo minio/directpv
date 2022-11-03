@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"path"
+	"reflect"
 	"time"
 
 	"github.com/fatih/color"
@@ -175,7 +176,9 @@ func createOrUpdateSecret(ctx context.Context, secretName string, data map[strin
 			}
 			return c.postProc(secret, "installed '%s' secret %s", bold(secretName), tick)
 		}
-
+		if reflect.DeepEqual(existingSecret.Data, secret.Data) {
+			return nil
+		}
 		existingSecret.Data = secret.Data
 		if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
 			return err

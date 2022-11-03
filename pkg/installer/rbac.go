@@ -44,8 +44,11 @@ func uninstallRBACDefault(ctx context.Context, c *Config) error {
 	if err := k8s.KubeClient().RbacV1().ClusterRoles().Delete(ctx, c.clusterRoleName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	if err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, c.roleBindingName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
+	if err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Delete(ctx, c.roleBindingName(), metav1.DeleteOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		return nil
 	}
 	return c.postProc(nil, "uninstalled '%s' serviceaccount, '%s' clusterrole, '%s' rolebinding %s", bold(c.serviceAccountName()), bold(c.clusterRoleName()), bold(c.roleBindingName()), tick)
 }
@@ -71,6 +74,7 @@ func createServiceAccount(ctx context.Context, c *Config) error {
 			if !apierrors.IsAlreadyExists(err) {
 				return err
 			}
+			return nil
 		}
 	}
 	return c.postProc(serviceAccount, "installed '%s' service account %s", bold(c.serviceAccountName()), tick)
@@ -107,6 +111,7 @@ func createClusterRoleBinding(ctx context.Context, c *Config) error {
 			if !apierrors.IsAlreadyExists(err) {
 				return err
 			}
+			return nil
 		}
 	}
 	return c.postProc(clusterRoleBinding, "installed '%s' clusterrolebinding %s", bold(c.roleBindingName()), tick)
@@ -350,6 +355,7 @@ func createClusterRole(ctx context.Context, c *Config) error {
 			if !apierrors.IsAlreadyExists(err) {
 				return err
 			}
+			return nil
 		}
 	}
 	return c.postProc(clusterRole, "installed '%s' clusterrole %s", bold(c.clusterRoleName()), tick)

@@ -29,21 +29,14 @@ import (
 
 var errCSIDriverVersionUnsupported = errors.New("unsupported CSIDriver version found")
 
-func installCSIDriverDefault(ctx context.Context, c *Config) error {
-	if err := createCSIDriver(ctx, c); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-	return nil
-}
-
 func uninstallCSIDriverDefault(ctx context.Context, c *Config) error {
-	if err := deleteCSIDriver(ctx, c); err != nil && !apierrors.IsNotFound(err) {
+	if err := deleteCSIDriver(ctx, c); err != nil {
 		return err
 	}
 	return nil
 }
 
-func createCSIDriver(ctx context.Context, c *Config) error {
+func installCSIDriverDefault(ctx context.Context, c *Config) error {
 	podInfoOnMount := true
 	attachRequired := false
 
@@ -79,7 +72,10 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 		if !c.DryRun {
 			// Create CSIDriver Obj
 			if _, err := k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
-				return err
+				if !apierrors.IsAlreadyExists(err) {
+					return err
+				}
+				return nil
 			}
 		}
 		return c.postProc(csiDriver, "installed '%s' CSI Driver %s", bold(c.csiDriverName()), tick)
@@ -109,7 +105,10 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 		if !c.DryRun {
 			// Create CSIDriver Obj
 			if _, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
-				return err
+				if !apierrors.IsAlreadyExists(err) {
+					return err
+				}
+				return nil
 			}
 		}
 		return c.postProc(csiDriver, "installed '%s' CSI Driver %s", bold(c.csiDriverName()), tick)
@@ -129,12 +128,18 @@ func deleteCSIDriver(ctx context.Context, c *Config) error {
 	case "v1":
 		// Delete CSIDriver Obj
 		if err := k8s.KubeClient().StorageV1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil {
-			return err
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+			return nil
 		}
 	case "v1beta1":
 		// Delete CSIDriver Obj
 		if err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil {
-			return err
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+			return nil
 		}
 	default:
 		return errCSIDriverVersionUnsupported

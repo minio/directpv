@@ -32,20 +32,6 @@ import (
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
 
 func installStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := createStorageClass(ctx, c); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-	return nil
-}
-
-func uninstallStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := deleteStorageClass(ctx, c); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	return nil
-}
-
-func createStorageClass(ctx context.Context, c *Config) error {
 	allowExpansion := false
 	name := c.storageClassName()
 	allowTopologiesWithName := corev1.TopologySelectorTerm{
@@ -91,7 +77,10 @@ func createStorageClass(ctx context.Context, c *Config) error {
 
 		if !c.DryRun {
 			if _, err := k8s.KubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
-				return err
+				if !apierrors.IsAlreadyExists(err) {
+					return err
+				}
+				return nil
 			}
 		}
 		return c.postProc(storageClass, "installed '%s' storage class %s", bold(name), tick)
@@ -121,7 +110,10 @@ func createStorageClass(ctx context.Context, c *Config) error {
 
 		if !c.DryRun {
 			if _, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
-				return err
+				if !apierrors.IsAlreadyExists(err) {
+					return err
+				}
+				return nil
 			}
 		}
 		return c.postProc(storageClass, "installed '%s' storage class %s", bold(name), tick)
@@ -130,7 +122,7 @@ func createStorageClass(ctx context.Context, c *Config) error {
 	}
 }
 
-func deleteStorageClass(ctx context.Context, c *Config) error {
+func uninstallStorageClassDefault(ctx context.Context, c *Config) error {
 	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
@@ -139,11 +131,17 @@ func deleteStorageClass(ctx context.Context, c *Config) error {
 	switch gvk.Version {
 	case "v1":
 		if err := k8s.KubeClient().StorageV1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
-			return err
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+			return nil
 		}
 	case "v1beta1":
 		if err := k8s.KubeClient().StorageV1beta1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
-			return err
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+			return nil
 		}
 	default:
 		return errStorageClassVersionUnsupported

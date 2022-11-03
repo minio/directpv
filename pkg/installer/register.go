@@ -154,11 +154,20 @@ func registerCRDs(ctx context.Context, c *Config) error {
 }
 
 func unregisterCRDs(ctx context.Context, c *Config) error {
-	if err := k8s.CRDClient().Delete(ctx, driveCRDName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
+	if err := k8s.CRDClient().Delete(ctx, driveCRDName, metav1.DeleteOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+	} else {
+		if err := c.postProc(nil, "uninstalled '%s' CRD %s", bold(driveCRDName), tick); err != nil {
+			return err
+		}
 	}
-	if err := k8s.CRDClient().Delete(ctx, volumeCRDName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
+	if err := k8s.CRDClient().Delete(ctx, volumeCRDName, metav1.DeleteOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		return nil
 	}
-	return c.postProc(nil, "uninstalled '%s' and '%s' CRDs %s", bold(driveCRDName), bold(volumeCRDName), tick)
+	return c.postProc(nil, "uninstalled '%s' CRDs %s", bold(volumeCRDName), tick)
 }

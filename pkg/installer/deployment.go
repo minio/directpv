@@ -34,8 +34,11 @@ func installDeploymentDefault(ctx context.Context, c *Config) error {
 }
 
 func uninstallDeploymentDefault(ctx context.Context, c *Config) error {
-	if err := deleteDeployment(ctx, c.namespace(), c.deploymentName()); err != nil && !apierrors.IsNotFound(err) {
-		return err
+	if err := deleteDeployment(ctx, c.namespace(), c.deploymentName()); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		return nil
 	}
 	return c.postProc(nil, "uninstalled '%s' deployment %s", bold(c.deploymentName()), tick)
 }
@@ -151,6 +154,7 @@ func createDeployment(ctx context.Context, c *Config) error {
 			if !apierrors.IsAlreadyExists(err) {
 				return err
 			}
+			return nil
 		}
 	}
 

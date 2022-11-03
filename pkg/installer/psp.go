@@ -59,6 +59,7 @@ func uninstallPSPDefault(ctx context.Context, i *Config) error {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}
+		return nil
 	}
 	return i.postProc(nil, "uninstalled '%s' clusterrolebinding, '%s' podsecuritypolicy %s", bold(i.getPSPClusterRoleBindingName()), bold(i.getPSPName()), tick)
 }
@@ -105,8 +106,11 @@ func createPodSecurityPolicy(ctx context.Context, i *Config) error {
 	}
 
 	if !i.DryRun {
-		if _, err := k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Create(ctx, pspObj, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-			return err
+		if _, err := k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Create(ctx, pspObj, metav1.CreateOptions{}); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return err
+			}
+			return nil
 		}
 	}
 
@@ -140,8 +144,11 @@ func createPSPClusterRoleBinding(ctx context.Context, i *Config) error {
 	}
 
 	if !i.DryRun {
-		if _, err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-			return err
+		if _, err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{}); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return err
+			}
+			return nil
 		}
 	}
 

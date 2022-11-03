@@ -45,8 +45,11 @@ func installNSDefault(ctx context.Context, i *Config) error {
 	}
 
 	if !i.DryRun {
-		if _, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-			return err
+		if _, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
+			if !apierrors.IsAlreadyExists(err) {
+				return err
+			}
+			return nil
 		}
 	}
 
@@ -57,8 +60,11 @@ func uninstallNSDefault(ctx context.Context, i *Config) error {
 	foregroundDeletePropagation := metav1.DeletePropagationForeground
 	if err := k8s.KubeClient().CoreV1().Namespaces().Delete(ctx, i.namespace(), metav1.DeleteOptions{
 		PropagationPolicy: &foregroundDeletePropagation,
-	}); err != nil && !apierrors.IsNotFound(err) {
-		return err
+	}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		return nil
 	}
 	return i.postProc(nil, "uninstalled '%s' namespace %s", bold(i.namespace()), tick)
 }

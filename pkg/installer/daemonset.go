@@ -50,8 +50,11 @@ func uninstallDaemonsetDefault(ctx context.Context, c *Config) error {
 	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, nodeAPIServerCertsSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, nodeAPIServerCASecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
+	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, nodeAPIServerCASecretName, metav1.DeleteOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		return nil
 	}
 	return c.postProc(nil, "uninstalled '%s' daemonset %s", bold(c.daemonsetName()), tick)
 }
@@ -256,6 +259,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			if !apierrors.IsAlreadyExists(err) {
 				return err
 			}
+			return nil
 		}
 	}
 	return c.postProc(daemonset, "installed '%s' daemonset %s", bold(daemonset.Name), tick)
