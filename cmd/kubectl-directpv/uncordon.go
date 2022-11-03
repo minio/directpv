@@ -34,23 +34,23 @@ var uncordonCmd = &cobra.Command{
 	Use:   "uncordon [DRIVE ...]",
 	Short: "Uncordon drives.",
 	Example: strings.ReplaceAll(
-		`# Uncordon all the drives from all the nodes
+		`# Uncordon all drives from all nodes
 $ kubectl {PLUGIN_NAME} uncordon --all
 
-# Uncordon all the drives from a particular node
+# Uncordon all drives from a node
 $ kubectl {PLUGIN_NAME} uncordon --node=node1
 
-# Uncordon specific drives from specified nodes
-$ kubectl {PLUGIN_NAME} uncordon --node=node1,node2 --drive=nvme0n1
+# Uncordon drives from all nodes
+$ kubectl {PLUGIN_NAME} uncordon --drive-name=sda
 
-# Uncordon specific drives from all the nodes filtered by drive ellipsis
-$ kubectl {PLUGIN_NAME} uncordon --drive=sd{a...b}
+# Uncordon specific drives from specific nodes
+$ kubectl {PLUGIN_NAME} uncordon --node=node{1...4} --drive-name=sd{a...f}
 
-# Uncordon all the drives from specific nodes filtered by node ellipsis
-$ kubectl {PLUGIN_NAME} uncordon --node=node{0...3}
+# Uncordon drives are in 'warm' access-tier
+$ kubectl {PLUGIN_NAME} uncordon --access-tier=warm
 
-# Uncordon specific drives from specific nodes filtered by the combination of node and drive ellipsis
-$ kubectl {PLUGIN_NAME} uncordon --drive xvd{a...d} --node node{1...4}`,
+# Uncordon drives are in 'error' status
+$ kubectl {PLUGIN_NAME} uncordon --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),

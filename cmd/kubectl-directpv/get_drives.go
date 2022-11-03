@@ -36,23 +36,26 @@ var getDrivesCmd = &cobra.Command{
 	Aliases: []string{"drive", "dr"},
 	Short:   "Get drives.",
 	Example: strings.ReplaceAll(
-		`# Get all drives
+		`# Get all ready drives
 $ kubectl {PLUGIN_NAME} get drives
 
-# Get all drives from a particular node
+# Get all drives from all nodes with all information.
+$ kubectl {PLUGIN_NAME} get drives --all --output wide
+
+# Get all drives from a node
 $ kubectl {PLUGIN_NAME} get drives --node=node1
 
-# Get specified drives from specified nodes
-$ kubectl {PLUGIN_NAME} get drives --node=node1,node2 --drive=nvme0n1
+# Get drives from all nodes
+$ kubectl {PLUGIN_NAME} get drives --drive-name=sda
 
-# Get all drives filtered by specified drive ellipsis
-$ kubectl {PLUGIN_NAME} get drives --drive=sd{a...b}
+# Get specific drives from specific nodes
+$ kubectl {PLUGIN_NAME} get drives --node=node{1...4} --drive-name=sd{a...f}
 
-# Get all drives filtered by specified node ellipsis
-$ kubectl {PLUGIN_NAME} get drives --node=node{0...3}
+# Get drives are in 'warm' access-tier
+$ kubectl {PLUGIN_NAME} get drives --access-tier=warm
 
-# Get all drives by specified combination of node and drive ellipsis
-$ kubectl {PLUGIN_NAME} get drives --drive xvd{a...d} --node node{1...4}`,
+# Get drives are in 'error' status
+$ kubectl {PLUGIN_NAME} get drives --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),

@@ -49,23 +49,20 @@ var formatCmd = &cobra.Command{
 	Use:   "format",
 	Short: "Format and add drives.",
 	Example: strings.ReplaceAll(
-		`# Format the drives for selection
+		`# Format drives
 $ kubectl {PLUGIN_NAME} format
 
-# Format drives from a particular node for the selection
+# Format all drives allowed to format
+$ kubectl {PLUGIN_NAME} format --allowed
+
+# Format drives from a node
 $ kubectl {PLUGIN_NAME} format --node=node1
 
-# List specified drives from specified nodes for the selection
-$ kubectl {PLUGIN_NAME} format --node=node1,node2 --drive=nvme0n1
+# Format a drive from all nodes
+$ kubectl {PLUGIN_NAME} format --drive-name=sda
 
-# Format drives filtered by specified drive ellipsis for the selection
-$ kubectl {PLUGIN_NAME} format --drive=sd{a...b}
-
-# Format drives filtered by specified node ellipsis for the selection
-$ kubectl {PLUGIN_NAME} format --node=node{0...3}
-
-# Format drives by specified combination of node and drive ellipsis for the selection
-$ kubectl {PLUGIN_NAME} format --drive xvd{a...d} --node node{1...4}`,
+# Format specific drives from specific nodes
+$ kubectl {PLUGIN_NAME} format --node=node{1...4} --drive-name=sd{a...f}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),

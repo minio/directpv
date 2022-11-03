@@ -36,23 +36,23 @@ var cordonCmd = &cobra.Command{
 	Use:   "cordon [DRIVE ...]",
 	Short: "Cordon drives.",
 	Example: strings.ReplaceAll(
-		`# Cordon all the drives from all the nodes
+		`# Cordon all drives from all nodes
 $ kubectl {PLUGIN_NAME} cordon --all
 
-# Cordon all the drives from a particular node
+# Cordon all drives from a node
 $ kubectl {PLUGIN_NAME} cordon --node=node1
 
-# Cordon specific drives from specified nodes
-$ kubectl {PLUGIN_NAME} cordon --node=node1,node2 --drive=nvme0n1
+# Cordon drives from all nodes
+$ kubectl {PLUGIN_NAME} cordon --drive-name=sda
 
-# Cordon specific drives from all the nodes filtered by drive ellipsis
-$ kubectl {PLUGIN_NAME} cordon --drive=sd{a...b}
+# Cordon specific drives from specific nodes
+$ kubectl {PLUGIN_NAME} cordon --node=node{1...4} --drive-name=sd{a...f}
 
-# Cordon all the drives from specific nodes filtered by node ellipsis
-$ kubectl {PLUGIN_NAME} cordon --node=node{0...3}
+# Cordon drives are in 'warm' access-tier
+$ kubectl {PLUGIN_NAME} cordon --access-tier=warm
 
-# Cordon specific drives from specific nodes filtered by the combination of node and drive ellipsis
-$ kubectl {PLUGIN_NAME} cordon --drive xvd{a...d} --node node{1...4}`,
+# Cordon drives are in 'error' status
+$ kubectl {PLUGIN_NAME} cordon --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),

@@ -39,23 +39,20 @@ var setDrivesCmd = &cobra.Command{
 	Aliases: []string{"drive", "dr"},
 	Short:   "Set drives.",
 	Example: strings.ReplaceAll(
-		`# Set all the drives as hot tiered
-$ kubectl {PLUGIN_NAME} set drives --access-tier=hot --all
+		`# Set access-tier to all drives
+$ kubectl {PLUGIN_NAME} set drives --access-tier=hot
 
-# Set all the drives from particular node as cold tiered
-$ kubectl {PLUGIN_NAME} set drives --access-tier=cold --node=node1
+# Set access-tier to all drives from all nodes
+$ kubectl {PLUGIN_NAME} set drives --all --access-tier=warm
 
-# Set specified drives from specified nodes as warm tiered
-$ kubectl {PLUGIN_NAME} set drives --access-tier=warm --node=node1,node2 --drive=nvme0n1
+# Set access-tier to all drives from a node
+$ kubectl {PLUGIN_NAME} set drives --node=node1 --access-tier=cold
 
-# Set drives filtered by specified drive ellipsis as cold tiered
-$ kubectl {PLUGIN_NAME} set drives --access-tier=cold --drive=sd{a...b}
+# Set access-tier to drives from all nodes
+$ kubectl {PLUGIN_NAME} set drives --drive-name=sda --access-tier=hot
 
-# Set drives filtered by specified node ellipsis as hot tiered
-$ kubectl {PLUGIN_NAME} set drives --access-tier=hot --node=node{0...3}
-
-# Set drives filtered by specified combination of node and drive ellipsis as cold tiered
-$ kubectl {PLUGIN_NAME} set drives --access-tier=cold --drive xvd{a...d} --node node{1...4}`,
+# Set access-tier to specific drives from specific nodes
+$ kubectl {PLUGIN_NAME} set drives --node=node{1...4} --drive-name=sd{a...f} --access-tier=warm`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
