@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
@@ -186,7 +185,7 @@ func (c *Config) getImagePullSecrets() []corev1.LocalObjectReference {
 	return localObjectReferences
 }
 
-func (c *Config) postProc(obj interface{}, errFormat string, errArgs ...any) error {
+func (c *Config) postProc(obj interface{}) error {
 	if obj != nil {
 		if c.DryRun {
 			yamlString, err := utils.ToYAML(obj)
@@ -200,9 +199,6 @@ func (c *Config) postProc(obj interface{}, errFormat string, errArgs ...any) err
 				return err
 			}
 		}
-	}
-	if !c.DryRun && !c.Quiet {
-		fmt.Fprintf(os.Stdout, errFormat+"\n", errArgs...)
 	}
 	return nil
 }

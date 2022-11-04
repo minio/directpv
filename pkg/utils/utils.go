@@ -139,10 +139,3 @@ func Eprintf(quiet, asErr bool, format string, a ...any) {
 	}
 	fmt.Fprintf(os.Stderr, format, a...)
 }
-
-func Log(quiet bool, format string, a ...any) {
-	if quiet {
-		return
-	}
-	fmt.Fprintf(os.Stdout, format+"\n", a...)
-}

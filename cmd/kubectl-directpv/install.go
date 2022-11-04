@@ -243,7 +243,7 @@ func installMain(ctx context.Context) {
 		}
 
 		if !quietFlag {
-			color.HiGreen("%s installed successfully", consts.AppPrettyName)
+			color.HiGreen("\n%s installed successfully", consts.AppPrettyName)
 
 			if disableAdminService {
 				utils.Eprintf(quietFlag, false, "%v",

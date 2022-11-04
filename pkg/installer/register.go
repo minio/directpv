@@ -113,7 +113,7 @@ func syncCRD(ctx context.Context, existingCRD, newCRD *apiextensions.CustomResou
 		existingCRD.TypeMeta = newCRD.TypeMeta
 	}
 
-	return c.postProc(existingCRD, "updated CRD '%v' to '%v' %s", bold(existingCRD.Name), bold(consts.LatestAPIVersion), tick)
+	return c.postProc(existingCRD)
 }
 
 func registerCRDs(ctx context.Context, c *Config) error {
@@ -143,7 +143,7 @@ func registerCRDs(ctx context.Context, c *Config) error {
 			} else {
 				updateLabels(&crd, map[directpvtypes.LabelKey]directpvtypes.LabelValue{directpvtypes.VersionLabelKey: consts.LatestAPIVersion})
 			}
-			return c.postProc(crd, "installed '%s' CRD %s", bold(crd.Name), tick)
+			return c.postProc(crd)
 		}
 		return syncCRD(ctx, existingCRD, &crd, c)
 	}
@@ -154,20 +154,11 @@ func registerCRDs(ctx context.Context, c *Config) error {
 }
 
 func unregisterCRDs(ctx context.Context, c *Config) error {
-	if err := k8s.CRDClient().Delete(ctx, driveCRDName, metav1.DeleteOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		if err := c.postProc(nil, "uninstalled '%s' CRD %s", bold(driveCRDName), tick); err != nil {
-			return err
-		}
+	if err := k8s.CRDClient().Delete(ctx, driveCRDName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
-	if err := k8s.CRDClient().Delete(ctx, volumeCRDName, metav1.DeleteOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		return nil
+	if err := k8s.CRDClient().Delete(ctx, volumeCRDName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
 	}
-	return c.postProc(nil, "uninstalled '%s' CRDs %s", bold(volumeCRDName), tick)
+	return nil
 }

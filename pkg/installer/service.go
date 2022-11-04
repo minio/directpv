@@ -18,6 +18,7 @@ package installer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -27,6 +28,20 @@ import (
 )
 
 func installServiceDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "service", createServiceDefault); err != nil {
+		return fmt.Errorf("unable to create service; %v", err)
+	}
+	return nil
+}
+
+func uninstallServiceDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "service", deleteServiceDefault); err != nil {
+		return fmt.Errorf("unable to delete service; %v", err)
+	}
+	return nil
+}
+
+func createServiceDefault(ctx context.Context, c *Config) error {
 	nodeAPIPort := corev1.ServicePort{
 		Port: consts.NodeAPIPort,
 		Name: consts.NodeAPIPortName,
@@ -53,23 +68,17 @@ func installServiceDefault(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		if _, err := k8s.KubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
-			if !apierrors.IsAlreadyExists(err) {
-				return err
-			}
-			return nil
-		}
-	}
-
-	return c.postProc(svc, "installed '%s' service %s", bold(svc.Name), tick)
-}
-
-func uninstallServiceDefault(ctx context.Context, c *Config) error {
-	if err := k8s.KubeClient().CoreV1().Services(c.namespace()).Delete(ctx, consts.NodeAPIServerHLSVC, metav1.DeleteOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
+		if _, err := k8s.KubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
-		return nil
 	}
-	return c.postProc(nil, "uninstalled '%s' service %s", bold(consts.NodeAPIServerHLSVC), tick)
+
+	return c.postProc(svc)
+}
+
+func deleteServiceDefault(ctx context.Context, c *Config) error {
+	if err := k8s.KubeClient().CoreV1().Services(c.namespace()).Delete(ctx, consts.NodeAPIServerHLSVC, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }

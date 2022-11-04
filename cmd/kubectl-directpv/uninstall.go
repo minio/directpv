@@ -66,6 +66,6 @@ func uninstallMain(ctx context.Context) {
 	}
 
 	if !quietFlag {
-		color.Red("%s is uninstalled successfully", consts.AppPrettyName)
+		color.Red("\n%s is uninstalled successfully", consts.AppPrettyName)
 	}
 }

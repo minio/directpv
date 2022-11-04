@@ -18,6 +18,7 @@ package installer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/drive"
@@ -27,10 +28,20 @@ import (
 )
 
 func installCRDDefault(ctx context.Context, c *Config) error {
-	return registerCRDs(ctx, c)
+	if err := executeFn(ctx, c, "CRD", registerCRDs); err != nil {
+		return fmt.Errorf("unable to register CRD; %v", err)
+	}
+	return nil
 }
 
 func uninstallCRDDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "CRD", deleteCRDDefault); err != nil {
+		return fmt.Errorf("unable to delete CRD; %v", err)
+	}
+	return nil
+}
+
+func deleteCRDDefault(ctx context.Context, c *Config) error {
 	if !c.UninstallCRD {
 		return nil
 	}

@@ -18,6 +18,7 @@ package installer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
@@ -26,10 +27,24 @@ import (
 	podsecurityadmission "k8s.io/pod-security-admission/api"
 )
 
-func installNSDefault(ctx context.Context, i *Config) error {
-	name := i.namespace()
+func installNSDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "namespace", createNSDefault); err != nil {
+		return fmt.Errorf("unable to create namespace; %v", err)
+	}
+	return nil
+}
+
+func uninstallNSDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "namespace", deleteNSDefault); err != nil {
+		return fmt.Errorf("unable to delete namespace; %v", err)
+	}
+	return nil
+}
+
+func createNSDefault(ctx context.Context, c *Config) error {
+	name := c.namespace()
 	annotations := defaultAnnotations
-	if i.enablePodSecurityAdmission {
+	if c.enablePodSecurityAdmission {
 		// Policy violations will cause the pods to be rejected
 		annotations[podsecurityadmission.EnforceLevelLabel] = string(podsecurityadmission.LevelPrivileged)
 	}
@@ -44,27 +59,21 @@ func installNSDefault(ctx context.Context, i *Config) error {
 		},
 	}
 
-	if !i.DryRun {
-		if _, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
-			if !apierrors.IsAlreadyExists(err) {
-				return err
-			}
-			return nil
-		}
-	}
-
-	return i.postProc(ns, "installed '%s' namespace %s", bold(name), tick)
-}
-
-func uninstallNSDefault(ctx context.Context, i *Config) error {
-	foregroundDeletePropagation := metav1.DeletePropagationForeground
-	if err := k8s.KubeClient().CoreV1().Namespaces().Delete(ctx, i.namespace(), metav1.DeleteOptions{
-		PropagationPolicy: &foregroundDeletePropagation,
-	}); err != nil {
-		if !apierrors.IsNotFound(err) {
+	if !c.DryRun {
+		if _, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
-		return nil
 	}
-	return i.postProc(nil, "uninstalled '%s' namespace %s", bold(i.namespace()), tick)
+
+	return c.postProc(ns)
+}
+
+func deleteNSDefault(ctx context.Context, c *Config) error {
+	foregroundDeletePropagation := metav1.DeletePropagationForeground
+	if err := k8s.KubeClient().CoreV1().Namespaces().Delete(ctx, c.namespace(), metav1.DeleteOptions{
+		PropagationPolicy: &foregroundDeletePropagation,
+	}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }

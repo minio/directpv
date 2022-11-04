@@ -18,8 +18,6 @@ package installer
 
 import (
 	"context"
-
-	"github.com/minio/directpv/pkg/utils"
 )
 
 type defaultInstaller struct {
@@ -35,164 +33,84 @@ func newDefaultInstaller(config *Config) *defaultInstaller {
 
 // installers
 func (v *defaultInstaller) installNS(ctx context.Context) error {
-	err := installNSDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create Namespace; %v", err)
-	}
-	return err
+	return installNSDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installSecrets(ctx context.Context) error {
-	err := installSecretsDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create Secrets; %v", err)
-	}
-	return err
+	return installSecretsDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installRBAC(ctx context.Context) error {
-	err := installRBACDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create RBAC; %v", err)
-	}
-	return err
+	return installRBACDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installCRD(ctx context.Context) error {
-	err := installCRDDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create CRDs; %v", err)
-	}
-	return err
+	return installCRDDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installCSIDriver(ctx context.Context) error {
-	err := installCSIDriverDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create CSI driver; %v", err)
-	}
-	return err
+	return installCSIDriverDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installStorageClass(ctx context.Context) error {
-	err := installStorageClassDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create storage class; %v", err)
-	}
-	return err
+	return installStorageClassDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installService(ctx context.Context) error {
-	err := installServiceDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create service; %v", err)
-	}
-	return err
+	return installServiceDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installDaemonset(ctx context.Context) error {
-	err := installDaemonsetDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create daemonset; %v")
-	}
-	return err
+	return installDaemonsetDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installDeployment(ctx context.Context) error {
-	err := installDeploymentDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create deployment; %v", err)
-	}
-	return err
+	return installDeploymentDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) installAdminServerDeployment(ctx context.Context) error {
-	err := installAdminServerDeploymentDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to create API server deployment; %v", err)
-	}
-	return err
+	return installAdminServerDeploymentDefault(ctx, v.Config)
 }
 
 // uninstallers
 func (v *defaultInstaller) uninstallNS(ctx context.Context) error {
-	err := uninstallNSDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete namespace; %v", err)
-	}
-	return err
+	return uninstallNSDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) uninstallSecrets(ctx context.Context) error {
-	err := uninstallSecretsDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete secrets; %v", err)
-	}
-	return err
+	return uninstallSecretsDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) uninstallRBAC(ctx context.Context) error {
-	err := uninstallRBACDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete RBAC; %v", err)
-	}
-	return err
+	return uninstallRBACDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) uninstallCRD(ctx context.Context) error {
-	err := uninstallCRDDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete CRDs; %v", err)
-	}
-	return err
+	return uninstallCRDDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) uninstallCSIDriver(ctx context.Context) error {
-	err := uninstallCSIDriverDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete CSI driver; %v", err)
-	}
-	return err
+	return uninstallCSIDriverDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) uninstallStorageClass(ctx context.Context) error {
-	err := uninstallStorageClassDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete storage class; %v", err)
-	}
-	return err
+	return uninstallStorageClassDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) uninstallService(ctx context.Context) error {
-	err := uninstallServiceDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete service; %v", err)
-	}
-	return err
+	return uninstallServiceDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) uninstallDaemonset(ctx context.Context) error {
-	err := uninstallDaemonsetDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete daemonset; %v", err)
-	}
-	return err
+	return uninstallDaemonsetDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) uninstallDeployment(ctx context.Context) error {
-	err := uninstallDeploymentDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete deployment; %v", err)
-	}
-	return err
+	return uninstallDeploymentDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) uninstallAdminServerDeployment(ctx context.Context) error {
-	err := uninstallAdminServerDeploymentDefault(ctx, v.Config)
-	if err != nil {
-		utils.Eprintf(v.Quiet, true, "unable to delete API server Deployment; %v", err)
-	}
-	return err
+	return uninstallAdminServerDeploymentDefault(ctx, v.Config)
 }
 
 func (v *defaultInstaller) Install(ctx context.Context) error {

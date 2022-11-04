@@ -18,6 +18,7 @@ package installer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -26,15 +27,26 @@ import (
 )
 
 func installSecretsDefault(ctx context.Context, c *Config) error {
-	return createOrUpdateSecret(ctx, consts.CredentialsSecretName, c.Credential.ToSecretData(), c)
+	if err := executeFn(ctx, c, "secrets", createSecretsDefault); err != nil {
+		return fmt.Errorf("unable to create secrets; %v", err)
+	}
+	return nil
 }
 
 func uninstallSecretsDefault(ctx context.Context, c *Config) error {
-	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, consts.CredentialsSecretName, metav1.DeleteOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		return nil
+	if err := executeFn(ctx, c, "secrets", deleteSecretsDefault); err != nil {
+		return fmt.Errorf("unable to create secrets; %v", err)
 	}
-	return c.postProc(nil, "uninstalled '%s' secret %s", bold(consts.CredentialsSecretName), tick)
+	return nil
+}
+
+func createSecretsDefault(ctx context.Context, c *Config) error {
+	return createOrUpdateSecret(ctx, consts.CredentialsSecretName, c.Credential.ToSecretData(), c)
+}
+
+func deleteSecretsDefault(ctx context.Context, c *Config) error {
+	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, consts.CredentialsSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }

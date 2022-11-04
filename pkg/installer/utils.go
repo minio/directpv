@@ -34,7 +34,8 @@ import (
 var (
 	bold       = color.New(color.Bold).SprintFunc()
 	seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
-	tick       = color.HiGreenString("\u2713")
+	tick       = color.HiGreenString("✓")
+	cross      = color.HiRedString("✗")
 )
 
 func stringWithCharset(length int, charset string) string {
@@ -174,7 +175,7 @@ func createOrUpdateSecret(ctx context.Context, secretName string, data map[strin
 			if _, err := secretsClient.Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 				return err
 			}
-			return c.postProc(secret, "installed '%s' secret %s", bold(secretName), tick)
+			return c.postProc(secret)
 		}
 		if reflect.DeepEqual(existingSecret.Data, secret.Data) {
 			return nil
@@ -183,7 +184,25 @@ func createOrUpdateSecret(ctx context.Context, secretName string, data map[strin
 		if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
-		return c.postProc(existingSecret, "updated '%s' secret %s", bold(secretName), tick)
+		return c.postProc(existingSecret)
 	}
-	return c.postProc(secret, "")
+	return c.postProc(secret)
+}
+
+func executeFn(ctx context.Context, c *Config, componentName string, fn func(context.Context, *Config) error) error {
+	printf(c, bold(componentName))
+	err := fn(ctx, c)
+	if err != nil {
+		printf(c, "%s\n", cross)
+	} else {
+		printf(c, "%s\n", tick)
+	}
+	return err
+}
+
+func printf(c *Config, format string, a ...any) {
+	if c.Quiet || c.DryRun {
+		return
+	}
+	fmt.Printf(format, a...)
 }
