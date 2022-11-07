@@ -33,14 +33,14 @@ import (
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
 
 func installStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := executeFn(ctx, c, "Storage Class", createStorageClassDefault); err != nil {
+	if err := executeFn(ctx, c, "storage class", createStorageClassDefault); err != nil {
 		return fmt.Errorf("unable to create storage class; %v", err)
 	}
 	return nil
 }
 
 func uninstallStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := executeFn(ctx, c, "Storage Class", deleteStorageClassDefault); err != nil {
+	if err := executeFn(ctx, c, "storage class", deleteStorageClassDefault); err != nil {
 		return fmt.Errorf("unable to delete storage class; %v", err)
 	}
 	return nil

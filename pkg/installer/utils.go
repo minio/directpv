@@ -32,7 +32,6 @@ import (
 )
 
 var (
-	bold       = color.New(color.Bold).SprintFunc()
 	seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 	tick       = color.HiGreenString("✓")
 	cross      = color.HiRedString("✗")
@@ -190,7 +189,7 @@ func createOrUpdateSecret(ctx context.Context, secretName string, data map[strin
 }
 
 func executeFn(ctx context.Context, c *Config, componentName string, fn func(context.Context, *Config) error) error {
-	printf(c, bold(componentName))
+	printf(c, color.HiWhiteString(componentName))
 	err := fn(ctx, c)
 	if err != nil {
 		printf(c, "%s\n", cross)
