@@ -30,23 +30,27 @@ var Versions = []string{
 
 var LatestAddToScheme = directpv.AddToScheme
 
-type Interface = typeddirectpv.DirectpvV1beta1Interface
-type Client = typeddirectpv.DirectpvV1beta1Client
+type (
+	Interface = typeddirectpv.DirectpvV1beta1Interface
+	Client    = typeddirectpv.DirectpvV1beta1Client
 
-type DriveStatus = directpv.DriveStatus
-type Drive = directpv.DirectPVDrive
-type DriveStatusList = []directpv.DirectPVDrive
-type DriveList = directpv.DirectPVDriveList
-type LatestDriveInterface = typeddirectpv.DirectPVDriveInterface
+	DriveStatus          = directpv.DriveStatus
+	Drive                = directpv.DirectPVDrive
+	DriveStatusList      = []directpv.DirectPVDrive
+	DriveList            = directpv.DirectPVDriveList
+	LatestDriveInterface = typeddirectpv.DirectPVDriveInterface
 
-type VolumeStatus = directpv.VolumeStatus
-type Volume = directpv.DirectPVVolume
-type VolumeStatusList = []directpv.DirectPVVolume
-type VolumeList = directpv.DirectPVVolumeList
-type LatestVolumeInterface = typeddirectpv.DirectPVVolumeInterface
+	VolumeStatus          = directpv.VolumeStatus
+	Volume                = directpv.DirectPVVolume
+	VolumeStatusList      = []directpv.DirectPVVolume
+	VolumeList            = directpv.DirectPVVolumeList
+	LatestVolumeInterface = typeddirectpv.DirectPVVolumeInterface
+)
 
-var NewDrive = directpv.NewDirectPVDrive
-var NewVolume = directpv.NewDirectPVVolume
+var (
+	NewDrive  = directpv.NewDirectPVDrive
+	NewVolume = directpv.NewDirectPVVolume
+)
 
 type ExtClientsetInterface interface {
 	clientset.Interface
