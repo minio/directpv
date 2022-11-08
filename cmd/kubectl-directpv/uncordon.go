@@ -26,6 +26,7 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -58,7 +59,7 @@ $ kubectl {PLUGIN_NAME} uncordon --status=error`,
 		driveIDArgs = args
 
 		if err := validateUncordonCmd(); err != nil {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -133,14 +134,14 @@ func uncordonMain(ctx context.Context) {
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			eprintf(quietFlag, true, "%v\n", result.Err)
+			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
 			os.Exit(1)
 		}
 
 		processed = true
 
 		if !result.Drive.IsUnschedulable() {
-			eprintf(quietFlag, false, "Drive %v already uncordoned\n", result.Drive.GetDriveID())
+			utils.Eprintf(quietFlag, false, "Drive %v already uncordoned\n", result.Drive.GetDriveID())
 			continue
 		}
 
@@ -151,7 +152,7 @@ func uncordonMain(ctx context.Context) {
 		}
 
 		if err != nil {
-			eprintf(quietFlag, true, "unable to uncordon drive %v; %v\n", result.Drive.GetDriveID(), err)
+			utils.Eprintf(quietFlag, true, "unable to uncordon drive %v; %v\n", result.Drive.GetDriveID(), err)
 			os.Exit(1)
 		}
 
@@ -162,9 +163,9 @@ func uncordonMain(ctx context.Context) {
 
 	if !processed {
 		if allFlag {
-			eprintf(quietFlag, false, "No resources found\n")
+			utils.Eprintf(quietFlag, false, "No resources found\n")
 		} else {
-			eprintf(quietFlag, false, "No matching resources found\n")
+			utils.Eprintf(quietFlag, false, "No matching resources found\n")
 		}
 
 		os.Exit(1)

@@ -68,7 +68,7 @@ $ kubectl {PLUGIN_NAME} format --node=node{1...4} --drive-name=sd{a...f}`,
 	),
 	Run: func(c *cobra.Command, args []string) {
 		if err := validateFormatCmd(); err != nil {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -200,14 +200,14 @@ func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.Li
 
 	if len(errs) != 0 {
 		for node, err := range errs {
-			eprintf(quietFlag, true, "%v: %v\n", node, err)
+			utils.Eprintf(quietFlag, true, "%v: %v\n", node, err)
 		}
 
 		return nil, errFormatDenied
 	}
 
 	if writer.Length() == 0 || formatDenied {
-		eprintf(false, false, "%v\n", color.HiYellowString("No drives found to format"))
+		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives found to format"))
 		return nil, errFormatDenied
 	}
 
@@ -319,7 +319,7 @@ func getFormatDevices(resultMap map[string]admin.ListDevicesResult) (map[string]
 	}
 
 	if len(nodeMap) == 0 {
-		eprintf(false, false, "%v\n", color.HiYellowString("No drives selected to format"))
+		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives selected to format"))
 		return nil, nil
 	}
 
@@ -334,7 +334,7 @@ func getFormatDevices(resultMap map[string]admin.ListDevicesResult) (map[string]
 		return nodeMap, nil
 	}
 
-	eprintf(false, false, "%v\n", color.HiYellowString("No drives selected to format"))
+	utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives selected to format"))
 	return nil, nil
 }
 
@@ -404,7 +404,7 @@ func formatDevices(ctx context.Context, client *admin.Client, nodes map[string][
 
 	if len(errs) != 0 {
 		for node, err := range errs {
-			eprintf(quietFlag, true, "%v: %v\n", node, err)
+			utils.Eprintf(quietFlag, true, "%v: %v\n", node, err)
 		}
 
 		return errFormatFailed
@@ -424,7 +424,7 @@ func formatMain(ctx context.Context) {
 	resultMap, err := listDevices(ctx, client)
 	if err != nil {
 		if !errors.Is(err, errFormatDenied) {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 		}
 		os.Exit(1)
 	}
@@ -434,13 +434,13 @@ func formatMain(ctx context.Context) {
 	}
 
 	if err := getSelections(); err != nil {
-		eprintf(quietFlag, true, "%v\n", err)
+		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
 	nodeMap, err := getFormatDevices(resultMap)
 	if err != nil {
-		eprintf(quietFlag, true, "%v\n", err)
+		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -451,7 +451,7 @@ func formatMain(ctx context.Context) {
 	err = formatDevices(ctx, client, nodeMap)
 	if err != nil {
 		if !errors.Is(err, errFormatFailed) {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 		}
 		os.Exit(1)
 	}

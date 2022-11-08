@@ -20,9 +20,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"os"
 
-	"github.com/fatih/color"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -32,6 +30,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
+)
+
+var (
+	driveCRDName  = consts.DriveResource + "." + consts.GroupName
+	volumeCRDName = consts.VolumeResource + "." + consts.GroupName
 )
 
 //go:embed directpv.min.io_directpvdrives.yaml
@@ -75,38 +78,39 @@ func syncCRD(ctx context.Context, existingCRD, newCRD *apiextensions.CustomResou
 		return err
 	}
 
-	var versionEntryFound bool
-	if existingCRDStorageVersion != consts.LatestAPIVersion {
-		// Set all the existing versions to false
-		for i := range existingCRD.Spec.Versions {
-			if existingCRD.Spec.Versions[i].Name == consts.LatestAPIVersion {
-				existingCRD.Spec.Versions[i].Storage = true
-				versionEntryFound = true
-			} else {
-				existingCRD.Spec.Versions[i].Storage = false
-			}
-		}
+	// CRD is already in the latest version
+	if existingCRDStorageVersion == consts.LatestAPIVersion {
+		return nil
+	}
 
-		if !versionEntryFound {
-			latestVersionObject, err := getLatestCRDVersionObject(newCRD)
-			if err != nil {
-				return err
-			}
-			existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
+	var versionEntryFound bool
+	// Set all the existing versions to false
+	for i := range existingCRD.Spec.Versions {
+		if existingCRD.Spec.Versions[i].Name == consts.LatestAPIVersion {
+			existingCRD.Spec.Versions[i].Storage = true
+			versionEntryFound = true
+		} else {
+			existingCRD.Spec.Versions[i].Storage = false
 		}
+	}
+
+	if !versionEntryFound {
+		latestVersionObject, err := getLatestCRDVersionObject(newCRD)
+		if err != nil {
+			return err
+		}
+		existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 	}
 
 	setNoneConversionStrategy(existingCRD)
 
-	if c.DryRun {
-		updateLabels(existingCRD, map[directpvtypes.LabelKey]directpvtypes.LabelValue{directpvtypes.VersionLabelKey: consts.LatestAPIVersion})
-		existingCRD.TypeMeta = newCRD.TypeMeta
-	} else {
+	if !c.DryRun {
 		if _, err := k8s.CRDClient().Update(ctx, existingCRD, metav1.UpdateOptions{}); err != nil {
 			return err
 		}
-
-		fmt.Fprintln(os.Stderr, color.HiYellowString("updated CRD %v to %v", existingCRD.Name, consts.LatestAPIVersion))
+	} else {
+		updateLabels(existingCRD, map[directpvtypes.LabelKey]directpvtypes.LabelValue{directpvtypes.VersionLabelKey: consts.LatestAPIVersion})
+		existingCRD.TypeMeta = newCRD.TypeMeta
 	}
 
 	return c.postProc(existingCRD)
@@ -132,33 +136,29 @@ func registerCRDs(ctx context.Context, c *Config) error {
 
 			setNoneConversionStrategy(&crd)
 
-			if c.DryRun {
+			if !c.DryRun {
+				if _, err := k8s.CRDClient().Create(ctx, &crd, metav1.CreateOptions{}); err != nil {
+					return err
+				}
+			} else {
 				updateLabels(&crd, map[directpvtypes.LabelKey]directpvtypes.LabelValue{directpvtypes.VersionLabelKey: consts.LatestAPIVersion})
-			} else if _, err = k8s.CRDClient().Create(ctx, &crd, metav1.CreateOptions{}); err != nil {
-				return err
 			}
-
 			return c.postProc(crd)
 		}
-
 		return syncCRD(ctx, existingCRD, &crd, c)
 	}
-
 	if err := register(drivesYAML); err != nil {
 		return err
 	}
-
 	return register(volumesYAML)
 }
 
-func unregisterCRDs(ctx context.Context) error {
-	if err := k8s.CRDClient().Delete(ctx, consts.DriveResource+"."+consts.GroupName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+func unregisterCRDs(ctx context.Context, c *Config) error {
+	if err := k8s.CRDClient().Delete(ctx, driveCRDName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-
-	if err := k8s.CRDClient().Delete(ctx, consts.VolumeResource+"."+consts.GroupName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := k8s.CRDClient().Delete(ctx, volumeCRDName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-
 	return nil
 }

@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/minio/directpv/pkg/k8s"
 	storagev1 "k8s.io/api/storage/v1"
@@ -29,7 +30,21 @@ import (
 
 var errCSIDriverVersionUnsupported = errors.New("unsupported CSIDriver version found")
 
-func createCSIDriver(ctx context.Context, c *Config) error {
+func installCSIDriverDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "CSI Driver", createCSIDriverDefault); err != nil {
+		return fmt.Errorf("unable to create CSI Driver; %v", err)
+	}
+	return nil
+}
+
+func uninstallCSIDriverDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "CSI Driver", deleteCSIDriver); err != nil {
+		return fmt.Errorf("unable to delete CSI Driver; %v", err)
+	}
+	return nil
+}
+
+func createCSIDriverDefault(ctx context.Context, c *Config) error {
 	podInfoOnMount := true
 	attachRequired := false
 
@@ -62,15 +77,12 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 			},
 		}
 
-		if c.DryRun {
-			return c.postProc(csiDriver)
+		if !c.DryRun {
+			// Create CSIDriver Obj
+			if _, err := k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
-
-		// Create CSIDriver Obj
-		if _, err := k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
-			return err
-		}
-
 		return c.postProc(csiDriver)
 
 	case "v1beta1":
@@ -95,15 +107,12 @@ func createCSIDriver(ctx context.Context, c *Config) error {
 			},
 		}
 
-		if c.DryRun {
-			return c.postProc(csiDriver)
+		if !c.DryRun {
+			// Create CSIDriver Obj
+			if _, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
-
-		// Create CSIDriver Obj
-		if _, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{}); err != nil {
-			return err
-		}
-
 		return c.postProc(csiDriver)
 
 	default:
@@ -120,30 +129,16 @@ func deleteCSIDriver(ctx context.Context, c *Config) error {
 	switch gvk.Version {
 	case "v1":
 		// Delete CSIDriver Obj
-		if err := k8s.KubeClient().StorageV1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil {
+		if err := k8s.KubeClient().StorageV1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 	case "v1beta1":
 		// Delete CSIDriver Obj
-		if err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil {
+		if err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Delete(ctx, c.csiDriverName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 	default:
 		return errCSIDriverVersionUnsupported
-	}
-	return nil
-}
-
-func installCSIDriverDefault(ctx context.Context, c *Config) error {
-	if err := createCSIDriver(ctx, c); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-	return nil
-}
-
-func uninstallCSIDriverDefault(ctx context.Context, c *Config) error {
-	if err := deleteCSIDriver(ctx, c); err != nil && !apierrors.IsNotFound(err) {
-		return err
 	}
 	return nil
 }

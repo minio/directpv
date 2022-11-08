@@ -31,6 +31,20 @@ import (
 )
 
 func installDaemonsetDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "daemonset", createDaemonsetDefault); err != nil {
+		return fmt.Errorf("unable to create daemonset; %v", err)
+	}
+	return nil
+}
+
+func uninstallDaemonsetDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "daemonset", deleteDaemonsetDefault); err != nil {
+		return fmt.Errorf("unable to delete daemonset; %v", err)
+	}
+	return nil
+}
+
+func createDaemonsetDefault(ctx context.Context, c *Config) error {
 	daemonSetsClient := k8s.KubeClient().AppsV1().DaemonSets(c.namespace())
 	if _, err := daemonSetsClient.Get(ctx, c.daemonsetName(), metav1.GetOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -43,7 +57,7 @@ func installDaemonsetDefault(ctx context.Context, c *Config) error {
 	return createDaemonSet(ctx, c)
 }
 
-func uninstallDaemonsetDefault(ctx context.Context, c *Config) error {
+func deleteDaemonsetDefault(ctx context.Context, c *Config) error {
 	if err := k8s.KubeClient().AppsV1().DaemonSets(c.namespace()).Delete(ctx, c.daemonsetName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -251,12 +265,8 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		Status: appsv1.DaemonSetStatus{},
 	}
 
-	if c.DryRun {
-		return c.postProc(daemonset)
-	}
-
-	if _, err := k8s.KubeClient().AppsV1().DaemonSets(c.namespace()).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil {
-		if !apierrors.IsAlreadyExists(err) {
+	if !c.DryRun {
+		if _, err := k8s.KubeClient().AppsV1().DaemonSets(c.namespace()).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}

@@ -23,7 +23,6 @@ import (
 	"path"
 
 	"github.com/dustin/go-humanize"
-	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -113,16 +112,6 @@ func newTableWriter(header table.Row, sortBy []table.SortBy, noHeader bool) tabl
 	writer.SetStyle(style)
 
 	return writer
-}
-
-func eprintf(quiet, asErr bool, format string, a ...any) {
-	if quiet {
-		return
-	}
-	if asErr {
-		fmt.Fprintf(os.Stderr, "%v ", color.RedString("ERROR"))
-	}
-	fmt.Fprintf(os.Stderr, format, a...)
 }
 
 func getCredFile() string {

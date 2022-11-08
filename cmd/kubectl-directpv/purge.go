@@ -27,6 +27,7 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -65,7 +66,7 @@ $ kubectl {PLUGIN_NAME} purge --pod-namespace=tenant-{1...3}`,
 		volumeNameArgs = args
 
 		if err := validatePurgeCmd(); err != nil {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -152,7 +153,7 @@ func purgeMain(ctx context.Context) {
 			if apierrors.IsNotFound(err) {
 				return true
 			}
-			eprintf(quietFlag, true, "unable to get PV for volume %v; %v\n", volume.Name, err)
+			utils.Eprintf(quietFlag, true, "unable to get PV for volume %v; %v\n", volume.Name, err)
 			return false
 		}
 		switch pv.Status.Phase {
@@ -160,7 +161,7 @@ func purgeMain(ctx context.Context) {
 			return true
 		default:
 			if !quietFlag {
-				eprintf(quietFlag, false, "Skipping PV %v in %v state to volume %v\n", pv.Name, pv.Status.Phase, volume.Name)
+				utils.Eprintf(quietFlag, false, "Skipping PV %v in %v state to volume %v\n", pv.Name, pv.Status.Phase, volume.Name)
 			}
 			return false
 		}
@@ -168,7 +169,7 @@ func purgeMain(ctx context.Context) {
 
 	for result := range resultCh {
 		if result.Err != nil {
-			eprintf(quietFlag, true, "%v\n", result.Err)
+			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
 			os.Exit(1)
 		}
 
@@ -185,11 +186,11 @@ func purgeMain(ctx context.Context) {
 		if _, err := client.VolumeClient().Update(ctx, &result.Volume, metav1.UpdateOptions{
 			TypeMeta: types.NewVolumeTypeMeta(),
 		}); err != nil {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(1)
 		}
 		if err := client.VolumeClient().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(1)
 		}
 

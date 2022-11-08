@@ -25,6 +25,7 @@ import (
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
@@ -121,7 +122,7 @@ func main() {
 	go func() {
 		select {
 		case signal := <-signalCh:
-			eprintf(quietFlag, false, "\nExiting on signal %v\n", signal)
+			utils.Eprintf(quietFlag, false, "\nExiting on signal %v\n", signal)
 			cancelFunc()
 			os.Exit(1)
 		case <-ctx.Done():
@@ -129,7 +130,7 @@ func main() {
 	}()
 
 	if err := mainCmd.ExecuteContext(ctx); err != nil {
-		eprintf(quietFlag, true, "%v\n", err)
+		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 }

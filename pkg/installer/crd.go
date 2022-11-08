@@ -18,6 +18,7 @@ package installer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/drive"
@@ -26,12 +27,46 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func installCRDDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "CRD", registerCRDs); err != nil {
+		return fmt.Errorf("unable to register CRD; %v", err)
+	}
+	return nil
+}
+
+func uninstallCRDDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, "CRD", deleteCRDDefault); err != nil {
+		return fmt.Errorf("unable to delete CRD; %v", err)
+	}
+	return nil
+}
+
+func deleteCRDDefault(ctx context.Context, c *Config) error {
+	if !c.UninstallCRD {
+		return nil
+	}
+
+	if c.ForceRemove {
+		if err := removeVolumes(ctx, c); err != nil {
+			return err
+		}
+		if err := removeDrives(ctx, c); err != nil {
+			return err
+		}
+	}
+
+	return unregisterCRDs(ctx, c)
+}
+
 func removeVolumes(ctx context.Context, c *Config) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
 	for result := range volume.NewLister().List(ctx) {
-		if result.Err != nil && !apierrors.IsNotFound(result.Err) {
+		if result.Err != nil {
+			if apierrors.IsNotFound(result.Err) {
+				break
+			}
 			return result.Err
 		}
 
@@ -58,7 +93,10 @@ func removeDrives(ctx context.Context, c *Config) error {
 	defer cancelFunc()
 
 	for result := range drive.NewLister().List(ctx) {
-		if result.Err != nil && !apierrors.IsNotFound(result.Err) {
+		if result.Err != nil {
+			if apierrors.IsNotFound(result.Err) {
+				break
+			}
 			return result.Err
 		}
 
@@ -76,25 +114,4 @@ func removeDrives(ctx context.Context, c *Config) error {
 	}
 
 	return nil
-}
-
-func installCRDDefault(ctx context.Context, c *Config) error {
-	return registerCRDs(ctx, c)
-}
-
-func uninstallCRDDefault(ctx context.Context, c *Config) error {
-	if !c.UninstallCRD {
-		return nil
-	}
-
-	if c.ForceRemove {
-		if err := removeVolumes(ctx, c); err != nil {
-			return err
-		}
-		if err := removeDrives(ctx, c); err != nil {
-			return err
-		}
-	}
-
-	return unregisterCRDs(ctx)
 }

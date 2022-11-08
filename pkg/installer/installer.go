@@ -96,6 +96,7 @@ func Install(ctx context.Context, config *Config) error {
 	if err != nil {
 		return err
 	}
+	printf(config, color.HiYellowString("\nInstalling\n"))
 	return installer.Install(ctx)
 }
 
@@ -111,5 +112,6 @@ func Uninstall(ctx context.Context, config *Config) error {
 	if err != nil {
 		return err
 	}
+	printf(config, color.HiYellowString("\nUninstalling\n"))
 	return installer.Uninstall(ctx)
 }

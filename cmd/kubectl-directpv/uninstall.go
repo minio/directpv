@@ -18,12 +18,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +37,7 @@ var uninstallCmd = &cobra.Command{
 		if crdFlag || forceFlag {
 			input := getInput(color.HiRedString("CRD removal may cause data loss. Type 'Yes' if you really want to do: "))
 			if input != "Yes" {
-				eprintf(quietFlag, false, "Aborting...\n")
+				utils.Eprintf(quietFlag, false, "Aborting...\n")
 				os.Exit(1)
 			}
 		}
@@ -61,11 +61,11 @@ func uninstallMain(ctx context.Context) {
 	}
 
 	if err := installer.Uninstall(ctx, installConfig); err != nil {
-		eprintf(quietFlag, true, "%v\n", err)
+		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
 	if !quietFlag {
-		fmt.Println(color.HiWhiteString(consts.AppPrettyName), "is uninstalled successfully")
+		color.Red("\n%s is uninstalled successfully", consts.AppPrettyName)
 	}
 }

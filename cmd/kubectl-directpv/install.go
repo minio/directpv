@@ -29,6 +29,7 @@ import (
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -54,7 +55,7 @@ var installCmd = &cobra.Command{
 	SilenceErrors: true,
 	Run: func(c *cobra.Command, args []string) {
 		if err := validateInstallCmd(); err != nil {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -179,7 +180,7 @@ func getCredential() (*admin.Credential, bool, error) {
 		return nil, false, err
 	}
 
-	eprintf(false, false, "%v\n", color.HiYellowString("Using credential from "+getCredFile()))
+	utils.Eprintf(false, false, "%v\n", color.HiYellowString("Using credential from "+getCredFile()))
 	return &cred, true, nil
 }
 
@@ -187,21 +188,21 @@ func installMain(ctx context.Context) {
 	auditFile := fmt.Sprintf("install.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
 	file, err := openAuditFile(auditFile)
 	if err != nil {
-		eprintf(quietFlag, true, "unable to open audit file %v; %v\n", auditFile, err)
-		eprintf(false, false, "%v\n", color.HiYellowString("Skipping audit logging"))
+		utils.Eprintf(quietFlag, true, "unable to open audit file %v; %v\n", auditFile, err)
+		utils.Eprintf(false, false, "%v\n", color.HiYellowString("Skipping audit logging"))
 	}
 
 	defer func() {
 		if file != nil {
 			if err := file.Close(); err != nil {
-				eprintf(quietFlag, true, "unable to close audit file; %v\n", err)
+				utils.Eprintf(quietFlag, true, "unable to close audit file; %v\n", err)
 			}
 		}
 	}()
 
 	cred, fromFile, err := getCredential()
 	if err != nil {
-		eprintf(quietFlag, true, "unable to get credential; %v\n", err)
+		utils.Eprintf(quietFlag, true, "unable to get credential; %v\n", err)
 		os.Exit(1)
 	}
 
@@ -219,10 +220,11 @@ func installMain(ctx context.Context) {
 		ImagePullSecrets:    imagePullSecrets,
 		Credential:          cred,
 		DisableAdminService: disableAdminService,
+		Quiet:               quietFlag,
 	}
 
 	if err = installer.Install(ctx, installConfig); err != nil {
-		eprintf(quietFlag, true, "unable to install %v; %v\n", consts.AppPrettyName, err)
+		utils.Eprintf(quietFlag, true, "unable to install %v; %v\n", consts.AppPrettyName, err)
 		os.Exit(1)
 	}
 
@@ -233,21 +235,24 @@ func installMain(ctx context.Context) {
 				err = os.WriteFile(getCredFile(), data, 0o644)
 			}
 			if err != nil {
-				eprintf(quietFlag, true, "unable to create credential file %v; %v\n", getCredFile(), err)
+				utils.Eprintf(quietFlag, true, "unable to create credential file %v; %v\n", getCredFile(), err)
 				fmt.Printf("Below credential is set on server\nAccessKey: %v, SecretKey: %v\n", cred.AccessKey, cred.SecretKey)
 			} else {
-				eprintf(false, false, "Credential is saved at %v\n", getCredFile())
+				utils.Eprintf(false, false, "Credential is saved at %v\n", getCredFile())
 			}
 		}
 
-		fmt.Println(color.HiWhiteString(consts.AppPrettyName), "is installed successfully")
-		if disableAdminService {
-			eprintf(quietFlag, false, "%v",
-				color.HiYellowString(`
+		if !quietFlag {
+			color.HiGreen("\n%s installed successfully", consts.AppPrettyName)
+
+			if disableAdminService {
+				utils.Eprintf(quietFlag, false, "%v",
+					color.HiYellowString(`
 Note: admin-server should be exported to add drives.
 A simple port-forward can be done like below;
 $ kubectl port-forward pod/admin-server-XXXXXXXXXX-XXXXX 40443:40443 -n directpv-min-io
 `))
+			}
 		}
 	}
 }

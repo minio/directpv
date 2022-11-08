@@ -27,6 +27,7 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -59,7 +60,7 @@ $ kubectl {PLUGIN_NAME} release --status=error`,
 		driveIDArgs = args
 
 		if err := validateReleaseCmd(); err != nil {
-			eprintf(quietFlag, true, "%v\n", err)
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -136,7 +137,7 @@ func releaseMain(ctx context.Context) {
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			eprintf(quietFlag, true, "%v\n", result.Err)
+			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
 			os.Exit(1)
 		}
 
@@ -144,12 +145,12 @@ func releaseMain(ctx context.Context) {
 
 		switch result.Drive.Status.Status {
 		case directpvtypes.DriveStatusReleased:
-			eprintf(quietFlag, false, "%v/%v already released\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+			utils.Eprintf(quietFlag, false, "%v/%v already released\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 		default:
 			volumeCount := result.Drive.GetVolumeCount()
 			if volumeCount > 0 {
 				failed = true
-				eprintf(quietFlag, true, "%v/%v: %v volumes still exist\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), volumeCount)
+				utils.Eprintf(quietFlag, true, "%v/%v: %v volumes still exist\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), volumeCount)
 			} else {
 				result.Drive.Status.Status = directpvtypes.DriveStatusReleased
 				var err error
@@ -158,7 +159,7 @@ func releaseMain(ctx context.Context) {
 				}
 				if err != nil {
 					failed = true
-					eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
+					utils.Eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
 				} else {
 					fmt.Printf("Releasing %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 				}
@@ -168,9 +169,9 @@ func releaseMain(ctx context.Context) {
 
 	if !processed {
 		if allFlag {
-			eprintf(quietFlag, false, "No resources found\n")
+			utils.Eprintf(quietFlag, false, "No resources found\n")
 		} else {
-			eprintf(quietFlag, false, "No matching resources found\n")
+			utils.Eprintf(quietFlag, false, "No matching resources found\n")
 		}
 
 		os.Exit(1)

@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/k8s"
@@ -32,21 +33,22 @@ import (
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
 
 func installStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := createStorageClass(ctx, c, c.storageClassName()); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
+	if err := executeFn(ctx, c, "storage class", createStorageClassDefault); err != nil {
+		return fmt.Errorf("unable to create storage class; %v", err)
 	}
 	return nil
 }
 
 func uninstallStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := deleteStorageClass(ctx, c, c.storageClassName()); err != nil && !apierrors.IsNotFound(err) {
-		return err
+	if err := executeFn(ctx, c, "storage class", deleteStorageClassDefault); err != nil {
+		return fmt.Errorf("unable to delete storage class; %v", err)
 	}
 	return nil
 }
 
-func createStorageClass(ctx context.Context, c *Config, name string) error {
+func createStorageClassDefault(ctx context.Context, c *Config) error {
 	allowExpansion := false
+	name := c.storageClassName()
 	allowTopologiesWithName := corev1.TopologySelectorTerm{
 		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
 			{
@@ -88,12 +90,10 @@ func createStorageClass(ctx context.Context, c *Config, name string) error {
 			},
 		}
 
-		if c.DryRun {
-			return c.postProc(storageClass)
-		}
-
-		if _, err := k8s.KubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
-			return err
+		if !c.DryRun {
+			if _, err := k8s.KubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 		return c.postProc(storageClass)
 	case "v1beta1":
@@ -120,12 +120,10 @@ func createStorageClass(ctx context.Context, c *Config, name string) error {
 			},
 		}
 
-		if c.DryRun {
-			return c.postProc(storageClass)
-		}
-
-		if _, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil {
-			return err
+		if !c.DryRun {
+			if _, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+				return err
+			}
 		}
 		return c.postProc(storageClass)
 	default:
@@ -133,19 +131,19 @@ func createStorageClass(ctx context.Context, c *Config, name string) error {
 	}
 }
 
-func deleteStorageClass(ctx context.Context, c *Config, name string) error {
+func deleteStorageClassDefault(ctx context.Context, c *Config) error {
 	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
 		return err
 	}
-
+	name := c.storageClassName()
 	switch gvk.Version {
 	case "v1":
-		if err := k8s.KubeClient().StorageV1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+		if err := k8s.KubeClient().StorageV1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 	case "v1beta1":
-		if err := k8s.KubeClient().StorageV1beta1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+		if err := k8s.KubeClient().StorageV1beta1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 	default:

@@ -30,6 +30,20 @@ import (
 )
 
 func installAdminServerDeploymentDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, fmt.Sprintf("%s deployment", c.adminServerDeploymentName()), createAdminServerDeploymentDefault); err != nil {
+		return fmt.Errorf("unable to create deployment; %v", err)
+	}
+	return nil
+}
+
+func uninstallAdminServerDeploymentDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, fmt.Sprintf("%s deployment", c.adminServerDeploymentName()), deleteAdminServerDeploymentDefault); err != nil {
+		return fmt.Errorf("unable to delete deployment; %v", err)
+	}
+	return nil
+}
+
+func createAdminServerDeploymentDefault(ctx context.Context, c *Config) error {
 	if _, err := k8s.KubeClient().AppsV1().Deployments(c.namespace()).Get(ctx, c.adminServerDeploymentName(), metav1.GetOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
@@ -44,7 +58,7 @@ func installAdminServerDeploymentDefault(ctx context.Context, c *Config) error {
 	return installAdminServerService(ctx, c)
 }
 
-func uninstallAdminServerDeploymentDefault(ctx context.Context, c *Config) error {
+func deleteAdminServerDeploymentDefault(ctx context.Context, c *Config) error {
 	if err := deleteDeployment(ctx, c.namespace(), c.adminServerDeploymentName()); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -61,13 +75,6 @@ func uninstallAdminServerDeploymentDefault(ctx context.Context, c *Config) error
 }
 
 func installAdminServerService(ctx context.Context, c *Config) error {
-	if err := createAdminServerService(ctx, c); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-	return nil
-}
-
-func createAdminServerService(ctx context.Context, c *Config) error {
 	apiPort := corev1.ServicePort{
 		Port: consts.AdminServerPort,
 		Name: consts.AdminServerPortName,
@@ -93,7 +100,7 @@ func createAdminServerService(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		if _, err := k8s.KubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+		if _, err := k8s.KubeClient().CoreV1().Services(c.namespace()).Create(ctx, svc, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -184,7 +191,7 @@ func createAdminServerDeployment(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		if _, err := k8s.KubeClient().AppsV1().Deployments(c.namespace()).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+		if _, err := k8s.KubeClient().AppsV1().Deployments(c.namespace()).Create(ctx, deployment, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}

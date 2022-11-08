@@ -29,6 +29,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func installDeploymentDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, fmt.Sprintf("%s deployment", c.deploymentName()), createDeployment); err != nil {
+		return fmt.Errorf("unable to create deployment; %v", err)
+	}
+	return nil
+}
+
+func uninstallDeploymentDefault(ctx context.Context, c *Config) error {
+	if err := executeFn(ctx, c, fmt.Sprintf("%s deployment", c.deploymentName()), deleteDeploymentDefault); err != nil {
+		return fmt.Errorf("unable to delete deployment; %v", err)
+	}
+	return nil
+}
+
+func deleteDeploymentDefault(ctx context.Context, c *Config) error {
+	if err := deleteDeployment(ctx, c.namespace(), c.deploymentName()); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
 func createDeployment(ctx context.Context, c *Config) error {
 	var replicas int32 = 3
 	privileged := true
@@ -136,23 +157,10 @@ func createDeployment(ctx context.Context, c *Config) error {
 	}
 
 	if !c.DryRun {
-		if _, err := k8s.KubeClient().AppsV1().Deployments(c.namespace()).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
-			if !apierrors.IsAlreadyExists(err) {
-				return err
-			}
+		if _, err := k8s.KubeClient().AppsV1().Deployments(c.namespace()).Create(ctx, deployment, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
 	}
 
 	return c.postProc(deployment)
-}
-
-func installDeploymentDefault(ctx context.Context, c *Config) error {
-	return createDeployment(ctx, c)
-}
-
-func uninstallDeploymentDefault(ctx context.Context, c *Config) error {
-	if err := deleteDeployment(ctx, c.namespace(), c.deploymentName()); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	return nil
 }

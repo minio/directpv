@@ -29,6 +29,7 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	storagev1 "k8s.io/api/storage/v1"
@@ -50,7 +51,7 @@ var infoCmd = &cobra.Command{
 func infoMain(ctx context.Context) {
 	crds, err := k8s.CRDClient().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		eprintf(quietFlag, true, "unable to list CRDs; %v\n", err)
+		utils.Eprintf(quietFlag, true, "unable to list CRDs; %v\n", err)
 		os.Exit(1)
 	}
 
@@ -65,13 +66,13 @@ func infoMain(ctx context.Context) {
 		}
 	}
 	if !drivesFound || !volumesFound {
-		eprintf(quietFlag, false, "%v installation not found\n", consts.AppPrettyName)
+		utils.Eprintf(quietFlag, false, "%v installation not found\n", consts.AppPrettyName)
 		os.Exit(1)
 	}
 
 	storageClient, gvk, err := k8s.GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
 	if err != nil {
-		eprintf(quietFlag, true, "%v\n", err)
+		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -85,7 +86,7 @@ func infoMain(ctx context.Context) {
 			Timeout(10 * time.Second).
 			Do(ctx).
 			Into(result); err != nil {
-			eprintf(quietFlag, true, "unable to get CSI nodes; %v\n", err)
+			utils.Eprintf(quietFlag, true, "unable to get CSI nodes; %v\n", err)
 			os.Exit(1)
 		}
 		for _, csiNode := range result.Items {
@@ -104,7 +105,7 @@ func infoMain(ctx context.Context) {
 			Timeout(10 * time.Second).
 			Do(ctx).
 			Into(result); err != nil {
-			eprintf(quietFlag, true, "unable to get CSI nodes; %v\n", err)
+			utils.Eprintf(quietFlag, true, "unable to get CSI nodes; %v\n", err)
 			os.Exit(1)
 		}
 		for _, csiNode := range result.Items {
@@ -116,24 +117,24 @@ func infoMain(ctx context.Context) {
 			}
 		}
 	case "v1apha1":
-		eprintf(quietFlag, true, "storage.k8s.io/v1alpha1 is not supported\n")
+		utils.Eprintf(quietFlag, true, "storage.k8s.io/v1alpha1 is not supported\n")
 		os.Exit(1)
 	}
 
 	if len(nodeList) == 0 {
-		eprintf(quietFlag, true, "%v not installed\n", consts.AppPrettyName)
+		utils.Eprintf(quietFlag, true, "%v not installed\n", consts.AppPrettyName)
 		os.Exit(1)
 	}
 
 	drives, err := drive.NewLister().Get(ctx)
 	if err != nil {
-		eprintf(quietFlag, true, "unable to get drive list; %v\n", err)
+		utils.Eprintf(quietFlag, true, "unable to get drive list; %v\n", err)
 		os.Exit(1)
 	}
 
 	volumes, err := volume.NewLister().Get(ctx)
 	if err != nil {
-		eprintf(quietFlag, true, "unable to get volume list; %v\n", err)
+		utils.Eprintf(quietFlag, true, "unable to get volume list; %v\n", err)
 		os.Exit(1)
 	}
 
