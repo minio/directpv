@@ -22,7 +22,7 @@ import (
 
 var setCmd = &cobra.Command{
 	Use:   "set",
-	Short: "Set properties drives and volumes.",
+	Short: "Set properties to drives and volumes",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if parent := cmd.Parent(); parent != nil {
 			parent.PersistentPreRunE(parent, args)

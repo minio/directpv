@@ -37,7 +37,7 @@ import (
 
 var purgeCmd = &cobra.Command{
 	Use:   "purge [VOLUME ...]",
-	Short: "Purge released and failed " + consts.AppName + "volumes. CAUTION: THIS MAY LEAD TO DATA LOSS",
+	Short: "Purge released and failed " + consts.AppName + "volumes [CAUTION: THIS MAY LEAD TO DATA LOSS]",
 	Example: strings.ReplaceAll(
 		`# Purge all released and failed volumes
 $ kubectl {PLUGIN_NAME} purge --all
@@ -52,7 +52,7 @@ $ kubectl {PLUGIN_NAME} purge --drive=78e6486e-22d2-4c93-99d0-00f4e3a8411f
 $ kubectl {PLUGIN_NAME} purge --nodes=node1
 
 # Purge volumes served by drive name in all nodes.
-$ kubectl {PLUGIN_NAME} purge --drive-name=sda
+$ kubectl {PLUGIN_NAME} purge --drive-name=nvme1n1
 
 # Purge volumes by pod name
 $ kubectl {PLUGIN_NAME} purge --pod-name=minio-{1...3}

@@ -34,58 +34,58 @@ import (
 
 var volumeNameArgs []string
 
-var getVolumesCmd = &cobra.Command{
+var listVolumesCmd = &cobra.Command{
 	Use:     "volumes [VOLUME ...]",
 	Aliases: []string{"volume", "vol"},
-	Short:   "List volumes.",
+	Short:   "List volumes",
 	Example: strings.ReplaceAll(
-		`# Get all ready volumes
-$ kubectl {PLUGIN_NAME} get volumes
+		`# List all ready volumes
+$ kubectl {PLUGIN_NAME} list volumes
 
-# Get all volumes from all nodes with all information include PVC name.
-$ kubectl {PLUGIN_NAME} get drives --all --pvc --output wide
+# List all volumes from all nodes with all information include PVC name.
+$ kubectl {PLUGIN_NAME} list drives --all --pvc --output wide
 
-# Get volumes in Pending state
-$ kubectl {PLUGIN_NAME} get volumes --status=pending
+# List volumes in Pending state
+$ kubectl {PLUGIN_NAME} list volumes --status=pending
 
-# Get volumes served by a node
-$ kubectl {PLUGIN_NAME} get volumes --node=node1
+# List volumes served by a node
+$ kubectl {PLUGIN_NAME} list volumes --node=node1
 
-# Get volumes served by a drive ID
-$ kubectl {PLUGIN_NAME} get volumes --drive=b84758b0-866f-4a12-9d00-d8f7da76ceb3
+# List volumes served by a drive ID
+$ kubectl {PLUGIN_NAME} list volumes --drive-id=b84758b0-866f-4a12-9d00-d8f7da76ceb3
 
-# Get volumes served by drives on nodes
-$ kubectl {PLUGIN_NAME} get volumes --node=node1,node2 --drive=nvme0n1
+# List volumes served by drives on nodes
+$ kubectl {PLUGIN_NAME} list volumes --node=node1,node2 --drive-name=nvme0n1
 
-# Get volumes by pod name
-$ kubectl {PLUGIN_NAME} get volumes --pod-name=minio-{1...3}
+# List volumes by pod name
+$ kubectl {PLUGIN_NAME} list volumes --pod-name=minio-{1...3}
 
-# Get volumes by pod namespace
-$ kubectl {PLUGIN_NAME} get volumes --pod-namespace=tenant-{1...3}`,
+# List volumes by pod namespace
+$ kubectl {PLUGIN_NAME} list volumes --pod-namespace=tenant-{1...3}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
 		volumeNameArgs = args
 
-		if err := validateGetVolumesCmd(); err != nil {
+		if err := validateListVolumesCmd(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
-		getVolumesMain(c.Context(), args)
+		listVolumesMain(c.Context(), args)
 	},
 }
 
 func init() {
-	addDriveIDFlag(getVolumesCmd, "Filter output by drive IDs")
-	addPodNameFlag(getVolumesCmd, "Filter output by pod names")
-	addPodNSFlag(getVolumesCmd, "Filter output by pod namespaces")
-	getVolumesCmd.PersistentFlags().BoolVar(&pvcFlag, "pvc", pvcFlag, "Add PVC names in the output")
-	addVolumeStatusFlag(getVolumesCmd, "Filter output by volume status")
+	addDriveIDFlag(listVolumesCmd, "Filter output by drive IDs")
+	addPodNameFlag(listVolumesCmd, "Filter output by pod names")
+	addPodNSFlag(listVolumesCmd, "Filter output by pod namespaces")
+	listVolumesCmd.PersistentFlags().BoolVar(&pvcFlag, "pvc", pvcFlag, "Add PVC names in the output")
+	addVolumeStatusFlag(listVolumesCmd, "Filter output by volume status")
 }
 
-func validateGetVolumesCmd() error {
+func validateListVolumesCmd() error {
 	if err := validateDriveIDArgs(); err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 	return "-"
 }
 
-func getVolumesMain(ctx context.Context, args []string) {
+func listVolumesMain(ctx context.Context, args []string) {
 	volumes, err := volume.NewLister().
 		NodeSelector(toLabelValues(nodeArgs)).
 		DriveNameSelector(toLabelValues(driveNameArgs)).

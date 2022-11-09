@@ -35,7 +35,7 @@ import (
 
 var cordonCmd = &cobra.Command{
 	Use:   "cordon [DRIVE ...]",
-	Short: "Cordon drives.",
+	Short: "Mark drives as unschedulable",
 	Example: strings.ReplaceAll(
 		`# Cordon all drives from all nodes
 $ kubectl {PLUGIN_NAME} cordon --all
@@ -43,16 +43,16 @@ $ kubectl {PLUGIN_NAME} cordon --all
 # Cordon all drives from a node
 $ kubectl {PLUGIN_NAME} cordon --node=node1
 
-# Cordon drives from all nodes
-$ kubectl {PLUGIN_NAME} cordon --drive-name=sda
+# Cordon a drive from all nodes
+$ kubectl {PLUGIN_NAME} cordon --drive-name=nvme1n1
 
 # Cordon specific drives from specific nodes
 $ kubectl {PLUGIN_NAME} cordon --node=node{1...4} --drive-name=sd{a...f}
 
-# Cordon drives are in 'warm' access-tier
+# Cordon drives which are in 'warm' access-tier
 $ kubectl {PLUGIN_NAME} cordon --access-tier=warm
 
-# Cordon drives are in 'error' status
+# Cordon drives which are in 'error' status
 $ kubectl {PLUGIN_NAME} cordon --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,

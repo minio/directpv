@@ -37,8 +37,6 @@ const adminServerEnvName = consts.AppCapsName + "_ADMIN_SERVER"
 
 var (
 	adminServer string
-	allowedFlag bool
-	deniedFlag  bool
 	forceFlag   bool
 
 	errFormatDenied = errors.New("format denied")
@@ -47,19 +45,16 @@ var (
 
 var formatCmd = &cobra.Command{
 	Use:   "format",
-	Short: "Format and add drives.",
+	Short: "Format and add drives",
 	Example: strings.ReplaceAll(
 		`# Format drives
 $ kubectl {PLUGIN_NAME} format
-
-# Format all drives allowed to format
-$ kubectl {PLUGIN_NAME} format --allowed
 
 # Format drives from a node
 $ kubectl {PLUGIN_NAME} format --node=node1
 
 # Format a drive from all nodes
-$ kubectl {PLUGIN_NAME} format --drive-name=sda
+$ kubectl {PLUGIN_NAME} format --drive-name=nvme1n1
 
 # Format specific drives from specific nodes
 $ kubectl {PLUGIN_NAME} format --node=node{1...4} --drive-name=sd{a...f}`,
@@ -79,8 +74,6 @@ $ kubectl {PLUGIN_NAME} format --node=node{1...4} --drive-name=sd{a...f}`,
 func init() {
 	addNodeFlag(formatCmd, "If present, select drives from given nodes")
 	addDriveNameFlag(formatCmd, "If present, select drives by given names")
-	formatCmd.PersistentFlags().BoolVar(&allowedFlag, "allowed", allowedFlag, "If present, select drives those are allowed to format")
-	formatCmd.PersistentFlags().BoolVar(&deniedFlag, "denied", deniedFlag, "If present, select drives those are denied to format")
 	formatCmd.PersistentFlags().BoolVar(&forceFlag, "force", forceFlag, "If present, force format selected drives")
 	formatCmd.PersistentFlags().StringVar(&adminServer, "admin-server", adminServer, fmt.Sprintf("If present, use this value to connect to admin API server instead of %v environment variable", adminServerEnvName))
 }
@@ -120,11 +113,10 @@ func validateFormatCmd() error {
 
 func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.ListDevicesResult, error) {
 	req := admin.ListDevicesRequest{
-		Nodes:   nodeArgs,
-		Devices: driveNameArgs,
+		Nodes:         nodeArgs,
+		Devices:       driveNameArgs,
+		FormatAllowed: true,
 	}
-	req.FormatAllowed = allowedFlag
-	req.FormatDenied = deniedFlag
 
 	cred, err := admin.GetCredential(ctx, getCredFile())
 	if err != nil {
@@ -143,19 +135,13 @@ func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.Li
 		table.Row{
 			"NODE",
 			"NAME",
-			"MAKE",
 			"SIZE",
 			"FILESYSTEM",
-			"FORMAT",
-			"DENIED",
+			"MAKE",
 		},
 		[]table.SortBy{
 			{
 				Name: "NODE",
-				Mode: table.Asc,
-			},
-			{
-				Name: "FORMAT",
 				Mode: table.Asc,
 			},
 			{
@@ -166,7 +152,6 @@ func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.Li
 		false,
 	)
 
-	formatDenied := true
 	errs := map[string]string{}
 	for node, result := range resp.Nodes {
 		if result.Error != "" {
@@ -175,20 +160,13 @@ func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.Li
 		}
 
 		for _, device := range result.Devices {
-			var allow string
-			if !device.FormatDenied {
-				formatDenied = false
-				allow = "Yes"
-			}
 			writer.AppendRow(
 				[]interface{}{
 					node,
 					device.Name,
-					printableString(device.Make()),
 					printableBytes(int64(device.Size)),
 					printableString(device.FSType()),
-					printableString(allow),
-					device.DeniedReason,
+					printableString(device.Make()),
 				},
 			)
 		}
@@ -206,8 +184,8 @@ func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.Li
 		return nil, errFormatDenied
 	}
 
-	if writer.Length() == 0 || formatDenied {
-		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives found to format"))
+	if writer.Length() == 0 {
+		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to format"))
 		return nil, errFormatDenied
 	}
 
@@ -253,9 +231,9 @@ func getFormatDevices(resultMap map[string]admin.ListDevicesResult) (map[string]
 		table.Row{
 			"NODE",
 			"NAME",
-			"MAKE",
 			"SIZE",
 			"FILESYSTEM",
+			"MAKE",
 		},
 		[]table.SortBy{
 			{
@@ -310,9 +288,9 @@ func getFormatDevices(resultMap map[string]admin.ListDevicesResult) (map[string]
 				[]interface{}{
 					node,
 					device.Name,
-					printableString(device.Make()),
 					printableBytes(int64(device.Size)),
 					fsType,
+					printableString(device.Make()),
 				},
 			)
 		}
@@ -427,10 +405,6 @@ func formatMain(ctx context.Context) {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 		}
 		os.Exit(1)
-	}
-
-	if deniedFlag && !allowedFlag {
-		return
 	}
 
 	if err := getSelections(); err != nil {

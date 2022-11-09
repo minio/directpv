@@ -40,7 +40,7 @@ import (
 
 var infoCmd = &cobra.Command{
 	Use:           "info",
-	Short:         "Show information about " + consts.AppPrettyName + " installation.",
+	Short:         "Show information about " + consts.AppPrettyName + " installation",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Run: func(c *cobra.Command, args []string) {

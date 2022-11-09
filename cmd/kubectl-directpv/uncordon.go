@@ -33,7 +33,7 @@ import (
 
 var uncordonCmd = &cobra.Command{
 	Use:   "uncordon [DRIVE ...]",
-	Short: "Uncordon drives.",
+	Short: "Mark drives as schedulable",
 	Example: strings.ReplaceAll(
 		`# Uncordon all drives from all nodes
 $ kubectl {PLUGIN_NAME} uncordon --all
@@ -41,16 +41,16 @@ $ kubectl {PLUGIN_NAME} uncordon --all
 # Uncordon all drives from a node
 $ kubectl {PLUGIN_NAME} uncordon --node=node1
 
-# Uncordon drives from all nodes
-$ kubectl {PLUGIN_NAME} uncordon --drive-name=sda
+# Uncordon a drive from all nodes
+$ kubectl {PLUGIN_NAME} uncordon --drive-name=nvme1n1
 
 # Uncordon specific drives from specific nodes
 $ kubectl {PLUGIN_NAME} uncordon --node=node{1...4} --drive-name=sd{a...f}
 
-# Uncordon drives are in 'warm' access-tier
+# Uncordon drives which are in 'warm' access-tier
 $ kubectl {PLUGIN_NAME} uncordon --access-tier=warm
 
-# Uncordon drives are in 'error' status
+# Uncordon drives which are in 'error' status
 $ kubectl {PLUGIN_NAME} uncordon --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,

@@ -30,7 +30,7 @@ import (
 
 var uninstallCmd = &cobra.Command{
 	Use:          "uninstall",
-	Short:        "Uninstall " + consts.AppPrettyName + " in Kubernetes.",
+	Short:        "Uninstall " + consts.AppPrettyName + " in Kubernetes",
 	SilenceUsage: true,
 	Run: func(c *cobra.Command, args []string) {
 		if forceFlag {

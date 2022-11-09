@@ -32,52 +32,52 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var getDrivesCmd = &cobra.Command{
+var listDrivesCmd = &cobra.Command{
 	Use:     "drives [DRIVE ...]",
 	Aliases: []string{"drive", "dr"},
-	Short:   "Get drives.",
+	Short:   "List drives",
 	Example: strings.ReplaceAll(
-		`# Get all ready drives
-$ kubectl {PLUGIN_NAME} get drives
+		`# List all ready drives
+$ kubectl {PLUGIN_NAME} list drives
 
-# Get all drives from all nodes with all information.
-$ kubectl {PLUGIN_NAME} get drives --all --output wide
+# List all drives from all nodes with all information.
+$ kubectl {PLUGIN_NAME} list drives --all --output wide
 
-# Get all drives from a node
-$ kubectl {PLUGIN_NAME} get drives --node=node1
+# List all drives from a node
+$ kubectl {PLUGIN_NAME} list drives --node=node1
 
-# Get drives from all nodes
-$ kubectl {PLUGIN_NAME} get drives --drive-name=sda
+# List drives from all nodes
+$ kubectl {PLUGIN_NAME} list drives --drive-name=nvme1n1
 
-# Get specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} get drives --node=node{1...4} --drive-name=sd{a...f}
+# List specific drives from specific nodes
+$ kubectl {PLUGIN_NAME} list drives --node=node{1...4} --drive-name=sd{a...f}
 
-# Get drives are in 'warm' access-tier
-$ kubectl {PLUGIN_NAME} get drives --access-tier=warm
+# List drives are in 'warm' access-tier
+$ kubectl {PLUGIN_NAME} list drives --access-tier=warm
 
-# Get drives are in 'error' status
-$ kubectl {PLUGIN_NAME} get drives --status=error`,
+# List drives are in 'error' status
+$ kubectl {PLUGIN_NAME} list drives --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
 		driveIDArgs = args
 
-		if err := validateGetDrivesCmd(); err != nil {
+		if err := validateListDrivesCmd(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
-		getDrivesMain(c.Context(), args)
+		listDrivesMain(c.Context(), args)
 	},
 }
 
 func init() {
-	addAccessTierFlag(getDrivesCmd, "Filter output by access tier")
-	addDriveStatusFlag(getDrivesCmd, "Filter output by drive status")
+	addAccessTierFlag(listDrivesCmd, "Filter output by access tier")
+	addDriveStatusFlag(listDrivesCmd, "Filter output by drive status")
 }
 
-func validateGetDrivesCmd() error {
+func validateListDrivesCmd() error {
 	if err := validateAccessTierArgs(); err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func validateGetDrivesCmd() error {
 	return nil
 }
 
-func getDrivesMain(ctx context.Context, args []string) {
+func listDrivesMain(ctx context.Context, args []string) {
 	drives, err := drive.NewLister().
 		NodeSelector(toLabelValues(nodeArgs)).
 		DriveNameSelector(toLabelValues(driveNameArgs)).

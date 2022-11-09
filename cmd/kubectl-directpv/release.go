@@ -34,7 +34,7 @@ import (
 
 var releaseCmd = &cobra.Command{
 	Use:   "release [DRIVE ...]",
-	Short: "Release drives.",
+	Short: "Release drives",
 	Example: strings.ReplaceAll(
 		`# Release all drives from all nodes
 $ kubectl {PLUGIN_NAME} release --all
@@ -42,8 +42,8 @@ $ kubectl {PLUGIN_NAME} release --all
 # Release all drives from a node
 $ kubectl {PLUGIN_NAME} release --node=node1
 
-# Release drives from all nodes
-$ kubectl {PLUGIN_NAME} release --drive-name=sda
+# Release a drive from all nodes
+$ kubectl {PLUGIN_NAME} release --drive-name=nvme1n1
 
 # Release specific drives from specific nodes
 $ kubectl {PLUGIN_NAME} release --node=node{1...4} --drive-name=sd{a...f}

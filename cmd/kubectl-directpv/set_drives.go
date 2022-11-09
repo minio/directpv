@@ -37,7 +37,7 @@ var accessTierArg string
 var setDrivesCmd = &cobra.Command{
 	Use:     "drives [DRIVE ...]",
 	Aliases: []string{"drive", "dr"},
-	Short:   "Set drives.",
+	Short:   "Set properties to drives",
 	Example: strings.ReplaceAll(
 		`# Set access-tier to all drives
 $ kubectl {PLUGIN_NAME} set drives --access-tier=hot
@@ -48,8 +48,8 @@ $ kubectl {PLUGIN_NAME} set drives --all --access-tier=warm
 # Set access-tier to all drives from a node
 $ kubectl {PLUGIN_NAME} set drives --node=node1 --access-tier=cold
 
-# Set access-tier to drives from all nodes
-$ kubectl {PLUGIN_NAME} set drives --drive-name=sda --access-tier=hot
+# Set access-tier to a drive from all nodes
+$ kubectl {PLUGIN_NAME} set drives --drive-name=nvme1n1 --access-tier=hot
 
 # Set access-tier to specific drives from specific nodes
 $ kubectl {PLUGIN_NAME} set drives --node=node{1...4} --drive-name=sd{a...f} --access-tier=warm`,

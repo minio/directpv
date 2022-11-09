@@ -35,9 +35,9 @@ import (
 var moveCmd = &cobra.Command{
 	Use:     "move SRC-DRIVE DEST-DRIVE",
 	Aliases: []string{"mv"},
-	Short:   "Move volumes excluding data from source drive to destination drive on a same node.",
+	Short:   "Move volumes excluding data from source drive to destination drive on a same node",
 	Example: strings.ReplaceAll(
-		`# Move volumes on drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 to drive 834e8f4c-14f4-49b9-9b77-e8ac854108d5
+		`# Move volumes from drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 to drive 834e8f4c-14f4-49b9-9b77-e8ac854108d5
 $ kubectl {PLUGIN_NAME} drives move af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 834e8f4c-14f4-49b9-9b77-e8ac854108d5`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,

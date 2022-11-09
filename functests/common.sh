@@ -121,12 +121,12 @@ function uninstall_directpv() {
 function check_drives_status() {
     status="$1"
 
-    if ! "${DIRECTPV_CLIENT}" get drives -d "${LV_DEVICE}" --no-headers | grep -q -e "${LV_DEVICE}.*${status}"; then
+    if ! "${DIRECTPV_CLIENT}" list drives -d "${LV_DEVICE}" --no-headers | grep -q -e "${LV_DEVICE}.*${status}"; then
         echo "$ME: error: LVM device ${LV_DEVICE} not found in ${status} state"
         return 1
     fi
 
-    if ! "${DIRECTPV_CLIENT}" get drives -d "${LUKS_DEVICE}" --no-headers | grep -q -e "${LUKS_DEVICE}.*${status}"; then
+    if ! "${DIRECTPV_CLIENT}" list drives -d "${LUKS_DEVICE}" --no-headers | grep -q -e "${LUKS_DEVICE}.*${status}"; then
         echo "$ME: error: LUKS device ${LUKS_DEVICE} not found in ${status} state"
         return 1
     fi
@@ -139,7 +139,7 @@ function add_drives() {
     echo -e 'ALL\nALL\nYes\n' | ./kubectl-directpv format --admin-server "${admin_server}"
 
     # Show output for manual debugging.
-    "${DIRECTPV_CLIENT}" get drives --all
+    "${DIRECTPV_CLIENT}" list drives --all
 
     check_drives_status Ready
 }
@@ -181,7 +181,7 @@ function uninstall_minio() {
     "${DIRECTPV_CLIENT}" purge --all || true
 
     while true; do
-        count=$("${DIRECTPV_CLIENT}" get volumes --all --no-headers | tee /dev/stderr | wc -l)
+        count=$("${DIRECTPV_CLIENT}" list volumes --all --no-headers | tee /dev/stderr | wc -l)
         if [[ $count -eq 0 ]]; then
             break
         fi
@@ -190,5 +190,5 @@ function uninstall_minio() {
     done
 
     # Show output for manual debugging.
-    "${DIRECTPV_CLIENT}" get drives --all
+    "${DIRECTPV_CLIENT}" list drives --all
 }

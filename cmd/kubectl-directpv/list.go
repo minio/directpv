@@ -22,9 +22,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var getCmd = &cobra.Command{
-	Use:   "get",
-	Short: "Get drives and volumes.",
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List drives and volumes",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if parent := cmd.Parent(); parent != nil {
 			parent.PersistentPreRunE(parent, args)
@@ -35,14 +35,14 @@ var getCmd = &cobra.Command{
 }
 
 func init() {
-	addNodeFlag(getCmd, "Filter output by nodes")
-	addDriveNameFlag(getCmd, "Filter output by drive names")
-	addAllFlag(getCmd, "If present, list all objects")
-	getCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", outputFormat, "Output format. One of: json|yaml|wide")
-	getCmd.PersistentFlags().BoolVar(&noHeaders, "no-headers", noHeaders, "When using the default or custom-column output format, don't print headers (default print headers)")
+	addNodeFlag(listCmd, "Filter output by nodes")
+	addDriveNameFlag(listCmd, "Filter output by drive names")
+	addAllFlag(listCmd, "If present, list all objects")
+	listCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", outputFormat, "Output format. One of: json|yaml|wide")
+	listCmd.PersistentFlags().BoolVar(&noHeaders, "no-headers", noHeaders, "When using the default or custom-column output format, don't print headers (default print headers)")
 
-	getCmd.AddCommand(getDrivesCmd)
-	getCmd.AddCommand(getVolumesCmd)
+	listCmd.AddCommand(listDrivesCmd)
+	listCmd.AddCommand(listVolumesCmd)
 }
 
 func validateGetCmd() error {
