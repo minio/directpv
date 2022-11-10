@@ -23,7 +23,16 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+const readinessPortName = "readinessport"
+
 var (
+	defaultLabels = map[string]string{
+		"application-name":                      consts.GroupName,
+		"application-type":                      "CSIDriver",
+		string(directpvtypes.CreatedByLabelKey): pluginName,
+		string(directpvtypes.VersionLabelKey):   consts.LatestAPIVersion,
+	}
+
 	kubeNodeNameEnvVar = corev1.EnvVar{
 		Name: kubeNodeNameEnvVarName,
 		ValueFrom: &corev1.EnvVarSource{
@@ -51,15 +60,6 @@ var (
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
-
-	defaultLabels = map[string]string{
-		appNameLabel:                            consts.GroupName,
-		appTypeLabel:                            "CSIDriver",
-		string(directpvtypes.CreatedByLabelKey): pluginName,
-		string(directpvtypes.VersionLabelKey):   consts.LatestAPIVersion,
-	}
-
-	defaultAnnotations = map[string]string{}
 
 	readinessHandler = corev1.ProbeHandler{
 		HTTPGet: &corev1.HTTPGetAction{
