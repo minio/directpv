@@ -171,23 +171,23 @@ func (server *nodeRPCServer) ListDevices(req *NodeListDevicesRequest) (resp *Nod
 	return &NodeListDevicesResponse{Devices: devices}, nil
 }
 
-// NodeFormatDevicesRequest is request arguments of /drives/format API.
-type NodeFormatDevicesRequest struct {
-	Devices []FormatDevice `json:"devices,omitempty"`
+// NodeInitDevicesRequest is request arguments of /drives/init API.
+type NodeInitDevicesRequest struct {
+	Devices []InitDevice `json:"devices,omitempty"`
 }
 
-// FormatResult is drive format result
-type FormatResult struct {
+// InitResult is drive init result
+type InitResult struct {
 	Name  string `json:"name"`
 	Error string `json:"error"`
 }
 
-// NodeFormatDevicesResponse is response arguments of /drives/format API.
-type NodeFormatDevicesResponse struct {
-	Devices []FormatResult `json:"devices,omitempty"`
+// NodeInitDevicesResponse is response arguments of /drives/init API.
+type NodeInitDevicesResponse struct {
+	Devices []InitResult `json:"devices,omitempty"`
 }
 
-func (server *nodeRPCServer) format(mutex *sync.Mutex, device pkgdevice.Device, force, reflink bool) error {
+func (server *nodeRPCServer) init(mutex *sync.Mutex, device pkgdevice.Device, force, reflink bool) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -261,7 +261,7 @@ func (server *nodeRPCServer) format(mutex *sync.Mutex, device pkgdevice.Device, 
 	return nil
 }
 
-func (server *nodeRPCServer) FormatDevices(req *NodeFormatDevicesRequest) (resp *NodeFormatDevicesResponse, err error) {
+func (server *nodeRPCServer) InitDevices(req *NodeInitDevicesRequest) (resp *NodeInitDevicesResponse, err error) {
 	var majorMinorList []string
 	for i := range req.Devices {
 		majorMinorList = append(majorMinorList, req.Devices[i].MajorMinor)
@@ -271,13 +271,12 @@ func (server *nodeRPCServer) FormatDevices(req *NodeFormatDevicesRequest) (resp 
 	if err != nil {
 		return nil, err
 	}
-
 	probedDevices := map[string]pkgdevice.Device{}
 	for _, device := range devices {
 		probedDevices[device.MajorMinor] = device
 	}
 
-	results := make([]FormatResult, len(req.Devices))
+	results := make([]InitResult, len(req.Devices))
 	var wg sync.WaitGroup
 	for i := range req.Devices {
 		results[i].Name = req.Devices[i].Name
@@ -285,14 +284,14 @@ func (server *nodeRPCServer) FormatDevices(req *NodeFormatDevicesRequest) (resp 
 		switch {
 		case !found:
 			results[i].Error = "device not found"
-		case !device.Equal(req.Devices[i].Device):
+		case device.ID(server.nodeID) != req.Devices[i].ID:
 			results[i].Error = "device state changed"
 		default:
 			mutex := server.getLock(device.Name)
 			wg.Add(1)
 			go func(i int, mutex *sync.Mutex, device pkgdevice.Device, force, reflink bool) {
 				defer wg.Done()
-				if err := server.format(mutex, device, force, reflink); err != nil {
+				if err := server.init(mutex, device, force, reflink); err != nil {
 					results[i].Error = err.Error()
 				}
 			}(i, mutex, device, req.Devices[i].Force, server.reflink)
@@ -300,7 +299,7 @@ func (server *nodeRPCServer) FormatDevices(req *NodeFormatDevicesRequest) (resp 
 	}
 	wg.Wait()
 
-	return &NodeFormatDevicesResponse{Devices: results}, nil
+	return &NodeInitDevicesResponse{Devices: results}, nil
 }
 
 type rpcServer struct {
@@ -439,24 +438,24 @@ func (server *rpcServer) ListDevices(req *ListDevicesRequest) (resp *ListDevices
 	return resp, nil
 }
 
-// FormatDevicesRequest is request arguments of /drives/format API.
-type FormatDevicesRequest struct {
-	Nodes map[string][]FormatDevice `json:"nodes,omitempty"`
+// InitDevicesRequest is request arguments of /drives/init API.
+type InitDevicesRequest struct {
+	Nodes map[string][]InitDevice `json:"nodes,omitempty"`
 }
 
-// FormatDevicesResult is format devices result on a single node.
-type FormatDevicesResult struct {
-	Devices []FormatResult `json:"devices,omitempty"`
-	Error   string         `json:"error,omitempty"`
+// InitDevicesResult is init devices result on a single node.
+type InitDevicesResult struct {
+	Devices []InitResult `json:"devices,omitempty"`
+	Error   string       `json:"error,omitempty"`
 }
 
-// FormatDevicesResponse is response arguments of /drives/format API.
-type FormatDevicesResponse struct {
-	Nodes map[string]FormatDevicesResult `json:"nodes,omitempty"`
-	Error string                         `json:"error,omitempty"`
+// InitDevicesResponse is response arguments of /drives/init API.
+type InitDevicesResponse struct {
+	Nodes map[string]InitDevicesResult `json:"nodes,omitempty"`
+	Error string                       `json:"error,omitempty"`
 }
 
-func (server *rpcServer) FormatDevices(req *FormatDevicesRequest) (resp *FormatDevicesResponse, err error) {
+func (server *rpcServer) InitDevices(req *InitDevicesRequest) (resp *InitDevicesResponse, err error) {
 	nodeClients, err := server.getNodeClients()
 	if err != nil {
 		return nil, err
@@ -470,30 +469,30 @@ func (server *rpcServer) FormatDevices(req *FormatDevicesRequest) (resp *FormatD
 			}
 		}
 		if len(nodeNames) != 0 {
-			return &FormatDevicesResponse{
+			return &InitDevicesResponse{
 				Error: fmt.Sprintf("unknown nodes %v", nodeNames),
 			}, nil
 		}
 	}
 
-	resp = &FormatDevicesResponse{
-		Nodes: map[string]FormatDevicesResult{},
+	resp = &InitDevicesResponse{
+		Nodes: map[string]InitDevicesResult{},
 	}
 	mutex := &sync.Mutex{}
 
 	var wg sync.WaitGroup
 	for nodeName, devices := range req.Nodes {
 		wg.Add(1)
-		go func(mutex *sync.Mutex, nodeName string, client *nodeClient, devices []FormatDevice) {
+		go func(mutex *sync.Mutex, nodeName string, client *nodeClient, devices []InitDevice) {
 			defer wg.Done()
-			results, err := client.FormatDevices(devices)
+			results, err := client.InitDevices(devices)
 			var e string
 			if err != nil {
 				e = err.Error()
 			}
 
 			mutex.Lock()
-			resp.Nodes[nodeName] = FormatDevicesResult{
+			resp.Nodes[nodeName] = InitDevicesResult{
 				Devices: results,
 				Error:   e,
 			}

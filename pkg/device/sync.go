@@ -99,7 +99,7 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 	if err != nil {
 		return err
 	}
-	drives, err := drive.NewLister().NodeSelector([]directpvtypes.LabelValue{directpvtypes.NewLabelValue(string(nodeID))}).Get(ctx)
+	drives, err := drive.NewLister().NodeSelector([]directpvtypes.LabelValue{directpvtypes.ToLabelValue(string(nodeID))}).Get(ctx)
 	if err != nil {
 		return err
 	}

@@ -184,26 +184,24 @@ func (drive *DirectPVDrive) RemoveVolumeFinalizer(volume string) (found bool) {
 	return
 }
 
-func (drive *DirectPVDrive) setLabel(key types.LabelKey, value types.LabelValue) {
-	values := drive.GetLabels()
+// GetLabels overrides the definition to return non-nil map.
+func (drive *DirectPVDrive) GetLabels() map[string]string {
+	values := drive.ObjectMeta.GetLabels()
 	if values == nil {
 		values = map[string]string{}
+		drive.SetLabels(values)
 	}
-	values[string(key)] = string(value)
-	drive.SetLabels(values)
+	return values
 }
 
 func (drive DirectPVDrive) getLabel(key types.LabelKey) types.LabelValue {
 	values := drive.GetLabels()
-	if values == nil {
-		values = map[string]string{}
-	}
-	return types.NewLabelValue(values[string(key)])
+	return types.ToLabelValue(values[string(key)])
 }
 
 // SetDriveName sets name to this drive.
 func (drive *DirectPVDrive) SetDriveName(name types.DriveName) {
-	drive.setLabel(types.DriveNameLabelKey, types.NewLabelValue(string(name)))
+	drive.SetLabel(types.DriveNameLabelKey, types.ToLabelValue(string(name)))
 }
 
 // GetDriveName returns name of this drive.
@@ -213,7 +211,7 @@ func (drive DirectPVDrive) GetDriveName() types.DriveName {
 
 // SetNodeID sets node ID to this drive.
 func (drive *DirectPVDrive) SetNodeID(name types.NodeID) {
-	drive.setLabel(types.NodeLabelKey, types.NewLabelValue(string(name)))
+	drive.SetLabel(types.NodeLabelKey, types.ToLabelValue(string(name)))
 }
 
 // GetNodeID returns node ID of this drive.
@@ -221,9 +219,22 @@ func (drive DirectPVDrive) GetNodeID() types.NodeID {
 	return types.NodeID(drive.getLabel(types.NodeLabelKey))
 }
 
-// SetAccessTier sets access-tier to this drive.
-func (drive *DirectPVDrive) SetAccessTier(value types.AccessTier) {
-	drive.setLabel(types.AccessTierLabelKey, types.NewLabelValue(string(value)))
+// SetLabel sets label to this drive.
+func (drive *DirectPVDrive) SetLabel(key types.LabelKey, value types.LabelValue) bool {
+	values := drive.GetLabels()
+	if v, ok := values[string(key)]; ok && v == string(value) {
+		return false
+	}
+	values[string(key)] = string(value)
+	return true
+}
+
+// RemoveLabel unsets the label from this drive.
+func (drive *DirectPVDrive) RemoveLabel(key types.LabelKey) (found bool) {
+	labels := drive.GetLabels()
+	_, found = labels[string(key)]
+	delete(labels, string(key))
+	return
 }
 
 // GetAccessTier returns access-tier of this drive.

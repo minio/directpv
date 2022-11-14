@@ -92,16 +92,10 @@ func newDevice(dev device.Device) Device {
 	}
 }
 
-// FormatDevice represents a device in device format request.
-type FormatDevice struct {
-	device.Device
-	Force bool `json:"force"`
-}
-
-// NewFormatDevice creates format device.
-func NewFormatDevice(d Device, force bool) FormatDevice {
-	return FormatDevice{
-		Device: d.Device,
-		Force:  force,
-	}
+// InitDevice represents a device in device init request.
+type InitDevice struct {
+	Name       string `json:"name" yaml:"name,flow"`
+	MajorMinor string `json:"majorMinor"`
+	Force      bool   `json:"force"`
+	ID         string `json:"ID"`
 }

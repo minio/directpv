@@ -17,28 +17,27 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
+
+const adminServerEnvName = consts.AppCapsName + "_ADMIN_SERVER"
+
+var errInvalidLabel = errors.New("invalid label")
 
 var driveStatusValues = []string{
 	strings.ToLower(string(directpvtypes.DriveStatusError)),
 	strings.ToLower(string(directpvtypes.DriveStatusLost)),
 	strings.ToLower(string(directpvtypes.DriveStatusMoving)),
 	strings.ToLower(string(directpvtypes.DriveStatusReady)),
-	strings.ToLower(string(directpvtypes.DriveStatusReleased)),
-}
-
-var accessTierValues = []string{
-	strings.ToLower(string(directpvtypes.AccessTierCold)),
-	strings.ToLower(string(directpvtypes.AccessTierDefault)),
-	strings.ToLower(string(directpvtypes.AccessTierHot)),
-	strings.ToLower(string(directpvtypes.AccessTierWarm)),
+	strings.ToLower(string(directpvtypes.DriveStatusRemoved)),
 }
 
 var volumeStatusValues = []string{
@@ -53,16 +52,20 @@ var (
 	outputFormat     string                  // --output flag
 	noHeaders        bool                    // --no-headers flag
 	allFlag          bool                    // --all flag
-	nodeArgs         []string                // --node flag
-	driveNameArgs    []string                // --drive-name flag
-	accessTierArgs   []string                // --access-tier flag
+	nodesArgs        []string                // --nodes flag
+	drivesArgs       []string                // --drives flag
 	driveStatusArgs  []string                // --status flag of drives
-	driveIDArgs      []string                // --drive flag
+	driveIDArgs      []string                // --drive-id flag
 	podNameArgs      []string                // --pod-name flag
 	podNSArgs        []string                // --pod-namespace flag
 	volumeStatusArgs []string                // --status flag of volumes
 	pvcFlag          bool                    // --pvc flag
 	dryRunFlag       bool                    // --dry-run flag
+	adminServerArg   string                  // --admin-server flag
+	idArgs           []string                // --id flag
+	showLabels       bool                    // --show-labels flag
+	labelArgs        []string                // --labels flag
+	forceFlag        bool                    // --force flag
 )
 
 func addAllFlag(cmd *cobra.Command, usage string) {
@@ -73,16 +76,12 @@ func addDryRunFlag(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVar(&dryRunFlag, "dry-run", dryRunFlag, "Run in dry-run mode")
 }
 
-func addNodeFlag(cmd *cobra.Command, usage string) {
-	cmd.PersistentFlags().StringSliceVarP(&nodeArgs, "node", "n", nodeArgs, usage+"; supports ellipses pattern e.g. node{1...10}")
+func addNodesFlag(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().StringSliceVarP(&nodesArgs, "nodes", "n", nodesArgs, usage+"; supports ellipses pattern e.g. node{1...10}")
 }
 
-func addDriveNameFlag(cmd *cobra.Command, usage string) {
-	cmd.PersistentFlags().StringSliceVarP(&driveNameArgs, "drive-name", "d", driveNameArgs, usage+"; supports ellipses pattern e.g. sd{a...z}")
-}
-
-func addAccessTierFlag(cmd *cobra.Command, usage string) {
-	cmd.PersistentFlags().StringSliceVar(&accessTierArgs, "access-tier", accessTierArgs, fmt.Sprintf("%v; one of: %v", usage, strings.Join(accessTierValues, "|")))
+func addDrivesFlag(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().StringSliceVarP(&drivesArgs, "drives", "d", drivesArgs, usage+"; supports ellipses pattern e.g. sd{a...z}")
 }
 
 func addDriveStatusFlag(cmd *cobra.Command, usage string) {
@@ -94,15 +93,31 @@ func addDriveIDFlag(cmd *cobra.Command, usage string) {
 }
 
 func addPodNameFlag(cmd *cobra.Command, usage string) {
-	cmd.PersistentFlags().StringSliceVar(&podNameArgs, "pod-name", podNameArgs, usage+"; supports ellipses pattern e.g. minio-{0...4}")
+	cmd.PersistentFlags().StringSliceVar(&podNameArgs, "pod-names", podNameArgs, usage+"; supports ellipses pattern e.g. minio-{0...4}")
 }
 
 func addPodNSFlag(cmd *cobra.Command, usage string) {
-	cmd.PersistentFlags().StringSliceVar(&podNSArgs, "pod-namespace", podNameArgs, usage+"; supports ellipses pattern e.g. tenant-{0...3}")
+	cmd.PersistentFlags().StringSliceVar(&podNSArgs, "pod-namespaces", podNameArgs, usage+"; supports ellipses pattern e.g. tenant-{0...3}")
 }
 
 func addVolumeStatusFlag(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().StringSliceVar(&volumeStatusArgs, "status", volumeStatusArgs, fmt.Sprintf("%v; one of: %v", usage, strings.Join(volumeStatusValues, "|")))
+}
+
+func addAdminServerFlag(cmd *cobra.Command) {
+	cmd.PersistentFlags().StringVar(&adminServerArg, "admin-server", adminServerArg, fmt.Sprintf("If present, use this value to connect to admin API server instead of %v environment variable", adminServerEnvName))
+}
+
+func addIDFlag(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().StringSliceVar(&idArgs, "ids", idArgs, usage)
+}
+
+func addShowLabelsFlag(cmd *cobra.Command) {
+	cmd.PersistentFlags().BoolVar(&showLabels, "show-labels", showLabels, "show all labels as the last column (default hide labels column)")
+}
+
+func addLabelsFlag(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().StringSliceVar(&labelArgs, "labels", labelArgs, usage+"; supports comma separated kv pairs. e.g. tier=hot,region=east")
 }
 
 var (
@@ -113,6 +128,7 @@ var (
 	driveStatusSelectors  []directpvtypes.DriveStatus
 	driveIDSelectors      []directpvtypes.DriveID
 	volumeStatusSelectors []directpvtypes.VolumeStatus
+	labelSelectors        map[directpvtypes.LabelKey]directpvtypes.LabelValue
 
 	printer func(interface{}) error
 )
@@ -120,58 +136,38 @@ var (
 func validateNodeArgs() error {
 	var values []string
 
-	for i := range nodeArgs {
-		nodeArgs[i] = strings.TrimSpace(nodeArgs[i])
-		if nodeArgs[i] == "" {
+	for i := range nodesArgs {
+		nodesArgs[i] = strings.TrimSpace(nodesArgs[i])
+		if nodesArgs[i] == "" {
 			return fmt.Errorf("empty node name")
 		}
-		result, err := ellipsis.Expand(nodeArgs[i])
+		result, err := ellipsis.Expand(nodesArgs[i])
 		if err != nil {
 			return err
 		}
 		values = append(values, result...)
 	}
 
-	nodeArgs = values
+	nodesArgs = values
 	return nil
 }
 
 func validateDriveNameArgs() error {
 	var values []string
 
-	for i := range driveNameArgs {
-		driveNameArgs[i] = strings.TrimSpace(utils.TrimDevPrefix(driveNameArgs[i]))
-		if driveNameArgs[i] == "" {
+	for i := range drivesArgs {
+		drivesArgs[i] = strings.TrimSpace(utils.TrimDevPrefix(drivesArgs[i]))
+		if drivesArgs[i] == "" {
 			return fmt.Errorf("empty drive name")
 		}
-		result, err := ellipsis.Expand(driveNameArgs[i])
+		result, err := ellipsis.Expand(drivesArgs[i])
 		if err != nil {
 			return err
 		}
 		values = append(values, result...)
 	}
 
-	driveNameArgs = values
-	return nil
-}
-
-func validateAccessTierArgs() error {
-	for i := range accessTierArgs {
-		accessTierArgs[i] = strings.TrimSpace(accessTierArgs[i])
-		if !utils.Contains(accessTierValues, accessTierArgs[i]) {
-			return fmt.Errorf("unknown access-tier %v", accessTierArgs[i])
-		}
-	}
-
-	accessTiers, err := directpvtypes.StringsToAccessTiers(accessTierArgs...)
-	if err != nil {
-		return err
-	}
-
-	for i := range accessTiers {
-		accessTierArgs[i] = string(accessTiers[i])
-	}
-
+	drivesArgs = values
 	return nil
 }
 
@@ -254,6 +250,23 @@ func validateVolumeStatusArgs() error {
 			return err
 		}
 		volumeStatusSelectors = append(volumeStatusSelectors, status)
+	}
+	return nil
+}
+
+func validateLabelArgs() error {
+	if labelSelectors == nil {
+		labelSelectors = make(map[directpvtypes.LabelKey]directpvtypes.LabelValue)
+	}
+	for i := range labelArgs {
+		if !strings.Contains(labelArgs[i], "=") {
+			return errInvalidLabel
+		}
+		k, v, err := parseLabel(labelArgs[i])
+		if err != nil {
+			return err
+		}
+		labelSelectors[k] = v
 	}
 	return nil
 }

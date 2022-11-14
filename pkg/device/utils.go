@@ -21,6 +21,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -62,4 +63,18 @@ func readFirstLine(filename string, errorIfNotExist bool) (string, error) {
 		return "", getError(err)
 	}
 	return strings.TrimSpace(s), nil
+}
+
+func toSlice(m map[string]string, separator string) []string {
+	keys := []string{}
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	result := []string{}
+	for _, key := range keys {
+		result = append(result, key+separator+m[key])
+	}
+	return result
 }

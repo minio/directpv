@@ -20,9 +20,11 @@ import (
 	"context"
 	"crypto/rand"
 	"math/big"
+	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/types"
 	"google.golang.org/grpc/codes"
@@ -51,10 +53,20 @@ func matchDrive(drive *types.Drive, req *csi.CreateVolumeRequest) bool {
 	}
 
 	// Match drive by access-tier if requested.
+	labels := drive.GetLabels()
 	for key, value := range req.GetParameters() {
-		if key == string(directpvtypes.AccessTierLabelKey) {
+		// TODO: add migration doc to change "direct-csi-min-io/" prefixed access-tier parameters in custom storage classes
+		if !strings.HasPrefix(key, consts.GroupName) {
+			continue
+		}
+		switch key {
+		case string(directpvtypes.AccessTierLabelKey):
 			accessTiers, _ := directpvtypes.StringsToAccessTiers(value)
 			if len(accessTiers) > 0 && drive.GetAccessTier() != accessTiers[0] {
+				return false
+			}
+		default:
+			if labels[key] != value {
 				return false
 			}
 		}

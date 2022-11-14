@@ -108,17 +108,21 @@ func init() {
 	viper.BindPFlags(mainCmd.PersistentFlags())
 
 	mainCmd.AddCommand(installCmd)
-	mainCmd.AddCommand(uninstallCmd)
-	mainCmd.AddCommand(formatCmd)
-	mainCmd.AddCommand(listCmd)
+	mainCmd.AddCommand(discoverCmd)
+	mainCmd.AddCommand(initCmd)
 	mainCmd.AddCommand(infoCmd)
+	mainCmd.AddCommand(listCmd)
+	mainCmd.AddCommand(labelCmd)
 	mainCmd.AddCommand(cordonCmd)
 	mainCmd.AddCommand(migrateCmd)
 	mainCmd.AddCommand(uncordonCmd)
 	mainCmd.AddCommand(moveCmd)
 	mainCmd.AddCommand(releaseCmd)
-	mainCmd.AddCommand(setCmd)
-	mainCmd.AddCommand(purgeCmd)
+	mainCmd.AddCommand(removeCmd)
+	mainCmd.AddCommand(uninstallCmd)
+	mainCmd.SetHelpCommand(&cobra.Command{
+		Hidden: true,
+	})
 }
 
 func main() {

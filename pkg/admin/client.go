@@ -30,9 +30,9 @@ import (
 )
 
 const (
-	devicesListPath   = "/devices/list"
-	devicesFormatPath = "/devices/format"
-	contentType       = "application/json"
+	devicesListPath = "/devices/list"
+	devicesInitPath = "/devices/init"
+	contentType     = "application/json"
 )
 
 func newRequest(url *url.URL, data []byte, cred *Credential) (*http.Request, error) {
@@ -105,9 +105,9 @@ func (c *nodeClient) ListDevices(devices []string, formatAllowed, formatDenied b
 	return resp.Devices, nil
 }
 
-// FormatDevices formats requested devices and returns their status.
-func (c *nodeClient) FormatDevices(devices []FormatDevice) (results []FormatResult, err error) {
-	data, err := json.Marshal(NodeFormatDevicesRequest{
+// InitDevices initializes requested devices and returns their status.
+func (c *nodeClient) InitDevices(devices []InitDevice) (results []InitResult, err error) {
+	data, err := json.Marshal(NodeInitDevicesRequest{
 		Devices: devices,
 	})
 	if err != nil {
@@ -119,7 +119,7 @@ func (c *nodeClient) FormatDevices(devices []FormatDevice) (results []FormatResu
 		return nil, err
 	}
 
-	request, err := newRequest(c.url.JoinPath(devicesFormatPath), data, cred)
+	request, err := newRequest(c.url.JoinPath(devicesInitPath), data, cred)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (c *nodeClient) FormatDevices(devices []FormatDevice) (results []FormatResu
 		return nil, errors.New(errResp.Error)
 	}
 
-	var resp NodeFormatDevicesResponse
+	var resp NodeInitDevicesResponse
 	if err := json.NewDecoder(r.Body).Decode(&resp); err != nil {
 		return nil, err
 	}
@@ -215,14 +215,14 @@ func (c *Client) ListDevices(req *ListDevicesRequest, cred *Credential) (*ListDe
 	return &resp, nil
 }
 
-// FormatDevices formats requested devices and returns their status from nodes.
-func (c *Client) FormatDevices(req *FormatDevicesRequest, cred *Credential) (*FormatDevicesResponse, error) {
+// InitDevices initializes requested devices and returns their status from nodes.
+func (c *Client) InitDevices(req *InitDevicesRequest, cred *Credential) (*InitDevicesResponse, error) {
 	data, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
 
-	request, err := newRequest(c.url.JoinPath(devicesFormatPath), data, cred)
+	request, err := newRequest(c.url.JoinPath(devicesInitPath), data, cred)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ func (c *Client) FormatDevices(req *FormatDevicesRequest, cred *Credential) (*Fo
 		return nil, errors.New(errResp.Error)
 	}
 
-	var resp FormatDevicesResponse
+	var resp InitDevicesResponse
 	if err := json.NewDecoder(r.Body).Decode(&resp); err != nil {
 		return nil, err
 	}

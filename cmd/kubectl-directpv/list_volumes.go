@@ -35,12 +35,26 @@ import (
 var volumeNameArgs []string
 
 var listVolumesCmd = &cobra.Command{
-	Use:     "volumes [VOLUME ...]",
-	Aliases: []string{"volume", "vol"},
-	Short:   "List volumes",
+	Use:           "volumes [VOLUME ...]",
+	Aliases:       []string{"volume", "vol"},
+	Short:         "List volumes",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Example: strings.ReplaceAll(
 		`# List all ready volumes
 $ kubectl {PLUGIN_NAME} list volumes
+
+# List volumes served by a node
+$ kubectl {PLUGIN_NAME} list volumes --nodes=node1
+
+# List volumes served by drives on nodes
+$ kubectl {PLUGIN_NAME} list volumes --nodes=node1,node2 --drives=nvme0n1
+
+# List volumes by pod name
+$ kubectl {PLUGIN_NAME} list volumes --pod-names=minio-{1...3}
+
+# List volumes by pod namespace
+$ kubectl {PLUGIN_NAME} list volumes --pod-namespaces=tenant-{1...3}
 
 # List all volumes from all nodes with all information include PVC name.
 $ kubectl {PLUGIN_NAME} list drives --all --pvc --output wide
@@ -48,27 +62,19 @@ $ kubectl {PLUGIN_NAME} list drives --all --pvc --output wide
 # List volumes in Pending state
 $ kubectl {PLUGIN_NAME} list volumes --status=pending
 
-# List volumes served by a node
-$ kubectl {PLUGIN_NAME} list volumes --node=node1
-
 # List volumes served by a drive ID
 $ kubectl {PLUGIN_NAME} list volumes --drive-id=b84758b0-866f-4a12-9d00-d8f7da76ceb3
 
-# List volumes served by drives on nodes
-$ kubectl {PLUGIN_NAME} list volumes --node=node1,node2 --drive-name=nvme0n1
+# List volumes with labels.
+$ kubectl {PLUGIN_NAME} list volumes --show-labels
 
-# List volumes by pod name
-$ kubectl {PLUGIN_NAME} list volumes --pod-name=minio-{1...3}
-
-# List volumes by pod namespace
-$ kubectl {PLUGIN_NAME} list volumes --pod-namespace=tenant-{1...3}`,
+`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
 		volumeNameArgs = args
-
-		if err := validateListVolumesCmd(); err != nil {
+		if err := validateListVolumesArgs(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
@@ -83,9 +89,12 @@ func init() {
 	addPodNSFlag(listVolumesCmd, "Filter output by pod namespaces")
 	listVolumesCmd.PersistentFlags().BoolVar(&pvcFlag, "pvc", pvcFlag, "Add PVC names in the output")
 	addVolumeStatusFlag(listVolumesCmd, "Filter output by volume status")
+	addShowLabelsFlag(listVolumesCmd)
+	addLabelsFlag(listVolumesCmd, "Filter output by volume labels")
+	addAllFlag(listVolumesCmd, "If present, list all volumes")
 }
 
-func validateListVolumesCmd() error {
+func validateListVolumesArgs() error {
 	if err := validateDriveIDArgs(); err != nil {
 		return err
 	}
@@ -108,25 +117,27 @@ func validateListVolumesCmd() error {
 
 	switch {
 	case allFlag:
-	case len(nodeArgs) != 0:
-	case len(driveNameArgs) != 0:
+	case len(nodesArgs) != 0:
+	case len(drivesArgs) != 0:
 	case len(driveIDArgs) != 0:
 	case len(podNameArgs) != 0:
 	case len(podNSArgs) != 0:
 	case len(volumeNameArgs) != 0:
 	case len(volumeStatusArgs) != 0:
+	case len(labelArgs) != 0:
 	default:
 		volumeStatusSelectors = append(volumeStatusSelectors, directpvtypes.VolumeStatusReady)
 	}
 
 	if allFlag {
-		nodeArgs = nil
-		driveNameArgs = nil
+		nodesArgs = nil
+		drivesArgs = nil
 		driveIDSelectors = nil
 		podNameArgs = nil
 		podNSArgs = nil
 		volumeNameArgs = nil
 		volumeStatusSelectors = nil
+		labelSelectors = nil
 	}
 
 	return nil
@@ -142,13 +153,14 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 
 func listVolumesMain(ctx context.Context, args []string) {
 	volumes, err := volume.NewLister().
-		NodeSelector(toLabelValues(nodeArgs)).
-		DriveNameSelector(toLabelValues(driveNameArgs)).
+		NodeSelector(toLabelValues(nodesArgs)).
+		DriveNameSelector(toLabelValues(drivesArgs)).
 		DriveIDSelector(toLabelValues(driveIDArgs)).
 		PodNameSelector(toLabelValues(podNameArgs)).
 		PodNSSelector(toLabelValues(podNSArgs)).
 		StatusSelector(volumeStatusSelectors).
 		VolumeNameSelector(volumeNameArgs).
+		LabelSelector(labelSelectors).
 		Get(ctx)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
@@ -185,6 +197,9 @@ func listVolumesMain(ctx context.Context, args []string) {
 	}
 	if pvcFlag {
 		headers = append(headers, "PVC")
+	}
+	if showLabels {
+		headers = append(headers, "LABELS")
 	}
 	writer := newTableWriter(
 		headers,
@@ -246,7 +261,9 @@ func listVolumesMain(ctx context.Context, args []string) {
 		if pvcFlag {
 			row = append(row, getPVCName(ctx, volume))
 		}
-
+		if showLabels {
+			row = append(row, labelsToString(volume.GetLabels()))
+		}
 		writer.AppendRow(row)
 	}
 

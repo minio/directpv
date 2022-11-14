@@ -33,37 +33,38 @@ import (
 )
 
 var listDrivesCmd = &cobra.Command{
-	Use:     "drives [DRIVE ...]",
-	Aliases: []string{"drive", "dr"},
-	Short:   "List drives",
+	Use:           "drives [DRIVE ...]",
+	Aliases:       []string{"drive", "dr"},
+	Short:         "List drives",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Example: strings.ReplaceAll(
 		`# List all ready drives
 $ kubectl {PLUGIN_NAME} list drives
 
-# List all drives from all nodes with all information.
-$ kubectl {PLUGIN_NAME} list drives --all --output wide
-
 # List all drives from a node
-$ kubectl {PLUGIN_NAME} list drives --node=node1
+$ kubectl {PLUGIN_NAME} list drives --nodes=node1
 
-# List drives from all nodes
-$ kubectl {PLUGIN_NAME} list drives --drive-name=nvme1n1
+# List a drive from all nodes
+$ kubectl {PLUGIN_NAME} list drives --drives=nvme1n1
 
 # List specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} list drives --node=node{1...4} --drive-name=sd{a...f}
-
-# List drives are in 'warm' access-tier
-$ kubectl {PLUGIN_NAME} list drives --access-tier=warm
+$ kubectl {PLUGIN_NAME} list drives --nodes=node{1...4} --drives=sd{a...f}
 
 # List drives are in 'error' status
-$ kubectl {PLUGIN_NAME} list drives --status=error`,
+$ kubectl {PLUGIN_NAME} list drives --status=error
+
+# List all drives from all nodes with all information.
+$ kubectl {PLUGIN_NAME} list drives --output wide
+
+# List drives with labels.
+$ kubectl {PLUGIN_NAME} list drives --show-labels`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
 		driveIDArgs = args
-
-		if err := validateListDrivesCmd(); err != nil {
+		if err := validateListDrivesArgs(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
@@ -73,15 +74,13 @@ $ kubectl {PLUGIN_NAME} list drives --status=error`,
 }
 
 func init() {
-	addAccessTierFlag(listDrivesCmd, "Filter output by access tier")
 	addDriveStatusFlag(listDrivesCmd, "Filter output by drive status")
+	addShowLabelsFlag(listDrivesCmd)
+	addLabelsFlag(listDrivesCmd, "Filter output by drive labels")
+	addAllFlag(listDrivesCmd, "If present, list all drives")
 }
 
-func validateListDrivesCmd() error {
-	if err := validateAccessTierArgs(); err != nil {
-		return err
-	}
-
+func validateListDrivesArgs() error {
 	if err := validateDriveStatusArgs(); err != nil {
 		return err
 	}
@@ -92,21 +91,21 @@ func validateListDrivesCmd() error {
 
 	switch {
 	case allFlag:
-	case len(nodeArgs) != 0:
-	case len(driveNameArgs) != 0:
-	case len(accessTierArgs) != 0:
+	case len(nodesArgs) != 0:
+	case len(drivesArgs) != 0:
 	case len(driveStatusArgs) != 0:
 	case len(driveIDArgs) != 0:
+	case len(labelArgs) != 0:
 	default:
 		driveStatusSelectors = append(driveStatusSelectors, directpvtypes.DriveStatusReady)
 	}
 
 	if allFlag {
-		nodeArgs = nil
-		driveNameArgs = nil
-		accessTierArgs = nil
+		nodesArgs = nil
+		drivesArgs = nil
 		driveStatusSelectors = nil
 		driveIDSelectors = nil
+		labelSelectors = nil
 	}
 
 	return nil
@@ -114,11 +113,11 @@ func validateListDrivesCmd() error {
 
 func listDrivesMain(ctx context.Context, args []string) {
 	drives, err := drive.NewLister().
-		NodeSelector(toLabelValues(nodeArgs)).
-		DriveNameSelector(toLabelValues(driveNameArgs)).
-		AccessTierSelector(toLabelValues(accessTierArgs)).
+		NodeSelector(toLabelValues(nodesArgs)).
+		DriveNameSelector(toLabelValues(drivesArgs)).
 		StatusSelector(driveStatusSelectors).
 		DriveIDSelector(driveIDSelectors).
+		LabelSelector(labelSelectors).
 		Get(ctx)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
@@ -148,10 +147,12 @@ func listDrivesMain(ctx context.Context, args []string) {
 		"FREE",
 		"VOLUMES",
 		"STATUS",
-		"ACCESSTIER",
 	}
 	if wideOutput {
 		headers = append(headers, "DRIVE ID")
+	}
+	if showLabels {
+		headers = append(headers, "LABELS")
 	}
 	writer := newTableWriter(
 		headers,
@@ -162,10 +163,6 @@ func listDrivesMain(ctx context.Context, args []string) {
 			},
 			{
 				Name: "STATUS",
-				Mode: table.Asc,
-			},
-			{
-				Name: "ACCESSTIER",
 				Mode: table.Asc,
 			},
 			{
@@ -202,15 +199,12 @@ func listDrivesMain(ctx context.Context, args []string) {
 			printableBytes(drive.Status.FreeCapacity),
 			volumes,
 			status,
-			func() string {
-				if drive.GetAccessTier() == directpvtypes.AccessTierDefault {
-					return "-"
-				}
-				return string(drive.GetAccessTier())
-			}(),
 		}
 		if wideOutput {
 			row = append(row, drive.GetDriveID())
+		}
+		if showLabels {
+			row = append(row, labelsToString(drive.GetLabels()))
 		}
 
 		writer.AppendRow(row)

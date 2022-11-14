@@ -43,8 +43,8 @@ const (
 	// DriveStatusError denotes drive is in error state to prevent volume schedule.
 	DriveStatusError DriveStatus = "Error"
 
-	// DriveStatusReleased denotes drive is removed.
-	DriveStatusReleased DriveStatus = "Released"
+	// DriveStatusRemoved denotes drive is removed.
+	DriveStatusRemoved DriveStatus = "Removed"
 
 	// DriveStatusMoving denotes drive is moving volumes.
 	DriveStatusMoving DriveStatus = "Moving"
@@ -54,7 +54,7 @@ const (
 func ToDriveStatus(value string) (status DriveStatus, err error) {
 	status = DriveStatus(strings.Title(value))
 	switch status {
-	case DriveStatusReady, DriveStatusLost, DriveStatusError, DriveStatusReleased, DriveStatusMoving:
+	case DriveStatusReady, DriveStatusLost, DriveStatusError, DriveStatusRemoved, DriveStatusMoving:
 		return status, nil
 	}
 

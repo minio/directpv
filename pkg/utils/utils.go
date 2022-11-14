@@ -56,9 +56,6 @@ func WriteObject(writer io.Writer, obj interface{}) error {
 	if _, err = writer.Write([]byte(y)); err != nil {
 		return err
 	}
-	if _, err = writer.Write([]byte("\n---\n")); err != nil {
-		return err
-	}
 	return nil
 }
 

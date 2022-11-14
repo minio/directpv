@@ -56,7 +56,7 @@ func createStorageClass(ctx context.Context, args *Args) error {
 		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
 			{
 				Key:    string(directpvtypes.TopologyDriverIdentity),
-				Values: []string{string(directpvtypes.NewLabelValue(consts.Identity))},
+				Values: []string{string(directpvtypes.ToLabelValue(consts.Identity))},
 			},
 		},
 	}

@@ -221,10 +221,10 @@ func TestListDriveWithOption(t *testing.T) {
 
 		client := newFakeLatestDriveClientForList(testCase.apiVersion, consts.DriveResource, "DirectPVDriveList", unstructuredObjects...)
 		labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-			directpvtypes.NodeLabelKey: {directpvtypes.NewLabelValue("node2")},
+			directpvtypes.NodeLabelKey: {directpvtypes.ToLabelValue("node2")},
 		}
 		if testCase.apiVersion == consts.LatestAPIVersion {
-			labelMap[directpvtypes.AccessTierLabelKey] = []directpvtypes.LabelValue{directpvtypes.NewLabelValue("Hot")}
+			labelMap[directpvtypes.AccessTierLabelKey] = []directpvtypes.LabelValue{directpvtypes.ToLabelValue("Hot")}
 		}
 		driveList, err := client.List(ctx, metav1.ListOptions{LabelSelector: directpvtypes.ToLabelSelector(labelMap)})
 		if err != nil {
@@ -326,13 +326,13 @@ func TestUpdateDrive(t *testing.T) {
 	testCases := []struct {
 		apiVersion string
 		name       string
-		accessTier directpvtypes.AccessTier
+		fsuuid     string
 		inputDrive *types.Drive
 	}{
 		{
 			apiVersion: consts.LatestAPIVersion,
 			name:       "drive2",
-			accessTier: directpvtypes.AccessTierHot,
+			fsuuid:     "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6",
 			inputDrive: createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
 		},
 	}
@@ -340,7 +340,7 @@ func TestUpdateDrive(t *testing.T) {
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
-		testCase.inputDrive.SetAccessTier(testCase.accessTier)
+		testCase.inputDrive.Status.FSUUID = "a5eb531b-0d9d-4e6e-a766-c79ac18b7ea6"
 		updatedDrive, err := client.Update(ctx, testCase.inputDrive, metav1.UpdateOptions{})
 		if err != nil {
 			t.Fatalf("case %v: unexpected error: %v", i+1, err)
@@ -348,40 +348,8 @@ func TestUpdateDrive(t *testing.T) {
 		if expectedGV != updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion() {
 			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion())
 		}
-		if updatedDrive.GetAccessTier() != testCase.accessTier {
-			t.Fatalf("case %v: accessTier: expected: %v, got: %v", i+1, updatedDrive.GetAccessTier(), testCase.accessTier)
-		}
-	}
-}
-
-func TestUpdateStatusDrive(t *testing.T) {
-	testCases := []struct {
-		apiVersion string
-		name       string
-		accessTier directpvtypes.AccessTier
-		inputDrive *types.Drive
-	}{
-		{
-			apiVersion: consts.LatestAPIVersion,
-			name:       "drive2",
-			accessTier: directpvtypes.AccessTierHot,
-			inputDrive: createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
-		},
-	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-	for i, testCase := range testCases {
-		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
-		testCase.inputDrive.SetAccessTier(testCase.accessTier)
-		updatedDrive, err := client.UpdateStatus(ctx, testCase.inputDrive, metav1.UpdateOptions{})
-		if err != nil {
-			t.Fatalf("case %v: unexpected error: %v", i+1, err)
-		}
-		if expectedGV != updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion() {
-			t.Fatalf("case %v: groupVersion: expected: %v, got: %v", i+1, expectedGV, updatedDrive.GetObjectKind().GroupVersionKind().GroupVersion())
-		}
-		if updatedDrive.GetAccessTier() != testCase.accessTier {
-			t.Fatalf("case %v: accessTier: expected: %v, got: %v", i+1, updatedDrive.GetAccessTier(), testCase.accessTier)
+		if updatedDrive.Status.FSUUID != testCase.fsuuid {
+			t.Fatalf("case %v: fsuuid: expected: %v, got: %v", i+1, updatedDrive.Status.FSUUID, testCase.fsuuid)
 		}
 	}
 }

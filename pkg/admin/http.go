@@ -131,7 +131,7 @@ func postHandler(handler func(w http.ResponseWriter, r *http.Request)) func(w ht
 
 type httpHandler interface {
 	ListDevicesHandler(res http.ResponseWriter, req *http.Request)
-	FormatDevicesHandler(res http.ResponseWriter, req *http.Request)
+	InitDevicesHandler(res http.ResponseWriter, req *http.Request)
 }
 
 type nodeHTTPHandler struct {
@@ -163,15 +163,15 @@ func (handler *nodeHTTPHandler) ListDevicesHandler(w http.ResponseWriter, r *htt
 	w.Write(body)
 }
 
-func (handler *nodeHTTPHandler) FormatDevicesHandler(w http.ResponseWriter, r *http.Request) {
-	var request NodeFormatDevicesRequest
+func (handler *nodeHTTPHandler) InitDevicesHandler(w http.ResponseWriter, r *http.Request) {
+	var request NodeInitDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(apiErrorf("invalid node format devices request; %v", err))
+		w.Write(apiErrorf("invalid node init devices request; %v", err))
 		return
 	}
 
-	response, err := handler.rpc.FormatDevices(&request)
+	response, err := handler.rpc.InitDevices(&request)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(apiErrorf("rpc error: %v", err))
@@ -217,15 +217,15 @@ func (handler *adminHTTPHandler) ListDevicesHandler(w http.ResponseWriter, r *ht
 	w.Write(body)
 }
 
-func (handler *adminHTTPHandler) FormatDevicesHandler(w http.ResponseWriter, r *http.Request) {
-	var request FormatDevicesRequest
+func (handler *adminHTTPHandler) InitDevicesHandler(w http.ResponseWriter, r *http.Request) {
+	var request InitDevicesRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write(apiErrorf("invalid format devices request; %v", err))
+		w.Write(apiErrorf("invalid init devices request; %v", err))
 		return
 	}
 
-	response, err := handler.rpc.FormatDevices(&request)
+	response, err := handler.rpc.InitDevices(&request)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(apiErrorf("rpc error: %v", err))
@@ -250,7 +250,7 @@ func startHTTPServer(ctx context.Context, port int, certFile, keyFile string, ha
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(devicesListPath, drainBodyHandler(postHandler(authHandler(handler.ListDevicesHandler))))
-	mux.HandleFunc(devicesFormatPath, drainBodyHandler(postHandler(authHandler(handler.FormatDevicesHandler))))
+	mux.HandleFunc(devicesInitPath, drainBodyHandler(postHandler(authHandler(handler.InitDevicesHandler))))
 
 	server := &http.Server{
 		TLSConfig: &tls.Config{

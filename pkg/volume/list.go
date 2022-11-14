@@ -42,6 +42,7 @@ type Lister struct {
 	podNSs         []directpvtypes.LabelValue
 	statusList     []directpvtypes.VolumeStatus
 	volumeNames    []string
+	labels         map[directpvtypes.LabelKey]directpvtypes.LabelValue
 	maxObjects     int64
 	ignoreNotFound bool
 }
@@ -95,6 +96,12 @@ func (lister *Lister) VolumeNameSelector(volumeNames []string) *Lister {
 	return lister
 }
 
+// LabelSelector adds filter listing by labels.
+func (lister *Lister) LabelSelector(labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *Lister {
+	lister.labels = labels
+	return lister
+}
+
 // MaxObjects controls number of items to be fetched in every iteration.
 func (lister *Lister) MaxObjects(n int64) *Lister {
 	lister.maxObjects = n
@@ -115,17 +122,20 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 		len(lister.podNames) == 0 &&
 		len(lister.podNSs) == 0 &&
 		len(lister.statusList) == 0 &&
+		len(lister.labels) == 0 &&
 		len(lister.volumeNames) != 0
 
-	labelSelector := directpvtypes.ToLabelSelector(
-		map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-			directpvtypes.NodeLabelKey:      lister.nodes,
-			directpvtypes.DriveNameLabelKey: lister.driveNames,
-			directpvtypes.DriveLabelKey:     lister.driveIDs,
-			directpvtypes.PodNameLabelKey:   lister.podNames,
-			directpvtypes.PodNSLabelKey:     lister.podNSs,
-		},
-	)
+	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
+		directpvtypes.NodeLabelKey:      lister.nodes,
+		directpvtypes.DriveNameLabelKey: lister.driveNames,
+		directpvtypes.DriveLabelKey:     lister.driveIDs,
+		directpvtypes.PodNameLabelKey:   lister.podNames,
+		directpvtypes.PodNSLabelKey:     lister.podNSs,
+	}
+	for k, v := range lister.labels {
+		labelMap[k] = []directpvtypes.LabelValue{v}
+	}
+	labelSelector := directpvtypes.ToLabelSelector(labelMap)
 
 	resultCh := make(chan ListVolumeResult)
 	go func() {
