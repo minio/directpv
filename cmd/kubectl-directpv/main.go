@@ -104,6 +104,7 @@ func init() {
 	mainCmd.AddCommand(uninstallCmd)
 	mainCmd.AddCommand(getCmd)
 	mainCmd.AddCommand(cordonCmd)
+	mainCmd.AddCommand(migrateCmd)
 	mainCmd.AddCommand(uncordonCmd)
 	mainCmd.AddCommand(formatCmd)
 	mainCmd.AddCommand(moveCmd)

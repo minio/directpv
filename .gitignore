@@ -6,3 +6,7 @@ directpv
 kubectl-directpv
 !kubectl-directpv/
 vdb.xml
+migrate/.idea/
+migrate/list-convert
+drive-*.yaml
+volume-*.yaml
