@@ -50,12 +50,8 @@ type Server struct {
 	mkdir             func(path string) error
 }
 
-// NewServer creates node server.
-func NewServer(ctx context.Context,
-	identity string, nodeID directpvtypes.NodeID, rack, zone, region string,
-	metricsPort int,
-) (*Server, error) {
-	nodeServer := &Server{
+func newServer(identity string, nodeID directpvtypes.NodeID, rack, zone, region string) Server {
+	return Server{
 		nodeID:   nodeID,
 		identity: identity,
 		rack:     rack,
@@ -75,10 +71,16 @@ func NewServer(ctx context.Context,
 			return sys.Mkdir(dir, 0o755)
 		},
 	}
+}
 
+// NewServer creates node server.
+func NewServer(ctx context.Context,
+	identity string, nodeID directpvtypes.NodeID, rack, zone, region string,
+	metricsPort int,
+) *Server {
 	go metrics.ServeMetrics(ctx, nodeID, metricsPort)
-
-	return nodeServer, nil
+	server := newServer(identity, nodeID, rack, zone, region)
+	return &server
 }
 
 // NodeGetInfo gets node information.

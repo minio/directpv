@@ -27,9 +27,12 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/admin"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
+	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -49,6 +52,7 @@ var (
 	disableAdminService bool
 	k8sVersion          string
 	kubeVersion         *version.Version
+	legacyFlag          bool
 )
 
 var installCmd = &cobra.Command{
@@ -88,6 +92,7 @@ func init() {
 	installCmd.PersistentFlags().StringVar(&configDir, "config-dir", configDir, "Path to configuration directory")
 	installCmd.PersistentFlags().BoolVar(&disableAdminService, "disable-admin-service", disableAdminService, "Skip installing a node-port service for admin server")
 	installCmd.PersistentFlags().StringVar(&k8sVersion, "kube-version", k8sVersion, "If present, use this as kubernetes version for dry-run")
+	installCmd.PersistentFlags().BoolVar(&legacyFlag, "legacy", legacyFlag, "If present, include legacy services for dry-run")
 	addDryRunFlag(installCmd)
 }
 
@@ -202,7 +207,48 @@ func getCredential() (*admin.Credential, bool, error) {
 	return &cred, true, nil
 }
 
+func getLegacyFlag(ctx context.Context) bool {
+	if dryRunFlag {
+		return legacyFlag
+	}
+
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	resultCh := volume.NewLister().
+		LabelSelector(
+			map[directpvtypes.LabelKey]directpvtypes.LabelValue{
+				directpvtypes.MigratedLabelKey: "true",
+			},
+		).
+		IgnoreNotFound(true).
+		List(ctx)
+	for result := range resultCh {
+		if result.Err != nil {
+			utils.Eprintf(quietFlag, true, "unable to get volumes; %v", result.Err)
+			break
+		} else {
+			return true
+		}
+	}
+
+	legacyclient.Init()
+
+	for result := range legacyclient.ListVolumes(ctx) {
+		if result.Err != nil {
+			utils.Eprintf(quietFlag, true, "unable to get legacy volumes; %v", result.Err)
+			break
+		} else {
+			return true
+		}
+	}
+
+	return false
+}
+
 func installMain(ctx context.Context) {
+	legacyFlag = getLegacyFlag(ctx)
+
 	auditFile := fmt.Sprintf("install.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
 	file, err := openAuditFile(auditFile)
 	if err != nil {
@@ -241,6 +287,7 @@ func installMain(ctx context.Context) {
 	args.Quiet = quietFlag
 	args.DisableAdminService = disableAdminService
 	args.KubeVersion = kubeVersion
+	args.Legacy = legacyFlag
 
 	if err = installer.Install(ctx, args); err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)

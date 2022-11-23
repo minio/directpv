@@ -50,6 +50,7 @@ type Args struct {
 	Quiet               bool
 	DisableAdminService bool
 	KubeVersion         *version.Version
+	Legacy              bool
 
 	podSecurityAdmission     bool
 	csiProvisionerImage      string

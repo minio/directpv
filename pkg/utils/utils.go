@@ -56,7 +56,8 @@ func WriteObject(writer io.Writer, obj interface{}) error {
 	if _, err = writer.Write([]byte(y)); err != nil {
 		return err
 	}
-	return nil
+	_, err = writer.Write([]byte("---\n"))
+	return err
 }
 
 // SafeFile is used to write the yaml

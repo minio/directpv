@@ -243,6 +243,12 @@ func schema_pkg_apis_directpvminio_v1beta1_DriveSpec(ref common.ReferenceCallbac
 							Format: "",
 						},
 					},
+					"relabel": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 			},
 		},

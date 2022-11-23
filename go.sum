@@ -363,8 +363,6 @@ github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/kubernetes-csi/csi-lib-utils v0.11.0 h1:FHWOBtAZBA/hVk7v/qaXgG9Sxv0/n06DebPFuDwumqg=
 github.com/kubernetes-csi/csi-lib-utils v0.11.0/go.mod h1:BmGZZB16L18+9+Lgg9YWwBKfNEHIDdgGfAyuW6p2NV0=
-github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de h1:9TO3cAIGXtEhnIaL+V+BEER86oLrvS+kWobKpbJuye0=
-github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de/go.mod h1:zAbeS9B/r2mtpb6U+EI2rYA5OAXxsYw6wTamcNW+zcE=
 github.com/magiconair/properties v1.8.1/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/magiconair/properties v1.8.6 h1:5ibWZ6iY0NctNGWo87LalDlEZ6R41TqbbDamhfG/Qzo=
 github.com/magiconair/properties v1.8.6/go.mod h1:y3VJvCyxH9uVvJTWEGAELF3aiYNyPKd5NZ3oSwXrF60=
@@ -1076,8 +1074,6 @@ k8s.io/apiextensions-apiserver v0.25.3/go.mod h1:ZJqwpCkxIx9itilmZek7JgfUAM0dnTs
 k8s.io/apimachinery v0.22.0/go.mod h1:O3oNtNadZdeOMxHFVxOreoznohCpy0z6mocxbZr7oJ0=
 k8s.io/apimachinery v0.25.4 h1:CtXsuaitMESSu339tfhVXhQrPET+EiWnIY1rcurKnAc=
 k8s.io/apimachinery v0.25.4/go.mod h1:jaF9C/iPNM1FuLl7Zuy5b9v+n35HGSh6AQ4HYRkCqwo=
-k8s.io/cli-runtime v0.25.4 h1:GTSBN7aKBrc2LqpdO30CmHQqJtRmotxV7XsMSP+QZIk=
-k8s.io/cli-runtime v0.25.4/go.mod h1:JGOw1CR8v4Mcz6cEKA7bFQe0bPrNn1l5sGAX1/Ke4Eg=
 k8s.io/client-go v0.22.0/go.mod h1:GUjIuXR5PiEv/RVK5OODUsm6eZk7wtSWZSaSJbpFdGg=
 k8s.io/client-go v0.25.4 h1:3RNRDffAkNU56M/a7gUfXaEzdhZlYhoW8dgViGy5fn8=
 k8s.io/client-go v0.25.4/go.mod h1:8trHCAC83XKY0wsBIpbirZU4NTUpbuhc2JnI7OruGZw=

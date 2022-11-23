@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -138,7 +139,37 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 						client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveMountError, "unable to mount the drive; %v", err)
 						klog.ErrorS(err, "unable to mount the drive", "Source", source, "Target", target)
 					} else {
-						client.Eventf(drive, client.EventTypeNormal, client.EventReasonDriveMounted, "Drive mounted successfully to %s", target)
+						client.Eventf(
+							drive,
+							client.EventTypeNormal,
+							client.EventReasonDriveMounted,
+							"Drive mounted successfully to %s", target,
+						)
+						if drive.Spec.Relabel {
+							if err = os.Symlink(".", types.GetVolumeRootDir(drive.Status.FSUUID)); err != nil {
+								if errors.Is(err, os.ErrExist) {
+									err = nil
+								} else {
+									client.Eventf(
+										drive,
+										client.EventTypeWarning,
+										client.EventReasonDriveRelabelError,
+										"unable to relabel; %v", err,
+									)
+									klog.ErrorS(
+										err,
+										"unable to create symlink",
+										"symlink", types.GetVolumeRootDir(drive.Status.FSUUID),
+										"drive", drive.Name,
+									)
+								}
+							}
+
+							if err == nil {
+								drive.Spec.Relabel = false
+								updated = true
+							}
+						}
 					}
 				}
 			default:

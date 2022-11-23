@@ -70,6 +70,9 @@ const (
 
 	// TopologyDriverRegion label key for region
 	TopologyDriverRegion LabelKey = consts.GroupName + "/region"
+
+	// MigratedLabelKey denotes drive/volume migrated from legacy DirectCSI
+	MigratedLabelKey LabelKey = consts.GroupName + "/migrated"
 )
 
 // LabelValue is a type definition for label value

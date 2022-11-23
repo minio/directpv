@@ -71,10 +71,10 @@ import (
  *
  */
 
-// Server contains controller server properties
+// Server denotes controller server.
 type Server struct{}
 
-// NewServer returns the instance of controller server with the provided properties
+// NewServer creates new controller server.
 func NewServer() *Server {
 	return &Server{}
 }

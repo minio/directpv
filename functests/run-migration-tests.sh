@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # This file is part of MinIO DirectPV
-# Copyright (c) 2021, 2022 MinIO, Inc.
+# Copyright (c) 2022 MinIO, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -16,26 +16,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set -ex
+ME=$(basename "$0")
+export ME
 
-source "${SCRIPT_DIR}/common.sh"
+if [ "$#" -ne 1 ]; then
+    echo "usage: $ME <DIRECTCSI-VERSION>"
+    exit 255
+fi
 
-function test_build() {
-    export DIRECTPV_CLIENT=./kubectl-directpv
-    install_directpv 5
-    add_drives
-    deploy_minio functests/minio.yaml
-    uninstall_minio functests/minio.yaml
-    remove_drives
-    uninstall_directpv 5
-}
+SCRIPT_DIR=$(dirname "$0")
+export SCRIPT_DIR
 
-echo "$ME: Setup environment"
-setup_lvm
-setup_luks
-
-echo "$ME: ================================= Run build test ================================="
-test_build
-
-remove_luks
-remove_lvm
+"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/migration-tests.sh" "$1"

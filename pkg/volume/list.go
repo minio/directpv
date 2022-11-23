@@ -24,6 +24,7 @@ import (
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -159,6 +160,10 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 			for {
 				result, err := client.VolumeClient().List(ctx, options)
 				if err != nil {
+					if apierrors.IsNotFound(err) && lister.ignoreNotFound {
+						break
+					}
+
 					send(ListVolumeResult{Err: err})
 					return
 				}
@@ -193,6 +198,10 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 		for _, volumeName := range lister.volumeNames {
 			volume, err := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{})
 			if err != nil {
+				if apierrors.IsNotFound(err) && lister.ignoreNotFound {
+					continue
+				}
+
 				send(ListVolumeResult{Err: err})
 				return
 			}
