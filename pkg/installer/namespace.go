@@ -26,42 +26,36 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	podsecurityadmissionapi "k8s.io/pod-security-admission/api"
 )
 
-func createNodeAPIService(ctx context.Context, args *Args) error {
-	nodeAPIPort := corev1.ServicePort{
-		Port: consts.NodeAPIPort,
-		Name: consts.NodeAPIPortName,
+func createNamespace(ctx context.Context, args *Args) error {
+	annotations := map[string]string{}
+	if args.podSecurityAdmission {
+		// Policy violations will cause the pods to be rejected
+		annotations[podsecurityadmissionapi.EnforceLevelLabel] = string(podsecurityadmissionapi.LevelPrivileged)
 	}
-	service := &corev1.Service{
+
+	namespace := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
-			Kind:       "Service",
+			Kind:       "Namespace",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        consts.NodeAPIServerHLSVC,
-			Namespace:   consts.Identity,
-			Annotations: map[string]string{},
+			Name:        consts.Identity,
+			Namespace:   metav1.NamespaceNone,
+			Annotations: annotations,
 			Labels:      defaultLabels,
-		},
-		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{nodeAPIPort},
-			Selector: map[string]string{
-				serviceSelector: selectorValueEnabled,
-			},
-			Type:      corev1.ServiceTypeClusterIP,
-			ClusterIP: corev1.ClusterIPNone,
+			Finalizers:  []string{metav1.FinalizerDeleteDependents},
 		},
 	}
 
 	if args.DryRun {
-		fmt.Print(mustGetYAML(service))
+		fmt.Print(mustGetYAML(namespace))
 		return nil
 	}
 
-	_, err := k8s.KubeClient().CoreV1().Services(consts.Identity).Create(
-		ctx, service, metav1.CreateOptions{},
-	)
+	_, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, namespace, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			err = nil
@@ -69,16 +63,19 @@ func createNodeAPIService(ctx context.Context, args *Args) error {
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(service))
+	_, err = io.WriteString(args.auditWriter, mustGetYAML(namespace))
 	return err
 }
 
-func deleteNodeAPIService(ctx context.Context) error {
-	err := k8s.KubeClient().CoreV1().Services(consts.Identity).Delete(
-		ctx, consts.NodeAPIServerHLSVC, metav1.DeleteOptions{},
+func deleteNamespace(ctx context.Context) error {
+	propagationPolicy := metav1.DeletePropagationForeground
+	err := k8s.KubeClient().CoreV1().Namespaces().Delete(
+		ctx, consts.Identity, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy},
 	)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			err = nil
+		}
 	}
-	return nil
+	return err
 }

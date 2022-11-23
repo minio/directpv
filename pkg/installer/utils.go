@@ -17,40 +17,121 @@
 package installer
 
 import (
-	"context"
+	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base32"
+	"encoding/pem"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"path"
-	"reflect"
+	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/yaml"
 )
 
-var (
-	seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
-	tick       = color.HiGreenString("✓")
-	cross      = color.HiRedString("✗")
-)
-
-func stringWithCharset(length int, charset string) string {
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
+func mustGetYAML(i interface{}) string {
+	data, err := yaml.Marshal(i)
+	if err != nil {
+		klog.Fatalf("unable to marshal object to YAML; %w", err)
 	}
-	return string(b)
+	return fmt.Sprintf("%v\n---\n", string(data))
 }
 
-func newRandomString(length int) string {
-	return stringWithCharset(length, charset)
-}
+func getCerts(dnsNames ...string) (caCertBytes, publicCertBytes, privateKeyBytes []byte, err error) {
+	// set up our CA certificate
+	ca := &x509.Certificate{
+		SerialNumber: big.NewInt(2019),
+		Subject: pkix.Name{
+			Organization: []string{"MinIO, Inc."},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
 
-func newPluginsSocketDir(kubeletDir, name string) string {
-	return path.Join(kubeletDir, "plugins", k8s.SanitizeResourceName(name))
+	// create our private and public key
+	caPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// create the CA
+	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// pem encode
+	caPEM := new(bytes.Buffer)
+	if err := pem.Encode(caPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caBytes,
+	}); err != nil {
+		return nil, nil, nil, err
+	}
+	caCertBytes = caPEM.Bytes()
+
+	caPrivKeyPEM := new(bytes.Buffer)
+	if err := pem.Encode(caPrivKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(caPrivKey),
+	}); err != nil {
+		return nil, nil, nil, err
+	}
+
+	// set up our server certificate
+	cert := &x509.Certificate{
+		SerialNumber: big.NewInt(2019),
+		Subject: pkix.Name{
+			Organization: []string{"MinIO, Inc."},
+		},
+		DNSNames:     dnsNames,
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(10, 0, 0),
+		SubjectKeyId: []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+
+	certPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, &certPrivKey.PublicKey, caPrivKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	certPEM := new(bytes.Buffer)
+	if err := pem.Encode(certPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	}); err != nil {
+		return nil, nil, nil, err
+	}
+	publicCertBytes = certPEM.Bytes()
+
+	certPrivKeyPEM := new(bytes.Buffer)
+	if err := pem.Encode(certPrivKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(certPrivKey),
+	}); err != nil {
+		return nil, nil, nil, err
+	}
+	privateKeyBytes = certPrivKeyPEM.Bytes()
+
+	return
 }
 
 func newHostPathVolume(name, path string) corev1.Volume {
@@ -66,6 +147,10 @@ func newHostPathVolume(name, path string) corev1.Volume {
 		Name:         name,
 		VolumeSource: volumeSource,
 	}
+}
+
+func newPluginsSocketDir(kubeletDir, name string) string {
+	return path.Join(kubeletDir, "plugins", k8s.SanitizeResourceName(name))
 }
 
 func newSecretVolume(name, secretName string) corev1.Volume {
@@ -89,119 +174,10 @@ func newVolumeMount(name, path string, mountPropogation corev1.MountPropagationM
 	}
 }
 
-func generateSanitizedUniqueNameFrom(name string) string {
-	sanitizedName := k8s.SanitizeResourceName(name)
-	// Max length of name is 255. If needed, cut out last 6 bytes
-	// to make room for randomstring
-	if len(sanitizedName) >= 255 {
-		sanitizedName = sanitizedName[0:249]
+func getRandSuffix() string {
+	b := make([]byte, 5)
+	if _, err := rand.Read(b); err != nil {
+		klog.Fatalf("unable to generate random bytes; %v", err)
 	}
-
-	// Get a 5 byte randomstring
-	shortUUID := newRandomString(5)
-
-	// Concatenate sanitizedName (249) and shortUUID (5) with a '-' in between
-	// Max length of the returned name cannot be more than 255 bytes
-	return fmt.Sprintf("%s-%s", sanitizedName, shortUUID)
-}
-
-func removeFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
-	removeByIndex := func(s []string, index int) []string {
-		return append(s[:index], s[index+1:]...)
-	}
-	finalizers := objectMeta.GetFinalizers()
-	for index, f := range finalizers {
-		if f == finalizer {
-			finalizers = removeByIndex(finalizers, index)
-			break
-		}
-	}
-	return finalizers
-}
-
-func deleteDeployment(ctx context.Context, identity, name string) error {
-	dClient := k8s.KubeClient().AppsV1().Deployments(k8s.SanitizeResourceName(identity))
-
-	getDeleteProtectionFinalizer := func() string {
-		return k8s.SanitizeResourceName(identity) + deleteProtectionFinalizer
-	}
-
-	clearFinalizers := func(name string) error {
-		deployment, err := dClient.Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		finalizer := getDeleteProtectionFinalizer()
-		deployment.SetFinalizers(removeFinalizer(&deployment.ObjectMeta, finalizer))
-		if _, err := dClient.Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	if err := clearFinalizers(name); err != nil {
-		return err
-	}
-
-	if err := dClient.Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
-		return err
-	}
-	return nil
-}
-
-func createOrUpdateSecret(ctx context.Context, secretName string, data map[string][]byte, c *Config) error {
-	secretsClient := k8s.KubeClient().CoreV1().Secrets(c.namespace())
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        secretName,
-			Namespace:   c.namespace(),
-			Annotations: defaultAnnotations,
-			Labels:      defaultLabels,
-		},
-		Data: data,
-	}
-
-	if !c.DryRun {
-		existingSecret, err := secretsClient.Get(ctx, secret.Name, metav1.GetOptions{})
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				return err
-			}
-			if _, err := secretsClient.Create(ctx, secret, metav1.CreateOptions{}); err != nil {
-				return err
-			}
-			return c.postProc(secret)
-		}
-		if reflect.DeepEqual(existingSecret.Data, secret.Data) {
-			return nil
-		}
-		existingSecret.Data = secret.Data
-		if _, err := secretsClient.Update(ctx, existingSecret, metav1.UpdateOptions{}); err != nil {
-			return err
-		}
-		return c.postProc(existingSecret)
-	}
-	return c.postProc(secret)
-}
-
-func executeFn(ctx context.Context, c *Config, componentName string, fn func(context.Context, *Config) error) error {
-	printf(c, color.HiWhiteString(componentName))
-	err := fn(ctx, c)
-	if err != nil {
-		printf(c, "%s\n", cross)
-	} else {
-		printf(c, "%s\n", tick)
-	}
-	return err
-}
-
-func printf(c *Config, format string, a ...any) {
-	if c.Quiet || c.DryRun {
-		return
-	}
-	fmt.Printf(format, a...)
+	return strings.ToLower(base32.StdEncoding.EncodeToString(b)[:5])
 }

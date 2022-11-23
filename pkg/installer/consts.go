@@ -22,85 +22,21 @@ const (
 	// UnixCSIEndpoint is csi drive control socket.
 	UnixCSIEndpoint = "unix:///csi/csi.sock"
 
-	apiPortName         = "api-port"
-	caCertFileName      = "ca.crt"
-	nodeAPIServerCAPath = "/tmp/nodeapiserver/ca"
-
-	procFSDir = "/proc"
-
-	// rbac
-	clusterRoleVerbList   = "list"
-	clusterRoleVerbUse    = "use"
-	clusterRoleVerbGet    = "get"
-	clusterRoleVerbWatch  = "watch"
-	clusterRoleVerbCreate = "create"
-	clusterRoleVerbDelete = "delete"
-	clusterRoleVerbUpdate = "update"
-	clusterRoleVerbPatch  = "patch"
-
-	// Daemonset
-	volumeNameMountpointDir          = "mountpoint-dir"
-	volumeNameRegistrationDir        = "registration-dir"
-	volumeNamePluginDir              = "plugins-dir"
-	volumeNameAppRootDir             = consts.AppName + "-common-root"
-	appRootDir                       = consts.AppRootDir + "/"
-	nodeDriverRegistrarContainerName = "node-driver-registrar"
-	healthZContainerPortName         = "healthz"
-	healthZContainerPort             = 9898
-	livenessProbeContainerName       = "liveness-probe"
-	volumeNameSysDir                 = "sysfs"
-	volumePathSysDir                 = "/sys"
-	volumeNameDevDir                 = "devfs"
-	volumePathDevDir                 = "/dev"
-	volumeNameRunUdevData            = "run-udev-data-dir"
-	volumePathRunUdevData            = consts.UdevDataDir
-
-	// Deployment
-	csiProvisionerContainerName = "csi-provisioner"
-
-	// Common
-	volumeNameSocketDir       = "socket-dir"
-	socketDir                 = "/csi"
-	socketFile                = "/csi.sock"
-	selectorKey               = "selector." + consts.GroupName
-	containerName             = consts.AppName
-	kubeNodeNameEnvVarName    = "KUBE_NODE_NAME"
-	csiEndpointEnvVarName     = "CSI_ENDPOINT"
-	kubeletDirPath            = "/var/lib/kubelet"
-	pluginName                = "kubectl-" + consts.AppName
-	selectorValueEnabled      = "enabled"
-	serviceSelector           = "selector." + consts.GroupName + ".service"
-	healthZContainerPortPath  = "/healthz"
-	deleteProtectionFinalizer = "/delete-protection"
-
-	// debug log level default
-	logLevel = 3
-
-	// string-gen
-	charset = "abcdefghijklmnopqrstuvwxyz0123456789"
-
-	// Misc
-	createdByLabel = "created-by"
-	appNameLabel   = "application-name"
-	appTypeLabel   = "application-type"
-
-	// metrics
-	metricsPortName = "metrics"
-
-	// readiness
-	readinessPortName = "readinessport"
-
-	// admin-server
-	adminServerCertsDir        = "admin-server-certs"
-	adminServerCertsSecretName = "adminservercerts"
-	localHostDNS               = "localhost"
-	adminServerCASecretName    = "adminservercacert"
-	adminServerSelectorValue   = "admin-server"
-	adminServerSVC             = "admin-service"
-
-	// node-api-server
-	nodeAPIServerCertsDir        = "node-api-server-certs"
-	nodeAPIServerCertsSecretName = "nodeapiservercerts"
-	nodeAPIServerCASecretName    = "nodeapiservercacert"
-	nodeAPIServerCADir           = "node-api-server-ca"
+	caCertFileName           = "ca.crt"
+	healthZContainerPortName = "healthz"
+	healthZContainerPort     = 9898
+	volumePathSysDir         = "/sys"
+	volumeNameSocketDir      = "socket-dir"
+	socketDir                = "/csi"
+	selectorKey              = "selector." + consts.GroupName
+	kubeNodeNameEnvVarName   = "KUBE_NODE_NAME"
+	csiEndpointEnvVarName    = "CSI_ENDPOINT"
+	kubeletDirPath           = "/var/lib/kubelet"
+	pluginName               = "kubectl-" + consts.AppName
+	selectorValueEnabled     = "enabled"
+	serviceSelector          = "selector." + consts.GroupName + ".service"
+	healthZContainerPortPath = "/healthz"
+	logLevel                 = 3
+	createdByLabel           = "created-by"
+	localhost                = "localhost"
 )

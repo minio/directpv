@@ -20,134 +20,154 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
 
-func installStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := executeFn(ctx, c, "storage class", createStorageClassDefault); err != nil {
-		return fmt.Errorf("unable to create storage class; %v", err)
+func createStorageClass(ctx context.Context, args *Args) error {
+	var gvk *schema.GroupVersionKind
+	if args.DryRun {
+		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 16 {
+			gvk = &schema.GroupVersionKind{Version: "v1beta1"}
+		} else {
+			gvk = &schema.GroupVersionKind{Version: "v1"}
+		}
+	} else {
+		var err error
+		if gvk, err = k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1"); err != nil {
+			return err
+		}
 	}
-	return nil
-}
 
-func uninstallStorageClassDefault(ctx context.Context, c *Config) error {
-	if err := executeFn(ctx, c, "storage class", deleteStorageClassDefault); err != nil {
-		return fmt.Errorf("unable to delete storage class; %v", err)
-	}
-	return nil
-}
-
-func createStorageClassDefault(ctx context.Context, c *Config) error {
 	allowExpansion := false
-	name := c.storageClassName()
+	name := consts.StorageClassName
 	allowTopologiesWithName := corev1.TopologySelectorTerm{
 		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
 			{
 				Key:    string(directpvtypes.TopologyDriverIdentity),
-				Values: []string{string(directpvtypes.NewLabelValue(c.driverIdentity()))},
+				Values: []string{string(directpvtypes.NewLabelValue(consts.Identity))},
 			},
 		},
 	}
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
-	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
-	if err != nil {
-		return err
-	}
-	version := gvk.Version
-
-	switch version {
+	switch gvk.Version {
 	case "v1":
-		// Create StorageClass for the new driver
 		bindingMode := storagev1.VolumeBindingWaitForFirstConsumer
 		storageClass := &storagev1.StorageClass{
 			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1", Kind: "StorageClass"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        name,
 				Namespace:   metav1.NamespaceNone,
-				Annotations: defaultAnnotations,
+				Annotations: map[string]string{},
 				Labels:      defaultLabels,
-				Finalizers:  []string{metav1.FinalizerDeleteDependents}, // foregroundDeletion finalizer
+				Finalizers:  []string{metav1.FinalizerDeleteDependents},
 			},
-			Provisioner:          c.provisionerName(),
+			Provisioner:          consts.Identity,
 			AllowVolumeExpansion: &allowExpansion,
 			VolumeBindingMode:    &bindingMode,
 			AllowedTopologies: []corev1.TopologySelectorTerm{
 				allowTopologiesWithName,
 			},
 			ReclaimPolicy: &retainPolicy,
-			Parameters: map[string]string{
-				"fstype": "xfs",
-			},
+			Parameters:    map[string]string{"fstype": "xfs"},
 		}
 
-		if !c.DryRun {
-			if _, err := k8s.KubeClient().StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-				return err
-			}
+		if args.DryRun {
+			fmt.Print(mustGetYAML(storageClass))
+			return nil
 		}
-		return c.postProc(storageClass)
+
+		_, err := k8s.KubeClient().StorageV1().StorageClasses().Create(
+			ctx, storageClass, metav1.CreateOptions{},
+		)
+		if err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				err = nil
+			}
+			return err
+		}
+
+		_, err = io.WriteString(args.auditWriter, mustGetYAML(storageClass))
+		return err
+
 	case "v1beta1":
-		// Create StorageClass for the new driver
 		bindingMode := storagev1beta1.VolumeBindingWaitForFirstConsumer
 		storageClass := &storagev1beta1.StorageClass{
 			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1beta1", Kind: "StorageClass"},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        name,
 				Namespace:   metav1.NamespaceNone,
-				Annotations: defaultAnnotations,
+				Annotations: map[string]string{},
 				Labels:      defaultLabels,
-				Finalizers:  []string{metav1.FinalizerDeleteDependents}, // foregroundDeletion finalizer
+				Finalizers:  []string{metav1.FinalizerDeleteDependents},
 			},
-			Provisioner:          c.provisionerName(),
+			Provisioner:          consts.Identity,
 			AllowVolumeExpansion: &allowExpansion,
 			VolumeBindingMode:    &bindingMode,
 			AllowedTopologies: []corev1.TopologySelectorTerm{
 				allowTopologiesWithName,
 			},
 			ReclaimPolicy: &retainPolicy,
-			Parameters: map[string]string{
-				"fstype": "xfs",
-			},
+			Parameters:    map[string]string{"fstype": "xfs"},
 		}
 
-		if !c.DryRun {
-			if _, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-				return err
-			}
+		if args.DryRun {
+			fmt.Print(mustGetYAML(storageClass))
+			return nil
 		}
-		return c.postProc(storageClass)
+
+		_, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Create(
+			ctx, storageClass, metav1.CreateOptions{},
+		)
+		if err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				err = nil
+			}
+			return err
+		}
+
+		_, err = io.WriteString(args.auditWriter, mustGetYAML(storageClass))
+		return err
+
 	default:
 		return errStorageClassVersionUnsupported
 	}
 }
 
-func deleteStorageClassDefault(ctx context.Context, c *Config) error {
-	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1", "v1alpha1")
+func deleteStorageClass(ctx context.Context) error {
+	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
 	if err != nil {
 		return err
 	}
-	name := c.storageClassName()
+
 	switch gvk.Version {
 	case "v1":
-		if err := k8s.KubeClient().StorageV1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			return err
-		}
+		err = k8s.KubeClient().StorageV1().StorageClasses().Delete(
+			ctx, consts.StorageClassName, metav1.DeleteOptions{},
+		)
 	case "v1beta1":
-		if err := k8s.KubeClient().StorageV1beta1().StorageClasses().Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			return err
-		}
+		err = k8s.KubeClient().StorageV1beta1().StorageClasses().Delete(
+			ctx, consts.StorageClassName, metav1.DeleteOptions{},
+		)
 	default:
 		return errStorageClassVersionUnsupported
 	}
+
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
 	return nil
 }

@@ -32,6 +32,7 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/version"
 )
 
 var (
@@ -46,6 +47,8 @@ var (
 	nodeSelector        map[string]string
 	tolerations         []corev1.Toleration
 	disableAdminService bool
+	k8sVersion          string
+	kubeVersion         *version.Version
 )
 
 var installCmd = &cobra.Command{
@@ -53,6 +56,13 @@ var installCmd = &cobra.Command{
 	Short:         "Install " + consts.AppPrettyName + " in Kubernetes.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		disableInit = dryRunFlag
+		if parent := cmd.Parent(); parent != nil {
+			return parent.PersistentPreRunE(parent, args)
+		}
+		return nil
+	},
 	Run: func(c *cobra.Command, args []string) {
 		if err := validateInstallCmd(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
@@ -77,6 +87,7 @@ func init() {
 	installCmd.PersistentFlags().StringVar(&apparmorProfile, "apparmor-profile", apparmorProfile, "Set Apparmor profile")
 	installCmd.PersistentFlags().StringVar(&configDir, "config-dir", configDir, "Path to configuration directory")
 	installCmd.PersistentFlags().BoolVar(&disableAdminService, "disable-admin-service", disableAdminService, "Skip installing a node-port service for admin server")
+	installCmd.PersistentFlags().StringVar(&k8sVersion, "kube-version", k8sVersion, "If present, use this as kubernetes version for dry-run")
 	addDryRunFlag(installCmd)
 }
 
@@ -158,6 +169,13 @@ func validateInstallCmd() error {
 		return fmt.Errorf("%v; format of '--tolerations' flag value must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>", err)
 	}
 
+	if dryRunFlag && k8sVersion != "" {
+		var err error
+		if kubeVersion, err = version.ParseSemantic(k8sVersion); err != nil {
+			return fmt.Errorf("invalid kubernetes version %v; %v", k8sVersion, err)
+		}
+	}
+
 	return nil
 }
 
@@ -206,25 +224,26 @@ func installMain(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	installConfig := &installer.Config{
-		Identity:            consts.Identity,
-		ContainerImage:      image,
-		ContainerOrg:        org,
-		ContainerRegistry:   registry,
-		NodeSelector:        nodeSelector,
-		Tolerations:         tolerations,
-		SeccompProfile:      seccompProfile,
-		ApparmorProfile:     apparmorProfile,
-		DryRun:              dryRunFlag,
-		AuditFile:           file,
-		ImagePullSecrets:    imagePullSecrets,
-		Credential:          cred,
-		DisableAdminService: disableAdminService,
-		Quiet:               quietFlag,
+	args, err := installer.NewArgs(image, cred, file)
+	if err != nil {
+		utils.Eprintf(quietFlag, true, "%v\n", err)
+		os.Exit(1)
 	}
 
-	if err = installer.Install(ctx, installConfig); err != nil {
-		utils.Eprintf(quietFlag, true, "unable to install %v; %v\n", consts.AppPrettyName, err)
+	args.Registry = registry
+	args.Org = org
+	args.ImagePullSecrets = imagePullSecrets
+	args.NodeSelector = nodeSelector
+	args.Tolerations = tolerations
+	args.SeccompProfile = seccompProfile
+	args.AppArmorProfile = apparmorProfile
+	args.DryRun = dryRunFlag
+	args.Quiet = quietFlag
+	args.DisableAdminService = disableAdminService
+	args.KubeVersion = kubeVersion
+
+	if err = installer.Install(ctx, args); err != nil {
+		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -243,7 +262,7 @@ func installMain(ctx context.Context) {
 		}
 
 		if !quietFlag {
-			color.HiGreen("\n%s installed successfully", consts.AppPrettyName)
+			fmt.Println("Done")
 
 			if disableAdminService {
 				utils.Eprintf(quietFlag, false, "%v",

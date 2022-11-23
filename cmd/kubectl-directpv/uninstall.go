@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/fatih/color"
@@ -27,15 +28,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var crdFlag bool
-
 var uninstallCmd = &cobra.Command{
 	Use:          "uninstall",
 	Short:        "Uninstall " + consts.AppPrettyName + " in Kubernetes.",
 	SilenceUsage: true,
 	Run: func(c *cobra.Command, args []string) {
-		if crdFlag || forceFlag {
-			input := getInput(color.HiRedString("CRD removal may cause data loss. Type 'Yes' if you really want to do: "))
+		if forceFlag {
+			input := getInput(color.HiRedString("Force removal may cause data loss. Type 'Yes' if you really want to do: "))
 			if input != "Yes" {
 				utils.Eprintf(quietFlag, false, "Aborting...\n")
 				os.Exit(1)
@@ -47,25 +46,17 @@ var uninstallCmd = &cobra.Command{
 }
 
 func init() {
-	uninstallCmd.PersistentFlags().BoolVar(&crdFlag, "crd", crdFlag, "If present, remove CRDs")
 	uninstallCmd.PersistentFlags().BoolVar(&forceFlag, "force", forceFlag, "If present, uninstall forcefully")
-	uninstallCmd.PersistentFlags().MarkHidden("crd")
 	uninstallCmd.PersistentFlags().MarkHidden("force")
 }
 
 func uninstallMain(ctx context.Context) {
-	installConfig := &installer.Config{
-		Identity:     consts.Identity,
-		UninstallCRD: crdFlag,
-		ForceRemove:  forceFlag,
-	}
-
-	if err := installer.Uninstall(ctx, installConfig); err != nil {
+	if err := installer.Uninstall(ctx, quietFlag, forceFlag); err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 
 	if !quietFlag {
-		color.Red("\n%s is uninstalled successfully", consts.AppPrettyName)
+		fmt.Println("Done")
 	}
 }

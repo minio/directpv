@@ -35,6 +35,8 @@ import (
 // e.g. $ go build -ldflags="-X main.Version=v4.0.1"
 var Version string
 
+var disableInit bool
+
 var mainCmd = &cobra.Command{
 	Use:           consts.AppName,
 	Short:         "Kubectl plugin for managing " + consts.AppPrettyName + " drives and volumes.",
@@ -42,7 +44,9 @@ var mainCmd = &cobra.Command{
 	SilenceErrors: false,
 	Version:       Version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		client.Init()
+		if !disableInit {
+			client.Init()
+		}
 		return nil
 	},
 }

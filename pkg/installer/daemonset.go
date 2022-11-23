@@ -19,7 +19,7 @@ package installer
 import (
 	"context"
 	"fmt"
-	"path"
+	"io"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -30,65 +30,72 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func installDaemonsetDefault(ctx context.Context, c *Config) error {
-	if err := executeFn(ctx, c, "daemonset", createDaemonsetDefault); err != nil {
-		return fmt.Errorf("unable to create daemonset; %v", err)
-	}
-	return nil
-}
+const (
+	nodeAPIServerCertsSecretName = "nodeapiservercerts"
+	nodeAPIServerCASecretName    = "nodeapiservercacert"
+	volumeNameMountpointDir      = "mountpoint-dir"
+	volumeNameRegistrationDir    = "registration-dir"
+	volumeNamePluginDir          = "plugins-dir"
+	volumeNameAppRootDir         = consts.AppName + "-common-root"
+	appRootDir                   = consts.AppRootDir + "/"
+	volumeNameSysDir             = "sysfs"
+	volumeNameDevDir             = "devfs"
+	volumePathDevDir             = "/dev"
+	volumeNameRunUdevData        = "run-udev-data-dir"
+	volumePathRunUdevData        = consts.UdevDataDir
+	socketFile                   = "/csi.sock"
+	nodeAPIServerCertsDir        = "node-api-server-certs"
+)
 
-func uninstallDaemonsetDefault(ctx context.Context, c *Config) error {
-	if err := executeFn(ctx, c, "daemonset", deleteDaemonsetDefault); err != nil {
-		return fmt.Errorf("unable to delete daemonset; %v", err)
-	}
-	return nil
-}
-
-func createDaemonsetDefault(ctx context.Context, c *Config) error {
-	daemonSetsClient := k8s.KubeClient().AppsV1().DaemonSets(c.namespace())
-	if _, err := daemonSetsClient.Get(ctx, c.daemonsetName(), metav1.GetOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-	} else {
-		// Deployment already created
-		return nil
-	}
-	return createDaemonSet(ctx, c)
-}
-
-func deleteDaemonsetDefault(ctx context.Context, c *Config) error {
-	if err := k8s.KubeClient().AppsV1().DaemonSets(c.namespace()).Delete(ctx, c.daemonsetName(), metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+func createOrUpdateNodeAPIServerSecrets(ctx context.Context, args *Args) error {
+	caCertBytes, publicCertBytes, privateKeyBytes, err := getCerts(
+		localhost,
+		// FIXME: Add clusterIP service domain name here
+	)
+	if err != nil {
 		return err
 	}
-	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, nodeAPIServerCertsSecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+
+	err = createOrUpdateSecret(
+		ctx,
+		args,
+		nodeAPIServerCertsSecretName,
+		map[string][]byte{
+			consts.PrivateKeyFileName: privateKeyBytes,
+			consts.PublicCertFileName: publicCertBytes,
+		},
+	)
+	if err != nil {
 		return err
 	}
-	if err := k8s.KubeClient().CoreV1().Secrets(c.namespace()).Delete(ctx, nodeAPIServerCASecretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-	return nil
+
+	return createOrUpdateSecret(
+		ctx,
+		args,
+		nodeAPIServerCASecretName,
+		map[string][]byte{
+			caCertFileName: caCertBytes,
+		},
+	)
 }
 
-func createDaemonSet(ctx context.Context, c *Config) error {
-	// Create cert secrets for the node api-server
-	if err := generateCertSecretsForNodeAPIServer(ctx, c); err != nil {
+func doCreateDaemonset(ctx context.Context, args *Args) error {
+	if err := createOrUpdateNodeAPIServerSecrets(ctx, args); err != nil {
 		return err
 	}
-	// Create deamonset
+
 	privileged := true
 	securityContext := &corev1.SecurityContext{Privileged: &privileged}
 
-	seccompProfileName := c.SeccompProfile
-	if seccompProfileName != "" {
+	if args.SeccompProfile != "" {
 		securityContext.SeccompProfile = &corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: &seccompProfileName,
+			LocalhostProfile: &args.SeccompProfile,
 		}
 	}
 
 	volumes := []corev1.Volume{
-		newHostPathVolume(volumeNameSocketDir, newPluginsSocketDir(kubeletDirPath, c.identity())),
+		newHostPathVolume(volumeNameSocketDir, newPluginsSocketDir(kubeletDirPath, consts.Identity)),
 		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
 		newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
 		newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
@@ -96,8 +103,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		newHostPathVolume(volumeNameSysDir, volumePathSysDir),
 		newHostPathVolume(volumeNameDevDir, volumePathDevDir),
 		newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData),
-		// node api server
-		newSecretVolume(nodeAPIServerCertsDir, nodeAPIServerCertsSecretName),
+		newSecretVolume(nodeAPIServerCertsDir, nodeAPIServerCertsSecretName), // node api server
 	}
 	volumeMounts := []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
@@ -110,20 +116,22 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 	}
 
 	podSpec := corev1.PodSpec{
-		ServiceAccountName: c.serviceAccountName(),
+		ServiceAccountName: consts.Identity,
 		HostIPC:            false,
 		HostPID:            true,
 		Volumes:            volumes,
-		ImagePullSecrets:   c.getImagePullSecrets(),
+		ImagePullSecrets:   args.getImagePullSecrets(),
 		Containers: []corev1.Container{
 			{
-				Name:  nodeDriverRegistrarContainerName,
-				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.getNodeDriverRegistrarImage()),
+				Name:  "node-driver-registrar",
+				Image: args.getNodeDriverRegistrarImage(),
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
-					"--csi-address=" + UnixCSIEndpoint,
-					fmt.Sprintf("--kubelet-registration-path=%s",
-						newPluginsSocketDir(kubeletDirPath, c.identity())+socketFile),
+					fmt.Sprintf("--csi-address=%v", UnixCSIEndpoint),
+					fmt.Sprintf(
+						"--kubelet-registration-path=%s%s",
+						newPluginsSocketDir(kubeletDirPath, consts.Identity), socketFile,
+					),
 				},
 				Env: []corev1.EnvVar{kubeNodeNameEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
@@ -135,12 +143,12 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			},
 			{
 				Name:  consts.NodeServerName,
-				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
+				Image: args.getContainerImage(),
 				Args: func() []string {
 					args := []string{
 						consts.NodeServerName,
 						fmt.Sprintf("-v=%d", logLevel),
-						fmt.Sprintf("--identity=%s", c.identity()),
+						fmt.Sprintf("--identity=%s", consts.Identity),
 						fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
 						fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 						fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
@@ -155,7 +163,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				VolumeMounts:             volumeMounts,
 				Ports: append(commonContainerPorts, corev1.ContainerPort{
 					ContainerPort: consts.MetricsPort,
-					Name:          metricsPortName,
+					Name:          "metrics",
 					Protocol:      corev1.ProtocolTCP,
 				}),
 				ReadinessProbe: &corev1.Probe{ProbeHandler: readinessHandler},
@@ -174,7 +182,7 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 			},
 			{
 				Name:  consts.NodeAPIServerName,
-				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.ContainerImage),
+				Image: args.getContainerImage(),
 				Args: func() []string {
 					args := []string{
 						consts.NodeAPIServerName,
@@ -211,11 +219,11 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				},*/
 			},
 			{
-				Name:  livenessProbeContainerName,
-				Image: path.Join(c.ContainerRegistry, c.ContainerOrg, c.getLivenessProbeImage()),
+				Name:  "liveness-probe",
+				Image: args.getLivenessProbeImage(),
 				Args: []string{
-					"--csi-address=" + socketDir + socketFile,
-					"--health-port=" + fmt.Sprintf("%v", healthZContainerPort),
+					fmt.Sprintf("--csi-address=%v%v", socketDir, socketFile),
+					fmt.Sprintf("--health-port=%v", healthZContainerPort),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/driver-liveness-termination-log",
@@ -224,38 +232,38 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 				},
 			},
 		},
-		NodeSelector: c.NodeSelector,
-		Tolerations:  c.Tolerations,
+		NodeSelector: args.NodeSelector,
+		Tolerations:  args.Tolerations,
 	}
 
 	annotations := map[string]string{
 		createdByLabel: pluginName,
 	}
-	if c.ApparmorProfile != "" {
-		annotations["container.apparmor.security.beta.kubernetes.io/"+consts.AppName] = c.ApparmorProfile
+	if args.AppArmorProfile != "" {
+		annotations["container.apparmor.security.beta.kubernetes.io/"+consts.AppName] = args.AppArmorProfile
 	}
 
-	generatedSelectorValue := generateSanitizedUniqueNameFrom(c.identity())
+	selectorValue := fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
 	daemonset := &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "DaemonSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        c.daemonsetName(),
-			Namespace:   c.namespace(),
-			Annotations: defaultAnnotations,
+			Name:        consts.NodeServerName,
+			Namespace:   consts.Identity,
+			Annotations: map[string]string{},
 			Labels:      defaultLabels,
 		},
 		Spec: appsv1.DaemonSetSpec{
-			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, generatedSelectorValue),
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, selectorValue),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:        c.daemonsetName(),
-					Namespace:   c.namespace(),
+					Name:        consts.NodeServerName,
+					Namespace:   consts.Identity,
 					Annotations: annotations,
 					Labels: map[string]string{
-						selectorKey:     generatedSelectorValue,
+						selectorKey:     selectorValue,
 						serviceSelector: selectorValueEnabled,
 					},
 				},
@@ -265,33 +273,59 @@ func createDaemonSet(ctx context.Context, c *Config) error {
 		Status: appsv1.DaemonSetStatus{},
 	}
 
-	if !c.DryRun {
-		if _, err := k8s.KubeClient().AppsV1().DaemonSets(c.namespace()).Create(ctx, daemonset, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-			return err
+	if args.DryRun {
+		fmt.Print(mustGetYAML(daemonset))
+		return nil
+	}
+
+	_, err := k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Create(
+		ctx, daemonset, metav1.CreateOptions{},
+	)
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			err = nil
 		}
-	}
-	return c.postProc(daemonset)
-}
-
-func generateCertSecretsForNodeAPIServer(ctx context.Context, c *Config) error {
-	caCertBytes, publicCertBytes, privateKeyBytes, certErr := getCerts([]string{
-		localHostDNS,
-		// FIXME: Add clusterIP svc domain name here
-	})
-	if certErr != nil {
-		return certErr
-	}
-	return createOrUpdateNodeAPIServerSecrets(ctx, caCertBytes, publicCertBytes, privateKeyBytes, c)
-}
-
-func createOrUpdateNodeAPIServerSecrets(ctx context.Context, caCertBytes, publicCertBytes, privateKeyBytes []byte, c *Config) error {
-	if err := createOrUpdateSecret(ctx, nodeAPIServerCertsSecretName, map[string][]byte{
-		consts.PrivateKeyFileName: privateKeyBytes,
-		consts.PublicCertFileName: publicCertBytes,
-	}, c); err != nil {
 		return err
 	}
-	return createOrUpdateSecret(ctx, nodeAPIServerCASecretName, map[string][]byte{
-		caCertFileName: caCertBytes,
-	}, c)
+
+	_, err = io.WriteString(args.auditWriter, mustGetYAML(daemonset))
+	return err
+}
+
+func createDaemonset(ctx context.Context, args *Args) error {
+	if args.DryRun {
+		return doCreateDaemonset(ctx, args)
+	}
+
+	_, err := k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Get(
+		ctx, consts.NodeServerName, metav1.GetOptions{},
+	)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		return doCreateDaemonset(ctx, args)
+	}
+
+	return nil
+}
+
+func deleteDaemonset(ctx context.Context) error {
+	err := k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Delete(
+		ctx, consts.NodeServerName, metav1.DeleteOptions{},
+	)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	err = k8s.KubeClient().CoreV1().Secrets(consts.Identity).Delete(ctx, nodeAPIServerCertsSecretName, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	err = k8s.KubeClient().CoreV1().Secrets(consts.Identity).Delete(ctx, nodeAPIServerCASecretName, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }

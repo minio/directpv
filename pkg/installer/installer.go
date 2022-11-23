@@ -18,100 +18,246 @@ package installer
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/utils"
+	"k8s.io/apimachinery/pkg/util/version"
+	"k8s.io/klog/v2"
 )
 
-func trimMinorVersion(minor string) (string, error) {
-	i := strings.IndexFunc(minor, func(r rune) bool { return r < '0' || r > '9' })
-	if i < 0 {
-		return minor, nil
-	}
+var (
+	tick  = color.HiGreenString("✓\n")
+	cross = color.HiRedString("✗\n")
+)
 
-	m := minor[:i]
-	_, err := strconv.Atoi(m)
-	if err != nil {
-		return "", err
-	}
-
-	return m, nil
-}
-
-func getInstaller(config *Config) (installer, error) {
+func getKubeVersion() (major, minor uint, err error) {
 	versionInfo, err := k8s.DiscoveryClient().ServerVersion()
 	if err != nil {
-		return nil, err
+		return 0, 0, err
 	}
 
-	minor := versionInfo.Minor
+	var u64 uint64
+	if u64, err = strconv.ParseUint(versionInfo.Major, 10, 64); err != nil {
+		return 0, 0, fmt.Errorf("unable to parse major version %v; %v", versionInfo.Major, err)
+	}
+	major = uint(u64)
+
+	minorString := versionInfo.Minor
 	if strings.Contains(versionInfo.GitVersion, "-eks-") {
 		// Do trimming only for EKS.
 		// Refer https://github.com/aws/containers-roadmap/issues/1404
-		minor, err = trimMinorVersion(versionInfo.Minor)
+		i := strings.IndexFunc(minorString, func(r rune) bool { return r < '0' || r > '9' })
+		if i > -1 {
+			minorString = minorString[:i]
+		}
+	}
+	if u64, err = strconv.ParseUint(minorString, 10, 64); err != nil {
+		return 0, 0, fmt.Errorf("unable to parse minor version %v; %v", minor, err)
+	}
+	minor = uint(u64)
+
+	return major, minor, nil
+}
+
+// Install performs DirectPV installation on kubernetes.
+func Install(ctx context.Context, args *Args) error {
+	err := args.validate()
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case args.DryRun:
+		if args.KubeVersion == nil {
+			// default higher version
+			if args.KubeVersion, err = version.ParseSemantic("1.25.0"); err != nil {
+				klog.Fatalf("this should not happen; %v", err)
+			}
+		}
+	default:
+		major, minor, err := getKubeVersion()
 		if err != nil {
-			return nil, err
+			return err
+		}
+		args.KubeVersion, err = version.ParseSemantic(fmt.Sprintf("%v.%v.0", major, minor))
+		if err != nil {
+			klog.Fatalf("this should not happen; %v", err)
 		}
 	}
 
-	if versionInfo.Major == "1" {
-		switch minor {
-		case "18":
-			return newV1Dot18(config), nil
-		case "19":
-			return newV1Dot19(config), nil
-		case "20":
-			return newV1Dot20(config), nil
-		case "21":
-			return newV1Dot21(config), nil
-		case "22":
-			return newV1Dot22(config), nil
-		case "23":
-			return newV1Dot23(config), nil
-		case "24":
-			return newV1Dot24(config), nil
-		case "25":
-			return newV1Dot25(config), nil
+	if args.KubeVersion.Major() == 1 {
+		if args.KubeVersion.Minor() < 20 {
+			args.csiProvisionerImage = "csi-provisioner:v2.2.0-go1.18"
+		}
+		args.podSecurityAdmission = args.KubeVersion.Minor() > 24
+	}
+
+	if args.KubeVersion.Major() != 1 ||
+		args.KubeVersion.Minor() < 18 ||
+		args.KubeVersion.Minor() > 25 {
+		if !args.DryRun {
+			utils.Eprintf(
+				args.Quiet,
+				false,
+				"%v\n",
+				color.HiYellowString(
+					"Installing on unsupported Kubernetes v%v.%v",
+					args.KubeVersion.Major(),
+					args.KubeVersion.Minor(),
+				),
+			)
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, color.HiYellowString("Installing on unsupported Kubernetes v%v.%v", versionInfo.Major, minor))
-	return newDefaultInstaller(config), nil
-}
-
-// Install installs directpv
-func Install(ctx context.Context, config *Config) error {
-	if config == nil {
-		return errors.New("bad arguments: empty configuration")
+	print := func(s string) {
+		if !args.DryRun && !args.Quiet {
+			fmt.Print(s)
+		}
 	}
-	if err := config.validate(); err != nil {
+
+	execute := func(name string, fn func(context.Context, *Args) error) error {
+		print(name + " ")
+
+		if err := fn(ctx, args); err != nil {
+			print(cross)
+			return err
+		}
+
+		print(tick)
+		return nil
+	}
+
+	print("Installing\n")
+
+	if err := execute("Namespace", createNamespace); err != nil {
 		return err
 	}
-	installer, err := getInstaller(config)
+
+	if err := execute("Secrets", createAdminSecrets); err != nil {
+		return err
+	}
+
+	if err := execute("RBAC", createRBAC); err != nil {
+		return err
+	}
+
+	if !args.podSecurityAdmission {
+		if err := execute("PodSecurityPolicy", createPSP); err != nil {
+			return err
+		}
+	}
+
+	if err := execute("CRD", createCRDs); err != nil {
+		return err
+	}
+
+	if err := execute("CSI Driver", createCSIDriver); err != nil {
+		return err
+	}
+
+	if err := execute("Storage Class", createStorageClass); err != nil {
+		return err
+	}
+
+	if err := execute("Node API Service", createNodeAPIService); err != nil {
+		return err
+	}
+
+	if err := execute("Daemonset", createDaemonset); err != nil {
+		return err
+	}
+
+	if err := execute("Deployment", createDeployment); err != nil {
+		return err
+	}
+
+	if err := execute("Admin Deployment", createAdminServerDeployment); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Uninstall removes DirectPV from kubernetes.
+func Uninstall(ctx context.Context, quiet, force bool) error {
+	major, minor, err := getKubeVersion()
 	if err != nil {
 		return err
 	}
-	printf(config, color.HiYellowString("\nInstalling\n"))
-	return installer.Install(ctx)
-}
 
-// Uninstall uninstalls directpv
-func Uninstall(ctx context.Context, config *Config) error {
-	if config == nil {
-		return errors.New("bad arguments: empty configuration")
+	podSecurityAdmission := (major == 1 && minor > 24)
+
+	print := func(s string) {
+		if !quiet {
+			fmt.Print(s)
+		}
 	}
-	if err := config.validate(); err != nil {
+
+	execute := func(name string, fn func(context.Context) error) error {
+		print(name + " ")
+
+		if err := fn(ctx); err != nil {
+			print(cross)
+			return err
+		}
+
+		print(tick)
+		return nil
+	}
+
+	print("Uninstalling\n")
+
+	if err := execute("Namespace", deleteNamespace); err != nil {
 		return err
 	}
-	installer, err := getInstaller(config)
-	if err != nil {
+
+	if err := execute("Secrets", deleteAdminSecrets); err != nil {
 		return err
 	}
-	printf(config, color.HiYellowString("\nUninstalling\n"))
-	return installer.Uninstall(ctx)
+
+	if err := execute("RBAC", deleteRBAC); err != nil {
+		return err
+	}
+
+	if !podSecurityAdmission {
+		if err := execute("PodSecurityPolicy", deletePSP); err != nil {
+			return err
+		}
+	}
+
+	if err := execute("CRD", func(ctx context.Context) error {
+		return deleteCRDs(ctx, force)
+	}); err != nil {
+		return err
+	}
+
+	if err := execute("CSI Driver", deleteCSIDriver); err != nil {
+		return err
+	}
+
+	if err := execute("Storage Class", deleteStorageClass); err != nil {
+		return err
+	}
+
+	if err := execute("Node API Service", deleteNodeAPIService); err != nil {
+		return err
+	}
+
+	if err := execute("Daemonset", deleteDaemonset); err != nil {
+		return err
+	}
+
+	if err := execute("Deployment", deleteDeployment); err != nil {
+		return err
+	}
+
+	if err := execute("Admin Deployment", deleteAdminServerDeployment); err != nil {
+		return err
+	}
+
+	return nil
 }
