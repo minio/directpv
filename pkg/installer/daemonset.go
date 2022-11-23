@@ -23,6 +23,7 @@ import (
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
+	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,20 +32,22 @@ import (
 )
 
 const (
-	nodeAPIServerCertsSecretName = "nodeapiservercerts"
-	nodeAPIServerCASecretName    = "nodeapiservercacert"
-	volumeNameMountpointDir      = "mountpoint-dir"
-	volumeNameRegistrationDir    = "registration-dir"
-	volumeNamePluginDir          = "plugins-dir"
-	volumeNameAppRootDir         = consts.AppName + "-common-root"
-	appRootDir                   = consts.AppRootDir + "/"
-	volumeNameSysDir             = "sysfs"
-	volumeNameDevDir             = "devfs"
-	volumePathDevDir             = "/dev"
-	volumeNameRunUdevData        = "run-udev-data-dir"
-	volumePathRunUdevData        = consts.UdevDataDir
-	socketFile                   = "/csi.sock"
-	nodeAPIServerCertsDir        = "node-api-server-certs"
+	nodeAPIServerCertsSecretName       = "nodeapiservercerts"
+	nodeAPIServerCASecretName          = "nodeapiservercacert"
+	legacyNodeAPIServerCertsSecretName = "legacynodeapiservercerts"
+	legacyNodeAPIServerCASecretName    = "legacynodeapiservercacert"
+	volumeNameMountpointDir            = "mountpoint-dir"
+	volumeNameRegistrationDir          = "registration-dir"
+	volumeNamePluginDir                = "plugins-dir"
+	volumeNameAppRootDir               = consts.AppName + "-common-root"
+	appRootDir                         = consts.AppRootDir + "/"
+	volumeNameSysDir                   = "sysfs"
+	volumeNameDevDir                   = "devfs"
+	volumePathDevDir                   = "/dev"
+	volumeNameRunUdevData              = "run-udev-data-dir"
+	volumePathRunUdevData              = consts.UdevDataDir
+	socketFile                         = "/csi.sock"
+	nodeAPIServerCertsDir              = "node-api-server-certs"
 )
 
 func createOrUpdateNodeAPIServerSecrets(ctx context.Context, args *Args) error {
@@ -79,23 +82,54 @@ func createOrUpdateNodeAPIServerSecrets(ctx context.Context, args *Args) error {
 	)
 }
 
-func doCreateDaemonset(ctx context.Context, args *Args) error {
-	if err := createOrUpdateNodeAPIServerSecrets(ctx, args); err != nil {
+func createOrUpdateLegacyNodeAPIServerSecrets(ctx context.Context, args *Args) error {
+	caCertBytes, publicCertBytes, privateKeyBytes, err := getCerts(
+		localhost,
+		// FIXME: Add clusterIP service domain name here
+	)
+	if err != nil {
 		return err
 	}
 
+	err = createOrUpdateSecret(
+		ctx,
+		args,
+		legacyNodeAPIServerCertsSecretName,
+		map[string][]byte{
+			consts.PrivateKeyFileName: privateKeyBytes,
+			consts.PublicCertFileName: publicCertBytes,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return createOrUpdateSecret(
+		ctx,
+		args,
+		legacyNodeAPIServerCASecretName,
+		map[string][]byte{
+			caCertFileName: caCertBytes,
+		},
+	)
+}
+
+func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
 	privileged := true
 	securityContext := &corev1.SecurityContext{Privileged: &privileged}
-
-	if args.SeccompProfile != "" {
+	if seccompProfile != "" {
 		securityContext.SeccompProfile = &corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: &args.SeccompProfile,
+			LocalhostProfile: &seccompProfile,
 		}
 	}
 
-	volumes := []corev1.Volume{
-		newHostPathVolume(volumeNameSocketDir, newPluginsSocketDir(kubeletDirPath, consts.Identity)),
+	return securityContext
+}
+
+func getVolumesAndMounts(pluginSocketDir, certsSecretName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+	volumes = []corev1.Volume{
+		newHostPathVolume(volumeNameSocketDir, pluginSocketDir),
 		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
 		newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
 		newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
@@ -103,9 +137,9 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 		newHostPathVolume(volumeNameSysDir, volumePathSysDir),
 		newHostPathVolume(volumeNameDevDir, volumePathDevDir),
 		newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData),
-		newSecretVolume(nodeAPIServerCertsDir, nodeAPIServerCertsSecretName), // node api server
+		newSecretVolume(nodeAPIServerCertsDir, certsSecretName),
 	}
-	volumeMounts := []corev1.VolumeMount{
+	volumeMounts = []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
 		newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", corev1.MountPropagationBidirectional, false),
 		newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", corev1.MountPropagationBidirectional, false),
@@ -113,6 +147,129 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 		newVolumeMount(volumeNameSysDir, volumePathSysDir, corev1.MountPropagationBidirectional, true),
 		newVolumeMount(volumeNameDevDir, volumePathDevDir, corev1.MountPropagationHostToContainer, true),
 		newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, corev1.MountPropagationBidirectional, true),
+	}
+	return
+}
+
+func nodeDriverRegistrarContainer(image, pluginSocketDir string) corev1.Container {
+	return corev1.Container{
+		Name:  "node-driver-registrar",
+		Image: image,
+		Args: []string{
+			fmt.Sprintf("--v=%d", logLevel),
+			fmt.Sprintf("--csi-address=%v", UnixCSIEndpoint),
+			fmt.Sprintf("--kubelet-registration-path=%s%s", pluginSocketDir, socketFile),
+		},
+		Env: []corev1.EnvVar{kubeNodeNameEnvVar},
+		VolumeMounts: []corev1.VolumeMount{
+			newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+			newVolumeMount(volumeNameRegistrationDir, "/registration", corev1.MountPropagationNone, false),
+		},
+		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+		TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
+	}
+}
+
+func nodeServerContainer(image string, args []string, securityContext *corev1.SecurityContext, volumeMounts []corev1.VolumeMount) corev1.Container {
+	return corev1.Container{
+		Name:                     consts.NodeServerName,
+		Image:                    image,
+		Args:                     args,
+		SecurityContext:          securityContext,
+		Env:                      []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
+		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+		TerminationMessagePath:   "/var/log/driver-termination-log",
+		VolumeMounts:             volumeMounts,
+		Ports: append(commonContainerPorts, corev1.ContainerPort{
+			ContainerPort: consts.MetricsPort,
+			Name:          "metrics",
+			Protocol:      corev1.ProtocolTCP,
+		}),
+		ReadinessProbe: &corev1.Probe{ProbeHandler: readinessHandler},
+		LivenessProbe: &corev1.Probe{
+			FailureThreshold:    5,
+			InitialDelaySeconds: 300,
+			TimeoutSeconds:      5,
+			PeriodSeconds:       5,
+			ProbeHandler: corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: healthZContainerPortPath,
+					Port: intstr.FromString(healthZContainerPortName),
+				},
+			},
+		},
+	}
+}
+
+func livenessProbeContainer(image string) corev1.Container {
+	return corev1.Container{
+		Name:  "liveness-probe",
+		Image: image,
+		Args: []string{
+			fmt.Sprintf("--csi-address=%v%v", socketDir, socketFile),
+			fmt.Sprintf("--health-port=%v", healthZContainerPort),
+		},
+		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+		TerminationMessagePath:   "/var/log/driver-liveness-termination-log",
+		VolumeMounts: []corev1.VolumeMount{
+			newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+		},
+	}
+}
+
+func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.DaemonSet {
+	annotations := map[string]string{createdByLabel: pluginName}
+	if appArmorProfile != "" {
+		annotations["container.apparmor.security.beta.kubernetes.io/"+consts.AppName] = appArmorProfile
+	}
+	selectorValue := fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
+
+	return &appsv1.DaemonSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "DaemonSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   consts.Identity,
+			Annotations: map[string]string{},
+			Labels:      defaultLabels,
+		},
+		Spec: appsv1.DaemonSetSpec{
+			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, selectorValue),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        name,
+					Namespace:   consts.Identity,
+					Annotations: annotations,
+					Labels: map[string]string{
+						selectorKey:     selectorValue,
+						serviceSelector: selectorValueEnabled,
+					},
+				},
+				Spec: podSpec,
+			},
+		},
+		Status: appsv1.DaemonSetStatus{},
+	}
+}
+
+func doCreateDaemonset(ctx context.Context, args *Args) error {
+	if err := createOrUpdateNodeAPIServerSecrets(ctx, args); err != nil {
+		return err
+	}
+
+	securityContext := newSecurityContext(args.SeccompProfile)
+	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, consts.Identity)
+	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir, nodeAPIServerCertsSecretName)
+	containerArgs := []string{
+		consts.NodeServerName,
+		fmt.Sprintf("-v=%d", logLevel),
+		fmt.Sprintf("--identity=%s", consts.Identity),
+		fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
+		fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
+		fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
+		fmt.Sprintf("--metrics-port=%d", consts.MetricsPort),
 	}
 
 	podSpec := corev1.PodSpec{
@@ -122,64 +279,8 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 		Volumes:            volumes,
 		ImagePullSecrets:   args.getImagePullSecrets(),
 		Containers: []corev1.Container{
-			{
-				Name:  "node-driver-registrar",
-				Image: args.getNodeDriverRegistrarImage(),
-				Args: []string{
-					fmt.Sprintf("--v=%d", logLevel),
-					fmt.Sprintf("--csi-address=%v", UnixCSIEndpoint),
-					fmt.Sprintf(
-						"--kubelet-registration-path=%s%s",
-						newPluginsSocketDir(kubeletDirPath, consts.Identity), socketFile,
-					),
-				},
-				Env: []corev1.EnvVar{kubeNodeNameEnvVar},
-				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
-					newVolumeMount(volumeNameRegistrationDir, "/registration", corev1.MountPropagationNone, false),
-				},
-				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-				TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
-			},
-			{
-				Name:  consts.NodeServerName,
-				Image: args.getContainerImage(),
-				Args: func() []string {
-					args := []string{
-						consts.NodeServerName,
-						fmt.Sprintf("-v=%d", logLevel),
-						fmt.Sprintf("--identity=%s", consts.Identity),
-						fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
-						fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
-						fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
-						fmt.Sprintf("--metrics-port=%d", consts.MetricsPort),
-					}
-					return args
-				}(),
-				SecurityContext:          securityContext,
-				Env:                      []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
-				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-				TerminationMessagePath:   "/var/log/driver-termination-log",
-				VolumeMounts:             volumeMounts,
-				Ports: append(commonContainerPorts, corev1.ContainerPort{
-					ContainerPort: consts.MetricsPort,
-					Name:          "metrics",
-					Protocol:      corev1.ProtocolTCP,
-				}),
-				ReadinessProbe: &corev1.Probe{ProbeHandler: readinessHandler},
-				LivenessProbe: &corev1.Probe{
-					FailureThreshold:    5,
-					InitialDelaySeconds: 300,
-					TimeoutSeconds:      5,
-					PeriodSeconds:       5,
-					ProbeHandler: corev1.ProbeHandler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path: healthZContainerPortPath,
-							Port: intstr.FromString(healthZContainerPortName),
-						},
-					},
-				},
-			},
+			nodeDriverRegistrarContainer(args.getNodeDriverRegistrarImage(), pluginSocketDir),
+			nodeServerContainer(args.getContainerImage(), containerArgs, securityContext, volumeMounts),
 			{
 				Name:  consts.NodeAPIServerName,
 				Image: args.getContainerImage(),
@@ -218,60 +319,65 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 					},
 				},*/
 			},
-			{
-				Name:  "liveness-probe",
-				Image: args.getLivenessProbeImage(),
-				Args: []string{
-					fmt.Sprintf("--csi-address=%v%v", socketDir, socketFile),
-					fmt.Sprintf("--health-port=%v", healthZContainerPort),
-				},
-				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-				TerminationMessagePath:   "/var/log/driver-liveness-termination-log",
-				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
-				},
-			},
+			livenessProbeContainer(args.getLivenessProbeImage()),
 		},
 		NodeSelector: args.NodeSelector,
 		Tolerations:  args.Tolerations,
 	}
 
-	annotations := map[string]string{
-		createdByLabel: pluginName,
-	}
-	if args.AppArmorProfile != "" {
-		annotations["container.apparmor.security.beta.kubernetes.io/"+consts.AppName] = args.AppArmorProfile
+	daemonset := newDaemonset(podSpec, consts.NodeServerName, args.AppArmorProfile)
+
+	if args.DryRun {
+		fmt.Print(mustGetYAML(daemonset))
+		return nil
 	}
 
-	selectorValue := fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
-	daemonset := &appsv1.DaemonSet{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "DaemonSet",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        consts.NodeServerName,
-			Namespace:   consts.Identity,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, selectorValue),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        consts.NodeServerName,
-					Namespace:   consts.Identity,
-					Annotations: annotations,
-					Labels: map[string]string{
-						selectorKey:     selectorValue,
-						serviceSelector: selectorValueEnabled,
-					},
-				},
-				Spec: podSpec,
-			},
-		},
-		Status: appsv1.DaemonSetStatus{},
+	_, err := k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Create(
+		ctx, daemonset, metav1.CreateOptions{},
+	)
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			err = nil
+		}
+		return err
 	}
+
+	_, err = io.WriteString(args.auditWriter, mustGetYAML(daemonset))
+	return err
+}
+
+func doCreateLegacyDaemonset(ctx context.Context, args *Args) error {
+	if err := createOrUpdateLegacyNodeAPIServerSecrets(ctx, args); err != nil {
+		return err
+	}
+
+	securityContext := newSecurityContext(args.SeccompProfile)
+	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, legacyclient.Identity)
+	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir, legacyNodeAPIServerCertsSecretName)
+	containerArgs := []string{
+		consts.LegacyNodeServerName,
+		fmt.Sprintf("-v=%d", logLevel),
+		fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
+		fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
+		fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
+	}
+
+	podSpec := corev1.PodSpec{
+		ServiceAccountName: consts.Identity,
+		HostIPC:            false,
+		HostPID:            true,
+		Volumes:            volumes,
+		ImagePullSecrets:   args.getImagePullSecrets(),
+		Containers: []corev1.Container{
+			nodeDriverRegistrarContainer(args.getNodeDriverRegistrarImage(), pluginSocketDir),
+			nodeServerContainer(args.getContainerImage(), containerArgs, securityContext, volumeMounts),
+			livenessProbeContainer(args.getLivenessProbeImage()),
+		},
+		NodeSelector: args.NodeSelector,
+		Tolerations:  args.Tolerations,
+	}
+
+	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, args.AppArmorProfile)
 
 	if args.DryRun {
 		fmt.Print(mustGetYAML(daemonset))
@@ -294,7 +400,15 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 
 func createDaemonset(ctx context.Context, args *Args) error {
 	if args.DryRun {
-		return doCreateDaemonset(ctx, args)
+		if err := doCreateDaemonset(ctx, args); err != nil {
+			return err
+		}
+
+		if args.Legacy {
+			return doCreateLegacyDaemonset(ctx, args)
+		}
+
+		return nil
 	}
 
 	_, err := k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Get(
@@ -304,7 +418,25 @@ func createDaemonset(ctx context.Context, args *Args) error {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}
-		return doCreateDaemonset(ctx, args)
+		if err := doCreateDaemonset(ctx, args); err != nil {
+			return err
+		}
+	}
+
+	if !args.Legacy {
+		return nil
+	}
+
+	_, err = k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Get(
+		ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
+	)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		if err := doCreateLegacyDaemonset(ctx, args); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -327,5 +459,23 @@ func deleteDaemonset(ctx context.Context) error {
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
+
+	err = k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Delete(
+		ctx, consts.LegacyNodeServerName, metav1.DeleteOptions{},
+	)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	err = k8s.KubeClient().CoreV1().Secrets(consts.Identity).Delete(ctx, legacyNodeAPIServerCertsSecretName, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	err = k8s.KubeClient().CoreV1().Secrets(consts.Identity).Delete(ctx, legacyNodeAPIServerCASecretName, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
 	return nil
 }

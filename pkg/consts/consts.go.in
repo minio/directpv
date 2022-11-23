@@ -85,6 +85,9 @@ const (
 	NodeServerName       = "node-server"
 	ControllerServerName = "controller"
 
+	LegacyNodeServerName       = "legacy-node-server"
+	LegacyControllerServerName = "legacy-controller"
+
 	NodeAPIServerName      = "node-api-server"
 	NodeAPIPortName        = "node-api-port"
 	NodeAPIPort            = 50443

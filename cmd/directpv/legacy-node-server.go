@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -18,80 +18,39 @@ package main
 
 import (
 	"context"
-	"errors"
-	"os"
 
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/device"
-	"github.com/minio/directpv/pkg/drive"
 	pkgidentity "github.com/minio/directpv/pkg/identity"
 	"github.com/minio/directpv/pkg/node"
-	"github.com/minio/directpv/pkg/sys"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
 
-var metricsPort = consts.MetricsPort
-
-var nodeServerCmd = &cobra.Command{
-	Use:           consts.NodeServerName,
-	Short:         "Start node server.",
+var legacyNodeServerCmd = &cobra.Command{
+	Use:           consts.LegacyNodeServerName,
+	Short:         "Start legacy node server.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		if err := device.Sync(c.Context(), nodeID); err != nil {
-			return err
-		}
-		return startNodeServer(c.Context())
+		return startLegacyNodeServer(c.Context())
 	},
 }
 
-func init() {
-	nodeServerCmd.PersistentFlags().IntVar(&metricsPort, "metrics-port", metricsPort, "Metrics port at "+consts.AppPrettyName+" exports metrics data")
-}
-
-func startNodeServer(ctx context.Context) error {
+func startLegacyNodeServer(ctx context.Context) error {
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
-	idServer, err := pkgidentity.NewServer(identity, Version, map[string]string{})
+	idServer, err := pkgidentity.NewServer("direct-csi-min-io", Version, map[string]string{})
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("Identity server started")
+	klog.V(3).Infof("Legacy identity server started")
 
 	errCh := make(chan error)
 
-	go func() {
-		if err := volume.StartController(ctx, nodeID); err != nil {
-			klog.ErrorS(err, "unable to start volume controller")
-			errCh <- err
-		}
-	}()
-
-	go func() {
-		if err := drive.StartController(ctx, nodeID); err != nil {
-			klog.ErrorS(err, "unable to start drive controller")
-			errCh <- err
-		}
-	}()
-
-	nodeServer := node.NewServer(
-		ctx,
-		identity,
-		nodeID,
-		rack,
-		zone,
-		region,
-		metricsPort,
-	)
-	klog.V(3).Infof("Node server started")
-
-	if err = sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
-		return err
-	}
+	nodeServer := node.NewLegacyServer(nodeID, rack, zone, region)
+	klog.V(3).Infof("Legacy node server started")
 
 	go func() {
 		if err := runServers(ctx, csiEndpoint, idServer, nil, nodeServer); err != nil {

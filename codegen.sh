@@ -103,6 +103,7 @@ client-gen \
 
 echo "Running controller-gen ..." 
 controller-gen crd:crdVersions=v1 paths=./... output:dir=pkg/installer
+rm -f pkg/installer/direct.csi.min.io_directcsidrives.yaml pkg/installer/direct.csi.min.io_directcsivolumes.yaml
 
 echo "Running conversion-gen ..."
 conversion-gen \

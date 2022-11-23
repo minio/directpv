@@ -73,3 +73,12 @@ jobs:
       - name: Run tests
         run: |
           functests/run-tests.sh
+
+      - name: Run migration tests with DirectCSI v3.2.0
+        run: |
+          functests/run-migration-tests.sh "v3.2.0"
+
+      - name: Run migration tests with DirectCSI v2.0.9
+        if: contains(fromJson('["v1.18.20", "v1.19.16", "v1.20.15", "v1.21.14", "v1.22.15"]'), matrix.kube-version)
+        run: |
+          functests/run-migration-tests.sh "v2.0.9"

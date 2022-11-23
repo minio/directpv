@@ -41,6 +41,34 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// GetGroupVersion probes group and version of given resource kind.
+func GetGroupVersion(kind string) (version, group string, err error) {
+	gvk, err := GetGroupKindVersions(
+		directcsi.Group,
+		kind,
+		directcsi.Version,
+		directv1beta4.Version,
+		directv1beta3.Version,
+		directv1beta2.Version,
+		directv1beta1.Version,
+		directv1alpha1.Version,
+	)
+	if err != nil && !meta.IsNoMatchError(err) {
+		return "", "", err
+	}
+
+	version = directcsi.Version
+	if gvk != nil {
+		version = gvk.Version
+	}
+	group = directcsi.Group
+	if gvk != nil {
+		group = gvk.Group
+	}
+
+	return version, group, nil
+}
+
 // GetLatestDirectCSIRESTClient gets REST client of the latest direct-csi.
 func GetLatestDirectCSIRESTClient() rest.Interface {
 	directClientset, err := clientset.NewForConfig(k8s.KubeConfig())
@@ -73,31 +101,16 @@ type directCSIInterface struct {
 }
 
 func directCSIInterfaceForConfig(config *rest.Config, kind, resource string) (*directCSIInterface, error) {
-	gvk, err := GetGroupKindVersions(
-		directcsi.Group,
-		kind,
-		directcsi.Version,
-		directv1beta4.Version,
-		directv1beta3.Version,
-		directv1beta2.Version,
-		directv1beta1.Version,
-		directv1alpha1.Version,
-	)
-	if err != nil && !meta.IsNoMatchError(err) {
+	version, group, err := GetGroupVersion(kind)
+	if err != nil {
 		return nil, err
 	}
+
 	resourceInterface, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	version := directcsi.Version
-	if gvk != nil {
-		version = gvk.Version
-	}
-	group := directcsi.Group
-	if gvk != nil {
-		group = gvk.Group
-	}
+
 	return &directCSIInterface{
 		resourceInterface: resourceInterface.Resource(
 			schema.GroupVersionResource{

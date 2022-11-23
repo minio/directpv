@@ -121,16 +121,6 @@ func IsCondition(conditions []metav1.Condition, ctype string, status metav1.Cond
 	return false
 }
 
-// IsConditionStatus checks whether type/status in conditions or not.
-func IsConditionStatus(conditions []metav1.Condition, ctype string, status metav1.ConditionStatus) bool {
-	for i := range conditions {
-		if conditions[i].Type == ctype && conditions[i].Status == status {
-			return true
-		}
-	}
-	return false
-}
-
 // UpdateCondition updates type/status/reason/message of conditions matched by condition type.
 func UpdateCondition(conditions []metav1.Condition, ctype string, status metav1.ConditionStatus, reason, message string) {
 	for i := range conditions {
