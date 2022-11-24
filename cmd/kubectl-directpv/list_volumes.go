@@ -34,58 +34,67 @@ import (
 
 var volumeNameArgs []string
 
-var getVolumesCmd = &cobra.Command{
-	Use:     "volumes [VOLUME ...]",
-	Aliases: []string{"volume", "vol"},
-	Short:   "List volumes.",
+var listVolumesCmd = &cobra.Command{
+	Use:           "volumes [VOLUME ...]",
+	Aliases:       []string{"volume", "vol"},
+	Short:         "List volumes",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Get all ready volumes
-$ kubectl {PLUGIN_NAME} get volumes
+		`# List all ready volumes
+$ kubectl {PLUGIN_NAME} list volumes
 
-# Get all volumes from all nodes with all information include PVC name.
-$ kubectl {PLUGIN_NAME} get drives --all --pvc --output wide
+# List volumes served by a node
+$ kubectl {PLUGIN_NAME} list volumes --nodes=node1
 
-# Get volumes in Pending state
-$ kubectl {PLUGIN_NAME} get volumes --status=pending
+# List volumes served by drives on nodes
+$ kubectl {PLUGIN_NAME} list volumes --nodes=node1,node2 --drives=nvme0n1
 
-# Get volumes served by a node
-$ kubectl {PLUGIN_NAME} get volumes --node=node1
+# List volumes by pod name
+$ kubectl {PLUGIN_NAME} list volumes --pod-names=minio-{1...3}
 
-# Get volumes served by a drive ID
-$ kubectl {PLUGIN_NAME} get volumes --drive=b84758b0-866f-4a12-9d00-d8f7da76ceb3
+# List volumes by pod namespace
+$ kubectl {PLUGIN_NAME} list volumes --pod-namespaces=tenant-{1...3}
 
-# Get volumes served by drives on nodes
-$ kubectl {PLUGIN_NAME} get volumes --node=node1,node2 --drive=nvme0n1
+# List all volumes from all nodes with all information include PVC name.
+$ kubectl {PLUGIN_NAME} list drives --all --pvc --output wide
 
-# Get volumes by pod name
-$ kubectl {PLUGIN_NAME} get volumes --pod-name=minio-{1...3}
+# List volumes in Pending state
+$ kubectl {PLUGIN_NAME} list volumes --status=pending
 
-# Get volumes by pod namespace
-$ kubectl {PLUGIN_NAME} get volumes --pod-namespace=tenant-{1...3}`,
+# List volumes served by a drive ID
+$ kubectl {PLUGIN_NAME} list volumes --drive-id=b84758b0-866f-4a12-9d00-d8f7da76ceb3
+
+# List volumes with labels.
+$ kubectl {PLUGIN_NAME} list volumes --show-labels
+
+`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
 		volumeNameArgs = args
-
-		if err := validateGetVolumesCmd(); err != nil {
+		if err := validateListVolumesArgs(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
-		getVolumesMain(c.Context(), args)
+		listVolumesMain(c.Context(), args)
 	},
 }
 
 func init() {
-	addDriveIDFlag(getVolumesCmd, "Filter output by drive IDs")
-	addPodNameFlag(getVolumesCmd, "Filter output by pod names")
-	addPodNSFlag(getVolumesCmd, "Filter output by pod namespaces")
-	getVolumesCmd.PersistentFlags().BoolVar(&pvcFlag, "pvc", pvcFlag, "Add PVC names in the output")
-	addVolumeStatusFlag(getVolumesCmd, "Filter output by volume status")
+	addDriveIDFlag(listVolumesCmd, "Filter output by drive IDs")
+	addPodNameFlag(listVolumesCmd, "Filter output by pod names")
+	addPodNSFlag(listVolumesCmd, "Filter output by pod namespaces")
+	listVolumesCmd.PersistentFlags().BoolVar(&pvcFlag, "pvc", pvcFlag, "Add PVC names in the output")
+	addVolumeStatusFlag(listVolumesCmd, "Filter output by volume status")
+	addShowLabelsFlag(listVolumesCmd)
+	addLabelsFlag(listVolumesCmd, "Filter output by volume labels")
+	addAllFlag(listVolumesCmd, "If present, list all volumes")
 }
 
-func validateGetVolumesCmd() error {
+func validateListVolumesArgs() error {
 	if err := validateDriveIDArgs(); err != nil {
 		return err
 	}
@@ -108,25 +117,27 @@ func validateGetVolumesCmd() error {
 
 	switch {
 	case allFlag:
-	case len(nodeArgs) != 0:
-	case len(driveNameArgs) != 0:
+	case len(nodesArgs) != 0:
+	case len(drivesArgs) != 0:
 	case len(driveIDArgs) != 0:
 	case len(podNameArgs) != 0:
 	case len(podNSArgs) != 0:
 	case len(volumeNameArgs) != 0:
 	case len(volumeStatusArgs) != 0:
+	case len(labelArgs) != 0:
 	default:
 		volumeStatusSelectors = append(volumeStatusSelectors, directpvtypes.VolumeStatusReady)
 	}
 
 	if allFlag {
-		nodeArgs = nil
-		driveNameArgs = nil
+		nodesArgs = nil
+		drivesArgs = nil
 		driveIDSelectors = nil
 		podNameArgs = nil
 		podNSArgs = nil
 		volumeNameArgs = nil
 		volumeStatusSelectors = nil
+		labelSelectors = nil
 	}
 
 	return nil
@@ -140,15 +151,16 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 	return "-"
 }
 
-func getVolumesMain(ctx context.Context, args []string) {
+func listVolumesMain(ctx context.Context, args []string) {
 	volumes, err := volume.NewLister().
-		NodeSelector(toLabelValues(nodeArgs)).
-		DriveNameSelector(toLabelValues(driveNameArgs)).
+		NodeSelector(toLabelValues(nodesArgs)).
+		DriveNameSelector(toLabelValues(drivesArgs)).
 		DriveIDSelector(toLabelValues(driveIDArgs)).
 		PodNameSelector(toLabelValues(podNameArgs)).
 		PodNSSelector(toLabelValues(podNSArgs)).
 		StatusSelector(volumeStatusSelectors).
 		VolumeNameSelector(volumeNameArgs).
+		LabelSelector(labelSelectors).
 		Get(ctx)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
@@ -185,6 +197,9 @@ func getVolumesMain(ctx context.Context, args []string) {
 	}
 	if pvcFlag {
 		headers = append(headers, "PVC")
+	}
+	if showLabels {
+		headers = append(headers, "LABELS")
 	}
 	writer := newTableWriter(
 		headers,
@@ -246,7 +261,9 @@ func getVolumesMain(ctx context.Context, args []string) {
 		if pvcFlag {
 			row = append(row, getPVCName(ctx, volume))
 		}
-
+		if showLabels {
+			row = append(row, labelsToString(volume.GetLabels()))
+		}
 		writer.AppendRow(row)
 	}
 

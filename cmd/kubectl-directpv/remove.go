@@ -28,55 +28,54 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var cordonCmd = &cobra.Command{
-	Use:           "cordon [DRIVE ...]",
-	Short:         "Mark drives as unschedulable",
+var removeCmd = &cobra.Command{
+	Use:           "remove [DRIVE ...]",
+	Short:         fmt.Sprintf("Remove drives from %s", consts.AppPrettyName),
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Cordon all drives from all nodes
-$ kubectl {PLUGIN_NAME} cordon --all
+		`# Remove a drive from all nodes
+$ kubectl {PLUGIN_NAME} remove --drives=nvme1n1
 
-# Cordon all drives from a node
-$ kubectl {PLUGIN_NAME} cordon --nodes=node1
+# Remove all drives from a node
+$ kubectl {PLUGIN_NAME} remove --nodes=node1
 
-# Cordon a drive from all nodes
-$ kubectl {PLUGIN_NAME} cordon --drives=nvme1n1
+# Remove specific drives from specific nodes
+$ kubectl {PLUGIN_NAME} remove --nodes=node{1...4} --drives=sd{a...f}
 
-# Cordon specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} cordon --nodes=node{1...4} --drives=sd{a...f}
+# Remove all drives from all nodes
+$ kubectl {PLUGIN_NAME} remove --all
 
-# Cordon drives which are in 'error' status
-$ kubectl {PLUGIN_NAME} cordon --status=error`,
+# Remove drives are in 'error' status
+$ kubectl {PLUGIN_NAME} remove --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
 		driveIDArgs = args
 
-		if err := validateCordonCmd(); err != nil {
+		if err := validateRemoveCmd(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
-		cordonMain(c.Context())
+		removeMain(c.Context())
 	},
 }
 
 func init() {
-	addNodesFlag(cordonCmd, "If present, select drives from given nodes")
-	addDrivesFlag(cordonCmd, "If present, select drives by given names")
-	addDriveStatusFlag(cordonCmd, "If present, select drives by drive status")
-	addAllFlag(cordonCmd, "If present, select all drives")
-	addDryRunFlag(cordonCmd)
+	addNodesFlag(removeCmd, "If present, select drives from given nodes")
+	addDrivesFlag(removeCmd, "If present, select drives by given names")
+	addDriveStatusFlag(removeCmd, "If present, select drives by drive status")
+	addAllFlag(removeCmd, "If present, select all drives")
+	addDryRunFlag(removeCmd)
 }
 
-func validateCordonCmd() error {
+func validateRemoveCmd() error {
 	if err := validateNodeArgs(); err != nil {
 		return err
 	}
@@ -100,7 +99,7 @@ func validateCordonCmd() error {
 	case len(driveStatusArgs) != 0:
 	case len(driveIDArgs) != 0:
 	default:
-		return errors.New("no drive selected to cordon")
+		return errors.New("no drive selected to remove")
 	}
 
 	if allFlag {
@@ -113,8 +112,9 @@ func validateCordonCmd() error {
 	return nil
 }
 
-func cordonMain(ctx context.Context) {
+func removeMain(ctx context.Context) {
 	var processed bool
+	var failed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
@@ -124,6 +124,7 @@ func cordonMain(ctx context.Context) {
 		DriveNameSelector(toLabelValues(drivesArgs)).
 		StatusSelector(driveStatusSelectors).
 		DriveIDSelector(driveIDSelectors).
+		IgnoreNotFound(true).
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
@@ -132,34 +133,27 @@ func cordonMain(ctx context.Context) {
 		}
 
 		processed = true
-
-		if result.Drive.IsUnschedulable() {
-			utils.Eprintf(quietFlag, false, "Drive %v already cordoned\n", result.Drive.GetDriveID())
-			continue
-		}
-
-		for vresult := range volume.NewLister().VolumeNameSelector(result.Drive.GetVolumes()).IgnoreNotFound(true).List(ctx) {
-			if vresult.Err != nil {
-				utils.Eprintf(quietFlag, true, "%v\n", vresult.Err)
-				os.Exit(1)
+		switch result.Drive.Status.Status {
+		case directpvtypes.DriveStatusRemoved:
+			utils.Eprintf(quietFlag, false, "%v/%v already removed\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+		default:
+			volumeCount := result.Drive.GetVolumeCount()
+			if volumeCount > 0 {
+				failed = true
+				utils.Eprintf(quietFlag, true, "%v/%v: %v volumes still exist\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), volumeCount)
+			} else {
+				result.Drive.Status.Status = directpvtypes.DriveStatusRemoved
+				var err error
+				if !dryRunFlag {
+					_, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
+				}
+				if err != nil {
+					failed = true
+					utils.Eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
+				} else {
+					fmt.Printf("Removing %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+				}
 			}
-
-			if vresult.Volume.Status.Status == directpvtypes.VolumeStatusPending {
-				utils.Eprintf(quietFlag, true, "unable to cordon drive %v; pending volumes found\n", result.Drive.GetDriveID())
-				os.Exit(1)
-			}
-		}
-
-		result.Drive.Unschedulable()
-		if !dryRunFlag {
-			if _, err := client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{}); err != nil {
-				utils.Eprintf(quietFlag, true, "unable to cordon drive %v; %v\n", result.Drive.GetDriveID(), err)
-				os.Exit(1)
-			}
-		}
-
-		if !quietFlag {
-			fmt.Printf("Drive %v cordoned\n", result.Drive.GetDriveID())
 		}
 	}
 
@@ -170,6 +164,10 @@ func cordonMain(ctx context.Context) {
 			utils.Eprintf(quietFlag, false, "No matching resources found\n")
 		}
 
+		os.Exit(1)
+	}
+
+	if failed {
 		os.Exit(1)
 	}
 }

@@ -211,9 +211,7 @@ func removeDrives(ctx context.Context) error {
 			}
 			return result.Err
 		}
-
-		result.Drive.RemoveFinalizers()
-
+		result.Drive.Finalizers = []string{}
 		_, err := client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err

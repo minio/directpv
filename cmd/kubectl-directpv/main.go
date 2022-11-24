@@ -42,7 +42,10 @@ var mainCmd = &cobra.Command{
 	Short:         "Kubectl plugin for managing " + consts.AppPrettyName + " drives and volumes.",
 	SilenceUsage:  false,
 	SilenceErrors: false,
-	Version:       Version,
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
+	Version: Version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if !disableInit {
 			client.Init()
@@ -52,6 +55,7 @@ var mainCmd = &cobra.Command{
 }
 
 func init() {
+	cobra.EnableCommandSorting = false
 	if Version == "" {
 		mainCmd.Version = "0.0.0-dev"
 		image = consts.AppName + ":0.0.0-dev"
@@ -74,7 +78,7 @@ func init() {
 		"kubeconfig",
 		"",
 		kubeconfig,
-		"Path to the kubeconfig file to use for CLI requests.",
+		"Path to the kubeconfig file to use for CLI requests",
 	)
 	mainCmd.PersistentFlags().BoolVarP(
 		&quietFlag,
@@ -103,18 +107,22 @@ func init() {
 	flag.CommandLine.Parse([]string{})
 	viper.BindPFlags(mainCmd.PersistentFlags())
 
-	mainCmd.AddCommand(infoCmd)
 	mainCmd.AddCommand(installCmd)
-	mainCmd.AddCommand(uninstallCmd)
-	mainCmd.AddCommand(getCmd)
+	mainCmd.AddCommand(discoverCmd)
+	mainCmd.AddCommand(initCmd)
+	mainCmd.AddCommand(infoCmd)
+	mainCmd.AddCommand(listCmd)
+	mainCmd.AddCommand(labelCmd)
 	mainCmd.AddCommand(cordonCmd)
 	mainCmd.AddCommand(migrateCmd)
 	mainCmd.AddCommand(uncordonCmd)
-	mainCmd.AddCommand(formatCmd)
 	mainCmd.AddCommand(moveCmd)
 	mainCmd.AddCommand(releaseCmd)
-	mainCmd.AddCommand(setCmd)
-	mainCmd.AddCommand(purgeCmd)
+	mainCmd.AddCommand(removeCmd)
+	mainCmd.AddCommand(uninstallCmd)
+	mainCmd.SetHelpCommand(&cobra.Command{
+		Hidden: true,
+	})
 }
 
 func main() {

@@ -148,6 +148,16 @@ func (volume DirectPVVolume) IsReleased() bool {
 	return len(volume.Finalizers) == 1 && volume.Finalizers[0] == volumeFinalizerPurgeProtection
 }
 
+// GetLabels overrides the definition to return non-nil map.
+func (volume *DirectPVVolume) GetLabels() map[string]string {
+	values := volume.ObjectMeta.GetLabels()
+	if values == nil {
+		values = map[string]string{}
+		volume.SetLabels(values)
+	}
+	return values
+}
+
 func (volume *DirectPVVolume) removeFinalizer(value string) {
 	finalizers := []string{}
 	for _, finalizer := range volume.Finalizers {
@@ -179,26 +189,31 @@ func (volume *DirectPVVolume) CopyLabels(vol *DirectPVVolume) {
 }
 
 // SetLabel sets label to this volume.
-func (volume *DirectPVVolume) SetLabel(key types.LabelKey, value types.LabelValue) {
+func (volume *DirectPVVolume) SetLabel(key types.LabelKey, value types.LabelValue) bool {
 	values := volume.GetLabels()
-	if values == nil {
-		values = map[string]string{}
+	if v, ok := values[string(key)]; ok && v == string(value) {
+		return false
 	}
 	values[string(key)] = string(value)
-	volume.SetLabels(values)
+	return true
+}
+
+// RemoveLabel unsets the label from this volume.
+func (volume *DirectPVVolume) RemoveLabel(key types.LabelKey) (found bool) {
+	labels := volume.GetLabels()
+	_, found = labels[string(key)]
+	delete(labels, string(key))
+	return
 }
 
 func (volume DirectPVVolume) getLabel(key types.LabelKey) types.LabelValue {
 	values := volume.GetLabels()
-	if values == nil {
-		values = map[string]string{}
-	}
-	return types.NewLabelValue(values[string(key)])
+	return types.ToLabelValue(values[string(key)])
 }
 
 // SetDriveID sets drive ID of associated drive to this volume.
 func (volume *DirectPVVolume) SetDriveID(name types.DriveID) {
-	volume.SetLabel(types.DriveLabelKey, types.NewLabelValue(string(name)))
+	volume.SetLabel(types.DriveLabelKey, types.ToLabelValue(string(name)))
 }
 
 // GetDriveID returns drive ID associated drive of this volume.
@@ -208,7 +223,7 @@ func (volume DirectPVVolume) GetDriveID() types.DriveID {
 
 // SetDriveName sets drive name of associated drive to this volume.
 func (volume *DirectPVVolume) SetDriveName(name types.DriveName) {
-	volume.SetLabel(types.DriveNameLabelKey, types.NewLabelValue(string(name)))
+	volume.SetLabel(types.DriveNameLabelKey, types.ToLabelValue(string(name)))
 }
 
 // GetDriveName returns drive name of associated drive of this volume.
@@ -218,7 +233,7 @@ func (volume DirectPVVolume) GetDriveName() types.DriveName {
 
 // SetNodeID sets node ID of associated drive to this volume.
 func (volume *DirectPVVolume) SetNodeID(name types.NodeID) {
-	volume.SetLabel(types.NodeLabelKey, types.NewLabelValue(string(name)))
+	volume.SetLabel(types.NodeLabelKey, types.ToLabelValue(string(name)))
 }
 
 // GetNodeID returns node ID of associated drive of this volume.
@@ -238,7 +253,7 @@ func (volume *DirectPVVolume) SetCreatedByLabel() {
 
 // SetPodName sets associated pod name to this volume.
 func (volume *DirectPVVolume) SetPodName(name string) {
-	volume.SetLabel(types.PodNameLabelKey, types.NewLabelValue(name))
+	volume.SetLabel(types.PodNameLabelKey, types.ToLabelValue(name))
 }
 
 // GetPodName returns associated pod name of this volume.
@@ -248,7 +263,7 @@ func (volume DirectPVVolume) GetPodName() string {
 
 // SetPodNS sets associated pod namespace to this volume.
 func (volume *DirectPVVolume) SetPodNS(name string) {
-	volume.SetLabel(types.PodNSLabelKey, types.NewLabelValue(name))
+	volume.SetLabel(types.PodNSLabelKey, types.ToLabelValue(name))
 }
 
 // GetPodNS returns associated pod namespace of this volume.

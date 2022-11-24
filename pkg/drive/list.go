@@ -41,6 +41,7 @@ type Lister struct {
 	accessTiers    []directpvtypes.LabelValue
 	statusList     []directpvtypes.DriveStatus
 	driveIDs       []directpvtypes.DriveID
+	labels         map[directpvtypes.LabelKey]directpvtypes.LabelValue
 	maxObjects     int64
 	ignoreNotFound bool
 }
@@ -64,12 +65,6 @@ func (lister *Lister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *
 	return lister
 }
 
-// AccessTierSelector adds filter listing by access-tiers.
-func (lister *Lister) AccessTierSelector(accessTiers []directpvtypes.LabelValue) *Lister {
-	lister.accessTiers = accessTiers
-	return lister
-}
-
 // StatusSelector adds filter listing by drive status.
 func (lister *Lister) StatusSelector(statusList []directpvtypes.DriveStatus) *Lister {
 	lister.statusList = statusList
@@ -79,6 +74,12 @@ func (lister *Lister) StatusSelector(statusList []directpvtypes.DriveStatus) *Li
 // DriveIDSelector adds filter listing by drive IDs.
 func (lister *Lister) DriveIDSelector(driveIDs []directpvtypes.DriveID) *Lister {
 	lister.driveIDs = driveIDs
+	return lister
+}
+
+// LabelSelector adds filter listing by labels.
+func (lister *Lister) LabelSelector(labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *Lister {
+	lister.labels = labels
 	return lister
 }
 
@@ -100,15 +101,18 @@ func (lister *Lister) List(ctx context.Context) <-chan ListDriveResult {
 		len(lister.driveNames) == 0 &&
 		len(lister.accessTiers) == 0 &&
 		len(lister.statusList) == 0 &&
+		len(lister.labels) == 0 &&
 		len(lister.driveIDs) != 0
 
-	labelSelector := directpvtypes.ToLabelSelector(
-		map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-			directpvtypes.NodeLabelKey:       lister.nodes,
-			directpvtypes.DriveNameLabelKey:  lister.driveNames,
-			directpvtypes.AccessTierLabelKey: lister.accessTiers,
-		},
-	)
+	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
+		directpvtypes.NodeLabelKey:       lister.nodes,
+		directpvtypes.DriveNameLabelKey:  lister.driveNames,
+		directpvtypes.AccessTierLabelKey: lister.accessTiers,
+	}
+	for k, v := range lister.labels {
+		labelMap[k] = []directpvtypes.LabelValue{v}
+	}
+	labelSelector := directpvtypes.ToLabelSelector(labelMap)
 
 	resultCh := make(chan ListDriveResult)
 	go func() {
@@ -134,7 +138,6 @@ func (lister *Lister) List(ctx context.Context) <-chan ListDriveResult {
 					if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 						break
 					}
-
 					send(ListDriveResult{Err: err})
 					return
 				}

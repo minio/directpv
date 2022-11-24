@@ -23,41 +23,49 @@ import (
 	"os"
 	"strings"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
+	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var releaseCmd = &cobra.Command{
-	Use:   "release [DRIVE ...]",
-	Short: "Release drives.",
+	Use:           "release [VOLUME ...]",
+	Short:         "Cleanup stale volumes",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Release all drives from all nodes
+		`# Release all stale volumes
 $ kubectl {PLUGIN_NAME} release --all
 
-# Release all drives from a node
-$ kubectl {PLUGIN_NAME} release --node=node1
+# Release a volume by its ID
+$ kubectl {PLUGIN_NAME} release pvc-6355041d-f9c6-4bd6-9335-f2bccbe73929
 
-# Release drives from all nodes
-$ kubectl {PLUGIN_NAME} release --drive-name=sda
+# Release volumes served by drive name in all nodes.
+$ kubectl {PLUGIN_NAME} release --drives=nvme1n1
 
-# Release specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} release --node=node{1...4} --drive-name=sd{a...f}
+# Release volumes served by drive
+$ kubectl {PLUGIN_NAME} release --drive-id=78e6486e-22d2-4c93-99d0-00f4e3a8411f
 
-# Release drives are in 'warm' access-tier
-$ kubectl {PLUGIN_NAME} release --access-tier=warm
+# Release volumes served by a node
+$ kubectl {PLUGIN_NAME} release --nodes=node1
 
-# Release drives are in 'error' status
-$ kubectl {PLUGIN_NAME} release --status=error`,
+# Release volumes by pod name
+$ kubectl {PLUGIN_NAME} release --pod-names=minio-{1...3}
+
+# Release volumes by pod namespace
+$ kubectl {PLUGIN_NAME} release --pod-namespaces=tenant-{1...3}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
-		driveIDArgs = args
+		volumeNameArgs = args
 
 		if err := validateReleaseCmd(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
@@ -69,12 +77,13 @@ $ kubectl {PLUGIN_NAME} release --status=error`,
 }
 
 func init() {
-	addNodeFlag(releaseCmd, "If present, select drives from given nodes")
-	addDriveNameFlag(releaseCmd, "If present, select drives by given names")
-	addAccessTierFlag(releaseCmd, "If present, select drives by access-tier")
-	addDriveStatusFlag(releaseCmd, "If present, select drives by drive status")
-	addAllFlag(releaseCmd, "If present, select all drives")
+	addNodesFlag(releaseCmd, "If present, select volumes from given nodes")
+	addDrivesFlag(releaseCmd, "If present, select volumes by given drive names")
+	addAllFlag(releaseCmd, "If present, select all volumes")
 	addDryRunFlag(releaseCmd)
+	addDriveIDFlag(releaseCmd, "Select volumes by drive IDs")
+	addPodNameFlag(releaseCmd, "Select volumes by pod names")
+	addPodNSFlag(releaseCmd, "Select volumes by pod namespaces")
 }
 
 func validateReleaseCmd() error {
@@ -86,98 +95,109 @@ func validateReleaseCmd() error {
 		return err
 	}
 
-	if err := validateAccessTierArgs(); err != nil {
-		return err
-	}
-
-	if err := validateDriveStatusArgs(); err != nil {
-		return err
-	}
-
 	if err := validateDriveIDArgs(); err != nil {
+		return err
+	}
+
+	if err := validatePodNameArgs(); err != nil {
+		return err
+	}
+
+	if err := validatePodNSArgs(); err != nil {
+		return err
+	}
+
+	if err := validateVolumeNameArgs(); err != nil {
 		return err
 	}
 
 	switch {
 	case allFlag:
-	case len(nodeArgs) != 0:
-	case len(driveNameArgs) != 0:
-	case len(accessTierArgs) != 0:
-	case len(driveStatusArgs) != 0:
+	case len(nodesArgs) != 0:
+	case len(drivesArgs) != 0:
 	case len(driveIDArgs) != 0:
+	case len(podNameArgs) != 0:
+	case len(podNSArgs) != 0:
+	case len(volumeNameArgs) != 0:
 	default:
-		return errors.New("no drive selected to release")
+		return errors.New("no volume selected to release")
 	}
 
 	if allFlag {
-		nodeArgs = nil
-		driveNameArgs = nil
-		accessTierArgs = nil
-		driveStatusSelectors = nil
-		driveIDSelectors = nil
+		nodesArgs = nil
+		drivesArgs = nil
+		driveIDArgs = nil
+		podNameArgs = nil
+		podNSArgs = nil
+		volumeNameArgs = nil
 	}
 
 	return nil
 }
 
 func releaseMain(ctx context.Context) {
-	var processed bool
-	var failed bool
-
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh := drive.NewLister().
-		NodeSelector(toLabelValues(nodeArgs)).
-		DriveNameSelector(toLabelValues(driveNameArgs)).
-		AccessTierSelector(toLabelValues(accessTierArgs)).
-		StatusSelector(driveStatusSelectors).
-		DriveIDSelector(driveIDSelectors).
-		IgnoreNotFound(true).
+	resultCh := volume.NewLister().
+		NodeSelector(toLabelValues(nodesArgs)).
+		DriveNameSelector(toLabelValues(drivesArgs)).
+		DriveIDSelector(toLabelValues(driveIDArgs)).
+		PodNameSelector(toLabelValues(podNameArgs)).
+		PodNSSelector(toLabelValues(podNSArgs)).
+		StatusSelector(volumeStatusSelectors).
+		VolumeNameSelector(volumeNameArgs).
 		List(ctx)
+
+	matchFunc := func(volume *types.Volume) bool {
+		pv, err := k8s.KubeClient().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return true
+			}
+			utils.Eprintf(quietFlag, true, "unable to get PV for volume %v; %v\n", volume.Name, err)
+			return false
+		}
+		switch pv.Status.Phase {
+		case corev1.VolumeReleased, corev1.VolumeFailed:
+			return true
+		default:
+			if !quietFlag {
+				utils.Eprintf(quietFlag, false, "Skipping PV %v in %v state to volume %v\n", pv.Name, pv.Status.Phase, volume.Name)
+			}
+			return false
+		}
+	}
+
 	for result := range resultCh {
 		if result.Err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
 			os.Exit(1)
 		}
 
-		processed = true
-
-		switch result.Drive.Status.Status {
-		case directpvtypes.DriveStatusReleased:
-			utils.Eprintf(quietFlag, false, "%v/%v already released\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-		default:
-			volumeCount := result.Drive.GetVolumeCount()
-			if volumeCount > 0 {
-				failed = true
-				utils.Eprintf(quietFlag, true, "%v/%v: %v volumes still exist\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), volumeCount)
-			} else {
-				result.Drive.Status.Status = directpvtypes.DriveStatusReleased
-				var err error
-				if !dryRunFlag {
-					_, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
-				}
-				if err != nil {
-					failed = true
-					utils.Eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
-				} else {
-					fmt.Printf("Releasing %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-				}
-			}
-		}
-	}
-
-	if !processed {
-		if allFlag {
-			utils.Eprintf(quietFlag, false, "No resources found\n")
-		} else {
-			utils.Eprintf(quietFlag, false, "No matching resources found\n")
+		if !matchFunc(&result.Volume) {
+			continue
 		}
 
-		os.Exit(1)
-	}
+		result.Volume.RemovePVProtection()
 
-	if failed {
-		os.Exit(1)
+		if dryRunFlag {
+			continue
+		}
+
+		if _, err := client.VolumeClient().Update(ctx, &result.Volume, metav1.UpdateOptions{
+			TypeMeta: types.NewVolumeTypeMeta(),
+		}); err != nil {
+			utils.Eprintf(quietFlag, true, "%v\n", err)
+			os.Exit(1)
+		}
+		if err := client.VolumeClient().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			utils.Eprintf(quietFlag, true, "%v\n", err)
+			os.Exit(1)
+		}
+
+		if !quietFlag {
+			fmt.Println("Removing volume", result.Volume.Name)
+		}
 	}
 }

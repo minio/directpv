@@ -19,6 +19,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path"
 
@@ -120,7 +121,7 @@ func getCredFile() string {
 
 func toLabelValues(slice []string) (values []directpvtypes.LabelValue) {
 	for _, s := range slice {
-		values = append(values, directpvtypes.NewLabelValue(s))
+		values = append(values, directpvtypes.ToLabelValue(s))
 	}
 	return
 }
@@ -130,4 +131,28 @@ func getInput(msg string) string {
 	var input string
 	fmt.Scanln(&input)
 	return input
+}
+
+func validateAdminServerConfigArgs() error {
+	if adminServerArg == "" {
+		var found bool
+		if adminServerArg, found = os.LookupEnv(adminServerEnvName); !found {
+			return fmt.Errorf("environment variable %v or --admin-server argument must be set", adminServerEnvName)
+		}
+		if adminServerArg == "" {
+			return fmt.Errorf("valid value must be set to %v environment variable", adminServerEnvName)
+		}
+	}
+
+	host, port, err := net.SplitHostPort(adminServerArg)
+	if err != nil {
+		return fmt.Errorf("invalid api server value %v; %w", adminServerArg, err)
+	}
+	if host == "" {
+		return fmt.Errorf("invalid host of api server value %v", adminServerArg)
+	}
+	if port == "" {
+		return fmt.Errorf("invalid port number of api server value %v", adminServerArg)
+	}
+	return nil
 }

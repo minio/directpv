@@ -25,6 +25,7 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +35,20 @@ import (
 const GiB = 1024 * 1024 * 1024
 
 func TestGetFilteredDrives(t *testing.T) {
+	newDriveWithLabels := func(driveID directpvtypes.DriveID, status types.DriveStatus, nodeID directpvtypes.NodeID, driveName directpvtypes.DriveName, labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *types.Drive {
+		drive := types.NewDrive(
+			driveID,
+			status,
+			nodeID,
+			driveName,
+			directpvtypes.AccessTierDefault,
+		)
+		for k, v := range labels {
+			drive.SetLabel(k, v)
+		}
+		return drive
+	}
+
 	case2Result := []types.Drive{
 		*types.NewDrive(
 			"drive-1",
@@ -170,7 +185,7 @@ func TestGetFilteredDrives(t *testing.T) {
 	}
 	case6Request := &csi.CreateVolumeRequest{
 		Name:       "volume-1",
-		Parameters: map[string]string{"direct-csi-min-io/access-tier": string(directpvtypes.AccessTierHot)},
+		Parameters: map[string]string{consts.GroupName + "/access-tier": string(directpvtypes.AccessTierHot)},
 	}
 
 	case7Result := []types.Drive{
@@ -390,7 +405,56 @@ func TestGetFilteredDrives(t *testing.T) {
 	}
 	case13Request := &csi.CreateVolumeRequest{
 		Name:       "volume-1",
-		Parameters: map[string]string{"direct-csi-min-io/access-tier": "hot"},
+		Parameters: map[string]string{consts.GroupName + "/access-tier": "hot"},
+	}
+
+	case14Result := []types.Drive{
+		*newDriveWithLabels(
+			"drive-4",
+			types.DriveStatus{
+				Status:   directpvtypes.DriveStatusReady,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region1"},
+			},
+			"node-1",
+			directpvtypes.DriveName("sdd"),
+			map[directpvtypes.LabelKey]directpvtypes.LabelValue{
+				consts.GroupName + "/access-type": "hot",
+			},
+		),
+	}
+
+	case14Objects := []runtime.Object{
+		types.NewDrive(
+			"drive-1",
+			types.DriveStatus{Status: directpvtypes.DriveStatusReady},
+			"node-1",
+			directpvtypes.DriveName("sda"),
+			directpvtypes.AccessTierDefault,
+		),
+		types.NewDrive(
+			"drive-3",
+			types.DriveStatus{Status: directpvtypes.DriveStatusReady},
+			"node-1",
+			directpvtypes.DriveName("sdc"),
+			directpvtypes.AccessTierDefault,
+		),
+		newDriveWithLabels(
+			"drive-4",
+			types.DriveStatus{
+				Status:   directpvtypes.DriveStatusReady,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region1"},
+			},
+			"node-1",
+			directpvtypes.DriveName("sdd"),
+			map[directpvtypes.LabelKey]directpvtypes.LabelValue{
+				consts.GroupName + "/access-type": "hot",
+			},
+		),
+	}
+
+	case14Request := &csi.CreateVolumeRequest{
+		Name:       "volume-1",
+		Parameters: map[string]string{consts.GroupName + "/access-type": "hot"},
 	}
 
 	testCases := []struct {
@@ -411,6 +475,7 @@ func TestGetFilteredDrives(t *testing.T) {
 		{case11Objects, case11Request, nil},
 		{case12Objects, case12Request, case12Result},
 		{case13Objects, case13Request, case13Result},
+		{case14Objects, case14Request, case14Result},
 	}
 
 	for i, testCase := range testCases {

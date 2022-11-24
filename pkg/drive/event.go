@@ -218,7 +218,7 @@ func (handler *driveEventHandler) unmountDrive(ctx context.Context, drive *types
 	return nil
 }
 
-func (handler *driveEventHandler) release(ctx context.Context, drive *types.Drive) error {
+func (handler *driveEventHandler) remove(ctx context.Context, drive *types.Drive) error {
 	volumeCount := drive.GetVolumeCount()
 	if volumeCount > 0 {
 		return fmt.Errorf("drive %v still contains %v volumes", drive.GetDriveID(), volumeCount)
@@ -313,8 +313,8 @@ func (handler *driveEventHandler) move(ctx context.Context, drive *types.Drive) 
 
 func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *types.Drive) error {
 	switch drive.Status.Status {
-	case directpvtypes.DriveStatusReleased:
-		return handler.release(ctx, drive)
+	case directpvtypes.DriveStatusRemoved:
+		return handler.remove(ctx, drive)
 	case directpvtypes.DriveStatusMoving:
 		return handler.move(ctx, drive)
 	}

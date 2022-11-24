@@ -32,25 +32,27 @@ import (
 )
 
 var uncordonCmd = &cobra.Command{
-	Use:   "uncordon [DRIVE ...]",
-	Short: "Uncordon drives.",
+	Use:           "uncordon [DRIVE ...]",
+	Short:         "Mark drives as schedulable",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Example: strings.ReplaceAll(
 		`# Uncordon all drives from all nodes
 $ kubectl {PLUGIN_NAME} uncordon --all
 
 # Uncordon all drives from a node
-$ kubectl {PLUGIN_NAME} uncordon --node=node1
+$ kubectl {PLUGIN_NAME} uncordon --nodes=node1
 
-# Uncordon drives from all nodes
-$ kubectl {PLUGIN_NAME} uncordon --drive-name=sda
+# Uncordon a drive from all nodes
+$ kubectl {PLUGIN_NAME} uncordon --drives=nvme1n1
 
 # Uncordon specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} uncordon --node=node{1...4} --drive-name=sd{a...f}
+$ kubectl {PLUGIN_NAME} uncordon --nodes=node{1...4} --drives=sd{a...f}
 
-# Uncordon drives are in 'warm' access-tier
+# Uncordon drives which are in 'warm' access-tier
 $ kubectl {PLUGIN_NAME} uncordon --access-tier=warm
 
-# Uncordon drives are in 'error' status
+# Uncordon drives which are in 'error' status
 $ kubectl {PLUGIN_NAME} uncordon --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
@@ -68,9 +70,8 @@ $ kubectl {PLUGIN_NAME} uncordon --status=error`,
 }
 
 func init() {
-	addNodeFlag(uncordonCmd, "If present, select drives from given nodes")
-	addDriveNameFlag(uncordonCmd, "If present, select drives by given names")
-	addAccessTierFlag(uncordonCmd, "If present, select drives by access-tier")
+	addNodesFlag(uncordonCmd, "If present, select drives from given nodes")
+	addDrivesFlag(uncordonCmd, "If present, select drives by given names")
 	addDriveStatusFlag(uncordonCmd, "If present, select drives by status")
 	addAllFlag(uncordonCmd, "If present, select all drives")
 	addDryRunFlag(uncordonCmd)
@@ -85,10 +86,6 @@ func validateUncordonCmd() error {
 		return err
 	}
 
-	if err := validateAccessTierArgs(); err != nil {
-		return err
-	}
-
 	if err := validateDriveStatusArgs(); err != nil {
 		return err
 	}
@@ -99,9 +96,8 @@ func validateUncordonCmd() error {
 
 	switch {
 	case allFlag:
-	case len(nodeArgs) != 0:
-	case len(driveNameArgs) != 0:
-	case len(accessTierArgs) != 0:
+	case len(nodesArgs) != 0:
+	case len(drivesArgs) != 0:
 	case len(driveStatusArgs) != 0:
 	case len(driveIDArgs) != 0:
 	default:
@@ -109,9 +105,8 @@ func validateUncordonCmd() error {
 	}
 
 	if allFlag {
-		nodeArgs = nil
-		driveNameArgs = nil
-		accessTierArgs = nil
+		nodesArgs = nil
+		drivesArgs = nil
 		driveStatusSelectors = nil
 		driveIDSelectors = nil
 	}
@@ -126,9 +121,8 @@ func uncordonMain(ctx context.Context) {
 	defer cancelFunc()
 
 	resultCh := drive.NewLister().
-		NodeSelector(toLabelValues(nodeArgs)).
-		DriveNameSelector(toLabelValues(driveNameArgs)).
-		AccessTierSelector(toLabelValues(accessTierArgs)).
+		NodeSelector(toLabelValues(nodesArgs)).
+		DriveNameSelector(toLabelValues(drivesArgs)).
 		StatusSelector(driveStatusSelectors).
 		DriveIDSelector(driveIDSelectors).
 		List(ctx)

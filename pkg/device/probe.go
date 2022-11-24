@@ -17,9 +17,13 @@
 package device
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
-	"reflect"
+	"sort"
 	"strings"
+
+	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 )
 
 // Device is a block device information.
@@ -39,9 +43,31 @@ type Device struct {
 	UDevData    map[string]string `json:"udevData"`    // Read from /run/udev/data/b<Major:Minor>
 }
 
-// Equal checks whether two devices are equal or not.
-func (d Device) Equal(d2 Device) bool {
-	return reflect.DeepEqual(d, d2)
+// ID generates a unique ID by hashing the properties of the Device.
+func (d *Device) ID(nodeID types.NodeID) string {
+	sort.Strings(d.Holders)
+	sort.Strings(d.MountPoints)
+
+	deviceMap := map[string]string{
+		"node":        string(nodeID),
+		"name":        d.Name,
+		"majorminor":  d.MajorMinor,
+		"size":        fmt.Sprintf("%v", d.Size),
+		"hidden":      fmt.Sprintf("%v", d.Hidden),
+		"removable":   fmt.Sprintf("%v", d.Removable),
+		"readonly":    fmt.Sprintf("%v", d.ReadOnly),
+		"partitioned": fmt.Sprintf("%v", d.Partitioned),
+		"holders":     strings.Join(d.Holders, ","),
+		"mountpoints": strings.Join(d.MountPoints, ","),
+		"swapon":      fmt.Sprintf("%v", d.SwapOn),
+		"cdrom":       fmt.Sprintf("%v", d.CDROM),
+		"dmname":      d.DMName,
+		"udevdata":    strings.Join(toSlice(d.UDevData, "="), ";"),
+	}
+
+	stringToHash := strings.Join(toSlice(deviceMap, ":"), "\n")
+	h := sha256.Sum256([]byte(stringToHash))
+	return base64.StdEncoding.EncodeToString(h[:])
 }
 
 // Make returns device make information.

@@ -75,8 +75,8 @@ const (
 // LabelValue is a type definition for label value
 type LabelValue string
 
-// NewLabelValue validates and converts string value to label value
-func NewLabelValue(value string) LabelValue {
+// ToLabelValue validates and converts string value to label value
+func ToLabelValue(value string) LabelValue {
 	errs := validation.IsValidLabelValue(value)
 	if len(errs) == 0 {
 		return LabelValue(value)
@@ -124,4 +124,25 @@ func ToLabelSelector(labels map[LabelKey][]LabelValue) string {
 		}
 	}
 	return strings.Join(selectors, ",")
+}
+
+// NewLabelKey creates a valid label key
+func NewLabelKey(labelK string) (labelKey LabelKey, err error) {
+	if !strings.HasPrefix(labelK, consts.GroupName) {
+		labelK = consts.GroupName + "/" + labelK
+	}
+	if errs := validation.IsQualifiedName(labelK); len(errs) > 0 {
+		err = fmt.Errorf("invalid label key; %s", strings.Join(errs, ", "))
+		return
+	}
+	return LabelKey(labelK), err
+}
+
+// NewLabelValue creates a valid label value
+func NewLabelValue(v string) (labelValue LabelValue, err error) {
+	if errs := validation.IsValidLabelValue(v); len(errs) > 0 {
+		err = fmt.Errorf("invalid label value; %s", strings.Join(errs, ", "))
+		return
+	}
+	return LabelValue(v), err
 }

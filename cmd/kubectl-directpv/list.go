@@ -18,34 +18,36 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"sort"
+	"strings"
 
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/spf13/cobra"
 )
 
-var getCmd = &cobra.Command{
-	Use:   "get",
-	Short: "Get drives and volumes.",
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List drives and volumes",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if parent := cmd.Parent(); parent != nil {
 			parent.PersistentPreRunE(parent, args)
 		}
-
-		return validateGetCmd()
+		return validateListCmd()
 	},
 }
 
 func init() {
-	addNodeFlag(getCmd, "Filter output by nodes")
-	addDriveNameFlag(getCmd, "Filter output by drive names")
-	addAllFlag(getCmd, "If present, list all objects")
-	getCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", outputFormat, "Output format. One of: json|yaml|wide")
-	getCmd.PersistentFlags().BoolVar(&noHeaders, "no-headers", noHeaders, "When using the default or custom-column output format, don't print headers (default print headers)")
+	addNodesFlag(listCmd, "Filter output by nodes")
+	addDrivesFlag(listCmd, "Filter output by drive names")
+	listCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", outputFormat, "Output format. One of: json|yaml|wide")
+	listCmd.PersistentFlags().BoolVar(&noHeaders, "no-headers", noHeaders, "When using the default or custom-column output format, don't print headers (default print headers)")
 
-	getCmd.AddCommand(getDrivesCmd)
-	getCmd.AddCommand(getVolumesCmd)
+	listCmd.AddCommand(listDrivesCmd)
+	listCmd.AddCommand(listVolumesCmd)
 }
 
-func validateGetCmd() error {
+func validateListCmd() error {
 	switch outputFormat {
 	case "":
 	case "wide":
@@ -66,10 +68,22 @@ func validateGetCmd() error {
 	if err := validateNodeArgs(); err != nil {
 		return err
 	}
-
 	if err := validateDriveNameArgs(); err != nil {
+		return err
+	}
+	if err := validateLabelArgs(); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func labelsToString(labels map[string]string) string {
+	var labelsArray []string
+	for k, v := range labels {
+		k = strings.TrimPrefix(k, consts.GroupName+"/")
+		labelsArray = append(labelsArray, fmt.Sprintf("%s=%v", k, v))
+	}
+	sort.Strings(labelsArray)
+	return strings.Join(labelsArray, ",")
 }

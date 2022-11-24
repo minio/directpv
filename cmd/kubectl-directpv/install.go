@@ -53,7 +53,7 @@ var (
 
 var installCmd = &cobra.Command{
 	Use:           "install",
-	Short:         "Install " + consts.AppPrettyName + " in Kubernetes.",
+	Short:         "Install " + consts.AppPrettyName + " in Kubernetes",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

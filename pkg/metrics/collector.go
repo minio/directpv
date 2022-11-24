@@ -102,7 +102,7 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 	defer cancelFunc()
 
 	resultCh := volume.NewLister().
-		NodeSelector([]directpvtypes.LabelValue{directpvtypes.NewLabelValue(string(c.nodeID))}).
+		NodeSelector([]directpvtypes.LabelValue{directpvtypes.ToLabelValue(string(c.nodeID))}).
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {

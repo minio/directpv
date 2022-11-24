@@ -29,9 +29,10 @@ import (
 )
 
 var uninstallCmd = &cobra.Command{
-	Use:          "uninstall",
-	Short:        "Uninstall " + consts.AppPrettyName + " in Kubernetes.",
-	SilenceUsage: true,
+	Use:           "uninstall",
+	Short:         "Uninstall " + consts.AppPrettyName + " in Kubernetes",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Run: func(c *cobra.Command, args []string) {
 		if forceFlag {
 			input := getInput(color.HiRedString("Force removal may cause data loss. Type 'Yes' if you really want to do: "))
