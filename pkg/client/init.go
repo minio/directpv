@@ -49,5 +49,13 @@ func Init() {
 		klog.Fatalf("unable to create new volume interface; %v", err)
 	}
 
+	if nodeClient, err = latestNodeClientForConfig(k8s.KubeConfig()); err != nil {
+		klog.Fatalf("unable to create new node interface; %v", err)
+	}
+
+	if initRequestClient, err = latestInitRequestClientForConfig(k8s.KubeConfig()); err != nil {
+		klog.Fatalf("unable to create new initrequest interface; %v", err)
+	}
+
 	initEvent(k8s.KubeClient())
 }

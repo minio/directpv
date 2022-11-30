@@ -20,17 +20,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/minio/directpv/pkg/admin"
-	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/node"
+	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/util/retry"
 )
 
 var (
@@ -73,36 +77,29 @@ func init() {
 	addDrivesFlag(discoverCmd, "If present, select drives by given names")
 	addAllFlag(discoverCmd, "If present, include non-formattable devices in the display")
 	discoverCmd.PersistentFlags().StringVar(&outputFile, "output-file", outputFile, "output file to write the init config")
-	addAdminServerFlag(discoverCmd)
 }
 
 func validateDiscoverCmd() error {
 	if err := validateNodeArgs(); err != nil {
 		return err
 	}
-	if err := validateDriveNameArgs(); err != nil {
-		return err
-	}
-	return validateAdminServerConfigArgs()
+	return validateDriveNameArgs()
 }
 
-func toInitConfig(resultMap map[string]admin.ListDevicesResult) InitConfig {
+func toInitConfig(resultMap map[string][]types.Device) InitConfig {
 	nodeInfo := []NodeInfo{}
 	initConfig := NewInitConfig()
-	for node, result := range resultMap {
-		if result.Error != "" {
-			continue
-		}
+	for node, devices := range resultMap {
 		driveInfo := []DriveInfo{}
-		for _, device := range result.Devices {
-			if device.FormatDenied {
+		for _, device := range devices {
+			if device.DeniedReason != "" {
 				continue
 			}
 			driveInfo = append(driveInfo, DriveInfo{
-				ID:         device.ID(types.NodeID(node)),
+				ID:         device.ID,
 				Name:       device.Name,
 				MajorMinor: device.MajorMinor,
-				FS:         device.FSType(),
+				FS:         device.FSType,
 			})
 		}
 		nodeInfo = append(nodeInfo, NodeInfo{
@@ -114,27 +111,7 @@ func toInitConfig(resultMap map[string]admin.ListDevicesResult) InitConfig {
 	return initConfig
 }
 
-func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.ListDevicesResult, error) {
-	req := admin.ListDevicesRequest{
-		Nodes:         nodesArgs,
-		Devices:       drivesArgs,
-		FormatAllowed: true,
-		FormatDenied:  allFlag,
-	}
-
-	cred, err := admin.GetCredential(ctx, getCredFile())
-	if err != nil {
-		return nil, err
-	}
-	resp, err := client.ListDevices(&req, cred)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.Error != "" {
-		return nil, fmt.Errorf(resp.Error)
-	}
-
+func showDevices(resultMap map[string][]types.Device) error {
 	writer := newTableWriter(
 		table.Row{
 			"ID",
@@ -159,18 +136,15 @@ func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.Li
 		false,
 	)
 
-	errs := map[string]string{}
 	var foundAvailableDrive bool
-	for node, result := range resp.Nodes {
-		if result.Error != "" {
-			errs[node] = result.Error
-			continue
-		}
-
-		for _, device := range result.Devices {
+	for node, devices := range resultMap {
+		for _, device := range devices {
 			var desc string
 			available := "YES"
-			if device.FormatDenied {
+			if device.DeniedReason != "" {
+				if !allFlag {
+					continue
+				}
 				available = "NO"
 				desc = device.DeniedReason
 			} else {
@@ -182,8 +156,8 @@ func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.Li
 					node,
 					device.Name,
 					printableBytes(int64(device.Size)),
-					printableString(device.FSType()),
-					printableString(device.Make()),
+					printableString(device.FSType),
+					printableString(device.Make),
 					available,
 					printableString(desc),
 				},
@@ -196,20 +170,12 @@ func listDevices(ctx context.Context, client *admin.Client) (map[string]admin.Li
 		fmt.Println()
 	}
 
-	if len(errs) != 0 {
-		for node, err := range errs {
-			utils.Eprintf(quietFlag, true, "%v: %v\n", node, err)
-		}
-
-		return nil, errDiscoveryFailed
-	}
-
 	if writer.Length() == 0 || !foundAvailableDrive {
 		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to format"))
-		return nil, errDiscoveryFailed
+		return errDiscoveryFailed
 	}
 
-	return resp.Nodes, nil
+	return nil
 }
 
 func writeInitConfig(config InitConfig) error {
@@ -221,16 +187,92 @@ func writeInitConfig(config InitConfig) error {
 	return config.Write(f)
 }
 
-func discoverMain(ctx context.Context) {
-	client := admin.NewClient(
-		&url.URL{
-			Scheme: "https",
-			Host:   adminServerArg,
-		},
-	)
+func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[string][]types.Device, err error) {
+	var nodeNames []string
+	nodeClient := client.NodeClient()
+	for i := range nodes {
+		nodeNames = append(nodeNames, nodes[i].Name)
+		updateFunc := func() error {
+			node, err := nodeClient.Get(ctx, nodes[i].Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			node.Spec.Refresh = true
+			if _, err := nodeClient.Update(ctx, node, metav1.UpdateOptions{TypeMeta: types.NewNodeTypeMeta()}); err != nil {
+				return err
+			}
+			return nil
+		}
+		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
+			return nil, err
+		}
+	}
 
-	resultMap, err := listDevices(ctx, client)
+	nwEventCh, stop, err := node.NewLister().
+		NodeSelector(toLabelValues(nodeNames)).
+		Watch(ctx)
 	if err != nil {
+		return nil, err
+	}
+	defer stop()
+
+	devices = map[string][]types.Device{}
+	for {
+		select {
+		case nodeEvent, ok := <-nwEventCh:
+			if !ok {
+				return
+			}
+			switch nodeEvent.Type {
+			case watch.Modified:
+				node := nodeEvent.Node
+				if !node.Spec.Refresh {
+					devices[node.Name] = node.GetDevicesByNames(drivesArgs)
+				}
+				if len(devices) >= len(nodes) {
+					return
+				}
+			case watch.Deleted:
+				return
+			default:
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func discoverMain(ctx context.Context) {
+	nodes, err := node.NewLister().
+		NodeSelector(toLabelValues(nodesArgs)).
+		Get(ctx)
+	if err != nil {
+		utils.Eprintf(quietFlag, true, "%v\n", err)
+		os.Exit(1)
+	}
+
+	if yamlOutput || jsonOutput {
+		nodeList := types.NodeList{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "List",
+				APIVersion: string(directpvtypes.VersionLabelKey),
+			},
+			Items: nodes,
+		}
+		if err := printer(nodeList); err != nil {
+			utils.Eprintf(quietFlag, true, "unable to %v marshal nodes; %v\n", outputFormat, err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	resultMap, err := discoverDevices(ctx, nodes)
+	if err != nil {
+		utils.Eprintf(quietFlag, true, "%v\n", err)
+		os.Exit(1)
+	}
+
+	if err := showDevices(resultMap); err != nil {
 		if !errors.Is(err, errDiscoveryFailed) {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 		}

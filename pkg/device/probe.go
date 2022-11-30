@@ -98,6 +98,11 @@ func (d Device) FSType() string {
 	return d.UDevData["ID_FS_TYPE"]
 }
 
+// FSUUID returns the filesystem UUID.
+func (d Device) FSUUID() string {
+	return d.UDevData["ID_FS_UUID"]
+}
+
 // Probe returns block devices from udev.
 func Probe() ([]Device, error) {
 	return probe()

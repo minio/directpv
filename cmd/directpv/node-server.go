@@ -22,10 +22,10 @@ import (
 	"os"
 
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/csi/node"
 	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/drive"
 	pkgidentity "github.com/minio/directpv/pkg/identity"
-	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"

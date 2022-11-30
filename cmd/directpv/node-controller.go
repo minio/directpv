@@ -20,48 +20,42 @@ import (
 	"context"
 
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/csi/controller"
-	pkgidentity "github.com/minio/directpv/pkg/identity"
+	"github.com/minio/directpv/pkg/initrequest"
+	"github.com/minio/directpv/pkg/node"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
 
-var controllerCmd = &cobra.Command{
-	Use:           consts.ControllerServerName,
-	Short:         "Start controller server.",
+var nodeControllerCmd = &cobra.Command{
+	Use:           consts.NodeControllerName,
+	Short:         "Start node controller.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
-		return startController(c.Context())
+		if err := node.Sync(c.Context(), nodeID, true); err != nil {
+			return err
+		}
+		return startNodeController(c.Context(), args)
 	},
 }
 
-func startController(ctx context.Context) error {
+func startNodeController(ctx context.Context, args []string) error {
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
-	idServer, err := pkgidentity.NewServer(identity, Version, map[string]string{})
-	if err != nil {
-		return err
-	}
-	klog.V(3).Infof("Identity server started")
-
-	ctrlServer := controller.NewServer()
-	klog.V(3).Infof("Controller server started")
-
 	errCh := make(chan error)
 
 	go func() {
-		if err := runServers(ctx, csiEndpoint, idServer, ctrlServer, nil); err != nil {
-			klog.ErrorS(err, "unable to start GRPC servers")
+		if err := node.StartController(ctx, nodeID); err != nil {
+			klog.ErrorS(err, "unable to start node controller")
 			errCh <- err
 		}
 	}()
 
 	go func() {
-		if err := serveReadinessEndpoint(ctx); err != nil {
-			klog.ErrorS(err, "unable to start readiness endpoint")
+		if err := initrequest.StartController(ctx, nodeID); err != nil {
+			klog.ErrorS(err, "unable to start initrequest controller")
 			errCh <- err
 		}
 	}()

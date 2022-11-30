@@ -32,6 +32,14 @@ func (c *FakeDirectpvV1beta1) DirectPVDrives() v1beta1.DirectPVDriveInterface {
 	return &FakeDirectPVDrives{c}
 }
 
+func (c *FakeDirectpvV1beta1) DirectPVInitRequests() v1beta1.DirectPVInitRequestInterface {
+	return &FakeDirectPVInitRequests{c}
+}
+
+func (c *FakeDirectpvV1beta1) DirectPVNodes() v1beta1.DirectPVNodeInterface {
+	return &FakeDirectPVNodes{c}
+}
+
 func (c *FakeDirectpvV1beta1) DirectPVVolumes() v1beta1.DirectPVVolumeInterface {
 	return &FakeDirectPVVolumes{c}
 }

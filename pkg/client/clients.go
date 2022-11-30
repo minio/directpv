@@ -27,6 +27,8 @@ var (
 	restClient         rest.Interface
 	driveClient        types.LatestDriveInterface
 	volumeClient       types.LatestVolumeInterface
+	nodeClient         types.LatestNodeInterface
+	initRequestClient  types.LatestInitRequestInterface
 )
 
 // RESTClient gets latest versioned REST client.
@@ -42,4 +44,14 @@ func DriveClient() types.LatestDriveInterface {
 // VolumeClient gets latest versioned volume interface.
 func VolumeClient() types.LatestVolumeInterface {
 	return volumeClient
+}
+
+// NodeClient gets latest versioned node interface.
+func NodeClient() types.LatestNodeInterface {
+	return nodeClient
+}
+
+// InitRequestClient gets latest versioned init request interface.
+func InitRequestClient() types.LatestInitRequestInterface {
+	return initRequestClient
 }

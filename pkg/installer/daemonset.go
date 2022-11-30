@@ -32,57 +32,20 @@ import (
 )
 
 const (
-	nodeAPIServerCertsSecretName       = "nodeapiservercerts"
-	nodeAPIServerCASecretName          = "nodeapiservercacert"
-	legacyNodeAPIServerCertsSecretName = "legacynodeapiservercerts"
-	legacyNodeAPIServerCASecretName    = "legacynodeapiservercacert"
-	volumeNameMountpointDir            = "mountpoint-dir"
-	volumeNameRegistrationDir          = "registration-dir"
-	volumeNamePluginDir                = "plugins-dir"
-	volumeNameAppRootDir               = consts.AppName + "-common-root"
-	volumeNameLegacyAppRootDir         = "direct-csi-common-root"
-	appRootDir                         = consts.AppRootDir + "/"
-	legacyAppRootDir                   = "/var/lib/direct-csi/"
-	volumeNameSysDir                   = "sysfs"
-	volumeNameDevDir                   = "devfs"
-	volumePathDevDir                   = "/dev"
-	volumeNameRunUdevData              = "run-udev-data-dir"
-	volumePathRunUdevData              = consts.UdevDataDir
-	socketFile                         = "/csi.sock"
-	nodeAPIServerCertsDir              = "node-api-server-certs"
+	volumeNameMountpointDir    = "mountpoint-dir"
+	volumeNameRegistrationDir  = "registration-dir"
+	volumeNamePluginDir        = "plugins-dir"
+	volumeNameAppRootDir       = consts.AppName + "-common-root"
+	volumeNameLegacyAppRootDir = "direct-csi-common-root"
+	appRootDir                 = consts.AppRootDir + "/"
+	legacyAppRootDir           = "/var/lib/direct-csi/"
+	volumeNameSysDir           = "sysfs"
+	volumeNameDevDir           = "devfs"
+	volumePathDevDir           = "/dev"
+	volumeNameRunUdevData      = "run-udev-data-dir"
+	volumePathRunUdevData      = consts.UdevDataDir
+	socketFile                 = "/csi.sock"
 )
-
-func createOrUpdateNodeAPIServerSecrets(ctx context.Context, args *Args) error {
-	caCertBytes, publicCertBytes, privateKeyBytes, err := getCerts(
-		localhost,
-		// FIXME: Add clusterIP service domain name here
-	)
-	if err != nil {
-		return err
-	}
-
-	err = createOrUpdateSecret(
-		ctx,
-		args,
-		nodeAPIServerCertsSecretName,
-		map[string][]byte{
-			consts.PrivateKeyFileName: privateKeyBytes,
-			consts.PublicCertFileName: publicCertBytes,
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return createOrUpdateSecret(
-		ctx,
-		args,
-		nodeAPIServerCASecretName,
-		map[string][]byte{
-			caCertFileName: caCertBytes,
-		},
-	)
-}
 
 func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
 	privileged := true
@@ -97,7 +60,7 @@ func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
 	return securityContext
 }
 
-func getVolumesAndMounts(pluginSocketDir, certsSecretName string, legacy bool) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func getVolumesAndMounts(pluginSocketDir string, legacy bool) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	volumes = []corev1.Volume{
 		newHostPathVolume(volumeNameSocketDir, pluginSocketDir),
 		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
@@ -107,7 +70,6 @@ func getVolumesAndMounts(pluginSocketDir, certsSecretName string, legacy bool) (
 		newHostPathVolume(volumeNameSysDir, volumePathSysDir),
 		newHostPathVolume(volumeNameDevDir, volumePathDevDir),
 		newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData),
-		newSecretVolume(nodeAPIServerCertsDir, certsSecretName),
 	}
 	volumeMounts = []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
@@ -183,6 +145,19 @@ func nodeServerContainer(image string, args []string, securityContext *corev1.Se
 	}
 }
 
+func nodeControllerContainer(image string, args []string, securityContext *corev1.SecurityContext, volumeMounts []corev1.VolumeMount) corev1.Container {
+	return corev1.Container{
+		Name:                     consts.NodeControllerName,
+		Image:                    image,
+		Args:                     args,
+		SecurityContext:          securityContext,
+		Env:                      []corev1.EnvVar{kubeNodeNameEnvVar},
+		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+		TerminationMessagePath:   "/var/log/driver-termination-log",
+		VolumeMounts:             volumeMounts,
+	}
+}
+
 func livenessProbeContainer(image string) corev1.Container {
 	return corev1.Container{
 		Name:  "liveness-probe",
@@ -237,13 +212,9 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 }
 
 func doCreateDaemonset(ctx context.Context, args *Args) error {
-	if err := createOrUpdateNodeAPIServerSecrets(ctx, args); err != nil {
-		return err
-	}
-
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, consts.Identity)
-	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir, nodeAPIServerCertsSecretName, false)
+	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir, false)
 	containerArgs := []string{
 		consts.NodeServerName,
 		fmt.Sprintf("-v=%d", logLevel),
@@ -252,6 +223,11 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 		fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 		fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
 		fmt.Sprintf("--metrics-port=%d", consts.MetricsPort),
+	}
+	nodeControllerArgs := []string{
+		consts.NodeControllerName,
+		fmt.Sprintf("-v=%d", logLevel),
+		fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 	}
 
 	podSpec := corev1.PodSpec{
@@ -263,44 +239,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 		Containers: []corev1.Container{
 			nodeDriverRegistrarContainer(args.getNodeDriverRegistrarImage(), pluginSocketDir),
 			nodeServerContainer(args.getContainerImage(), containerArgs, securityContext, volumeMounts),
-			{
-				Name:  consts.NodeAPIServerName,
-				Image: args.getContainerImage(),
-				Args: func() []string {
-					args := []string{
-						consts.NodeAPIServerName,
-						fmt.Sprintf("-v=%d", logLevel),
-						fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
-						fmt.Sprintf("--port=%d", consts.NodeAPIPort),
-					}
-					return args
-				}(),
-				SecurityContext:          securityContext,
-				Env:                      []corev1.EnvVar{kubeNodeNameEnvVar},
-				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-				TerminationMessagePath:   "/var/log/driver-termination-log",
-				VolumeMounts:             append(volumeMounts, newVolumeMount(nodeAPIServerCertsDir, consts.NodeAPIServerCertsPath, corev1.MountPropagationNone, false)),
-				Ports: []corev1.ContainerPort{
-					{
-						ContainerPort: consts.NodeAPIPort,
-						Name:          consts.NodeAPIPortName,
-						Protocol:      corev1.ProtocolTCP,
-					},
-				},
-				/*ReadinessProbe: &corev1.Probe{ProbeHandler: readinessHandler},
-				LivenessProbe: &corev1.Probe{
-					FailureThreshold:    5,
-					InitialDelaySeconds: 300,
-					TimeoutSeconds:      5,
-					PeriodSeconds:       5,
-					ProbeHandler: corev1.ProbeHandler{
-						HTTPGet: &corev1.HTTPGetAction{
-							Path: healthZContainerPortPath,
-							Port: intstr.FromString(healthZContainerPortName),
-						},
-					},
-				},*/
-			},
+			nodeControllerContainer(args.getContainerImage(), nodeControllerArgs, securityContext, volumeMounts),
 			livenessProbeContainer(args.getLivenessProbeImage()),
 		},
 		NodeSelector: args.NodeSelector,
@@ -331,7 +270,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 func doCreateLegacyDaemonset(ctx context.Context, args *Args) error {
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, legacyclient.Identity)
-	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir, legacyNodeAPIServerCertsSecretName, true)
+	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir, true)
 	containerArgs := []string{
 		consts.LegacyNodeServerName,
 		fmt.Sprintf("-v=%d", logLevel),
@@ -428,29 +367,9 @@ func deleteDaemonset(ctx context.Context) error {
 		return err
 	}
 
-	err = k8s.KubeClient().CoreV1().Secrets(namespace).Delete(ctx, nodeAPIServerCertsSecretName, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-
-	err = k8s.KubeClient().CoreV1().Secrets(namespace).Delete(ctx, nodeAPIServerCASecretName, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-
 	err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Delete(
 		ctx, consts.LegacyNodeServerName, metav1.DeleteOptions{},
 	)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-
-	err = k8s.KubeClient().CoreV1().Secrets(namespace).Delete(ctx, legacyNodeAPIServerCertsSecretName, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-
-	err = k8s.KubeClient().CoreV1().Secrets(namespace).Delete(ctx, legacyNodeAPIServerCASecretName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}

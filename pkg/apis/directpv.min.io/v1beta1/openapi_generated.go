@@ -30,13 +30,90 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDrive":      schema_pkg_apis_directpvminio_v1beta1_DirectPVDrive(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDriveList":  schema_pkg_apis_directpvminio_v1beta1_DirectPVDriveList(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolume":     schema_pkg_apis_directpvminio_v1beta1_DirectPVVolume(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolumeList": schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeList(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveSpec":          schema_pkg_apis_directpvminio_v1beta1_DriveSpec(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveStatus":        schema_pkg_apis_directpvminio_v1beta1_DriveStatus(ref),
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.VolumeStatus":       schema_pkg_apis_directpvminio_v1beta1_VolumeStatus(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDevice":          schema_pkg_apis_directpvminio_v1beta1_DirectPVDevice(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDrive":           schema_pkg_apis_directpvminio_v1beta1_DirectPVDrive(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDriveList":       schema_pkg_apis_directpvminio_v1beta1_DirectPVDriveList(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVInitRequest":     schema_pkg_apis_directpvminio_v1beta1_DirectPVInitRequest(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVInitRequestList": schema_pkg_apis_directpvminio_v1beta1_DirectPVInitRequestList(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVNode":            schema_pkg_apis_directpvminio_v1beta1_DirectPVNode(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVNodeList":        schema_pkg_apis_directpvminio_v1beta1_DirectPVNodeList(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolume":          schema_pkg_apis_directpvminio_v1beta1_DirectPVVolume(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVVolumeList":      schema_pkg_apis_directpvminio_v1beta1_DirectPVVolumeList(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveSpec":               schema_pkg_apis_directpvminio_v1beta1_DriveSpec(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DriveStatus":             schema_pkg_apis_directpvminio_v1beta1_DriveStatus(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitDevice":              schema_pkg_apis_directpvminio_v1beta1_InitDevice(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitDeviceResult":        schema_pkg_apis_directpvminio_v1beta1_InitDeviceResult(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitRequestSpec":         schema_pkg_apis_directpvminio_v1beta1_InitRequestSpec(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitRequestStatus":       schema_pkg_apis_directpvminio_v1beta1_InitRequestStatus(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.NodeSpec":                schema_pkg_apis_directpvminio_v1beta1_NodeSpec(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.NodeStatus":              schema_pkg_apis_directpvminio_v1beta1_NodeStatus(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.VolumeStatus":            schema_pkg_apis_directpvminio_v1beta1_VolumeStatus(ref),
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_DirectPVDevice(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DirectPVDevice denotes the device information in a drive",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"majorMinor": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"size": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
+						},
+					},
+					"make": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"fsType": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"fsuuid": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"deniedReason": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"name", "id", "majorMinor", "size"},
+			},
+		},
 	}
 }
 
@@ -135,6 +212,202 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVDriveList(ref common.Referenc
 		},
 		Dependencies: []string{
 			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDrive", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_DirectPVInitRequest(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DirectPVInitRequest denotes DirectPVInitRequest CRD object.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitRequestSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitRequestStatus"),
+						},
+					},
+				},
+				Required: []string{"metadata", "status"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitRequestSpec", "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitRequestStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_DirectPVInitRequestList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DirectPVInitRequestList denotes list of init request.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metdata is the standard list metadata.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVInitRequest"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVInitRequest", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_DirectPVNode(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DirectPVNode denotes Node CRD object.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.NodeSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.NodeStatus"),
+						},
+					},
+				},
+				Required: []string{"metadata", "status"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.NodeSpec", "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.NodeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_DirectPVNodeList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DirectPVNodeList denotes list of nodes.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Description: "metdata is the standard list metadata.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVNode"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVNode", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -347,6 +620,226 @@ func schema_pkg_apis_directpvminio_v1beta1_DriveStatus(ref common.ReferenceCallb
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_InitDevice(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InitDevice represents the device requested for initialization.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"majorMinor": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"force": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"id", "name", "majorMinor", "force"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_InitDeviceResult(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InitDeviceResult represents the result of the InitDeviceRequest.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"error": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_InitRequestSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InitRequestSpec represents the spec for InitRequest.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"devices": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitDevice"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"devices"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitDevice"},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_InitRequestStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InitRequestStatus represents the status of the InitRequest.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"results": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitDeviceResult"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"status", "results"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.InitDeviceResult"},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_NodeSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NodeSpec represents DirectPV node specification values.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"refresh": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_directpvminio_v1beta1_NodeStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NodeStatus denotes node information.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"devices": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDevice"),
+									},
+								},
+							},
+						},
+					},
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type":       "map",
+								"x-kubernetes-patch-merge-key": "type",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"devices"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDevice", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 

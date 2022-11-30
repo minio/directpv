@@ -168,6 +168,9 @@ func (w watchInterfaceWrapper) ResultChan() <-chan watch.Event {
 			if err != nil {
 				break
 			}
+			if v, ok := convertedObj["code"]; ok && v == int64(500) {
+				break
+			}
 			intermediateResult := &unstructured.Unstructured{Object: convertedObj}
 			finalResult := &unstructured.Unstructured{}
 			if err := converter.Migrate(intermediateResult, finalResult, schema.GroupVersion{
@@ -453,4 +456,244 @@ func (d *latestVolumeClient) Patch(ctx context.Context, name string, pt apimachi
 	}
 
 	return toVolume(object)
+}
+
+func toNode(object map[string]interface{}) (*types.Node, error) {
+	var node types.Node
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(object, &node); err != nil {
+		return nil, err
+	}
+	return &node, nil
+}
+
+// latestNodeClient is a dynamic node interface.
+type latestNodeClient struct {
+	dynamicInterface
+}
+
+// latestNodeClientForConfig creates new dynamic node interface.
+func latestNodeClientForConfig(config *rest.Config) (*latestNodeClient, error) {
+	inter, err := dynamicInterfaceForConfig(config, consts.NodeKind, consts.NodeResource)
+	if err != nil {
+		return nil, err
+	}
+
+	return &latestNodeClient{*inter}, nil
+}
+
+// Create creates a node and returns server's representation of the node or an error on failure.
+func (n *latestNodeClient) Create(ctx context.Context, node *types.Node, opts metav1.CreateOptions) (*types.Node, error) {
+	node.TypeMeta = types.NewNodeTypeMeta()
+	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(node)
+	if err != nil {
+		return nil, err
+	}
+
+	object, err := n.dynamicInterface.Create(ctx, unstructured, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return toNode(object)
+}
+
+// Update updates a node and returns server's representation of the node or an error on failure.
+func (n *latestNodeClient) Update(ctx context.Context, node *types.Node, opts metav1.UpdateOptions) (*types.Node, error) {
+	node.TypeMeta = types.NewNodeTypeMeta()
+	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(node)
+	if err != nil {
+		return nil, err
+	}
+
+	object, err := n.dynamicInterface.Update(ctx, unstructured, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return toNode(object)
+}
+
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (n *latestNodeClient) UpdateStatus(ctx context.Context, node *types.Node, opts metav1.UpdateOptions) (*types.Node, error) {
+	node.TypeMeta = types.NewNodeTypeMeta()
+	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(node)
+	if err != nil {
+		return nil, err
+	}
+	object, err := n.dynamicInterface.UpdateStatus(ctx, unstructured, opts)
+	if err != nil {
+		return nil, err
+	}
+	return toNode(object)
+}
+
+// Get returns a node by name or an error on failure.
+func (n *latestNodeClient) Get(ctx context.Context, name string, opts metav1.GetOptions) (*types.Node, error) {
+	object, err := n.dynamicInterface.Get(ctx, name, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var node types.Node
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(object, &node); err != nil {
+		return nil, err
+	}
+	return &node, nil
+}
+
+// List returns list of node filtered by label and field selectors or an error on failure.
+func (n *latestNodeClient) List(ctx context.Context, opts metav1.ListOptions) (*types.NodeList, error) {
+	object, items, err := n.dynamicInterface.List(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var nodeList types.NodeList
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(object, &nodeList)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes := []types.Node{}
+	for i := range items {
+		node, err := toNode(items[i])
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, *node)
+	}
+	nodeList.Items = nodes
+
+	return &nodeList, nil
+}
+
+// Watch returns a watch interface or an error on failure.
+func (n *latestNodeClient) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	return n.dynamicInterface.Watch(ctx, opts)
+}
+
+// Patch patches a node by name and returns patched node or an error on failure.
+func (n *latestNodeClient) Patch(ctx context.Context, name string, pt apimachinerytypes.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *types.Node, err error) {
+	object, err := n.dynamicInterface.Patch(ctx, name, pt, data, opts, subresources...)
+	if err != nil {
+		return nil, err
+	}
+	return toNode(object)
+}
+
+func toInitRequest(object map[string]interface{}) (*types.InitRequest, error) {
+	var initRequest types.InitRequest
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(object, &initRequest); err != nil {
+		return nil, err
+	}
+	return &initRequest, nil
+}
+
+// latestInitRequestClient is a dynamic initrequest interface.
+type latestInitRequestClient struct {
+	dynamicInterface
+}
+
+// latestInitRequestClientForConfig creates new dynamic initrequest interface.
+func latestInitRequestClientForConfig(config *rest.Config) (*latestInitRequestClient, error) {
+	inter, err := dynamicInterfaceForConfig(config, consts.InitRequestKind, consts.InitRequestResource)
+	if err != nil {
+		return nil, err
+	}
+
+	return &latestInitRequestClient{*inter}, nil
+}
+
+// Create creates a initrequest and returns server's representation of the initrequest or an error on failure.
+func (r *latestInitRequestClient) Create(ctx context.Context, initRequest *types.InitRequest, opts metav1.CreateOptions) (*types.InitRequest, error) {
+	initRequest.TypeMeta = types.NewInitRequestTypeMeta()
+	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(initRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	object, err := r.dynamicInterface.Create(ctx, unstructured, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return toInitRequest(object)
+}
+
+// Update updates a initrequest and returns server's representation of the initrequest or an error on failure.
+func (r *latestInitRequestClient) Update(ctx context.Context, initRequest *types.InitRequest, opts metav1.UpdateOptions) (*types.InitRequest, error) {
+	initRequest.TypeMeta = types.NewInitRequestTypeMeta()
+	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(initRequest)
+	if err != nil {
+		return nil, err
+	}
+	object, err := r.dynamicInterface.Update(ctx, unstructured, opts)
+	if err != nil {
+		return nil, err
+	}
+	return toInitRequest(object)
+}
+
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (r *latestInitRequestClient) UpdateStatus(ctx context.Context, initRequest *types.InitRequest, opts metav1.UpdateOptions) (*types.InitRequest, error) {
+	initRequest.TypeMeta = types.NewInitRequestTypeMeta()
+	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(initRequest)
+	if err != nil {
+		return nil, err
+	}
+	object, err := r.dynamicInterface.UpdateStatus(ctx, unstructured, opts)
+	if err != nil {
+		return nil, err
+	}
+	return toInitRequest(object)
+}
+
+// Get returns a initrequest by name or an error on failure.
+func (r *latestInitRequestClient) Get(ctx context.Context, name string, opts metav1.GetOptions) (*types.InitRequest, error) {
+	object, err := r.dynamicInterface.Get(ctx, name, opts)
+	if err != nil {
+		return nil, err
+	}
+	var initRequest types.InitRequest
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(object, &initRequest); err != nil {
+		return nil, err
+	}
+	return &initRequest, nil
+}
+
+// List returns list of initrequest filtered by label and field selectors or an error on failure.
+func (r *latestInitRequestClient) List(ctx context.Context, opts metav1.ListOptions) (*types.InitRequestList, error) {
+	object, items, err := r.dynamicInterface.List(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var initRequestList types.InitRequestList
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(object, &initRequestList)
+	if err != nil {
+		return nil, err
+	}
+
+	initRequests := []types.InitRequest{}
+	for i := range items {
+		initRequest, err := toInitRequest(items[i])
+		if err != nil {
+			return nil, err
+		}
+		initRequests = append(initRequests, *initRequest)
+	}
+	initRequestList.Items = initRequests
+
+	return &initRequestList, nil
+}
+
+// Patch patches a initrequest by name and returns patched initrequest or an error on failure.
+func (r *latestInitRequestClient) Patch(ctx context.Context, name string, pt apimachinerytypes.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *types.InitRequest, err error) {
+	object, err := r.dynamicInterface.Patch(ctx, name, pt, data, opts, subresources...)
+	if err != nil {
+		return nil, err
+	}
+	return toInitRequest(object)
 }

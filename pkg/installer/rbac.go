@@ -322,7 +322,7 @@ func createClusterRole(ctx context.Context, args *Args) error {
 					clusterRoleVerbUpdate,
 					clusterRoleVerbDelete,
 				},
-				Resources: []string{consts.DriveResource, consts.VolumeResource},
+				Resources: []string{consts.DriveResource, consts.VolumeResource, consts.NodeResource, consts.InitRequestResource},
 				APIGroups: []string{consts.GroupName},
 			},
 			{

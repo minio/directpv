@@ -40,6 +40,22 @@ func NewVolumeTypeMeta() metav1.TypeMeta {
 	}
 }
 
+// NewNodeTypeMeta gets new node CRD type meta.
+func NewNodeTypeMeta() metav1.TypeMeta {
+	return metav1.TypeMeta{
+		APIVersion: string(directpvtypes.LatestVersionLabelKey),
+		Kind:       consts.NodeKind,
+	}
+}
+
+// NewInitRequestTypeMeta gets new node CRD type meta.
+func NewInitRequestTypeMeta() metav1.TypeMeta {
+	return metav1.TypeMeta{
+		APIVersion: string(directpvtypes.LatestVersionLabelKey),
+		Kind:       consts.InitRequestKind,
+	}
+}
+
 // GetDriveMountDir returns drive mount directory.
 func GetDriveMountDir(fsuuid string) string {
 	return path.Join(consts.MountRootDir, fsuuid)

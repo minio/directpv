@@ -140,7 +140,7 @@ function add_drives() {
 
     config_file="$(mktemp)"    
 
-    if ! "${DIRECTPV_CLIENT}" discover --admin-server "${admin_server}" --output-file "${config_file}"; then
+    if ! "${DIRECTPV_CLIENT}" discover --output-file "${config_file}"; then
         echo "$ME: error: failed to discover the devices"
         rm "${config_file}"
         return 1
