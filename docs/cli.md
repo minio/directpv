@@ -244,7 +244,7 @@ Global Flags:
  | Terminating | Drive is currently being deleted (Deprecated)                                                                                                             |
  | Released    | Intermediate state when `kubectl drives release` was called on them                                                                                       |
 
-- To know more about the drive states, Please refer [Drive States](../drive-states.md)
+- To know more about the drive states, Please refer [Drive States](drive-states.md)
 
 ### Tag/Untag directpv drives based on their access-tiers
 
