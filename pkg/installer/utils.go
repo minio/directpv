@@ -17,18 +17,11 @@
 package installer
 
 import (
-	"bytes"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base32"
-	"encoding/pem"
 	"fmt"
-	"math/big"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
@@ -42,96 +35,6 @@ func mustGetYAML(i interface{}) string {
 		klog.Fatalf("unable to marshal object to YAML; %w", err)
 	}
 	return fmt.Sprintf("%v\n---\n", string(data))
-}
-
-func getCerts(dnsNames ...string) (caCertBytes, publicCertBytes, privateKeyBytes []byte, err error) {
-	// set up our CA certificate
-	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(2019),
-		Subject: pkix.Name{
-			Organization: []string{"MinIO, Inc."},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		IsCA:                  true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-	}
-
-	// create our private and public key
-	caPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// create the CA
-	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// pem encode
-	caPEM := new(bytes.Buffer)
-	if err := pem.Encode(caPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: caBytes,
-	}); err != nil {
-		return nil, nil, nil, err
-	}
-	caCertBytes = caPEM.Bytes()
-
-	caPrivKeyPEM := new(bytes.Buffer)
-	if err := pem.Encode(caPrivKeyPEM, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(caPrivKey),
-	}); err != nil {
-		return nil, nil, nil, err
-	}
-
-	// set up our server certificate
-	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(2019),
-		Subject: pkix.Name{
-			Organization: []string{"MinIO, Inc."},
-		},
-		DNSNames:     dnsNames,
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(10, 0, 0),
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-	}
-
-	certPrivKey, err := rsa.GenerateKey(rand.Reader, 4096)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, ca, &certPrivKey.PublicKey, caPrivKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	certPEM := new(bytes.Buffer)
-	if err := pem.Encode(certPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: certBytes,
-	}); err != nil {
-		return nil, nil, nil, err
-	}
-	publicCertBytes = certPEM.Bytes()
-
-	certPrivKeyPEM := new(bytes.Buffer)
-	if err := pem.Encode(certPrivKeyPEM, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(certPrivKey),
-	}); err != nil {
-		return nil, nil, nil, err
-	}
-	privateKeyBytes = certPrivKeyPEM.Bytes()
-
-	return
 }
 
 func newHostPathVolume(name, path string) corev1.Volume {
@@ -151,18 +54,6 @@ func newHostPathVolume(name, path string) corev1.Volume {
 
 func newPluginsSocketDir(kubeletDir, name string) string {
 	return path.Join(kubeletDir, "plugins", k8s.SanitizeResourceName(name))
-}
-
-func newSecretVolume(name, secretName string) corev1.Volume {
-	volumeSource := corev1.VolumeSource{
-		Secret: &corev1.SecretVolumeSource{
-			SecretName: secretName,
-		},
-	}
-	return corev1.Volume{
-		Name:         name,
-		VolumeSource: volumeSource,
-	}
 }
 
 func newVolumeMount(name, path string, mountPropogation corev1.MountPropagationMode, readOnly bool) corev1.VolumeMount {

@@ -18,10 +18,13 @@ package main
 
 import (
 	"context"
+	"errors"
+	"os"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/initrequest"
 	"github.com/minio/directpv/pkg/node"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
@@ -46,6 +49,10 @@ func startNodeController(ctx context.Context, args []string) error {
 
 	errCh := make(chan error)
 
+	if err := sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+		return err
+	}
+
 	go func() {
 		if err := node.StartController(ctx, nodeID); err != nil {
 			klog.ErrorS(err, "unable to start node controller")
@@ -54,7 +61,14 @@ func startNodeController(ctx context.Context, args []string) error {
 	}()
 
 	go func() {
-		if err := initrequest.StartController(ctx, nodeID); err != nil {
+		if err := initrequest.StartController(
+			ctx,
+			identity,
+			nodeID,
+			rack,
+			zone,
+			region,
+		); err != nil {
 			klog.ErrorS(err, "unable to start initrequest controller")
 			errCh <- err
 		}

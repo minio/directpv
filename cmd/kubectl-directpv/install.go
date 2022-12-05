@@ -18,16 +18,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/minio/directpv/pkg/admin"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
@@ -39,20 +35,19 @@ import (
 )
 
 var (
-	image               = consts.AppName + ":" + Version
-	registry            = "quay.io"
-	org                 = "minio"
-	nodeSelectorArgs    = []string{}
-	tolerationArgs      = []string{}
-	seccompProfile      = ""
-	apparmorProfile     = ""
-	imagePullSecrets    = []string{}
-	nodeSelector        map[string]string
-	tolerations         []corev1.Toleration
-	disableAdminService bool
-	k8sVersion          string
-	kubeVersion         *version.Version
-	legacyFlag          bool
+	image            = consts.AppName + ":" + Version
+	registry         = "quay.io"
+	org              = "minio"
+	nodeSelectorArgs = []string{}
+	tolerationArgs   = []string{}
+	seccompProfile   = ""
+	apparmorProfile  = ""
+	imagePullSecrets = []string{}
+	nodeSelector     map[string]string
+	tolerations      []corev1.Toleration
+	k8sVersion       string
+	kubeVersion      *version.Version
+	legacyFlag       bool
 )
 
 var installCmd = &cobra.Command{
@@ -90,7 +85,7 @@ func init() {
 	installCmd.PersistentFlags().StringVar(&seccompProfile, "seccomp-profile", seccompProfile, "Set Seccomp profile")
 	installCmd.PersistentFlags().StringVar(&apparmorProfile, "apparmor-profile", apparmorProfile, "Set Apparmor profile")
 	installCmd.PersistentFlags().StringVar(&configDir, "config-dir", configDir, "Path to configuration directory")
-	installCmd.PersistentFlags().BoolVar(&disableAdminService, "disable-admin-service", disableAdminService, "Skip installing a node-port service for admin server")
+
 	installCmd.PersistentFlags().StringVar(&k8sVersion, "kube-version", k8sVersion, "If present, use this as kubernetes version for dry-run")
 	installCmd.PersistentFlags().BoolVar(&legacyFlag, "legacy", legacyFlag, "If present, include legacy services for dry-run")
 	addDryRunFlag(installCmd)
@@ -184,29 +179,6 @@ func validateInstallCmd() error {
 	return nil
 }
 
-func getCredential() (*admin.Credential, bool, error) {
-	file, err := os.Open(getCredFile())
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return &admin.Credential{
-				AccessKey: "directpvadmin",
-				SecretKey: "directpvadmin",
-			}, false, nil
-		}
-
-		return nil, false, err
-	}
-	defer file.Close()
-
-	var cred admin.Credential
-	if err := json.NewDecoder(file).Decode(&cred); err != nil {
-		return nil, false, err
-	}
-
-	utils.Eprintf(false, false, "%v\n", color.HiYellowString("Using credential from "+getCredFile()))
-	return &cred, true, nil
-}
-
 func getLegacyFlag(ctx context.Context) bool {
 	if dryRunFlag {
 		return legacyFlag
@@ -264,13 +236,7 @@ func installMain(ctx context.Context) {
 		}
 	}()
 
-	cred, fromFile, err := getCredential()
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "unable to get credential; %v\n", err)
-		os.Exit(1)
-	}
-
-	args, err := installer.NewArgs(image, cred, file)
+	args, err := installer.NewArgs(image, file)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
@@ -285,7 +251,6 @@ func installMain(ctx context.Context) {
 	args.AppArmorProfile = apparmorProfile
 	args.DryRun = dryRunFlag
 	args.Quiet = quietFlag
-	args.DisableAdminService = disableAdminService
 	args.KubeVersion = kubeVersion
 	args.Legacy = legacyFlag
 
@@ -294,31 +259,7 @@ func installMain(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	if !dryRunFlag {
-		if !fromFile {
-			data, err := json.Marshal(cred)
-			if err == nil {
-				err = os.WriteFile(getCredFile(), data, 0o644)
-			}
-			if err != nil {
-				utils.Eprintf(quietFlag, true, "unable to create credential file %v; %v\n", getCredFile(), err)
-				fmt.Printf("Below credential is set on server\nAccessKey: %v, SecretKey: %v\n", cred.AccessKey, cred.SecretKey)
-			} else {
-				utils.Eprintf(false, false, "Credential is saved at %v\n", getCredFile())
-			}
-		}
-
-		if !quietFlag {
-			fmt.Println("Done")
-
-			if disableAdminService {
-				utils.Eprintf(quietFlag, false, "%v",
-					color.HiYellowString(`
-Note: admin-server should be exported to add drives.
-A simple port-forward can be done like below;
-$ kubectl port-forward pod/admin-server-XXXXXXXXXX-XXXXX 40443:40443 -n directpv-min-io
-`))
-			}
-		}
+	if !dryRunFlag && !quietFlag {
+		fmt.Println("Done")
 	}
 }

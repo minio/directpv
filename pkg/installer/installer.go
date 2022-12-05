@@ -137,10 +137,6 @@ func Install(ctx context.Context, args *Args) error {
 		return err
 	}
 
-	if err := execute("Secrets", createAdminSecrets); err != nil {
-		return err
-	}
-
 	if err := execute("RBAC", createRBAC); err != nil {
 		return err
 	}
@@ -175,19 +171,11 @@ func Install(ctx context.Context, args *Args) error {
 		return err
 	}
 
-	if err := execute("Node API Service", createNodeAPIService); err != nil {
-		return err
-	}
-
 	if err := execute("Daemonset", createDaemonset); err != nil {
 		return err
 	}
 
 	if err := execute("Deployment", createDeployment); err != nil {
-		return err
-	}
-
-	if err := execute("Admin Deployment", createAdminServerDeployment); err != nil {
 		return err
 	}
 
@@ -227,10 +215,6 @@ func Uninstall(ctx context.Context, quiet, force bool) error {
 		return err
 	}
 
-	if err := execute("Secrets", deleteAdminSecrets); err != nil {
-		return err
-	}
-
 	if err := execute("RBAC", deleteRBAC); err != nil {
 		return err
 	}
@@ -255,19 +239,11 @@ func Uninstall(ctx context.Context, quiet, force bool) error {
 		return err
 	}
 
-	if err := execute("Node API Service", deleteNodeAPIService); err != nil {
-		return err
-	}
-
 	if err := execute("Daemonset", deleteDaemonset); err != nil {
 		return err
 	}
 
 	if err := execute("Deployment", deleteDeployment); err != nil {
-		return err
-	}
-
-	if err := execute("Admin Deployment", deleteAdminServerDeployment); err != nil {
 		return err
 	}
 

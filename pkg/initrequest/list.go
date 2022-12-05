@@ -23,7 +23,12 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/klog/v2"
 )
 
 // ListInitRequestResult denotes list of initrequest result.
@@ -38,6 +43,7 @@ type Lister struct {
 	initRequestNames []string
 	maxObjects       int64
 	ignoreNotFound   bool
+	timeoutSeconds   int64
 }
 
 // NewLister creates new volume lister.
@@ -71,6 +77,12 @@ func (lister *Lister) IgnoreNotFound(b bool) *Lister {
 	return lister
 }
 
+// TimeoutSeconds limits the duration of the call, regardless of any activity or inactivity
+func (lister *Lister) TimeoutSeconds(secs int64) *Lister {
+	lister.timeoutSeconds = secs
+	return lister
+}
+
 // List returns channel to loop through initrequest items.
 func (lister *Lister) List(ctx context.Context) <-chan ListInitRequestResult {
 	getOnly := len(lister.nodes) == 0 &&
@@ -99,7 +111,9 @@ func (lister *Lister) List(ctx context.Context) <-chan ListInitRequestResult {
 				Limit:         lister.maxObjects,
 				LabelSelector: labelSelector,
 			}
-
+			if lister.timeoutSeconds > 0 {
+				options.TimeoutSeconds = &lister.timeoutSeconds
+			}
 			for {
 				result, err := client.InitRequestClient().List(ctx, options)
 				if err != nil {
@@ -163,4 +177,56 @@ func (lister *Lister) Get(ctx context.Context) ([]types.InitRequest, error) {
 	}
 
 	return initRequestList, nil
+}
+
+// WatchEvent represents the initrequest events.
+type WatchEvent struct {
+	Type        watch.EventType
+	InitRequest *types.InitRequest
+}
+
+// Watch looks for changes in InitRequestList and reports them.
+func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), error) {
+	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
+		directpvtypes.NodeLabelKey: lister.nodes,
+	}
+	listOpts := metav1.ListOptions{
+		LabelSelector: directpvtypes.ToLabelSelector(labelMap),
+	}
+	if lister.timeoutSeconds > 0 {
+		listOpts.TimeoutSeconds = &lister.timeoutSeconds
+	}
+	initRequestWatchInterface, err := client.InitRequestClient().Watch(ctx, listOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+	stopFn := initRequestWatchInterface.Stop
+
+	watchCh := make(chan WatchEvent)
+	go func() {
+		defer close(watchCh)
+		resultCh := initRequestWatchInterface.ResultChan()
+		for {
+			result, ok := <-resultCh
+			if !ok {
+				break
+			}
+			unstructured := result.Object.(*unstructured.Unstructured)
+			var initRequest types.InitRequest
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &initRequest)
+			if err != nil {
+				klog.ErrorS(err, "unable to convert unstructured object %s", unstructured.GetName())
+				break
+			}
+			if len(lister.initRequestNames) > 0 && !utils.Contains(lister.initRequestNames, initRequest.Name) {
+				continue
+			}
+			watchCh <- WatchEvent{
+				Type:        result.Type,
+				InitRequest: &initRequest,
+			}
+		}
+	}()
+
+	return watchCh, stopFn, nil
 }

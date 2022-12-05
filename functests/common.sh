@@ -67,17 +67,6 @@ function remove_luks() {
     rm -f testluks.img
 }
 
-# wait_for_service <service>
-function wait_for_service() {
-    service="$1"
-    endpoints=$(kubectl get endpoints -n directpv "${service}" --no-headers | awk '{ print $2 }')
-    while [[ $endpoints == '<none>' ]]; do
-        echo "$ME: waiting for ${service} available"
-        sleep 5
-        endpoints=$(kubectl get endpoints -n directpv "${service}" --no-headers | awk '{ print $2 }')
-    done
-}
-
 # install_directpv <pod_count>
 function install_directpv() {
     "${DIRECTPV_CLIENT}" install --quiet
@@ -95,15 +84,13 @@ function install_directpv() {
         sleep 5
     done
 
-    wait_for_service node-api-server-hl
-    wait_for_service admin-service
     sleep 1m
 }
 
 # uninstall_directpv <pod_count>
 function uninstall_directpv() {
     "${DIRECTPV_CLIENT}" uninstall --quiet
-
+    
     pending="$1"
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} DirectPV pods to go down"
@@ -135,9 +122,6 @@ function check_drives_status() {
 }
 
 function add_drives() {
-    url=$(minikube service --namespace=directpv admin-service --url)
-    admin_server=${url#"http://"}
-
     config_file="$(mktemp)"    
 
     if ! "${DIRECTPV_CLIENT}" discover --output-file "${config_file}"; then
@@ -145,7 +129,7 @@ function add_drives() {
         rm "${config_file}"
         return 1
     fi
-    if ! echo Yes | "${DIRECTPV_CLIENT}" init "${config_file}" --admin-server "${admin_server}"; then
+    if ! echo Yes | "${DIRECTPV_CLIENT}" init "${config_file}"; then
         echo "$ME: error: failed to initialize the drives"
         rm "${config_file}"
         return 1

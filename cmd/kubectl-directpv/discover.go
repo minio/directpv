@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -37,9 +38,12 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-var (
-	outputFile = "drives.yaml"
+const (
+	nodeListTimeoutSeconds = int64(2 * time.Minute)
+)
 
+var (
+	outputFile         = "drives.yaml"
 	errDiscoveryFailed = errors.New("unable to discover the devices")
 )
 
@@ -208,8 +212,9 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[strin
 		}
 	}
 
-	nwEventCh, stop, err := node.NewLister().
+	eventCh, stop, err := node.NewLister().
 		NodeSelector(toLabelValues(nodeNames)).
+		TimeoutSeconds(nodeListTimeoutSeconds).
 		Watch(ctx)
 	if err != nil {
 		return nil, err
@@ -219,13 +224,13 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[strin
 	devices = map[string][]types.Device{}
 	for {
 		select {
-		case nodeEvent, ok := <-nwEventCh:
+		case event, ok := <-eventCh:
 			if !ok {
 				return
 			}
-			switch nodeEvent.Type {
+			switch event.Type {
 			case watch.Modified:
-				node := nodeEvent.Node
+				node := event.Node
 				if !node.Spec.Refresh {
 					devices[node.Name] = node.GetDevicesByNames(drivesArgs)
 				}

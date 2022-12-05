@@ -17,7 +17,9 @@
 package v1beta1
 
 import (
+	"github.com/google/uuid"
 	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/consts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -46,6 +48,44 @@ type DirectPVInitRequest struct {
 
 	Spec   InitRequestSpec   `json:"spec,omitempty"`
 	Status InitRequestStatus `json:"status"`
+}
+
+func (req DirectPVInitRequest) getLabel(key types.LabelKey) types.LabelValue {
+	values := req.GetLabels()
+	return types.ToLabelValue(values[string(key)])
+}
+
+// NewDirectPVInitRequest creates new DirectPV init request.
+func NewDirectPVInitRequest(
+	nodeID types.NodeID,
+	devices []InitDevice,
+) *DirectPVInitRequest {
+	return &DirectPVInitRequest{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: Group + "/" + Version,
+			Kind:       consts.InitRequestKind,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: uuid.New().String(),
+			Labels: map[string]string{
+				string(types.NodeLabelKey):      string(nodeID),
+				string(types.VersionLabelKey):   Version,
+				string(types.CreatedByLabelKey): consts.NodeControllerName,
+			},
+		},
+		Spec: InitRequestSpec{
+			Devices: devices,
+		},
+		Status: InitRequestStatus{
+			Status:  types.InitStatusPending,
+			Results: []InitDeviceResult{},
+		},
+	}
+}
+
+// GetNodeID returns node ID of this initrequest.
+func (req DirectPVInitRequest) GetNodeID() types.NodeID {
+	return types.NodeID(req.getLabel(types.NodeLabelKey))
 }
 
 // InitRequestSpec represents the spec for InitRequest.

@@ -97,15 +97,4 @@ const (
 
 	LegacyNodeServerName       = "legacy-node-server"
 	LegacyControllerServerName = "legacy-controller"
-
-	NodeAPIServerName      = "node-api-server"
-	NodeAPIPortName        = "node-api-port"
-	NodeAPIPort            = 50443
-	NodeAPIServerCertsPath = "/tmp/nodeapiserver/certs"
-	NodeAPIServerHLSVC     = NodeAPIServerName + "-hl"
-
-	AdminServerName      = "admin-server"
-	AdminServerPortName  = "admin-server-port"
-	AdminServerPort      = 40443
-	AdminServerCertsPath = "/tmp/adminserver/certs"
 )

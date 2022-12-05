@@ -45,6 +45,7 @@ type Lister struct {
 	nodeNames      []string
 	maxObjects     int64
 	ignoreNotFound bool
+	timeoutSeconds int64
 }
 
 // NewLister creates new volume lister.
@@ -78,6 +79,12 @@ func (lister *Lister) IgnoreNotFound(b bool) *Lister {
 	return lister
 }
 
+// TimeoutSeconds limits the duration of the call, regardless of any activity or inactivity
+func (lister *Lister) TimeoutSeconds(secs int64) *Lister {
+	lister.timeoutSeconds = secs
+	return lister
+}
+
 // List returns channel to loop through node items.
 func (lister *Lister) List(ctx context.Context) <-chan ListNodeResult {
 	getOnly := len(lister.nodes) == 0 &&
@@ -106,7 +113,9 @@ func (lister *Lister) List(ctx context.Context) <-chan ListNodeResult {
 				Limit:         lister.maxObjects,
 				LabelSelector: labelSelector,
 			}
-
+			if lister.timeoutSeconds > 0 {
+				options.TimeoutSeconds = &lister.timeoutSeconds
+			}
 			for {
 				result, err := client.NodeClient().List(ctx, options)
 				if err != nil {
@@ -183,13 +192,16 @@ func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), err
 	if len(lister.nodeNames) > 0 {
 		return nil, nil, errUnsupportedSelector
 	}
-
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
 		directpvtypes.NodeLabelKey: lister.nodes,
 	}
-	nodeWatchInterface, err := client.NodeClient().Watch(ctx, metav1.ListOptions{
+	listOpts := metav1.ListOptions{
 		LabelSelector: directpvtypes.ToLabelSelector(labelMap),
-	})
+	}
+	if lister.timeoutSeconds > 0 {
+		listOpts.TimeoutSeconds = &lister.timeoutSeconds
+	}
+	nodeWatchInterface, err := client.NodeClient().Watch(ctx, listOpts)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -57,7 +57,7 @@ const (
 
 	// InitRequestKind denotes the InitRequest CRD kind.
 	InitRequestKind = AppPrettyName + "InitRequest"
-
+	
 	// DriveResource is drive CRD resource.
 	DriveResource = AppName + "drives"
 
@@ -69,7 +69,7 @@ const (
 
 	// InitRequestResource is initrequest CRD resource.
 	InitRequestResource = AppName + "initrequests"
-
+	
 	// AppRootDir is application root directory.
 	AppRootDir = "/var/lib/" + AppName
 
@@ -99,15 +99,4 @@ const (
 
 	LegacyNodeServerName       = "legacy-node-server"
 	LegacyControllerServerName = "legacy-controller"
-
-	NodeAPIServerName      = "node-api-server"
-	NodeAPIPortName        = "node-api-port"
-	NodeAPIPort            = 50443
-	NodeAPIServerCertsPath = "/tmp/nodeapiserver/certs"
-	NodeAPIServerHLSVC     = NodeAPIServerName + "-hl"
-
-	AdminServerName      = "admin-server"
-	AdminServerPortName  = "admin-server-port"
-	AdminServerPort      = 40443
-	AdminServerCertsPath = "/tmp/adminserver/certs"
 )

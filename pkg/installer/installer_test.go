@@ -21,7 +21,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -144,7 +143,6 @@ func TestGetKubeVersion(t *testing.T) {
 func TestInstallUinstall(t *testing.T) {
 	args := Args{
 		image:       "directpv-0.0.0dev0",
-		credential:  &admin.Credential{AccessKey: "directpvadmin", SecretKey: "directpvadmin"},
 		auditWriter: io.Discard,
 	}
 
