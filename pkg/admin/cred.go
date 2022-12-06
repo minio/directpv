@@ -74,7 +74,7 @@ func getCredentialFromConfig(configFile string) (*Credential, error) {
 }
 
 func getCredentialFromSecrets(ctx context.Context) (*Credential, error) {
-	secrets, err := k8s.KubeClient().CoreV1().Secrets(consts.Namespace).Get(ctx, consts.CredentialsSecretName, metav1.GetOptions{})
+	secrets, err := k8s.KubeClient().CoreV1().Secrets(consts.AppName).Get(ctx, consts.CredentialsSecretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

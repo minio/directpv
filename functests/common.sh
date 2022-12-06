@@ -70,11 +70,11 @@ function remove_luks() {
 # wait_for_service <service>
 function wait_for_service() {
     service="$1"
-    endpoints=$(kubectl get endpoints -n directpv-min-io "${service}" --no-headers | awk '{ print $2 }')
+    endpoints=$(kubectl get endpoints -n directpv "${service}" --no-headers | awk '{ print $2 }')
     while [[ $endpoints == '<none>' ]]; do
         echo "$ME: waiting for ${service} available"
         sleep 5
-        endpoints=$(kubectl get endpoints -n directpv-min-io "${service}" --no-headers | awk '{ print $2 }')
+        endpoints=$(kubectl get endpoints -n directpv "${service}" --no-headers | awk '{ print $2 }')
     done
 }
 
@@ -87,7 +87,7 @@ function install_directpv() {
     while [[ $running_count -lt $required_count ]]; do
         echo "$ME: waiting for $(( required_count - running_count )) DirectPV pods to come up"
         sleep $(( required_count - running_count ))
-        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv-min-io | wc -l)
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv | wc -l)
     done
 
     while ! "${DIRECTPV_CLIENT}" info --quiet; do
@@ -108,11 +108,11 @@ function uninstall_directpv() {
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} DirectPV pods to go down"
         sleep "${pending}"
-        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv-min-io | wc -l)
+        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv | wc -l)
     done
 
-    while kubectl get namespace directpv-min-io --no-headers | grep -q .; do
-        echo "$ME: waiting for directpv-min-io namespace to be removed"
+    while kubectl get namespace directpv --no-headers | grep -q .; do
+        echo "$ME: waiting for directpv namespace to be removed"
         sleep 5
     done
 
@@ -135,7 +135,7 @@ function check_drives_status() {
 }
 
 function add_drives() {
-    url=$(minikube service --namespace=directpv-min-io admin-service --url)
+    url=$(minikube service --namespace=directpv admin-service --url)
     admin_server=${url#"http://"}
 
     config_file="$(mktemp)"    

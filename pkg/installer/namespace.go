@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,13 +35,13 @@ func createNamespace(ctx context.Context, args *Args) error {
 		annotations[podsecurityadmissionapi.EnforceLevelLabel] = string(podsecurityadmissionapi.LevelPrivileged)
 	}
 
-	namespace := &corev1.Namespace{
+	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Namespace",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        consts.Identity,
+			Name:        namespace,
 			Namespace:   metav1.NamespaceNone,
 			Annotations: annotations,
 			Labels:      defaultLabels,
@@ -51,11 +50,11 @@ func createNamespace(ctx context.Context, args *Args) error {
 	}
 
 	if args.DryRun {
-		fmt.Print(mustGetYAML(namespace))
+		fmt.Print(mustGetYAML(ns))
 		return nil
 	}
 
-	_, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, namespace, metav1.CreateOptions{})
+	_, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			err = nil
@@ -63,14 +62,14 @@ func createNamespace(ctx context.Context, args *Args) error {
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(namespace))
+	_, err = io.WriteString(args.auditWriter, mustGetYAML(ns))
 	return err
 }
 
 func deleteNamespace(ctx context.Context) error {
 	propagationPolicy := metav1.DeletePropagationForeground
 	err := k8s.KubeClient().CoreV1().Namespaces().Delete(
-		ctx, consts.Identity, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy},
+		ctx, namespace, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy},
 	)
 	if err != nil {
 		if apierrors.IsNotFound(err) {

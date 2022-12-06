@@ -23,7 +23,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/client"
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
@@ -174,7 +173,7 @@ func TestInstallUinstall(t *testing.T) {
 			t.Fatalf("csae %v: unexpected error; %v", i+1, err)
 		}
 
-		_, err := k8s.KubeClient().CoreV1().Namespaces().Get(ctx, consts.Identity, metav1.GetOptions{})
+		_, err := k8s.KubeClient().CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 		if err == nil {
 			t.Fatalf("case %v: uninstall on kube version v%v.%v not removed namespace", i+1, testVersion.Major, testVersion.Minor)
 		}

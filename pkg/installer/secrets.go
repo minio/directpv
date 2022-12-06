@@ -37,7 +37,7 @@ func createOrUpdateSecret(ctx context.Context, args *Args, name string, data map
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
-			Namespace:   consts.Identity,
+			Namespace:   namespace,
 			Annotations: map[string]string{},
 			Labels:      defaultLabels,
 		},
@@ -49,7 +49,7 @@ func createOrUpdateSecret(ctx context.Context, args *Args, name string, data map
 		return nil
 	}
 
-	secretsClient := k8s.KubeClient().CoreV1().Secrets(consts.Identity)
+	secretsClient := k8s.KubeClient().CoreV1().Secrets(namespace)
 	existingSecret, err := secretsClient.Get(ctx, secret.Name, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -78,7 +78,7 @@ func createOrUpdateSecret(ctx context.Context, args *Args, name string, data map
 }
 
 func deleteSecret(ctx context.Context, name string) error {
-	err := k8s.KubeClient().CoreV1().Secrets(consts.Identity).Delete(
+	err := k8s.KubeClient().CoreV1().Secrets(namespace).Delete(
 		ctx, name, metav1.DeleteOptions{},
 	)
 	if err != nil {
