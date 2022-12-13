@@ -39,7 +39,7 @@ import (
 var errInitFailed = errors.New("init failed")
 
 const (
-	initRequestListTimeoutSeconds = int64(2 * time.Minute)
+	initRequestListTimeout = 2 * time.Minute
 )
 
 var initCmd = &cobra.Command{
@@ -149,10 +149,11 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest) (results
 		}
 		namesToWatch = append(namesToWatch, initR.Name)
 	}
+	ctx, cancel := context.WithTimeout(ctx, initRequestListTimeout)
+	defer cancel()
 
 	eventCh, stop, err := initrequest.NewLister().
 		InitRequestNameSelector(namesToWatch).
-		TimeoutSeconds(initRequestListTimeoutSeconds).
 		Watch(ctx)
 	if err != nil {
 		return nil, err

@@ -43,7 +43,6 @@ type Lister struct {
 	initRequestNames []string
 	maxObjects       int64
 	ignoreNotFound   bool
-	timeoutSeconds   int64
 }
 
 // NewLister creates new volume lister.
@@ -77,12 +76,6 @@ func (lister *Lister) IgnoreNotFound(b bool) *Lister {
 	return lister
 }
 
-// TimeoutSeconds limits the duration of the call, regardless of any activity or inactivity
-func (lister *Lister) TimeoutSeconds(secs int64) *Lister {
-	lister.timeoutSeconds = secs
-	return lister
-}
-
 // List returns channel to loop through initrequest items.
 func (lister *Lister) List(ctx context.Context) <-chan ListInitRequestResult {
 	getOnly := len(lister.nodes) == 0 &&
@@ -110,9 +103,6 @@ func (lister *Lister) List(ctx context.Context) <-chan ListInitRequestResult {
 			options := metav1.ListOptions{
 				Limit:         lister.maxObjects,
 				LabelSelector: labelSelector,
-			}
-			if lister.timeoutSeconds > 0 {
-				options.TimeoutSeconds = &lister.timeoutSeconds
 			}
 			for {
 				result, err := client.InitRequestClient().List(ctx, options)
@@ -190,13 +180,9 @@ func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), err
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
 		directpvtypes.NodeLabelKey: lister.nodes,
 	}
-	listOpts := metav1.ListOptions{
+	initRequestWatchInterface, err := client.InitRequestClient().Watch(ctx, metav1.ListOptions{
 		LabelSelector: directpvtypes.ToLabelSelector(labelMap),
-	}
-	if lister.timeoutSeconds > 0 {
-		listOpts.TimeoutSeconds = &lister.timeoutSeconds
-	}
-	initRequestWatchInterface, err := client.InitRequestClient().Watch(ctx, listOpts)
+	})
 	if err != nil {
 		return nil, nil, err
 	}

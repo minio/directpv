@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	nodeListTimeoutSeconds = int64(2 * time.Minute)
+	nodeListTimeout = 2 * time.Minute
 )
 
 var (
@@ -212,9 +212,11 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[strin
 		}
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, nodeListTimeout)
+	defer cancel()
+
 	eventCh, stop, err := node.NewLister().
 		NodeSelector(toLabelValues(nodeNames)).
-		TimeoutSeconds(nodeListTimeoutSeconds).
 		Watch(ctx)
 	if err != nil {
 		return nil, err
