@@ -85,7 +85,6 @@ func init() {
 	installCmd.PersistentFlags().StringVar(&seccompProfile, "seccomp-profile", seccompProfile, "Set Seccomp profile")
 	installCmd.PersistentFlags().StringVar(&apparmorProfile, "apparmor-profile", apparmorProfile, "Set Apparmor profile")
 	installCmd.PersistentFlags().StringVar(&configDir, "config-dir", configDir, "Path to configuration directory")
-
 	installCmd.PersistentFlags().StringVar(&k8sVersion, "kube-version", k8sVersion, "If present, use this as kubernetes version for dry-run")
 	installCmd.PersistentFlags().BoolVar(&legacyFlag, "legacy", legacyFlag, "If present, include legacy services for dry-run")
 	addDryRunFlag(installCmd)

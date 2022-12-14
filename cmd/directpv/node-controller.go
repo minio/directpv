@@ -35,6 +35,9 @@ var nodeControllerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
+		if err := sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+			return err
+		}
 		if err := node.Sync(c.Context(), nodeID, true); err != nil {
 			return err
 		}
@@ -48,10 +51,6 @@ func startNodeController(ctx context.Context, args []string) error {
 	defer cancel()
 
 	errCh := make(chan error)
-
-	if err := sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
-		return err
-	}
 
 	go func() {
 		if err := node.StartController(ctx, nodeID); err != nil {

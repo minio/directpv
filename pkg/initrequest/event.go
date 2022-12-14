@@ -41,7 +41,7 @@ import (
 )
 
 const (
-	initReqSpan = time.Minute * 5
+	initReqSpan = time.Hour * 24
 )
 
 type initRequestEventHandler struct {

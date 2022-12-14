@@ -181,6 +181,7 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest) (results
 			default:
 			}
 		case <-ctx.Done():
+			utils.Eprintf(quietFlag, true, "unable to initialize devices; %v", ctx.Err())
 			return
 		}
 	}

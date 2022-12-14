@@ -77,8 +77,8 @@ $ kubectl {PLUGIN_NAME} discover --nodes=node{1...4} --drives=sd{a...f}`,
 }
 
 func init() {
-	addNodesFlag(discoverCmd, "If present, select drives from given nodes")
-	addDrivesFlag(discoverCmd, "If present, select drives by given names")
+	addNodesFlag(discoverCmd, "discover drives from given nodes")
+	addDrivesFlag(discoverCmd, "discover drives by given names")
 	addAllFlag(discoverCmd, "If present, include non-formattable devices in the display")
 	discoverCmd.PersistentFlags().StringVar(&outputFile, "output-file", outputFile, "output file to write the init config")
 }
@@ -175,7 +175,7 @@ func showDevices(resultMap map[string][]types.Device) error {
 	}
 
 	if writer.Length() == 0 || !foundAvailableDrive {
-		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to format"))
+		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to initialize"))
 		return errDiscoveryFailed
 	}
 
@@ -244,6 +244,7 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[strin
 			default:
 			}
 		case <-ctx.Done():
+			utils.Eprintf(quietFlag, true, "unable to discover devices; %v", ctx.Err())
 			return
 		}
 	}

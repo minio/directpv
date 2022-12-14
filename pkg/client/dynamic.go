@@ -168,6 +168,7 @@ func (w watchInterfaceWrapper) ResultChan() <-chan watch.Event {
 			if err != nil {
 				break
 			}
+			// Handle internal errors gracefully
 			if v, ok := convertedObj["code"]; ok && v == int64(500) {
 				break
 			}
