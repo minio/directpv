@@ -38,9 +38,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-const (
-	nodeListTimeout = 2 * time.Minute
-)
+var nodeListTimeout = 2 * time.Minute
 
 var (
 	outputFile         = "drives.yaml"
@@ -81,6 +79,7 @@ func init() {
 	addDrivesFlag(discoverCmd, "discover drives by given names")
 	addAllFlag(discoverCmd, "If present, include non-formattable devices in the display")
 	discoverCmd.PersistentFlags().StringVar(&outputFile, "output-file", outputFile, "output file to write the init config")
+	discoverCmd.PersistentFlags().DurationVar(&nodeListTimeout, "timeout", nodeListTimeout, "specify timeout for the discovery process")
 }
 
 func validateDiscoverCmd() error {
@@ -90,7 +89,7 @@ func validateDiscoverCmd() error {
 	return validateDriveNameArgs()
 }
 
-func toInitConfig(resultMap map[string][]types.Device) InitConfig {
+func toInitConfig(resultMap map[directpvtypes.NodeID][]types.Device) InitConfig {
 	nodeInfo := []NodeInfo{}
 	initConfig := NewInitConfig()
 	for node, devices := range resultMap {
@@ -115,7 +114,7 @@ func toInitConfig(resultMap map[string][]types.Device) InitConfig {
 	return initConfig
 }
 
-func showDevices(resultMap map[string][]types.Device) error {
+func showDevices(resultMap map[directpvtypes.NodeID][]types.Device) error {
 	writer := newTableWriter(
 		table.Row{
 			"ID",
@@ -191,7 +190,7 @@ func writeInitConfig(config InitConfig) error {
 	return config.Write(f)
 }
 
-func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[string][]types.Device, err error) {
+func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[directpvtypes.NodeID][]types.Device, err error) {
 	var nodeNames []string
 	nodeClient := client.NodeClient()
 	for i := range nodes {
@@ -223,7 +222,7 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[strin
 	}
 	defer stop()
 
-	devices = map[string][]types.Device{}
+	devices = map[directpvtypes.NodeID][]types.Device{}
 	for {
 		select {
 		case event, ok := <-eventCh:
@@ -234,7 +233,7 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[strin
 			case watch.Modified:
 				node := event.Node
 				if !node.Spec.Refresh {
-					devices[node.Name] = node.GetDevicesByNames(drivesArgs)
+					devices[directpvtypes.NodeID(node.Name)] = node.GetDevicesByNames(drivesArgs)
 				}
 				if len(devices) >= len(nodes) {
 					return

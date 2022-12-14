@@ -106,7 +106,7 @@ func probeDevices(nodeID directpvtypes.NodeID) ([]types.Device, error) {
 }
 
 // Sync probes the local devices and syncs the DirectPVNode CRD objects with the probed information.
-func Sync(ctx context.Context, nodeID directpvtypes.NodeID, retryOnConfict bool) error {
+func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 	devices, err := probeDevices(nodeID)
 	if err != nil {
 		return err
@@ -127,9 +127,6 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID, retryOnConfict bool)
 			return err
 		}
 		return nil
-	}
-	if !retryOnConfict {
-		return updateFunc()
 	}
 	if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
 		return err

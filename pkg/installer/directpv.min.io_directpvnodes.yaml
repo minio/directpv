@@ -114,8 +114,7 @@ spec:
                 x-kubernetes-list-type: map
               devices:
                 items:
-                  description: DirectPVDevice denotes the device information in a
-                    drive
+                  description: Device denotes the device information in a drive
                   properties:
                     deniedReason:
                       type: string

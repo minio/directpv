@@ -57,6 +57,7 @@ func (req DirectPVInitRequest) getLabel(key types.LabelKey) types.LabelValue {
 
 // NewDirectPVInitRequest creates new DirectPV init request.
 func NewDirectPVInitRequest(
+	requestorID string,
 	nodeID types.NodeID,
 	devices []InitDevice,
 ) *DirectPVInitRequest {
@@ -71,6 +72,7 @@ func NewDirectPVInitRequest(
 				string(types.NodeLabelKey):      string(nodeID),
 				string(types.VersionLabelKey):   Version,
 				string(types.CreatedByLabelKey): consts.NodeControllerName,
+				string(types.RequestorLabelKey): requestorID,
 			},
 		},
 		Spec: InitRequestSpec{

@@ -173,8 +173,8 @@ type InitStatus string
 const (
 	// InitStatusPending denotes that the initialization request is still pending.
 	InitStatusPending InitStatus = "Pending"
-	// InitStatusFailed denotes that the initialization request failed to complete the initialization.
-	InitStatusFailed InitStatus = "Failed"
-	// InitStatusSuccess denotes that the initialization is successfully completed.
-	InitStatusSuccess InitStatus = "Success"
+	// InitStatusProcessed denotes that the initialization request has been processed.
+	InitStatusProcessed InitStatus = "Processed"
+	// InitStatusError denotes that the initialization request has failed due to an error.
+	InitStatusError InitStatus = "Error"
 )

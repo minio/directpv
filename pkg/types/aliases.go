@@ -48,24 +48,24 @@ type (
 
 	NodeStatus          = directpv.NodeStatus
 	Node                = directpv.DirectPVNode
-	Device              = directpv.DirectPVDevice
+	Device              = directpv.Device
 	NodeStatusList      = []directpv.DirectPVNode
 	NodeList            = directpv.DirectPVNodeList
 	LatestNodeInterface = typeddirectpv.DirectPVNodeInterface
 
-	InitRequestStatus              = directpv.InitRequestStatus
-	InitRequest                    = directpv.DirectPVInitRequest
-	InitDevice                     = directpv.InitDevice
-	InitDeviceResult               = directpv.InitDeviceResult
-	InitRequestStatusList          = []directpv.DirectPVInitRequest
-	InitRequestList                = directpv.DirectPVInitRequestList
-	LatestInitRequestInterface     = typeddirectpv.DirectPVInitRequestInterface
+	InitRequestStatus          = directpv.InitRequestStatus
+	InitRequest                = directpv.DirectPVInitRequest
+	InitDevice                 = directpv.InitDevice
+	InitDeviceResult           = directpv.InitDeviceResult
+	InitRequestStatusList      = []directpv.DirectPVInitRequest
+	InitRequestList            = directpv.DirectPVInitRequestList
+	LatestInitRequestInterface = typeddirectpv.DirectPVInitRequestInterface
 )
 
 var (
-	NewDrive  = directpv.NewDirectPVDrive
-	NewVolume = directpv.NewDirectPVVolume
-	NewNode = directpv.NewDirectPVNode
+	NewDrive       = directpv.NewDirectPVDrive
+	NewVolume      = directpv.NewDirectPVVolume
+	NewNode        = directpv.NewDirectPVNode
 	NewInitRequest = directpv.NewDirectPVInitRequest
 )
 

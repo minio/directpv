@@ -38,7 +38,7 @@ var nodeControllerCmd = &cobra.Command{
 		if err := sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 			return err
 		}
-		if err := node.Sync(c.Context(), nodeID, true); err != nil {
+		if err := node.Sync(c.Context(), nodeID); err != nil {
 			return err
 		}
 		return startNodeController(c.Context(), args)

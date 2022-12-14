@@ -40,6 +40,7 @@ type ListInitRequestResult struct {
 // Lister is initRequest lister.
 type Lister struct {
 	nodes            []directpvtypes.LabelValue
+	requestors       []directpvtypes.LabelValue
 	initRequestNames []string
 	maxObjects       int64
 	ignoreNotFound   bool
@@ -55,6 +56,12 @@ func NewLister() *Lister {
 // NodeSelector adds filter listing by nodes.
 func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
 	lister.nodes = nodes
+	return lister
+}
+
+// RequestorSelector adds filter listing by its requestor.
+func (lister *Lister) RequestorSelector(requestors []directpvtypes.LabelValue) *Lister {
+	lister.requestors = requestors
 	return lister
 }
 
@@ -79,10 +86,12 @@ func (lister *Lister) IgnoreNotFound(b bool) *Lister {
 // List returns channel to loop through initrequest items.
 func (lister *Lister) List(ctx context.Context) <-chan ListInitRequestResult {
 	getOnly := len(lister.nodes) == 0 &&
+		len(lister.requestors) == 0 &&
 		len(lister.initRequestNames) != 0
 
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-		directpvtypes.NodeLabelKey: lister.nodes,
+		directpvtypes.NodeLabelKey:      lister.nodes,
+		directpvtypes.RequestorLabelKey: lister.requestors,
 	}
 	labelSelector := directpvtypes.ToLabelSelector(labelMap)
 
@@ -123,7 +132,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListInitRequestResult {
 					}
 					lister.initRequestNames = values
 
-					if found {
+					if len(lister.initRequestNames) == 0 || found {
 						if !send(ListInitRequestResult{InitRequest: item}) {
 							return
 						}
@@ -178,7 +187,8 @@ type WatchEvent struct {
 // Watch looks for changes in InitRequestList and reports them.
 func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), error) {
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-		directpvtypes.NodeLabelKey: lister.nodes,
+		directpvtypes.NodeLabelKey:      lister.nodes,
+		directpvtypes.RequestorLabelKey: lister.requestors,
 	}
 	initRequestWatchInterface, err := client.InitRequestClient().Watch(ctx, metav1.ListOptions{
 		LabelSelector: directpvtypes.ToLabelSelector(labelMap),

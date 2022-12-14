@@ -46,7 +46,7 @@ type (
 
 	NodeStatus          = directpv.NodeStatus
 	Node                = directpv.DirectPVNode
-	Device              = directpv.DirectPVDevice
+	Device              = directpv.Device
 	NodeStatusList      = []directpv.DirectPVNode
 	NodeList            = directpv.DirectPVNodeList
 	LatestNodeInterface = typeddirectpv.DirectPVNodeInterface

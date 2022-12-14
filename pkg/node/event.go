@@ -65,7 +65,7 @@ func (handler *nodeEventHandler) Handle(ctx context.Context, args listener.Event
 	case listener.UpdateEvent, listener.SyncEvent:
 		node := args.Object.(*types.Node)
 		if node.Spec.Refresh {
-			return Sync(ctx, directpvtypes.NodeID(node.Name), false)
+			return Sync(ctx, directpvtypes.NodeID(node.Name))
 		}
 	case listener.AddEvent, listener.DeleteEvent:
 	}

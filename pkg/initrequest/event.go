@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -38,10 +37,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-)
-
-const (
-	initReqSpan = time.Hour * 24
 )
 
 type initRequestEventHandler struct {
@@ -149,10 +144,6 @@ func (handler *initRequestEventHandler) Handle(ctx context.Context, args listene
 	switch args.Event {
 	case listener.UpdateEvent, listener.SyncEvent:
 		initRequest := args.Object.(*types.InitRequest)
-		if time.Since(initRequest.CreationTimestamp.Time) >= initReqSpan {
-			// Delete the initrequest if it exceeds the span
-			return client.InitRequestClient().Delete(ctx, initRequest.Name, metav1.DeleteOptions{})
-		}
 		if initRequest.Status.Status == directpvtypes.InitStatusPending {
 			return handler.initDevices(ctx, initRequest)
 		}
@@ -169,7 +160,8 @@ func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *ty
 
 	devices, err := handler.getDevices(majorMinorList...)
 	if err != nil {
-		return err
+		client.Eventf(req, client.EventTypeWarning, client.EventReasonInitError, "probing failed with %s", err.Error())
+		return updateInitRequest(ctx, req.Name, req.Status.Results, directpvtypes.InitStatusError)
 	}
 	probedDevices := map[string]pkgdevice.Device{}
 	for _, device := range devices {
@@ -178,23 +170,19 @@ func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *ty
 
 	results := make([]types.InitDeviceResult, len(req.Spec.Devices))
 	var wg sync.WaitGroup
-	var failed bool
 	for i := range req.Spec.Devices {
 		results[i].Name = req.Spec.Devices[i].Name
 		device, found := probedDevices[req.Spec.Devices[i].MajorMinor]
 		switch {
 		case !found:
-			failed = true
 			results[i].Error = "device not found"
 		case device.ID(handler.nodeID) != req.Spec.Devices[i].ID:
-			failed = true
 			results[i].Error = "device's state changed"
 		default:
 			wg.Add(1)
 			go func(i int, device pkgdevice.Device, force bool) {
 				defer wg.Done()
 				if err := handler.init(ctx, device, force); err != nil {
-					failed = true
 					results[i].Error = err.Error()
 				}
 			}(i, device, req.Spec.Devices[i].Force)
@@ -202,25 +190,23 @@ func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *ty
 	}
 	wg.Wait()
 
+	return updateInitRequest(ctx, req.Name, results, directpvtypes.InitStatusProcessed)
+}
+
+func updateInitRequest(ctx context.Context, name string, results []types.InitDeviceResult, status directpvtypes.InitStatus) error {
 	updateFunc := func() error {
-		initRequest, err := client.InitRequestClient().Get(ctx, req.Name, metav1.GetOptions{})
+		initRequest, err := client.InitRequestClient().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		initRequest.Status.Results = results
-		initRequest.Status.Status = directpvtypes.InitStatusSuccess
-		if failed {
-			initRequest.Status.Status = directpvtypes.InitStatusFailed
-		}
+		initRequest.Status.Status = status
 		if _, err := client.InitRequestClient().Update(ctx, initRequest, metav1.UpdateOptions{TypeMeta: types.NewInitRequestTypeMeta()}); err != nil {
 			return err
 		}
 		return nil
 	}
-	if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-		return err
-	}
-	return nil
+	return retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
 }
 
 func (handler *initRequestEventHandler) init(ctx context.Context, device pkgdevice.Device, force bool) error {

@@ -73,6 +73,9 @@ const (
 
 	// MigratedLabelKey denotes drive/volume migrated from legacy DirectCSI
 	MigratedLabelKey LabelKey = consts.GroupName + "/migrated"
+
+	// RequestorLabelKey label key for requestor
+	RequestorLabelKey LabelKey = consts.GroupName + "/requestor"
 )
 
 // LabelValue is a type definition for label value

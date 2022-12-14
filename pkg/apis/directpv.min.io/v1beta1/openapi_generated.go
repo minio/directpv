@@ -30,7 +30,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDevice":          schema_pkg_apis_directpvminio_v1beta1_DirectPVDevice(ref),
+		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.Device":                  schema_pkg_apis_directpvminio_v1beta1_Device(ref),
 		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDrive":           schema_pkg_apis_directpvminio_v1beta1_DirectPVDrive(ref),
 		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDriveList":       schema_pkg_apis_directpvminio_v1beta1_DirectPVDriveList(ref),
 		"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVInitRequest":     schema_pkg_apis_directpvminio_v1beta1_DirectPVInitRequest(ref),
@@ -51,11 +51,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	}
 }
 
-func schema_pkg_apis_directpvminio_v1beta1_DirectPVDevice(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_directpvminio_v1beta1_Device(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DirectPVDevice denotes the device information in a drive",
+				Description: "Device denotes the device information in a drive",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
@@ -805,7 +805,7 @@ func schema_pkg_apis_directpvminio_v1beta1_NodeStatus(ref common.ReferenceCallba
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDevice"),
+										Ref:     ref("github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.Device"),
 									},
 								},
 							},
@@ -839,7 +839,7 @@ func schema_pkg_apis_directpvminio_v1beta1_NodeStatus(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.DirectPVDevice", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+			"github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1.Device", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 

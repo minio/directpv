@@ -51,7 +51,7 @@ type DirectPVNode struct {
 }
 
 // GetDevicesByNames fetchs the devices in the node by device names.
-func (node DirectPVNode) GetDevicesByNames(names []string) (devices []DirectPVDevice) {
+func (node DirectPVNode) GetDevicesByNames(names []string) (devices []Device) {
 	if len(names) == 0 {
 		return node.Status.Devices
 	}
@@ -66,7 +66,7 @@ func (node DirectPVNode) GetDevicesByNames(names []string) (devices []DirectPVDe
 // NewDirectPVNode creates new DirectPV node.
 func NewDirectPVNode(
 	nodeID types.NodeID,
-	devices []DirectPVDevice,
+	devices []Device,
 ) *DirectPVNode {
 	return &DirectPVNode{
 		TypeMeta: metav1.TypeMeta{
@@ -99,7 +99,7 @@ type NodeSpec struct {
 // NodeStatus denotes node information.
 type NodeStatus struct {
 	// +listType=atomic
-	Devices []DirectPVDevice `json:"devices"`
+	Devices []Device `json:"devices"`
 	// +optional
 	// +patchMergeKey=type
 	// +patchStrategy=merge
@@ -108,8 +108,8 @@ type NodeStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
-// DirectPVDevice denotes the device information in a drive
-type DirectPVDevice struct {
+// Device denotes the device information in a drive
+type Device struct {
 	Name       string `json:"name"`
 	ID         string `json:"id"`
 	MajorMinor string `json:"majorMinor"`

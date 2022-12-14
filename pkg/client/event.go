@@ -50,6 +50,7 @@ const (
 	EventReasonDriveHasMultipleMatches EventReason = "DriveHasMultipleMatches"
 	EventReasonDriveIOError            EventReason = "DriveHasIOError"
 	EventReasonDriveRelabelError       EventReason = "DriveHasRelabelError"
+	EventReasonInitError               EventReason = "InitError"
 )
 
 var (
