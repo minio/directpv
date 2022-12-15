@@ -66,7 +66,6 @@ function migrate_test() {
     remove_lvm
 }
 
-echo "-------------- Migration test on DirectCSI ${LEGACY_VERSION} -----------------------"
 wget --quiet "https://github.com/minio/directpv/releases/download/${LEGACY_VERSION}/${LEGACY_FILE}"
 chmod a+x "${LEGACY_FILE}"
 migrate_test "./${LEGACY_FILE}" 4
