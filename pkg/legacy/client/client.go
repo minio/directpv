@@ -19,10 +19,23 @@ package client
 import (
 	"github.com/minio/directpv/pkg/k8s"
 	directcsi "github.com/minio/directpv/pkg/legacy/apis/direct.csi.min.io/v1beta5"
+	typeddirectcsi "github.com/minio/directpv/pkg/legacy/clientset/typed/direct.csi.min.io/v1beta5"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/klog/v2"
+)
+
+var (
+	initialized  int32
+	driveClient  typeddirectcsi.DirectCSIDriveInterface
+	volumeClient typeddirectcsi.DirectCSIVolumeInterface
+)
+
+// DirectCSI group and identity names.
+const (
+	GroupName = "direct.csi.min.io"
+	Identity  = "direct-csi-min-io"
 )
 
 // DirectCSIVersionLabelKey is the version with group and version ...
@@ -68,4 +81,14 @@ func GetGroupKindVersions(group, kind string, versions ...string) (*schema.Group
 		Kind:    mapper.Resource.Resource,
 	}
 	return gvk, nil
+}
+
+// DriveClient gets latest versioned drive interface.
+func DriveClient() typeddirectcsi.DirectCSIDriveInterface {
+	return driveClient
+}
+
+// VolumeClient gets latest versioned volume interface.
+func VolumeClient() typeddirectcsi.DirectCSIVolumeInterface {
+	return volumeClient
 }

@@ -34,6 +34,8 @@ const (
 type DriveSpec struct {
 	// +optional
 	Unschedulable bool `json:"unschedulable,omitempty"`
+	// +optional
+	Relabel bool `json:"relabel,omitempty"`
 }
 
 // DriveStatus denotes drive information.
@@ -276,6 +278,16 @@ func (drive *DirectPVDrive) setErrorCondition(errType, reason, message string) {
 	if !updated {
 		drive.Status.Conditions = append(drive.Status.Conditions, c)
 	}
+}
+
+// SetMigratedLabel sets migrated label to this drive.
+func (drive *DirectPVDrive) SetMigratedLabel() {
+	drive.SetLabel(types.MigratedLabelKey, "true")
+}
+
+// IsMigrated indicates whether this is migrated drive or not.
+func (drive *DirectPVDrive) IsMigrated() bool {
+	return drive.getLabel(types.MigratedLabelKey) == "true"
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

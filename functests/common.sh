@@ -78,10 +78,11 @@ function wait_for_service() {
     done
 }
 
+# install_directpv <pod_count>
 function install_directpv() {
     "${DIRECTPV_CLIENT}" install --quiet
 
-    required_count=5
+    required_count="$1"
     running_count=0
     while [[ $running_count -lt $required_count ]]; do
         echo "$ME: waiting for $(( required_count - running_count )) DirectPV pods to come up"
@@ -99,13 +100,14 @@ function install_directpv() {
     sleep 1m
 }
 
+# uninstall_directpv <pod_count>
 function uninstall_directpv() {
     "${DIRECTPV_CLIENT}" uninstall --quiet
 
-    pending=5
+    pending="$1"
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} DirectPV pods to go down"
-        sleep ${pending}
+        sleep "${pending}"
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv-min-io | wc -l)
     done
 
@@ -161,8 +163,11 @@ function remove_drives() {
     "${DIRECTPV_CLIENT}" remove --all --quiet
 }
 
+# usage: deploy_minio <minio-yaml>
 function deploy_minio() {
-    kubectl apply -f functests/minio.yaml
+    minio_yaml="$1"
+
+    kubectl apply -f "${minio_yaml}"
 
     required_count=4
     running_count=0
@@ -173,8 +178,11 @@ function deploy_minio() {
     done
 }
 
-function uninstall_minio() {
-    kubectl delete -f functests/minio.yaml
+# usage: delete_minio <minio-yaml>
+function delete_minio() {
+    minio_yaml="$1"
+
+    kubectl delete -f "${minio_yaml}"
     pending=4
     retry_count=0
     while [[ $pending -gt 0 ]]; do
@@ -183,9 +191,16 @@ function uninstall_minio() {
         fi
         retry_count=$((retry_count + 1))
         echo "$ME: waiting for ${pending} minio pods to go down"
-        sleep ${pending}
+        sleep "${pending}"
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep -c '^minio-' || true)
     done
+}
+
+# usage: uninstall_minio <minio-yaml>
+function uninstall_minio() {
+    minio_yaml="$1"
+
+    delete_minio "${minio_yaml}"
 
     kubectl delete pvc --all --force
     sleep 3
@@ -204,4 +219,52 @@ function uninstall_minio() {
 
     # Show output for manual debugging.
     "${DIRECTPV_CLIENT}" list drives --all
+}
+
+# usage: install_directcsi <plugin> <pod-count>
+function install_directcsi() {
+    directcsi_client="$1"
+    required_count="$2"
+
+    "${directcsi_client}" install
+
+    running_count=0
+    while [[ $running_count -lt $required_count ]]; do
+        echo "$ME: waiting for $(( required_count - running_count )) DirectCSI pods to come up"
+        sleep $(( required_count - running_count ))
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
+    done
+
+    while ! "${directcsi_client}" info; do
+        echo "$ME: waiting for DirectCSI to come up"
+        sleep 5
+    done
+
+    sleep 1m
+}
+
+# usage: install_directcsi <plugin> <pod-count>
+function uninstall_directcsi() {
+    directcsi_client="$1"
+    pending="$2"
+
+    "${directcsi_client}" uninstall
+
+    while [[ $pending -gt 0 ]]; do
+        echo "$ME: waiting for ${pending} direct-csi pods to go down"
+        sleep "${pending}"
+        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
+    done
+
+    while kubectl get namespace direct-csi-min-io --no-headers | grep -q .; do
+        echo "$ME: waiting for direct-csi-min-io namespace to be removed"
+        sleep 5
+    done
+}
+
+# usage: force_install_directcsi <plugin>
+function force_uninstall_directcsi() {
+    directcsi_client="$1"
+    "${directcsi_client}" uninstall --force --crd
+    sleep 5
 }

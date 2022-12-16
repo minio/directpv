@@ -155,6 +155,18 @@ func Install(ctx context.Context, args *Args) error {
 		return err
 	}
 
+	if args.Legacy {
+		err := execute(
+			"Migrate legacy drives and volumes",
+			func(ctx context.Context, args *Args) error {
+				return Migrate(ctx, args.DryRun)
+			},
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	if err := execute("CSI Driver", createCSIDriver); err != nil {
 		return err
 	}

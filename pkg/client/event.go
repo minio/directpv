@@ -49,6 +49,7 @@ const (
 	EventReasonDriveMounted            EventReason = "DriveMounted"
 	EventReasonDriveHasMultipleMatches EventReason = "DriveHasMultipleMatches"
 	EventReasonDriveIOError            EventReason = "DriveHasIOError"
+	EventReasonDriveRelabelError       EventReason = "DriveHasRelabelError"
 )
 
 var (

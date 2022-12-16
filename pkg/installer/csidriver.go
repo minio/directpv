@@ -24,34 +24,25 @@ import (
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
+	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 var errCSIDriverVersionUnsupported = errors.New("unsupported CSIDriver version found")
 
-func createCSIDriver(ctx context.Context, args *Args) error {
-	var gvk *schema.GroupVersionKind
-	if args.DryRun {
-		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 19 {
-			gvk = &schema.GroupVersionKind{Version: "v1beta1"}
-		} else {
-			gvk = &schema.GroupVersionKind{Version: "v1"}
-		}
-	} else {
-		var err error
-		if gvk, err = k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1"); err != nil {
-			return err
-		}
-	}
-
+func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy bool) error {
 	podInfoOnMount := true
 	attachRequired := false
 
-	switch gvk.Version {
+	name := consts.Identity
+	if legacy {
+		name = legacyclient.Identity
+	}
+
+	switch version {
 	case "v1":
 		csiDriver := &storagev1.CSIDriver{
 			TypeMeta: metav1.TypeMeta{
@@ -59,7 +50,7 @@ func createCSIDriver(ctx context.Context, args *Args) error {
 				Kind:       "CSIDriver",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        consts.Identity,
+				Name:        name,
 				Namespace:   metav1.NamespaceNone,
 				Annotations: map[string]string{},
 				Labels:      defaultLabels,
@@ -97,7 +88,7 @@ func createCSIDriver(ctx context.Context, args *Args) error {
 				Kind:       "CSIDriver",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        consts.Identity,
+				Name:        name,
 				Namespace:   metav1.NamespaceNone,
 				Annotations: map[string]string{},
 				Labels:      defaultLabels,
@@ -133,20 +124,40 @@ func createCSIDriver(ctx context.Context, args *Args) error {
 	}
 }
 
-func deleteCSIDriver(ctx context.Context) error {
-	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
-	if err != nil {
+func createCSIDriver(ctx context.Context, args *Args) error {
+	version := "v1"
+	if args.DryRun {
+		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 19 {
+			version = "v1beta1"
+		}
+	} else {
+		gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
+		if err != nil {
+			return err
+		}
+		version = gvk.Version
+	}
+
+	if err := doCreateCSIDriver(ctx, args, version, false); err != nil {
 		return err
 	}
 
-	switch gvk.Version {
+	if args.Legacy {
+		return doCreateCSIDriver(ctx, args, version, true)
+	}
+
+	return nil
+}
+
+func doDeleteCSIDriver(ctx context.Context, version, name string) (err error) {
+	switch version {
 	case "v1":
 		err = k8s.KubeClient().StorageV1().CSIDrivers().Delete(
-			ctx, consts.Identity, metav1.DeleteOptions{},
+			ctx, name, metav1.DeleteOptions{},
 		)
 	case "v1beta1":
 		err = k8s.KubeClient().StorageV1beta1().CSIDrivers().Delete(
-			ctx, consts.Identity, metav1.DeleteOptions{},
+			ctx, name, metav1.DeleteOptions{},
 		)
 	default:
 		return errCSIDriverVersionUnsupported
@@ -157,4 +168,17 @@ func deleteCSIDriver(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func deleteCSIDriver(ctx context.Context) error {
+	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
+	if err != nil {
+		return err
+	}
+
+	if err = doDeleteCSIDriver(ctx, gvk.Version, consts.Identity); err != nil {
+		return err
+	}
+
+	return doDeleteCSIDriver(ctx, gvk.Version, legacyclient.Identity)
 }

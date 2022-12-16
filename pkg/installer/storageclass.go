@@ -25,44 +25,34 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
+	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
 
-func createStorageClass(ctx context.Context, args *Args) error {
-	var gvk *schema.GroupVersionKind
-	if args.DryRun {
-		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 16 {
-			gvk = &schema.GroupVersionKind{Version: "v1beta1"}
-		} else {
-			gvk = &schema.GroupVersionKind{Version: "v1"}
-		}
-	} else {
-		var err error
-		if gvk, err = k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1"); err != nil {
-			return err
-		}
+func doCreateStorageClass(ctx context.Context, args *Args, version string, legacy bool) error {
+	name := consts.Identity
+	if legacy {
+		name = legacyclient.Identity
 	}
 
 	allowExpansion := false
-	name := consts.StorageClassName
 	allowTopologiesWithName := corev1.TopologySelectorTerm{
 		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
 			{
 				Key:    string(directpvtypes.TopologyDriverIdentity),
-				Values: []string{string(directpvtypes.ToLabelValue(consts.Identity))},
+				Values: []string{consts.Identity},
 			},
 		},
 	}
 	retainPolicy := corev1.PersistentVolumeReclaimDelete
 
-	switch gvk.Version {
+	switch version {
 	case "v1":
 		bindingMode := storagev1.VolumeBindingWaitForFirstConsumer
 		storageClass := &storagev1.StorageClass{
@@ -146,20 +136,41 @@ func createStorageClass(ctx context.Context, args *Args) error {
 	}
 }
 
-func deleteStorageClass(ctx context.Context) error {
-	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
-	if err != nil {
+func createStorageClass(ctx context.Context, args *Args) error {
+	version := "v1"
+	switch {
+	case args.DryRun:
+		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 16 {
+			version = "v1beta1"
+		}
+	default:
+		gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
+		if err != nil {
+			return err
+		}
+		version = gvk.Version
+	}
+
+	if err := doCreateStorageClass(ctx, args, version, false); err != nil {
 		return err
 	}
 
-	switch gvk.Version {
+	if args.Legacy {
+		return doCreateStorageClass(ctx, args, version, true)
+	}
+
+	return nil
+}
+
+func doDeleteStorageClass(ctx context.Context, version, name string) (err error) {
+	switch version {
 	case "v1":
 		err = k8s.KubeClient().StorageV1().StorageClasses().Delete(
-			ctx, consts.StorageClassName, metav1.DeleteOptions{},
+			ctx, name, metav1.DeleteOptions{},
 		)
 	case "v1beta1":
 		err = k8s.KubeClient().StorageV1beta1().StorageClasses().Delete(
-			ctx, consts.StorageClassName, metav1.DeleteOptions{},
+			ctx, name, metav1.DeleteOptions{},
 		)
 	default:
 		return errStorageClassVersionUnsupported
@@ -170,4 +181,17 @@ func deleteStorageClass(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func deleteStorageClass(ctx context.Context) error {
+	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
+	if err != nil {
+		return err
+	}
+
+	if err = doDeleteStorageClass(ctx, gvk.Version, consts.StorageClassName); err != nil {
+		return err
+	}
+
+	return doDeleteStorageClass(ctx, gvk.Version, legacyclient.Identity)
 }

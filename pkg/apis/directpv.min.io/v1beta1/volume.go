@@ -251,6 +251,16 @@ func (volume *DirectPVVolume) SetCreatedByLabel() {
 	volume.SetLabel(types.CreatedByLabelKey, consts.ControllerName)
 }
 
+// SetMigratedLabel sets migrated label to this volume.
+func (volume *DirectPVVolume) SetMigratedLabel() {
+	volume.SetLabel(types.MigratedLabelKey, "true")
+}
+
+// IsMigrated indicates whether this is migrated volume or not.
+func (volume *DirectPVVolume) IsMigrated() bool {
+	return volume.getLabel(types.MigratedLabelKey) == "true"
+}
+
 // SetPodName sets associated pod name to this volume.
 func (volume *DirectPVVolume) SetPodName(name string) {
 	volume.SetLabel(types.PodNameLabelKey, types.ToLabelValue(name))

@@ -35,6 +35,8 @@ spec:
           spec:
             description: DriveSpec represents DirectPV drive specification values.
             properties:
+              relabel:
+                type: boolean
               unschedulable:
                 type: boolean
             type: object

@@ -38,7 +38,23 @@ const (
 	nodeAPIServerCADir         = "node-api-server-ca"
 )
 
-func createDeployment(ctx context.Context, args *Args) error {
+func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
+	name := consts.ControllerServerName
+	containerArgs := []string{name, fmt.Sprintf("--identity=%s", consts.Identity)}
+	if legacy {
+		name = consts.LegacyControllerServerName
+		containerArgs = []string{name}
+	}
+	containerArgs = append(
+		containerArgs,
+		[]string{
+			fmt.Sprintf("-v=%d", logLevel),
+			fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
+			fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
+			fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
+		}...,
+	)
+
 	privileged := true
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: consts.Identity,
@@ -87,14 +103,7 @@ func createDeployment(ctx context.Context, args *Args) error {
 			{
 				Name:  consts.ControllerServerName,
 				Image: args.getContainerImage(),
-				Args: []string{
-					consts.ControllerServerName,
-					fmt.Sprintf("-v=%d", logLevel),
-					fmt.Sprintf("--identity=%s", consts.Identity),
-					fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
-					fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
-					fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
-				},
+				Args:  containerArgs,
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
 				},
@@ -116,7 +125,7 @@ func createDeployment(ctx context.Context, args *Args) error {
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        consts.ControllerServerName,
+			Name:        name,
 			Namespace:   consts.Identity,
 			Annotations: map[string]string{},
 			Labels:      defaultLabels,
@@ -127,7 +136,7 @@ func createDeployment(ctx context.Context, args *Args) error {
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, selectorValue),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      consts.ControllerServerName,
+					Name:      name,
 					Namespace: consts.Identity,
 					Annotations: map[string]string{
 						createdByLabel: pluginName,
@@ -159,6 +168,18 @@ func createDeployment(ctx context.Context, args *Args) error {
 
 	_, err = io.WriteString(args.auditWriter, mustGetYAML(deployment))
 	return err
+}
+
+func createDeployment(ctx context.Context, args *Args) error {
+	if err := doCreateDeployment(ctx, args, false); err != nil {
+		return err
+	}
+
+	if args.Legacy {
+		return doCreateDeployment(ctx, args, true)
+	}
+
+	return nil
 }
 
 func removeFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
@@ -195,7 +216,11 @@ func doDeleteDeployment(ctx context.Context, name string) error {
 }
 
 func deleteDeployment(ctx context.Context) error {
-	return doDeleteDeployment(ctx, consts.ControllerServerName)
+	if err := doDeleteDeployment(ctx, consts.ControllerServerName); err != nil {
+		return err
+	}
+
+	return doDeleteDeployment(ctx, consts.LegacyControllerServerName)
 }
 
 func createAdminService(ctx context.Context, args *Args) error {
