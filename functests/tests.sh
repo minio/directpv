@@ -22,12 +22,12 @@ source "${SCRIPT_DIR}/common.sh"
 
 function test_build() {
     export DIRECTPV_CLIENT=./kubectl-directpv
-    install_directpv 5
+    install_directpv 4
     add_drives
     deploy_minio functests/minio.yaml
     uninstall_minio functests/minio.yaml
     remove_drives
-    uninstall_directpv 5
+    uninstall_directpv 4
 }
 
 echo "$ME: Setup environment"

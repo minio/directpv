@@ -47,7 +47,7 @@ function migrate_test() {
     uninstall_directcsi "${directcsi_client}" "${pod_count}"
 
     export DIRECTPV_CLIENT=./kubectl-directpv
-    install_directpv 9
+    install_directpv 8
 
     delete_minio functests/directcsi-minio.yaml
 
@@ -58,7 +58,7 @@ function migrate_test() {
     force_uninstall_directcsi "${directcsi_client}"
 
     remove_drives
-    uninstall_directpv 9
+    uninstall_directpv 8
 
     mount | awk '/direct|pvc-/ {print $3}' | xargs sudo umount -fl
 

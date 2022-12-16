@@ -53,6 +53,8 @@ type initRequestEventHandler struct {
 	symlink      func(fsuuid string) error
 	makeMetaDir  func(fsuuid string) error
 	writeFile    func(fsuuid, data string) error
+
+	mu sync.Mutex
 }
 
 func newInitRequestEventHandler(ctx context.Context, nodeID directpvtypes.NodeID, topology map[string]string) (*initRequestEventHandler, error) {
@@ -147,12 +149,15 @@ func (handler *initRequestEventHandler) Handle(ctx context.Context, args listene
 		if initRequest.Status.Status == directpvtypes.InitStatusPending {
 			return handler.initDevices(ctx, initRequest)
 		}
-	case listener.AddEvent, listener.DeleteEvent:
+	default:
 	}
 	return nil
 }
 
 func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *types.InitRequest) error {
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+
 	var majorMinorList []string
 	for i := range req.Spec.Devices {
 		majorMinorList = append(majorMinorList, req.Spec.Devices[i].MajorMinor)
@@ -182,7 +187,7 @@ func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *ty
 			wg.Add(1)
 			go func(i int, device pkgdevice.Device, force bool) {
 				defer wg.Done()
-				if err := handler.init(ctx, device, force); err != nil {
+				if err := handler.initDevice(ctx, device, force); err != nil {
 					results[i].Error = err.Error()
 				}
 			}(i, device, req.Spec.Devices[i].Force)
@@ -209,7 +214,7 @@ func updateInitRequest(ctx context.Context, name string, results []types.InitDev
 	return retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
 }
 
-func (handler *initRequestEventHandler) init(ctx context.Context, device pkgdevice.Device, force bool) error {
+func (handler *initRequestEventHandler) initDevice(ctx context.Context, device pkgdevice.Device, force bool) error {
 	devPath := utils.AddDevPrefix(device.Name)
 
 	deviceMap, majorMinorMap, err := handler.getMounts()
@@ -280,7 +285,7 @@ func (handler *initRequestEventHandler) init(ctx context.Context, device pkgdevi
 }
 
 // StartController starts node controller.
-func StartController(ctx context.Context, identity string, nodeID directpvtypes.NodeID, rack, zone, region string) error {
+func StartController(ctx context.Context, nodeID directpvtypes.NodeID, identity, rack, zone, region string) error {
 	initRequestHandler, err := newInitRequestEventHandler(
 		ctx,
 		nodeID,

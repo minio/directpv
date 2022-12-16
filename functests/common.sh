@@ -90,7 +90,7 @@ function install_directpv() {
 # uninstall_directpv <pod_count>
 function uninstall_directpv() {
     "${DIRECTPV_CLIENT}" uninstall --quiet
-    
+
     pending="$1"
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} DirectPV pods to go down"

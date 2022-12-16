@@ -46,7 +46,7 @@ type DirectPVInitRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   InitRequestSpec   `json:"spec,omitempty"`
+	Spec   InitRequestSpec   `json:"spec"`
 	Status InitRequestStatus `json:"status"`
 }
 
@@ -57,7 +57,7 @@ func (req DirectPVInitRequest) getLabel(key types.LabelKey) types.LabelValue {
 
 // NewDirectPVInitRequest creates new DirectPV init request.
 func NewDirectPVInitRequest(
-	requestorID string,
+	requestID string,
 	nodeID types.NodeID,
 	devices []InitDevice,
 ) *DirectPVInitRequest {
@@ -72,7 +72,7 @@ func NewDirectPVInitRequest(
 				string(types.NodeLabelKey):      string(nodeID),
 				string(types.VersionLabelKey):   Version,
 				string(types.CreatedByLabelKey): consts.NodeControllerName,
-				string(types.RequestorLabelKey): requestorID,
+				string(types.RequestIDLabelKey): requestID,
 			},
 		},
 		Spec: InitRequestSpec{

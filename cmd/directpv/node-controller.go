@@ -62,8 +62,8 @@ func startNodeController(ctx context.Context, args []string) error {
 	go func() {
 		if err := initrequest.StartController(
 			ctx,
-			identity,
 			nodeID,
+			identity,
 			rack,
 			zone,
 			region,

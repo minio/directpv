@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -81,7 +82,7 @@ func init() {
 	initCmd.PersistentFlags().DurationVar(&initRequestListTimeout, "timeout", initRequestListTimeout, "specify timeout for the initialization process")
 }
 
-func toInitRequestObjects(config *InitConfig, requestor string) (initRequests []types.InitRequest) {
+func toInitRequestObjects(config *InitConfig, requestID string) (initRequests []types.InitRequest) {
 	for _, node := range config.Nodes {
 		initDevices := []types.InitDevice{}
 		for _, device := range node.Drives {
@@ -93,7 +94,7 @@ func toInitRequestObjects(config *InitConfig, requestor string) (initRequests []
 			})
 		}
 		if len(initDevices) > 0 {
-			initRequests = append(initRequests, *types.NewInitRequest(requestor, node.Name, initDevices))
+			initRequests = append(initRequests, *types.NewInitRequest(requestID, node.Name, initDevices))
 		}
 	}
 	return
@@ -154,7 +155,7 @@ func showResults(results []initResult) {
 	writer.Render()
 }
 
-func initDevices(ctx context.Context, initRequests []types.InitRequest, requestorID string) (results []initResult, err error) {
+func initDevices(ctx context.Context, initRequests []types.InitRequest, requestID string) (results []initResult, err error) {
 	var totalReqCount int
 	for i := range initRequests {
 		_, err := client.InitRequestClient().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
@@ -167,7 +168,7 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requesto
 	defer cancel()
 
 	eventCh, stop, err := initrequest.NewLister().
-		RequestorSelector(toLabelValues([]string{requestorID})).
+		RequestIDSelector(toLabelValues([]string{requestID})).
 		Watch(ctx)
 	if err != nil {
 		return nil, err
@@ -179,6 +180,10 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requesto
 		select {
 		case event, ok := <-eventCh:
 			if !ok {
+				return
+			}
+			if event.Err != nil {
+				err = event.Err
 				return
 			}
 			switch event.Type {
@@ -200,7 +205,7 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requesto
 			default:
 			}
 		case <-ctx.Done():
-			utils.Eprintf(quietFlag, true, "unable to initialize devices; %v", ctx.Err())
+			err = fmt.Errorf("unable to initialize devices; %v", ctx.Err())
 			return
 		}
 	}
@@ -221,21 +226,21 @@ func initMain(ctx context.Context, inputFile string) {
 		utils.Eprintf(quietFlag, true, "unable to read the input file; %v", err.Error())
 		os.Exit(1)
 	}
-	requestor := uuid.New().String()
-	initRequests := toInitRequestObjects(initConfig, requestor)
+	requestID := uuid.New().String()
+	initRequests := toInitRequestObjects(initConfig, requestID)
 	if len(initRequests) == 0 {
 		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to init"))
 		os.Exit(1)
 	}
 	defer func() {
 		labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-			directpvtypes.RequestorLabelKey: toLabelValues([]string{requestor}),
+			directpvtypes.RequestIDLabelKey: toLabelValues([]string{requestID}),
 		}
 		client.InitRequestClient().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 			LabelSelector: directpvtypes.ToLabelSelector(labelMap),
 		})
 	}()
-	results, err := initDevices(ctx, initRequests, requestor)
+	results, err := initDevices(ctx, initRequests, requestID)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)

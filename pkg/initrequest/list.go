@@ -18,6 +18,7 @@ package initrequest
 
 import (
 	"context"
+	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -28,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/klog/v2"
 )
 
 // ListInitRequestResult denotes list of initrequest result.
@@ -40,7 +40,7 @@ type ListInitRequestResult struct {
 // Lister is initRequest lister.
 type Lister struct {
 	nodes            []directpvtypes.LabelValue
-	requestors       []directpvtypes.LabelValue
+	requestIDs       []directpvtypes.LabelValue
 	initRequestNames []string
 	maxObjects       int64
 	ignoreNotFound   bool
@@ -59,9 +59,9 @@ func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
 	return lister
 }
 
-// RequestorSelector adds filter listing by its requestor.
-func (lister *Lister) RequestorSelector(requestors []directpvtypes.LabelValue) *Lister {
-	lister.requestors = requestors
+// RequestIDSelector adds filter listing by its request IDs.
+func (lister *Lister) RequestIDSelector(requestIDs []directpvtypes.LabelValue) *Lister {
+	lister.requestIDs = requestIDs
 	return lister
 }
 
@@ -86,12 +86,12 @@ func (lister *Lister) IgnoreNotFound(b bool) *Lister {
 // List returns channel to loop through initrequest items.
 func (lister *Lister) List(ctx context.Context) <-chan ListInitRequestResult {
 	getOnly := len(lister.nodes) == 0 &&
-		len(lister.requestors) == 0 &&
+		len(lister.requestIDs) == 0 &&
 		len(lister.initRequestNames) != 0
 
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
 		directpvtypes.NodeLabelKey:      lister.nodes,
-		directpvtypes.RequestorLabelKey: lister.requestors,
+		directpvtypes.RequestIDLabelKey: lister.requestIDs,
 	}
 	labelSelector := directpvtypes.ToLabelSelector(labelMap)
 
@@ -182,13 +182,14 @@ func (lister *Lister) Get(ctx context.Context) ([]types.InitRequest, error) {
 type WatchEvent struct {
 	Type        watch.EventType
 	InitRequest *types.InitRequest
+	Err         error
 }
 
 // Watch looks for changes in InitRequestList and reports them.
 func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), error) {
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
 		directpvtypes.NodeLabelKey:      lister.nodes,
-		directpvtypes.RequestorLabelKey: lister.requestors,
+		directpvtypes.RequestIDLabelKey: lister.requestIDs,
 	}
 	initRequestWatchInterface, err := client.InitRequestClient().Watch(ctx, metav1.ListOptions{
 		LabelSelector: directpvtypes.ToLabelSelector(labelMap),
@@ -211,8 +212,11 @@ func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), err
 			var initRequest types.InitRequest
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &initRequest)
 			if err != nil {
-				klog.ErrorS(err, "unable to convert unstructured object %s", unstructured.GetName())
-				break
+				watchCh <- WatchEvent{
+					Type: result.Type,
+					Err:  fmt.Errorf("unable to convert unstructured object %s; %v", unstructured.GetName(), err),
+				}
+				continue
 			}
 			if len(lister.initRequestNames) > 0 && !utils.Contains(lister.initRequestNames, initRequest.Name) {
 				continue

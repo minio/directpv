@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"

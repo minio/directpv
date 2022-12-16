@@ -19,6 +19,7 @@ package node
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -28,10 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/klog/v2"
 )
-
-var errUnsupportedSelector = errors.New("unsupported selector")
 
 // ListNodeResult denotes list of node result.
 type ListNodeResult struct {
@@ -175,12 +173,13 @@ func (lister *Lister) Get(ctx context.Context) ([]types.Node, error) {
 type WatchEvent struct {
 	Type watch.EventType
 	Node *types.Node
+	Err  error
 }
 
 // Watch looks for changes in NodeList and reports them.
 func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), error) {
 	if len(lister.nodeNames) > 0 {
-		return nil, nil, errUnsupportedSelector
+		return nil, nil, errors.New("unsupported selector")
 	}
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
 		directpvtypes.NodeLabelKey: lister.nodes,
@@ -206,8 +205,11 @@ func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), err
 			var node types.Node
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &node)
 			if err != nil {
-				klog.ErrorS(err, "unable to convert unstructured object %s", unstructured.GetName())
-				break
+				watchCh <- WatchEvent{
+					Type: result.Type,
+					Err:  fmt.Errorf("unable to convert unstructured object %s; %v", unstructured.GetName(), err),
+				}
+				continue
 			}
 			watchCh <- WatchEvent{
 				Type: result.Type,

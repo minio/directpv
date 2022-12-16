@@ -38,11 +38,10 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-var nodeListTimeout = 2 * time.Minute
-
 var (
 	outputFile         = "drives.yaml"
 	errDiscoveryFailed = errors.New("unable to discover the devices")
+	nodeListTimeout    = 2 * time.Minute
 )
 
 var discoverCmd = &cobra.Command{
@@ -229,6 +228,10 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[direc
 			if !ok {
 				return
 			}
+			if event.Err != nil {
+				err = event.Err
+				return
+			}
 			switch event.Type {
 			case watch.Modified:
 				node := event.Node
@@ -243,7 +246,7 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[direc
 			default:
 			}
 		case <-ctx.Done():
-			utils.Eprintf(quietFlag, true, "unable to discover devices; %v", ctx.Err())
+			err = fmt.Errorf("unable to discover devices; %v", ctx.Err())
 			return
 		}
 	}

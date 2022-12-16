@@ -60,7 +60,7 @@ func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
 	return securityContext
 }
 
-func getVolumesAndMounts(pluginSocketDir string, legacy bool) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func getVolumesAndMounts(pluginSocketDir string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	volumes = []corev1.Volume{
 		newHostPathVolume(volumeNameSocketDir, pluginSocketDir),
 		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
@@ -70,6 +70,7 @@ func getVolumesAndMounts(pluginSocketDir string, legacy bool) (volumes []corev1.
 		newHostPathVolume(volumeNameSysDir, volumePathSysDir),
 		newHostPathVolume(volumeNameDevDir, volumePathDevDir),
 		newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData),
+		newHostPathVolume(volumeNameLegacyAppRootDir, legacyAppRootDir),
 	}
 	volumeMounts = []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
@@ -79,17 +80,7 @@ func getVolumesAndMounts(pluginSocketDir string, legacy bool) (volumes []corev1.
 		newVolumeMount(volumeNameSysDir, volumePathSysDir, corev1.MountPropagationBidirectional, true),
 		newVolumeMount(volumeNameDevDir, volumePathDevDir, corev1.MountPropagationHostToContainer, true),
 		newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, corev1.MountPropagationBidirectional, true),
-	}
-
-	if legacy {
-		volumes = append(
-			volumes,
-			newHostPathVolume(volumeNameLegacyAppRootDir, legacyAppRootDir),
-		)
-		volumeMounts = append(
-			volumeMounts,
-			newVolumeMount(volumeNameLegacyAppRootDir, legacyAppRootDir, corev1.MountPropagationBidirectional, false),
-		)
+		newVolumeMount(volumeNameLegacyAppRootDir, legacyAppRootDir, corev1.MountPropagationBidirectional, false),
 	}
 
 	return
@@ -214,7 +205,7 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 func doCreateDaemonset(ctx context.Context, args *Args) error {
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, consts.Identity)
-	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir, false)
+	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
 	containerArgs := []string{
 		consts.NodeServerName,
 		fmt.Sprintf("-v=%d", logLevel),
@@ -270,7 +261,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 func doCreateLegacyDaemonset(ctx context.Context, args *Args) error {
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, legacyclient.Identity)
-	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir, true)
+	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
 	containerArgs := []string{
 		consts.LegacyNodeServerName,
 		fmt.Sprintf("-v=%d", logLevel),

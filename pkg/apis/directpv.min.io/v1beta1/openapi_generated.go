@@ -255,7 +255,7 @@ func schema_pkg_apis_directpvminio_v1beta1_DirectPVInitRequest(ref common.Refere
 						},
 					},
 				},
-				Required: []string{"metadata", "status"},
+				Required: []string{"metadata", "spec", "status"},
 			},
 		},
 		Dependencies: []string{
