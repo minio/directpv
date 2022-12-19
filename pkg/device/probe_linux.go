@@ -48,7 +48,7 @@ func newDevice(
 		MountPoints: mountPoints,
 		CDROM:       cdroms.Exist(name),
 		SwapOn:      swaps.Exist(utils.AddDevPrefix(name)),
-		UDevData:    udevData,
+		udevData:    udevData,
 	}
 
 	if device.Size, err = getSize(name); err != nil {

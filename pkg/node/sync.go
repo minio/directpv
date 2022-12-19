@@ -18,80 +18,15 @@ package node
 
 import (
 	"context"
-	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/types"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
-
-const minSupportedDeviceSize = 512 * 1024 * 1024 // 512 MiB
-
-func newDevice(dev device.Device, nodeID directpvtypes.NodeID) types.Device {
-	var reasons []string
-
-	if dev.Size < minSupportedDeviceSize {
-		reasons = append(reasons, "Too small")
-	}
-
-	if dev.Hidden {
-		reasons = append(reasons, "Hidden")
-	}
-
-	if dev.ReadOnly {
-		reasons = append(reasons, "Read only")
-	}
-
-	if dev.Partitioned {
-		reasons = append(reasons, "Partitioned")
-	}
-
-	if len(dev.Holders) != 0 {
-		reasons = append(reasons, "Held by other device")
-	}
-
-	if len(dev.MountPoints) != 0 {
-		reasons = append(reasons, "Mounted")
-	}
-
-	if dev.SwapOn {
-		reasons = append(reasons, "Swap")
-	}
-
-	if dev.CDROM {
-		reasons = append(reasons, "CDROM")
-	}
-
-	if dev.UDevData["ID_FS_TYPE"] == "xfs" && dev.UDevData["ID_FS_UUID"] != "" {
-		if _, err := client.DriveClient().Get(context.Background(), dev.UDevData["ID_FS_UUID"], metav1.GetOptions{}); err != nil {
-			if !apierrors.IsNotFound(err) {
-				reasons = append(reasons, "internal error; "+err.Error())
-			}
-		} else {
-			reasons = append(reasons, "Used by "+consts.AppPrettyName)
-		}
-	}
-
-	var deniedReason string
-	if len(reasons) != 0 {
-		deniedReason = strings.Join(reasons, "; ")
-	}
-	return types.Device{
-		Name:         dev.Name,
-		ID:           dev.ID(nodeID),
-		MajorMinor:   dev.MajorMinor,
-		Size:         dev.Size,
-		Make:         dev.Make(),
-		FSType:       dev.FSType(),
-		FSUUID:       dev.FSUUID(),
-		DeniedReason: deniedReason,
-	}
-}
 
 func probeDevices(nodeID directpvtypes.NodeID) ([]types.Device, error) {
 	devices, err := device.Probe()
@@ -100,7 +35,7 @@ func probeDevices(nodeID directpvtypes.NodeID) ([]types.Device, error) {
 	}
 	var nodeDevices []types.Device
 	for i := range devices {
-		nodeDevices = append(nodeDevices, newDevice(devices[i], nodeID))
+		nodeDevices = append(nodeDevices, devices[i].ToNodeDevice(nodeID))
 	}
 	return nodeDevices, nil
 }

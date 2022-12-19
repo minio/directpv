@@ -44,12 +44,6 @@ func parseUdevData(r io.Reader) (map[string]string, error) {
 			return nil, err
 		}
 
-		if !strings.HasPrefix(s, "E:") {
-			continue
-		}
-
-		s = s[2:]
-
 		switch tokens := strings.SplitN(s, "=", 2); len(tokens) {
 		case 1:
 			properties[tokens[0]] = ""
