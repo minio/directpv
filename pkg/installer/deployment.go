@@ -126,7 +126,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
-			Namespace:   consts.Identity,
+			Namespace:   namespace,
 			Annotations: map[string]string{},
 			Labels:      defaultLabels,
 			Finalizers:  []string{deploymentFinalizer},
@@ -137,7 +137,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
-					Namespace: consts.Identity,
+					Namespace: namespace,
 					Annotations: map[string]string{
 						createdByLabel: pluginName,
 					},
@@ -156,7 +156,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().AppsV1().Deployments(consts.Identity).Create(
+	_, err := k8s.KubeClient().AppsV1().Deployments(namespace).Create(
 		ctx, deployment, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -197,7 +197,7 @@ func removeFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
 }
 
 func doDeleteDeployment(ctx context.Context, name string) error {
-	deploymentClient := k8s.KubeClient().AppsV1().Deployments(consts.Identity)
+	deploymentClient := k8s.KubeClient().AppsV1().Deployments(namespace)
 
 	deployment, err := deploymentClient.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -231,7 +231,7 @@ func createAdminService(ctx context.Context, args *Args) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "admin-service",
-			Namespace:   consts.Identity,
+			Namespace:   namespace,
 			Annotations: map[string]string{},
 			Labels:      defaultLabels,
 		},
@@ -254,7 +254,7 @@ func createAdminService(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().CoreV1().Services(consts.Identity).Create(ctx, service, metav1.CreateOptions{})
+	_, err := k8s.KubeClient().CoreV1().Services(namespace).Create(ctx, service, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			err = nil
@@ -351,7 +351,7 @@ func createAdminServerDeployment(ctx context.Context, args *Args) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        consts.AdminServerName,
-			Namespace:   consts.Identity,
+			Namespace:   namespace,
 			Annotations: map[string]string{},
 			Labels:      defaultLabels,
 			Finalizers:  []string{deploymentFinalizer},
@@ -362,7 +362,7 @@ func createAdminServerDeployment(ctx context.Context, args *Args) error {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      consts.AdminServerName,
-					Namespace: consts.Identity,
+					Namespace: namespace,
 					Annotations: map[string]string{
 						createdByLabel: pluginName,
 					},
@@ -378,7 +378,7 @@ func createAdminServerDeployment(ctx context.Context, args *Args) error {
 	}
 
 	if !args.DryRun {
-		_, err := k8s.KubeClient().AppsV1().Deployments(consts.Identity).Get(
+		_, err := k8s.KubeClient().AppsV1().Deployments(namespace).Get(
 			ctx, consts.AdminServerName, metav1.GetOptions{},
 		)
 		if err != nil {
@@ -386,7 +386,7 @@ func createAdminServerDeployment(ctx context.Context, args *Args) error {
 				return err
 			}
 
-			_, err = k8s.KubeClient().AppsV1().Deployments(consts.Identity).Create(
+			_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
 				ctx, deployment, metav1.CreateOptions{},
 			)
 			if err != nil {
@@ -419,7 +419,7 @@ func deleteAdminServerDeployment(ctx context.Context) error {
 		return err
 	}
 
-	err := k8s.KubeClient().CoreV1().Services(consts.Identity).Delete(ctx, "admin-service", metav1.DeleteOptions{})
+	err := k8s.KubeClient().CoreV1().Services(namespace).Delete(ctx, "admin-service", metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}

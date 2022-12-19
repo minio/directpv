@@ -1,3 +1,16 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: minio
+  labels:
+    app: minio
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: minio
+      port: 9000
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -37,7 +50,7 @@ spec:
           mountPath: /data4
         args:
         - "server"
-        - "http://minio-{0...3}.minio.default.svc:9000/data{1...4}"
+        - "http://minio-{0...3}.minio.default.svc.cluster.local:9000/data{1...4}"
   volumeClaimTemplates: # This is the specification in which you reference the StorageClass
   - metadata:
       name: minio-data-1

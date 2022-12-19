@@ -22,6 +22,7 @@ const (
 	// UnixCSIEndpoint is csi drive control socket.
 	UnixCSIEndpoint = "unix:///csi/csi.sock"
 
+	namespace                = consts.AppName
 	caCertFileName           = "ca.crt"
 	healthZContainerPortName = "healthz"
 	healthZContainerPort     = 9898

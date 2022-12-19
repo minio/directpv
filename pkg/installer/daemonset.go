@@ -213,7 +213,7 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
-			Namespace:   consts.Identity,
+			Namespace:   namespace,
 			Annotations: map[string]string{},
 			Labels:      defaultLabels,
 		},
@@ -222,7 +222,7 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        name,
-					Namespace:   consts.Identity,
+					Namespace:   namespace,
 					Annotations: annotations,
 					Labels: map[string]string{
 						selectorKey:     selectorValue,
@@ -314,7 +314,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Create(
+	_, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
 		ctx, daemonset, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -362,7 +362,7 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Create(
+	_, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
 		ctx, daemonset, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -389,7 +389,7 @@ func createDaemonset(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Get(
+	_, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
 		ctx, consts.NodeServerName, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -405,7 +405,7 @@ func createDaemonset(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Get(
+	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
 		ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -421,36 +421,36 @@ func createDaemonset(ctx context.Context, args *Args) error {
 }
 
 func deleteDaemonset(ctx context.Context) error {
-	err := k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Delete(
+	err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Delete(
 		ctx, consts.NodeServerName, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().CoreV1().Secrets(consts.Identity).Delete(ctx, nodeAPIServerCertsSecretName, metav1.DeleteOptions{})
+	err = k8s.KubeClient().CoreV1().Secrets(namespace).Delete(ctx, nodeAPIServerCertsSecretName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().CoreV1().Secrets(consts.Identity).Delete(ctx, nodeAPIServerCASecretName, metav1.DeleteOptions{})
+	err = k8s.KubeClient().CoreV1().Secrets(namespace).Delete(ctx, nodeAPIServerCASecretName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().AppsV1().DaemonSets(consts.Identity).Delete(
+	err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Delete(
 		ctx, consts.LegacyNodeServerName, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().CoreV1().Secrets(consts.Identity).Delete(ctx, legacyNodeAPIServerCertsSecretName, metav1.DeleteOptions{})
+	err = k8s.KubeClient().CoreV1().Secrets(namespace).Delete(ctx, legacyNodeAPIServerCertsSecretName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().CoreV1().Secrets(consts.Identity).Delete(ctx, legacyNodeAPIServerCASecretName, metav1.DeleteOptions{})
+	err = k8s.KubeClient().CoreV1().Secrets(namespace).Delete(ctx, legacyNodeAPIServerCASecretName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}

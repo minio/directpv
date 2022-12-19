@@ -35,9 +35,6 @@ const (
 	// Identity denotes identity value.
 	Identity = AppName + "-min-io"
 
-	// Namespace denotes the namespace where the app is installed
-	Namespace = Identity
-
 	// StorageClassName denotes storage class name.
 	StorageClassName = Identity
 

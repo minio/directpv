@@ -330,7 +330,7 @@ func newRPCServer() *rpcServer {
 }
 
 func (server *rpcServer) getNodeClients() (map[string]*nodeClient, error) {
-	endpoints, err := k8s.KubeClient().CoreV1().Endpoints(consts.Namespace).Get(context.Background(), consts.NodeAPIServerHLSVC, metav1.GetOptions{})
+	endpoints, err := k8s.KubeClient().CoreV1().Endpoints(consts.AppName).Get(context.Background(), consts.NodeAPIServerHLSVC, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

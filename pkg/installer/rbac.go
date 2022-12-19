@@ -47,7 +47,7 @@ func createServiceAccount(ctx context.Context, args *Args) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        consts.Identity,
-			Namespace:   consts.Identity,
+			Namespace:   namespace,
 			Annotations: map[string]string{},
 			Labels:      defaultLabels,
 		},
@@ -61,7 +61,7 @@ func createServiceAccount(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().CoreV1().ServiceAccounts(consts.Identity).Create(
+	_, err := k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Create(
 		ctx, serviceAccount, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -93,7 +93,7 @@ func createClusterRoleBinding(ctx context.Context, args *Args) error {
 			{
 				Kind:      "ServiceAccount",
 				Name:      consts.Identity,
-				Namespace: consts.Identity,
+				Namespace: namespace,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -389,7 +389,7 @@ func createRBAC(ctx context.Context, args *Args) error {
 }
 
 func deleteRBAC(ctx context.Context) error {
-	err := k8s.KubeClient().CoreV1().ServiceAccounts(consts.Identity).Delete(
+	err := k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Delete(
 		ctx, consts.Identity, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {

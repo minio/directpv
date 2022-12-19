@@ -40,7 +40,7 @@ func createNodeAPIService(ctx context.Context, args *Args) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        consts.NodeAPIServerHLSVC,
-			Namespace:   consts.Identity,
+			Namespace:   namespace,
 			Annotations: map[string]string{},
 			Labels:      defaultLabels,
 		},
@@ -59,7 +59,7 @@ func createNodeAPIService(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().CoreV1().Services(consts.Identity).Create(
+	_, err := k8s.KubeClient().CoreV1().Services(namespace).Create(
 		ctx, service, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -74,7 +74,7 @@ func createNodeAPIService(ctx context.Context, args *Args) error {
 }
 
 func deleteNodeAPIService(ctx context.Context) error {
-	err := k8s.KubeClient().CoreV1().Services(consts.Identity).Delete(
+	err := k8s.KubeClient().CoreV1().Services(namespace).Delete(
 		ctx, consts.NodeAPIServerHLSVC, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
