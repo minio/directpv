@@ -20,22 +20,14 @@ set -ex
 
 source "${SCRIPT_DIR}/common.sh"
 
-function test_build() {
-    export DIRECTPV_CLIENT=./kubectl-directpv
-    install_directpv 4
-    add_drives
-    deploy_minio functests/minio.yaml
-    uninstall_minio functests/minio.yaml
-    remove_drives
-    uninstall_directpv 4
-}
-
-echo "$ME: Setup environment"
 setup_lvm
 setup_luks
-
-echo "$ME: ================================= Run build test ================================="
-test_build
-
+export DIRECTPV_CLIENT=./kubectl-directpv
+install_directpv 4
+add_drives
+deploy_minio functests/minio.yaml
+uninstall_minio functests/minio.yaml
+remove_drives
+uninstall_directpv 4
 remove_luks
 remove_lvm

@@ -150,7 +150,7 @@ func removeMain(ctx context.Context) {
 				if err != nil {
 					failed = true
 					utils.Eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
-				} else {
+				} else if !quietFlag {
 					fmt.Printf("Removing %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 				}
 			}
