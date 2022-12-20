@@ -28,7 +28,19 @@ import (
 	podsecurityadmissionapi "k8s.io/pod-security-admission/api"
 )
 
-func createNamespace(ctx context.Context, args *Args) error {
+func namespaceTask(done bool) *Task {
+	return newTask(1, 1, done)
+}
+
+func createNamespace(ctx context.Context, args *Args) (err error) {
+	sendProgressEvent(args.Progress, fmt.Sprintf("Creating '%s' namespace", namespace), nil)
+	defer func() {
+		if err == nil {
+			installedComponents = append(installedComponents, namespaceComponent(namespace))
+			sendProgressEvent(args.Progress, fmt.Sprintf("Created '%s' namespace", namespace), namespaceTask(true))
+		}
+	}()
+
 	annotations := map[string]string{}
 	if args.podSecurityAdmission {
 		// Policy violations will cause the pods to be rejected
@@ -54,7 +66,7 @@ func createNamespace(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+	_, err = k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			err = nil

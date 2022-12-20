@@ -45,11 +45,21 @@ const (
 	legacyDrivePathLabelKey  = legacyclient.GroupName + "/drive-path"
 	legacyPVProtection       = legacyclient.GroupName + "/pv-protection"
 	legacyPurgeProtection    = legacyclient.GroupName + "/purge-protection"
+	totalMigrateSteps        = 2
 )
+
+var migrateStepsCompleted int
+
+func migrateTask(done bool) *Task {
+	if !done {
+		migrateStepsCompleted++
+	}
+	return newTask(totalMigrateSteps, migrateStepsCompleted, done)
+}
 
 var uuidRegex = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
-func migrateDrives(ctx context.Context, dryRun bool) (driveMap map[string]string, legacyDriveErrors map[string]error, driveErrors map[string]error, err error) {
+func migrateDrives(ctx context.Context, dryRun bool, progress *Progress) (driveMap map[string]string, legacyDriveErrors map[string]error, driveErrors map[string]error, err error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -160,6 +170,7 @@ func migrateDrives(ctx context.Context, dryRun bool) (driveMap map[string]string
 			switch {
 			case apierrors.IsNotFound(err):
 				if !dryRun {
+					sendProgressEvent(progress, fmt.Sprintf("Migrating directcsidrive %s to directpvdrive %s", result.Drive.Name, drive.Name), nil)
 					_, err = client.DriveClient().Create(ctx, drive, metav1.CreateOptions{})
 					if err != nil {
 						legacyDriveErrors[result.Drive.Name] = fmt.Errorf(
@@ -192,7 +203,7 @@ func migrateDrives(ctx context.Context, dryRun bool) (driveMap map[string]string
 	return driveMap, legacyDriveErrors, driveErrors, nil
 }
 
-func migrateVolumes(ctx context.Context, driveMap map[string]string, dryRun bool) (legacyVolumeErrors map[string]error, volumeErrors map[string]error, err error) {
+func migrateVolumes(ctx context.Context, driveMap map[string]string, dryRun bool, progress *Progress) (legacyVolumeErrors map[string]error, volumeErrors map[string]error, err error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -274,6 +285,7 @@ func migrateVolumes(ctx context.Context, driveMap map[string]string, dryRun bool
 			switch {
 			case apierrors.IsNotFound(err):
 				if !dryRun {
+					sendProgressEvent(progress, fmt.Sprintf("Migrating directcsivolume %s to directpvvolume %s", result.Volume.Name, volume.Name), nil)
 					_, err = client.VolumeClient().Create(ctx, volume, metav1.CreateOptions{})
 					if err != nil {
 						legacyVolumeErrors[result.Volume.Name] = fmt.Errorf(
@@ -304,7 +316,13 @@ func migrateVolumes(ctx context.Context, driveMap map[string]string, dryRun bool
 }
 
 // Migrate migrates legacy drives and volumes.
-func Migrate(ctx context.Context, dryRun bool) error {
+func Migrate(ctx context.Context, args *MigrateArgs) (err error) {
+	sendProgressEvent(args.Progress, "Migrating legacy drives and volumes", nil)
+	defer func() {
+		if err == nil {
+			sendProgressEvent(args.Progress, "Migrated legacy drives and volumes", migrateTask(true))
+		}
+	}()
 	legacyclient.Init()
 
 	version, _, err := legacyclient.GetGroupVersion("DirectCSIDrive")
@@ -329,30 +347,40 @@ func Migrate(ctx context.Context, dryRun bool) error {
 		return fmt.Errorf("migration does not support DirectCSIVolume version %v", version)
 	}
 
-	driveMap, legacyDriveErrors, driveErrors, err := migrateDrives(ctx, dryRun)
+	driveMap, legacyDriveErrors, driveErrors, err := migrateDrives(ctx, args.DryRun, args.Progress)
 	if err != nil {
 		return err
 	}
+	sendProgressEvent(args.Progress, "Migrated the drives", crdTask(false))
 
-	legacyVolumeErrors, volumeErrors, err := migrateVolumes(ctx, driveMap, dryRun)
+	legacyVolumeErrors, volumeErrors, err := migrateVolumes(ctx, driveMap, args.DryRun, args.Progress)
 	if err != nil {
 		return err
 	}
+	sendProgressEvent(args.Progress, "Migrated the volumes", crdTask(false))
 
 	if len(legacyDriveErrors) != 0 {
-		fmt.Printf("legacy drive errors:\n%+v\n", legacyDriveErrors)
-	}
-
-	if len(driveErrors) != 0 {
-		fmt.Printf("drive errors:\n%+v\n", driveErrors)
+		if err := migrateLog(args, fmt.Sprintf("legacy drive errors:\n%+v\n", legacyDriveErrors), false); err != nil {
+			return err
+		}
 	}
 
 	if len(legacyVolumeErrors) != 0 {
-		fmt.Printf("legacy volume errors:\n%+v\n", legacyVolumeErrors)
+		if err := migrateLog(args, fmt.Sprintf("legacy volume errors:\n%+v\n", legacyVolumeErrors), false); err != nil {
+			return err
+		}
+	}
+
+	if len(driveErrors) != 0 {
+		if err := migrateLog(args, fmt.Sprintf("drive errors:\n%+v\n", driveErrors), true); err != nil {
+			return err
+		}
 	}
 
 	if len(volumeErrors) != 0 {
-		fmt.Printf("volume errors:\n%+v\n", volumeErrors)
+		if err := migrateLog(args, fmt.Sprintf("volume errors:\n%+v\n", volumeErrors), true); err != nil {
+			return err
+		}
 	}
 
 	return nil

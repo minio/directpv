@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
 	"github.com/minio/directpv/pkg/utils"
@@ -54,7 +56,27 @@ func init() {
 }
 
 func migrateMain(ctx context.Context) {
-	if err := installer.Migrate(ctx, dryRunFlag); err != nil {
+	auditFile := fmt.Sprintf("migrate.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
+	file, err := openAuditFile(auditFile)
+	if err != nil {
+		utils.Eprintf(quietFlag, true, "unable to open audit file %v; %v\n", auditFile, err)
+		utils.Eprintf(false, false, "%v\n", color.HiYellowString("Skipping audit logging"))
+	}
+
+	defer func() {
+		if file != nil {
+			if err := file.Close(); err != nil {
+				utils.Eprintf(quietFlag, true, "unable to close audit file; %v\n", err)
+			}
+		}
+	}()
+
+	if err := installer.Migrate(ctx, &installer.MigrateArgs{
+		DryRun:      dryRunFlag,
+		AuditWriter: file,
+		Quiet:       quietFlag,
+		Progress:    nil,
+	}); err != nil {
 		utils.Eprintf(quietFlag, true, "migration failed; %v", err)
 		os.Exit(1)
 	}

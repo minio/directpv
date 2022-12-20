@@ -31,17 +31,36 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	totalCSIDriverSteps = 4
+)
+
+var csiDriverStepsCompleted int
+
+func csiDriverTask(done bool) *Task {
+	if !done {
+		csiDriverStepsCompleted++
+	}
+	return newTask(totalCSIDriverSteps, csiDriverStepsCompleted, done)
+}
+
 var errCSIDriverVersionUnsupported = errors.New("unsupported CSIDriver version found")
 
-func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy bool) error {
-	podInfoOnMount := true
-	attachRequired := false
-
+func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy bool) (err error) {
 	name := consts.Identity
 	if legacy {
 		name = legacyclient.Identity
 	}
+	sendProgressEvent(args.Progress, fmt.Sprintf("Creating %s CSI Driver", name), nil)
+	defer func() {
+		if err == nil {
+			installedComponents = append(installedComponents, csiDriverComponent(name))
+			sendProgressEvent(args.Progress, fmt.Sprintf("Created %s CSI Driver", name), csiDriverTask(false))
+		}
+	}()
 
+	podInfoOnMount := true
+	attachRequired := false
 	switch version {
 	case "v1":
 		csiDriver := &storagev1.CSIDriver{
@@ -124,7 +143,13 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 	}
 }
 
-func createCSIDriver(ctx context.Context, args *Args) error {
+func createCSIDriver(ctx context.Context, args *Args) (err error) {
+	sendProgressEvent(args.Progress, "Creating CSI Driver", nil)
+	defer func() {
+		if err == nil {
+			sendProgressEvent(args.Progress, "Created CSI Driver", csiDriverTask(true))
+		}
+	}()
 	version := "v1"
 	if args.DryRun {
 		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 19 {
@@ -143,7 +168,9 @@ func createCSIDriver(ctx context.Context, args *Args) error {
 	}
 
 	if args.Legacy {
-		return doCreateCSIDriver(ctx, args, version, true)
+		if err := doCreateCSIDriver(ctx, args, version, true); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -22,6 +22,7 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	// support gcp, azure, and oidc client auth
@@ -42,6 +43,7 @@ func Init() {
 		klog.Fatalf("unable to get kubernetes configuration; %v", err)
 	}
 
+	kubeConfig.WarningHandler = rest.NoWarnings{}
 	if kubeClient, err = kubernetes.NewForConfig(kubeConfig); err != nil {
 		klog.Fatalf("unable to create new kubernetes client interface; %v", err)
 	}

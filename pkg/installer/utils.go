@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"fmt"
+	"io"
 	"path"
 	"strings"
 
@@ -71,4 +72,125 @@ func getRandSuffix() string {
 		klog.Fatalf("unable to generate random bytes; %v", err)
 	}
 	return strings.ToLower(base32.StdEncoding.EncodeToString(b)[:5])
+}
+
+func notifyError(progress *Progress, err error) {
+	if progress == nil {
+		return
+	}
+	progress.EventCh <- Event{
+		Err: err,
+	}
+}
+
+func sendProgressEvent(progress *Progress, message string, task *Task) {
+	if progress == nil {
+		return
+	}
+	progress.EventCh <- Event{
+		Task:    task,
+		Message: message,
+	}
+}
+
+func sendProgressEventLog(progress *Progress, message string, task *Task) {
+	if progress == nil {
+		return
+	}
+	progress.EventCh <- Event{
+		Task:    task,
+		Message: message,
+		Persist: true,
+	}
+}
+
+func namespaceComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "Namespace",
+	}
+}
+
+func serviceAccountComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "ServiceAccount",
+	}
+}
+
+func clusterRoleBindingComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "ClusterRoleBinding",
+	}
+}
+
+func clusterRoleComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "ClusterRole",
+	}
+}
+
+func podSecurityPolicyComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "PodSecurityPolicy",
+	}
+}
+
+func crdComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "CustomResourceDefinition",
+	}
+}
+
+func csiDriverComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "CSIDriver",
+	}
+}
+
+func storageClassComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "StorageClass",
+	}
+}
+
+func daemonsetComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "Daemonset",
+	}
+}
+
+func deploymentComponent(name string) Component {
+	return Component{
+		Name: name,
+		Kind: "Deployment",
+	}
+}
+
+func migrateLog(args *MigrateArgs, errMsg string, showInProgress bool) error {
+	switch {
+	case args.Progress != nil:
+		if showInProgress {
+			sendProgressEventLog(args.Progress, errMsg, nil)
+		}
+	case !args.Quiet && !args.DryRun:
+		klog.Error(errMsg)
+	}
+	return writeToAuditFile(args.AuditWriter, errMsg)
+}
+
+func writeToAuditFile(writer io.Writer, message string) error {
+	if writer == nil {
+		return nil
+	}
+	log := fmt.Sprintf("\n%s\n---\n", message)
+	_, err := io.WriteString(writer, log)
+	return err
 }

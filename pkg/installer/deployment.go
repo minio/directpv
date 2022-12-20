@@ -36,15 +36,32 @@ const (
 	adminServerCASecretName    = "adminservercacert"
 	adminServerSelectorValue   = "admin-server"
 	nodeAPIServerCADir         = "node-api-server-ca"
+	totalDeploymentSteps       = 2
 )
 
-func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
+var deploymentStepsCompleted int
+
+func deploymentTask(done bool) *Task {
+	if !done {
+		deploymentStepsCompleted++
+	}
+	return newTask(totalDeploymentSteps, deploymentStepsCompleted, done)
+}
+
+func doCreateDeployment(ctx context.Context, args *Args, legacy bool) (err error) {
 	name := consts.ControllerServerName
 	containerArgs := []string{name, fmt.Sprintf("--identity=%s", consts.Identity)}
 	if legacy {
 		name = consts.LegacyControllerServerName
 		containerArgs = []string{name}
 	}
+	sendProgressEvent(args.Progress, fmt.Sprintf("Creating %s Deployment", name), nil)
+	defer func() {
+		if err == nil {
+			installedComponents = append(installedComponents, deploymentComponent(name))
+			sendProgressEvent(args.Progress, fmt.Sprintf("Created %s Deployment", name), deploymentTask(false))
+		}
+	}()
 	containerArgs = append(
 		containerArgs,
 		[]string{
@@ -156,7 +173,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().AppsV1().Deployments(namespace).Create(
+	_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
 		ctx, deployment, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -170,13 +187,21 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
 	return err
 }
 
-func createDeployment(ctx context.Context, args *Args) error {
+func createDeployment(ctx context.Context, args *Args) (err error) {
+	sendProgressEvent(args.Progress, "Creating Deployment", nil)
+	defer func() {
+		if err == nil {
+			sendProgressEvent(args.Progress, "Created Deployment", deploymentTask(true))
+		}
+	}()
 	if err := doCreateDeployment(ctx, args, false); err != nil {
 		return err
 	}
 
 	if args.Legacy {
-		return doCreateDeployment(ctx, args, true)
+		if err := doCreateDeployment(ctx, args, true); err != nil {
+			return err
+		}
 	}
 
 	return nil

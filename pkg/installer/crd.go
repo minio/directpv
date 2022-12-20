@@ -38,6 +38,19 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	totalCRDSteps = 4
+)
+
+var crdStepsCompleted int
+
+func crdTask(done bool) *Task {
+	if !done {
+		crdStepsCompleted++
+	}
+	return newTask(totalCRDSteps, crdStepsCompleted, done)
+}
+
 //go:embed directpv.min.io_directpvdrives.yaml
 var drivesYAML []byte
 
@@ -122,7 +135,13 @@ func updateCRD(
 	return k8s.CRDClient().Update(ctx, existingCRD, metav1.UpdateOptions{})
 }
 
-func createCRDs(ctx context.Context, args *Args) error {
+func createCRDs(ctx context.Context, args *Args) (err error) {
+	sendProgressEvent(args.Progress, "Registering CRDs", nil)
+	defer func() {
+		if err == nil {
+			sendProgressEvent(args.Progress, "Successfully registered CRDs", crdTask(true))
+		}
+	}()
 	register := func(data []byte) error {
 		object := map[string]interface{}{}
 		if err := yaml.Unmarshal(data, &object); err != nil {
@@ -153,20 +172,25 @@ func createCRDs(ctx context.Context, args *Args) error {
 			}
 
 			setNoneConversionStrategy(&crd)
-
+			sendProgressEvent(args.Progress, fmt.Sprintf("Registering %s CRD", crd.Name), nil)
 			_, err := k8s.CRDClient().Create(ctx, &crd, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
+			installedComponents = append(installedComponents, crdComponent(crd.Name))
+			sendProgressEvent(args.Progress, fmt.Sprintf("Registered %s CRD", crd.Name), crdTask(false))
 
 			_, err = io.WriteString(args.auditWriter, mustGetYAML(crd))
 			return err
 		}
 
+		sendProgressEvent(args.Progress, fmt.Sprintf("Updating %s CRD", crd.Name), nil)
 		updatedCRD, err := updateCRD(ctx, existingCRD, &crd)
 		if err != nil {
 			return err
 		}
+		installedComponents = append(installedComponents, crdComponent(crd.Name))
+		sendProgressEvent(args.Progress, fmt.Sprintf("Updated %s CRD", crd.Name), crdTask(false))
 
 		_, err = io.WriteString(args.auditWriter, mustGetYAML(updatedCRD))
 		return err

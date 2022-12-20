@@ -57,7 +57,7 @@ const (
 
 	// InitRequestKind denotes the InitRequest CRD kind.
 	InitRequestKind = AppPrettyName + "InitRequest"
-	
+
 	// DriveResource is drive CRD resource.
 	DriveResource = AppName + "drives"
 
@@ -69,7 +69,7 @@ const (
 
 	// InitRequestResource is initrequest CRD resource.
 	InitRequestResource = AppName + "initrequests"
-	
+
 	// AppRootDir is application root directory.
 	AppRootDir = "/var/lib/" + AppName
 

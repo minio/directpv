@@ -33,13 +33,33 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	totalStorageClassSteps = 4
+)
+
+var storageClassStepsCompleted int
+
+func storageClassTask(done bool) *Task {
+	if !done {
+		storageClassStepsCompleted++
+	}
+	return newTask(totalStorageClassSteps, storageClassStepsCompleted, done)
+}
+
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
 
-func doCreateStorageClass(ctx context.Context, args *Args, version string, legacy bool) error {
+func doCreateStorageClass(ctx context.Context, args *Args, version string, legacy bool) (err error) {
 	name := consts.Identity
 	if legacy {
 		name = legacyclient.Identity
 	}
+	sendProgressEvent(args.Progress, fmt.Sprintf("Creating %s Storage Class", name), nil)
+	defer func() {
+		if err == nil {
+			installedComponents = append(installedComponents, storageClassComponent(name))
+			sendProgressEvent(args.Progress, fmt.Sprintf("Created %s Storage Class", name), storageClassTask(false))
+		}
+	}()
 
 	allowExpansion := false
 	allowTopologiesWithName := corev1.TopologySelectorTerm{
@@ -136,7 +156,13 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 	}
 }
 
-func createStorageClass(ctx context.Context, args *Args) error {
+func createStorageClass(ctx context.Context, args *Args) (err error) {
+	sendProgressEvent(args.Progress, "Creating Storage Class", nil)
+	defer func() {
+		if err == nil {
+			sendProgressEvent(args.Progress, "Created Storage Class", storageClassTask(true))
+		}
+	}()
 	version := "v1"
 	switch {
 	case args.DryRun:
@@ -156,7 +182,9 @@ func createStorageClass(ctx context.Context, args *Args) error {
 	}
 
 	if args.Legacy {
-		return doCreateStorageClass(ctx, args, version, true)
+		if err := doCreateStorageClass(ctx, args, version, true); err != nil {
+			return err
+		}
 	}
 
 	return nil

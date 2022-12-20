@@ -21,9 +21,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/charmbracelet/bubbles/progress"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
+	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
@@ -261,13 +265,102 @@ func installMain(ctx context.Context) {
 	args.Quiet = quietFlag
 	args.KubeVersion = kubeVersion
 	args.Legacy = legacyFlag
+	var failed bool
+	var wg sync.WaitGroup
+	if !dryRunFlag && !quietFlag {
+		args.Progress = installer.NewProgress()
+		defer args.Progress.Close()
 
-	if err = installer.Install(ctx, args); err != nil {
+		m := progressModel{
+			model: progress.New(progress.WithGradient("#FFFFFF", "#FFFFFF")),
+		}
+		teaProgram := tea.NewProgram(m)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := teaProgram.Run(); err != nil {
+				fmt.Println("error running program:", err)
+				os.Exit(1)
+			}
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer args.Progress.Close()
+			var completedTaskCount int
+			for {
+				select {
+				case progressEvent, ok := <-args.Progress.EventCh:
+					if !ok {
+						teaProgram.Send(progressNotification{
+							done: true,
+						})
+						return
+					}
+					switch {
+					case progressEvent.Err != nil:
+						failed = true
+						teaProgram.Send(progressNotification{
+							done: true,
+							err:  progressEvent.Err,
+						})
+					case progressEvent.Task != nil:
+						currentPercent := float64(completedTaskCount) / float64(args.Progress.TotalTasks)
+						if progressEvent.Task.Done {
+							completedTaskCount++
+							currentPercent = float64(completedTaskCount) / float64(args.Progress.TotalTasks)
+						} else {
+							currentPercent += progressEvent.Task.ProgressPercent()
+						}
+						teaProgram.Send(progressNotification{
+							message: progressEvent.Message,
+							percent: currentPercent,
+							persist: progressEvent.Persist,
+						})
+					default:
+						teaProgram.Send(progressNotification{
+							message: progressEvent.Message,
+							persist: progressEvent.Persist,
+						})
+					}
+				case <-ctx.Done():
+					fmt.Println("exiting installation; ", ctx.Err())
+					os.Exit(1)
+				}
+			}
+		}()
+	}
+	installedComponents, err := installer.Install(ctx, args)
+	if err != nil && args.Progress == nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
-
-	if !dryRunFlag && !quietFlag {
-		fmt.Println("Done")
+	if args.Progress != nil {
+		args.Progress.Close()
+		wg.Wait()
+		if !failed {
+			printTable(installedComponents)
+			color.HiGreen("\nDirectPV installed successfully")
+		}
 	}
+}
+
+func printTable(components []installer.Component) {
+	writer := newTableWriter(
+		table.Row{
+			"NAME",
+			"KIND",
+		},
+		nil,
+		false,
+	)
+
+	for _, component := range components {
+		row := []interface{}{
+			color.HiGreenString(component.Name),
+			component.Kind,
+		}
+		writer.AppendRow(row)
+	}
+	writer.Render()
 }

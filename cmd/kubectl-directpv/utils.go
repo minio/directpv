@@ -106,7 +106,7 @@ func newTableWriter(header table.Row, sortBy []table.SortBy, noHeader bool) tabl
 		writer.ResetHeaders()
 	}
 
-	style := table.StyleColoredDark
+	style := table.StyleLight
 	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	writer.SetStyle(style)
