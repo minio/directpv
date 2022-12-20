@@ -14,11 +14,6 @@ info() {
     echo "[INFO] " "$@"
 }
 
-# warn logs the given argument at warn log level.
-warn() {
-    echo "[WARN] " "$@" >&2
-}
-
 # fatal logs the given argument at fatal log level.
 fatal() {
     echo "[ERROR] " "$@" >&2
@@ -63,7 +58,7 @@ setup_tmp() {
         set +e
         trap - EXIT
         rm -rf "${TMP_DIR}"
-        exit $code
+        exit "$code"
     }
     trap cleanup INT EXIT
 }

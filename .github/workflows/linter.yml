@@ -21,12 +21,12 @@ jobs:
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@master
         env:
-          SHELLCHECK_OPTS: -e SC1091
+          SHELLCHECK_OPTS: -e SC1091 -e SC2317
 
-      - name: Set up Go 1.18.x
+      - name: Set up Go 1.19.x
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
         
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2
