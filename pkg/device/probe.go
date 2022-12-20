@@ -17,14 +17,22 @@
 package device
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"sort"
 	"strings"
 
-	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/types"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const minSupportedDeviceSize = 512 * 1024 * 1024 // 512 MiB
 
 // Device is a block device information.
 type Device struct {
@@ -40,11 +48,11 @@ type Device struct {
 	SwapOn      bool              `json:"swapOn"`      // Read from /proc/swaps
 	CDROM       bool              `json:"cdrom"`       // Read from /proc/sys/dev/cdrom/info
 	DMName      string            `json:"dmName"`      // Read from /sys/class/block/<NAME>/dm/name
-	UDevData    map[string]string `json:"udevData"`    // Read from /run/udev/data/b<Major:Minor>
+	udevData    map[string]string // Read from /run/udev/data/b<Major:Minor>
 }
 
-// ID generates a unique ID by hashing the properties of the Device.
-func (d *Device) ID(nodeID types.NodeID) string {
+// ID generates an unique ID by hashing the properties of the Device.
+func (d Device) ID(nodeID directpvtypes.NodeID) string {
 	sort.Strings(d.Holders)
 	sort.Strings(d.MountPoints)
 
@@ -62,7 +70,7 @@ func (d *Device) ID(nodeID types.NodeID) string {
 		"swapon":      fmt.Sprintf("%v", d.SwapOn),
 		"cdrom":       fmt.Sprintf("%v", d.CDROM),
 		"dmname":      d.DMName,
-		"udevdata":    strings.Join(toSlice(d.UDevData, "="), ";"),
+		"udevdata":    strings.Join(toSlice(d.udevData, "="), ";"),
 	}
 
 	stringToHash := strings.Join(toSlice(deviceMap, ":"), "\n")
@@ -78,15 +86,15 @@ func (d Device) Make() string {
 		tokens = append(tokens, d.DMName)
 	}
 
-	if d.UDevData["ID_VENDOR"] != "" {
-		tokens = append(tokens, d.UDevData["ID_VENDOR"])
+	if d.udevData["E:ID_VENDOR"] != "" {
+		tokens = append(tokens, d.udevData["E:ID_VENDOR"])
 	}
 
-	if d.UDevData["ID_MODEL"] != "" {
-		tokens = append(tokens, d.UDevData["ID_MODEL"])
+	if d.udevData["E:ID_MODEL"] != "" {
+		tokens = append(tokens, d.udevData["E:ID_MODEL"])
 	}
 
-	if number, found := d.UDevData["ID_PART_ENTRY_NUMBER"]; found {
+	if number, found := d.udevData["E:ID_PART_ENTRY_NUMBER"]; found {
 		tokens = append(tokens, fmt.Sprintf("(Part %v)", number))
 	}
 
@@ -95,7 +103,80 @@ func (d Device) Make() string {
 
 // FSType returns filesystem type.
 func (d Device) FSType() string {
-	return d.UDevData["ID_FS_TYPE"]
+	return d.udevData["E:ID_FS_TYPE"]
+}
+
+// FSUUID returns the filesystem UUID.
+func (d Device) FSUUID() string {
+	return d.udevData["E:ID_FS_UUID"]
+}
+
+// deniedReason returns the reason if the device is denied for initialization.
+func (d Device) deniedReason() string {
+	var reasons []string
+
+	if d.Size < minSupportedDeviceSize {
+		reasons = append(reasons, "Too small")
+	}
+
+	if d.Hidden {
+		reasons = append(reasons, "Hidden")
+	}
+
+	if d.ReadOnly {
+		reasons = append(reasons, "Read only")
+	}
+
+	if d.Partitioned {
+		reasons = append(reasons, "Partitioned")
+	}
+
+	if len(d.Holders) != 0 {
+		reasons = append(reasons, "Held by other device")
+	}
+
+	if len(d.MountPoints) != 0 {
+		reasons = append(reasons, "Mounted")
+	}
+
+	if d.SwapOn {
+		reasons = append(reasons, "Swap")
+	}
+
+	if d.CDROM {
+		reasons = append(reasons, "CDROM")
+	}
+
+	if d.FSType() == "xfs" && d.FSUUID() != "" {
+		if _, err := client.DriveClient().Get(context.Background(), d.FSUUID(), metav1.GetOptions{}); err != nil {
+			if !apierrors.IsNotFound(err) {
+				reasons = append(reasons, "internal error; "+err.Error())
+			}
+		} else {
+			reasons = append(reasons, "Used by "+consts.AppPrettyName)
+		}
+	}
+
+	var reason string
+	if len(reasons) != 0 {
+		reason = strings.Join(reasons, "; ")
+	}
+
+	return reason
+}
+
+// ToNodeDevice constructs the NodeDevice object from Device info.
+func (d Device) ToNodeDevice(nodeID directpvtypes.NodeID) types.Device {
+	return types.Device{
+		Name:         d.Name,
+		ID:           d.ID(nodeID),
+		MajorMinor:   d.MajorMinor,
+		Size:         d.Size,
+		Make:         d.Make(),
+		FSType:       d.FSType(),
+		FSUUID:       d.FSUUID(),
+		DeniedReason: d.deniedReason(),
+	}
 }
 
 // Probe returns block devices from udev.

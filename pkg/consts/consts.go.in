@@ -50,12 +50,24 @@ const (
 	// VolumeKind is volume CRD kind.
 	VolumeKind = AppPrettyName + "Volume"
 
+	// NodeKind is node CRD kind.
+	NodeKind = AppPrettyName + "Node"
+
+	// InitRequestKind denotes the InitRequest CRD kind.
+	InitRequestKind = AppPrettyName + "InitRequest"
+	
 	// DriveResource is drive CRD resource.
 	DriveResource = AppName + "drives"
 
 	// VolumeResource is volume CRD resource.
 	VolumeResource = AppName + "volumes"
 
+	// NodeResource is node CRD resource.
+	NodeResource = AppName + "nodes"
+
+	// InitRequestResource is initrequest CRD resource.
+	InitRequestResource = AppName + "initrequests"
+	
 	// AppRootDir is application root directory.
 	AppRootDir = "/var/lib/" + AppName
 
@@ -81,18 +93,8 @@ const (
 
 	NodeServerName       = "node-server"
 	ControllerServerName = "controller"
+	NodeControllerName   = "node-controller"
 
 	LegacyNodeServerName       = "legacy-node-server"
 	LegacyControllerServerName = "legacy-controller"
-
-	NodeAPIServerName      = "node-api-server"
-	NodeAPIPortName        = "node-api-port"
-	NodeAPIPort            = 50443
-	NodeAPIServerCertsPath = "/tmp/nodeapiserver/certs"
-	NodeAPIServerHLSVC     = NodeAPIServerName + "-hl"
-
-	AdminServerName      = "admin-server"
-	AdminServerPortName  = "admin-server-port"
-	AdminServerPort      = 40443
-	AdminServerCertsPath = "/tmp/adminserver/certs"
 )

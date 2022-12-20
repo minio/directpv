@@ -22,13 +22,10 @@ import (
 	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
-
-const adminServerEnvName = consts.AppCapsName + "_ADMIN_SERVER"
 
 var errInvalidLabel = errors.New("invalid label")
 
@@ -61,7 +58,6 @@ var (
 	volumeStatusArgs []string                // --status flag of volumes
 	pvcFlag          bool                    // --pvc flag
 	dryRunFlag       bool                    // --dry-run flag
-	adminServerArg   string                  // --admin-server flag
 	idArgs           []string                // --id flag
 	showLabels       bool                    // --show-labels flag
 	labelArgs        []string                // --labels flag
@@ -102,10 +98,6 @@ func addPodNSFlag(cmd *cobra.Command, usage string) {
 
 func addVolumeStatusFlag(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().StringSliceVar(&volumeStatusArgs, "status", volumeStatusArgs, fmt.Sprintf("%v; one of: %v", usage, strings.Join(volumeStatusValues, "|")))
-}
-
-func addAdminServerFlag(cmd *cobra.Command) {
-	cmd.PersistentFlags().StringVar(&adminServerArg, "admin-server", adminServerArg, fmt.Sprintf("If present, use this value to connect to admin API server instead of %v environment variable", adminServerEnvName))
 }
 
 func addIDFlag(cmd *cobra.Command, usage string) {

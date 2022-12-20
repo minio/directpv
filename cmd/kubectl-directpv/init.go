@@ -18,20 +18,33 @@ package main
 
 import (
 	"context"
-	"errors"
-	"net/url"
+	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
+	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/minio/directpv/pkg/admin"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/initrequest"
+	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
-var errInitFailed = errors.New("init failed")
+type initResult struct {
+	requestID string
+	nodeID    directpvtypes.NodeID
+	failed    bool
+	devices   []types.InitDeviceResult
+}
+
+var initRequestListTimeout = 2 * time.Minute
 
 var initCmd = &cobra.Command{
 	Use:           "init drives.yaml",
@@ -45,11 +58,6 @@ $ kubectl {PLUGIN_NAME} init drives.yaml`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
-		if err := validateAdminServerConfigArgs(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
-			os.Exit(-1)
-		}
-
 		switch len(args) {
 		case 1:
 		case 0:
@@ -71,52 +79,31 @@ $ kubectl {PLUGIN_NAME} init drives.yaml`,
 }
 
 func init() {
-	addAdminServerFlag(initCmd)
+	initCmd.PersistentFlags().DurationVar(&initRequestListTimeout, "timeout", initRequestListTimeout, "specify timeout for the initialization process")
 }
 
-func toInitDevicesRequest(config *InitConfig) admin.InitDevicesRequest {
-	nodes := map[string][]admin.InitDevice{}
+func toInitRequestObjects(config *InitConfig, requestID string) (initRequests []types.InitRequest) {
 	for _, node := range config.Nodes {
-		initDevices := []admin.InitDevice{}
+		initDevices := []types.InitDevice{}
 		for _, device := range node.Drives {
-			initDevices = append(initDevices, admin.InitDevice{
+			initDevices = append(initDevices, types.InitDevice{
+				ID:         device.ID,
 				Name:       device.Name,
 				MajorMinor: device.MajorMinor,
 				Force:      device.FS != "",
-				ID:         device.ID,
 			})
 		}
 		if len(initDevices) > 0 {
-			nodes[node.Name] = initDevices
+			initRequests = append(initRequests, *types.NewInitRequest(requestID, node.Name, initDevices))
 		}
 	}
-	return admin.InitDevicesRequest{
-		Nodes: nodes,
-	}
+	return
 }
 
-func initDevices(ctx context.Context, client *admin.Client, req admin.InitDevicesRequest) error {
-	if len(req.Nodes) == 0 {
-		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to init"))
-		return errInitFailed
-	}
-
-	cred, err := admin.GetCredential(ctx, getCredFile())
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.InitDevices(&req, cred)
-	if err != nil {
-		return err
-	}
-
-	if resp.Error != "" {
-		return errors.New(resp.Error)
-	}
-
+func showResults(results []initResult) {
 	writer := newTableWriter(
 		table.Row{
+			"REQUEST_ID",
 			"NODE",
 			"DRIVE",
 			"MESSAGE",
@@ -138,40 +125,90 @@ func initDevices(ctx context.Context, client *admin.Client, req admin.InitDevice
 		false,
 	)
 
-	errs := map[string]string{}
-	for node, result := range resp.Nodes {
-		if result.Error != "" {
-			errs[node] = result.Error
-			continue
-		}
-
-		for _, device := range result.Devices {
-			msg := "Success"
-			if device.Error != "" {
-				msg = "Failed; " + device.Error
-			}
-
+	for _, result := range results {
+		if result.failed {
 			writer.AppendRow(
 				[]interface{}{
-					node,
+					result.requestID,
+					result.nodeID,
+					"-",
+					color.HiRedString("ERROR; Failed to initialize"),
+				},
+			)
+			continue
+		}
+		for _, device := range result.devices {
+			msg := "Success"
+			if device.Error != "" {
+				msg = color.HiRedString("Failed; " + device.Error)
+			}
+			writer.AppendRow(
+				[]interface{}{
+					result.requestID,
+					result.nodeID,
 					device.Name,
 					msg,
 				},
 			)
 		}
 	}
-
 	writer.Render()
+}
 
-	if len(errs) != 0 {
-		for node, err := range errs {
-			utils.Eprintf(quietFlag, true, "%v: %v\n", node, err)
+func initDevices(ctx context.Context, initRequests []types.InitRequest, requestID string) (results []initResult, err error) {
+	var totalReqCount int
+	for i := range initRequests {
+		_, err := client.InitRequestClient().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
+		if err != nil {
+			return nil, err
 		}
-
-		return errInitFailed
+		totalReqCount++
 	}
+	ctx, cancel := context.WithTimeout(ctx, initRequestListTimeout)
+	defer cancel()
 
-	return nil
+	eventCh, stop, err := initrequest.NewLister().
+		RequestIDSelector(toLabelValues([]string{requestID})).
+		Watch(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer stop()
+
+	results = []initResult{}
+	for {
+		select {
+		case event, ok := <-eventCh:
+			if !ok {
+				return
+			}
+			if event.Err != nil {
+				err = event.Err
+				return
+			}
+			switch event.Type {
+			case watch.Modified:
+				initReq := event.InitRequest
+				if initReq.Status.Status != directpvtypes.InitStatusPending {
+					results = append(results, initResult{
+						requestID: initReq.Name,
+						nodeID:    initReq.GetNodeID(),
+						devices:   initReq.Status.Results,
+						failed:    initReq.Status.Status == directpvtypes.InitStatusError,
+					})
+				}
+				if len(results) >= totalReqCount {
+					return
+				}
+			case watch.Deleted:
+				return
+			default:
+			}
+		case <-ctx.Done():
+			err = fmt.Errorf("unable to initialize devices; %v", ctx.Err())
+			return
+		}
+	}
 }
 
 func readInitConfig(inputFile string) (*InitConfig, error) {
@@ -189,17 +226,24 @@ func initMain(ctx context.Context, inputFile string) {
 		utils.Eprintf(quietFlag, true, "unable to read the input file; %v", err.Error())
 		os.Exit(1)
 	}
-	client := admin.NewClient(
-		&url.URL{
-			Scheme: "https",
-			Host:   adminServerArg,
-		},
-	)
-	err = initDevices(ctx, client, toInitDevicesRequest(initConfig))
-	if err != nil {
-		if !errors.Is(err, errInitFailed) {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
-		}
+	requestID := uuid.New().String()
+	initRequests := toInitRequestObjects(initConfig, requestID)
+	if len(initRequests) == 0 {
+		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to init"))
 		os.Exit(1)
 	}
+	defer func() {
+		labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
+			directpvtypes.RequestIDLabelKey: toLabelValues([]string{requestID}),
+		}
+		client.InitRequestClient().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
+			LabelSelector: directpvtypes.ToLabelSelector(labelMap),
+		})
+	}()
+	results, err := initDevices(ctx, initRequests, requestID)
+	if err != nil {
+		utils.Eprintf(quietFlag, true, "%v\n", err)
+		os.Exit(1)
+	}
+	showResults(results)
 }

@@ -125,10 +125,9 @@ func init() {
 
 	mainCmd.AddCommand(controllerCmd)
 	mainCmd.AddCommand(nodeServerCmd)
-	mainCmd.AddCommand(adminServerCmd)
-	mainCmd.AddCommand(nodeAPIServerCmd)
 	mainCmd.AddCommand(legacyControllerCmd)
 	mainCmd.AddCommand(legacyNodeServerCmd)
+	mainCmd.AddCommand(nodeControllerCmd)
 }
 
 func main() {

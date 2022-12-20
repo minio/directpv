@@ -20,7 +20,7 @@ import (
 	"context"
 
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/controller"
+	"github.com/minio/directpv/pkg/csi/controller"
 	pkgidentity "github.com/minio/directpv/pkg/identity"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/spf13/cobra"

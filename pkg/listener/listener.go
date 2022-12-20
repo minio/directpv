@@ -84,6 +84,7 @@ const (
 	AddEvent EventType = iota + 1
 	UpdateEvent
 	DeleteEvent
+	SyncEvent
 )
 
 func (et EventType) String() string {
@@ -94,6 +95,8 @@ func (et EventType) String() string {
 		return "Update"
 	case DeleteEvent:
 		return "Delete"
+	case SyncEvent:
+		return "Sync"
 	}
 	return ""
 }
@@ -208,7 +211,7 @@ func (listener *Listener) processNextItem(ctx context.Context) bool {
 		if err := listener.indexer.Add(args.Object); err != nil {
 			klog.Error(err)
 		}
-	case UpdateEvent:
+	case UpdateEvent, SyncEvent:
 		if err := listener.indexer.Update(args.Object); err != nil {
 			klog.Error(err)
 		}
@@ -242,6 +245,14 @@ func (listener *Listener) controllerLoop(ctx context.Context) {
 		}
 
 		if oldObject, exists, err := listener.indexer.Get(delta.Object); err == nil && exists {
+			if delta.Type == cache.Sync {
+				return &EventArgs{
+					Event:     SyncEvent,
+					Key:       key,
+					Object:    delta.Object,
+					OldObject: oldObject,
+				}
+			}
 			return &EventArgs{
 				Event:     UpdateEvent,
 				Key:       key,
@@ -279,7 +290,7 @@ func (listener *Listener) controllerLoop(ctx context.Context) {
 			if args.Event == AddEvent {
 				value, loaded := listener.eventMap.LoadOrStore(uuid, *args)
 				// If add event args is not stored, error out if existing args is update event.
-				if loaded && value.(EventArgs).Event == UpdateEvent {
+				if loaded && (value.(EventArgs).Event == UpdateEvent || value.(EventArgs).Event == SyncEvent) {
 					return fmt.Errorf("cannot add already added object: %s", key)
 				}
 			} else {

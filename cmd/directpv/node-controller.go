@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2022 MinIO, Inc.
+// Copyright (c) 2021, 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -17,39 +17,61 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 
-	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/initrequest"
+	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 )
 
-var nodeAPIPort = consts.NodeAPIPort
-
-var nodeAPIServerCmd = &cobra.Command{
-	Use:           consts.NodeAPIServerName,
-	Short:         "Start node API server.",
+var nodeControllerCmd = &cobra.Command{
+	Use:           consts.NodeControllerName,
+	Short:         "Start node controller.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
 		if err := sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 			return err
 		}
-
-		return admin.StartNodeAPIServer(
-			c.Context(),
-			nodeAPIPort,
-			identity,
-			nodeID,
-			rack,
-			zone,
-			region,
-		)
+		if err := node.Sync(c.Context(), nodeID); err != nil {
+			return err
+		}
+		return startNodeController(c.Context(), args)
 	},
 }
 
-func init() {
-	nodeAPIServerCmd.PersistentFlags().IntVar(&nodeAPIPort, "port", nodeAPIPort, "Node API server port number")
+func startNodeController(ctx context.Context, args []string) error {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	defer cancel()
+
+	errCh := make(chan error)
+
+	go func() {
+		if err := node.StartController(ctx, nodeID); err != nil {
+			klog.ErrorS(err, "unable to start node controller")
+			errCh <- err
+		}
+	}()
+
+	go func() {
+		if err := initrequest.StartController(
+			ctx,
+			nodeID,
+			identity,
+			rack,
+			zone,
+			region,
+		); err != nil {
+			klog.ErrorS(err, "unable to start initrequest controller")
+			errCh <- err
+		}
+	}()
+
+	return <-errCh
 }

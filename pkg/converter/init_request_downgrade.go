@@ -1,7 +1,5 @@
-//go:build !linux
-
 // This file is part of MinIO DirectPV
-// Copyright (c) 2022 MinIO, Inc.
+// Copyright (c) 2021, 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -16,14 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package admin
+package converter
 
 import (
-	"context"
-	"fmt"
-	"runtime"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/klog/v2"
 )
 
-func reflinkSupported(ctx context.Context) (bool, error) {
-	return false, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+func downgradeInitRequestObject(object *unstructured.Unstructured, toVersion string) error {
+	switch object.GetAPIVersion() {
+	case versionV1Beta1:
+		if toVersion == versionV1Beta1 {
+			klog.V(10).Info("No migration required")
+			break
+		}
+	default:
+		klog.Fatalf("unknown object API version %v to convert to %v", object.GetAPIVersion(), toVersion)
+	}
+	return nil
 }

@@ -16,6 +16,8 @@
 
 package main
 
+import directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+
 // InitConfigV1 defines the config to initialize the devices
 type InitConfigV1 struct {
 	Version string       `yaml:"version"`
@@ -24,8 +26,8 @@ type InitConfigV1 struct {
 
 // NodeInfoV1 holds the node information
 type NodeInfoV1 struct {
-	Name   string        `yaml:"name"`
-	Drives []DriveInfoV1 `yaml:"drives,omitempty"`
+	Name   directpvtypes.NodeID `yaml:"name"`
+	Drives []DriveInfoV1        `yaml:"drives,omitempty"`
 }
 
 // DriveInfoV1 represents the drives that are to be initialized

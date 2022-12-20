@@ -29,6 +29,8 @@ func FakeInit() {
 	clientsetInterface = types.NewExtFakeClientset(fake.NewSimpleClientset())
 	driveClient = clientsetInterface.DirectpvLatest().DirectPVDrives()
 	volumeClient = clientsetInterface.DirectpvLatest().DirectPVVolumes()
+	nodeClient = clientsetInterface.DirectpvLatest().DirectPVNodes()
+	initRequestClient = clientsetInterface.DirectpvLatest().DirectPVInitRequests()
 
 	initEvent(k8s.KubeClient())
 }
@@ -43,4 +45,16 @@ func SetDriveInterface(i types.LatestDriveInterface) {
 // Note: To be used for writing test cases only
 func SetVolumeInterface(i types.LatestVolumeInterface) {
 	volumeClient = i
+}
+
+// SetNodeInterface sets latest node interface.
+// Note: To be used for writing test cases only
+func SetNodeInterface(i types.LatestNodeInterface) {
+	nodeClient = i
+}
+
+// SetInitRequestInterface sets latest initrequest interface.
+// Note: To be used for writing test cases only
+func SetInitRequestInterface(i types.LatestInitRequestInterface) {
+	initRequestClient = i
 }

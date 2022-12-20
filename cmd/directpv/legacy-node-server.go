@@ -20,9 +20,9 @@ import (
 	"context"
 
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/csi/node"
 	pkgidentity "github.com/minio/directpv/pkg/identity"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
-	"github.com/minio/directpv/pkg/node"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )

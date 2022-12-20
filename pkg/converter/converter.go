@@ -40,8 +40,10 @@ var supportedVersions = []string{
 type crdKind string
 
 const (
-	driveCRDKind  crdKind = consts.DriveKind
-	volumeCRDKind crdKind = consts.VolumeKind
+	driveCRDKind       crdKind = consts.DriveKind
+	volumeCRDKind      crdKind = consts.VolumeKind
+	nodeCRDKind        crdKind = consts.NodeKind
+	initRequestCRDKind crdKind = consts.InitRequestKind
 )
 
 type migrateFunc func(object *unstructured.Unstructured, toVersion string) error
@@ -142,6 +144,10 @@ func upgradeObject(object *unstructured.Unstructured, toVersion string) error {
 		return upgradeDriveObject(object, toVersion)
 	case volumeCRDKind:
 		return upgradeVolumeObject(object, toVersion)
+	case nodeCRDKind:
+		return upgradeNodeObject(object, toVersion)
+	case initRequestCRDKind:
+		return upgradeInitRequestObject(object, toVersion)
 	}
 	return errUnsupportedCRDKind
 }
@@ -152,6 +158,10 @@ func downgradeObject(object *unstructured.Unstructured, toVersion string) error 
 		return downgradeDriveObject(object, toVersion)
 	case volumeCRDKind:
 		return downgradeVolumeObject(object, toVersion)
+	case nodeCRDKind:
+		return downgradeNodeObject(object, toVersion)
+	case initRequestCRDKind:
+		return downgradeInitRequestObject(object, toVersion)
 	}
 	return errUnsupportedCRDKind
 }

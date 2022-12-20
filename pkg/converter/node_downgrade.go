@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2022 MinIO, Inc.
+// Copyright (c) 2021, 2022 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,26 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package converter
 
 import (
-	"github.com/minio/directpv/pkg/admin"
-	"github.com/minio/directpv/pkg/consts"
-	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/klog/v2"
 )
 
-var apiPort = consts.AdminServerPort
-
-var adminServerCmd = &cobra.Command{
-	Use:           consts.AdminServerName,
-	Short:         "Start admin server.",
-	SilenceUsage:  true,
-	SilenceErrors: true,
-	RunE: func(c *cobra.Command, args []string) error {
-		return admin.StartServer(c.Context(), apiPort)
-	},
-}
-
-func init() {
-	adminServerCmd.PersistentFlags().IntVar(&apiPort, "port", apiPort, "Admin server port number")
+func downgradeNodeObject(object *unstructured.Unstructured, toVersion string) error {
+	switch object.GetAPIVersion() {
+	case versionV1Beta1:
+		if toVersion == versionV1Beta1 {
+			klog.V(10).Info("No migration required")
+			break
+		}
+	default:
+		klog.Fatalf("unknown object API version %v to convert to %v", object.GetAPIVersion(), toVersion)
+	}
+	return nil
 }

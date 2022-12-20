@@ -166,3 +166,15 @@ type DriveConditionMessage string
 const (
 	DriveConditionMessageIOError DriveConditionMessage = "Drive has I/O error"
 )
+
+// InitStatus denotes initialization status
+type InitStatus string
+
+const (
+	// InitStatusPending denotes that the initialization request is still pending.
+	InitStatusPending InitStatus = "Pending"
+	// InitStatusProcessed denotes that the initialization request has been processed.
+	InitStatusProcessed InitStatus = "Processed"
+	// InitStatusError denotes that the initialization request has failed due to an error.
+	InitStatusError InitStatus = "Error"
+)

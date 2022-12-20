@@ -29,6 +29,8 @@ import (
 type DirectpvV1beta1Interface interface {
 	RESTClient() rest.Interface
 	DirectPVDrivesGetter
+	DirectPVInitRequestsGetter
+	DirectPVNodesGetter
 	DirectPVVolumesGetter
 }
 
@@ -39,6 +41,14 @@ type DirectpvV1beta1Client struct {
 
 func (c *DirectpvV1beta1Client) DirectPVDrives() DirectPVDriveInterface {
 	return newDirectPVDrives(c)
+}
+
+func (c *DirectpvV1beta1Client) DirectPVInitRequests() DirectPVInitRequestInterface {
+	return newDirectPVInitRequests(c)
+}
+
+func (c *DirectpvV1beta1Client) DirectPVNodes() DirectPVNodeInterface {
+	return newDirectPVNodes(c)
 }
 
 func (c *DirectpvV1beta1Client) DirectPVVolumes() DirectPVVolumeInterface {

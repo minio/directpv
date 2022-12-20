@@ -61,6 +61,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&DirectPVDriveList{},
 		&DirectPVVolume{},
 		&DirectPVVolumeList{},
+		&DirectPVNode{},
+		&DirectPVNodeList{},
+		&DirectPVInitRequest{},
+		&DirectPVInitRequestList{},
 	)
 	v1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
