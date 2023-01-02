@@ -54,6 +54,13 @@ var labelCmd = &cobra.Command{
 }
 
 func init() {
+	labelCmd.Flags().SortFlags = false
+	labelCmd.InheritedFlags().SortFlags = false
+	labelCmd.LocalFlags().SortFlags = false
+	labelCmd.LocalNonPersistentFlags().SortFlags = false
+	labelCmd.NonInheritedFlags().SortFlags = false
+	labelCmd.PersistentFlags().SortFlags = false
+
 	addNodesFlag(labelCmd, "If present, filter objects from given nodes")
 	addDrivesFlag(labelCmd, "If present, filter objects by given drive names")
 	addAllFlag(labelCmd, "If present, select all objects")

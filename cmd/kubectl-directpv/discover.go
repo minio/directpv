@@ -74,6 +74,13 @@ $ kubectl {PLUGIN_NAME} discover --nodes=node{1...4} --drives=sd{a...f}`,
 }
 
 func init() {
+	discoverCmd.Flags().SortFlags = false
+	discoverCmd.InheritedFlags().SortFlags = false
+	discoverCmd.LocalFlags().SortFlags = false
+	discoverCmd.LocalNonPersistentFlags().SortFlags = false
+	discoverCmd.NonInheritedFlags().SortFlags = false
+	discoverCmd.PersistentFlags().SortFlags = false
+
 	addNodesFlag(discoverCmd, "discover drives from given nodes")
 	addDrivesFlag(discoverCmd, "discover drives by given names")
 	addAllFlag(discoverCmd, "If present, include non-formattable devices in the display")

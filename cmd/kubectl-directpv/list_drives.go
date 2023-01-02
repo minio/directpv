@@ -74,6 +74,13 @@ $ kubectl {PLUGIN_NAME} list drives --show-labels`,
 }
 
 func init() {
+	listDrivesCmd.Flags().SortFlags = false
+	listDrivesCmd.InheritedFlags().SortFlags = false
+	listDrivesCmd.LocalFlags().SortFlags = false
+	listDrivesCmd.LocalNonPersistentFlags().SortFlags = false
+	listDrivesCmd.NonInheritedFlags().SortFlags = false
+	listDrivesCmd.PersistentFlags().SortFlags = false
+
 	addDriveStatusFlag(listDrivesCmd, "Filter output by drive status")
 	addShowLabelsFlag(listDrivesCmd)
 	addLabelsFlag(listDrivesCmd, "Filter output by drive labels")

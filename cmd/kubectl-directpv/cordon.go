@@ -69,6 +69,13 @@ $ kubectl {PLUGIN_NAME} cordon --status=error`,
 }
 
 func init() {
+	cordonCmd.Flags().SortFlags = false
+	cordonCmd.InheritedFlags().SortFlags = false
+	cordonCmd.LocalFlags().SortFlags = false
+	cordonCmd.LocalNonPersistentFlags().SortFlags = false
+	cordonCmd.NonInheritedFlags().SortFlags = false
+	cordonCmd.PersistentFlags().SortFlags = false
+
 	addNodesFlag(cordonCmd, "If present, select drives from given nodes")
 	addDrivesFlag(cordonCmd, "If present, select drives by given names")
 	addDriveStatusFlag(cordonCmd, "If present, select drives by drive status")

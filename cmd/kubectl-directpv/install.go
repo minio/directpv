@@ -77,6 +77,14 @@ func init() {
 	if Version == "" {
 		image = consts.AppName + ":0.0.0-dev"
 	}
+
+	installCmd.Flags().SortFlags = false
+	installCmd.InheritedFlags().SortFlags = false
+	installCmd.LocalFlags().SortFlags = false
+	installCmd.LocalNonPersistentFlags().SortFlags = false
+	installCmd.NonInheritedFlags().SortFlags = false
+	installCmd.PersistentFlags().SortFlags = false
+
 	installCmd.PersistentFlags().StringVar(&image, "image", image, consts.AppPrettyName+" image")
 	installCmd.PersistentFlags().StringSliceVar(&imagePullSecrets, "image-pull-secrets", imagePullSecrets, "Image pull secrets to be set in pod specs")
 	installCmd.PersistentFlags().StringVar(&registry, "registry", registry, "Registry where "+consts.AppPrettyName+" images are available")

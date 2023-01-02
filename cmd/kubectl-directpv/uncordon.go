@@ -70,6 +70,13 @@ $ kubectl {PLUGIN_NAME} uncordon --status=error`,
 }
 
 func init() {
+	uncordonCmd.Flags().SortFlags = false
+	uncordonCmd.InheritedFlags().SortFlags = false
+	uncordonCmd.LocalFlags().SortFlags = false
+	uncordonCmd.LocalNonPersistentFlags().SortFlags = false
+	uncordonCmd.NonInheritedFlags().SortFlags = false
+	uncordonCmd.PersistentFlags().SortFlags = false
+
 	addNodesFlag(uncordonCmd, "If present, select drives from given nodes")
 	addDrivesFlag(uncordonCmd, "If present, select drives by given names")
 	addDriveStatusFlag(uncordonCmd, "If present, select drives by status")
