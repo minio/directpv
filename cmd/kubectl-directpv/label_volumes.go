@@ -71,6 +71,13 @@ func validateLabelVolumesCmd(args []string) (err error) {
 }
 
 func init() {
+	labelVolumesCmd.Flags().SortFlags = false
+	labelVolumesCmd.InheritedFlags().SortFlags = false
+	labelVolumesCmd.LocalFlags().SortFlags = false
+	labelVolumesCmd.LocalNonPersistentFlags().SortFlags = false
+	labelVolumesCmd.NonInheritedFlags().SortFlags = false
+	labelVolumesCmd.PersistentFlags().SortFlags = false
+
 	addDriveIDFlag(labelVolumesCmd, "Filter output by drive IDs")
 	addPodNameFlag(labelVolumesCmd, "Filter output by pod names")
 	addPodNSFlag(labelVolumesCmd, "Filter output by pod namespaces")

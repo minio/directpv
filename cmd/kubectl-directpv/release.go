@@ -77,6 +77,13 @@ $ kubectl {PLUGIN_NAME} release --pod-namespaces=tenant-{1...3}`,
 }
 
 func init() {
+	releaseCmd.Flags().SortFlags = false
+	releaseCmd.InheritedFlags().SortFlags = false
+	releaseCmd.LocalFlags().SortFlags = false
+	releaseCmd.LocalNonPersistentFlags().SortFlags = false
+	releaseCmd.NonInheritedFlags().SortFlags = false
+	releaseCmd.PersistentFlags().SortFlags = false
+
 	addNodesFlag(releaseCmd, "If present, select volumes from given nodes")
 	addDrivesFlag(releaseCmd, "If present, select volumes by given drive names")
 	addAllFlag(releaseCmd, "If present, select all volumes")

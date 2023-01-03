@@ -84,6 +84,13 @@ $ kubectl {PLUGIN_NAME} list volumes --show-labels
 }
 
 func init() {
+	listVolumesCmd.Flags().SortFlags = false
+	listVolumesCmd.InheritedFlags().SortFlags = false
+	listVolumesCmd.LocalFlags().SortFlags = false
+	listVolumesCmd.LocalNonPersistentFlags().SortFlags = false
+	listVolumesCmd.NonInheritedFlags().SortFlags = false
+	listVolumesCmd.PersistentFlags().SortFlags = false
+
 	addDriveIDFlag(listVolumesCmd, "Filter output by drive IDs")
 	addPodNameFlag(listVolumesCmd, "Filter output by pod names")
 	addPodNSFlag(listVolumesCmd, "Filter output by pod namespaces")

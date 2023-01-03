@@ -68,6 +68,13 @@ $ kubectl {PLUGIN_NAME} remove --status=error`,
 }
 
 func init() {
+	removeCmd.Flags().SortFlags = false
+	removeCmd.InheritedFlags().SortFlags = false
+	removeCmd.LocalFlags().SortFlags = false
+	removeCmd.LocalNonPersistentFlags().SortFlags = false
+	removeCmd.NonInheritedFlags().SortFlags = false
+	removeCmd.PersistentFlags().SortFlags = false
+
 	addNodesFlag(removeCmd, "If present, select drives from given nodes")
 	addDrivesFlag(removeCmd, "If present, select drives by given names")
 	addDriveStatusFlag(removeCmd, "If present, select drives by drive status")

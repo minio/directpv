@@ -47,6 +47,13 @@ var uninstallCmd = &cobra.Command{
 }
 
 func init() {
+	uninstallCmd.Flags().SortFlags = false
+	uninstallCmd.InheritedFlags().SortFlags = false
+	uninstallCmd.LocalFlags().SortFlags = false
+	uninstallCmd.LocalNonPersistentFlags().SortFlags = false
+	uninstallCmd.NonInheritedFlags().SortFlags = false
+	uninstallCmd.PersistentFlags().SortFlags = false
+
 	uninstallCmd.PersistentFlags().BoolVar(&forceFlag, "force", forceFlag, "If present, uninstall forcefully")
 	uninstallCmd.PersistentFlags().MarkHidden("force")
 }

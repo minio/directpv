@@ -79,6 +79,13 @@ $ kubectl {PLUGIN_NAME} init drives.yaml`,
 }
 
 func init() {
+	initCmd.Flags().SortFlags = false
+	initCmd.InheritedFlags().SortFlags = false
+	initCmd.LocalFlags().SortFlags = false
+	initCmd.LocalNonPersistentFlags().SortFlags = false
+	initCmd.NonInheritedFlags().SortFlags = false
+	initCmd.PersistentFlags().SortFlags = false
+
 	initCmd.PersistentFlags().DurationVar(&initRequestListTimeout, "timeout", initRequestListTimeout, "specify timeout for the initialization process")
 }
 

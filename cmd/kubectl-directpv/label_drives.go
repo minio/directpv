@@ -71,6 +71,13 @@ func validateLabelDrivesCmd(args []string) (err error) {
 }
 
 func init() {
+	labelDrivesCmd.Flags().SortFlags = false
+	labelDrivesCmd.InheritedFlags().SortFlags = false
+	labelDrivesCmd.LocalFlags().SortFlags = false
+	labelDrivesCmd.LocalNonPersistentFlags().SortFlags = false
+	labelDrivesCmd.NonInheritedFlags().SortFlags = false
+	labelDrivesCmd.PersistentFlags().SortFlags = false
+
 	addDriveStatusFlag(labelDrivesCmd, "If present, select drives by status")
 	addIDFlag(labelDrivesCmd, "If present, select by drive ID")
 	addLabelsFlag(labelDrivesCmd, "If present, select by drive labels")

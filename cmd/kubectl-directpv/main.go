@@ -61,6 +61,13 @@ func init() {
 		image = consts.AppName + ":0.0.0-dev"
 	}
 
+	mainCmd.Flags().SortFlags = false
+	mainCmd.InheritedFlags().SortFlags = false
+	mainCmd.LocalFlags().SortFlags = false
+	mainCmd.LocalNonPersistentFlags().SortFlags = false
+	mainCmd.NonInheritedFlags().SortFlags = false
+	mainCmd.PersistentFlags().SortFlags = false
+
 	viper.AutomaticEnv()
 
 	kflags := flag.NewFlagSet("klog", flag.ExitOnError)
