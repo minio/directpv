@@ -644,13 +644,6 @@ func schema_pkg_apis_directpvminio_v1beta1_InitDevice(ref common.ReferenceCallba
 							Format:  "",
 						},
 					},
-					"majorMinor": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
 					"force": {
 						SchemaProps: spec.SchemaProps{
 							Default: false,
@@ -659,7 +652,7 @@ func schema_pkg_apis_directpvminio_v1beta1_InitDevice(ref common.ReferenceCallba
 						},
 					},
 				},
-				Required: []string{"id", "name", "majorMinor", "force"},
+				Required: []string{"id", "name", "force"},
 			},
 		},
 	}

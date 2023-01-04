@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -160,7 +161,12 @@ func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *ty
 
 	var majorMinorList []string
 	for i := range req.Spec.Devices {
-		majorMinorList = append(majorMinorList, req.Spec.Devices[i].MajorMinor)
+		tokens := strings.SplitN(req.Spec.Devices[i].ID, "$", 2)
+		if len(tokens) != 2 {
+			client.Eventf(req, client.EventTypeWarning, client.EventReasonInitError, "invalid device ID %v", req.Spec.Devices[i])
+			return updateInitRequest(ctx, req.Name, req.Status.Results, directpvtypes.InitStatusError)
+		}
+		majorMinorList = append(majorMinorList, tokens[0])
 	}
 
 	devices, err := handler.getDevices(majorMinorList...)
@@ -177,7 +183,8 @@ func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *ty
 	var wg sync.WaitGroup
 	for i := range req.Spec.Devices {
 		results[i].Name = req.Spec.Devices[i].Name
-		device, found := probedDevices[req.Spec.Devices[i].MajorMinor]
+		majorMinor := strings.SplitN(req.Spec.Devices[i].ID, "$", 2)[0]
+		device, found := probedDevices[majorMinor]
 		switch {
 		case !found:
 			results[i].Error = "device not found"

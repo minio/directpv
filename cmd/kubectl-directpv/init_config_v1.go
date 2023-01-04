@@ -32,8 +32,9 @@ type NodeInfoV1 struct {
 
 // DriveInfoV1 represents the drives that are to be initialized
 type DriveInfoV1 struct {
-	ID         string `yaml:"id"`
-	Name       string `yaml:"name"`
-	MajorMinor string `yaml:"majorMinor"`
-	FS         string `yaml:"fs,omitempty"`
+	ID   string `yaml:"id"`
+	Name string `yaml:"name"`
+	Size uint64 `yaml:"size"`
+	Make string `yaml:"make"`
+	FS   string `yaml:"fs,omitempty"`
 }

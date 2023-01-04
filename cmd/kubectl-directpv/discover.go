@@ -105,10 +105,11 @@ func toInitConfig(resultMap map[directpvtypes.NodeID][]types.Device) InitConfig 
 				continue
 			}
 			driveInfo = append(driveInfo, DriveInfo{
-				ID:         device.ID,
-				Name:       device.Name,
-				MajorMinor: device.MajorMinor,
-				FS:         device.FSType,
+				ID:   device.ID,
+				Name: device.Name,
+				Size: device.Size,
+				Make: device.Make,
+				FS:   device.FSType,
 			})
 		}
 		nodeInfo = append(nodeInfo, NodeInfo{

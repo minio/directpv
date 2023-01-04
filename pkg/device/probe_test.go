@@ -64,7 +64,7 @@ func TestID(t *testing.T) {
 					"E:ID_PART_ENTRY_DISK":   "259",
 				},
 			},
-			expectedID: "0sd/C9q7zmRagIcJaw6M7gmW2HftkINuent6OUtTQdc=",
+			expectedID: "259:0$0sd/C9q7zmRagIcJaw6M7gmW2HftkINuent6OUtTQdc=",
 		},
 		// with mountpoints disordered
 		{
@@ -104,7 +104,7 @@ func TestID(t *testing.T) {
 					"E:ID_PART_ENTRY_DISK":   "259",
 				},
 			},
-			expectedID: "0sd/C9q7zmRagIcJaw6M7gmW2HftkINuent6OUtTQdc=",
+			expectedID: "259:0$0sd/C9q7zmRagIcJaw6M7gmW2HftkINuent6OUtTQdc=",
 		},
 		// with udevdata disordered
 		{
@@ -144,7 +144,7 @@ func TestID(t *testing.T) {
 					"E:ID_REVISION":          "2.8.8341",
 				},
 			},
-			expectedID: "0sd/C9q7zmRagIcJaw6M7gmW2HftkINuent6OUtTQdc=",
+			expectedID: "259:0$0sd/C9q7zmRagIcJaw6M7gmW2HftkINuent6OUtTQdc=",
 		},
 	}
 

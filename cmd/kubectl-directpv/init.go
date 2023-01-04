@@ -94,10 +94,9 @@ func toInitRequestObjects(config *InitConfig, requestID string) (initRequests []
 		initDevices := []types.InitDevice{}
 		for _, device := range node.Drives {
 			initDevices = append(initDevices, types.InitDevice{
-				ID:         device.ID,
-				Name:       device.Name,
-				MajorMinor: device.MajorMinor,
-				Force:      device.FS != "",
+				ID:    device.ID,
+				Name:  device.Name,
+				Force: device.FS != "",
 			})
 		}
 		if len(initDevices) > 0 {
