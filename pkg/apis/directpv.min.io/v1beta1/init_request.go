@@ -98,10 +98,9 @@ type InitRequestSpec struct {
 
 // InitDevice represents the device requested for initialization.
 type InitDevice struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	MajorMinor string `json:"majorMinor"`
-	Force      bool   `json:"force"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Force bool   `json:"force"`
 }
 
 // InitRequestStatus represents the status of the InitRequest.

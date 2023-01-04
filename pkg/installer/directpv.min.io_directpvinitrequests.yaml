@@ -43,14 +43,11 @@ spec:
                       type: boolean
                     id:
                       type: string
-                    majorMinor:
-                      type: string
                     name:
                       type: string
                   required:
                   - force
                   - id
-                  - majorMinor
                   - name
                   type: object
                 type: array

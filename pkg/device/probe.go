@@ -75,7 +75,7 @@ func (d Device) ID(nodeID directpvtypes.NodeID) string {
 
 	stringToHash := strings.Join(toSlice(deviceMap, ":"), "\n")
 	h := sha256.Sum256([]byte(stringToHash))
-	return base64.StdEncoding.EncodeToString(h[:])
+	return d.MajorMinor + "$" + base64.StdEncoding.EncodeToString(h[:])
 }
 
 // Make returns device make information.
