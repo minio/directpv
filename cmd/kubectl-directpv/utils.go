@@ -17,48 +17,27 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
 
 	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/jedib0t/go-pretty/v6/text"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/mitchellh/go-homedir"
-	"k8s.io/klog/v2"
 )
 
 const dot = "•"
 
-func printYAML(obj interface{}) error {
-	y, err := utils.ToYAML(obj)
-	if err != nil {
-		return err
-	}
-	fmt.Println(y)
-	return nil
+func printYAML(obj interface{}) {
+	fmt.Print(utils.MustGetYAML(obj))
 }
 
-func printJSON(obj interface{}) error {
-	data, err := json.MarshalIndent(obj, "", "  ")
-	if err != nil {
-		return fmt.Errorf("unable to marshal object; %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
-}
-
-func getDefaultConfigDir() string {
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		klog.ErrorS(err, "unable to find home directory")
-		return ""
-	}
-	return path.Join(homeDir, "."+consts.AppName)
+func printJSON(obj interface{}) {
+	fmt.Print(utils.MustGetJSON(obj))
 }
 
 func getDefaultAuditDir() (string, error) {
@@ -96,8 +75,6 @@ func printableBytes(value int64) string {
 }
 
 func newTableWriter(header table.Row, sortBy []table.SortBy, noHeader bool) table.Writer {
-	text.DisableColors()
-
 	writer := table.NewWriter()
 	writer.SetOutputMirror(os.Stdout)
 	writer.AppendHeader(header)
@@ -107,8 +84,6 @@ func newTableWriter(header table.Row, sortBy []table.SortBy, noHeader bool) tabl
 	}
 
 	style := table.StyleLight
-	style.Color.IndexColumn = text.Colors{text.FgHiBlue, text.BgHiBlack}
-	style.Color.Header = text.Colors{text.FgHiBlue, text.BgHiBlack}
 	writer.SetStyle(style)
 
 	return writer
@@ -126,4 +101,22 @@ func getInput(msg string) string {
 	var input string
 	fmt.Scanln(&input)
 	return input
+}
+
+func validateOutputFormat(isWideSupported bool) error {
+	switch outputFormat {
+	case "":
+	case "wide":
+		if !isWideSupported {
+			return errors.New("wide option is not supported by this command")
+		}
+		wideOutput = true
+	case "yaml":
+		dryRunPrinter = printYAML
+	case "json":
+		dryRunPrinter = printJSON
+	default:
+		return errors.New("--output flag value must be one of wide|json|yaml or empty")
+	}
+	return nil
 }

@@ -19,11 +19,11 @@ package installer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
 	rbac "k8s.io/api/rbac/v1"
@@ -108,8 +108,8 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 		},
 	}
 
-	if args.DryRun {
-		fmt.Print(mustGetYAML(crb))
+	if args.dryRun() {
+		args.DryRunPrinter(crb)
 		return nil
 	}
 
@@ -121,7 +121,7 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(crb))
+	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(crb))
 	return err
 }
 
@@ -176,8 +176,8 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 		},
 	}
 
-	if args.DryRun {
-		fmt.Print(mustGetYAML(psp))
+	if args.dryRun() {
+		args.DryRunPrinter(psp)
 		return nil
 	}
 
@@ -191,7 +191,7 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(psp))
+	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(psp))
 	return err
 }
 
@@ -200,7 +200,7 @@ func createPSP(ctx context.Context, args *Args) error {
 		return nil
 	}
 	var gvk *schema.GroupVersionKind
-	if !args.DryRun {
+	if !args.dryRun() {
 		var err error
 		if gvk, err = k8s.GetGroupVersionKind("policy", "PodSecurityPolicy", "v1beta1"); err != nil {
 			return err

@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -38,14 +39,14 @@ var labelVolumesCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Set 'tier: hot' label to all volumes in all nodes
-$ kubectl {PLUGIN_NAME} label volumes tier=hot --all
+		`1. Set 'tier: hot' label to all volumes in all nodes
+   $ kubectl {PLUGIN_NAME} label volumes tier=hot --all
 
-# Set 'type: fast' to volumes allocated in specific drives from a node
-$ kubectl {PLUGIN_NAME} label volumes type=fast --nodes=node1 --drives=nvme1n{1...3}
+2. Set 'type: fast' to volumes allocated in specific drives from a node
+   $ kubectl {PLUGIN_NAME} label volumes type=fast --nodes=node1 --drives=nvme1n{1...3}
 
-# Remove  'tier: hot' label from all volumes in all nodes
-$ kubectl {PLUGIN_NAME} label volumes tier- --all`,
+3. Remove 'tier: hot' label from all volumes in all nodes
+   $ kubectl {PLUGIN_NAME} label volumes tier- --all`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -65,6 +66,29 @@ func validateLabelVolumesCmd(args []string) (err error) {
 	}
 	if err = validateListVolumesArgs(); err != nil {
 		return err
+	}
+	switch {
+	case allFlag:
+	case len(nodesArgs) != 0:
+	case len(drivesArgs) != 0:
+	case len(driveIDArgs) != 0:
+	case len(podNameArgs) != 0:
+	case len(podNSArgs) != 0:
+	case len(volumeNameArgs) != 0:
+	case len(volumeStatusArgs) != 0:
+	case len(labelArgs) != 0:
+	default:
+		return errors.New("no volumes selected to label")
+	}
+	if allFlag {
+		nodesArgs = nil
+		drivesArgs = nil
+		driveIDArgs = nil
+		podNameArgs = nil
+		podNSArgs = nil
+		volumeNameArgs = nil
+		volumeStatusArgs = nil
+		labelArgs = nil
 	}
 	labels, err = validateLabelCmdArgs(args)
 	return

@@ -50,17 +50,20 @@ var discoverCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Discover drives
-$ kubectl {PLUGIN_NAME} discover
+		`1. Discover drives
+   $ kubectl {PLUGIN_NAME} discover
 
-# Discover drives from a node
-$ kubectl {PLUGIN_NAME} discover --nodes=node1
+2. Discover drives from a node
+   $ kubectl {PLUGIN_NAME} discover --nodes=node1
 
-# Discover a drive from all nodes
-$ kubectl {PLUGIN_NAME} discover --drives=nvme1n1
+3. Discover a drive from all nodes
+   $ kubectl {PLUGIN_NAME} discover --drives=nvme1n1
 
-# Discover specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} discover --nodes=node{1...4} --drives=sd{a...f}`,
+4. Discover all drives from all nodes (including unavailable)
+   $ kubectl {PLUGIN_NAME} discover --all
+
+5. Discover specific drives from specific nodes
+   $ kubectl {PLUGIN_NAME} discover --nodes=node{1...4} --drives=sd{a...f}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -105,11 +108,12 @@ func toInitConfig(resultMap map[directpvtypes.NodeID][]types.Device) InitConfig 
 				continue
 			}
 			driveInfo = append(driveInfo, DriveInfo{
-				ID:   device.ID,
-				Name: device.Name,
-				Size: device.Size,
-				Make: device.Make,
-				FS:   device.FSType,
+				ID:     device.ID,
+				Name:   device.Name,
+				Size:   device.Size,
+				Make:   device.Make,
+				FS:     device.FSType,
+				Select: driveSelectedValue,
 			})
 		}
 		nodeInfo = append(nodeInfo, NodeInfo{
@@ -162,7 +166,7 @@ func showDevices(resultMap map[directpvtypes.NodeID][]types.Device) error {
 			}
 			writer.AppendRow(
 				[]interface{}{
-					device.ID,
+					device.ID[:16] + "...",
 					node,
 					device.Name,
 					printableBytes(int64(device.Size)),
@@ -269,7 +273,7 @@ func discoverMain(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	if yamlOutput || jsonOutput {
+	if dryRunPrinter != nil {
 		nodeList := types.NodeList{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "List",
@@ -277,10 +281,7 @@ func discoverMain(ctx context.Context) {
 			},
 			Items: nodes,
 		}
-		if err := printer(nodeList); err != nil {
-			utils.Eprintf(quietFlag, true, "unable to %v marshal nodes; %v\n", outputFormat, err)
-			os.Exit(1)
-		}
+		dryRunPrinter(nodeList)
 		return
 	}
 

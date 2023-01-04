@@ -39,20 +39,20 @@ var cordonCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Cordon all drives from all nodes
-$ kubectl {PLUGIN_NAME} cordon --all
+		`1. Cordon all drives from all nodes
+   $ kubectl {PLUGIN_NAME} cordon --all
 
-# Cordon all drives from a node
-$ kubectl {PLUGIN_NAME} cordon --nodes=node1
+2. Cordon all drives from a node
+   $ kubectl {PLUGIN_NAME} cordon --nodes=node1
 
-# Cordon a drive from all nodes
-$ kubectl {PLUGIN_NAME} cordon --drives=nvme1n1
+3. Cordon a drive from all nodes
+   $ kubectl {PLUGIN_NAME} cordon --drives=nvme1n1
 
-# Cordon specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} cordon --nodes=node{1...4} --drives=sd{a...f}
+4. Cordon specific drives from specific nodes
+   $ kubectl {PLUGIN_NAME} cordon --nodes=node{1...4} --drives=sd{a...f}
 
-# Cordon drives which are in 'error' status
-$ kubectl {PLUGIN_NAME} cordon --status=error`,
+5. Cordon drives which are in 'error' status
+   $ kubectl {PLUGIN_NAME} cordon --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -80,7 +80,7 @@ func init() {
 	addDrivesFlag(cordonCmd, "If present, select drives by given names")
 	addDriveStatusFlag(cordonCmd, "If present, select drives by drive status")
 	addAllFlag(cordonCmd, "If present, select all drives")
-	addDryRunFlag(cordonCmd)
+	addDryRunFlag(cordonCmd, "Run in dry run mode")
 }
 
 func validateCordonCmd() error {
@@ -141,7 +141,6 @@ func cordonMain(ctx context.Context) {
 		processed = true
 
 		if result.Drive.IsUnschedulable() {
-			utils.Eprintf(quietFlag, false, "Drive %v already cordoned\n", result.Drive.GetDriveID())
 			continue
 		}
 
@@ -166,7 +165,7 @@ func cordonMain(ctx context.Context) {
 		}
 
 		if !quietFlag {
-			fmt.Printf("Drive %v cordoned\n", result.Drive.GetDriveID())
+			fmt.Printf("Drive %v/%v cordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 		}
 	}
 

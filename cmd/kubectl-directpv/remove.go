@@ -34,24 +34,24 @@ import (
 
 var removeCmd = &cobra.Command{
 	Use:           "remove [DRIVE ...]",
-	Short:         fmt.Sprintf("Remove drives from %s", consts.AppPrettyName),
+	Short:         fmt.Sprintf("Remove unused drives from %s", consts.AppPrettyName),
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Remove a drive from all nodes
-$ kubectl {PLUGIN_NAME} remove --drives=nvme1n1
+		`1. Remove an unused drive from all nodes
+   $ kubectl {PLUGIN_NAME} remove --drives=nvme1n1
 
-# Remove all drives from a node
-$ kubectl {PLUGIN_NAME} remove --nodes=node1
+2. Remove all unused drives from a node
+   $ kubectl {PLUGIN_NAME} remove --nodes=node1
 
-# Remove specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} remove --nodes=node{1...4} --drives=sd{a...f}
+3. Remove specific unused drives from specific nodes
+   $ kubectl {PLUGIN_NAME} remove --nodes=node{1...4} --drives=sd{a...f}
 
-# Remove all drives from all nodes
-$ kubectl {PLUGIN_NAME} remove --all
+4. Remove all unused drives from all nodes
+   $ kubectl {PLUGIN_NAME} remove --all
 
-# Remove drives are in 'error' status
-$ kubectl {PLUGIN_NAME} remove --status=error`,
+5. Remove drives are in 'error' status
+   $ kubectl {PLUGIN_NAME} remove --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -78,8 +78,8 @@ func init() {
 	addNodesFlag(removeCmd, "If present, select drives from given nodes")
 	addDrivesFlag(removeCmd, "If present, select drives by given names")
 	addDriveStatusFlag(removeCmd, "If present, select drives by drive status")
-	addAllFlag(removeCmd, "If present, select all drives")
-	addDryRunFlag(removeCmd)
+	addAllFlag(removeCmd, "If present, select all unused drives")
+	addDryRunFlag(removeCmd, "Run in dry run mode")
 }
 
 func validateRemoveCmd() error {
@@ -142,12 +142,10 @@ func removeMain(ctx context.Context) {
 		processed = true
 		switch result.Drive.Status.Status {
 		case directpvtypes.DriveStatusRemoved:
-			utils.Eprintf(quietFlag, false, "%v/%v already removed\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 		default:
 			volumeCount := result.Drive.GetVolumeCount()
 			if volumeCount > 0 {
 				failed = true
-				utils.Eprintf(quietFlag, true, "%v/%v: %v volumes still exist\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), volumeCount)
 			} else {
 				result.Drive.Status.Status = directpvtypes.DriveStatusRemoved
 				var err error

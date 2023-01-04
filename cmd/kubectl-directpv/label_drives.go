@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -38,14 +39,14 @@ var labelDrivesCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Set 'tier: hot' label to all drives in all nodes
-$ kubectl {PLUGIN_NAME} label drives tier=hot --all
+		`1. Set 'tier: hot' label to all drives in all nodes
+   $ kubectl {PLUGIN_NAME} label drives tier=hot --all
 
-# Set 'type: fast' to specific drives from a node
-$ kubectl {PLUGIN_NAME} label drives type=fast --nodes=node1 --drives=nvme1n{1...3}
+2. Set 'type: fast' to specific drives from a node
+   $ kubectl {PLUGIN_NAME} label drives type=fast --nodes=node1 --drives=nvme1n{1...3}
 
-# Remove  'directpv.min.io/tier: hot' label from all drives in all nodes
-$ kubectl {PLUGIN_NAME} label drives tier- --all`,
+3. Remove  'tier: hot' label from all drives in all nodes
+   $ kubectl {PLUGIN_NAME} label drives tier- --all`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -66,8 +67,25 @@ func validateLabelDrivesCmd(args []string) (err error) {
 	if err = validateListDrivesArgs(); err != nil {
 		return err
 	}
+	switch {
+	case allFlag:
+	case len(nodesArgs) != 0:
+	case len(drivesArgs) != 0:
+	case len(driveStatusArgs) != 0:
+	case len(driveIDArgs) != 0:
+	case len(labelArgs) != 0:
+	default:
+		return errors.New("no drives selected to label")
+	}
+	if allFlag {
+		nodesArgs = nil
+		drivesArgs = nil
+		driveStatusArgs = nil
+		driveIDArgs = nil
+		labelArgs = nil
+	}
 	labels, err = validateLabelCmdArgs(args)
-	return
+	return err
 }
 
 func init() {

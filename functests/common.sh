@@ -211,8 +211,8 @@ function uninstall_minio() {
     fi
     sleep 5
 
-    # release all the volumes
-    "${DIRECTPV_CLIENT}" release --all >/dev/null 2>&1 || true
+    # clean all the volumes
+    "${DIRECTPV_CLIENT}" clean --all >/dev/null 2>&1 || true
 
     while true; do
         count=$("${DIRECTPV_CLIENT}" list volumes --all --no-headers 2>/dev/null | wc -l)

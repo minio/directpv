@@ -17,7 +17,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -47,7 +46,7 @@ func init() {
 
 	addNodesFlag(listCmd, "Filter output by nodes")
 	addDrivesFlag(listCmd, "Filter output by drive names")
-	listCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", outputFormat, "Output format. One of: json|yaml|wide")
+	addOutputFormatFlag(listCmd, "Output format. One of: json|yaml|wide")
 	listCmd.PersistentFlags().BoolVar(&noHeaders, "no-headers", noHeaders, "When using the default or custom-column output format, don't print headers (default print headers)")
 
 	listCmd.AddCommand(listDrivesCmd)
@@ -55,34 +54,16 @@ func init() {
 }
 
 func validateListCmd() error {
-	switch outputFormat {
-	case "":
-	case "wide":
-		wideOutput = true
-	case "yaml":
-		yamlOutput = true
-	case "json":
-		jsonOutput = true
-	default:
-		return errors.New("--output flag value must be one of wide|json|yaml or empty")
+	if err := validateOutputFormat(true); err != nil {
+		return err
 	}
-
-	printer = printYAML
-	if jsonOutput {
-		printer = printJSON
-	}
-
 	if err := validateNodeArgs(); err != nil {
 		return err
 	}
 	if err := validateDriveNameArgs(); err != nil {
 		return err
 	}
-	if err := validateLabelArgs(); err != nil {
-		return err
-	}
-
-	return nil
+	return validateLabelArgs()
 }
 
 func labelsToString(labels map[string]string) string {

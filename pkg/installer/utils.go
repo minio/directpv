@@ -28,16 +28,7 @@ import (
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/yaml"
 )
-
-func mustGetYAML(i interface{}) string {
-	data, err := yaml.Marshal(i)
-	if err != nil {
-		klog.Fatalf("unable to marshal object to YAML; %w", err)
-	}
-	return fmt.Sprintf("%v\n---\n", string(data))
-}
 
 func newHostPathVolume(name, path string) corev1.Volume {
 	hostPathType := corev1.HostPathDirectoryOrCreate
@@ -181,7 +172,7 @@ func migrateLog(ctx context.Context, args *Args, errMsg string, showInProgress b
 				return errSendProgress
 			}
 		}
-	case !args.Quiet && !args.DryRun:
+	case !args.Quiet && !args.dryRun():
 		klog.Error(errMsg)
 	}
 	return writeToAuditFile(args.auditWriter, errMsg)

@@ -39,26 +39,26 @@ var listDrivesCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# List all ready drives
-$ kubectl {PLUGIN_NAME} list drives
+		`1. List all ready drives
+   $ kubectl {PLUGIN_NAME} list drives
 
-# List all drives from a node
-$ kubectl {PLUGIN_NAME} list drives --nodes=node1
+2. List all drives from a node
+   $ kubectl {PLUGIN_NAME} list drives --nodes=node1
 
-# List a drive from all nodes
-$ kubectl {PLUGIN_NAME} list drives --drives=nvme1n1
+3. List a drive from all nodes
+   $ kubectl {PLUGIN_NAME} list drives --drives=nvme1n1
 
-# List specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} list drives --nodes=node{1...4} --drives=sd{a...f}
+4. List specific drives from specific nodes
+   $ kubectl {PLUGIN_NAME} list drives --nodes=node{1...4} --drives=sd{a...f}
 
-# List drives are in 'error' status
-$ kubectl {PLUGIN_NAME} list drives --status=error
+5. List drives are in 'error' status
+   $ kubectl {PLUGIN_NAME} list drives --status=error
 
-# List all drives from all nodes with all information.
-$ kubectl {PLUGIN_NAME} list drives --output wide
+6. List all drives from all nodes with all information.
+   $ kubectl {PLUGIN_NAME} list drives --output wide
 
-# List drives with labels.
-$ kubectl {PLUGIN_NAME} list drives --show-labels`,
+7. List drives with labels.
+   $ kubectl {PLUGIN_NAME} list drives --show-labels`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -131,7 +131,7 @@ func listDrivesMain(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
-	if yamlOutput || jsonOutput {
+	if dryRunPrinter != nil {
 		driveList := types.DriveList{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "List",
@@ -139,10 +139,7 @@ func listDrivesMain(ctx context.Context, args []string) {
 			},
 			Items: drives,
 		}
-		if err := printer(driveList); err != nil {
-			utils.Eprintf(quietFlag, true, "unable to %v marshal drives; %v\n", outputFormat, err)
-			os.Exit(1)
-		}
+		dryRunPrinter(driveList)
 		return
 	}
 

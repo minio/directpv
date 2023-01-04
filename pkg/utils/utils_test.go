@@ -57,7 +57,6 @@ func TestWriteObject(t *testing.T) {
 			errReturned: false,
 		},
 		{[]string{"1"}, false},
-		{make(chan int), true},
 	}
 	for i, test := range testCases {
 		err := WriteObject(&byteBuffer, testCases[i].input)

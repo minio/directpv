@@ -50,7 +50,7 @@ var (
 	imagePullSecrets = []string{}
 	nodeSelector     map[string]string
 	tolerations      []corev1.Toleration
-	k8sVersion       string
+	k8sVersion       = "1.25.0"
 	kubeVersion      *version.Version
 	legacyFlag       bool
 )
@@ -60,19 +60,39 @@ var installCmd = &cobra.Command{
 	Short:         "Install " + consts.AppPrettyName + " in Kubernetes",
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	Example: strings.ReplaceAll(
+		`1. Install DirectPV
+   $ kubectl {PLUGIN_NAME} install
+
+2. Pull images from private registry (eg, private-registry.io/org-name) for DirectPV installation
+   $ kubectl {PLUGIN_NAME} install --registry private-registry.io --org org-name
+
+3. Specify '--node-selector' to deploy DirectPV daemonset pods only on selective nodes
+   $ kubectl {PLUGIN_NAME} install --node-selector node-label-key=node-label-value
+
+4. Specify '--tolerations' to tolerate and deploy DirectPV daemonset pods on tainted nodes (Example: key=value:NoSchedule)
+   $ kubectl {PLUGIN_NAME} install --tolerations key=value:NoSchedule
+
+5. Generate DirectPV installation manifest in YAML
+   $ kubectl {PLUGIN_NAME} install -o yaml > directpv-install.yaml
+
+6. Install DirectPV with apparmor profile
+   $ kubectl {PLUGIN_NAME} install --apparmor-profile apparmor.json`,
+		`{PLUGIN_NAME}`,
+		consts.AppName,
+	),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		disableInit = dryRunFlag
+		if err := validateInstallCmd(); err != nil {
+			utils.Eprintf(quietFlag, true, "%v\n", err)
+			os.Exit(-1)
+		}
+		disableInit = dryRunPrinter != nil
 		if parent := cmd.Parent(); parent != nil {
 			return parent.PersistentPreRunE(parent, args)
 		}
 		return nil
 	},
 	Run: func(c *cobra.Command, args []string) {
-		if err := validateInstallCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
-			os.Exit(-1)
-		}
-
 		installMain(c.Context())
 	},
 }
@@ -89,18 +109,17 @@ func init() {
 	installCmd.NonInheritedFlags().SortFlags = false
 	installCmd.PersistentFlags().SortFlags = false
 
-	installCmd.PersistentFlags().StringVar(&image, "image", image, consts.AppPrettyName+" image")
-	installCmd.PersistentFlags().StringSliceVar(&imagePullSecrets, "image-pull-secrets", imagePullSecrets, "Image pull secrets to be set in pod specs")
-	installCmd.PersistentFlags().StringVar(&registry, "registry", registry, "Registry where "+consts.AppPrettyName+" images are available")
-	installCmd.PersistentFlags().StringVar(&org, "org", org, "Organization name on the registry holds "+consts.AppPrettyName+" images")
-	installCmd.PersistentFlags().StringSliceVar(&nodeSelectorArgs, "node-selector", nodeSelectorArgs, "Node selector parameters")
-	installCmd.PersistentFlags().StringSliceVar(&tolerationArgs, "tolerations", tolerationArgs, "Tolerations parameters")
-	installCmd.PersistentFlags().StringVar(&seccompProfile, "seccomp-profile", seccompProfile, "Set Seccomp profile")
-	installCmd.PersistentFlags().StringVar(&apparmorProfile, "apparmor-profile", apparmorProfile, "Set Apparmor profile")
-	installCmd.PersistentFlags().StringVar(&configDir, "config-dir", configDir, "Path to configuration directory")
-	installCmd.PersistentFlags().StringVar(&k8sVersion, "kube-version", k8sVersion, "If present, use this as kubernetes version for dry-run")
-	installCmd.PersistentFlags().BoolVar(&legacyFlag, "legacy", legacyFlag, "If present, include legacy services for dry-run")
-	addDryRunFlag(installCmd)
+	installCmd.PersistentFlags().StringSliceVar(&nodeSelectorArgs, "node-selector", nodeSelectorArgs, "Select the storage nodes using labels (KEY=VALUE,..)")
+	installCmd.PersistentFlags().StringSliceVar(&tolerationArgs, "tolerations", tolerationArgs, "Set toleration labels on the storage nodes (KEY[=VALUE]:EFFECT,..)")
+	installCmd.PersistentFlags().StringVar(&registry, "registry", registry, "Name of container registry")
+	installCmd.PersistentFlags().StringVar(&org, "org", org, "Organization name in the registry")
+	installCmd.PersistentFlags().StringVar(&image, "image", image, "Name of the "+consts.AppPrettyName+" image")
+	installCmd.PersistentFlags().StringSliceVar(&imagePullSecrets, "image-pull-secrets", imagePullSecrets, "Image pull secrets for "+consts.AppPrettyName+" images (SECRET1,..)")
+	installCmd.PersistentFlags().StringVar(&apparmorProfile, "apparmor-profile", apparmorProfile, "Set path to Apparmor profile")
+	installCmd.PersistentFlags().StringVar(&seccompProfile, "seccomp-profile", seccompProfile, "Set path to Seccomp profile")
+	addOutputFormatFlag(installCmd, "Generate installation manifest. One of: yaml|json")
+	installCmd.PersistentFlags().StringVar(&k8sVersion, "kube-version", k8sVersion, "Select the kubernetes version for manifest generation")
+	installCmd.PersistentFlags().BoolVar(&legacyFlag, "legacy", legacyFlag, "Enable legacy mode (Used with '-o')")
 }
 
 func validateNodeSelectorArgs() error {
@@ -176,23 +195,23 @@ func validateInstallCmd() error {
 	if err := validateNodeSelectorArgs(); err != nil {
 		return fmt.Errorf("%v; format of '--node-selector' flag value must be [<key>=<value>]", err)
 	}
-
 	if err := validateTolerationsArgs(); err != nil {
 		return fmt.Errorf("%v; format of '--tolerations' flag value must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>", err)
 	}
-
-	if dryRunFlag && k8sVersion != "" {
+	if err := validateOutputFormat(false); err != nil {
+		return err
+	}
+	if dryRunPrinter != nil && k8sVersion != "" {
 		var err error
 		if kubeVersion, err = version.ParseSemantic(k8sVersion); err != nil {
 			return fmt.Errorf("invalid kubernetes version %v; %v", k8sVersion, err)
 		}
 	}
-
 	return nil
 }
 
 func getLegacyFlag(ctx context.Context) bool {
-	if dryRunFlag {
+	if dryRunPrinter != nil {
 		return legacyFlag
 	}
 
@@ -261,10 +280,11 @@ func installMain(ctx context.Context) {
 	args.Tolerations = tolerations
 	args.SeccompProfile = seccompProfile
 	args.AppArmorProfile = apparmorProfile
-	args.DryRun = dryRunFlag
 	args.Quiet = quietFlag
 	args.KubeVersion = kubeVersion
 	args.Legacy = legacyFlag
+	args.DryRunPrinter = dryRunPrinter
+
 	var failed bool
 	var installedComponents []installer.Component
 	var wg sync.WaitGroup

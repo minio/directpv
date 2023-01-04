@@ -35,65 +35,65 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var releaseCmd = &cobra.Command{
-	Use:           "release [VOLUME ...]",
+var cleanCmd = &cobra.Command{
+	Use:           "clean [VOLUME ...]",
 	Short:         "Cleanup stale volumes",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Release all stale volumes
-$ kubectl {PLUGIN_NAME} release --all
+		`1. Cleanup all stale volumes
+   $ kubectl {PLUGIN_NAME} clean --all
 
-# Release a volume by its ID
-$ kubectl {PLUGIN_NAME} release pvc-6355041d-f9c6-4bd6-9335-f2bccbe73929
+2. Clean a volume by its ID
+   $ kubectl {PLUGIN_NAME} clean pvc-6355041d-f9c6-4bd6-9335-f2bccbe73929
 
-# Release volumes served by drive name in all nodes.
-$ kubectl {PLUGIN_NAME} release --drives=nvme1n1
+3. Clean volumes served by drive name in all nodes.
+   $ kubectl {PLUGIN_NAME} clean --drives=nvme1n1
 
-# Release volumes served by drive
-$ kubectl {PLUGIN_NAME} release --drive-id=78e6486e-22d2-4c93-99d0-00f4e3a8411f
+4. Clean volumes served by drive
+   $ kubectl {PLUGIN_NAME} clean --drive-id=78e6486e-22d2-4c93-99d0-00f4e3a8411f
 
-# Release volumes served by a node
-$ kubectl {PLUGIN_NAME} release --nodes=node1
+5. Clean volumes served by a node
+   $ kubectl {PLUGIN_NAME} clean --nodes=node1
 
-# Release volumes by pod name
-$ kubectl {PLUGIN_NAME} release --pod-names=minio-{1...3}
+6. Clean volumes by pod name
+   $ kubectl {PLUGIN_NAME} clean --pod-names=minio-{1...3}
 
-# Release volumes by pod namespace
-$ kubectl {PLUGIN_NAME} release --pod-namespaces=tenant-{1...3}`,
+7. Clean volumes by pod namespace
+   $ kubectl {PLUGIN_NAME} clean --pod-namespaces=tenant-{1...3}`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
 		volumeNameArgs = args
 
-		if err := validateReleaseCmd(); err != nil {
+		if err := validateCleanCmd(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
-		releaseMain(c.Context())
+		cleanMain(c.Context())
 	},
 }
 
 func init() {
-	releaseCmd.Flags().SortFlags = false
-	releaseCmd.InheritedFlags().SortFlags = false
-	releaseCmd.LocalFlags().SortFlags = false
-	releaseCmd.LocalNonPersistentFlags().SortFlags = false
-	releaseCmd.NonInheritedFlags().SortFlags = false
-	releaseCmd.PersistentFlags().SortFlags = false
+	cleanCmd.Flags().SortFlags = false
+	cleanCmd.InheritedFlags().SortFlags = false
+	cleanCmd.LocalFlags().SortFlags = false
+	cleanCmd.LocalNonPersistentFlags().SortFlags = false
+	cleanCmd.NonInheritedFlags().SortFlags = false
+	cleanCmd.PersistentFlags().SortFlags = false
 
-	addNodesFlag(releaseCmd, "If present, select volumes from given nodes")
-	addDrivesFlag(releaseCmd, "If present, select volumes by given drive names")
-	addAllFlag(releaseCmd, "If present, select all volumes")
-	addDryRunFlag(releaseCmd)
-	addDriveIDFlag(releaseCmd, "Select volumes by drive IDs")
-	addPodNameFlag(releaseCmd, "Select volumes by pod names")
-	addPodNSFlag(releaseCmd, "Select volumes by pod namespaces")
+	addNodesFlag(cleanCmd, "If present, select volumes from given nodes")
+	addDrivesFlag(cleanCmd, "If present, select volumes by given drive names")
+	addAllFlag(cleanCmd, "If present, select all volumes")
+	addDryRunFlag(cleanCmd, "Run in dry run mode")
+	addDriveIDFlag(cleanCmd, "Select volumes by drive IDs")
+	addPodNameFlag(cleanCmd, "Select volumes by pod names")
+	addPodNSFlag(cleanCmd, "Select volumes by pod namespaces")
 }
 
-func validateReleaseCmd() error {
+func validateCleanCmd() error {
 	if err := validateNodeArgs(); err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func validateReleaseCmd() error {
 	case len(podNSArgs) != 0:
 	case len(volumeNameArgs) != 0:
 	default:
-		return errors.New("no volume selected to release")
+		return errors.New("no volume selected to clean")
 	}
 
 	if allFlag {
@@ -142,7 +142,7 @@ func validateReleaseCmd() error {
 	return nil
 }
 
-func releaseMain(ctx context.Context) {
+func cleanMain(ctx context.Context) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -169,9 +169,6 @@ func releaseMain(ctx context.Context) {
 		case corev1.VolumeReleased, corev1.VolumeFailed:
 			return true
 		default:
-			if !quietFlag {
-				utils.Eprintf(quietFlag, false, "Skipping PV %v in %v state to volume %v\n", pv.Name, pv.Status.Phase, volume.Name)
-			}
 			return false
 		}
 	}

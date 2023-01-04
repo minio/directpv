@@ -32,8 +32,8 @@ var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "Migrate drives and volumes from legacy DirectCSI",
 	Example: strings.ReplaceAll(
-		`# Migrate drives and volumes from legacy DirectCSI
-$ kubectl {PLUGIN_NAME} migrate`,
+		`1. Migrate drives and volumes from legacy DirectCSI
+   $ kubectl {PLUGIN_NAME} migrate`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -50,12 +50,11 @@ func init() {
 	migrateCmd.NonInheritedFlags().SortFlags = false
 	migrateCmd.PersistentFlags().SortFlags = false
 
-	addDryRunFlag(migrateCmd)
+	addDryRunFlag(migrateCmd, "Run in dry run mode")
 }
 
 func migrateMain(ctx context.Context) {
 	if err := installer.Migrate(ctx, &installer.Args{
-		DryRun: dryRunFlag,
 		Quiet:  quietFlag,
 		Legacy: true,
 	}); err != nil {

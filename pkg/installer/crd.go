@@ -29,6 +29,7 @@ import (
 	"github.com/minio/directpv/pkg/initrequest"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/node"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/volume"
 	"k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -162,15 +163,14 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 			return err
 		}
 
-		if args.DryRun {
+		if args.dryRun() {
 			updateLabels(
 				&crd,
 				map[directpvtypes.LabelKey]directpvtypes.LabelValue{
 					directpvtypes.VersionLabelKey: consts.LatestAPIVersion,
 				},
 			)
-
-			fmt.Print(mustGetYAML(crd))
+			args.DryRunPrinter(crd)
 			return nil
 		}
 
@@ -191,7 +191,7 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Registered %s CRD", crd.Name), step, crdComponent(crd.Name)) {
 				return errSendProgress
 			}
-			_, err = io.WriteString(args.auditWriter, mustGetYAML(crd))
+			_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(crd))
 			return err
 		}
 
@@ -205,7 +205,7 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 		if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Updated %s CRD", crd.Name), step, crdComponent(crd.Name)) {
 			return errSendProgress
 		}
-		_, err = io.WriteString(args.auditWriter, mustGetYAML(updatedCRD))
+		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(updatedCRD))
 		return err
 	}
 

@@ -17,6 +17,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 )
 
@@ -38,25 +40,30 @@ func Contains[ctype comparable](slice []ctype, value ctype) bool {
 	return false
 }
 
-// ToYAML converts value to YAML string.
-func ToYAML(obj interface{}) (string, error) {
-	data, err := yaml.Marshal(obj)
+// MustGetYAML converts the given object to YAML
+func MustGetYAML(i interface{}) string {
+	data, err := yaml.Marshal(i)
 	if err != nil {
-		return "", fmt.Errorf("unable to marshal object to YAML; %w", err)
+		klog.Fatalf("unable to marshal object to YAML; %w", err)
 	}
-	return string(data), nil
+	return fmt.Sprintf("%v\n---\n", string(data))
+}
+
+// MustGetJSON converts the given object to JSON
+func MustGetJSON(obj interface{}) string {
+	data, err := json.MarshalIndent(obj, "", "  ")
+	if err != nil {
+		klog.Fatalf("unable to marshal object to JSON; %w", err)
+	}
+	return fmt.Sprintf("%v\n---\n", string(data))
 }
 
 // WriteObject writes the writer content
 func WriteObject(writer io.Writer, obj interface{}) error {
-	y, err := ToYAML(obj)
-	if err != nil {
+	if _, err := writer.Write([]byte(MustGetYAML(obj))); err != nil {
 		return err
 	}
-	if _, err = writer.Write([]byte(y)); err != nil {
-		return err
-	}
-	_, err = writer.Write([]byte("---\n"))
+	_, err := writer.Write([]byte("---\n"))
 	return err
 }
 

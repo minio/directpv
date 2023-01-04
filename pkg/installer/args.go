@@ -44,7 +44,6 @@ type Args struct {
 	Tolerations              []corev1.Toleration
 	SeccompProfile           string
 	AppArmorProfile          string
-	DryRun                   bool
 	Quiet                    bool
 	KubeVersion              *version.Version
 	Legacy                   bool
@@ -54,6 +53,11 @@ type Args struct {
 	livenessProbeImage       string
 	ProgressCh               chan<- Message
 	ForceUninstall           bool
+	DryRunPrinter            func(interface{})
+}
+
+func (args Args) dryRun() bool {
+	return args.DryRunPrinter != nil
 }
 
 // NewArgs creates arguments for DirectPV installation.
