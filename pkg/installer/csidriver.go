@@ -32,30 +32,24 @@ import (
 )
 
 const (
-	totalCSIDriverSteps = 4
+	totalCSIDriverSteps = 2
 )
-
-var csiDriverStepsCompleted int
-
-func csiDriverTask(done bool) *Task {
-	if !done {
-		csiDriverStepsCompleted++
-	}
-	return newTask(totalCSIDriverSteps, csiDriverStepsCompleted, done)
-}
 
 var errCSIDriverVersionUnsupported = errors.New("unsupported CSIDriver version found")
 
-func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy bool) (err error) {
+func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy bool, step int) (err error) {
 	name := consts.Identity
 	if legacy {
 		name = legacyclient.Identity
 	}
-	sendProgressEvent(args.Progress, fmt.Sprintf("Creating %s CSI Driver", name), nil)
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s CSI Driver", name), step, nil) {
+		return errSendProgress
+	}
 	defer func() {
 		if err == nil {
-			installedComponents = append(installedComponents, csiDriverComponent(name))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Created %s CSI Driver", name), csiDriverTask(false))
+			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s CSI Driver", name), step, csiDriverComponent(name)) {
+				err = errSendProgress
+			}
 		}
 	}()
 
@@ -144,12 +138,6 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 }
 
 func createCSIDriver(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, "Creating CSI Driver", nil)
-	defer func() {
-		if err == nil {
-			sendProgressEvent(args.Progress, "Created CSI Driver", csiDriverTask(true))
-		}
-	}()
 	version := "v1"
 	if args.DryRun {
 		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 19 {
@@ -163,12 +151,12 @@ func createCSIDriver(ctx context.Context, args *Args) (err error) {
 		version = gvk.Version
 	}
 
-	if err := doCreateCSIDriver(ctx, args, version, false); err != nil {
+	if err := doCreateCSIDriver(ctx, args, version, false, 1); err != nil {
 		return err
 	}
 
 	if args.Legacy {
-		if err := doCreateCSIDriver(ctx, args, version, true); err != nil {
+		if err := doCreateCSIDriver(ctx, args, version, true, 2); err != nil {
 			return err
 		}
 	}

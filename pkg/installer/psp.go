@@ -36,26 +36,19 @@ const (
 	totalPSPSteps = 2
 )
 
-var (
-	pspStepsCompleted         int
-	pspClusterRoleBindingName = "psp-" + consts.Identity
-)
-
-func pspTask(done bool) *Task {
-	if !done {
-		pspStepsCompleted++
-	}
-	return newTask(totalPSPSteps, pspStepsCompleted, done)
-}
+var pspClusterRoleBindingName = "psp-" + consts.Identity
 
 var errPSPUnsupported = errors.New("pod security policy is not supported in your kubernetes version")
 
 func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, fmt.Sprintf("Creating '%s' cluster role binding", pspClusterRoleBindingName), nil)
+	if !sendProgressMessage(ctx, args.ProgressCh, "Creating psp cluster role binding", 2, nil) {
+		return errSendProgress
+	}
 	defer func() {
 		if err == nil {
-			installedComponents = append(installedComponents, clusterRoleBindingComponent(pspClusterRoleBindingName))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Created '%s' cluster role binding", pspClusterRoleBindingName), pspTask(false))
+			if !sendProgressMessage(ctx, args.ProgressCh, "Created psp cluster role binding", 2, clusterRoleBindingComponent(pspClusterRoleBindingName)) {
+				err = errSendProgress
+			}
 		}
 	}()
 	crb := &rbac.ClusterRoleBinding{
@@ -101,11 +94,14 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 }
 
 func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, fmt.Sprintf("Creating '%s' pod security policy", consts.Identity), nil)
+	if !sendProgressMessage(ctx, args.ProgressCh, "Creating pod security policy", 1, nil) {
+		return errSendProgress
+	}
 	defer func() {
 		if err == nil {
-			installedComponents = append(installedComponents, podSecurityPolicyComponent(consts.Identity))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Created '%s' pod security policy", consts.Identity), pspTask(false))
+			if !sendProgressMessage(ctx, args.ProgressCh, "Created pod security policy", 1, podSecurityPolicyComponent(consts.Identity)) {
+				err = errSendProgress
+			}
 		}
 	}()
 	psp := &policy.PodSecurityPolicy{
@@ -168,6 +164,9 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 }
 
 func createPSP(ctx context.Context, args *Args) error {
+	if args.podSecurityAdmission {
+		return nil
+	}
 	var gvk *schema.GroupVersionKind
 	if !args.DryRun {
 		var err error

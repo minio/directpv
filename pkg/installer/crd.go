@@ -42,15 +42,6 @@ const (
 	totalCRDSteps = 4
 )
 
-var crdStepsCompleted int
-
-func crdTask(done bool) *Task {
-	if !done {
-		crdStepsCompleted++
-	}
-	return newTask(totalCRDSteps, crdStepsCompleted, done)
-}
-
 //go:embed directpv.min.io_directpvdrives.yaml
 var drivesYAML []byte
 
@@ -136,13 +127,7 @@ func updateCRD(
 }
 
 func createCRDs(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, "Registering CRDs", nil)
-	defer func() {
-		if err == nil {
-			sendProgressEvent(args.Progress, "Successfully registered CRDs", crdTask(true))
-		}
-	}()
-	register := func(data []byte) error {
+	register := func(data []byte, step int) error {
 		object := map[string]interface{}{}
 		if err := yaml.Unmarshal(data, &object); err != nil {
 			return err
@@ -172,43 +157,47 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 			}
 
 			setNoneConversionStrategy(&crd)
-			sendProgressEvent(args.Progress, fmt.Sprintf("Registering %s CRD", crd.Name), nil)
+			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Registering %s CRD", crd.Name), step, nil) {
+				return errSendProgress
+			}
 			_, err := k8s.CRDClient().Create(ctx, &crd, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
-			installedComponents = append(installedComponents, crdComponent(crd.Name))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Registered %s CRD", crd.Name), crdTask(false))
-
+			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Registered %s CRD", crd.Name), step, crdComponent(crd.Name)) {
+				return errSendProgress
+			}
 			_, err = io.WriteString(args.auditWriter, mustGetYAML(crd))
 			return err
 		}
 
-		sendProgressEvent(args.Progress, fmt.Sprintf("Updating %s CRD", crd.Name), nil)
+		if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Updating %s CRD", crd.Name), step, nil) {
+			return errSendProgress
+		}
 		updatedCRD, err := updateCRD(ctx, existingCRD, &crd)
 		if err != nil {
 			return err
 		}
-		installedComponents = append(installedComponents, crdComponent(crd.Name))
-		sendProgressEvent(args.Progress, fmt.Sprintf("Updated %s CRD", crd.Name), crdTask(false))
-
+		if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Updated %s CRD", crd.Name), step, crdComponent(crd.Name)) {
+			return errSendProgress
+		}
 		_, err = io.WriteString(args.auditWriter, mustGetYAML(updatedCRD))
 		return err
 	}
 
-	if err := register(drivesYAML); err != nil {
+	if err := register(drivesYAML, 1); err != nil {
 		return err
 	}
 
-	if err := register(volumesYAML); err != nil {
+	if err := register(volumesYAML, 2); err != nil {
 		return err
 	}
 
-	if err := register(nodesYAML); err != nil {
+	if err := register(nodesYAML, 3); err != nil {
 		return err
 	}
 
-	return register(initrequestsYAML)
+	return register(initrequestsYAML, 4)
 }
 
 func removeVolumes(ctx context.Context) error {

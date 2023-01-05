@@ -39,27 +39,21 @@ const (
 	totalDeploymentSteps       = 2
 )
 
-var deploymentStepsCompleted int
-
-func deploymentTask(done bool) *Task {
-	if !done {
-		deploymentStepsCompleted++
-	}
-	return newTask(totalDeploymentSteps, deploymentStepsCompleted, done)
-}
-
-func doCreateDeployment(ctx context.Context, args *Args, legacy bool) (err error) {
+func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) (err error) {
 	name := consts.ControllerServerName
 	containerArgs := []string{name, fmt.Sprintf("--identity=%s", consts.Identity)}
 	if legacy {
 		name = consts.LegacyControllerServerName
 		containerArgs = []string{name}
 	}
-	sendProgressEvent(args.Progress, fmt.Sprintf("Creating %s Deployment", name), nil)
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Deployment", name), step, nil) {
+		return errSendProgress
+	}
 	defer func() {
 		if err == nil {
-			installedComponents = append(installedComponents, deploymentComponent(name))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Created %s Deployment", name), deploymentTask(false))
+			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Deployment", name), step, deploymentComponent(name)) {
+				err = errSendProgress
+			}
 		}
 	}()
 	containerArgs = append(
@@ -188,18 +182,12 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool) (err error
 }
 
 func createDeployment(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, "Creating Deployment", nil)
-	defer func() {
-		if err == nil {
-			sendProgressEvent(args.Progress, "Created Deployment", deploymentTask(true))
-		}
-	}()
-	if err := doCreateDeployment(ctx, args, false); err != nil {
+	if err := doCreateDeployment(ctx, args, false, 1); err != nil {
 		return err
 	}
 
 	if args.Legacy {
-		if err := doCreateDeployment(ctx, args, true); err != nil {
+		if err := doCreateDeployment(ctx, args, true, 2); err != nil {
 			return err
 		}
 	}

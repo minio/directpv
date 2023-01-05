@@ -164,7 +164,7 @@ func TestInstallUinstall(t *testing.T) {
 		k8s.SetDiscoveryInterface(getDiscoveryGroupsAndMethods, &testVersion)
 		ctx := context.TODO()
 		args := args
-		if _, err := Install(ctx, &args); err != nil {
+		if err := Install(ctx, &args); err != nil {
 			t.Fatalf("case %v: unexpected error; %v", i+1, err)
 		}
 		if err := Uninstall(ctx, false, true); err != nil {

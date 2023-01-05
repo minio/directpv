@@ -48,15 +48,6 @@ const (
 	totalDaemonsetSteps        = 2
 )
 
-var daemonsetStepsCompleted int
-
-func daemonsetTask(done bool) *Task {
-	if !done {
-		daemonsetStepsCompleted++
-	}
-	return newTask(totalDaemonsetSteps, daemonsetStepsCompleted, done)
-}
-
 func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
 	privileged := true
 	securityContext := &corev1.SecurityContext{Privileged: &privileged}
@@ -213,13 +204,6 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 }
 
 func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, fmt.Sprintf("Creating %s Daemonset", consts.NodeServerName), nil)
-	defer func() {
-		if err == nil {
-			installedComponents = append(installedComponents, daemonsetComponent(consts.NodeServerName))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Created %s Daemonset", consts.NodeServerName), daemonsetTask(false))
-		}
-	}()
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, consts.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
@@ -276,13 +260,6 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 }
 
 func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, fmt.Sprintf("Creating %s Daemonset", consts.LegacyNodeServerName), nil)
-	defer func() {
-		if err == nil {
-			installedComponents = append(installedComponents, daemonsetComponent(consts.LegacyNodeServerName))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Created %s Daemonset", consts.LegacyNodeServerName), daemonsetTask(false))
-		}
-	}()
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, legacyclient.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
@@ -331,12 +308,6 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 }
 
 func createDaemonset(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, "Creating Daemonset", nil)
-	defer func() {
-		if err == nil {
-			sendProgressEvent(args.Progress, "Created Daemonset", daemonsetTask(true))
-		}
-	}()
 	if args.DryRun {
 		if err := doCreateDaemonset(ctx, args); err != nil {
 			return err
@@ -350,7 +321,9 @@ func createDaemonset(ctx context.Context, args *Args) (err error) {
 
 		return nil
 	}
-
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.NodeServerName), 1, nil) {
+		return errSendProgress
+	}
 	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
 		ctx, consts.NodeServerName, metav1.GetOptions{},
 	)
@@ -362,11 +335,15 @@ func createDaemonset(ctx context.Context, args *Args) (err error) {
 			return err
 		}
 	}
-
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.NodeServerName), 1, daemonsetComponent(consts.NodeServerName)) {
+		return errSendProgress
+	}
 	if !args.Legacy {
 		return nil
 	}
-
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.LegacyNodeServerName), 2, nil) {
+		return errSendProgress
+	}
 	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
 		ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
 	)
@@ -378,7 +355,9 @@ func createDaemonset(ctx context.Context, args *Args) (err error) {
 			return err
 		}
 	}
-
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.LegacyNodeServerName), 2, daemonsetComponent(consts.LegacyNodeServerName)) {
+		return errSendProgress
+	}
 	return nil
 }
 

@@ -29,7 +29,10 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var installedComponents []Component
+const (
+	// TotalTasks denotes the total number of tasks to be executed
+	TotalTasks = 9
+)
 
 func getKubeVersion() (major, minor uint, err error) {
 	versionInfo, err := k8s.DiscoveryClient().ServerVersion()
@@ -61,16 +64,16 @@ func getKubeVersion() (major, minor uint, err error) {
 }
 
 // Install performs DirectPV installation on kubernetes.
-func Install(ctx context.Context, args *Args) (components []Component, err error) {
+func Install(ctx context.Context, args *Args) (err error) {
 	defer func() {
-		if err != nil {
-			notifyError(args.Progress, err)
+		if !sendDoneMessage(ctx, args.ProgressCh, err) {
+			err = errSendProgress
 		}
 	}()
 
 	err = args.validate()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	switch {
@@ -84,7 +87,7 @@ func Install(ctx context.Context, args *Args) (components []Component, err error
 	default:
 		major, minor, err := getKubeVersion()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		args.KubeVersion, err = version.ParseSemantic(fmt.Sprintf("%v.%v.0", major, minor))
 		if err != nil {
@@ -116,54 +119,51 @@ func Install(ctx context.Context, args *Args) (components []Component, err error
 		}
 	}
 
-	installedComponents = []Component{}
-
-	if err := createNamespace(ctx, args); err != nil {
-		return nil, err
-	}
-
-	if err := createRBAC(ctx, args); err != nil {
-		return nil, err
-	}
-
-	if !args.podSecurityAdmission {
-		if err := createPSP(ctx, args); err != nil {
-			return nil, err
+	execute := func(fn func(context.Context, *Args) error, totalSteps int) (err error) {
+		if !sendStartMessage(ctx, args.ProgressCh, totalSteps) {
+			return errSendProgress
 		}
+		defer func() {
+			if !sendEndMessage(ctx, args.ProgressCh, err) {
+				err = errSendProgress
+			}
+		}()
+		return fn(ctx, args)
 	}
 
-	if err := createCRDs(ctx, args); err != nil {
-		return nil, err
+	if err := execute(createNamespace, totalNamespaceSteps); err != nil {
+		return err
 	}
 
-	if args.Legacy {
-		if err := Migrate(ctx, &MigrateArgs{
-			DryRun:      args.DryRun,
-			AuditWriter: args.auditWriter,
-			Quiet:       args.Quiet,
-			Progress:    args.Progress,
-		}); err != nil {
-			return nil, err
-		}
+	if err := execute(createRBAC, totalRBACSteps); err != nil {
+		return err
 	}
 
-	if err := createCSIDriver(ctx, args); err != nil {
-		return nil, err
+	if err := execute(createPSP, totalPSPSteps); err != nil {
+		return err
 	}
 
-	if err := createStorageClass(ctx, args); err != nil {
-		return nil, err
+	if err := execute(createCRDs, totalCRDSteps); err != nil {
+		return err
 	}
 
-	if err := createDaemonset(ctx, args); err != nil {
-		return nil, err
+	if err := execute(Migrate, totalMigrateSteps); err != nil {
+		return err
 	}
 
-	if err := createDeployment(ctx, args); err != nil {
-		return nil, err
+	if err := execute(createCSIDriver, totalCSIDriverSteps); err != nil {
+		return err
 	}
 
-	return installedComponents, nil
+	if err := execute(createStorageClass, totalStorageClassSteps); err != nil {
+		return err
+	}
+
+	if err := execute(createDaemonset, totalDaemonsetSteps); err != nil {
+		return err
+	}
+
+	return execute(createDeployment, totalDeploymentSteps)
 }
 
 // Uninstall removes DirectPV from kubernetes.

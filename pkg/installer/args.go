@@ -52,9 +52,7 @@ type Args struct {
 	csiProvisionerImage      string
 	nodeDriverRegistrarImage string
 	livenessProbeImage       string
-
-	// UI
-	Progress *Progress
+	ProgressCh               chan Message
 }
 
 // NewArgs creates arguments for DirectPV installation.
@@ -110,14 +108,4 @@ func (args *Args) getLivenessProbeImage() string {
 
 func (args *Args) getCSIProvisionerImage() string {
 	return path.Join(args.Registry, args.Org, args.csiProvisionerImage)
-}
-
-// MigrateArgs represents DirectPV migration arguments.
-type MigrateArgs struct {
-	AuditWriter io.Writer
-	// Optional arguments
-	DryRun bool
-	Quiet  bool
-	// UI
-	Progress *Progress
 }

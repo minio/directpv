@@ -266,11 +266,9 @@ func installMain(ctx context.Context) {
 	args.KubeVersion = kubeVersion
 	args.Legacy = legacyFlag
 	var failed bool
+	var installedComponents []installer.Component
 	var wg sync.WaitGroup
 	if !dryRunFlag && !quietFlag {
-		args.Progress = installer.NewProgress()
-		defer args.Progress.Close()
-
 		m := progressModel{
 			model: progress.New(progress.WithGradient("#FFFFFF", "#FFFFFF")),
 		}
@@ -284,44 +282,68 @@ func installMain(ctx context.Context) {
 			}
 		}()
 		wg.Add(1)
+		var totalSteps, step, completedTasks int
+		var currentPercent float64
+		weightagePerTask := 1.0 / installer.TotalTasks
+		args.ProgressCh = make(chan installer.Message)
 		go func() {
 			defer wg.Done()
-			defer args.Progress.Close()
-			var completedTaskCount int
+			defer close(args.ProgressCh)
+			var perStepWeightage float64
+			var done bool
+			var message string
 			for {
+				var log string
+				var installedComponent *installer.Component
+				var err error
 				select {
-				case progressEvent, ok := <-args.Progress.EventCh:
+				case progressMessage, ok := <-args.ProgressCh:
 					if !ok {
 						teaProgram.Send(progressNotification{
 							done: true,
 						})
 						return
 					}
-					switch {
-					case progressEvent.Err != nil:
-						failed = true
-						teaProgram.Send(progressNotification{
-							done: true,
-							err:  progressEvent.Err,
-						})
-					case progressEvent.Task != nil:
-						currentPercent := float64(completedTaskCount) / float64(args.Progress.TotalTasks)
-						if progressEvent.Task.Done {
-							completedTaskCount++
-							currentPercent = float64(completedTaskCount) / float64(args.Progress.TotalTasks)
-						} else {
-							currentPercent += progressEvent.Task.ProgressPercent()
+					switch progressMessage.Type() {
+					case installer.StartMessageType:
+						totalSteps = progressMessage.StartMessage()
+						perStepWeightage = weightagePerTask / float64(totalSteps)
+					case installer.ProgressMessageType:
+						message, step, installedComponent = progressMessage.ProgressMessage()
+						if step > totalSteps {
+							step = totalSteps
 						}
-						teaProgram.Send(progressNotification{
-							message: progressEvent.Message,
-							percent: currentPercent,
-							persist: progressEvent.Persist,
-						})
-					default:
-						teaProgram.Send(progressNotification{
-							message: progressEvent.Message,
-							persist: progressEvent.Persist,
-						})
+						if step > 0 {
+							currentPercent += float64(step) * perStepWeightage
+						}
+					case installer.EndMessageType:
+						installedComponent, err = progressMessage.EndMessage()
+						if err == nil {
+							completedTasks++
+							currentPercent = float64(completedTasks) / installer.TotalTasks
+						}
+					case installer.LogMessageType:
+						log = progressMessage.LogMessage()
+					case installer.DoneMessageType:
+						err = progressMessage.DoneMessage()
+						message = ""
+						done = true
+					}
+					if err != nil {
+						failed = true
+					}
+					if installedComponent != nil {
+						installedComponents = append(installedComponents, *installedComponent)
+					}
+					teaProgram.Send(progressNotification{
+						message: message,
+						log:     log,
+						percent: currentPercent,
+						done:    done,
+						err:     err,
+					})
+					if done {
+						return
 					}
 				case <-ctx.Done():
 					fmt.Println("exiting installation; ", ctx.Err())
@@ -330,13 +352,11 @@ func installMain(ctx context.Context) {
 			}
 		}()
 	}
-	installedComponents, err := installer.Install(ctx, args)
-	if err != nil && args.Progress == nil {
+	if err := installer.Install(ctx, args); err != nil && args.ProgressCh == nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
-	if args.Progress != nil {
-		args.Progress.Close()
+	if args.ProgressCh != nil {
 		wg.Wait()
 		if !failed {
 			printTable(installedComponents)

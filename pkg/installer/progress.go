@@ -16,71 +16,121 @@
 
 package installer
 
-import "sync/atomic"
-
-const (
-	totalTasks = 5
+import (
+	"context"
+	"errors"
 )
 
-var perTaskWeightage = 1.0 / totalTasks
+// MessageType denotes the type of message
+type MessageType string
 
-// Task represents the task event.
-type Task struct {
-	TotalSteps     int
-	StepsCompleted int
-	Done           bool
-}
+const (
+	// StartMessageType denotes the start message
+	StartMessageType MessageType = "start"
+	// ProgressMessageType denotes the progress message
+	ProgressMessageType MessageType = "progress"
+	// EndMessageType denotes the end message
+	EndMessageType MessageType = "end"
+	// DoneMessageType denotes the done message
+	DoneMessageType MessageType = "done"
+	// LogMessageType denotes the log message
+	LogMessageType MessageType = "log"
+)
 
-func newTask(totalSteps, stepsCompleted int, done bool) *Task {
-	return &Task{
-		TotalSteps:     totalSteps,
-		StepsCompleted: stepsCompleted,
-		Done:           done,
-	}
-}
+var errSendProgress = errors.New("unable to send message")
 
-// ProgressPercent denotes the progress of task.
-func (t Task) ProgressPercent() float64 {
-	return float64(t.StepsCompleted) * t.perStepWeightage()
-}
-
-func (t Task) perStepWeightage() float64 {
-	return perTaskWeightage / float64(t.TotalSteps)
-}
-
-// Event denotes the progress message event.
-type Event struct {
-	Message string
-	Persist bool
-	Err     error
-	Task    *Task
-}
-
-// Progress keeps track of the progress information.
-type Progress struct {
-	TotalTasks int
-	EventCh    chan Event
-	Done       bool
-	isClosed   int32
-}
-
-// Component indicates the components that are processed.
+// Component denotes the component that is processed
 type Component struct {
 	Name string
 	Kind string
 }
 
-// NewProgress returns an instance of the progress.
-func NewProgress() *Progress {
-	return &Progress{
-		EventCh:    make(chan Event),
-		TotalTasks: totalTasks,
+// Message denotes the progress message
+type Message struct {
+	msgType   MessageType
+	component *Component
+	steps     int
+	step      int
+	message   string
+	err       error
+}
+
+// Type returns the type of the message
+func (m Message) Type() MessageType {
+	return m.msgType
+}
+
+// StartMessage returns the start message content
+func (m Message) StartMessage() (steps int) {
+	return m.steps
+}
+
+// ProgressMessage returns the progress message content
+func (m Message) ProgressMessage() (message string, step int, component *Component) {
+	return m.message, m.step, m.component
+}
+
+// EndMessage returns the end message content
+func (m Message) EndMessage() (component *Component, err error) {
+	return m.component, m.err
+}
+
+// DoneMessage returns the done message content
+func (m Message) DoneMessage() (err error) {
+	return m.err
+}
+
+// LogMessage returns the log message content
+func (m Message) LogMessage() string {
+	return m.message
+}
+
+func newStartMessage(steps int) Message {
+	return Message{
+		msgType: StartMessageType,
+		steps:   steps,
 	}
 }
 
-// Close closes the notifyCh.
-func (p *Progress) Close() {
-	if atomic.AddInt32(&p.isClosed, 1) == 1 {
-		close(p.EventCh)
+func newProgressMessage(message string, step int, component *Component) Message {
+	return Message{
+		msgType:   ProgressMessageType,
+		component: component,
+		message:   message,
+		step:      step,
+	}
+}
+
+func newEndMessage(err error, component *Component) Message {
+	return Message{
+		msgType:   EndMessageType,
+		component: component,
+		err:       err,
+	}
+}
+
+func newDoneMessage(err error) Message {
+	return Message{
+		msgType: DoneMessageType,
+		err:     err,
+	}
+}
+
+func newLogMessage(msg string) Message {
+	return Message{
+		msgType: LogMessageType,
+		message: msg,
+	}
+}
+
+func sendMessage(ctx context.Context, progressCh chan<- Message, message Message) bool {
+	if progressCh == nil {
+		return true
+	}
+	select {
+	case <-ctx.Done():
+		return false
+	case progressCh <- message:
+		return true
 	}
 }

@@ -40,21 +40,15 @@ const (
 	totalRBACSteps        = 3
 )
 
-var rbacStepsCompleted int
-
-func rbacTask(done bool) *Task {
-	if !done {
-		rbacStepsCompleted++
-	}
-	return newTask(totalRBACSteps, rbacStepsCompleted, done)
-}
-
 func createServiceAccount(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, fmt.Sprintf("Creating '%s' service account", consts.Identity), nil)
+	if !sendProgressMessage(ctx, args.ProgressCh, "Creating service account", 1, nil) {
+		return errSendProgress
+	}
 	defer func() {
 		if err == nil {
-			installedComponents = append(installedComponents, serviceAccountComponent(consts.Identity))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Created '%s' service account", consts.Identity), rbacTask(false))
+			if !sendProgressMessage(ctx, args.ProgressCh, "Created service account", 1, serviceAccountComponent(consts.Identity)) {
+				err = errSendProgress
+			}
 		}
 	}()
 	serviceAccount := &corev1.ServiceAccount{
@@ -93,11 +87,14 @@ func createServiceAccount(ctx context.Context, args *Args) (err error) {
 }
 
 func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, fmt.Sprintf("Creating '%s' cluster role binding", consts.Identity), nil)
+	if !sendProgressMessage(ctx, args.ProgressCh, "Creating cluster role binding", 3, nil) {
+		return errSendProgress
+	}
 	defer func() {
 		if err == nil {
-			installedComponents = append(installedComponents, clusterRoleBindingComponent(consts.Identity))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Created '%s' cluster role binding", consts.Identity), rbacTask(false))
+			if !sendProgressMessage(ctx, args.ProgressCh, "Created cluster role binding", 3, clusterRoleBindingComponent(consts.Identity)) {
+				err = errSendProgress
+			}
 		}
 	}()
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
@@ -147,11 +144,14 @@ func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 }
 
 func createClusterRole(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, fmt.Sprintf("Creating '%s' cluster role", consts.Identity), nil)
+	if !sendProgressMessage(ctx, args.ProgressCh, "Creating cluster role", 2, nil) {
+		return errSendProgress
+	}
 	defer func() {
 		if err == nil {
-			installedComponents = append(installedComponents, clusterRoleComponent(consts.Identity))
-			sendProgressEvent(args.Progress, fmt.Sprintf("Created '%s' cluster role", consts.Identity), rbacTask(false))
+			if !sendProgressMessage(ctx, args.ProgressCh, "Created cluster role", 2, clusterRoleComponent(consts.Identity)) {
+				err = errSendProgress
+			}
 		}
 	}()
 	clusterRole := &rbacv1.ClusterRole{
@@ -413,21 +413,12 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 }
 
 func createRBAC(ctx context.Context, args *Args) (err error) {
-	sendProgressEvent(args.Progress, "Setting up RBAC", nil)
-	defer func() {
-		if err == nil {
-			sendProgressEvent(args.Progress, "Successfully set RBAC", rbacTask(true))
-		}
-	}()
-
 	if err = createServiceAccount(ctx, args); err != nil {
 		return err
 	}
-
 	if err = createClusterRole(ctx, args); err != nil {
 		return err
 	}
-
 	return createClusterRoleBinding(ctx, args)
 }
 

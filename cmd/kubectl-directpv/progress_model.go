@@ -32,19 +32,19 @@ const (
 )
 
 type progressNotification struct {
+	log     string
 	message string
-	persist bool
 	percent float64
 	done    bool
 	err     error
 }
 
 type progressModel struct {
-	model              progress.Model
-	message            string
-	persistentMessages []string
-	done               bool
-	err                error
+	model   progress.Model
+	message string
+	logs    []string
+	done    bool
+	err     error
 }
 
 func finalPause() tea.Cmd {
@@ -67,15 +67,14 @@ func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case progressNotification:
-		if msg.persist {
-			if m.persistentMessages == nil {
-				m.persistentMessages = []string{msg.message}
+		if msg.log != "" {
+			if m.logs == nil {
+				m.logs = []string{msg.log}
 			} else {
-				m.persistentMessages = append(m.persistentMessages, msg.message)
+				m.logs = append(m.logs, msg.log)
 			}
-		} else {
-			m.message = msg.message
 		}
+		m.message = msg.message
 		if msg.err != nil {
 			m.err = msg.err
 			return m, tea.Quit
@@ -105,13 +104,13 @@ func (m progressModel) View() (str string) {
 	pad := strings.Repeat(" ", padding)
 	str = "\n" + pad + m.model.View() + "\n\n"
 	if m.err != nil {
-		str += pad + color.HiRedString("Error; %s\n\n", m.err.Error())
+		str += pad + color.HiRedString("Error; %s", m.err.Error())
 	}
 	if !m.done {
 		str += pad + fmt.Sprintf("%s \n\n", m.message)
 	}
-	for i := range m.persistentMessages {
-		str += pad + fmt.Sprintf("%s \n\n", m.persistentMessages[i])
+	for i := range m.logs {
+		str += pad + color.HiYellowString(fmt.Sprintf("%s \n\n", m.logs[i]))
 	}
 	return str + pad
 }
