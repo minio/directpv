@@ -45,10 +45,37 @@ const (
 	legacyDrivePathLabelKey  = legacyclient.GroupName + "/drive-path"
 	legacyPVProtection       = legacyclient.GroupName + "/pv-protection"
 	legacyPurgeProtection    = legacyclient.GroupName + "/purge-protection"
-	totalMigrateSteps        = 2
 )
 
 var uuidRegex = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+type migrateTask struct{}
+
+func (migrateTask) Name() string {
+	return "Migration"
+}
+
+func (migrateTask) Start(ctx context.Context, args *Args) error {
+	if !sendStartMessage(ctx, args.ProgressCh, 2) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (migrateTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (migrateTask) Execute(ctx context.Context, args *Args) error {
+	return Migrate(ctx, args)
+}
+
+func (migrateTask) Delete(_ context.Context, _ *Args) error {
+	return nil
+}
 
 func migrateDrives(ctx context.Context, dryRun bool, progressCh chan<- Message) (driveMap map[string]string, legacyDriveErrors map[string]error, driveErrors map[string]error, err error) {
 	ctx, cancelFunc := context.WithCancel(ctx)

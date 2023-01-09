@@ -38,10 +38,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const (
-	totalCRDSteps = 4
-)
-
 //go:embed directpv.min.io_directpvdrives.yaml
 var drivesYAML []byte
 
@@ -53,6 +49,34 @@ var nodesYAML []byte
 
 //go:embed directpv.min.io_directpvinitrequests.yaml
 var initrequestsYAML []byte
+
+type crdTask struct{}
+
+func (crdTask) Name() string {
+	return "CRD"
+}
+
+func (crdTask) Start(ctx context.Context, args *Args) error {
+	if !sendStartMessage(ctx, args.ProgressCh, 4) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (crdTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (crdTask) Execute(ctx context.Context, args *Args) error {
+	return createCRDs(ctx, args)
+}
+
+func (c crdTask) Delete(ctx context.Context, args *Args) error {
+	return deleteCRDs(ctx, args.ForceUninstall)
+}
 
 func setNoneConversionStrategy(crd *apiextensions.CustomResourceDefinition) {
 	crd.Spec.Conversion = &apiextensions.CustomResourceConversion{

@@ -31,9 +31,37 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	totalCSIDriverSteps = 2
-)
+type csiDriverTask struct{}
+
+func (csiDriverTask) Name() string {
+	return "CSIDriver"
+}
+
+func (csiDriverTask) Start(ctx context.Context, args *Args) error {
+	steps := 1
+	if args.Legacy {
+		steps++
+	}
+	if !sendStartMessage(ctx, args.ProgressCh, steps) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (csiDriverTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (csiDriverTask) Execute(ctx context.Context, args *Args) error {
+	return createCSIDriver(ctx, args)
+}
+
+func (csiDriverTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteCSIDriver(ctx)
+}
 
 var errCSIDriverVersionUnsupported = errors.New("unsupported CSIDriver version found")
 

@@ -32,13 +32,45 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const (
-	totalPSPSteps = 2
-)
-
 var pspClusterRoleBindingName = "psp-" + consts.Identity
 
 var errPSPUnsupported = errors.New("pod security policy is not supported in your kubernetes version")
+
+type pspTask struct{}
+
+func (pspTask) Name() string {
+	return "PSP"
+}
+
+func (pspTask) Start(ctx context.Context, args *Args) error {
+	if !sendStartMessage(ctx, args.ProgressCh, 2) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (pspTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (pspTask) Execute(ctx context.Context, args *Args) error {
+	return createPSP(ctx, args)
+}
+
+func (pspTask) Delete(ctx context.Context, _ *Args) error {
+	major, minor, err := getKubeVersion()
+	if err != nil {
+		return err
+	}
+	podSecurityAdmission := (major == 1 && minor > 24)
+	if podSecurityAdmission {
+		return nil
+	}
+	return deletePSP(ctx)
+}
 
 func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating psp cluster role binding", 2, nil) {

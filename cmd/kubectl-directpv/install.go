@@ -284,8 +284,9 @@ func installMain(ctx context.Context) {
 		wg.Add(1)
 		var totalSteps, step, completedTasks int
 		var currentPercent float64
-		weightagePerTask := 1.0 / installer.TotalTasks
-		args.ProgressCh = make(chan installer.Message)
+		totalTasks := len(installer.Tasks)
+		weightagePerTask := 1.0 / totalTasks
+		progressCh := make(chan installer.Message)
 		go func() {
 			defer wg.Done()
 			defer close(args.ProgressCh)
@@ -297,7 +298,7 @@ func installMain(ctx context.Context) {
 				var installedComponent *installer.Component
 				var err error
 				select {
-				case progressMessage, ok := <-args.ProgressCh:
+				case progressMessage, ok := <-progressCh:
 					if !ok {
 						teaProgram.Send(progressNotification{
 							done: true,
@@ -307,7 +308,7 @@ func installMain(ctx context.Context) {
 					switch progressMessage.Type() {
 					case installer.StartMessageType:
 						totalSteps = progressMessage.StartMessage()
-						perStepWeightage = weightagePerTask / float64(totalSteps)
+						perStepWeightage = float64(weightagePerTask) / float64(totalSteps)
 					case installer.ProgressMessageType:
 						message, step, installedComponent = progressMessage.ProgressMessage()
 						if step > totalSteps {
@@ -320,7 +321,7 @@ func installMain(ctx context.Context) {
 						installedComponent, err = progressMessage.EndMessage()
 						if err == nil {
 							completedTasks++
-							currentPercent = float64(completedTasks) / installer.TotalTasks
+							currentPercent = float64(completedTasks) / float64(totalTasks)
 						}
 					case installer.LogMessageType:
 						log = progressMessage.LogMessage()
@@ -351,6 +352,7 @@ func installMain(ctx context.Context) {
 				}
 			}
 		}()
+		args.ProgressCh = progressCh
 	}
 	if err := installer.Install(ctx, args); err != nil && args.ProgressCh == nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)

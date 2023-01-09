@@ -36,8 +36,39 @@ const (
 	adminServerCASecretName    = "adminservercacert"
 	adminServerSelectorValue   = "admin-server"
 	nodeAPIServerCADir         = "node-api-server-ca"
-	totalDeploymentSteps       = 2
 )
+
+type deploymentTask struct{}
+
+func (deploymentTask) Name() string {
+	return "Deployment"
+}
+
+func (deploymentTask) Start(ctx context.Context, args *Args) error {
+	steps := 1
+	if args.Legacy {
+		steps++
+	}
+	if !sendStartMessage(ctx, args.ProgressCh, steps) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (deploymentTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (deploymentTask) Execute(ctx context.Context, args *Args) error {
+	return createDeployment(ctx, args)
+}
+
+func (deploymentTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteDeployment(ctx)
+}
 
 func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) (err error) {
 	name := consts.ControllerServerName

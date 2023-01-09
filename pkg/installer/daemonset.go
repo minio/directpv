@@ -48,6 +48,38 @@ const (
 	totalDaemonsetSteps        = 2
 )
 
+type daemonsetTask struct{}
+
+func (daemonsetTask) Name() string {
+	return "Daemonset"
+}
+
+func (daemonsetTask) Start(ctx context.Context, args *Args) error {
+	steps := 1
+	if args.Legacy {
+		steps++
+	}
+	if !sendStartMessage(ctx, args.ProgressCh, steps) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (daemonsetTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (daemonsetTask) Execute(ctx context.Context, args *Args) error {
+	return createDaemonset(ctx, args)
+}
+
+func (daemonsetTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteDaemonset(ctx)
+}
+
 func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
 	privileged := true
 	securityContext := &corev1.SecurityContext{Privileged: &privileged}

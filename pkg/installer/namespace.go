@@ -28,9 +28,33 @@ import (
 	podsecurityadmissionapi "k8s.io/pod-security-admission/api"
 )
 
-const (
-	totalNamespaceSteps = 1
-)
+type namespaceTask struct{}
+
+func (namespaceTask) Name() string {
+	return "Namespace"
+}
+
+func (namespaceTask) Start(ctx context.Context, args *Args) error {
+	if !sendStartMessage(ctx, args.ProgressCh, 1) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (namespaceTask) Execute(ctx context.Context, args *Args) error {
+	return createNamespace(ctx, args)
+}
+
+func (namespaceTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (namespaceTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteNamespace(ctx)
+}
 
 func createNamespace(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating namespace", 1, nil) {

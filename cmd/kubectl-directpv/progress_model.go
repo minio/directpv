@@ -103,14 +103,14 @@ func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m progressModel) View() (str string) {
 	pad := strings.Repeat(" ", padding)
 	str = "\n" + pad + m.model.View() + "\n\n"
-	if m.err != nil {
-		str += pad + color.HiRedString("Error; %s", m.err.Error())
-	}
 	if !m.done {
 		str += pad + fmt.Sprintf("%s \n\n", m.message)
 	}
 	for i := range m.logs {
 		str += pad + color.HiYellowString(fmt.Sprintf("%s \n\n", m.logs[i]))
+	}
+	if m.err != nil {
+		str += pad + color.HiRedString("Error; %s \n\n", m.err.Error())
 	}
 	return str + pad
 }

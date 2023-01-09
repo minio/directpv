@@ -37,8 +37,35 @@ const (
 	clusterRoleVerbDelete = "delete"
 	clusterRoleVerbUpdate = "update"
 	clusterRoleVerbPatch  = "patch"
-	totalRBACSteps        = 3
 )
+
+type rbacTask struct{}
+
+func (rbacTask) Name() string {
+	return "RBAC"
+}
+
+func (rbacTask) Start(ctx context.Context, args *Args) error {
+	if !sendStartMessage(ctx, args.ProgressCh, 3) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (rbacTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (rbacTask) Execute(ctx context.Context, args *Args) error {
+	return createRBAC(ctx, args)
+}
+
+func (rbacTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteRBAC(ctx)
+}
 
 func createServiceAccount(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating service account", 1, nil) {

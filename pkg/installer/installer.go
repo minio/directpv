@@ -29,10 +29,18 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	// TotalTasks denotes the total number of tasks to be executed
-	TotalTasks = 9
-)
+// Tasks is a list of tasks to performed during installation and uninstallation
+var Tasks = []Task{
+	namespaceTask{},
+	rbacTask{},
+	pspTask{},
+	crdTask{},
+	migrateTask{},
+	csiDriverTask{},
+	storageClassTask{},
+	daemonsetTask{},
+	deploymentTask{},
+}
 
 func getKubeVersion() (major, minor uint, err error) {
 	versionInfo, err := k8s.DiscoveryClient().ServerVersion()
@@ -119,95 +127,29 @@ func Install(ctx context.Context, args *Args) (err error) {
 		}
 	}
 
-	execute := func(fn func(context.Context, *Args) error, totalSteps int) (err error) {
-		if !sendStartMessage(ctx, args.ProgressCh, totalSteps) {
-			return errSendProgress
+	for _, task := range Tasks {
+		if err := task.Start(ctx, args); err != nil {
+			return err
 		}
-		defer func() {
-			if !sendEndMessage(ctx, args.ProgressCh, err) {
-				err = errSendProgress
-			}
-		}()
-		return fn(ctx, args)
-	}
-
-	if err := execute(createNamespace, totalNamespaceSteps); err != nil {
-		return err
-	}
-
-	if err := execute(createRBAC, totalRBACSteps); err != nil {
-		return err
-	}
-
-	if err := execute(createPSP, totalPSPSteps); err != nil {
-		return err
-	}
-
-	if err := execute(createCRDs, totalCRDSteps); err != nil {
-		return err
-	}
-
-	if err := execute(Migrate, totalMigrateSteps); err != nil {
-		return err
-	}
-
-	if err := execute(createCSIDriver, totalCSIDriverSteps); err != nil {
-		return err
-	}
-
-	if err := execute(createStorageClass, totalStorageClassSteps); err != nil {
-		return err
-	}
-
-	if err := execute(createDaemonset, totalDaemonsetSteps); err != nil {
-		return err
-	}
-
-	return execute(createDeployment, totalDeploymentSteps)
-}
-
-// Uninstall removes DirectPV from kubernetes.
-func Uninstall(ctx context.Context, quiet, force bool) (err error) {
-	major, minor, err := getKubeVersion()
-	if err != nil {
-		return err
-	}
-
-	podSecurityAdmission := (major == 1 && minor > 24)
-
-	if err := deleteNamespace(ctx); err != nil {
-		return err
-	}
-
-	if err := deleteRBAC(ctx); err != nil {
-		return err
-	}
-
-	if !podSecurityAdmission {
-		if err := deletePSP(ctx); err != nil {
+		taskErr := task.Execute(ctx, args)
+		if err := task.End(ctx, args, taskErr); err != nil {
 			return err
 		}
 	}
 
-	if err := deleteCRDs(ctx, force); err != nil {
-		return err
-	}
+	return nil
+}
 
-	if err := deleteCSIDriver(ctx); err != nil {
-		return err
+// Uninstall removes DirectPV from kubernetes.
+func Uninstall(ctx context.Context, quiet, force bool) (err error) {
+	args := &Args{
+		ForceUninstall: force,
+		Quiet:          quiet,
 	}
-
-	if err := deleteStorageClass(ctx); err != nil {
-		return err
+	for _, task := range Tasks {
+		if err := task.Delete(ctx, args); err != nil {
+			return err
+		}
 	}
-
-	if err := deleteDaemonset(ctx); err != nil {
-		return err
-	}
-
-	if err := deleteDeployment(ctx); err != nil {
-		return err
-	}
-
 	return nil
 }

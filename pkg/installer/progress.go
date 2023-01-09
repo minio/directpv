@@ -39,6 +39,15 @@ const (
 
 var errSendProgress = errors.New("unable to send message")
 
+// Task is an interface to define the task to be processed during installation and uninstallation
+type Task interface {
+	Name() string
+	Start(ctx context.Context, args *Args) error
+	Execute(ctx context.Context, args *Args) error
+	End(ctx context.Context, args *Args, err error) error
+	Delete(ctx context.Context, args *Args) error
+}
+
 // Component denotes the component that is processed
 type Component struct {
 	Name string

@@ -33,11 +33,39 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	totalStorageClassSteps = 2
-)
-
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
+
+type storageClassTask struct{}
+
+func (storageClassTask) Name() string {
+	return "StorageClass"
+}
+
+func (storageClassTask) Start(ctx context.Context, args *Args) error {
+	steps := 1
+	if args.Legacy {
+		steps++
+	}
+	if !sendStartMessage(ctx, args.ProgressCh, steps) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (storageClassTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (storageClassTask) Execute(ctx context.Context, args *Args) error {
+	return createStorageClass(ctx, args)
+}
+
+func (storageClassTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteStorageClass(ctx)
+}
 
 func doCreateStorageClass(ctx context.Context, args *Args, version string, legacy bool, step int) (err error) {
 	name := consts.Identity
