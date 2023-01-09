@@ -1,0 +1,169 @@
+swagger: "2.0"
+info:
+  title: MinIO KES
+  version: 0.1.0
+consumes:
+  - application/json
+produces:
+  - application/json
+schemes:
+  - http
+  - ws
+basePath: /api/v1
+# We are going to be taking `Authorization: Bearer TOKEN` header for our authentication
+securityDefinitions:
+  key:
+    type: oauth2
+    flow: accessCode
+    authorizationUrl: http://min.io
+    tokenUrl: http://min.io
+# Apply the key security definition to all APIs
+security:
+  - key: [ ]
+paths:
+  /login:
+    get:
+      summary: Returns login strategy, form or sso.
+      operationId: LoginDetail
+      responses:
+        200:
+          description: A successful response.
+          schema:
+            $ref: "#/definitions/loginDetails"
+        default:
+          description: Generic error response.
+          schema:
+            $ref: "#/definitions/error"
+      # Exclude this API from the authentication requirement
+      security: [ ]
+      tags:
+        - Auth
+    post:
+      summary: Login to Console
+      operationId: Login
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/loginRequest"
+      responses:
+        204:
+          description: A successful login.
+        default:
+          description: Generic error response.
+          schema:
+            $ref: "#/definitions/error"
+      # Exclude this API from the authentication requirement
+      security: [ ]
+      tags:
+        - Auth
+  /logout:
+    post:
+      summary: Logout from Console.
+      operationId: Logout
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/logoutRequest"
+      responses:
+        200:
+          description: A successful response.
+        default:
+          description: Generic error response.
+          schema:
+            $ref: "#/definitions/error"
+      tags:
+        - Auth
+  /session:
+    get:
+      summary: Endpoint to check if your session is still valid
+      operationId: SessionCheck
+      responses:
+        200:
+          description: A successful response.
+          schema:
+            $ref: "#/definitions/sessionResponse"
+        default:
+          description: Generic error response.
+          schema:
+            $ref: "#/definitions/error"
+      tags:
+        - Auth
+
+
+
+definitions:
+  # Structure that holds the `Bearer {TOKEN}` present on authenticated requests
+  principal:
+    type: object
+    properties:
+      STSAccessKeyID:
+        type: string
+      STSSecretAccessKey:
+        type: string
+      STSSessionToken:
+        type: string
+      accountAccessKey:
+        type: string
+      hm:
+        type: boolean
+      ob:
+        type: boolean
+      customStyleOb:
+        type: string
+  error:
+    type: object
+    required:
+      - message
+      - detailedMessage
+    properties:
+      code:
+        type: integer
+        format: int32
+      message:
+        type: string
+      detailedMessage:
+        type: string
+  loginDetails:
+    type: object
+    properties:
+      loginStrategy:
+        type: string
+        enum: [ form ]
+      redirectRules:
+        type: array
+        items:
+          $ref: "#/definitions/redirectRule"
+  loginRequest:
+    type: object
+    properties:
+      certificate:
+        type: string
+  loginResponse:
+    type: object
+    properties:
+      sessionId:
+        type: string
+      IDPRefreshToken:
+        type: string
+  logoutRequest:
+    type: object
+    properties:
+      state:
+        type: string
+  sessionResponse:
+    type: object
+    properties:
+      status:
+        type: string
+        enum: [ ok ]
+  redirectRule:
+    type: object
+    properties:
+      redirect:
+        type: string
+      displayName:
+        type: string
