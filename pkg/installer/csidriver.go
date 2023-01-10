@@ -31,17 +31,58 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type csiDriverTask struct{}
+
+func (csiDriverTask) Name() string {
+	return "CSIDriver"
+}
+
+func (csiDriverTask) Start(ctx context.Context, args *Args) error {
+	steps := 1
+	if args.Legacy {
+		steps++
+	}
+	if !sendStartMessage(ctx, args.ProgressCh, steps) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (csiDriverTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (csiDriverTask) Execute(ctx context.Context, args *Args) error {
+	return createCSIDriver(ctx, args)
+}
+
+func (csiDriverTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteCSIDriver(ctx)
+}
+
 var errCSIDriverVersionUnsupported = errors.New("unsupported CSIDriver version found")
 
-func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy bool) error {
-	podInfoOnMount := true
-	attachRequired := false
-
+func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy bool, step int) (err error) {
 	name := consts.Identity
 	if legacy {
 		name = legacyclient.Identity
 	}
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s CSI Driver", name), step, nil) {
+		return errSendProgress
+	}
+	defer func() {
+		if err == nil {
+			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s CSI Driver", name), step, csiDriverComponent(name)) {
+				err = errSendProgress
+			}
+		}
+	}()
 
+	podInfoOnMount := true
+	attachRequired := false
 	switch version {
 	case "v1":
 		csiDriver := &storagev1.CSIDriver{
@@ -124,7 +165,7 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 	}
 }
 
-func createCSIDriver(ctx context.Context, args *Args) error {
+func createCSIDriver(ctx context.Context, args *Args) (err error) {
 	version := "v1"
 	if args.DryRun {
 		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 19 {
@@ -138,12 +179,14 @@ func createCSIDriver(ctx context.Context, args *Args) error {
 		version = gvk.Version
 	}
 
-	if err := doCreateCSIDriver(ctx, args, version, false); err != nil {
+	if err := doCreateCSIDriver(ctx, args, version, false, 1); err != nil {
 		return err
 	}
 
 	if args.Legacy {
-		return doCreateCSIDriver(ctx, args, version, true)
+		if err := doCreateCSIDriver(ctx, args, version, true, 2); err != nil {
+			return err
+		}
 	}
 
 	return nil

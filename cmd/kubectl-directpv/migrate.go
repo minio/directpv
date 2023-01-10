@@ -54,7 +54,11 @@ func init() {
 }
 
 func migrateMain(ctx context.Context) {
-	if err := installer.Migrate(ctx, dryRunFlag); err != nil {
+	if err := installer.Migrate(ctx, &installer.Args{
+		DryRun: dryRunFlag,
+		Quiet:  quietFlag,
+		Legacy: true,
+	}); err != nil {
 		utils.Eprintf(quietFlag, true, "migration failed; %v", err)
 		os.Exit(1)
 	}

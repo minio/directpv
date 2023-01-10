@@ -45,7 +45,40 @@ const (
 	volumeNameRunUdevData      = "run-udev-data-dir"
 	volumePathRunUdevData      = consts.UdevDataDir
 	socketFile                 = "/csi.sock"
+	totalDaemonsetSteps        = 2
 )
+
+type daemonsetTask struct{}
+
+func (daemonsetTask) Name() string {
+	return "Daemonset"
+}
+
+func (daemonsetTask) Start(ctx context.Context, args *Args) error {
+	steps := 1
+	if args.Legacy {
+		steps++
+	}
+	if !sendStartMessage(ctx, args.ProgressCh, steps) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (daemonsetTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (daemonsetTask) Execute(ctx context.Context, args *Args) error {
+	return createDaemonset(ctx, args)
+}
+
+func (daemonsetTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteDaemonset(ctx)
+}
 
 func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
 	privileged := true
@@ -202,7 +235,7 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 	}
 }
 
-func doCreateDaemonset(ctx context.Context, args *Args) error {
+func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, consts.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
@@ -244,7 +277,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
 		ctx, daemonset, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -258,7 +291,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) error {
 	return err
 }
 
-func doCreateLegacyDaemonset(ctx context.Context, args *Args) error {
+func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, legacyclient.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
@@ -292,7 +325,7 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
 		ctx, daemonset, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -306,20 +339,24 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) error {
 	return err
 }
 
-func createDaemonset(ctx context.Context, args *Args) error {
+func createDaemonset(ctx context.Context, args *Args) (err error) {
 	if args.DryRun {
 		if err := doCreateDaemonset(ctx, args); err != nil {
 			return err
 		}
 
 		if args.Legacy {
-			return doCreateLegacyDaemonset(ctx, args)
+			if err := doCreateLegacyDaemonset(ctx, args); err != nil {
+				return err
+			}
 		}
 
 		return nil
 	}
-
-	_, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.NodeServerName), 1, nil) {
+		return errSendProgress
+	}
+	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
 		ctx, consts.NodeServerName, metav1.GetOptions{},
 	)
 	if err != nil {
@@ -330,11 +367,15 @@ func createDaemonset(ctx context.Context, args *Args) error {
 			return err
 		}
 	}
-
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.NodeServerName), 1, daemonsetComponent(consts.NodeServerName)) {
+		return errSendProgress
+	}
 	if !args.Legacy {
 		return nil
 	}
-
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.LegacyNodeServerName), 2, nil) {
+		return errSendProgress
+	}
 	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
 		ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
 	)
@@ -346,7 +387,9 @@ func createDaemonset(ctx context.Context, args *Args) error {
 			return err
 		}
 	}
-
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.LegacyNodeServerName), 2, daemonsetComponent(consts.LegacyNodeServerName)) {
+		return errSendProgress
+	}
 	return nil
 }
 

@@ -21,9 +21,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/charmbracelet/bubbles/progress"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
+	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
@@ -261,13 +265,124 @@ func installMain(ctx context.Context) {
 	args.Quiet = quietFlag
 	args.KubeVersion = kubeVersion
 	args.Legacy = legacyFlag
-
-	if err = installer.Install(ctx, args); err != nil {
+	var failed bool
+	var installedComponents []installer.Component
+	var wg sync.WaitGroup
+	if !dryRunFlag && !quietFlag {
+		m := progressModel{
+			model: progress.New(progress.WithGradient("#FFFFFF", "#FFFFFF")),
+		}
+		teaProgram := tea.NewProgram(m)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := teaProgram.Run(); err != nil {
+				fmt.Println("error running program:", err)
+				os.Exit(1)
+			}
+		}()
+		wg.Add(1)
+		var totalSteps, step, completedTasks int
+		var currentPercent float64
+		totalTasks := len(installer.Tasks)
+		weightagePerTask := 1.0 / totalTasks
+		progressCh := make(chan installer.Message)
+		go func() {
+			defer wg.Done()
+			defer close(args.ProgressCh)
+			var perStepWeightage float64
+			var done bool
+			var message string
+			for {
+				var log string
+				var installedComponent *installer.Component
+				var err error
+				select {
+				case progressMessage, ok := <-progressCh:
+					if !ok {
+						teaProgram.Send(progressNotification{
+							done: true,
+						})
+						return
+					}
+					switch progressMessage.Type() {
+					case installer.StartMessageType:
+						totalSteps = progressMessage.StartMessage()
+						perStepWeightage = float64(weightagePerTask) / float64(totalSteps)
+					case installer.ProgressMessageType:
+						message, step, installedComponent = progressMessage.ProgressMessage()
+						if step > totalSteps {
+							step = totalSteps
+						}
+						if step > 0 {
+							currentPercent += float64(step) * perStepWeightage
+						}
+					case installer.EndMessageType:
+						installedComponent, err = progressMessage.EndMessage()
+						if err == nil {
+							completedTasks++
+							currentPercent = float64(completedTasks) / float64(totalTasks)
+						}
+					case installer.LogMessageType:
+						log = progressMessage.LogMessage()
+					case installer.DoneMessageType:
+						err = progressMessage.DoneMessage()
+						message = ""
+						done = true
+					}
+					if err != nil {
+						failed = true
+					}
+					if installedComponent != nil {
+						installedComponents = append(installedComponents, *installedComponent)
+					}
+					teaProgram.Send(progressNotification{
+						message: message,
+						log:     log,
+						percent: currentPercent,
+						done:    done,
+						err:     err,
+					})
+					if done {
+						return
+					}
+				case <-ctx.Done():
+					fmt.Println("exiting installation; ", ctx.Err())
+					os.Exit(1)
+				}
+			}
+		}()
+		args.ProgressCh = progressCh
+	}
+	if err := installer.Install(ctx, args); err != nil && args.ProgressCh == nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
-
-	if !dryRunFlag && !quietFlag {
-		fmt.Println("Done")
+	if args.ProgressCh != nil {
+		wg.Wait()
+		if !failed {
+			printTable(installedComponents)
+			color.HiGreen("\nDirectPV installed successfully")
+		}
 	}
+}
+
+func printTable(components []installer.Component) {
+	writer := newTableWriter(
+		table.Row{
+			"NAME",
+			"KIND",
+		},
+		nil,
+		false,
+	)
+
+	for _, component := range components {
+		row := []interface{}{
+			color.HiGreenString(component.Name),
+			component.Kind,
+		}
+		writer.AppendRow(row)
+	}
+	writer.Render()
 }

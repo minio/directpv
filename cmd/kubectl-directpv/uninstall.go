@@ -63,8 +63,7 @@ func uninstallMain(ctx context.Context) {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
-
 	if !quietFlag {
-		fmt.Println("Done")
+		fmt.Println(consts.AppPrettyName + " uninstalled successfully")
 	}
 }

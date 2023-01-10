@@ -50,6 +50,34 @@ var nodesYAML []byte
 //go:embed directpv.min.io_directpvinitrequests.yaml
 var initrequestsYAML []byte
 
+type crdTask struct{}
+
+func (crdTask) Name() string {
+	return "CRD"
+}
+
+func (crdTask) Start(ctx context.Context, args *Args) error {
+	if !sendStartMessage(ctx, args.ProgressCh, 4) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (crdTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (crdTask) Execute(ctx context.Context, args *Args) error {
+	return createCRDs(ctx, args)
+}
+
+func (c crdTask) Delete(ctx context.Context, args *Args) error {
+	return deleteCRDs(ctx, args.ForceUninstall)
+}
+
 func setNoneConversionStrategy(crd *apiextensions.CustomResourceDefinition) {
 	crd.Spec.Conversion = &apiextensions.CustomResourceConversion{
 		Strategy: apiextensions.NoneConverter,
@@ -122,8 +150,8 @@ func updateCRD(
 	return k8s.CRDClient().Update(ctx, existingCRD, metav1.UpdateOptions{})
 }
 
-func createCRDs(ctx context.Context, args *Args) error {
-	register := func(data []byte) error {
+func createCRDs(ctx context.Context, args *Args) (err error) {
+	register := func(data []byte, step int) error {
 		object := map[string]interface{}{}
 		if err := yaml.Unmarshal(data, &object); err != nil {
 			return err
@@ -153,38 +181,47 @@ func createCRDs(ctx context.Context, args *Args) error {
 			}
 
 			setNoneConversionStrategy(&crd)
-
+			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Registering %s CRD", crd.Name), step, nil) {
+				return errSendProgress
+			}
 			_, err := k8s.CRDClient().Create(ctx, &crd, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}
-
+			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Registered %s CRD", crd.Name), step, crdComponent(crd.Name)) {
+				return errSendProgress
+			}
 			_, err = io.WriteString(args.auditWriter, mustGetYAML(crd))
 			return err
 		}
 
+		if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Updating %s CRD", crd.Name), step, nil) {
+			return errSendProgress
+		}
 		updatedCRD, err := updateCRD(ctx, existingCRD, &crd)
 		if err != nil {
 			return err
 		}
-
+		if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Updated %s CRD", crd.Name), step, crdComponent(crd.Name)) {
+			return errSendProgress
+		}
 		_, err = io.WriteString(args.auditWriter, mustGetYAML(updatedCRD))
 		return err
 	}
 
-	if err := register(drivesYAML); err != nil {
+	if err := register(drivesYAML, 1); err != nil {
 		return err
 	}
 
-	if err := register(volumesYAML); err != nil {
+	if err := register(volumesYAML, 2); err != nil {
 		return err
 	}
 
-	if err := register(nodesYAML); err != nil {
+	if err := register(nodesYAML, 3); err != nil {
 		return err
 	}
 
-	return register(initrequestsYAML)
+	return register(initrequestsYAML, 4)
 }
 
 func removeVolumes(ctx context.Context) error {

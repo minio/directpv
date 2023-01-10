@@ -29,10 +29,18 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var (
-	tick  = color.HiGreenString("✓\n")
-	cross = color.HiRedString("✗\n")
-)
+// Tasks is a list of tasks to performed during installation and uninstallation
+var Tasks = []Task{
+	namespaceTask{},
+	rbacTask{},
+	pspTask{},
+	crdTask{},
+	migrateTask{},
+	csiDriverTask{},
+	storageClassTask{},
+	daemonsetTask{},
+	deploymentTask{},
+}
 
 func getKubeVersion() (major, minor uint, err error) {
 	versionInfo, err := k8s.DiscoveryClient().ServerVersion()
@@ -64,8 +72,14 @@ func getKubeVersion() (major, minor uint, err error) {
 }
 
 // Install performs DirectPV installation on kubernetes.
-func Install(ctx context.Context, args *Args) error {
-	err := args.validate()
+func Install(ctx context.Context, args *Args) (err error) {
+	defer func() {
+		if !sendDoneMessage(ctx, args.ProgressCh, err) {
+			err = errSendProgress
+		}
+	}()
+
+	err = args.validate()
 	if err != nil {
 		return err
 	}
@@ -113,139 +127,29 @@ func Install(ctx context.Context, args *Args) error {
 		}
 	}
 
-	print := func(s string) {
-		if !args.DryRun && !args.Quiet {
-			fmt.Print(s)
-		}
-	}
-
-	execute := func(name string, fn func(context.Context, *Args) error) error {
-		print(name + " ")
-
-		if err := fn(ctx, args); err != nil {
-			print(cross)
+	for _, task := range Tasks {
+		if err := task.Start(ctx, args); err != nil {
 			return err
 		}
-
-		print(tick)
-		return nil
-	}
-
-	print("Installing\n")
-
-	if err := execute("Namespace", createNamespace); err != nil {
-		return err
-	}
-
-	if err := execute("RBAC", createRBAC); err != nil {
-		return err
-	}
-
-	if !args.podSecurityAdmission {
-		if err := execute("PodSecurityPolicy", createPSP); err != nil {
+		taskErr := task.Execute(ctx, args)
+		if err := task.End(ctx, args, taskErr); err != nil {
 			return err
 		}
-	}
-
-	if err := execute("CRD", createCRDs); err != nil {
-		return err
-	}
-
-	if args.Legacy {
-		err := execute(
-			"Migrate legacy drives and volumes",
-			func(ctx context.Context, args *Args) error {
-				return Migrate(ctx, args.DryRun)
-			},
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	if err := execute("CSI Driver", createCSIDriver); err != nil {
-		return err
-	}
-
-	if err := execute("Storage Class", createStorageClass); err != nil {
-		return err
-	}
-
-	if err := execute("Daemonset", createDaemonset); err != nil {
-		return err
-	}
-
-	if err := execute("Deployment", createDeployment); err != nil {
-		return err
 	}
 
 	return nil
 }
 
 // Uninstall removes DirectPV from kubernetes.
-func Uninstall(ctx context.Context, quiet, force bool) error {
-	major, minor, err := getKubeVersion()
-	if err != nil {
-		return err
+func Uninstall(ctx context.Context, quiet, force bool) (err error) {
+	args := &Args{
+		ForceUninstall: force,
+		Quiet:          quiet,
 	}
-
-	podSecurityAdmission := (major == 1 && minor > 24)
-
-	print := func(s string) {
-		if !quiet {
-			fmt.Print(s)
-		}
-	}
-
-	execute := func(name string, fn func(context.Context) error) error {
-		print(name + " ")
-
-		if err := fn(ctx); err != nil {
-			print(cross)
-			return err
-		}
-
-		print(tick)
-		return nil
-	}
-
-	print("Uninstalling\n")
-
-	if err := execute("Namespace", deleteNamespace); err != nil {
-		return err
-	}
-
-	if err := execute("RBAC", deleteRBAC); err != nil {
-		return err
-	}
-
-	if !podSecurityAdmission {
-		if err := execute("PodSecurityPolicy", deletePSP); err != nil {
+	for _, task := range Tasks {
+		if err := task.Delete(ctx, args); err != nil {
 			return err
 		}
 	}
-
-	if err := execute("CRD", func(ctx context.Context) error {
-		return deleteCRDs(ctx, force)
-	}); err != nil {
-		return err
-	}
-
-	if err := execute("CSI Driver", deleteCSIDriver); err != nil {
-		return err
-	}
-
-	if err := execute("Storage Class", deleteStorageClass); err != nil {
-		return err
-	}
-
-	if err := execute("Daemonset", deleteDaemonset); err != nil {
-		return err
-	}
-
-	if err := execute("Deployment", deleteDeployment); err != nil {
-		return err
-	}
-
 	return nil
 }

@@ -38,13 +38,55 @@ const (
 	nodeAPIServerCADir         = "node-api-server-ca"
 )
 
-func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
+type deploymentTask struct{}
+
+func (deploymentTask) Name() string {
+	return "Deployment"
+}
+
+func (deploymentTask) Start(ctx context.Context, args *Args) error {
+	steps := 1
+	if args.Legacy {
+		steps++
+	}
+	if !sendStartMessage(ctx, args.ProgressCh, steps) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (deploymentTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (deploymentTask) Execute(ctx context.Context, args *Args) error {
+	return createDeployment(ctx, args)
+}
+
+func (deploymentTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteDeployment(ctx)
+}
+
+func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) (err error) {
 	name := consts.ControllerServerName
 	containerArgs := []string{name, fmt.Sprintf("--identity=%s", consts.Identity)}
 	if legacy {
 		name = consts.LegacyControllerServerName
 		containerArgs = []string{name}
 	}
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Deployment", name), step, nil) {
+		return errSendProgress
+	}
+	defer func() {
+		if err == nil {
+			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Deployment", name), step, deploymentComponent(name)) {
+				err = errSendProgress
+			}
+		}
+	}()
 	containerArgs = append(
 		containerArgs,
 		[]string{
@@ -156,7 +198,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().AppsV1().Deployments(namespace).Create(
+	_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
 		ctx, deployment, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -170,13 +212,15 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool) error {
 	return err
 }
 
-func createDeployment(ctx context.Context, args *Args) error {
-	if err := doCreateDeployment(ctx, args, false); err != nil {
+func createDeployment(ctx context.Context, args *Args) (err error) {
+	if err := doCreateDeployment(ctx, args, false, 1); err != nil {
 		return err
 	}
 
 	if args.Legacy {
-		return doCreateDeployment(ctx, args, true)
+		if err := doCreateDeployment(ctx, args, true, 2); err != nil {
+			return err
+		}
 	}
 
 	return nil

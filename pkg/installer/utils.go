@@ -17,9 +17,11 @@
 package installer
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base32"
 	"fmt"
+	"io"
 	"path"
 	"strings"
 
@@ -71,4 +73,125 @@ func getRandSuffix() string {
 		klog.Fatalf("unable to generate random bytes; %v", err)
 	}
 	return strings.ToLower(base32.StdEncoding.EncodeToString(b)[:5])
+}
+
+func sendDoneMessage(ctx context.Context, progressCh chan<- Message, err error) (sent bool) {
+	sent = sendMessage(ctx, progressCh, newDoneMessage(err))
+	if !sent && err != nil {
+		klog.Error(err)
+	}
+	return
+}
+
+func sendStartMessage(ctx context.Context, progressCh chan<- Message, totalSteps int) bool {
+	return sendMessage(ctx, progressCh, newStartMessage(totalSteps))
+}
+
+func sendEndMessage(ctx context.Context, progressCh chan<- Message, err error) (sent bool) {
+	sent = sendMessage(ctx, progressCh, newEndMessage(err, nil))
+	if !sent && err != nil {
+		klog.Error(err)
+	}
+	return
+}
+
+func sendProgressMessage(ctx context.Context, progressCh chan<- Message, message string, step int, component *Component) bool {
+	return sendMessage(ctx, progressCh, newProgressMessage(message, step, component))
+}
+
+func sendLogMessage(ctx context.Context, progressCh chan<- Message, msg string) bool {
+	return sendMessage(ctx, progressCh, newLogMessage(msg))
+}
+
+func namespaceComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "Namespace",
+	}
+}
+
+func serviceAccountComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "ServiceAccount",
+	}
+}
+
+func clusterRoleBindingComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "ClusterRoleBinding",
+	}
+}
+
+func clusterRoleComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "ClusterRole",
+	}
+}
+
+func podSecurityPolicyComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "PodSecurityPolicy",
+	}
+}
+
+func crdComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "CustomResourceDefinition",
+	}
+}
+
+func csiDriverComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "CSIDriver",
+	}
+}
+
+func storageClassComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "StorageClass",
+	}
+}
+
+func daemonsetComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "Daemonset",
+	}
+}
+
+func deploymentComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "Deployment",
+	}
+}
+
+func migrateLog(ctx context.Context, args *Args, errMsg string, showInProgress bool) error {
+	switch {
+	case args.ProgressCh != nil:
+		if showInProgress {
+			if !sendLogMessage(ctx, args.ProgressCh, errMsg) {
+				return errSendProgress
+			}
+		}
+	case !args.Quiet && !args.DryRun:
+		klog.Error(errMsg)
+	}
+	return writeToAuditFile(args.auditWriter, errMsg)
+}
+
+func writeToAuditFile(writer io.Writer, message string) error {
+	if writer == nil {
+		return nil
+	}
+	log := fmt.Sprintf("\n%s\n---\n", message)
+	_, err := io.WriteString(writer, log)
+	return err
 }

@@ -52,6 +52,8 @@ type Args struct {
 	csiProvisionerImage      string
 	nodeDriverRegistrarImage string
 	livenessProbeImage       string
+	ProgressCh               chan<- Message
+	ForceUninstall           bool
 }
 
 // NewArgs creates arguments for DirectPV installation.

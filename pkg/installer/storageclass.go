@@ -35,11 +35,53 @@ import (
 
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
 
-func doCreateStorageClass(ctx context.Context, args *Args, version string, legacy bool) error {
+type storageClassTask struct{}
+
+func (storageClassTask) Name() string {
+	return "StorageClass"
+}
+
+func (storageClassTask) Start(ctx context.Context, args *Args) error {
+	steps := 1
+	if args.Legacy {
+		steps++
+	}
+	if !sendStartMessage(ctx, args.ProgressCh, steps) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (storageClassTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (storageClassTask) Execute(ctx context.Context, args *Args) error {
+	return createStorageClass(ctx, args)
+}
+
+func (storageClassTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteStorageClass(ctx)
+}
+
+func doCreateStorageClass(ctx context.Context, args *Args, version string, legacy bool, step int) (err error) {
 	name := consts.Identity
 	if legacy {
 		name = legacyclient.Identity
 	}
+	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Storage Class", name), step, nil) {
+		return errSendProgress
+	}
+	defer func() {
+		if err == nil {
+			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Storage Class", name), step, storageClassComponent(name)) {
+				err = errSendProgress
+			}
+		}
+	}()
 
 	allowExpansion := false
 	allowTopologiesWithName := corev1.TopologySelectorTerm{
@@ -136,7 +178,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 	}
 }
 
-func createStorageClass(ctx context.Context, args *Args) error {
+func createStorageClass(ctx context.Context, args *Args) (err error) {
 	version := "v1"
 	switch {
 	case args.DryRun:
@@ -151,12 +193,14 @@ func createStorageClass(ctx context.Context, args *Args) error {
 		version = gvk.Version
 	}
 
-	if err := doCreateStorageClass(ctx, args, version, false); err != nil {
+	if err := doCreateStorageClass(ctx, args, version, false, 1); err != nil {
 		return err
 	}
 
 	if args.Legacy {
-		return doCreateStorageClass(ctx, args, version, true)
+		if err := doCreateStorageClass(ctx, args, version, true, 2); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -39,7 +39,45 @@ const (
 	clusterRoleVerbPatch  = "patch"
 )
 
-func createServiceAccount(ctx context.Context, args *Args) error {
+type rbacTask struct{}
+
+func (rbacTask) Name() string {
+	return "RBAC"
+}
+
+func (rbacTask) Start(ctx context.Context, args *Args) error {
+	if !sendStartMessage(ctx, args.ProgressCh, 3) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (rbacTask) End(ctx context.Context, args *Args, err error) error {
+	if !sendEndMessage(ctx, args.ProgressCh, err) {
+		return errSendProgress
+	}
+	return nil
+}
+
+func (rbacTask) Execute(ctx context.Context, args *Args) error {
+	return createRBAC(ctx, args)
+}
+
+func (rbacTask) Delete(ctx context.Context, _ *Args) error {
+	return deleteRBAC(ctx)
+}
+
+func createServiceAccount(ctx context.Context, args *Args) (err error) {
+	if !sendProgressMessage(ctx, args.ProgressCh, "Creating service account", 1, nil) {
+		return errSendProgress
+	}
+	defer func() {
+		if err == nil {
+			if !sendProgressMessage(ctx, args.ProgressCh, "Created service account", 1, serviceAccountComponent(consts.Identity)) {
+				err = errSendProgress
+			}
+		}
+	}()
 	serviceAccount := &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -61,7 +99,7 @@ func createServiceAccount(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Create(
+	_, err = k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Create(
 		ctx, serviceAccount, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -75,7 +113,17 @@ func createServiceAccount(ctx context.Context, args *Args) error {
 	return err
 }
 
-func createClusterRoleBinding(ctx context.Context, args *Args) error {
+func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
+	if !sendProgressMessage(ctx, args.ProgressCh, "Creating cluster role binding", 3, nil) {
+		return errSendProgress
+	}
+	defer func() {
+		if err == nil {
+			if !sendProgressMessage(ctx, args.ProgressCh, "Created cluster role binding", 3, clusterRoleBindingComponent(consts.Identity)) {
+				err = errSendProgress
+			}
+		}
+	}()
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -108,7 +156,7 @@ func createClusterRoleBinding(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(
+	_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(
 		ctx, clusterRoleBinding, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -122,7 +170,17 @@ func createClusterRoleBinding(ctx context.Context, args *Args) error {
 	return err
 }
 
-func createClusterRole(ctx context.Context, args *Args) error {
+func createClusterRole(ctx context.Context, args *Args) (err error) {
+	if !sendProgressMessage(ctx, args.ProgressCh, "Creating cluster role", 2, nil) {
+		return errSendProgress
+	}
+	defer func() {
+		if err == nil {
+			if !sendProgressMessage(ctx, args.ProgressCh, "Created cluster role", 2, clusterRoleComponent(consts.Identity)) {
+				err = errSendProgress
+			}
+		}
+	}()
 	clusterRole := &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -367,7 +425,7 @@ func createClusterRole(ctx context.Context, args *Args) error {
 		return nil
 	}
 
-	_, err := k8s.KubeClient().RbacV1().ClusterRoles().Create(
+	_, err = k8s.KubeClient().RbacV1().ClusterRoles().Create(
 		ctx, clusterRole, metav1.CreateOptions{},
 	)
 	if err != nil {
@@ -381,15 +439,13 @@ func createClusterRole(ctx context.Context, args *Args) error {
 	return err
 }
 
-func createRBAC(ctx context.Context, args *Args) error {
-	if err := createServiceAccount(ctx, args); err != nil {
+func createRBAC(ctx context.Context, args *Args) (err error) {
+	if err = createServiceAccount(ctx, args); err != nil {
 		return err
 	}
-
-	if err := createClusterRole(ctx, args); err != nil {
+	if err = createClusterRole(ctx, args); err != nil {
 		return err
 	}
-
 	return createClusterRoleBinding(ctx, args)
 }
 
