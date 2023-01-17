@@ -18,11 +18,11 @@ package installer
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -94,8 +94,8 @@ func createServiceAccount(ctx context.Context, args *Args) (err error) {
 		AutomountServiceAccountToken: nil,
 	}
 
-	if args.DryRun {
-		fmt.Print(mustGetYAML(serviceAccount))
+	if args.dryRun() {
+		args.DryRunPrinter(serviceAccount)
 		return nil
 	}
 
@@ -109,7 +109,7 @@ func createServiceAccount(ctx context.Context, args *Args) (err error) {
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(serviceAccount))
+	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(serviceAccount))
 	return err
 }
 
@@ -151,8 +151,8 @@ func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 		},
 	}
 
-	if args.DryRun {
-		fmt.Print(mustGetYAML(clusterRoleBinding))
+	if args.dryRun() {
+		args.DryRunPrinter(clusterRoleBinding)
 		return nil
 	}
 
@@ -166,7 +166,7 @@ func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(clusterRoleBinding))
+	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(clusterRoleBinding))
 	return err
 }
 
@@ -420,8 +420,8 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 		AggregationRule: nil,
 	}
 
-	if args.DryRun {
-		fmt.Print(mustGetYAML(clusterRole))
+	if args.dryRun() {
+		args.DryRunPrinter(clusterRole)
 		return nil
 	}
 
@@ -435,7 +435,7 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(clusterRole))
+	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(clusterRole))
 	return err
 }
 

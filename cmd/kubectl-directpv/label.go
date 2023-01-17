@@ -64,7 +64,7 @@ func init() {
 	addNodesFlag(labelCmd, "If present, filter objects from given nodes")
 	addDrivesFlag(labelCmd, "If present, filter objects by given drive names")
 	addAllFlag(labelCmd, "If present, select all objects")
-	addDryRunFlag(labelCmd)
+	addDryRunFlag(labelCmd, "Run in dry run mode")
 
 	labelCmd.AddCommand(labelDrivesCmd)
 	labelCmd.AddCommand(labelVolumesCmd)

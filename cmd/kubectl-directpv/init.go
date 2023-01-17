@@ -52,8 +52,8 @@ var initCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Initialize the drives
-$ kubectl {PLUGIN_NAME} init drives.yaml`,
+		`1. Initialize the drives
+   $ kubectl {PLUGIN_NAME} init drives.yaml`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -93,6 +93,9 @@ func toInitRequestObjects(config *InitConfig, requestID string) (initRequests []
 	for _, node := range config.Nodes {
 		initDevices := []types.InitDevice{}
 		for _, device := range node.Drives {
+			if strings.ToLower(device.Select) != driveSelectedValue {
+				continue
+			}
 			initDevices = append(initDevices, types.InitDevice{
 				ID:    device.ID,
 				Name:  device.Name,

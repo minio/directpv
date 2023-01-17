@@ -39,8 +39,8 @@ var moveCmd = &cobra.Command{
 	SilenceErrors: true,
 	Short:         "Move volumes excluding data from source drive to destination drive on a same node",
 	Example: strings.ReplaceAll(
-		`# Move volumes from drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 to drive 834e8f4c-14f4-49b9-9b77-e8ac854108d5
-$ kubectl {PLUGIN_NAME} drives move af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 834e8f4c-14f4-49b9-9b77-e8ac854108d5`,
+		`1. Move volumes from drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 to drive 834e8f4c-14f4-49b9-9b77-e8ac854108d5
+   $ kubectl {PLUGIN_NAME} drives move af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 834e8f4c-14f4-49b9-9b77-e8ac854108d5`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -128,7 +128,7 @@ func moveMain(ctx context.Context, src, dest string) {
 	}
 
 	if destDrive.Status.Status != directpvtypes.DriveStatusReady {
-		utils.Eprintf(quietFlag, true, "destination drive is not ready state\n")
+		utils.Eprintf(quietFlag, true, "destination drive is not in ready state\n")
 		os.Exit(1)
 	}
 

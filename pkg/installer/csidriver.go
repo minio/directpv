@@ -25,6 +25,7 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
+	"github.com/minio/directpv/pkg/utils"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -106,8 +107,8 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 			},
 		}
 
-		if args.DryRun {
-			fmt.Print(mustGetYAML(csiDriver))
+		if args.dryRun() {
+			args.DryRunPrinter(csiDriver)
 			return nil
 		}
 
@@ -119,7 +120,7 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 			return err
 		}
 
-		_, err = io.WriteString(args.auditWriter, mustGetYAML(csiDriver))
+		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(csiDriver))
 		return err
 
 	case "v1beta1":
@@ -144,8 +145,8 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 			},
 		}
 
-		if args.DryRun {
-			fmt.Print(mustGetYAML(csiDriver))
+		if args.dryRun() {
+			args.DryRunPrinter(csiDriver)
 			return nil
 		}
 
@@ -157,7 +158,7 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 			return err
 		}
 
-		_, err = io.WriteString(args.auditWriter, mustGetYAML(csiDriver))
+		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(csiDriver))
 		return err
 
 	default:
@@ -167,7 +168,7 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 
 func createCSIDriver(ctx context.Context, args *Args) (err error) {
 	version := "v1"
-	if args.DryRun {
+	if args.dryRun() {
 		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 19 {
 			version = "v1beta1"
 		}

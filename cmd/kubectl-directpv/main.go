@@ -55,6 +55,37 @@ var mainCmd = &cobra.Command{
 }
 
 func init() {
+	mainCmd.SetUsageTemplate(`USAGE:{{if .Runnable}}
+  {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
+  {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
+
+ALIASES:
+  {{.NameAndAliases}}{{end}}{{if .HasAvailableLocalFlags}}
+
+FLAGS:
+{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
+
+GLOBAL FLAGS:
+{{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasExample}}
+
+EXAMPLES:
+{{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
+
+AVAILABLE COMMANDS:{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
+
+{{.Title}}{{range $cmds}}{{if (and (eq .GroupID $group.ID) (or .IsAvailableCommand (eq .Name "help")))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
+
+ADDITIONAL COMMANDS:{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if .HasHelpSubCommands}}
+
+ADDITIONAL HELP TOPICS:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
+  {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
+
+Use "{{.CommandPath}} [command] --help" for more information about this command.{{end}}
+`)
+
 	cobra.EnableCommandSorting = false
 	if Version == "" {
 		mainCmd.Version = "0.0.0-dev"
@@ -121,10 +152,10 @@ func init() {
 	mainCmd.AddCommand(listCmd)
 	mainCmd.AddCommand(labelCmd)
 	mainCmd.AddCommand(cordonCmd)
-	mainCmd.AddCommand(migrateCmd)
 	mainCmd.AddCommand(uncordonCmd)
+	mainCmd.AddCommand(migrateCmd)
 	mainCmd.AddCommand(moveCmd)
-	mainCmd.AddCommand(releaseCmd)
+	mainCmd.AddCommand(cleanCmd)
 	mainCmd.AddCommand(removeCmd)
 	mainCmd.AddCommand(uninstallCmd)
 	mainCmd.SetHelpCommand(&cobra.Command{

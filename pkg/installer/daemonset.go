@@ -24,6 +24,7 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
+	"github.com/minio/directpv/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -272,8 +273,8 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 
 	daemonset := newDaemonset(podSpec, consts.NodeServerName, args.AppArmorProfile)
 
-	if args.DryRun {
-		fmt.Print(mustGetYAML(daemonset))
+	if args.dryRun() {
+		args.DryRunPrinter(daemonset)
 		return nil
 	}
 
@@ -287,7 +288,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(daemonset))
+	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(daemonset))
 	return err
 }
 
@@ -320,8 +321,8 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 
 	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, args.AppArmorProfile)
 
-	if args.DryRun {
-		fmt.Print(mustGetYAML(daemonset))
+	if args.dryRun() {
+		args.DryRunPrinter(daemonset)
 		return nil
 	}
 
@@ -335,12 +336,12 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(daemonset))
+	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(daemonset))
 	return err
 }
 
 func createDaemonset(ctx context.Context, args *Args) (err error) {
-	if args.DryRun {
+	if args.dryRun() {
 		if err := doCreateDaemonset(ctx, args); err != nil {
 			return err
 		}

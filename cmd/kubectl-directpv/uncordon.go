@@ -37,23 +37,23 @@ var uncordonCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# Uncordon all drives from all nodes
-$ kubectl {PLUGIN_NAME} uncordon --all
+		`1. Uncordon all drives from all nodes
+   $ kubectl {PLUGIN_NAME} uncordon --all
 
-# Uncordon all drives from a node
-$ kubectl {PLUGIN_NAME} uncordon --nodes=node1
+2. Uncordon all drives from a node
+   $ kubectl {PLUGIN_NAME} uncordon --nodes=node1
 
-# Uncordon a drive from all nodes
-$ kubectl {PLUGIN_NAME} uncordon --drives=nvme1n1
+3. Uncordon a drive from all nodes
+   $ kubectl {PLUGIN_NAME} uncordon --drives=nvme1n1
 
-# Uncordon specific drives from specific nodes
-$ kubectl {PLUGIN_NAME} uncordon --nodes=node{1...4} --drives=sd{a...f}
+4. Uncordon specific drives from specific nodes
+   $ kubectl {PLUGIN_NAME} uncordon --nodes=node{1...4} --drives=sd{a...f}
 
-# Uncordon drives which are in 'warm' access-tier
-$ kubectl {PLUGIN_NAME} uncordon --access-tier=warm
+5. Uncordon drives which are in 'warm' access-tier
+   $ kubectl {PLUGIN_NAME} uncordon --access-tier=warm
 
-# Uncordon drives which are in 'error' status
-$ kubectl {PLUGIN_NAME} uncordon --status=error`,
+6. Uncordon drives which are in 'error' status
+   $ kubectl {PLUGIN_NAME} uncordon --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -81,7 +81,7 @@ func init() {
 	addDrivesFlag(uncordonCmd, "If present, select drives by given names")
 	addDriveStatusFlag(uncordonCmd, "If present, select drives by status")
 	addAllFlag(uncordonCmd, "If present, select all drives")
-	addDryRunFlag(uncordonCmd)
+	addDryRunFlag(uncordonCmd, "Run in dry run mode")
 }
 
 func validateUncordonCmd() error {
@@ -142,7 +142,6 @@ func uncordonMain(ctx context.Context) {
 		processed = true
 
 		if !result.Drive.IsUnschedulable() {
-			utils.Eprintf(quietFlag, false, "Drive %v already uncordoned\n", result.Drive.GetDriveID())
 			continue
 		}
 
@@ -158,7 +157,7 @@ func uncordonMain(ctx context.Context) {
 		}
 
 		if !quietFlag {
-			fmt.Printf("Drive %v uncordoned\n", result.Drive.GetDriveID())
+			fmt.Printf("Drive %v/%v uncordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 		}
 	}
 

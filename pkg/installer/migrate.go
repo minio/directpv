@@ -363,14 +363,14 @@ func Migrate(ctx context.Context, args *Args) (err error) {
 		return fmt.Errorf("migration does not support DirectCSIVolume version %v", version)
 	}
 
-	driveMap, legacyDriveErrors, driveErrors, err := migrateDrives(ctx, args.DryRun, args.ProgressCh)
+	driveMap, legacyDriveErrors, driveErrors, err := migrateDrives(ctx, args.dryRun(), args.ProgressCh)
 	if err != nil {
 		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, "Migrated the drives", 1, nil) {
 		return errSendProgress
 	}
-	legacyVolumeErrors, volumeErrors, err := migrateVolumes(ctx, driveMap, args.DryRun, args.ProgressCh)
+	legacyVolumeErrors, volumeErrors, err := migrateVolumes(ctx, driveMap, args.dryRun(), args.ProgressCh)
 	if err != nil {
 		return err
 	}

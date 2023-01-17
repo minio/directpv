@@ -26,6 +26,7 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
+	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
@@ -116,8 +117,8 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 			Parameters:    map[string]string{"fstype": "xfs"},
 		}
 
-		if args.DryRun {
-			fmt.Print(mustGetYAML(storageClass))
+		if args.dryRun() {
+			args.DryRunPrinter(storageClass)
 			return nil
 		}
 
@@ -131,7 +132,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 			return err
 		}
 
-		_, err = io.WriteString(args.auditWriter, mustGetYAML(storageClass))
+		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(storageClass))
 		return err
 
 	case "v1beta1":
@@ -155,8 +156,8 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 			Parameters:    map[string]string{"fstype": "xfs"},
 		}
 
-		if args.DryRun {
-			fmt.Print(mustGetYAML(storageClass))
+		if args.dryRun() {
+			args.DryRunPrinter(storageClass)
 			return nil
 		}
 
@@ -170,7 +171,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 			return err
 		}
 
-		_, err = io.WriteString(args.auditWriter, mustGetYAML(storageClass))
+		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(storageClass))
 		return err
 
 	default:
@@ -181,7 +182,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 func createStorageClass(ctx context.Context, args *Args) (err error) {
 	version := "v1"
 	switch {
-	case args.DryRun:
+	case args.dryRun():
 		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 16 {
 			version = "v1beta1"
 		}

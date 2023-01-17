@@ -43,33 +43,32 @@ var volumeStatusValues = []string{
 }
 
 var (
-	configDir        = getDefaultConfigDir() // --config-dir flag
-	kubeconfig       string                  // --kubeconfig flag
-	quietFlag        bool                    // --quiet flag
-	outputFormat     string                  // --output flag
-	noHeaders        bool                    // --no-headers flag
-	allFlag          bool                    // --all flag
-	nodesArgs        []string                // --nodes flag
-	drivesArgs       []string                // --drives flag
-	driveStatusArgs  []string                // --status flag of drives
-	driveIDArgs      []string                // --drive-id flag
-	podNameArgs      []string                // --pod-name flag
-	podNSArgs        []string                // --pod-namespace flag
-	volumeStatusArgs []string                // --status flag of volumes
-	pvcFlag          bool                    // --pvc flag
-	dryRunFlag       bool                    // --dry-run flag
-	idArgs           []string                // --id flag
-	showLabels       bool                    // --show-labels flag
-	labelArgs        []string                // --labels flag
-	forceFlag        bool                    // --force flag
+	kubeconfig       string   // --kubeconfig flag
+	quietFlag        bool     // --quiet flag
+	outputFormat     string   // --output flag
+	noHeaders        bool     // --no-headers flag
+	allFlag          bool     // --all flag
+	nodesArgs        []string // --nodes flag
+	drivesArgs       []string // --drives flag
+	driveStatusArgs  []string // --status flag of drives
+	driveIDArgs      []string // --drive-id flag
+	podNameArgs      []string // --pod-name flag
+	podNSArgs        []string // --pod-namespace flag
+	volumeStatusArgs []string // --status flag of volumes
+	pvcFlag          bool     // --pvc flag
+	dryRunFlag       bool     // --dry-run flag
+	idArgs           []string // --id flag
+	showLabels       bool     // --show-labels flag
+	labelArgs        []string // --labels flag
+	forceFlag        bool     // --force flag
 )
 
 func addAllFlag(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().BoolVar(&allFlag, "all", allFlag, usage)
 }
 
-func addDryRunFlag(cmd *cobra.Command) {
-	cmd.PersistentFlags().BoolVar(&dryRunFlag, "dry-run", dryRunFlag, "Run in dry-run mode")
+func addDryRunFlag(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().BoolVar(&dryRunFlag, "dry-run", dryRunFlag, usage)
 }
 
 func addNodesFlag(cmd *cobra.Command, usage string) {
@@ -78,6 +77,10 @@ func addNodesFlag(cmd *cobra.Command, usage string) {
 
 func addDrivesFlag(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().StringSliceVarP(&drivesArgs, "drives", "d", drivesArgs, usage+"; supports ellipses pattern e.g. sd{a...z}")
+}
+
+func addOutputFormatFlag(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", outputFormat, usage)
 }
 
 func addDriveStatusFlag(cmd *cobra.Command, usage string) {
@@ -114,15 +117,13 @@ func addLabelsFlag(cmd *cobra.Command, usage string) {
 
 var (
 	wideOutput bool
-	jsonOutput bool
-	yamlOutput bool
 
 	driveStatusSelectors  []directpvtypes.DriveStatus
 	driveIDSelectors      []directpvtypes.DriveID
 	volumeStatusSelectors []directpvtypes.VolumeStatus
 	labelSelectors        map[directpvtypes.LabelKey]directpvtypes.LabelValue
 
-	printer func(interface{}) error
+	dryRunPrinter func(interface{})
 )
 
 func validateNodeArgs() error {

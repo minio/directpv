@@ -41,34 +41,32 @@ var listVolumesCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`# List all ready volumes
-$ kubectl {PLUGIN_NAME} list volumes
+		`1. List all ready volumes
+   $ kubectl {PLUGIN_NAME} list volumes
 
-# List volumes served by a node
-$ kubectl {PLUGIN_NAME} list volumes --nodes=node1
+2. List volumes served by a node
+   $ kubectl {PLUGIN_NAME} list volumes --nodes=node1
 
-# List volumes served by drives on nodes
-$ kubectl {PLUGIN_NAME} list volumes --nodes=node1,node2 --drives=nvme0n1
+3. List volumes served by drives on nodes
+   $ kubectl {PLUGIN_NAME} list volumes --nodes=node1,node2 --drives=nvme0n1
 
-# List volumes by pod name
-$ kubectl {PLUGIN_NAME} list volumes --pod-names=minio-{1...3}
+4. List volumes by pod name
+   $ kubectl {PLUGIN_NAME} list volumes --pod-names=minio-{1...3}
 
-# List volumes by pod namespace
-$ kubectl {PLUGIN_NAME} list volumes --pod-namespaces=tenant-{1...3}
+5. List volumes by pod namespace
+   $ kubectl {PLUGIN_NAME} list volumes --pod-namespaces=tenant-{1...3}
 
-# List all volumes from all nodes with all information include PVC name.
-$ kubectl {PLUGIN_NAME} list drives --all --pvc --output wide
+6. List all volumes from all nodes with all information include PVC name.
+   $ kubectl {PLUGIN_NAME} list drives --all --pvc --output wide
 
-# List volumes in Pending state
-$ kubectl {PLUGIN_NAME} list volumes --status=pending
+7. List volumes in Pending state
+   $ kubectl {PLUGIN_NAME} list volumes --status=pending
 
-# List volumes served by a drive ID
-$ kubectl {PLUGIN_NAME} list volumes --drive-id=b84758b0-866f-4a12-9d00-d8f7da76ceb3
+8. List volumes served by a drive ID
+   $ kubectl {PLUGIN_NAME} list volumes --drive-id=b84758b0-866f-4a12-9d00-d8f7da76ceb3
 
-# List volumes with labels.
-$ kubectl {PLUGIN_NAME} list volumes --show-labels
-
-`,
+9. List volumes with labels.
+   $ kubectl {PLUGIN_NAME} list volumes --show-labels`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -174,7 +172,7 @@ func listVolumesMain(ctx context.Context, args []string) {
 		os.Exit(1)
 	}
 
-	if yamlOutput || jsonOutput {
+	if dryRunPrinter != nil {
 		volumeList := types.VolumeList{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "List",
@@ -182,11 +180,7 @@ func listVolumesMain(ctx context.Context, args []string) {
 			},
 			Items: volumes,
 		}
-		if err := printer(volumeList); err != nil {
-			utils.Eprintf(quietFlag, true, "unable to %v marshal volumes; %v\n", outputFormat, err)
-			os.Exit(1)
-		}
-
+		dryRunPrinter(volumeList)
 		return
 	}
 

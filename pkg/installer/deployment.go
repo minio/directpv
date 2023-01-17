@@ -23,6 +23,7 @@ import (
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -193,8 +194,8 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 		Status: appsv1.DeploymentStatus{},
 	}
 
-	if args.DryRun {
-		fmt.Print(mustGetYAML(deployment))
+	if args.dryRun() {
+		args.DryRunPrinter(deployment)
 		return nil
 	}
 
@@ -208,7 +209,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, mustGetYAML(deployment))
+	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(deployment))
 	return err
 }
 
