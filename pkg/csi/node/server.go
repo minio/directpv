@@ -98,7 +98,6 @@ func (server *Server) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 
 	return &csi.NodeGetInfoResponse{
 		NodeId:             string(server.nodeID),
-		MaxVolumesPerNode:  100,
 		AccessibleTopology: topology,
 	}, nil
 }
