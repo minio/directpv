@@ -202,7 +202,10 @@ func livenessProbeContainer(image string) corev1.Container {
 func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.DaemonSet {
 	annotations := map[string]string{createdByLabel: pluginName}
 	if appArmorProfile != "" {
-		annotations["container.apparmor.security.beta.kubernetes.io/"+consts.AppName] = appArmorProfile
+		// AppArmor profiles need to be specified per-container
+		for _, container := range podSpec.Containers {
+			annotations["container.apparmor.security.beta.kubernetes.io/"+container.Name] = "localhost/" + appArmorProfile
+		}
 	}
 	selectorValue := fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
 

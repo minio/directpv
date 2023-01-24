@@ -196,7 +196,7 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 				return
 			}
 			switch event.Type {
-			case watch.Modified:
+			case watch.Modified, watch.Added:
 				initReq := event.InitRequest
 				if initReq.Status.Status != directpvtypes.InitStatusPending {
 					results = append(results, initResult{

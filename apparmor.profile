@@ -15,7 +15,6 @@ profile directpv flags=(attach_disconnected,mediate_deleted) {
 
   deny /bin/** wl,
   deny /boot/** wl,
-  deny /dev/** wl,
   deny /etc/** wl,
   deny /home/** wl,
   deny /lib/** wl,
@@ -27,9 +26,7 @@ profile directpv flags=(attach_disconnected,mediate_deleted) {
   deny /root/** wl,
   deny /sbin/** wl,
   deny /srv/** wl,
-  deny /tmp/** wl,
   deny /sys/** wl,
-  deny /dev/** wl,
   deny /run/udev/data/** wl,
   # deny /usr/** wl,
 

@@ -245,7 +245,7 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[direc
 				return
 			}
 			switch event.Type {
-			case watch.Modified:
+			case watch.Modified, watch.Added:
 				node := event.Node
 				if !node.Spec.Refresh {
 					devices[directpvtypes.NodeID(node.Name)] = node.GetDevicesByNames(drivesArgs)
@@ -258,7 +258,7 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[direc
 			default:
 			}
 		case <-ctx.Done():
-			err = fmt.Errorf("unable to discover devices; %v", ctx.Err())
+			utils.Eprintf(quietFlag, true, "unable to complete the discovery; %v\n", ctx.Err())
 			return
 		}
 	}

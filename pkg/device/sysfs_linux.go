@@ -100,7 +100,7 @@ func getPartitions(name string) ([]string, error) {
 }
 
 func getHolders(name string) ([]string, error) {
-	return readdirnames("/sys/block/"+name+"/holders", false)
+	return readdirnames("/sys/class/block/"+name+"/holders", false)
 }
 
 func getDMName(name string) (string, error) {
