@@ -169,11 +169,12 @@ func validateRequestedFormat(directCSIDrive directcsi.DirectCSIDrive, admissionR
 	return validateFS()
 }
 
-/* Validates the following admission rules
-   - Check if the fstype in the requestedFormat == "xfs"
-   - Check if directCSIOwned is not set to True or requestedFormat is set for root partitions (unavailable drives)
-   - Check if requestedFormat is not set for a drive in-use
-   - Check if force option is set if the drive has an existing filesystem or mountpoint
+/*
+Validates the following admission rules
+  - Check if the fstype in the requestedFormat == "xfs"
+  - Check if directCSIOwned is not set to True or requestedFormat is set for root partitions (unavailable drives)
+  - Check if requestedFormat is not set for a drive in-use
+  - Check if force option is set if the drive has an existing filesystem or mountpoint
 */
 func (vh *validationHandler) validateDrive(w http.ResponseWriter, r *http.Request) {
 	admissionReview, err := parseAdmissionReview(r)

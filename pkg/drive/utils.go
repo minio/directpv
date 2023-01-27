@@ -55,18 +55,19 @@ func getFSUUIDFromDrive(drive *directcsi.DirectCSIDrive) string {
 
 // VerifyHostStateForDrive verifies if the drive states match the host info
 // --------------------------------------------------------------------------
-// - error if the v1beta1 drive is not upgraded yet (NOTE: maj:min is not present in v1beta1 API version)
-// - read /run/udev/data/b<maj:min> (refer ReadRunUdevDataByMajorMinor and mapToUdevData funcs)
-//   return err if the file does not exist
-// - construct sys.Device (refer /pkg/uevent/listener.go)
-// - validate the device (refer validateDevice function in pkg uevent)
-// - return an error if validation fails
+//   - error if the v1beta1 drive is not upgraded yet (NOTE: maj:min is not present in v1beta1 API version)
+//   - read /run/udev/data/b<maj:min> (refer ReadRunUdevDataByMajorMinor and mapToUdevData funcs)
+//     return err if the file does not exist
+//   - construct sys.Device (refer /pkg/uevent/listener.go)
+//   - validate the device (refer validateDevice function in pkg uevent)
+//   - return an error if validation fails
 //
 // If validation succeeds,
 // For Ready, InUse drives
-//      - check if the target (/var/lib/direct-csi/mnt/<drive.Name>) is mounted.
-//            If mounted, check the mount options, If not matching, return errInvalidMountOptions
-//            Else, return errNotMounted
+//   - check if the target (/var/lib/direct-csi/mnt/<drive.Name>) is mounted.
+//     If mounted, check the mount options, If not matching, return errInvalidMountOptions
+//     Else, return errNotMounted
+//
 // ----------------------------------------------------------------------------
 func VerifyHostStateForDrive(drive *directcsi.DirectCSIDrive) error {
 	if utils.IsV1Beta1Drive(drive) && drive.Status.MajorNumber == uint32(0) && drive.Status.MinorNumber == uint32(0) {

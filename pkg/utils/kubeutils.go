@@ -113,7 +113,7 @@ func UpdateLabels(object metav1.Object, labels map[LabelKey]LabelValue) {
 // SanitizeKubeResourceName - Sanitize given name to a valid kubernetes name format.
 // RegEx for a kubernetes name is
 //
-//      ([a-z0-9][-a-z0-9]*)?[a-z0-9]
+//	([a-z0-9][-a-z0-9]*)?[a-z0-9]
 //
 // with a max length of 253
 //

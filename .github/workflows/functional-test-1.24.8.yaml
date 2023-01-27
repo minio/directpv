@@ -1,4 +1,4 @@
-name: Testing on k8s v1.22.5 (Ubuntu 18.04)
+name: Testing on k8s v1.24.8
 
 on:
   push:
@@ -15,13 +15,13 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
 
       - name: Install dependencies
         run: |
@@ -50,10 +50,10 @@ jobs:
           docker build -t quay.io/minio/directpv:${BUILD_TAG} .
 
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.7.0
+        uses: manusa/actions-setup-minikube@v2.7.2
         with:
-          minikube version: 'v1.27.0'
-          kubernetes version: 'v1.22.5'
+          minikube version: 'v1.28.0'
+          kubernetes version: 'v1.24.8'
           github token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check Minikube

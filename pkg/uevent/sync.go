@@ -132,34 +132,39 @@ func (l *listener) sync(ctx context.Context) error {
 // Non-Managed directcsidrives (Available, Unavailable, Released) :-
 // ==============================================================
 // (*) Tries to match the directcsidrive by the following attributes if available on the directcsidrive
-//     (1)  PartitionNumber
-//     (2)  WWID
-//     (3)  Serial
-//     (4)  SerialLong
-//     (5)  DMUUID
-//     (6)  MDUUID
-//     (7)  ModelNumber
-//     (8)  Vendor
-//     (9)  PartitionUUID
-//     (10) UeventFSUUID
-//     (11) FilesystemUUID (only matcher for v1.4.6 drives)
+//
+//	(1)  PartitionNumber
+//	(2)  WWID
+//	(3)  Serial
+//	(4)  SerialLong
+//	(5)  DMUUID
+//	(6)  MDUUID
+//	(7)  ModelNumber
+//	(8)  Vendor
+//	(9)  PartitionUUID
+//	(10) UeventFSUUID
+//	(11) FilesystemUUID (only matcher for v1.4.6 drives)
+//
 // (*) Matched directcsidrive will be updated.
 // (*) Unmatched directcsidrive will be considered as un-identified directcsidrive. These
-//     directcsidrive could be non-upgraded or empty drives (virtual) with no persistent attributes in them
+//
+//	directcsidrive could be non-upgraded or empty drives (virtual) with no persistent attributes in them
+//
 // (*) Too many device matches will be logged as an error.
 // (*) Unmatched devices will be used for the next directcsidrive match in the iteration.
 //
 // Un-identified directcsidrives (unmatched non-managed directcsidrives) :-
 // =====================================================================
 // (*) Tries to match the directcsidrive by the following attributes on the directcsidrive
-//      (1) drive path
-//      (2) major and minor number
-//      (3) PCIPath (if present)
+//
+//	(1) drive path
+//	(2) major and minor number
+//	(3) PCIPath (if present)
+//
 // (*) Matched directcsidrive will be updated.
 // (*) Unmatched directcsidrive will be deleted
 // (*) Too many device matches will be logged as an error
 // (*) Unmatched devices will be created
-//
 func (l *listener) syncDevices(ctx context.Context, devices []*sys.Device) error {
 	managedDrives, nonManagedDrives, err := l.indexer.listDrives()
 	if err != nil {
@@ -203,7 +208,7 @@ func (l *listener) syncDevices(ctx context.Context, devices []*sys.Device) error
 		case 1:
 			klog.V(5).Infof("matched device: %s for drive %s", matchedDevices[0].Name, drive.Name)
 			// unset requested format while matching unidentified drive
-			if drive.Spec.RequestedFormat != nil && matchedDevices[0].FirstMountPoint != path.Join(sys.MountRoot, drive.Name) {
+			if drive.Spec.RequestedFormat != nil && matchedDevices[0].FSUUID != drive.Name && matchedDevices[0].FirstMountPoint != path.Join(sys.MountRoot, drive.Name) {
 				drive.Spec.RequestedFormat = nil
 			}
 			if err := l.processMatchedDrive(ctx, matchedDevices[0], drive); err != nil {

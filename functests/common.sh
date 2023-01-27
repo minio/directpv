@@ -111,7 +111,7 @@ function uninstall_directcsi() {
     fi
     while [[ $pending -gt 0 ]]; do
         echo "$ME: waiting for ${pending} direct-csi pods to go down"
-        sleep ${pending}
+        sleep "${pending}"
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io | wc -l)
     done
 
@@ -220,7 +220,7 @@ function uninstall_minio() {
         fi
         retry_count=$((retry_count + 1))
         echo "$ME: waiting for ${pending} minio pods to go down"
-        sleep ${pending}
+        sleep "${pending}"
         pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers | grep -c '^minio-' || true)
     done
 
