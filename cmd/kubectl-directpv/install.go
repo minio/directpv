@@ -288,7 +288,7 @@ func installMain(ctx context.Context) {
 	var failed bool
 	var installedComponents []installer.Component
 	var wg sync.WaitGroup
-	if !dryRunFlag && !quietFlag {
+	if dryRunPrinter == nil && !quietFlag {
 		m := progressModel{
 			model: progress.New(progress.WithGradient("#FFFFFF", "#FFFFFF")),
 		}
