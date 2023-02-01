@@ -104,10 +104,15 @@ func (m progressModel) View() (str string) {
 	pad := strings.Repeat(" ", padding)
 	str = "\n" + pad + m.model.View() + "\n\n"
 	if !m.done {
-		str += pad + fmt.Sprintf("%s \n\n", m.message)
+		if m.message != "" {
+			str += pad + fmt.Sprintf("%s \n\n", m.message)
+		}
 	}
 	for i := range m.logs {
-		str += pad + color.HiYellowString(fmt.Sprintf("%s \n\n", m.logs[i]))
+		str += pad + color.HiYellowString(fmt.Sprintf("%s \n", m.logs[i]))
+		if i == len(m.logs)-1 {
+			str += "\n"
+		}
 	}
 	if m.err != nil {
 		str += pad + color.HiRedString("Error; %s \n\n", m.err.Error())

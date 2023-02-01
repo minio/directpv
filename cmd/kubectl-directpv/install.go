@@ -77,7 +77,10 @@ var installCmd = &cobra.Command{
    $ kubectl {PLUGIN_NAME} install -o yaml > directpv-install.yaml
 
 6. Install DirectPV with apparmor profile
-   $ kubectl {PLUGIN_NAME} install --apparmor-profile apparmor.json`,
+   $ kubectl {PLUGIN_NAME} install --apparmor-profile directpv
+
+7. Install DirectPV with seccomp profile
+   $ kubectl {PLUGIN_NAME} install --seccomp-profile profiles/seccomp.json`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -290,7 +293,7 @@ func installMain(ctx context.Context) {
 	var wg sync.WaitGroup
 	if dryRunPrinter == nil && !quietFlag {
 		m := progressModel{
-			model: progress.New(progress.WithGradient("#FFFFFF", "#FFFFFF")),
+			model: progress.New(progress.WithDefaultGradient()),
 		}
 		teaProgram := tea.NewProgram(m)
 		wg.Add(1)

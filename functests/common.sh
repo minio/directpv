@@ -136,7 +136,7 @@ function add_drives() {
         rm "${config_file}"
         return 1
     fi
-    if ! echo Yes | "${DIRECTPV_CLIENT}" init "${config_file}" > /tmp/.output 2>&1; then
+    if ! echo Yes | "${DIRECTPV_CLIENT}" init --quiet "${config_file}" > /tmp/.output 2>&1; then
         cat /tmp/.output
         echo "$ME: error: failed to initialize the drives"
         rm "${config_file}"
