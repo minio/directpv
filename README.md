@@ -1,5 +1,3 @@
-<!--- Please update index.html if readme.md is updated --->
-
 DirectPV
 ----------
 
@@ -9,61 +7,47 @@ Distributed data stores such as object storage, databases and message queues are
 
 ![Architecture Diagram](https://github.com/minio/directpv/blob/master/docs/images/architecture.png?raw=true)
 
-### Architecture
-
-DirectPV is designed to be lightweight and scalable to 10s of 1000s of drives. It is made up of three components - **Controller, Node Driver, UI**
-
-![DirectPV Architecture](https://github.com/minio/directpv/blob/master/docs/images/directpv_architecture.png?raw=true)
-
-##### Controller
-
-When a volume claim is made, the controller provisions volumes uniformly from a pool free drives. DirectPV is aware of pod's affinity constraints, and allocates volumes from drives local to pods. Note that only one active instance of controller runs per cluster.
-
-##### Node Driver
-
-Node Driver implements the volume management functions such as discovery, format, mount, and monitoring of drives on the nodes. One instance of node driver runs on each of the storage servers. 
-
-##### UI
-
-Storage Administrators can use the kubectl CLI plugin to select, manage and monitor drives. Web based UI is currently under development. 
-
 ### Installation
 
+1. Install DirectPV Krew plugin
 ```sh
-# Install kubectl directpv plugin
-kubectl krew install directpv
+$ kubectl krew install directpv
+```
 
-# Use the plugin to install directpv in your kubernetes cluster
-kubectl directpv install
+2. Install DirectPV in your kubernetes cluster
+```sh
+$ kubectl directpv install
+```
 
-# Ensure directpv has successfully started
-kubectl directpv info
+3. Get information of the installation
+```sh
+$ kubectl directpv info
+```
 
-# List available drives in your cluster
-kubectl directpv drives ls
+4. Discover and add drives for volume scheduling.
+```sh
+# Discover drives
+$ kubectl directpv discover --output-file drives.yaml
 
-# Select drives that directpv should manage and format
-kubectl directpv drives format --drives /dev/sd{a...f} --nodes directpv-{1...4}
+# Review drives.yaml for drive selections and initialize those drives
+$ kubectl directpv init drives.yaml
+```
 
-# 'directpv' can now be specified as the storageclass in PodSpec.VolumeClaimTemplates
+5. Get list of added drives
+```sh
+$ kubectl directpv list drives
+```
+
+6. Deploy a demo MinIO server
+```sh
+$ kubectl apply -f functests/minio.yaml
 ```
 
 For air-gapped setups and advanced installations, please refer to the [Installation Guide](./docs/installation.md).
 
-### Upgrade
+### Upgrade from DirectPV v3.2.1
 
-DirectPV version upgrades are seameless and transparent. Simply uninstall an existing version of directpv and install with a newer version to upgrade.
-
-```
-# Uninstall directpv
-kubectl directpv uninstall 
-
-# Download latest krew plugin
-kubectl krew upgrade directpv
-
-# Install using new plugin
-kubectl directpv install
-```
+Firstly, it is required to uninstall older version of DirectPV. Once it is uninstalled, follow [Installation instructions](#Installation) to install the latest DirectPV. In this process, all existing drives and volumes will be migrated automatically.
 
 ### Security
 
@@ -83,7 +67,7 @@ Please review the [security checklist](./security-checklist.md) before deploying
 
 DirectPV is a MinIO project. You can contact the authors over the slack channel:
 
-- [MinIO Slack](https://join.slack.com/t/minio/shared_invite/zt-wjdzimbo-apoPb9jEi5ssl2iedx6MoA)
+- [MinIO Slack](https://slack.min.io/)
 
 ### License
 
