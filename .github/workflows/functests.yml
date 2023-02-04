@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        kube-version: ['v1.18.20', 'v1.19.16', 'v1.20.15', 'v1.21.14', 'v1.22.16', 'v1.23.14', 'v1.24.8', 'v1.25.4']
+        kube-version: ['v1.18.20', 'v1.19.16', 'v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.16', 'v1.24.10', 'v1.25.6', 'v1.26.1']
         os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
         exclude:
           - os: ubuntu-22.04
@@ -59,7 +59,7 @@ jobs:
       - name: Setup Minikube
         uses: manusa/actions-setup-minikube@v2.7.2
         with:
-          minikube version: 'v1.28.0'
+          minikube version: 'v1.29.0'
           kubernetes version: ${{ matrix.kube-version }}
           github token: ${{ secrets.GITHUB_TOKEN }}
 
