@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
@@ -47,10 +46,7 @@ type initResult struct {
 	devices   []types.InitDeviceResult
 }
 
-var (
-	initRequestListTimeout = 2 * time.Minute
-	tick                   = "✔"
-)
+var initRequestListTimeout = 2 * time.Minute
 
 var initCmd = &cobra.Command{
 	Use:           "init drives.yaml",
@@ -173,10 +169,18 @@ func showResults(results []initResult) {
 	writer.Render()
 }
 
+func toProgressLogs(progressMap map[string]progressLog) (logs []progressLog) {
+	for _, v := range progressMap {
+		logs = append(logs, v)
+	}
+	return
+}
+
 func initDevices(ctx context.Context, initRequests []types.InitRequest, requestID string, teaProgram *tea.Program) (results []initResult, err error) {
 	totalReqCount := len(initRequests)
 	totalTasks := totalReqCount * 2
 	var completedTasks int
+	initProgressMap := make(map[string]progressLog, totalReqCount)
 	for i := range initRequests {
 		initReq, err := client.InitRequestClient().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
 		if err != nil {
@@ -184,9 +188,12 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 		}
 		if teaProgram != nil {
 			completedTasks++
+			initProgressMap[initReq.Name] = progressLog{
+				log: fmt.Sprintf("Processing initialization request '%s' for node '%v'", initReq.Name, initReq.GetNodeID()),
+			}
 			teaProgram.Send(progressNotification{
-				log:     fmt.Sprintf("Created initialization request '%s' for node '%v' %s", initReq.Name, initReq.GetNodeID(), tick),
-				percent: float64(completedTasks) / float64(totalTasks),
+				progressLogs: toProgressLogs(initProgressMap),
+				percent:      float64(completedTasks) / float64(totalTasks),
 			})
 		}
 	}
@@ -224,9 +231,13 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 					})
 					if teaProgram != nil {
 						completedTasks++
+						initProgressMap[initReq.Name] = progressLog{
+							log:  fmt.Sprintf("Processed initialization request '%s' for node '%v'", initReq.Name, initReq.GetNodeID()),
+							done: true,
+						}
 						teaProgram.Send(progressNotification{
-							log:     fmt.Sprintf("Processed initialization request '%s' for node '%v' %s", initReq.Name, initReq.GetNodeID(), tick),
-							percent: float64(completedTasks) / float64(totalTasks),
+							progressLogs: toProgressLogs(initProgressMap),
+							percent:      float64(completedTasks) / float64(totalTasks),
 						})
 					}
 				}
@@ -276,9 +287,7 @@ func initMain(ctx context.Context, inputFile string) {
 	var teaProgram *tea.Program
 	var wg sync.WaitGroup
 	if !quietFlag {
-		m := progressModel{
-			model: progress.New(progress.WithDefaultGradient()),
-		}
+		m := newProgressModel(true)
 		teaProgram = tea.NewProgram(m)
 		wg.Add(1)
 		go func() {

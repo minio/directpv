@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -292,9 +291,7 @@ func installMain(ctx context.Context) {
 	var installedComponents []installer.Component
 	var wg sync.WaitGroup
 	if dryRunPrinter == nil && !quietFlag {
-		m := progressModel{
-			model: progress.New(progress.WithDefaultGradient()),
-		}
+		m := newProgressModel(true)
 		teaProgram := tea.NewProgram(m)
 		wg.Add(1)
 		go func() {

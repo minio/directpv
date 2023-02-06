@@ -22,29 +22,52 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
 )
 
 const (
 	padding  = 1
 	maxWidth = 80
+	tick     = "✔"
 )
 
+type progressLog struct {
+	log  string
+	done bool
+}
+
 type progressNotification struct {
-	log     string
-	message string
-	percent float64
-	done    bool
-	err     error
+	log          string
+	progressLogs []progressLog
+	message      string
+	percent      float64
+	done         bool
+	err          error
 }
 
 type progressModel struct {
-	model   progress.Model
-	message string
-	logs    []string
-	done    bool
-	err     error
+	model        *progress.Model
+	spinner      spinner.Model
+	message      string
+	progressLogs []progressLog
+	logs         []string
+	done         bool
+	err          error
+}
+
+func newProgressModel(withProgressBar bool) *progressModel {
+	progressM := &progressModel{}
+	progressM.spinner = spinner.New()
+	progressM.spinner.Spinner = spinner.Points
+	progressM.spinner.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#F7971E"))
+	if withProgressBar {
+		progress := progress.New(progress.WithDefaultGradient())
+		progressM.model = &progress
+	}
+	return progressM
 }
 
 func finalPause() tea.Cmd {
@@ -54,15 +77,17 @@ func finalPause() tea.Cmd {
 }
 
 func (m progressModel) Init() tea.Cmd {
-	return nil
+	return m.spinner.Tick
 }
 
 func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.model.Width = msg.Width - padding*2 - 4
-		if m.model.Width > maxWidth {
-			m.model.Width = maxWidth
+		if m.model != nil {
+			m.model.Width = msg.Width - padding*2 - 4
+			if m.model.Width > maxWidth {
+				m.model.Width = maxWidth
+			}
 		}
 		return m, nil
 
@@ -74,6 +99,9 @@ func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.logs = append(m.logs, msg.log)
 			}
 		}
+		if len(msg.progressLogs) > 0 {
+			m.progressLogs = msg.progressLogs
+		}
 		m.message = msg.message
 		if msg.err != nil {
 			m.err = msg.err
@@ -84,28 +112,47 @@ func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.done = msg.done
 			cmds = append(cmds, tea.Sequence(finalPause(), tea.Quit))
 		}
-		if msg.percent > 0.0 {
+		if m.model != nil && msg.percent > 0.0 {
 			cmds = append(cmds, m.model.SetPercent(msg.percent))
 		}
 		return m, tea.Batch(cmds...)
 
 	// FrameMsg is sent when the progress bar wants to animate itself
 	case progress.FrameMsg:
-		progressModel, cmd := m.model.Update(msg)
-		m.model = progressModel.(progress.Model)
-		return m, cmd
+		if m.model != nil {
+			progressModel, cmd := m.model.Update(msg)
+			pModel := progressModel.(progress.Model)
+			m.model = &pModel
+			return m, cmd
+		}
+		return m, nil
 
 	default:
-		return m, nil
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	}
 }
 
 func (m progressModel) View() (str string) {
 	pad := strings.Repeat(" ", padding)
-	str = "\n" + pad + m.model.View() + "\n\n"
+	str = "\n"
+	if m.model != nil {
+		str = str + pad + m.model.View() + "\n\n"
+	}
 	if !m.done {
 		if m.message != "" {
 			str += pad + fmt.Sprintf("%s \n\n", m.message)
+		}
+	}
+	for i := range m.progressLogs {
+		if m.progressLogs[i].done {
+			str += pad + fmt.Sprintf("%s %s\n", color.HiYellowString(m.progressLogs[i].log), m.spinner.Style.Render(tick))
+		} else {
+			str += pad + fmt.Sprintf("%s %s\n", color.HiYellowString(m.progressLogs[i].log), m.spinner.View())
+		}
+		if i == len(m.progressLogs)-1 {
+			str += "\n"
 		}
 	}
 	for i := range m.logs {
