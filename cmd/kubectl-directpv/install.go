@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -77,7 +76,10 @@ var installCmd = &cobra.Command{
    $ kubectl {PLUGIN_NAME} install -o yaml > directpv-install.yaml
 
 6. Install DirectPV with apparmor profile
-   $ kubectl {PLUGIN_NAME} install --apparmor-profile apparmor.json`,
+   $ kubectl {PLUGIN_NAME} install --apparmor-profile directpv
+
+7. Install DirectPV with seccomp profile
+   $ kubectl {PLUGIN_NAME} install --seccomp-profile profiles/seccomp.json`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -289,9 +291,7 @@ func installMain(ctx context.Context) {
 	var installedComponents []installer.Component
 	var wg sync.WaitGroup
 	if dryRunPrinter == nil && !quietFlag {
-		m := progressModel{
-			model: progress.New(progress.WithGradient("#FFFFFF", "#FFFFFF")),
-		}
+		m := newProgressModel(true)
 		teaProgram := tea.NewProgram(m)
 		wg.Add(1)
 		go func() {

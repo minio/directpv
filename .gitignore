@@ -6,3 +6,4 @@ directpv
 kubectl-directpv
 !kubectl-directpv/
 vdb.xml
+drives.yaml

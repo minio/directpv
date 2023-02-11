@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -201,9 +203,11 @@ func writeInitConfig(config InitConfig) error {
 	return config.Write(f)
 }
 
-func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[directpvtypes.NodeID][]types.Device, err error) {
+func discoverDevices(ctx context.Context, nodes []types.Node, teaProgram *tea.Program) (devices map[directpvtypes.NodeID][]types.Device, err error) {
 	var nodeNames []string
 	nodeClient := client.NodeClient()
+	totalNodeCount := len(nodes)
+	discoveryProgressMap := make(map[string]progressLog, totalNodeCount)
 	for i := range nodes {
 		nodeNames = append(nodeNames, nodes[i].Name)
 		updateFunc := func() error {
@@ -214,6 +218,14 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[direc
 			node.Spec.Refresh = true
 			if _, err := nodeClient.Update(ctx, node, metav1.UpdateOptions{TypeMeta: types.NewNodeTypeMeta()}); err != nil {
 				return err
+			}
+			if teaProgram != nil {
+				discoveryProgressMap[node.Name] = progressLog{
+					log: fmt.Sprintf("Discovering node '%v'", node.Name),
+				}
+				teaProgram.Send(progressNotification{
+					progressLogs: toProgressLogs(discoveryProgressMap),
+				})
 			}
 			return nil
 		}
@@ -249,6 +261,15 @@ func discoverDevices(ctx context.Context, nodes []types.Node) (devices map[direc
 				node := event.Node
 				if !node.Spec.Refresh {
 					devices[directpvtypes.NodeID(node.Name)] = node.GetDevicesByNames(drivesArgs)
+					if teaProgram != nil {
+						discoveryProgressMap[node.Name] = progressLog{
+							log:  fmt.Sprintf("Discovered node '%v'", node.Name),
+							done: true,
+						}
+						teaProgram.Send(progressNotification{
+							progressLogs: toProgressLogs(discoveryProgressMap),
+						})
+					}
 				}
 				if len(devices) >= len(nodes) {
 					return
@@ -284,13 +305,32 @@ func discoverMain(ctx context.Context) {
 		dryRunPrinter(nodeList)
 		return
 	}
-
-	resultMap, err := discoverDevices(ctx, nodes)
+	var teaProgram *tea.Program
+	var wg sync.WaitGroup
+	if !quietFlag {
+		m := newProgressModel(false)
+		teaProgram = tea.NewProgram(m)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := teaProgram.Run(); err != nil {
+				fmt.Println("error running program:", err)
+				os.Exit(1)
+			}
+		}()
+	}
+	resultMap, err := discoverDevices(ctx, nodes, teaProgram)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
-
+	if teaProgram != nil {
+		teaProgram.Send(progressNotification{
+			done: true,
+			err:  err,
+		})
+		wg.Wait()
+	}
 	if err := showDevices(resultMap); err != nil {
 		if !errors.Is(err, errDiscoveryFailed) {
 			utils.Eprintf(quietFlag, true, "%v\n", err)

@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -110,6 +112,9 @@ func toInitRequestObjects(config *InitConfig, requestID string) (initRequests []
 }
 
 func showResults(results []initResult) {
+	if len(results) == 0 {
+		return
+	}
 	writer := newTableWriter(
 		table.Row{
 			"REQUEST_ID",
@@ -164,14 +169,33 @@ func showResults(results []initResult) {
 	writer.Render()
 }
 
-func initDevices(ctx context.Context, initRequests []types.InitRequest, requestID string) (results []initResult, err error) {
-	var totalReqCount int
+func toProgressLogs(progressMap map[string]progressLog) (logs []progressLog) {
+	for _, v := range progressMap {
+		logs = append(logs, v)
+	}
+	return
+}
+
+func initDevices(ctx context.Context, initRequests []types.InitRequest, requestID string, teaProgram *tea.Program) (results []initResult, err error) {
+	totalReqCount := len(initRequests)
+	totalTasks := totalReqCount * 2
+	var completedTasks int
+	initProgressMap := make(map[string]progressLog, totalReqCount)
 	for i := range initRequests {
-		_, err := client.InitRequestClient().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
+		initReq, err := client.InitRequestClient().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
 		if err != nil {
 			return nil, err
 		}
-		totalReqCount++
+		if teaProgram != nil {
+			completedTasks++
+			initProgressMap[initReq.Name] = progressLog{
+				log: fmt.Sprintf("Processing initialization request '%s' for node '%v'", initReq.Name, initReq.GetNodeID()),
+			}
+			teaProgram.Send(progressNotification{
+				progressLogs: toProgressLogs(initProgressMap),
+				percent:      float64(completedTasks) / float64(totalTasks),
+			})
+		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, initRequestListTimeout)
 	defer cancel()
@@ -205,6 +229,17 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 						devices:   initReq.Status.Results,
 						failed:    initReq.Status.Status == directpvtypes.InitStatusError,
 					})
+					if teaProgram != nil {
+						completedTasks++
+						initProgressMap[initReq.Name] = progressLog{
+							log:  fmt.Sprintf("Processed initialization request '%s' for node '%v'", initReq.Name, initReq.GetNodeID()),
+							done: true,
+						}
+						teaProgram.Send(progressNotification{
+							progressLogs: toProgressLogs(initProgressMap),
+							percent:      float64(completedTasks) / float64(totalTasks),
+						})
+					}
 				}
 				if len(results) >= totalReqCount {
 					return
@@ -249,10 +284,31 @@ func initMain(ctx context.Context, inputFile string) {
 			LabelSelector: directpvtypes.ToLabelSelector(labelMap),
 		})
 	}()
-	results, err := initDevices(ctx, initRequests, requestID)
-	if err != nil {
+	var teaProgram *tea.Program
+	var wg sync.WaitGroup
+	if !quietFlag {
+		m := newProgressModel(true)
+		teaProgram = tea.NewProgram(m)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := teaProgram.Run(); err != nil {
+				fmt.Println("error running program:", err)
+				os.Exit(1)
+			}
+		}()
+	}
+	results, err := initDevices(ctx, initRequests, requestID, teaProgram)
+	if err != nil && quietFlag {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
+	}
+	if teaProgram != nil {
+		teaProgram.Send(progressNotification{
+			done: true,
+			err:  err,
+		})
+		wg.Wait()
 	}
 	showResults(results)
 }
