@@ -259,6 +259,11 @@ func (drive *DirectPVDrive) SetIOErrorCondition() {
 	drive.setErrorCondition(string(types.DriveConditionTypeIOError), string(types.DriveConditionReasonIOError), string(types.DriveConditionMessageIOError))
 }
 
+// SetRelabelErrorCondition sets relabel error error condition to this drive.
+func (drive *DirectPVDrive) SetRelabelErrorCondition(message string) {
+	drive.setErrorCondition(string(types.DriveConditionTypeRelabelError), string(types.DriveConditionReasonRelabelError), message)
+}
+
 func (drive *DirectPVDrive) setErrorCondition(errType, reason, message string) {
 	c := metav1.Condition{
 		Type:               errType,
@@ -278,6 +283,25 @@ func (drive *DirectPVDrive) setErrorCondition(errType, reason, message string) {
 	if !updated {
 		drive.Status.Conditions = append(drive.Status.Conditions, c)
 	}
+}
+
+// GetLatestErrorConditionType returns the latest error condition type set.
+func (drive *DirectPVDrive) GetLatestErrorConditionType() (errType types.DriveConditionType) {
+	var latestCondition *metav1.Condition
+	for i := range drive.Status.Conditions {
+		switch types.DriveConditionType(drive.Status.Conditions[i].Type) {
+		case types.DriveConditionTypeMountError, types.DriveConditionTypeMultipleMatches, types.DriveConditionTypeIOError, types.DriveConditionTypeRelabelError:
+			if latestCondition == nil || drive.Status.Conditions[i].LastTransitionTime.After(latestCondition.LastTransitionTime.Time) {
+				latestCondition = &drive.Status.Conditions[i]
+			}
+		}
+	}
+
+	if latestCondition != nil {
+		errType = types.DriveConditionType(latestCondition.Type)
+	}
+
+	return
 }
 
 // SetMigratedLabel sets migrated label to this drive.

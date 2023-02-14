@@ -147,6 +147,7 @@ const (
 	DriveConditionTypeMountError      DriveConditionType = "MountError"
 	DriveConditionTypeMultipleMatches DriveConditionType = "MultipleMatches"
 	DriveConditionTypeIOError         DriveConditionType = "IOError"
+	DriveConditionTypeRelabelError    DriveConditionType = "RelabelError"
 )
 
 // DriveConditionReason denotes the reason for the drive condition type. Allows maximum upto 1024 chars.
@@ -157,6 +158,7 @@ const (
 	DriveConditionReasonMountError      DriveConditionReason = "DriveHasMountError"
 	DriveConditionReasonMultipleMatches DriveConditionReason = "DriveHasMultipleMatches"
 	DriveConditionReasonIOError         DriveConditionReason = "DriveHasIOError"
+	DriveConditionReasonRelabelError    DriveConditionReason = "DriveHasRelabelError"
 )
 
 // DriveConditionMessage denotes drive message. Allows maximum upto 32768 chars
