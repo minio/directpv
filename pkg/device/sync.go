@@ -127,8 +127,10 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 				if syncDrive(drive, devices[0]) {
 					updated = true
 				}
+
 				// verify mount
-				if drive.Status.Status == directpvtypes.DriveStatusReady {
+				switch drive.Status.Status {
+				case directpvtypes.DriveStatusReady, directpvtypes.DriveStatusError, directpvtypes.DriveStatusMoving:
 					source := utils.AddDevPrefix(string(drive.GetDriveName()))
 					target := types.GetDriveMountDir(drive.Status.FSUUID)
 					if err = xfs.Mount(source, target); err != nil {
@@ -145,17 +147,36 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 							client.EventReasonDriveMounted,
 							"Drive mounted successfully to %s", target,
 						)
+
+						latestErrorConditionType := drive.GetLatestErrorConditionType()
+						if drive.Status.Status == directpvtypes.DriveStatusError {
+							switch latestErrorConditionType {
+							case directpvtypes.DriveConditionTypeMountError, directpvtypes.DriveConditionTypeMultipleMatches, directpvtypes.DriveConditionTypeRelabelError:
+								updated = true
+								drive.Status.Status = directpvtypes.DriveStatusReady
+							}
+						}
+
 						if drive.Spec.Relabel {
+							updated = true
+
 							if err = os.Symlink(".", types.GetVolumeRootDir(drive.Status.FSUUID)); err != nil {
-								if errors.Is(err, os.ErrExist) {
+								switch {
+								case errors.Is(err, os.ErrExist):
 									err = nil
-								} else {
+								default:
+									if latestErrorConditionType != directpvtypes.DriveConditionTypeIOError {
+										drive.Status.Status = directpvtypes.DriveStatusError
+										drive.SetRelabelErrorCondition(fmt.Sprintf("unable to relabel; %v", err))
+									}
+
 									client.Eventf(
 										drive,
 										client.EventTypeWarning,
 										client.EventReasonDriveRelabelError,
 										"unable to relabel; %v", err,
 									)
+
 									klog.ErrorS(
 										err,
 										"unable to create symlink",
@@ -167,7 +188,6 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 
 							if err == nil {
 								drive.Spec.Relabel = false
-								updated = true
 							}
 						}
 					}
