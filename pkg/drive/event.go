@@ -281,21 +281,21 @@ func (handler *driveEventHandler) move(ctx context.Context, drive *types.Drive) 
 				handler.setQuota,
 				handler.bindMount,
 			)
-			if err != nil {
+			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				klog.ErrorS(err, "unable to stage volume after volume move",
 					"volume", volume.Name,
 					"dataPath", volume.Status.DataPath,
 					"stagingTargetPath", volume.Status.StagingTargetPath,
 				)
-				return err
 			}
 		} else {
 			volume.Status.Status = directpvtypes.VolumeStatusPending
-			if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
-				TypeMeta: types.NewVolumeTypeMeta(),
-			}); err != nil {
-				return err
-			}
+		}
+
+		if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
+			TypeMeta: types.NewVolumeTypeMeta(),
+		}); err != nil {
+			return err
 		}
 
 		client.Eventf(

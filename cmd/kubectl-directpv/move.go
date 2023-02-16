@@ -156,8 +156,8 @@ func moveMain(ctx context.Context, src, dest string) {
 
 	for _, volume := range volumes {
 		if destDrive.AddVolumeFinalizer(volume.Name) {
-			destDrive.Status.FreeCapacity -= requiredCapacity
-			destDrive.Status.AllocatedCapacity += requiredCapacity
+			destDrive.Status.FreeCapacity -= volume.Status.TotalCapacity
+			destDrive.Status.AllocatedCapacity += volume.Status.TotalCapacity
 		}
 	}
 	destDrive.Status.Status = directpvtypes.DriveStatusMoving
