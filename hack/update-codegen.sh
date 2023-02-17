@@ -95,7 +95,7 @@ client-gen \
     --input-base "${REPOSITORY}/pkg/apis"
 
 # crd
-controller-gen crd:crdVersions=v1 paths=./...
+controller-gen crd:crdVersions=v1 paths=./... output:dir=pkg/installer
 
 # conversion
 conversion-gen \

@@ -25,10 +25,6 @@ BUILD_VERSION=$(git describe --tags --always --dirty)
 
 export CGO_ENABLED=0
 
-go get -u github.com/jteeuwen/go-bindata/...
-go-bindata -pkg installer -o "${SCRIPT_DIR}/../pkg/installer/crd_bindata.go" "${SCRIPT_DIR}/../config/crd/..."
-gofmt -s -w "${SCRIPT_DIR}/../pkg/installer/crd_bindata.go"
-
 "${SCRIPT_DIR}/add-license-header.sh"
 
 export GO111MODULE=on
