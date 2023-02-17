@@ -106,11 +106,19 @@ func (handler *driveEventHandler) ObjectType() runtime.Object {
 }
 
 func (handler *driveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
+	// There is some race identified in updating cache vs updating CRDs. The cached objects that we receive in args
+	// may be outdated. This is a HACK to always get the latest values from ETCD and not relying on cache.
+	drive, err := client.GetLatestDirectCSIDriveInterface().Get(
+		ctx, args.Object.(*directcsi.DirectCSIDrive).Name, metav1.GetOptions{TypeMeta: utils.DirectCSIDriveTypeMeta()},
+	)
+	if err != nil {
+		return err
+	}
 	switch args.Event {
 	case listener.AddEvent, listener.UpdateEvent:
-		return handler.handleUpdate(ctx, args.Object.(*directcsi.DirectCSIDrive))
+		return handler.handleUpdate(ctx, drive)
 	case listener.DeleteEvent:
-		return handler.delete(ctx, args.Object.(*directcsi.DirectCSIDrive))
+		return handler.delete(ctx, drive)
 	}
 	return nil
 }
