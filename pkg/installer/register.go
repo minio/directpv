@@ -18,10 +18,9 @@ package installer
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	directcsi "github.com/minio/directpv/pkg/apis/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/client"
@@ -36,6 +35,12 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 )
+
+//go:embed direct.csi.min.io_directcsidrives.yaml
+var drivesYAML []byte
+
+//go:embed direct.csi.min.io_directcsivolumes.yaml
+var volumesYAML []byte
 
 var errEmptyCABundle = errors.New("CA bundle is empty")
 
@@ -53,17 +58,20 @@ func parseSingleKubeNativeFromBytes(data []byte) (runtime.Object, error) {
 
 func registerCRDs(ctx context.Context, c *Config) error {
 	crdObjs := []runtime.Object{}
-	for _, asset := range AssetNames() {
-		crdBytes, err := Asset(asset)
-		if err != nil {
-			return err
-		}
-		crdObj, err := parseSingleKubeNativeFromBytes(crdBytes)
-		if err != nil {
-			return err
-		}
-		crdObjs = append(crdObjs, crdObj)
+
+	// Parse drive crd
+	driveCRDObj, err := parseSingleKubeNativeFromBytes(drivesYAML)
+	if err != nil {
+		return err
 	}
+	crdObjs = append(crdObjs, driveCRDObj)
+
+	// Parse volume crd
+	volumeCRDObj, err := parseSingleKubeNativeFromBytes(volumesYAML)
+	if err != nil {
+		return err
+	}
+	crdObjs = append(crdObjs, volumeCRDObj)
 
 	crdClient := client.GetCRDClient()
 	for _, crd := range crdObjs {
@@ -206,19 +214,10 @@ func getLatestCRDVersionObject(newCRD apiextensions.CustomResourceDefinition) (a
 }
 
 func unregisterCRDs(ctx context.Context) error {
-	crdNames := []string{}
-	for _, asset := range AssetNames() {
-		base := filepath.Base(asset)
-		baseWithoutExtension := strings.Split(base, ".yaml")[0]
-		parts := strings.Split(baseWithoutExtension, "_")
-		if len(parts) != 2 {
-			return fmt.Errorf("invalid crd name: %v", baseWithoutExtension)
-		}
-		crd := parts[1]
-		apiGroup := parts[0]
-		crdNames = append(crdNames, fmt.Sprintf("%s.%s", crd, apiGroup))
+	crdNames := []string{
+		"directcsidrives.direct.csi.min.io",
+		"directcsivolumes.direct.csi.min.io",
 	}
-
 	crdClient := client.GetCRDClient()
 	for _, crd := range crdNames {
 		if err := crdClient.Delete(ctx, crd, metav1.DeleteOptions{}); err != nil {
@@ -227,6 +226,5 @@ func unregisterCRDs(ctx context.Context) error {
 			}
 		}
 	}
-
 	return nil
 }

@@ -24,7 +24,7 @@ GID=$(id -g)
 docker_run=( docker run -u "${UID}:${GID}" -e HOME=/go/home \
                     -v "${SCRIPT_ROOT}:/go/src/github.com/minio/directpv" \
                     -w /go/src/github.com/minio/directpv \
-                    --entrypoint hack/build-without-docker.sh golang:1.17.8 )
+                    --entrypoint hack/build-without-docker.sh golang:1.19.4 )
 [ -t 1 ] && docker_run+=( --interactive --tty )
 
 "${docker_run[@]}"

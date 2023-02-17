@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: directcsivolumes.direct.csi.min.io
+  name: directcsidrives.direct.csi.min.io
 spec:
   group: direct.csi.min.io
   names:
-    kind: DirectCSIVolume
-    listKind: DirectCSIVolumeList
-    plural: directcsivolumes
-    singular: directcsivolume
+    kind: DirectCSIDrive
+    listKind: DirectCSIDriveList
+    plural: directcsidrives
+    singular: directcsidrive
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: DirectCSIVolume denotes volume CRD object.
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -32,10 +32,40 @@ spec:
             type: string
           metadata:
             type: object
-          status:
-            description: DirectCSIVolumeStatus denotes volume information.
+          spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
-              availableCapacity:
+              directCSIOwned:
+                description: required
+                type: boolean
+              driveTaint:
+                additionalProperties:
+                  type: string
+                type: object
+              requestedFormat:
+                description: RequestedFormat denotes drive format request information.
+                properties:
+                  filesystem:
+                    type: string
+                  force:
+                    type: boolean
+                  mountOptions:
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  mountpoint:
+                    type: string
+                  purge:
+                    type: boolean
+                type: object
+            required:
+            - directCSIOwned
+            type: object
+          status:
+            description: DirectCSIDriveStatus denotes drive information.
+            properties:
+              allocatedCapacity:
                 format: int64
                 type: integer
               conditions:
@@ -43,8 +73,8 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    type FooStatus struct{ // Represents the observations of a foo's
-                    current state. // Known .status.conditions.type are: \"Available\",
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
                     \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
                     // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
@@ -109,32 +139,59 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              containerPath:
+              driveStatus:
+                description: DriveStatus denotes drive status.
                 type: string
-              drive:
+              filesystem:
                 type: string
-              hostPath:
+              freeCapacity:
+                format: int64
+                type: integer
+              logicalBlockSize:
+                format: int64
+                type: integer
+              modelNumber:
+                type: string
+              mountOptions:
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
+              mountpoint:
                 type: string
               nodeName:
                 type: string
-              stagingPath:
+              partitionNum:
+                type: integer
+              path:
                 type: string
+              physicalBlockSize:
+                format: int64
+                type: integer
+              rootPartition:
+                type: string
+              serialNumber:
+                type: string
+              topology:
+                additionalProperties:
+                  type: string
+                type: object
               totalCapacity:
                 format: int64
                 type: integer
-              usedCapacity:
-                format: int64
-                type: integer
+            required:
+            - path
             type: object
         required:
         - metadata
+        - spec
         type: object
     served: true
     storage: false
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: DirectCSIVolume denotes volume CRD object.
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -148,10 +205,43 @@ spec:
             type: string
           metadata:
             type: object
-          status:
-            description: DirectCSIVolumeStatus denotes volume information.
+          spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
-              availableCapacity:
+              directCSIOwned:
+                description: required
+                type: boolean
+              driveTaint:
+                additionalProperties:
+                  type: string
+                type: object
+              requestedFormat:
+                description: RequestedFormat denotes drive format request information.
+                properties:
+                  filesystem:
+                    type: string
+                  force:
+                    type: boolean
+                  mountOptions:
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  mountpoint:
+                    type: string
+                  purge:
+                    type: boolean
+                type: object
+            required:
+            - directCSIOwned
+            type: object
+          status:
+            description: DirectCSIDriveStatus denotes drive information.
+            properties:
+              accessTier:
+                description: AccessTier denotes access tier.
+                type: string
+              allocatedCapacity:
                 format: int64
                 type: integer
               conditions:
@@ -159,8 +249,8 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    type FooStatus struct{ // Represents the observations of a foo's
-                    current state. // Known .status.conditions.type are: \"Available\",
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
                     \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
                     // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
@@ -225,32 +315,59 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              containerPath:
+              driveStatus:
+                description: DriveStatus denotes drive status.
                 type: string
-              drive:
+              filesystem:
                 type: string
-              hostPath:
+              freeCapacity:
+                format: int64
+                type: integer
+              logicalBlockSize:
+                format: int64
+                type: integer
+              modelNumber:
+                type: string
+              mountOptions:
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
+              mountpoint:
                 type: string
               nodeName:
                 type: string
-              stagingPath:
+              partitionNum:
+                type: integer
+              path:
                 type: string
+              physicalBlockSize:
+                format: int64
+                type: integer
+              rootPartition:
+                type: string
+              serialNumber:
+                type: string
+              topology:
+                additionalProperties:
+                  type: string
+                type: object
               totalCapacity:
                 format: int64
                 type: integer
-              usedCapacity:
-                format: int64
-                type: integer
+            required:
+            - path
             type: object
         required:
         - metadata
+        - spec
         type: object
     served: true
     storage: false
   - name: v1beta2
     schema:
       openAPIV3Schema:
-        description: DirectCSIVolume denotes volume CRD object.
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -264,10 +381,43 @@ spec:
             type: string
           metadata:
             type: object
-          status:
-            description: DirectCSIVolumeStatus denotes volume information.
+          spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
-              availableCapacity:
+              directCSIOwned:
+                description: required
+                type: boolean
+              driveTaint:
+                additionalProperties:
+                  type: string
+                type: object
+              requestedFormat:
+                description: RequestedFormat denotes drive format request information.
+                properties:
+                  filesystem:
+                    type: string
+                  force:
+                    type: boolean
+                  mountOptions:
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  mountpoint:
+                    type: string
+                  purge:
+                    type: boolean
+                type: object
+            required:
+            - directCSIOwned
+            type: object
+          status:
+            description: DirectCSIDriveStatus denotes drive information.
+            properties:
+              accessTier:
+                description: AccessTier denotes access tier.
+                type: string
+              allocatedCapacity:
                 format: int64
                 type: integer
               conditions:
@@ -275,8 +425,8 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    type FooStatus struct{ // Represents the observations of a foo's
-                    current state. // Known .status.conditions.type are: \"Available\",
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
                     \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
                     // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
@@ -341,32 +491,69 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              containerPath:
+              driveStatus:
+                description: DriveStatus denotes drive status.
                 type: string
-              drive:
+              filesystem:
                 type: string
-              hostPath:
+              filesystemUUID:
+                type: string
+              freeCapacity:
+                format: int64
+                type: integer
+              logicalBlockSize:
+                format: int64
+                type: integer
+              majorNumber:
+                format: int32
+                type: integer
+              minorNumber:
+                format: int32
+                type: integer
+              modelNumber:
+                type: string
+              mountOptions:
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
+              mountpoint:
                 type: string
               nodeName:
                 type: string
-              stagingPath:
+              partitionNum:
+                type: integer
+              partitionUUID:
                 type: string
+              path:
+                type: string
+              physicalBlockSize:
+                format: int64
+                type: integer
+              rootPartition:
+                type: string
+              serialNumber:
+                type: string
+              topology:
+                additionalProperties:
+                  type: string
+                type: object
               totalCapacity:
                 format: int64
                 type: integer
-              usedCapacity:
-                format: int64
-                type: integer
+            required:
+            - path
             type: object
         required:
         - metadata
+        - spec
         type: object
     served: true
     storage: false
   - name: v1beta3
     schema:
       openAPIV3Schema:
-        description: DirectCSIVolume denotes volume CRD object.
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -380,10 +567,43 @@ spec:
             type: string
           metadata:
             type: object
-          status:
-            description: DirectCSIVolumeStatus denotes volume information.
+          spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
-              availableCapacity:
+              directCSIOwned:
+                description: required
+                type: boolean
+              driveTaint:
+                additionalProperties:
+                  type: string
+                type: object
+              requestedFormat:
+                description: RequestedFormat denotes drive format request information.
+                properties:
+                  filesystem:
+                    type: string
+                  force:
+                    type: boolean
+                  mountOptions:
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  mountpoint:
+                    type: string
+                  purge:
+                    type: boolean
+                type: object
+            required:
+            - directCSIOwned
+            type: object
+          status:
+            description: DirectCSIDriveStatus denotes drive information.
+            properties:
+              accessTier:
+                description: AccessTier denotes access tier.
+                type: string
+              allocatedCapacity:
                 format: int64
                 type: integer
               conditions:
@@ -391,8 +611,8 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    type FooStatus struct{ // Represents the observations of a foo's
-                    current state. // Known .status.conditions.type are: \"Available\",
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
                     \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
                     // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
@@ -457,32 +677,97 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              containerPath:
+              dmName:
                 type: string
-              drive:
+              dmUUID:
                 type: string
-              hostPath:
+              driveStatus:
+                description: DriveStatus denotes drive status.
+                type: string
+              filesystem:
+                type: string
+              filesystemUUID:
+                type: string
+              freeCapacity:
+                format: int64
+                type: integer
+              logicalBlockSize:
+                format: int64
+                type: integer
+              majorNumber:
+                format: int32
+                type: integer
+              master:
+                type: string
+              mdUUID:
+                type: string
+              minorNumber:
+                format: int32
+                type: integer
+              modelNumber:
+                type: string
+              mountOptions:
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
+              mountpoint:
                 type: string
               nodeName:
                 type: string
-              stagingPath:
+              partTableType:
                 type: string
+              partTableUUID:
+                type: string
+              partitionNum:
+                type: integer
+              partitionUUID:
+                type: string
+              partitioned:
+                type: boolean
+              path:
+                type: string
+              physicalBlockSize:
+                format: int64
+                type: integer
+              readOnly:
+                type: boolean
+              rootPartition:
+                type: string
+              serialNumber:
+                type: string
+              swapOn:
+                type: boolean
+              topology:
+                additionalProperties:
+                  type: string
+                type: object
               totalCapacity:
                 format: int64
                 type: integer
-              usedCapacity:
-                format: int64
-                type: integer
+              ueventFSUUID:
+                type: string
+              ueventSerial:
+                type: string
+              vendor:
+                type: string
+              virtual:
+                type: boolean
+              wwid:
+                type: string
+            required:
+            - path
             type: object
         required:
         - metadata
+        - spec
         type: object
     served: true
     storage: false
   - name: v1beta4
     schema:
       openAPIV3Schema:
-        description: DirectCSIVolume denotes volume CRD object.
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -496,10 +781,43 @@ spec:
             type: string
           metadata:
             type: object
-          status:
-            description: DirectCSIVolumeStatus denotes volume information.
+          spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
-              availableCapacity:
+              directCSIOwned:
+                description: required
+                type: boolean
+              driveTaint:
+                additionalProperties:
+                  type: string
+                type: object
+              requestedFormat:
+                description: RequestedFormat denotes drive format request information.
+                properties:
+                  filesystem:
+                    type: string
+                  force:
+                    type: boolean
+                  mountOptions:
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  mountpoint:
+                    type: string
+                  purge:
+                    type: boolean
+                type: object
+            required:
+            - directCSIOwned
+            type: object
+          status:
+            description: DirectCSIDriveStatus denotes drive information.
+            properties:
+              accessTier:
+                description: AccessTier denotes access tier.
+                type: string
+              allocatedCapacity:
                 format: int64
                 type: integer
               conditions:
@@ -507,8 +825,8 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    type FooStatus struct{ // Represents the observations of a foo's
-                    current state. // Known .status.conditions.type are: \"Available\",
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
                     \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
                     // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
@@ -573,32 +891,116 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              containerPath:
+              dmName:
                 type: string
-              drive:
+              dmUUID:
                 type: string
-              hostPath:
+              driveStatus:
+                description: DriveStatus denotes drive status.
+                type: string
+              filesystem:
+                type: string
+              filesystemUUID:
+                type: string
+              freeCapacity:
+                format: int64
+                type: integer
+              logicalBlockSize:
+                format: int64
+                type: integer
+              majorNumber:
+                format: int32
+                type: integer
+              master:
+                type: string
+              mdUUID:
+                type: string
+              minorNumber:
+                format: int32
+                type: integer
+              modelNumber:
+                type: string
+              mountOptions:
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
+              mountpoint:
                 type: string
               nodeName:
                 type: string
-              stagingPath:
+              otherMountsInfo:
+                items:
+                  description: OtherMountsInfo contains mount info
+                  properties:
+                    mountOptions:
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    mountpoint:
+                      description: required
+                      type: string
+                  type: object
+                type: array
+                x-kubernetes-list-type: atomic
+              partTableType:
                 type: string
+              partTableUUID:
+                type: string
+              partitionNum:
+                type: integer
+              partitionUUID:
+                type: string
+              partitioned:
+                type: boolean
+              path:
+                type: string
+              pciPath:
+                type: string
+              physicalBlockSize:
+                format: int64
+                type: integer
+              readOnly:
+                type: boolean
+              rootPartition:
+                type: string
+              serialNumber:
+                type: string
+              serialNumberLong:
+                type: string
+              swapOn:
+                type: boolean
+              topology:
+                additionalProperties:
+                  type: string
+                type: object
               totalCapacity:
                 format: int64
                 type: integer
-              usedCapacity:
-                format: int64
-                type: integer
+              ueventFSUUID:
+                type: string
+              ueventSerial:
+                type: string
+              vendor:
+                type: string
+              virtual:
+                type: boolean
+              wwid:
+                type: string
+            required:
+            - path
             type: object
         required:
         - metadata
+        - spec
         type: object
     served: true
     storage: false
   - name: v1beta5
     schema:
       openAPIV3Schema:
-        description: DirectCSIVolume denotes volume CRD object.
+        description: DirectCSIDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -612,10 +1014,43 @@ spec:
             type: string
           metadata:
             type: object
-          status:
-            description: DirectCSIVolumeStatus denotes volume information.
+          spec:
+            description: DirectCSIDriveSpec denotes drive specification.
             properties:
-              availableCapacity:
+              directCSIOwned:
+                description: required
+                type: boolean
+              driveTaint:
+                additionalProperties:
+                  type: string
+                type: object
+              requestedFormat:
+                description: RequestedFormat denotes drive format request information.
+                properties:
+                  filesystem:
+                    type: string
+                  force:
+                    type: boolean
+                  mountOptions:
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  mountpoint:
+                    type: string
+                  purge:
+                    type: boolean
+                type: object
+            required:
+            - directCSIOwned
+            type: object
+          status:
+            description: DirectCSIDriveStatus denotes drive information.
+            properties:
+              accessTier:
+                description: AccessTier denotes access tier.
+                type: string
+              allocatedCapacity:
                 format: int64
                 type: integer
               conditions:
@@ -623,8 +1058,8 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    type FooStatus struct{ // Represents the observations of a foo's
-                    current state. // Known .status.conditions.type are: \"Available\",
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
                     \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
                     // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
@@ -689,25 +1124,111 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              containerPath:
+              dmName:
                 type: string
-              drive:
+              dmUUID:
                 type: string
-              hostPath:
+              driveStatus:
+                description: DriveStatus denotes drive status.
+                type: string
+              filesystem:
+                type: string
+              filesystemUUID:
+                type: string
+              freeCapacity:
+                format: int64
+                type: integer
+              logicalBlockSize:
+                format: int64
+                type: integer
+              majorNumber:
+                format: int32
+                type: integer
+              master:
+                type: string
+              mdUUID:
+                type: string
+              minorNumber:
+                format: int32
+                type: integer
+              modelNumber:
+                type: string
+              mountOptions:
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: atomic
+              mountpoint:
                 type: string
               nodeName:
                 type: string
-              stagingPath:
+              otherMountsInfo:
+                items:
+                  description: OtherMountsInfo contains mount info
+                  properties:
+                    mountOptions:
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    mountpoint:
+                      description: required
+                      type: string
+                  type: object
+                type: array
+                x-kubernetes-list-type: atomic
+              partTableType:
                 type: string
+              partTableUUID:
+                type: string
+              partitionNum:
+                type: integer
+              partitionUUID:
+                type: string
+              partitioned:
+                type: boolean
+              path:
+                type: string
+              pciPath:
+                type: string
+              physicalBlockSize:
+                format: int64
+                type: integer
+              readOnly:
+                type: boolean
+              rootPartition:
+                type: string
+              serialNumber:
+                type: string
+              serialNumberLong:
+                type: string
+              swapOn:
+                type: boolean
+              topology:
+                additionalProperties:
+                  type: string
+                type: object
               totalCapacity:
                 format: int64
                 type: integer
-              usedCapacity:
-                format: int64
-                type: integer
+              ueventFSUUID:
+                type: string
+              ueventSerial:
+                type: string
+              vendor:
+                type: string
+              virtual:
+                type: boolean
+              wwid:
+                type: string
+              wwidWithExtension:
+                type: string
+            required:
+            - path
             type: object
         required:
         - metadata
+        - spec
         type: object
     served: true
     storage: true
