@@ -23,11 +23,15 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/listener"
+	"github.com/minio/directpv/pkg/controller"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
+)
+
+const (
+	workerThreads = 10
 )
 
 type nodeEventHandler struct {
@@ -52,18 +56,14 @@ func (handler *nodeEventHandler) ListerWatcher() cache.ListerWatcher {
 	)
 }
 
-func (handler *nodeEventHandler) Name() string {
-	return "node"
-}
-
 func (handler *nodeEventHandler) ObjectType() runtime.Object {
 	return &types.Node{}
 }
 
-func (handler *nodeEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
-	switch args.Event {
-	case listener.UpdateEvent, listener.SyncEvent:
-		node := args.Object.(*types.Node)
+func (handler *nodeEventHandler) Handle(ctx context.Context, event controller.Event) error {
+	switch event.Type {
+	case controller.UpdateEvent:
+		node := event.Object.(*types.Node)
 		if node.Spec.Refresh {
 			return Sync(ctx, directpvtypes.NodeID(node.Name))
 		}
@@ -72,8 +72,8 @@ func (handler *nodeEventHandler) Handle(ctx context.Context, args listener.Event
 	return nil
 }
 
-// StartController starts node controller.
-func StartController(ctx context.Context, nodeID directpvtypes.NodeID) error {
-	listener := listener.NewListener(newNodeEventHandler(nodeID), "node-controller", string(nodeID), 40)
-	return listener.Run(ctx)
+// StartController starts drive controller.
+func StartController(ctx context.Context, nodeID directpvtypes.NodeID) {
+	ctrl := controller.New(ctx, "node", newNodeEventHandler(nodeID), workerThreads)
+	ctrl.Run(ctx)
 }

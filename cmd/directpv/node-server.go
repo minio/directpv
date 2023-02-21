@@ -65,17 +65,13 @@ func startNodeServer(ctx context.Context) error {
 	errCh := make(chan error)
 
 	go func() {
-		if err := volume.StartController(ctx, nodeID); err != nil {
-			klog.ErrorS(err, "unable to start volume controller")
-			errCh <- err
-		}
+		volume.StartController(ctx, nodeID)
+		errCh <- errors.New("volume controller stopped")
 	}()
 
 	go func() {
-		if err := drive.StartController(ctx, nodeID); err != nil {
-			klog.ErrorS(err, "unable to start drive controller")
-			errCh <- err
-		}
+		drive.StartController(ctx, nodeID)
+		errCh <- errors.New("drive controller stopped")
 	}()
 
 	nodeServer := node.NewServer(

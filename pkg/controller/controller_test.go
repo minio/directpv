@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2023 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,15 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package listener
+package controller
 
 import (
 	"context"
 	"errors"
-	"os"
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	pkgtypes "github.com/minio/directpv/pkg/types"
@@ -44,44 +46,33 @@ func init() {
 
 type testEventHandler struct {
 	t          *testing.T
-	handleFunc func(args EventArgs) error
+	handleFunc func(event Event) error
 }
 
 func (handler *testEventHandler) ListerWatcher() cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			options.LabelSelector = fmt.Sprintf("%s=%s", directpvtypes.NodeLabelKey, nodeID)
 			return client.VolumeClient().List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			options.LabelSelector = fmt.Sprintf("%s=%s", directpvtypes.NodeLabelKey, nodeID)
 			return client.VolumeClient().Watch(context.TODO(), options)
 		},
 	}
-}
-
-func (handler *testEventHandler) Name() string {
-	return "volume"
 }
 
 func (handler *testEventHandler) ObjectType() runtime.Object {
 	return &pkgtypes.Volume{}
 }
 
-func (handler *testEventHandler) Handle(ctx context.Context, args EventArgs) error {
-	return handler.handleFunc(args)
+func (handler *testEventHandler) Handle(ctx context.Context, event Event) error {
+	return handler.handleFunc(event)
 }
 
 func startTestController(ctx context.Context, t *testing.T, handler *testEventHandler, threadiness int) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	listener := NewListener(handler, "test-volume-controller", hostname, threadiness)
-	go func() {
-		if err := listener.Run(ctx); err != nil && err != errLeaderElectionDied {
-			panic(err)
-		}
-	}()
+	controller := New(ctx, "test-volume-controller", handler, 1)
+	go controller.Run(ctx)
 }
 
 func newVolume(name, uid string, capacity int64) *pkgtypes.Volume {
@@ -98,28 +89,30 @@ func newVolume(name, uid string, capacity int64) *pkgtypes.Volume {
 	return volume
 }
 
-func getHandleFunc(t *testing.T, event EventType, volumes ...*pkgtypes.Volume) (<-chan struct{}, func(EventArgs) error) {
+func getHandleFunc(t *testing.T, eventType EventType, volumesMap map[string]*pkgtypes.Volume) (<-chan struct{}, func(Event) error) {
 	doneCh := make(chan struct{})
-	i := 0
+	processed := 0
 	errOccured := false
-	return doneCh, func(args EventArgs) (err error) {
+	return doneCh, func(event Event) (err error) {
 		defer func() {
-			i++
-			if errOccured || i == len(volumes) {
+			processed++
+			if errOccured || processed == len(volumesMap) {
 				close(doneCh)
 			}
 		}()
 
-		if args.Event != event {
+		volume := event.Object.(*pkgtypes.Volume)
+
+		if event.Type != eventType {
 			errOccured = true
-			t.Fatalf("expected: %v, got: %v", event, args.Event)
+			t.Fatalf("expected: %v, got: %v", eventType, event.Type)
 		}
 
-		volume := args.Object.(*pkgtypes.Volume)
-		if !reflect.DeepEqual(volumes[i], volume) {
+		if !reflect.DeepEqual(volumesMap[volume.Name], volume) {
 			errOccured = true
-			t.Fatalf("received volume is not equal to volumes[%v]", i)
+			t.Fatalf("received volume is not equal to volumesMap[%v]", volume.Name)
 		}
+
 		return nil
 	}
 }
@@ -131,7 +124,7 @@ func toRuntimeObjects(volumes ...*pkgtypes.Volume) (objects []runtime.Object) {
 	return objects
 }
 
-func TestListener(t *testing.T) {
+func TestControllerAddOnInitialization(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
@@ -139,48 +132,60 @@ func TestListener(t *testing.T) {
 		t: t,
 	}
 
-	// Sync
 	volumes := []*pkgtypes.Volume{
 		newVolume("test-volume-1", "1", 2*GiB),
 		newVolume("test-volume-2", "2", 3*GiB),
 	}
 
+	volumesMap := map[string]*pkgtypes.Volume{
+		"test-volume-1": volumes[0],
+		"test-volume-2": volumes[1],
+	}
+
 	clientset := pkgtypes.NewExtFakeClientset(clientsetfake.NewSimpleClientset(toRuntimeObjects(volumes...)...))
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	doneCh, handleFunc := getHandleFunc(t, AddEvent, volumes...)
+	doneCh, handleFunc := getHandleFunc(t, AddEvent, volumesMap)
+	testHandler.handleFunc = handleFunc
+	startTestController(ctx, t, testHandler, 1)
+	<-doneCh
+}
+
+func TestController(t *testing.T) {
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
+
+	testHandler := &testEventHandler{
+		t: t,
+	}
+
+	volumes := []*pkgtypes.Volume{
+		newVolume("test-volume-1", "1", 2*GiB),
+		newVolume("test-volume-2", "2", 3*GiB),
+	}
+
+	volumesMap := map[string]*pkgtypes.Volume{
+		"test-volume-1": volumes[0],
+		"test-volume-2": volumes[1],
+	}
+
+	clientset := pkgtypes.NewExtFakeClientset(clientsetfake.NewSimpleClientset(toRuntimeObjects(volumes...)...))
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
+	doneCh, handleFunc := getHandleFunc(t, AddEvent, volumesMap)
 	testHandler.handleFunc = handleFunc
 	startTestController(ctx, t, testHandler, 1)
 	<-doneCh
 
-	// Update
 	volumes = []*pkgtypes.Volume{
 		newVolume("test-volume-1", "1", 4*GiB),
-		newVolume("test-volume-1", "1", 6*GiB),
+		newVolume("test-volume-2", "1", 6*GiB),
 	}
-	doneCh, handleFunc = getHandleFunc(t, UpdateEvent, volumes[1])
-	testHandler.handleFunc = handleFunc
-	for _, volume := range volumes {
-		_, err := client.VolumeClient().Update(
-			ctx,
-			volume,
-			metav1.UpdateOptions{
-				TypeMeta: pkgtypes.NewVolumeTypeMeta(),
-			},
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
+	volumesMap = map[string]*pkgtypes.Volume{
+		"test-volume-1": volumes[0],
+		"test-volume-2": volumes[1],
 	}
-	<-doneCh
-
-	// Delete
-	volumes = []*pkgtypes.Volume{
-		newVolume("test-volume-1", "1", 4*GiB),
-	}
-	now := metav1.Now()
-	volumes[0].DeletionTimestamp = &now
-	doneCh, handleFunc = getHandleFunc(t, DeleteEvent, volumes...)
+	doneCh, handleFunc = getHandleFunc(t, UpdateEvent, volumesMap)
 	testHandler.handleFunc = handleFunc
 	for _, volume := range volumes {
 		_, err := client.VolumeClient().Update(
@@ -198,25 +203,27 @@ func TestListener(t *testing.T) {
 
 	// Retry on error
 	volumes = []*pkgtypes.Volume{
-		newVolume("test-volume-1", "1", 512*GiB),
+		newVolume("test-volume-1", "1", 4*GiB),
 	}
-
+	volumesMap = map[string]*pkgtypes.Volume{
+		"test-volume-1": volumes[0],
+	}
 	stopCh := make(chan struct{})
 	raiseRetryErr := true
-	testHandler.handleFunc = func(args EventArgs) (err error) {
+	testHandler.handleFunc = func(event Event) (err error) {
 		if raiseRetryErr {
 			raiseRetryErr = false
-			return errors.New("retry again")
+			return errors.New("returning an error to test controller retry")
 		}
 
 		defer close(stopCh)
-		if args.Event != AddEvent {
-			t.Fatalf("expected: %v, got: %v", AddEvent, args.Event)
+		if event.Type != UpdateEvent {
+			t.Fatalf("expected: %v, got: %v", UpdateEvent, event.Type)
 		}
 
-		volume := args.Object.(*pkgtypes.Volume)
-		if !reflect.DeepEqual(volumes[0], volume) {
-			t.Fatalf("received volume is not equal to volumes[0]")
+		volume := event.Object.(*pkgtypes.Volume)
+		if !reflect.DeepEqual(volumesMap[volume.Name], volume) {
+			t.Fatalf("received volume is not equal to volumesMap[%s]", volume.Name)
 		}
 		return nil
 	}
@@ -234,66 +241,28 @@ func TestListener(t *testing.T) {
 		}
 	}
 	<-stopCh
-}
 
-func TestListenerParallel(t *testing.T) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	testHandler := &testEventHandler{
-		t: t,
+	// Delete
+	volumes = []*pkgtypes.Volume{
+		newVolume("test-volume-1", "1", 4*GiB),
+		newVolume("test-volume-2", "1", 6*GiB),
 	}
-
-	clientset := pkgtypes.NewExtFakeClientset(clientsetfake.NewSimpleClientset(
-		toRuntimeObjects(newVolume("test-volume-1", "1", 2*GiB))...,
-	))
-	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
-
-	doneCh := make(chan struct{})
-	stopCh := make(chan struct{})
-	testHandler.handleFunc = func(args EventArgs) (err error) {
-		volume := args.Object.(*pkgtypes.Volume)
-		if volume.Status.TotalCapacity == 512*GiB {
-			close(stopCh)
-		}
-		if volume.Status.TotalCapacity > 1*GiB {
-			return errors.New("no space left on the device")
-		}
-
-		defer close(doneCh)
-		if args.Event != UpdateEvent {
-			t.Fatalf("expected: %v, got: %v", UpdateEvent, args.Event)
-		}
-
-		if volume.Status.TotalCapacity != 1*GiB {
-			t.Fatalf("TotalCapacity: expected: %v, got: %v", GiB, volume.Status.TotalCapacity)
-		}
-
-		return nil
+	volumesMap = map[string]*pkgtypes.Volume{
+		"test-volume-1": volumes[0],
+		"test-volume-2": volumes[1],
 	}
-	startTestController(ctx, t, testHandler, 40)
-
-	_, err := client.VolumeClient().Update(
-		ctx,
-		newVolume("test-volume-1", "1", 512*GiB),
-		metav1.UpdateOptions{
-			TypeMeta: pkgtypes.NewVolumeTypeMeta(),
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	<-stopCh
-
-	_, err = client.VolumeClient().Update(
-		ctx,
-		newVolume("test-volume-1", "1", 1*GiB),
-		metav1.UpdateOptions{
-			TypeMeta: pkgtypes.NewVolumeTypeMeta(),
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
+	doneCh, handleFunc = getHandleFunc(t, DeleteEvent, volumesMap)
+	testHandler.handleFunc = handleFunc
+	for _, volume := range volumes {
+		if err := client.VolumeClient().Delete(
+			ctx,
+			volume.Name,
+			metav1.DeleteOptions{
+				TypeMeta: pkgtypes.NewVolumeTypeMeta(),
+			},
+		); err != nil {
+			t.Fatal(err)
+		}
 	}
 	<-doneCh
 }
