@@ -59,19 +59,13 @@ type driveEventHandler struct {
 }
 
 // StartController starts drive event controller.
-func StartController(ctx context.Context, nodeID string, reflinkSupport bool) error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-
-	listener := listener.NewListener(
-		newDriveEventHandler(nodeID, reflinkSupport),
+func StartController(ctx context.Context, nodeID string, reflinkSupport bool) {
+	listener := listener.New(
+		ctx,
 		"drive-controller",
-		hostname,
-		40,
+		newDriveEventHandler(nodeID, reflinkSupport),
 	)
-	return listener.Run(ctx)
+	listener.Run(ctx)
 }
 
 func newDriveEventHandler(nodeID string, reflinkSupport bool) *driveEventHandler {
@@ -97,20 +91,19 @@ func (handler *driveEventHandler) KubeClient() kubernetes.Interface {
 	return client.GetKubeClient()
 }
 
-func (handler *driveEventHandler) Name() string {
-	return "drive"
-}
-
 func (handler *driveEventHandler) ObjectType() runtime.Object {
 	return &directcsi.DirectCSIDrive{}
 }
 
-func (handler *driveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
-	switch args.Event {
+func (handler *driveEventHandler) Handle(ctx context.Context, event listener.Event) error {
+	switch event.Type {
 	case listener.AddEvent, listener.UpdateEvent:
-		return handler.handleUpdate(ctx, args.Object.(*directcsi.DirectCSIDrive))
+		if !event.Object.(*directcsi.DirectCSIDrive).DeletionTimestamp.IsZero() {
+			return handler.delete(ctx, event.Object.(*directcsi.DirectCSIDrive))
+		}
+		return handler.handleUpdate(ctx, event.Object.(*directcsi.DirectCSIDrive))
 	case listener.DeleteEvent:
-		return handler.delete(ctx, args.Object.(*directcsi.DirectCSIDrive))
+		return handler.delete(ctx, event.Object.(*directcsi.DirectCSIDrive))
 	}
 	return nil
 }

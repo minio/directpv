@@ -41,14 +41,9 @@ type volumeEventHandler struct {
 }
 
 // StartController starts volume controller.
-func StartController(ctx context.Context, nodeID string) error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-
-	listener := listener.NewListener(newVolumeEventHandler(nodeID), "volume-controller", hostname, 40)
-	return listener.Run(ctx)
+func StartController(ctx context.Context, nodeID string) {
+	listener := listener.New(ctx, "volume-controller", newVolumeEventHandler(nodeID))
+	listener.Run(ctx)
 }
 
 func newVolumeEventHandler(nodeID string) *volumeEventHandler {
@@ -66,21 +61,12 @@ func (handler *volumeEventHandler) KubeClient() kubernetes.Interface {
 	return client.GetKubeClient()
 }
 
-func (handler *volumeEventHandler) Name() string {
-	return "volume"
-}
-
 func (handler *volumeEventHandler) ObjectType() runtime.Object {
 	return &directcsi.DirectCSIVolume{}
 }
 
-func (handler *volumeEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
-	volume, err := client.GetLatestDirectCSIVolumeInterface().Get(
-		ctx, args.Object.(*directcsi.DirectCSIVolume).Name, metav1.GetOptions{TypeMeta: utils.DirectCSIVolumeTypeMeta()},
-	)
-	if err != nil {
-		return err
-	}
+func (handler *volumeEventHandler) Handle(ctx context.Context, event listener.Event) error {
+	volume := event.Object.(*directcsi.DirectCSIVolume)
 	if !volume.GetDeletionTimestamp().IsZero() {
 		return handler.delete(ctx, volume)
 	}

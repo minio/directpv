@@ -124,17 +124,13 @@ func run(ctxMain context.Context, args []string) error {
 		}
 
 		go func() {
-			if err := drive.StartController(ctx, nodeID, reflinkSupport); err != nil {
-				klog.ErrorS(err, "failed to start drive controller")
-				errChan <- err
-			}
+			drive.StartController(ctx, nodeID, reflinkSupport)
+			errChan <- errors.New("drive controller stopped")
 		}()
 
 		go func() {
-			if err := volume.StartController(ctx, nodeID); err != nil {
-				klog.ErrorS(err, "failed to start volume controller")
-				errChan <- err
-			}
+			volume.StartController(ctx, nodeID)
+			errChan <- errors.New("volume controller stopped")
 		}()
 
 		nodeSrv, err = node.NewNodeServer(ctx,
