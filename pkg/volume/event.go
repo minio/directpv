@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -36,6 +37,7 @@ import (
 
 const (
 	workerThreads = 40
+	resyncPeriod  = 10 * time.Minute
 )
 
 type volumeEventHandler struct {
@@ -68,8 +70,8 @@ func (handler *volumeEventHandler) ObjectType() runtime.Object {
 	return &types.Volume{}
 }
 
-func (handler *volumeEventHandler) Handle(ctx context.Context, event controller.Event) error {
-	volume := event.Object.(*types.Volume)
+func (handler *volumeEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
+	volume := object.(*types.Volume)
 	if !volume.GetDeletionTimestamp().IsZero() {
 		return handler.delete(ctx, volume)
 	}
@@ -171,6 +173,6 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveID di
 
 // StartController starts volume controller.
 func StartController(ctx context.Context, nodeID directpvtypes.NodeID) {
-	ctrl := controller.New(ctx, "volume", newVolumeEventHandler(nodeID), workerThreads)
+	ctrl := controller.New(ctx, "volume", newVolumeEventHandler(nodeID), workerThreads, resyncPeriod)
 	ctrl.Run(ctx)
 }

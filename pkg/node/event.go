@@ -19,6 +19,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"time"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -32,6 +33,7 @@ import (
 
 const (
 	workerThreads = 10
+	resyncPeriod  = 5 * time.Minute
 )
 
 type nodeEventHandler struct {
@@ -60,10 +62,10 @@ func (handler *nodeEventHandler) ObjectType() runtime.Object {
 	return &types.Node{}
 }
 
-func (handler *nodeEventHandler) Handle(ctx context.Context, event controller.Event) error {
-	switch event.Type {
+func (handler *nodeEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
+	switch eventType {
 	case controller.UpdateEvent:
-		node := event.Object.(*types.Node)
+		node := object.(*types.Node)
 		if node.Spec.Refresh {
 			return Sync(ctx, directpvtypes.NodeID(node.Name))
 		}
@@ -72,8 +74,8 @@ func (handler *nodeEventHandler) Handle(ctx context.Context, event controller.Ev
 	return nil
 }
 
-// StartController starts drive controller.
+// StartController starts node controller.
 func StartController(ctx context.Context, nodeID directpvtypes.NodeID) {
-	ctrl := controller.New(ctx, "node", newNodeEventHandler(nodeID), workerThreads)
+	ctrl := controller.New(ctx, "node", newNodeEventHandler(nodeID), workerThreads, resyncPeriod)
 	ctrl.Run(ctx)
 }

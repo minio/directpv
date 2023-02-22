@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"syscall"
+	"time"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -42,6 +43,7 @@ import (
 
 const (
 	workerThreads = 40
+	resyncPeriod  = 10 * time.Minute
 )
 
 // SetIOError sets I/O error condition to specified drive.
@@ -322,10 +324,10 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *types
 	return nil
 }
 
-func (handler *driveEventHandler) Handle(ctx context.Context, event controller.Event) error {
-	switch event.Type {
+func (handler *driveEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
+	switch eventType {
 	case controller.AddEvent, controller.UpdateEvent:
-		return handler.handleUpdate(ctx, event.Object.(*types.Drive))
+		return handler.handleUpdate(ctx, object.(*types.Drive))
 	}
 
 	return nil
@@ -333,6 +335,6 @@ func (handler *driveEventHandler) Handle(ctx context.Context, event controller.E
 
 // StartController starts drive controller.
 func StartController(ctx context.Context, nodeID directpvtypes.NodeID) {
-	ctrl := controller.New(ctx, "drive", newDriveEventHandler(nodeID), workerThreads)
+	ctrl := controller.New(ctx, "drive", newDriveEventHandler(nodeID), workerThreads, resyncPeriod)
 	ctrl.Run(ctx)
 }

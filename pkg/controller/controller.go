@@ -19,10 +19,12 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
@@ -31,47 +33,33 @@ import (
 )
 
 const (
-	resyncPeriod   = 10 * time.Minute
 	queueBaseDelay = 100 * time.Millisecond
 	queueMaxDelay  = 10 * time.Minute
 )
 
 // Event represents a controller event.
 type Event struct {
-	Type      EventType
-	Key       string
-	Object    runtime.Object
-	OldObject runtime.Object
+	Type   EventType
+	Key    types.UID
+	Object runtime.Object
 }
 
 // EventHandler represents an interface for controller event handler.
 type EventHandler interface {
 	ObjectType() runtime.Object
 	ListerWatcher() cache.ListerWatcher
-	Handle(ctx context.Context, event Event) error
+	Handle(ctx context.Context, event EventType, object runtime.Object) error
 }
 
 // EventType denotes type of event.
-type EventType int
+type EventType string
 
 // Event types.
 const (
-	AddEvent EventType = iota + 1
-	UpdateEvent
-	DeleteEvent
+	AddEvent    EventType = "Add"
+	UpdateEvent EventType = "Update"
+	DeleteEvent EventType = "Delete"
 )
-
-func (et EventType) String() string {
-	switch et {
-	case AddEvent:
-		return "Add"
-	case UpdateEvent:
-		return "Update"
-	case DeleteEvent:
-		return "Delete"
-	}
-	return ""
-}
 
 // Controller object
 type Controller struct {
@@ -80,19 +68,13 @@ type Controller struct {
 	queue         workqueue.RateLimitingInterface
 	informer      cache.SharedIndexInformer
 	workerThreads int
-}
-
-func newRateLimitingQueue() workqueue.RateLimitingInterface {
-	return workqueue.NewRateLimitingQueue(
-		workqueue.NewMaxOfRateLimiter(
-			workqueue.NewItemExponentialFailureRateLimiter(queueBaseDelay, queueMaxDelay),
-			&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
-		),
-	)
+	// locking
+	locker      map[types.UID]*sync.Mutex
+	lockerMutex sync.Mutex
 }
 
 // New creates a new controller for the provided handler
-func New(ctx context.Context, name string, handler EventHandler, workers int) *Controller {
+func New(ctx context.Context, name string, handler EventHandler, workers int, resyncPeriod time.Duration) *Controller {
 	informer := cache.NewSharedIndexInformer(
 		handler.ListerWatcher(),
 		handler.ObjectType(),
@@ -100,25 +82,37 @@ func New(ctx context.Context, name string, handler EventHandler, workers int) *C
 		cache.Indexers{},
 	)
 
-	queue := newRateLimitingQueue()
+	queue := workqueue.NewRateLimitingQueue(
+		workqueue.NewMaxOfRateLimiter(
+			workqueue.NewItemExponentialFailureRateLimiter(queueBaseDelay, queueMaxDelay),
+			&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+		),
+	)
+
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			klog.V(5).InfoS("Add event", "key", key, "error", err)
-			if err == nil {
-				queue.Add(Event{AddEvent, key, obj.(runtime.Object), nil})
+			if err != nil {
+				klog.ErrorS(err, "unable to process an ADD event")
+			} else {
+				queue.Add(Event{AddEvent, types.UID(key), obj.(runtime.Object)})
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
-			oldKey, oldErr := cache.MetaNamespaceKeyFunc(old)
-			newKey, newErr := cache.MetaNamespaceKeyFunc(new)
-			klog.V(5).InfoS("Update event", "oldKey", oldKey, "oldErr", oldErr, "newKey", newKey, "newErr", newErr)
-			queue.Add(Event{UpdateEvent, oldKey, new.(runtime.Object), old.(runtime.Object)})
+			key, err := cache.MetaNamespaceKeyFunc(old)
+			if err != nil {
+				klog.ErrorS(err, "unable to process an UPDATE event")
+			} else {
+				queue.Add(Event{UpdateEvent, types.UID(key), new.(runtime.Object)})
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
-			klog.V(5).InfoS("Delete event", "key", key, "error", err)
-			queue.Add(Event{DeleteEvent, key, obj.(runtime.Object), nil})
+			if err != nil {
+				klog.ErrorS(err, "unable to process a DELETE event")
+			} else {
+				queue.Add(Event{DeleteEvent, types.UID(key), obj.(runtime.Object)})
+			}
 		},
 	})
 
@@ -128,6 +122,7 @@ func New(ctx context.Context, name string, handler EventHandler, workers int) *C
 		queue:         queue,
 		workerThreads: workers,
 		handler:       handler,
+		locker:        map[types.UID]*sync.Mutex{},
 	}
 }
 
@@ -157,11 +152,6 @@ func (c *Controller) HasSynced() bool {
 	return c.informer.HasSynced()
 }
 
-// LastSyncResourceVersion is required for the cache.Controller interface.
-func (c *Controller) LastSyncResourceVersion() string {
-	return c.informer.LastSyncResourceVersion()
-}
-
 func (c *Controller) runWorker(ctx context.Context) {
 	for c.processNextItem(ctx) {
 		// continue looping
@@ -186,13 +176,35 @@ func (c *Controller) processNextItem(ctx context.Context) bool {
 	return true
 }
 
+func (c *Controller) getLock(lockKey types.UID) *sync.Mutex {
+	c.lockerMutex.Lock()
+	defer c.lockerMutex.Unlock()
+
+	if _, found := c.locker[lockKey]; !found {
+		c.locker[lockKey] = &sync.Mutex{}
+	}
+	return c.locker[lockKey]
+}
+
+func (c *Controller) lock(lockKey types.UID) {
+	c.getLock(lockKey).Lock()
+}
+
+func (c *Controller) unlock(lockKey types.UID) {
+	c.getLock(lockKey).Unlock()
+}
+
 func (c *Controller) processItem(ctx context.Context, event Event) error {
-	obj, exists, err := c.informer.GetIndexer().GetByKey(event.Key)
+	// Ensure that multiple operations on different versions of the same objects
+	// do not happen in parallel
+	c.lock(event.Key)
+	defer c.unlock(event.Key)
+	obj, exists, err := c.informer.GetIndexer().GetByKey(string(event.Key))
 	if err != nil {
 		return fmt.Errorf("error fetching object with key %s from store; %v", event.Key, err)
 	}
 	if exists {
 		event.Object = obj.(runtime.Object)
 	}
-	return c.handler.Handle(ctx, event)
+	return c.handler.Handle(ctx, event.Type, event.Object)
 }

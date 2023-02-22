@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -42,6 +43,7 @@ import (
 
 const (
 	workerThreads = 10
+	resyncPeriod  = 5 * time.Minute
 )
 
 type initRequestEventHandler struct {
@@ -143,10 +145,10 @@ func (handler *initRequestEventHandler) ObjectType() runtime.Object {
 	return &types.InitRequest{}
 }
 
-func (handler *initRequestEventHandler) Handle(ctx context.Context, event controller.Event) error {
-	switch event.Type {
+func (handler *initRequestEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
+	switch eventType {
 	case controller.UpdateEvent, controller.AddEvent:
-		initRequest := event.Object.(*types.InitRequest)
+		initRequest := object.(*types.InitRequest)
 		if initRequest.Status.Status == directpvtypes.InitStatusPending {
 			return handler.initDevices(ctx, initRequest)
 		}
@@ -308,6 +310,6 @@ func StartController(ctx context.Context, nodeID directpvtypes.NodeID, identity,
 		klog.ErrorS(err, "unable to create initrequest event handler")
 		return
 	}
-	ctrl := controller.New(ctx, "initrequest", initRequestHandler, workerThreads)
+	ctrl := controller.New(ctx, "initrequest", initRequestHandler, workerThreads, resyncPeriod)
 	ctrl.Run(ctx)
 }

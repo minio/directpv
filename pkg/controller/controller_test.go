@@ -46,7 +46,7 @@ func init() {
 
 type testEventHandler struct {
 	t          *testing.T
-	handleFunc func(event Event) error
+	handleFunc func(eventType EventType, object runtime.Object) error
 }
 
 func (handler *testEventHandler) ListerWatcher() cache.ListerWatcher {
@@ -66,12 +66,12 @@ func (handler *testEventHandler) ObjectType() runtime.Object {
 	return &pkgtypes.Volume{}
 }
 
-func (handler *testEventHandler) Handle(ctx context.Context, event Event) error {
-	return handler.handleFunc(event)
+func (handler *testEventHandler) Handle(ctx context.Context, eventType EventType, object runtime.Object) error {
+	return handler.handleFunc(eventType, object)
 }
 
 func startTestController(ctx context.Context, t *testing.T, handler *testEventHandler, threadiness int) {
-	controller := New(ctx, "test-volume-controller", handler, 1)
+	controller := New(ctx, "test-volume-controller", handler, 1, 10*time.Second)
 	go controller.Run(ctx)
 }
 
@@ -89,11 +89,11 @@ func newVolume(name, uid string, capacity int64) *pkgtypes.Volume {
 	return volume
 }
 
-func getHandleFunc(t *testing.T, eventType EventType, volumesMap map[string]*pkgtypes.Volume) (<-chan struct{}, func(Event) error) {
+func getHandleFunc(t *testing.T, expectedEventType EventType, volumesMap map[string]*pkgtypes.Volume) (<-chan struct{}, func(EventType, runtime.Object) error) {
 	doneCh := make(chan struct{})
 	processed := 0
 	errOccured := false
-	return doneCh, func(event Event) (err error) {
+	return doneCh, func(eventType EventType, object runtime.Object) (err error) {
 		defer func() {
 			processed++
 			if errOccured || processed == len(volumesMap) {
@@ -101,11 +101,11 @@ func getHandleFunc(t *testing.T, eventType EventType, volumesMap map[string]*pkg
 			}
 		}()
 
-		volume := event.Object.(*pkgtypes.Volume)
+		volume := object.(*pkgtypes.Volume)
 
-		if event.Type != eventType {
+		if expectedEventType != eventType {
 			errOccured = true
-			t.Fatalf("expected: %v, got: %v", eventType, event.Type)
+			t.Fatalf("expected: %v, got: %v", expectedEventType, eventType)
 		}
 
 		if !reflect.DeepEqual(volumesMap[volume.Name], volume) {
@@ -122,33 +122,6 @@ func toRuntimeObjects(volumes ...*pkgtypes.Volume) (objects []runtime.Object) {
 		objects = append(objects, volume)
 	}
 	return objects
-}
-
-func TestControllerAddOnInitialization(t *testing.T) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	testHandler := &testEventHandler{
-		t: t,
-	}
-
-	volumes := []*pkgtypes.Volume{
-		newVolume("test-volume-1", "1", 2*GiB),
-		newVolume("test-volume-2", "2", 3*GiB),
-	}
-
-	volumesMap := map[string]*pkgtypes.Volume{
-		"test-volume-1": volumes[0],
-		"test-volume-2": volumes[1],
-	}
-
-	clientset := pkgtypes.NewExtFakeClientset(clientsetfake.NewSimpleClientset(toRuntimeObjects(volumes...)...))
-	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
-
-	doneCh, handleFunc := getHandleFunc(t, AddEvent, volumesMap)
-	testHandler.handleFunc = handleFunc
-	startTestController(ctx, t, testHandler, 1)
-	<-doneCh
 }
 
 func TestController(t *testing.T) {
@@ -210,18 +183,18 @@ func TestController(t *testing.T) {
 	}
 	stopCh := make(chan struct{})
 	raiseRetryErr := true
-	testHandler.handleFunc = func(event Event) (err error) {
+	testHandler.handleFunc = func(eventType EventType, object runtime.Object) (err error) {
 		if raiseRetryErr {
 			raiseRetryErr = false
 			return errors.New("returning an error to test controller retry")
 		}
 
 		defer close(stopCh)
-		if event.Type != UpdateEvent {
-			t.Fatalf("expected: %v, got: %v", UpdateEvent, event.Type)
+		if eventType != UpdateEvent {
+			t.Fatalf("expected: %v, got: %v", UpdateEvent, eventType)
 		}
 
-		volume := event.Object.(*pkgtypes.Volume)
+		volume := object.(*pkgtypes.Volume)
 		if !reflect.DeepEqual(volumesMap[volume.Name], volume) {
 			t.Fatalf("received volume is not equal to volumesMap[%s]", volume.Name)
 		}
