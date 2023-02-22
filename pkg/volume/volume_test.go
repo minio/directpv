@@ -189,7 +189,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		if vErr != nil {
 			t.Fatalf("Error while updating the volume object: %+v", vErr)
 		}
-		if err := vl.Handle(ctx, listener.Event{Type: listener.DeleteEvent, Object: newObj}); err != nil {
+		if err := vl.Handle(ctx, listener.DeleteEvent, newObj); err != nil {
 			t.Fatalf("Error while invoking the volume delete listener: %+v", err)
 		}
 		if newObj.Status.StagingPath != "" && !stagingUmountCalled {
@@ -286,7 +286,7 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 	if vErr != nil {
 		t.Fatalf("Error while updating the volume object: %+v", vErr)
 	}
-	if err := vl.Handle(ctx, listener.Event{Type: listener.DeleteEvent, Object: newObj}); err == nil {
+	if err := vl.Handle(ctx, listener.DeleteEvent, newObj); err == nil {
 		t.Errorf("[%s] DeleteVolumeHandle expected to fail but succeeded", newObj.Name)
 	}
 }

@@ -60,7 +60,7 @@ type driveEventHandler struct {
 
 // StartController starts drive event controller.
 func StartController(ctx context.Context, nodeID string, reflinkSupport bool) {
-	listener := listener.New(
+	listener := listener.NewController(
 		ctx,
 		"drive-controller",
 		newDriveEventHandler(nodeID, reflinkSupport),
@@ -95,15 +95,16 @@ func (handler *driveEventHandler) ObjectType() runtime.Object {
 	return &directcsi.DirectCSIDrive{}
 }
 
-func (handler *driveEventHandler) Handle(ctx context.Context, event listener.Event) error {
-	switch event.Type {
+func (handler *driveEventHandler) Handle(ctx context.Context, eventType listener.EventType, object runtime.Object) error {
+	drive := object.(*directcsi.DirectCSIDrive)
+	switch eventType {
 	case listener.AddEvent, listener.UpdateEvent:
-		if !event.Object.(*directcsi.DirectCSIDrive).DeletionTimestamp.IsZero() {
-			return handler.delete(ctx, event.Object.(*directcsi.DirectCSIDrive))
+		if !drive.DeletionTimestamp.IsZero() {
+			return handler.delete(ctx, drive)
 		}
-		return handler.handleUpdate(ctx, event.Object.(*directcsi.DirectCSIDrive))
+		return handler.handleUpdate(ctx, drive)
 	case listener.DeleteEvent:
-		return handler.delete(ctx, event.Object.(*directcsi.DirectCSIDrive))
+		return handler.delete(ctx, drive)
 	}
 	return nil
 }

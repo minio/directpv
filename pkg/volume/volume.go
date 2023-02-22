@@ -42,7 +42,7 @@ type volumeEventHandler struct {
 
 // StartController starts volume controller.
 func StartController(ctx context.Context, nodeID string) {
-	listener := listener.New(ctx, "volume-controller", newVolumeEventHandler(nodeID))
+	listener := listener.NewController(ctx, "volume-controller", newVolumeEventHandler(nodeID))
 	listener.Run(ctx)
 }
 
@@ -65,8 +65,8 @@ func (handler *volumeEventHandler) ObjectType() runtime.Object {
 	return &directcsi.DirectCSIVolume{}
 }
 
-func (handler *volumeEventHandler) Handle(ctx context.Context, event listener.Event) error {
-	volume := event.Object.(*directcsi.DirectCSIVolume)
+func (handler *volumeEventHandler) Handle(ctx context.Context, eventType listener.EventType, object runtime.Object) error {
+	volume := object.(*directcsi.DirectCSIVolume)
 	if !volume.GetDeletionTimestamp().IsZero() {
 		return handler.delete(ctx, volume)
 	}
