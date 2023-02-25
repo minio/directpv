@@ -45,7 +45,7 @@ function install_code_generator() {
 
 function install_controller_tools() {
     if [ ! -x "$GOPATH/bin/controller-gen" ]; then
-        go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.2
+        go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3
     fi
 }
 

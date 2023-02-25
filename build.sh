@@ -25,6 +25,8 @@ cd "$(dirname "$0")"
 
 BUILD_VERSION=$(git describe --tags --always --dirty)
 
+export CGO_ENABLED=0
+
 go build -tags "osusergo netgo static_build" \
    -ldflags="-X main.Version=${BUILD_VERSION} -extldflags=-static" \
    github.com/minio/directpv/cmd/directpv

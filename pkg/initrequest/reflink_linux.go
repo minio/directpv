@@ -24,10 +24,10 @@ import (
 	"fmt"
 	"os"
 
+	losetup "github.com/freddierice/go-losetup/v2"
 	"github.com/google/uuid"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/xfs"
-	losetup "gopkg.in/freddierice/go-losetup.v1"
 	"k8s.io/klog/v2"
 )
 
