@@ -21,17 +21,23 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/listener"
+	"github.com/minio/directpv/pkg/controller"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+)
+
+const (
+	workerThreads = 40
+	resyncPeriod  = 10 * time.Minute
 )
 
 type volumeEventHandler struct {
@@ -60,22 +66,12 @@ func (handler *volumeEventHandler) ListerWatcher() cache.ListerWatcher {
 	)
 }
 
-func (handler *volumeEventHandler) Name() string {
-	return "volume"
-}
-
 func (handler *volumeEventHandler) ObjectType() runtime.Object {
 	return &types.Volume{}
 }
 
-func (handler *volumeEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
-	volume, err := client.VolumeClient().Get(
-		ctx, args.Object.(*types.Volume).Name, metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()},
-	)
-	if err != nil {
-		return err
-	}
-
+func (handler *volumeEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
+	volume := object.(*types.Volume)
 	if !volume.GetDeletionTimestamp().IsZero() {
 		return handler.delete(ctx, volume)
 	}
@@ -176,7 +172,7 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveID di
 }
 
 // StartController starts volume controller.
-func StartController(ctx context.Context, nodeID directpvtypes.NodeID) error {
-	listener := listener.NewListener(newVolumeEventHandler(nodeID), "volume-controller", string(nodeID), 40)
-	return listener.Run(ctx)
+func StartController(ctx context.Context, nodeID directpvtypes.NodeID) {
+	ctrl := controller.New(ctx, "volume", newVolumeEventHandler(nodeID), workerThreads, resyncPeriod)
+	ctrl.Run(ctx)
 }

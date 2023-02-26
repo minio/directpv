@@ -24,7 +24,7 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
-	"github.com/minio/directpv/pkg/listener"
+	"github.com/minio/directpv/pkg/controller"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -121,8 +121,8 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 		if vErr != nil {
 			t.Fatalf("Error while updating the volume object: %+v", vErr)
 		}
-		if err := vl.Handle(ctx, listener.EventArgs{Event: listener.DeleteEvent, Object: newObj}); err != nil {
-			t.Fatalf("Error while invoking the volume delete listener: %+v", err)
+		if err := vl.Handle(ctx, controller.DeleteEvent, newObj); err != nil {
+			t.Fatalf("Error while invoking the volume delete controller: %+v", err)
 		}
 		if newObj.Status.StagingTargetPath != "" && !stagingUmountCalled {
 			t.Error("staging target path is not umounted")
@@ -182,7 +182,7 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 	if vErr != nil {
 		t.Fatalf("Error while updating the volume object: %+v", vErr)
 	}
-	if err := vl.Handle(ctx, listener.EventArgs{Event: listener.DeleteEvent, Object: newObj}); err == nil {
+	if err := vl.Handle(ctx, controller.DeleteEvent, newObj); err == nil {
 		t.Errorf("[%s] DeleteVolumeHandle expected to fail but succeeded", newObj.Name)
 	}
 }

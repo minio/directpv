@@ -23,11 +23,12 @@ import (
 	"os"
 	"path"
 	"syscall"
+	"time"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/listener"
+	"github.com/minio/directpv/pkg/controller"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -38,6 +39,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+)
+
+const (
+	workerThreads = 40
+	resyncPeriod  = 10 * time.Minute
 )
 
 // SetIOError sets I/O error condition to specified drive.
@@ -180,10 +186,6 @@ func (handler *driveEventHandler) ListerWatcher() cache.ListerWatcher {
 	)
 }
 
-func (handler *driveEventHandler) Name() string {
-	return "drive"
-}
-
 func (handler *driveEventHandler) ObjectType() runtime.Object {
 	return &types.Drive{}
 }
@@ -322,17 +324,17 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *types
 	return nil
 }
 
-func (handler *driveEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
-	switch args.Event {
-	case listener.AddEvent, listener.UpdateEvent:
-		return handler.handleUpdate(ctx, args.Object.(*types.Drive))
+func (handler *driveEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
+	switch eventType {
+	case controller.AddEvent, controller.UpdateEvent:
+		return handler.handleUpdate(ctx, object.(*types.Drive))
 	}
 
 	return nil
 }
 
 // StartController starts drive controller.
-func StartController(ctx context.Context, nodeID directpvtypes.NodeID) error {
-	listener := listener.NewListener(newDriveEventHandler(nodeID), "drive-controller", string(nodeID), 40)
-	return listener.Run(ctx)
+func StartController(ctx context.Context, nodeID directpvtypes.NodeID) {
+	ctrl := controller.New(ctx, "drive", newDriveEventHandler(nodeID), workerThreads, resyncPeriod)
+	ctrl.Run(ctx)
 }

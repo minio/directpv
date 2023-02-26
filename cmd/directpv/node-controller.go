@@ -26,7 +26,6 @@ import (
 	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/spf13/cobra"
-	"k8s.io/klog/v2"
 )
 
 var nodeControllerCmd = &cobra.Command{
@@ -53,24 +52,20 @@ func startNodeController(ctx context.Context, args []string) error {
 	errCh := make(chan error)
 
 	go func() {
-		if err := node.StartController(ctx, nodeID); err != nil {
-			klog.ErrorS(err, "unable to start node controller")
-			errCh <- err
-		}
+		node.StartController(ctx, nodeID)
+		errCh <- errors.New("node controller stopped")
 	}()
 
 	go func() {
-		if err := initrequest.StartController(
+		initrequest.StartController(
 			ctx,
 			nodeID,
 			identity,
 			rack,
 			zone,
 			region,
-		); err != nil {
-			klog.ErrorS(err, "unable to start initrequest controller")
-			errCh <- err
-		}
+		)
+		errCh <- errors.New("initrequest controller stopped")
 	}()
 
 	return <-errCh

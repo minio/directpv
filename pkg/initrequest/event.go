@@ -22,13 +22,14 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/controller"
 	pkgdevice "github.com/minio/directpv/pkg/device"
-	"github.com/minio/directpv/pkg/listener"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -38,6 +39,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+)
+
+const (
+	workerThreads = 10
+	resyncPeriod  = 5 * time.Minute
 )
 
 type initRequestEventHandler struct {
@@ -135,18 +141,14 @@ func (handler *initRequestEventHandler) ListerWatcher() cache.ListerWatcher {
 	)
 }
 
-func (handler *initRequestEventHandler) Name() string {
-	return "initrequest"
-}
-
 func (handler *initRequestEventHandler) ObjectType() runtime.Object {
 	return &types.InitRequest{}
 }
 
-func (handler *initRequestEventHandler) Handle(ctx context.Context, args listener.EventArgs) error {
-	switch args.Event {
-	case listener.UpdateEvent, listener.SyncEvent:
-		initRequest := args.Object.(*types.InitRequest)
+func (handler *initRequestEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
+	switch eventType {
+	case controller.UpdateEvent, controller.AddEvent:
+		initRequest := object.(*types.InitRequest)
 		if initRequest.Status.Status == directpvtypes.InitStatusPending {
 			return handler.initDevices(ctx, initRequest)
 		}
@@ -291,8 +293,8 @@ func (handler *initRequestEventHandler) initDevice(ctx context.Context, device p
 	return nil
 }
 
-// StartController starts node controller.
-func StartController(ctx context.Context, nodeID directpvtypes.NodeID, identity, rack, zone, region string) error {
+// StartController starts initrequest controller.
+func StartController(ctx context.Context, nodeID directpvtypes.NodeID, identity, rack, zone, region string) {
 	initRequestHandler, err := newInitRequestEventHandler(
 		ctx,
 		nodeID,
@@ -305,8 +307,9 @@ func StartController(ctx context.Context, nodeID directpvtypes.NodeID, identity,
 		},
 	)
 	if err != nil {
-		return err
+		klog.ErrorS(err, "unable to create initrequest event handler")
+		return
 	}
-	listener := listener.NewListener(initRequestHandler, "initrequest-controller", string(nodeID), 40)
-	return listener.Run(ctx)
+	ctrl := controller.New(ctx, "initrequest", initRequestHandler, workerThreads, resyncPeriod)
+	ctrl.Run(ctx)
 }
