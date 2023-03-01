@@ -20,7 +20,7 @@ import (
 	"errors"
 	"io"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var errUnsupportedInitConfigVersion = errors.New("unsupported init config version")
