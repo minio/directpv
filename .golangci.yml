@@ -11,7 +11,7 @@ linters-settings:
     locale: US
 
   gofumpt:
-    lang-version: "1.19"
+    lang-version: "1.20"
 
     # Choose whether or not to use the extra rules that are disabled
     # by default
@@ -27,13 +27,12 @@ linters:
     - misspell
     - govet
     - ineffassign
-    - deadcode
     - gomodguard
     - gofmt
-    - varcheck
     - gofumpt
     - tenv
     - durationcheck
+    - unused
 
 
 issues:

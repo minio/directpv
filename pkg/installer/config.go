@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/minio/directpv/pkg/utils"
 
@@ -129,10 +128,6 @@ func (c *Config) getNodeDriverRegistrarImage() string {
 
 func (c *Config) getLivenessProbeImage() string {
 	return defaultIfZeroString(c.LivenessProbeImage, CSIImageLivenessProbe)
-}
-
-func (c *Config) conversionWebhookDNSName() string {
-	return strings.Join([]string{c.identity(), c.namespace(), "svc"}, ".") // "direct-csi-min-io.direct-csi-min-io.svc"
 }
 
 func (c *Config) csiDriverName() string {
