@@ -13,3 +13,4 @@ directpv
 kubectl-directpv
 !kubectl-directpv/
 vdb.xml
+.idea/
