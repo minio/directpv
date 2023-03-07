@@ -21,7 +21,7 @@ import (
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/csi/controller"
-	pkgidentity "github.com/minio/directpv/pkg/identity"
+	pkgidentity "github.com/minio/directpv/pkg/csi/identity"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -42,7 +42,7 @@ func startLegacyController(ctx context.Context) error {
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
-	idServer, err := pkgidentity.NewServer(legacyclient.Identity, Version, map[string]string{})
+	idServer, err := pkgidentity.NewServer(legacyclient.Identity, Version, pkgidentity.GetDefaultPluginCapabilities())
 	if err != nil {
 		return err
 	}

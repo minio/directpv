@@ -84,7 +84,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 		}
 	}()
 
-	allowExpansion := false
+	allowExpansion := true
 	allowTopologiesWithName := corev1.TopologySelectorTerm{
 		MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{
 			{

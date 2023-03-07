@@ -29,6 +29,7 @@ import (
 	"github.com/minio/directpv/pkg/xfs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -46,7 +47,7 @@ type Server struct {
 	bindMount         func(source, target string, readOnly bool) error
 	unmount           func(target string) error
 	getQuota          func(ctx context.Context, device, volumeName string) (quota *xfs.Quota, err error)
-	setQuota          func(ctx context.Context, device, path, volumeName string, quota xfs.Quota) (err error)
+	setQuota          func(ctx context.Context, device, path, volumeName string, quota xfs.Quota, update bool) (err error)
 	mkdir             func(path string) error
 }
 
@@ -121,6 +122,7 @@ func (server *Server) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 		Capabilities: []*csi.NodeServiceCapability{
 			nodeCap(csi.NodeServiceCapability_RPC_GET_VOLUME_STATS),
 			nodeCap(csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME),
+			nodeCap(csi.NodeServiceCapability_RPC_EXPAND_VOLUME),
 		},
 	}, nil
 }
@@ -182,8 +184,86 @@ func (server *Server) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	}, nil
 }
 
-// NodeExpandVolume returns unimplemented error.
+// NodeExpandVolume handles expand volume request.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodeexpandvolume
-func (server *Server) NodeExpandVolume(ctx context.Context, in *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+func (server *Server) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+	requiredBytes := int64(-1)
+	if req.CapacityRange != nil {
+		requiredBytes = req.CapacityRange.RequiredBytes
+	}
+	klog.V(3).InfoS("Expand volume requested",
+		"volumeID", req.GetVolumeId(),
+		"VolumePath", req.GetVolumePath(),
+		"requiredBytes", requiredBytes,
+	)
+
+	volumeID := req.GetVolumeId()
+	if volumeID == "" {
+		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
+	}
+	if req.GetVolumePath() == "" {
+		return nil, status.Error(codes.InvalidArgument, "volumePath missing in request")
+	}
+	if requiredBytes == -1 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid capacity range in the request for volume %v expansion", volumeID)
+	}
+
+	volume, err := client.VolumeClient().Get(ctx, volumeID, metav1.GetOptions{
+		TypeMeta: types.NewVolumeTypeMeta(),
+	})
+	if err != nil {
+		code := codes.Internal
+		if errors.IsNotFound(err) {
+			code = codes.NotFound
+		}
+		return nil, status.Errorf(code, "unable to get volume %v; %v", volumeID, err)
+	}
+
+	if !volume.IsStaged() {
+		return nil, status.Errorf(codes.FailedPrecondition, "volume %v is not yet staged, but requested for volume expansion", volume.Name)
+	}
+
+	if volume.Status.TotalCapacity >= requiredBytes {
+		// As per the specification, nothing to do
+		return &csi.NodeExpandVolumeResponse{CapacityBytes: requiredBytes}, nil
+	}
+
+	device, err := server.getDeviceByFSUUID(volume.Status.FSUUID)
+	if err != nil {
+		klog.ErrorS(
+			err,
+			"unable to find device by FSUUID; "+
+				"either device is removed or run command "+
+				"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+
+				"on the host to reload",
+			"FSUUID", volume.Status.FSUUID)
+		client.Eventf(
+			volume, client.EventTypeWarning, client.EventReasonStageVolume,
+			"unable to find device by FSUUID %v; "+
+				"either device is removed or run command "+
+				"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+
+				" on the host to reload", volume.Status.FSUUID)
+		return nil, status.Errorf(codes.Internal, "unable to find device by FSUUID %v; %v", volume.Status.FSUUID, err)
+	}
+
+	quota := xfs.Quota{
+		HardLimit: uint64(requiredBytes),
+		SoftLimit: uint64(requiredBytes),
+	}
+
+	if err := server.setQuota(ctx, device, volume.Status.DataPath, volume.Name, quota, true); err != nil {
+		klog.ErrorS(err, "unable to set quota on volume data path", "DataPath", volume.Status.DataPath)
+		return nil, status.Errorf(codes.Internal, "unable to set quota on volume data path; %v", err)
+	}
+
+	volume.Status.TotalCapacity = requiredBytes
+	volume.Status.AvailableCapacity = volume.Status.TotalCapacity - volume.Status.UsedCapacity
+	_, err = client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
+		TypeMeta: types.NewVolumeTypeMeta(),
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to update volume %v; %v", volumeID, err)
+	}
+
+	return &csi.NodeExpandVolumeResponse{CapacityBytes: requiredBytes}, nil
 }

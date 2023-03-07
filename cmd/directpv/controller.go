@@ -19,9 +19,10 @@ package main
 import (
 	"context"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/csi/controller"
-	pkgidentity "github.com/minio/directpv/pkg/identity"
+	pkgidentity "github.com/minio/directpv/pkg/csi/identity"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 )
@@ -41,7 +42,15 @@ func startController(ctx context.Context) error {
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
-	idServer, err := pkgidentity.NewServer(identity, Version, map[string]string{})
+	capabilities := pkgidentity.GetDefaultPluginCapabilities()
+	capabilities = append(capabilities, &csi.PluginCapability{
+		Type: &csi.PluginCapability_VolumeExpansion_{
+			VolumeExpansion: &csi.PluginCapability_VolumeExpansion{
+				Type: csi.PluginCapability_VolumeExpansion_ONLINE,
+			},
+		},
+	})
+	idServer, err := pkgidentity.NewServer(identity, Version, capabilities)
 	if err != nil {
 		return err
 	}

@@ -27,6 +27,6 @@ func getQuota(device, volumeID string) (*Quota, error) {
 	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
-func setQuota(device, path, volumeID string, quota Quota) error {
+func setQuota(device, path, volumeID string, quota Quota, update bool) error {
 	return fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }

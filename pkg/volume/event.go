@@ -29,6 +29,7 @@ import (
 	"github.com/minio/directpv/pkg/controller"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/xfs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -41,8 +42,10 @@ const (
 )
 
 type volumeEventHandler struct {
-	nodeID  directpvtypes.NodeID
-	unmount func(target string) error
+	nodeID            directpvtypes.NodeID
+	unmount           func(target string) error
+	getDeviceByFSUUID func(fsuuid string) (string, error)
+	removeQuota       func(ctx context.Context, device, path, volumeName string) error
 }
 
 func newVolumeEventHandler(nodeID directpvtypes.NodeID) *volumeEventHandler {
@@ -50,6 +53,10 @@ func newVolumeEventHandler(nodeID directpvtypes.NodeID) *volumeEventHandler {
 		nodeID: nodeID,
 		unmount: func(mountPoint string) error {
 			return sys.Unmount(mountPoint, true, true, false)
+		},
+		getDeviceByFSUUID: sys.GetDeviceByFSUUID,
+		removeQuota: func(ctx context.Context, device, path, volumeName string) error {
+			return xfs.SetQuota(ctx, device, path, volumeName, xfs.Quota{}, true)
 		},
 	}
 }
@@ -132,7 +139,7 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	}(volume.Name, deletedDir)
 
 	// Release volume from associated drive.
-	if err := handler.releaseVolume(ctx, volume.GetDriveID(), volume.Name, volume.Status.TotalCapacity); err != nil {
+	if err := handler.releaseVolume(ctx, volume); err != nil {
 		return err
 	}
 
@@ -150,17 +157,35 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	return err
 }
 
-func (handler *volumeEventHandler) releaseVolume(ctx context.Context, driveID directpvtypes.DriveID, volumeName string, capacity int64) error {
+func (handler *volumeEventHandler) releaseVolume(ctx context.Context, volume *types.Volume) error {
 	drive, err := client.DriveClient().Get(
-		ctx, string(driveID), metav1.GetOptions{TypeMeta: types.NewDriveTypeMeta()},
+		ctx, string(volume.GetDriveID()), metav1.GetOptions{TypeMeta: types.NewDriveTypeMeta()},
 	)
 	if err != nil {
 		return err
 	}
 
-	found := drive.RemoveVolumeFinalizer(volumeName)
+	found := drive.RemoveVolumeFinalizer(volume.Name)
 	if found {
-		drive.Status.FreeCapacity += capacity
+		if device, err := handler.getDeviceByFSUUID(volume.Status.FSUUID); err != nil {
+			klog.ErrorS(
+				err,
+				"unable to find device by FSUUID; "+
+					"either device is removed or run command "+
+					"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+
+					"on the host to reload",
+				"FSUUID", volume.Status.FSUUID)
+			client.Eventf(
+				volume, client.EventTypeWarning, client.EventReasonStageVolume,
+				"unable to find device by FSUUID %v; "+
+					"either device is removed or run command "+
+					"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+
+					" on the host to reload", volume.Status.FSUUID)
+		} else if err := handler.removeQuota(ctx, device, volume.Status.DataPath, volume.Name); err != nil {
+			klog.ErrorS(err, "unable to remove quota on volume data path", "DataPath", volume.Status.DataPath)
+		}
+
+		drive.Status.FreeCapacity += volume.Status.TotalCapacity
 		drive.Status.AllocatedCapacity = drive.Status.TotalCapacity - drive.Status.FreeCapacity
 
 		_, err = client.DriveClient().Update(

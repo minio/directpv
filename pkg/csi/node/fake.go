@@ -43,7 +43,7 @@ func createFakeServer() *Server {
 		getQuota: func(ctx context.Context, device, volumeName string) (quota *xfs.Quota, err error) {
 			return &xfs.Quota{}, nil
 		},
-		setQuota: func(ctx context.Context, device, path, volumeName string, quota xfs.Quota) (err error) {
+		setQuota: func(ctx context.Context, device, path, volumeName string, quota xfs.Quota, update bool) (err error) {
 			return nil
 		},
 		mkdir: func(path string) error {

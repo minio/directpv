@@ -20,8 +20,8 @@ import (
 	"context"
 
 	"github.com/minio/directpv/pkg/consts"
+	pkgidentity "github.com/minio/directpv/pkg/csi/identity"
 	"github.com/minio/directpv/pkg/csi/node"
-	pkgidentity "github.com/minio/directpv/pkg/identity"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -42,7 +42,7 @@ func startLegacyNodeServer(ctx context.Context) error {
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
-	idServer, err := pkgidentity.NewServer(legacyclient.Identity, Version, map[string]string{})
+	idServer, err := pkgidentity.NewServer(legacyclient.Identity, Version, pkgidentity.GetDefaultPluginCapabilities())
 	if err != nil {
 		return err
 	}

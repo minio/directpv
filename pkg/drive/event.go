@@ -72,7 +72,7 @@ func StageVolume(
 	stagingTargetPath string,
 	getDeviceByFSUUID func(fsuuid string) (string, error),
 	mkdir func(volumeDir string) error,
-	setQuota func(ctx context.Context, device, stagingTargetPath, volumeName string, quota xfs.Quota) error,
+	setQuota func(ctx context.Context, device, stagingTargetPath, volumeName string, quota xfs.Quota, update bool) error,
 	bindMount func(volumeDir, stagingTargetPath string, readOnly bool) error,
 ) (codes.Code, error) {
 	device, err := getDeviceByFSUUID(volume.Status.FSUUID)
@@ -110,7 +110,7 @@ func StageVolume(
 		SoftLimit: uint64(volume.Status.TotalCapacity),
 	}
 
-	if err := setQuota(ctx, device, volumeDir, volume.Name, quota); err != nil {
+	if err := setQuota(ctx, device, volumeDir, volume.Name, quota, false); err != nil {
 		klog.ErrorS(err, "unable to set quota on volume data path", "DataPath", volumeDir)
 		return codes.Internal, fmt.Errorf("unable to set quota on volume data path; %w", err)
 	}
@@ -140,7 +140,7 @@ type driveEventHandler struct {
 	mkdir             func(path string) error
 	bindMount         func(source, target string, readOnly bool) error
 	getDeviceByFSUUID func(fsuuid string) (string, error)
-	setQuota          func(ctx context.Context, device, path, volumeName string, quota xfs.Quota) (err error)
+	setQuota          func(ctx context.Context, device, path, volumeName string, quota xfs.Quota, update bool) (err error)
 	rmdir             func(fsuuid string) error
 }
 
