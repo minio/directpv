@@ -91,53 +91,19 @@ func (d *driveEventHandler) setDriveStatus(device *sys.Device, drive *directcsi.
 	}
 	updatedDrive.Status.OtherMountsInfo = otherMountsInfo
 
-	// fill hwinfo only if it is empty
-	if updatedDrive.Status.PartitionUUID == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.PartitionUUID = device.PartUUID
-	} else {
-		// PartitionUUID values in versions < 3.0.0 is upper-cased
-		if strings.EqualFold(updatedDrive.Status.PartitionUUID, device.PartUUID) {
-			updatedDrive.Status.PartitionUUID = device.PartUUID
-		}
-		// bugfix: for versions < 3.0.0, the partitionUUID has to be unset or set to empty for root partitions
-		if device.Partition == int(0) {
-			updatedDrive.Status.PartitionUUID = device.PartUUID
-		}
-	}
-
-	if updatedDrive.Status.DMUUID == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.DMUUID = device.DMUUID
-	}
-	if updatedDrive.Status.MDUUID == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.MDUUID = device.MDUUID
-	}
-	if updatedDrive.Status.PartitionNum == int(0) || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.PartitionNum = device.Partition
-	}
-	if updatedDrive.Status.PhysicalBlockSize == int64(0) || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.PhysicalBlockSize = int64(device.PhysicalBlockSize)
-	}
-	if updatedDrive.Status.ModelNumber == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.ModelNumber = device.Model
-	}
-	if updatedDrive.Status.SerialNumber == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.SerialNumber = device.Serial
-	}
-	if updatedDrive.Status.SerialNumberLong == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.SerialNumberLong = device.SerialLong
-	}
-	if updatedDrive.Status.UeventSerial == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.UeventSerial = device.UeventSerial
-	}
-	if updatedDrive.Status.WWID == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.WWID = device.WWID
-	}
-	if updatedDrive.Status.WWIDWithExtension == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.WWIDWithExtension = device.WWIDWithExtension
-	}
-	if updatedDrive.Status.Vendor == "" || !utils.IsManagedDrive(updatedDrive) {
-		updatedDrive.Status.Vendor = device.Vendor
-	}
+	// update hw info
+	updatedDrive.Status.PartitionUUID = device.PartUUID
+	updatedDrive.Status.DMUUID = device.DMUUID
+	updatedDrive.Status.MDUUID = device.MDUUID
+	updatedDrive.Status.PartitionNum = device.Partition
+	updatedDrive.Status.PhysicalBlockSize = int64(device.PhysicalBlockSize)
+	updatedDrive.Status.ModelNumber = device.Model
+	updatedDrive.Status.SerialNumber = device.Serial
+	updatedDrive.Status.SerialNumberLong = device.SerialLong
+	updatedDrive.Status.UeventSerial = device.UeventSerial
+	updatedDrive.Status.WWID = device.WWID
+	updatedDrive.Status.WWIDWithExtension = device.WWIDWithExtension
+	updatedDrive.Status.Vendor = device.Vendor
 
 	// update the path and respective label value
 	updatedDrive.Status.Path = device.DevPath()
