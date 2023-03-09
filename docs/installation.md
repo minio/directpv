@@ -12,7 +12,6 @@ Installation
 | kubectl      | v1.19+   |
 | kubernetes   | v1.19+   |
 
-`ValidatingAdmissionWebhook` should be enabled in the kube-apiserver
 
 ### Plugin Installation
 
@@ -25,7 +24,7 @@ kubectl krew install directpv
 After running this installation:
 
  - The `directpv` plugin will be installed in your krew installation directory (default: `$HOME/.krew`) 
- - Run `kubectl directpv` to verify that the installation worked
+ - Run `kubectl directpv --version` to verify that the installation worked
  - If the error `Error: unknown command "directpv" for "kubectl"` is shown, try adding `$HOME/.krew/bin` to your `$PATH`
 
 ### Driver Installation
@@ -38,7 +37,7 @@ For installation in production grade environments, ensure that all criteria in t
 kubectl directpv install
 ```
 
-This will install `directpv` driver in the kubernetes cluster.
+This will install `directpv-min-io` CSI driver in the kubernetes cluster.
 
 **Notes:**
 
@@ -46,16 +45,17 @@ This will install `directpv` driver in the kubernetes cluster.
  - alternate kubeconfig path can be specified using `kubectl directpv --kubeconfig /path/to/kubeconfig` 
  - the rbac requirements for the driver is [here](./specification.md#driver-rbac)
  - the driver runs in `privileged` mode, which is required for mounting, unmounting and formatting drives
+ - The deamonset used by directpv will be using the ports `10443` for metrics and `30443` for readiness handlers. Make sure these ports are open on the nodes.
 
 #### 2. List discovered drives
 
 ```sh
-kubectl directpv discover --output-file=drives.yaml
+kubectl directpv discover
 ```
 
-This will list all available drives in the kubernetes cluster.
+This will list all available drives in the kubernetes cluster and will generate an init config file (default: drives.yaml) to initialize these drives.
 
-#### 3. Add drives
+#### 3. Intitialize the drives
 
 ```sh
 kubectl directpv init drives.yaml
@@ -65,7 +65,7 @@ This will initialize selected drives in drives.yaml
 
 **Notes:**
 
- - formatting will erase all data on the drives. Double check to make sure that only intended drives are specified 
+ - initialization will erase all data on the drives. Double check to make sure that only intended drives are specified 
 
 #### 4. Verify installation
 
@@ -77,9 +77,9 @@ This will show information about the drives formatted and added to DirectPV.
 
 After running this installation:
 
- - storage class named `directpv` is created
- - `directpv` can be specified in `PodSpec.VolumeClaimTemplates` to provision DirectPV volumes
- - example statefulset using `directpv` can be found [here](../minio.yaml#L61) 
+ - storage class named `directpv-min-io` is created
+ - `directpv-min-io` can be specified as the `storageClassName` in in `PodSpec.VolumeClaimTemplates` to provision DirectPV volumes
+ - example statefulset using `directpv-min-io` can be found [here](../minio.yaml#L61) 
  - optional: view the [driver specification](./specification.md)
 <!-- - view the [usage guide](./usage-guide.md) -->
 
@@ -91,6 +91,10 @@ Push the following images to your private registry
  - quay.io/minio/csi-provisioner:v3.3.0
  - quay.io/minio/livenessprobe:v2.8.0
  - quay.io/minio/directpv:${latest_tag_name}
+ 
+ **Notes:**
+
+ - If your kubernetes version is less than v1.20, you need push `quay.io/minio/csi-provisioner:v2.2.0-go1.18`
 
 Here is a shell script to Copy-Paste into your terminal to do the above steps:
 ```sh
@@ -128,7 +132,9 @@ Step 3: Install DirectPV
 $ kubectl create -f directpv-install.yaml
 ```
 
-Client-side upgrade functionality will not be available for custom installations.
+**Notes:**
+
+- Client-side upgrade functionality will not be available for custom installations. You need to execute `kubectl directpv migrate` to migrate the old resources.
 
 ## Production Readiness Checklist
 

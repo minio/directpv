@@ -7,7 +7,7 @@ Distributed data stores such as object storage, databases and message queues are
 
 ![Architecture Diagram](https://github.com/minio/directpv/blob/master/docs/images/architecture.png?raw=true)
 
-### Installation
+### Quickstart guide
 
 1. Install DirectPV Krew plugin
 ```sh
@@ -26,10 +26,11 @@ $ kubectl directpv info
 
 4. Discover and add drives for volume scheduling.
 ```sh
-# Discover drives
-$ kubectl directpv discover --output-file drives.yaml
+# Discover drives to check the available devices in the cluster to initialize
+# The following command will create an init config file (default: drives.yaml) which will be used for initialization
+$ kubectl directpv discover
 
-# Review drives.yaml for drive selections and initialize those drives
+# Review the drives.yaml for drive selections and initialize those drives
 $ kubectl directpv init drives.yaml
 ```
 
@@ -40,14 +41,17 @@ $ kubectl directpv list drives
 
 6. Deploy a demo MinIO server
 ```sh
+# This should create MinIO pods and PVCs using the `directpv-min-io` storage class
 $ kubectl apply -f functests/minio.yaml
-```
+ ```
 
 For air-gapped setups and advanced installations, please refer to the [Installation Guide](./docs/installation.md).
 
-### Upgrade from DirectPV v3.2.1
+### Upgrade from DirectPV v3.2.+
 
 Firstly, it is required to uninstall older version of DirectPV. Once it is uninstalled, follow [Installation instructions](#Installation) to install the latest DirectPV. In this process, all existing drives and volumes will be migrated automatically.
+
+For migrating from older versions < v3.2.0, Please refer the [Upgrade Guide](./docs/upgrade.md)
 
 ### Security
 
@@ -57,11 +61,16 @@ Please review the [security checklist](./security-checklist.md) before deploying
 
 ### Additional Resources
 
-- [Developer Guide](./docs/development-and-testing.md)
 - [Installation Guide](./docs/installation.md)
-- [Monitoring & Metrics](./docs/metrics.md)
+- [Upgrade Guide](./docs/upgrade.md)
+- [CLI Guide](./docs/cli.md)
 - [Security Guide](./docs/security.md)
+- [Scheduling Guide](./docs/scheduling.md)
+- [Drive Replacement Guide](./docs/drive-replacement.md)
+- [Driver Specification](./docs/specification.md)
 - [Troubleshooting Guide](./docs/troubleshooting.md)
+- [Monitoring & Metrics](./docs/metrics.md)
+- [Developer Guide](./docs/development-and-testing.md)
 
 ### Join Community
 

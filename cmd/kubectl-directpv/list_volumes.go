@@ -66,7 +66,10 @@ var listVolumesCmd = &cobra.Command{
    $ kubectl {PLUGIN_NAME} list volumes --drive-id=b84758b0-866f-4a12-9d00-d8f7da76ceb3
 
 9. List volumes with labels.
-   $ kubectl {PLUGIN_NAME} list volumes --show-labels`,
+   $ kubectl {PLUGIN_NAME} list volumes --show-labels
+
+10. List volumes filtered by labels
+   $ kubectl {PLUGIN_NAME} list volumes --labels tier=hot`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),

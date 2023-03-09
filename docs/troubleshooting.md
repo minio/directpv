@@ -1,5 +1,5 @@
 
-Troubleshooting
+Troubleshooting (applies for versions <= v3.2.2)
 -------------
 
 ### Cleaning up abandoned volumes from a "Terminating" drive

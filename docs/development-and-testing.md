@@ -79,17 +79,17 @@ Install the freshly built version
 ./kubectl-directpv install --image directpv:<NEW_BUILD_TAG> --org <QUAY_USERNAME> --registry quay.io
 ```
 
-4. Check if the drives are showing up
-
-```bash
-./kubectl-directpv list drives
-```
-
-5. Format the drives
+4. Discover and initialize the drives
 
 ```bash
 ./kubectl-directpv discover --output-file drives.yaml
 ./kubectl-directpv init drives.yaml
+```
+
+5. Check if the drives are showing up
+
+```bash
+./kubectl-directpv list drives
 ```
 
 6. Apply the minio.yaml file
@@ -148,3 +148,7 @@ sudo losetup --detach-all
 ```
 
 Please refer [here](./troubleshooting.md) for any trouble shooting guidelines.
+
+## Testing with VMs
+
+You can refer https://github.com/Praveenrajmani/vagrant to setup a 4 node test cluster using libvirt

@@ -45,7 +45,7 @@ var labelDrivesCmd = &cobra.Command{
 2. Set 'type: fast' to specific drives from a node
    $ kubectl {PLUGIN_NAME} label drives type=fast --nodes=node1 --drives=nvme1n{1...3}
 
-3. Remove  'tier: hot' label from all drives in all nodes
+3. Remove 'tier: hot' label from all drives in all nodes
    $ kubectl {PLUGIN_NAME} label drives tier- --all`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
