@@ -60,7 +60,7 @@ var (
 	idArgs           []string // --id flag
 	showLabels       bool     // --show-labels flag
 	labelArgs        []string // --labels flag
-	forceFlag        bool     // --force flag
+	dangerousFlag    bool     // --dangerous flag
 )
 
 func addAllFlag(cmd *cobra.Command, usage string) {
@@ -69,6 +69,10 @@ func addAllFlag(cmd *cobra.Command, usage string) {
 
 func addDryRunFlag(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().BoolVar(&dryRunFlag, "dry-run", dryRunFlag, usage)
+}
+
+func addDangerousFlag(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().BoolVar(&dangerousFlag, "dangerous", dangerousFlag, usage)
 }
 
 func addNodesFlag(cmd *cobra.Command, usage string) {

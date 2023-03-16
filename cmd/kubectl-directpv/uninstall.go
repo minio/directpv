@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
 	"github.com/minio/directpv/pkg/utils"
@@ -34,14 +33,6 @@ var uninstallCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Run: func(c *cobra.Command, args []string) {
-		if forceFlag {
-			input := getInput(color.HiRedString("Force removal may cause data loss. Type 'Yes' if you really want to do: "))
-			if input != "Yes" {
-				utils.Eprintf(quietFlag, false, "Aborting...\n")
-				os.Exit(1)
-			}
-		}
-
 		uninstallMain(c.Context())
 	},
 }
@@ -54,12 +45,12 @@ func init() {
 	uninstallCmd.NonInheritedFlags().SortFlags = false
 	uninstallCmd.PersistentFlags().SortFlags = false
 
-	uninstallCmd.PersistentFlags().BoolVar(&forceFlag, "force", forceFlag, "If present, uninstall forcefully")
-	uninstallCmd.PersistentFlags().MarkHidden("force")
+	addDangerousFlag(uninstallCmd, "If present, uninstall forcefully which may cause data loss")
+	uninstallCmd.PersistentFlags().MarkHidden("dangerous")
 }
 
 func uninstallMain(ctx context.Context) {
-	if err := installer.Uninstall(ctx, quietFlag, forceFlag); err != nil {
+	if err := installer.Uninstall(ctx, quietFlag, dangerousFlag); err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}

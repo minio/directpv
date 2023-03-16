@@ -70,9 +70,8 @@ var initCmd = &cobra.Command{
 			os.Exit(-1)
 		}
 
-		input := getInput(color.HiRedString("Initializing the drives will permanently erase existing data. Do you really want to continue (Yes|No)? "))
-		if input != "Yes" {
-			utils.Eprintf(quietFlag, false, "Aborting...\n")
+		if !dangerousFlag {
+			utils.Eprintf(quietFlag, true, "Initializing the drives will permanently erase existing data. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag.\n")
 			os.Exit(1)
 		}
 
@@ -89,6 +88,7 @@ func init() {
 	initCmd.PersistentFlags().SortFlags = false
 
 	initCmd.PersistentFlags().DurationVar(&initRequestListTimeout, "timeout", initRequestListTimeout, "specify timeout for the initialization process")
+	addDangerousFlag(initCmd, "Perform initialization of drives which will permanently erase existing data")
 }
 
 func toInitRequestObjects(config *InitConfig, requestID string) (initRequests []types.InitRequest) {
