@@ -16,14 +16,14 @@ The following recording demonstrates the version upgrade path.
 NOTE: For the users who don't prefer krew, Please find the latest images in [releases](https://github.com/minio/directpv/releases).
 
 
-#### Upgrade from versions < v3.0.0
+#### Upgrade from versions < v3.2.x
 
-If you are on DirectPV version < 3.0.0, it is recommended to upgrade to v3.2.2 and then to the latest
+If you are on DirectPV version < 3.2.x, it is recommended to upgrade to v3.2.2 and then to the latest
 
 Please follow https://github.com/minio/directpv/blob/master/docs/upgrade.md#upgrade-to-v300 for the upgrade steps from legacy versions
 
 
-#### Upgrade from v3.2.1 or v3.2.2
+#### Upgrade from v3.2.x
 
 In the latest version of DirectPV, the CSI sidecar images have been updated. If private registry is used for images, please make sure the following images are available in your registry before upgrade.
 

@@ -148,7 +148,3 @@ sudo losetup --detach-all
 ```
 
 Please refer [here](./troubleshooting.md) for any trouble shooting guidelines.
-
-## Testing with VMs
-
-You can refer https://github.com/Praveenrajmani/vagrant to setup a 4 node test cluster using libvirt

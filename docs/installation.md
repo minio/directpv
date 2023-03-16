@@ -31,6 +31,8 @@ After running this installation:
 
 For installation in production grade environments, ensure that all criteria in the [Production Readiness Checklist](#production-readiness-checklist) are satisfied.
 
+(NOTE: Please refer the [CLI Guide](./cli.md) for more helpers on the following commands.)
+
 #### 1. Install the driver
 
 ```sh

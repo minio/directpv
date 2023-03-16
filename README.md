@@ -43,11 +43,11 @@ $ kubectl directpv list drives
 ```sh
 # This should create MinIO pods and PVCs using the `directpv-min-io` storage class
 $ kubectl apply -f functests/minio.yaml
- ```
+```
 
 For air-gapped setups and advanced installations, please refer to the [Installation Guide](./docs/installation.md).
 
-### Upgrade from DirectPV v3.2.+
+### Upgrade from DirectPV v3.2.x
 
 Firstly, it is required to uninstall older version of DirectPV. Once it is uninstalled, follow [Installation instructions](#Installation) to install the latest DirectPV. In this process, all existing drives and volumes will be migrated automatically.
 
@@ -68,7 +68,6 @@ Please review the [security checklist](./security-checklist.md) before deploying
 - [Scheduling Guide](./docs/scheduling.md)
 - [Drive Replacement Guide](./docs/drive-replacement.md)
 - [Driver Specification](./docs/specification.md)
-- [Troubleshooting Guide](./docs/troubleshooting.md)
 - [Monitoring & Metrics](./docs/metrics.md)
 - [Developer Guide](./docs/development-and-testing.md)
 
