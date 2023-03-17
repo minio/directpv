@@ -7,7 +7,7 @@ Scheduling guidelines
 
 ### Volume scheduling based on drive labels
 
-In addition to scheduling based on resource constraints (available space) and node topology (affinity/anti-affinity etc.), it is possible to further influence the scheduling of workloads to specific volumes based on drive lavels. The DirectPV drives can be labeled based on its classsification and such labels can be used in the storage class parameters to control scheduling to pick up the chosen drives for volumes. 
+In addition to scheduling based on resource constraints (available space) and node topology (affinity/anti-affinity etc.), it is possible to further influence the scheduling of workloads to specific volumes based on drive labels. The DirectPV drives can be labeled based on its classification and such labels can be used in the storage class parameters to control scheduling to pick up the chosen drives for volumes. 
 
 By default, the DirectPV drives will not have any user defined labels set on them. Use `kubectl directpv label drives` command to set user defined labels to DirectPV drives.
 

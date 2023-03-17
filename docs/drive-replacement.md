@@ -39,23 +39,19 @@ By cordoning, we mark the drives as unschedulable so that no new volumes will be
 $ kubectl directpv cordon <source-drive-id> <dest-drive-id>
 ```
 
-### STEP 4: Cordon the kubernetes node and delete the corresponding workload pod that is running on this node
-
-Cordon the corresponding k8s node and delete the corresponding wokload pod, this will take the workloads offline and also doesn't schedule any new pods on this node.
-
-```sh
-$ kubectl cordon <node-name>
-```
-
-### STEP 5: Get the pods used by the source drive
-
-Make a note of the pods to be deleted in their respective namespaces
+### STEP 4: Get the pods used by the source drive
 
 ```sh
 $ kubectl directpv volumes list --all --drives /dev/<source-drive-name> --nodes <node-name>
 ```
 
-### STEP 6: Delete the pods used by the source drive
+### STEP 5: Cordon the corresponding kubernetes node and delete the pods used by the source drive
+
+Cordon the corresponding k8s node and delete the corresponding workload pods used by the source drive, this will take the workloads offline and also doesn't schedule any new pods on this node.
+
+```sh
+$ kubectl cordon <node-name>
+```
 
 (NOTE: Avoid force deleting here as force deletion might not unpublish the volumes)
 
@@ -65,7 +61,7 @@ $ kubectl delete pod/<pods-name> -n <pod-ns>
 
 This pod will fall in "pending" state after deleting as the node is cordoned
 
-### STEP 7: Wait for associated DirectPV volumes to be unbounded
+### STEP 6: Wait for associated DirectPV volumes to be unbounded
 
 There shouldn't be any volumes in "Bounded" state
 
@@ -73,7 +69,7 @@ There shouldn't be any volumes in "Bounded" state
 $ kubectl directpv volumes list --all --pod-names=<pod-name> --pod-namespaces=<pod-ns>
 ```
 
-### STEP 8: Run move command
+### STEP 7: Run move command
 
 ```sh
 $ kubectl directpv move <source-drive-id> <dest-drive-id>
@@ -85,13 +81,13 @@ After moving, list the drives to see if the volumes got moved to destination
 $ kubectl directpv list drives --drives <source-drive-name>,<dest-drive-name> --nodes <node-name> -o wide
 ```
 
-### STEP 9: Uncordon the destination drive
+### STEP 8: Uncordon the destination drive
 
 ```sh
 $ kubectl directpv uncordon <dest-drive-id>
 ```
 
-### STEP 10: Uncordon the kubernetes node
+### STEP 9: Uncordon the kubernetes node
 
 ```sh
 $ kubectl uncordon <node-name>
@@ -99,7 +95,7 @@ $ kubectl uncordon <node-name>
 
 Now, the corresponding workload pods should be coming up as the node is uncordoned. This pod will be using the new drive.
 
-### STEP 11 (Optional): You can remove the old drive which was replaced
+### STEP 10 (Optional): You can remove the old drive which was replaced
 
 This will release the drive as it is not used anymore
 

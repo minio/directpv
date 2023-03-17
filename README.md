@@ -34,12 +34,19 @@ $ kubectl directpv discover
 $ kubectl directpv init drives.yaml
 ```
 
+(NOTE: XFS is the filesystem used for formatting the drives here)
+
 5. Get list of added drives
 ```sh
 $ kubectl directpv list drives
 ```
 
 6. Deploy a demo MinIO server
+
+DirectPV enforces node constraints where it allocates storage based on the worker node where a pod deploys. If the pod deploys to a worker node with no or insufficient DirectPV-managed drives, DirectPV cannot allocate storage to that pod. DirectPV does not allocate storage from one node to a pod on another node.
+
+Modify the YAML to reflect the node and storage distribution of your Kubernetes cluster.
+
 ```sh
 # This should create MinIO pods and PVCs using the `directpv-min-io` storage class
 $ kubectl apply -f functests/minio.yaml

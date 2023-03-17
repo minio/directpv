@@ -102,9 +102,9 @@ EXAMPLES:
 
 ### Initialize the available drives present in the cluster
 
-Initializing the drives will format the selected drives with XFS filesystem and will mount them to `/var/lib/directpv/mnt/<UUID>` and the initialized drives will be used for provisioning.
+Initializing the drives will format the selected drives with XFS filesystem and mount them to `/var/lib/directpv/mnt/<UUID>`. DirectPV can then use the initialized drives for provisioning Persistent Volumes in respones to PVC with the `directpv-min-io` storage class.
 
-**Warning**: This command will completely erase the data (mkfs) in the selected disks by formatting them
+**Warning**: This command will completely and irreversibly erase the data (mkfs) in the selected disks by formatting them
 
 ```sh
 $ kubectl directpv init --help
