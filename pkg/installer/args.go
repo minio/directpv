@@ -26,9 +26,10 @@ import (
 )
 
 const (
-	csiProvisionerImage      = "csi-provisioner:v3.3.0"
-	nodeDriverRegistrarImage = "csi-node-driver-registrar:v2.6.0"
-	livenessProbeImage       = "livenessprobe:v2.8.0"
+	csiProvisionerImage      = "csi-provisioner:v3.4.0"
+	nodeDriverRegistrarImage = "csi-node-driver-registrar:v2.6.3"
+	livenessProbeImage       = "livenessprobe:v2.9.0"
+	csiResizerImage          = "csi-resizer:v1.7.0"
 )
 
 // Args represents DirectPV installation arguments.
@@ -51,6 +52,7 @@ type Args struct {
 	csiProvisionerImage      string
 	nodeDriverRegistrarImage string
 	livenessProbeImage       string
+	csiResizerImage          string
 	ProgressCh               chan<- Message
 	ForceUninstall           bool
 	DryRunPrinter            func(interface{})
@@ -72,6 +74,7 @@ func NewArgs(image string, auditWriter io.Writer) (*Args, error) {
 		csiProvisionerImage:      csiProvisionerImage,
 		nodeDriverRegistrarImage: nodeDriverRegistrarImage,
 		livenessProbeImage:       livenessProbeImage,
+		csiResizerImage:          csiResizerImage,
 	}
 
 	if err := args.validate(); err != nil {
@@ -113,4 +116,8 @@ func (args *Args) getLivenessProbeImage() string {
 
 func (args *Args) getCSIProvisionerImage() string {
 	return path.Join(args.Registry, args.Org, args.csiProvisionerImage)
+}
+
+func (args *Args) getCSIResizerImage() string {
+	return path.Join(args.Registry, args.Org, args.csiResizerImage)
 }

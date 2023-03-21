@@ -270,6 +270,11 @@ func TestControllerGetCapabilities(t *testing.T) {
 					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME},
 				},
 			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME},
+				},
+			},
 		},
 	}
 	if !reflect.DeepEqual(result, expectedResult) {
@@ -344,8 +349,49 @@ func TestControllerUnpublishVolume(t *testing.T) {
 }
 
 func TestControllerExpandVolume(t *testing.T) {
-	if _, err := NewServer().ControllerExpandVolume(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
+	volumeID := "test-volume-1"
+	reqs := []csi.ControllerExpandVolumeRequest{
+		{
+			VolumeId:      volumeID,
+			CapacityRange: &csi.CapacityRange{RequiredBytes: 50},
+		},
+		{
+			VolumeId:      volumeID,
+			CapacityRange: &csi.CapacityRange{RequiredBytes: 150},
+		},
+	}
+
+	driveID := directpvtypes.DriveID(uuid.NewString())
+	nodeID := directpvtypes.NodeID("node-1")
+	driveName := directpvtypes.DriveName("sda")
+	drive := types.NewDrive(
+		driveID,
+		types.DriveStatus{
+			TotalCapacity: 100 * MiB,
+			FreeCapacity:  100 * MiB,
+			FSUUID:        string(driveID),
+			Status:        directpvtypes.DriveStatusReady,
+			Topology:      map[string]string{},
+		},
+		nodeID,
+		driveName,
+		directpvtypes.AccessTierDefault,
+	)
+
+	volume := types.NewVolume(volumeID, uuid.NewString(), nodeID, driveID, driveName, 100)
+	volume.Status.StagingTargetPath = "/path/staging/targetpath"
+	volume.Status.UsedCapacity = 50
+
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(volume, drive))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
+	ctx := context.TODO()
+	server := NewServer()
+	for i, req := range reqs {
+		if _, err := server.ControllerExpandVolume(ctx, &req); err != nil {
+			t.Errorf("case %v: expected: success; but failed by %v", i+1, err)
+		}
 	}
 }
 

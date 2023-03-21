@@ -34,8 +34,10 @@ const MiB = 1024 * 1024
 
 func createFakeVolumeEventListener(nodeID directpvtypes.NodeID) *volumeEventHandler {
 	return &volumeEventHandler{
-		nodeID:  nodeID,
-		unmount: func(target string) error { return nil },
+		nodeID:            nodeID,
+		unmount:           func(target string) error { return nil },
+		getDeviceByFSUUID: func(fsuuid string) (string, error) { return "", nil },
+		removeQuota:       func(ctx context.Context, device, path, volumeName string) error { return nil },
 	}
 }
 

@@ -89,6 +89,11 @@ func (c *Server) ControllerGetCapabilities(ctx context.Context, req *csi.Control
 					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME},
 				},
 			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME},
+				},
+			},
 		},
 	}, nil
 }
@@ -272,6 +277,74 @@ func (c *Server) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
+// ControllerExpandVolume - controller RPC to expand volume
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllerexpandvolume
+func (c *Server) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
+	klog.V(3).InfoS("Expand volume requested", "name", req.GetVolumeId())
+	volumeID := req.GetVolumeId()
+	if volumeID == "" {
+		return nil, status.Error(codes.InvalidArgument, "empty volume ID in the request")
+	}
+	if req.CapacityRange == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid capacity range in the request for volume %v expansion", volumeID)
+	}
+	requiredBytes := req.CapacityRange.RequiredBytes
+
+	volume, err := client.VolumeClient().Get(ctx, volumeID, metav1.GetOptions{
+		TypeMeta: types.NewVolumeTypeMeta(),
+	})
+	if err != nil {
+		code := codes.Internal
+		if errors.IsNotFound(err) {
+			code = codes.NotFound
+		}
+		return nil, status.Errorf(code, "unable to get volume %v; %v", volumeID, err)
+	}
+
+	if volume.Status.TotalCapacity >= requiredBytes {
+		// As per the specification, nothing to do
+		return &csi.ControllerExpandVolumeResponse{CapacityBytes: requiredBytes}, nil
+	}
+
+	drive, err := client.DriveClient().Get(
+		ctx, string(volume.GetDriveID()), metav1.GetOptions{TypeMeta: types.NewDriveTypeMeta()},
+	)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			"unable to get drive %v for volume %v; %v",
+			volume.GetDriveID(), volumeID, err,
+		)
+	}
+	size := requiredBytes - volume.Status.TotalCapacity
+	if size > drive.Status.FreeCapacity {
+		return nil, status.Errorf(
+			codes.OutOfRange,
+			"required bytes %v is greater than free capacity of drive %v for volume %v expansion",
+			requiredBytes, volume.GetDriveID(), volumeID,
+		)
+	}
+	drive.Status.FreeCapacity -= size
+	drive.Status.AllocatedCapacity += size
+
+	_, err = client.DriveClient().Update(
+		ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
+	)
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			"unable to update reserved drive %v for volume %v expansion; %v",
+			volume.GetDriveID(), volumeID, err,
+		)
+	}
+	client.Eventf(drive, client.EventTypeNormal, client.EventReasonVolumeExpanded, "volume %v with size %v is expanded", volumeID, humanize.Comma(requiredBytes))
+
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         requiredBytes,
+		NodeExpansionRequired: true,
+	}, nil
+}
+
 // ListVolumes implements ListVolumes controller RPC
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#listvolumes
 func (c *Server) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
@@ -287,12 +360,6 @@ func (c *Server) ControllerPublishVolume(ctx context.Context, req *csi.Controlle
 // ControllerUnpublishVolume - controller RPC to unpublish volumes
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllerunpublishvolume
 func (c *Server) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
-}
-
-// ControllerExpandVolume - controller RPC to expand volume
-// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllerexpandvolume
-func (c *Server) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 

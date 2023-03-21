@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sleep-pvc
+spec:
+  volumeMode: Filesystem
+  storageClassName: directpv-min-io
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sleep-pod
+spec:
+  volumes:
+    - name: sleep-volume
+      persistentVolumeClaim:
+        claimName: sleep-pvc
+  containers:
+    - name: sleep-container
+      image: sleep:v0.0.1
+      volumeMounts:
+        - mountPath: "/mnt"
+          name: sleep-volume
+---

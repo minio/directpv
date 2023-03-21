@@ -22,21 +22,40 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
 )
 
+// GetDefaultPluginCapabilities returns default plugin capabilities
+func GetDefaultPluginCapabilities() []*csi.PluginCapability {
+	return []*csi.PluginCapability{
+		{
+			Type: &csi.PluginCapability_Service_{
+				Service: &csi.PluginCapability_Service{
+					Type: csi.PluginCapability_Service_CONTROLLER_SERVICE,
+				},
+			},
+		},
+		{
+			Type: &csi.PluginCapability_Service_{
+				Service: &csi.PluginCapability_Service{
+					Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
+				},
+			},
+		},
+	}
+}
+
 type identityServer struct {
-	identity string
-	version  string
-	manifest map[string]string
+	identity     string
+	version      string
+	capabilities []*csi.PluginCapability
 }
 
 // NewServer creates new identity server.
-func NewServer(identity, version string, manifest map[string]string) (csi.IdentityServer, error) {
+func NewServer(identity, version string, capabilities []*csi.PluginCapability) (csi.IdentityServer, error) {
 	return &identityServer{
-		identity: identity,
-		version:  version,
-		manifest: manifest,
+		identity:     identity,
+		version:      version,
+		capabilities: capabilities,
 	}, nil
 }
 
@@ -60,24 +79,5 @@ func (i *identityServer) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi
 }
 
 func (i *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
-	serviceCap := func(cap csi.PluginCapability_Service_Type) *csi.PluginCapability {
-		klog.V(5).InfoS("Using plugin capability", "capability", cap)
-
-		return &csi.PluginCapability{
-			Type: &csi.PluginCapability_Service_{
-				Service: &csi.PluginCapability_Service{
-					Type: cap,
-				},
-			},
-		}
-	}
-
-	caps := []*csi.PluginCapability{
-		serviceCap(csi.PluginCapability_Service_CONTROLLER_SERVICE),
-		serviceCap(csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS),
-	}
-
-	return &csi.GetPluginCapabilitiesResponse{
-		Capabilities: caps,
-	}, nil
+	return &csi.GetPluginCapabilitiesResponse{Capabilities: i.capabilities}, nil
 }

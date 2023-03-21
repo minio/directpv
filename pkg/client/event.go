@@ -44,6 +44,7 @@ const (
 	EventReasonMetrics                 EventReason = "Metrics"
 	EventReasonVolumeProvisioned       EventReason = "VolumeProvisioned"
 	EventReasonVolumeAdded             EventReason = "VolumeAdded"
+	EventReasonVolumeExpanded          EventReason = "VolumeExpanded"
 	EventReasonVolumeReleased          EventReason = "VolumeReleased"
 	EventReasonDriveMountError         EventReason = "DriveHasMountError"
 	EventReasonDriveMounted            EventReason = "DriveMounted"

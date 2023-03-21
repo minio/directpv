@@ -21,11 +21,12 @@ import (
 	"errors"
 	"os"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/consts"
+	pkgidentity "github.com/minio/directpv/pkg/csi/identity"
 	"github.com/minio/directpv/pkg/csi/node"
 	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/drive"
-	pkgidentity "github.com/minio/directpv/pkg/identity"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
@@ -56,7 +57,15 @@ func startNodeServer(ctx context.Context) error {
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
-	idServer, err := pkgidentity.NewServer(identity, Version, map[string]string{})
+	capabilities := pkgidentity.GetDefaultPluginCapabilities()
+	capabilities = append(capabilities, &csi.PluginCapability{
+		Type: &csi.PluginCapability_VolumeExpansion_{
+			VolumeExpansion: &csi.PluginCapability_VolumeExpansion{
+				Type: csi.PluginCapability_VolumeExpansion_ONLINE,
+			},
+		},
+	})
+	idServer, err := pkgidentity.NewServer(identity, Version, capabilities)
 	if err != nil {
 		return err
 	}

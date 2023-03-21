@@ -190,16 +190,36 @@ func setProjectQuota(device string, projectID uint32, quota Quota) error {
 	return nil
 }
 
-func setQuota(device, path, volumeID string, quota Quota) error {
-	if info, err := getQuota(device, volumeID); err == nil {
-		klog.V(3).InfoS("Quota is already set", "Device", device, "Path", path, "VolumeID", volumeID, "ProjectID", "HardLimitSet", info.HardLimit, "HardLimit", info.HardLimit)
-		return nil
-	}
-
+func setQuota(device, path, volumeID string, quota Quota, update bool) error {
 	projectID := getProjectIDHash(volumeID)
-	if err := setProjectID(path, projectID); err != nil {
-		klog.ErrorS(err, "unable to set project ID", "Device", device, "Path", path)
-		return err
+
+	if !update {
+		if info, err := getQuota(device, volumeID); err == nil {
+			if info.HardLimit == quota.HardLimit {
+				klog.V(3).InfoS(
+					"Quota is already set",
+					"Device", device,
+					"Path", path,
+					"VolumeID", volumeID,
+					"ProjectID", projectID,
+					"HardLimit", info.HardLimit,
+				)
+				return nil
+			}
+
+			klog.V(3).InfoS(
+				"Quota differs",
+				"Device", device,
+				"Path", path,
+				"VolumeID", volumeID,
+				"ProjectID", projectID,
+				"HardLimitSet", info.HardLimit,
+				"HardLimit", quota.HardLimit,
+			)
+		} else if err := setProjectID(path, projectID); err != nil {
+			klog.ErrorS(err, "unable to set project ID", "Device", device, "Path", path)
+			return err
+		}
 	}
 
 	if err := setProjectQuota(device, projectID, quota); err != nil {
@@ -207,6 +227,13 @@ func setQuota(device, path, volumeID string, quota Quota) error {
 		return err
 	}
 
-	klog.V(3).InfoS("SetQuota succeeded", "Device", device, "Path", path, "VolumeID", volumeID, "ProjectID", projectID, "HardLimit", quota.HardLimit)
+	klog.V(3).InfoS(
+		"SetQuota succeeded",
+		"Device", device,
+		"Path", path,
+		"VolumeID", volumeID,
+		"ProjectID", projectID,
+		"HardLimit", quota.HardLimit,
+	)
 	return nil
 }

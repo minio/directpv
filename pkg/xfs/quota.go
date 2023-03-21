@@ -50,10 +50,10 @@ func GetQuota(ctx context.Context, device, volumeID string) (quota *Quota, err e
 }
 
 // SetQuota sets quota information on given path and volume ID.
-func SetQuota(ctx context.Context, device, path, volumeID string, quota Quota) (err error) {
+func SetQuota(ctx context.Context, device, path, volumeID string, quota Quota, update bool) (err error) {
 	doneCh := make(chan struct{})
 	go func() {
-		err = setQuota(device, path, volumeID, quota)
+		err = setQuota(device, path, volumeID, quota, update)
 		close(doneCh)
 	}()
 

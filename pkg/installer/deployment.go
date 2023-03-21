@@ -144,6 +144,25 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 				},
 			},
 			{
+				Name:  "csi-resizer",
+				Image: args.getCSIResizerImage(),
+				Args: []string{
+					fmt.Sprintf("--v=%d", logLevel),
+					"--timeout=300s",
+					fmt.Sprintf("--csi-address=$(%s)", csiEndpointEnvVarName),
+					"--leader-election",
+				},
+				Env: []corev1.EnvVar{csiEndpointEnvVar},
+				VolumeMounts: []corev1.VolumeMount{
+					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+				},
+				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+				TerminationMessagePath:   "/var/log/controller-csi-resizer-termination-log",
+				SecurityContext: &corev1.SecurityContext{
+					Privileged: &privileged,
+				},
+			},
+			{
 				Name:  consts.ControllerServerName,
 				Image: args.getContainerImage(),
 				Args:  containerArgs,

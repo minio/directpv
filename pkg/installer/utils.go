@@ -122,6 +122,20 @@ func clusterRoleComponent(name string) *Component {
 	}
 }
 
+func roleBindingComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "RoleBinding",
+	}
+}
+
+func roleComponent(name string) *Component {
+	return &Component{
+		Name: name,
+		Kind: "Role",
+	}
+}
+
 func podSecurityPolicyComponent(name string) *Component {
 	return &Component{
 		Name: name,

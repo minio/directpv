@@ -286,3 +286,43 @@ function force_uninstall_directcsi() {
     fi
     sleep 5
 }
+
+# usage: test_volume_expansion <sleep-yaml>
+function test_volume_expansion() {
+    echo "* Testing volume expansion"
+
+    sleep_yaml="$1"
+    kubectl apply -f "${sleep_yaml}" 1>/dev/null
+    while ! kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -q sleep-pod; do
+        echo "  ...waiting for sleep-pod to come up"
+        sleep 1m
+    done
+
+    kubectl get pvc sleep-pvc -o json > /tmp/8.json
+    python <<EOF
+import json
+with open("/tmp/8.json") as f:
+    d = json.load(f)
+d["spec"]["resources"]["requests"]["storage"] = "16Mi"
+with open("/tmp/16.json", "w") as f:
+    json.dump(d, f)
+EOF
+    rm -f /tmp/8.json
+    kubectl apply -f /tmp/16.json 1>/dev/null
+    rm -f /tmp/16.json
+    while [ "$(kubectl get pvc sleep-pvc --no-headers -o custom-columns=CAPACITY:.status.capacity.storage)" != "16Mi" ]; do
+        echo "  ...waiting for sleep-pvc to be expanded"
+        sleep 1m
+    done
+
+    kubectl delete -f "${sleep_yaml}" 1>/dev/null
+    while kubectl get pods sleep-pod --no-headers 2>/dev/null | grep -q sleep-pod; do
+        echo "  ...waiting for sleep-pod to go down"
+        sleep 1m
+    done
+
+    while "${DIRECTPV_CLIENT}" list volumes --all --no-headers 2>/dev/null | grep -q .; do
+        echo "  ...waiting for sleep-pvc volume to be removed"
+        sleep 1m
+    done
+}
