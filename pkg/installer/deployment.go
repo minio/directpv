@@ -169,9 +169,15 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
 				},
-				Ports:          commonContainerPorts,
-				ReadinessProbe: &corev1.Probe{ProbeHandler: readinessHandler},
-				Env:            []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
+				Ports: commonContainerPorts,
+				ReadinessProbe: &corev1.Probe{
+					FailureThreshold:    5,
+					InitialDelaySeconds: 60,
+					TimeoutSeconds:      10,
+					PeriodSeconds:       10,
+					ProbeHandler:        readinessHandler,
+				},
+				Env: []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
 					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
 				},

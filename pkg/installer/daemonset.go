@@ -154,12 +154,18 @@ func nodeServerContainer(image string, args []string, securityContext *corev1.Se
 			Name:          "metrics",
 			Protocol:      corev1.ProtocolTCP,
 		}),
-		ReadinessProbe: &corev1.Probe{ProbeHandler: readinessHandler},
+		ReadinessProbe: &corev1.Probe{
+			FailureThreshold:    5,
+			InitialDelaySeconds: 60,
+			TimeoutSeconds:      10,
+			PeriodSeconds:       10,
+			ProbeHandler:        readinessHandler,
+		},
 		LivenessProbe: &corev1.Probe{
 			FailureThreshold:    5,
-			InitialDelaySeconds: 300,
-			TimeoutSeconds:      5,
-			PeriodSeconds:       5,
+			InitialDelaySeconds: 60,
+			TimeoutSeconds:      10,
+			PeriodSeconds:       10,
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path: healthZContainerPortPath,
