@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const deploymentFinalizer = consts.Identity + "/delete-protection"
@@ -81,6 +82,31 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		deployment, err := k8s.KubeClient().AppsV1().Deployments(namespace).Get(
+			ctx, name, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = deployment.CreationTimestamp
+			resourceVersion = deployment.ResourceVersion
+			uid = deployment.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(deployment)); err != nil {
+				return err
+			}
+		}
+	}
+
 	containerArgs = append(
 		containerArgs,
 		[]string{
@@ -90,7 +116,6 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 			fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
 		}...,
 	)
-
 	privileged := true
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: consts.Identity,
@@ -186,11 +211,14 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
-			Finalizers:  []string{deploymentFinalizer},
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              name,
+			Namespace:         namespace,
+			Annotations:       map[string]string{},
+			Labels:            defaultLabels,
+			Finalizers:        []string{deploymentFinalizer},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -217,13 +245,16 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 		return nil
 	}
 
-	_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
-		ctx, deployment, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Update(
+			ctx, deployment, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
+			ctx, deployment, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 

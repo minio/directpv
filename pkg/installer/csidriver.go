@@ -30,6 +30,7 @@ import (
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type csiDriverTask struct{}
@@ -86,16 +87,43 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 	attachRequired := false
 	switch version {
 	case "v1":
+		update := false
+		creationTimestamp := metav1.Time{}
+		resourceVersion := ""
+		uid := types.UID("")
+		if !args.dryRun() {
+			csiDriver, err := k8s.KubeClient().StorageV1().CSIDrivers().Get(
+				ctx, name, metav1.GetOptions{},
+			)
+			switch {
+			case err != nil:
+				if !apierrors.IsNotFound(err) {
+					return err
+				}
+			default:
+				update = true
+				creationTimestamp = csiDriver.CreationTimestamp
+				resourceVersion = csiDriver.ResourceVersion
+				uid = csiDriver.UID
+				if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(csiDriver)); err != nil {
+					return err
+				}
+			}
+		}
+
 		csiDriver := &storagev1.CSIDriver{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "storage.k8s.io/v1",
 				Kind:       "CSIDriver",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   metav1.NamespaceNone,
-				Annotations: map[string]string{},
-				Labels:      defaultLabels,
+				CreationTimestamp: creationTimestamp,
+				ResourceVersion:   resourceVersion,
+				UID:               uid,
+				Name:              name,
+				Namespace:         metav1.NamespaceNone,
+				Annotations:       map[string]string{},
+				Labels:            defaultLabels,
 			},
 			Spec: storagev1.CSIDriverSpec{
 				PodInfoOnMount: &podInfoOnMount,
@@ -112,11 +140,12 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 			return nil
 		}
 
-		_, err := k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
+		if update {
+			_, err = k8s.KubeClient().StorageV1().CSIDrivers().Update(ctx, csiDriver, metav1.UpdateOptions{})
+		} else {
+			_, err = k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
+		}
 		if err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				err = nil
-			}
 			return err
 		}
 
@@ -124,16 +153,43 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 		return err
 
 	case "v1beta1":
+		update := false
+		creationTimestamp := metav1.Time{}
+		resourceVersion := ""
+		uid := types.UID("")
+		if !args.dryRun() {
+			csiDriver, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Get(
+				ctx, name, metav1.GetOptions{},
+			)
+			switch {
+			case err != nil:
+				if !apierrors.IsNotFound(err) {
+					return err
+				}
+			default:
+				update = true
+				creationTimestamp = csiDriver.CreationTimestamp
+				resourceVersion = csiDriver.ResourceVersion
+				uid = csiDriver.UID
+				if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(csiDriver)); err != nil {
+					return err
+				}
+			}
+		}
+
 		csiDriver := &storagev1beta1.CSIDriver{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "storage.k8s.io/v1beta1",
 				Kind:       "CSIDriver",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   metav1.NamespaceNone,
-				Annotations: map[string]string{},
-				Labels:      defaultLabels,
+				CreationTimestamp: creationTimestamp,
+				ResourceVersion:   resourceVersion,
+				UID:               uid,
+				Name:              name,
+				Namespace:         metav1.NamespaceNone,
+				Annotations:       map[string]string{},
+				Labels:            defaultLabels,
 			},
 			Spec: storagev1beta1.CSIDriverSpec{
 				PodInfoOnMount: &podInfoOnMount,
@@ -150,11 +206,12 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 			return nil
 		}
 
-		_, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
+		if update {
+			_, err = k8s.KubeClient().StorageV1beta1().CSIDrivers().Update(ctx, csiDriver, metav1.UpdateOptions{})
+		} else {
+			_, err = k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
+		}
 		if err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				err = nil
-			}
 			return err
 		}
 

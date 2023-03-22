@@ -30,6 +30,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const pspClusterRoleBindingName = "psp-" + consts.Identity
@@ -83,16 +84,44 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		crb, err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Get(
+			ctx, pspClusterRoleBindingName, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = crb.CreationTimestamp
+			resourceVersion = crb.ResourceVersion
+			uid = crb.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(crb)); err != nil {
+				return err
+			}
+		}
+	}
+
 	crb := &rbac.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        pspClusterRoleBindingName,
-			Namespace:   metav1.NamespaceNone,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              pspClusterRoleBindingName,
+			Namespace:         metav1.NamespaceNone,
+			Annotations:       map[string]string{},
+			Labels:            defaultLabels,
 		},
 		Subjects: []rbac.Subject{
 			{
@@ -113,11 +142,12 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
+	if update {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Update(ctx, crb, metav1.UpdateOptions{})
+	} else {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
@@ -136,16 +166,44 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		psp, err := k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Get(
+			ctx, consts.Identity, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = psp.CreationTimestamp
+			resourceVersion = psp.ResourceVersion
+			uid = psp.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(psp)); err != nil {
+				return err
+			}
+		}
+	}
+
 	psp := &policy.PodSecurityPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policy/v1beta1",
 			Kind:       "PodSecurityPolicy",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        consts.Identity,
-			Namespace:   metav1.NamespaceNone,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              consts.Identity,
+			Namespace:         metav1.NamespaceNone,
+			Annotations:       map[string]string{},
+			Labels:            defaultLabels,
 		},
 		Spec: policy.PodSecurityPolicySpec{
 			Privileged:          true,
@@ -181,13 +239,16 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Create(
-		ctx, psp, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Update(
+			ctx, psp, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Create(
+			ctx, psp, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 

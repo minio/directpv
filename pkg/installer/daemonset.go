@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -205,7 +206,7 @@ func livenessProbeContainer(image string) corev1.Container {
 	}
 }
 
-func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.DaemonSet {
+func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string, creationTimestamp metav1.Time, resourceVersion string, uid types.UID) *appsv1.DaemonSet {
 	annotations := map[string]string{createdByLabel: pluginName}
 	if appArmorProfile != "" {
 		// AppArmor profiles need to be specified per-container
@@ -221,10 +222,13 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 			Kind:       "DaemonSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              name,
+			Namespace:         namespace,
+			Annotations:       map[string]string{},
+			Labels:            defaultLabels,
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, selectorValue),
@@ -246,6 +250,30 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 }
 
 func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+			ctx, consts.NodeServerName, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = daemonset.CreationTimestamp
+			resourceVersion = daemonset.ResourceVersion
+			uid = daemonset.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(daemonset)); err != nil {
+				return err
+			}
+		}
+	}
+
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, consts.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
@@ -280,20 +308,23 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 		Tolerations:  args.Tolerations,
 	}
 
-	daemonset := newDaemonset(podSpec, consts.NodeServerName, args.AppArmorProfile)
+	daemonset := newDaemonset(podSpec, consts.NodeServerName, args.AppArmorProfile, creationTimestamp, resourceVersion, uid)
 
 	if args.dryRun() {
 		args.DryRunPrinter(daemonset)
 		return nil
 	}
 
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
-		ctx, daemonset, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Update(
+			ctx, daemonset, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+			ctx, daemonset, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
@@ -302,6 +333,30 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 }
 
 func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+			ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = daemonset.CreationTimestamp
+			resourceVersion = daemonset.ResourceVersion
+			uid = daemonset.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(daemonset)); err != nil {
+				return err
+			}
+		}
+	}
+
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, legacyclient.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
@@ -328,20 +383,23 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 		Tolerations:  args.Tolerations,
 	}
 
-	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, args.AppArmorProfile)
+	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, args.AppArmorProfile, creationTimestamp, resourceVersion, uid)
 
 	if args.dryRun() {
 		args.DryRunPrinter(daemonset)
 		return nil
 	}
 
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
-		ctx, daemonset, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Update(
+			ctx, daemonset, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+			ctx, daemonset, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
@@ -363,39 +421,25 @@ func createDaemonset(ctx context.Context, args *Args) (err error) {
 
 		return nil
 	}
+
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.NodeServerName), 1, nil) {
 		return errSendProgress
 	}
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
-		ctx, consts.NodeServerName, metav1.GetOptions{},
-	)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		if err := doCreateDaemonset(ctx, args); err != nil {
-			return err
-		}
+	if err := doCreateDaemonset(ctx, args); err != nil {
+		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.NodeServerName), 1, daemonsetComponent(consts.NodeServerName)) {
 		return errSendProgress
 	}
+
 	if !args.Legacy {
 		return nil
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.LegacyNodeServerName), 2, nil) {
 		return errSendProgress
 	}
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
-		ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
-	)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		if err := doCreateLegacyDaemonset(ctx, args); err != nil {
-			return err
-		}
+	if err := doCreateLegacyDaemonset(ctx, args); err != nil {
+		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.LegacyNodeServerName), 2, daemonsetComponent(consts.LegacyNodeServerName)) {
 		return errSendProgress

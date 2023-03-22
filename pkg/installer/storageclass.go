@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
@@ -32,6 +33,7 @@ import (
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
@@ -97,15 +99,46 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 
 	switch version {
 	case "v1":
+		delete := false
+		update := false
+		creationTimestamp := metav1.Time{}
+		resourceVersion := ""
+		uid := types.UID("")
+		if !args.dryRun() {
+			storageClass, err := k8s.KubeClient().StorageV1().StorageClasses().Get(
+				ctx, name, metav1.GetOptions{},
+			)
+			switch {
+			case err != nil:
+				if !apierrors.IsNotFound(err) {
+					return err
+				}
+			default:
+				delete = storageClass.Provisioner != consts.Identity
+				if !delete {
+					update = true
+					creationTimestamp = storageClass.CreationTimestamp
+					resourceVersion = storageClass.ResourceVersion
+					uid = storageClass.UID
+				}
+				if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(storageClass)); err != nil {
+					return err
+				}
+			}
+		}
+
 		bindingMode := storagev1.VolumeBindingWaitForFirstConsumer
 		storageClass := &storagev1.StorageClass{
 			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1", Kind: "StorageClass"},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   metav1.NamespaceNone,
-				Annotations: map[string]string{},
-				Labels:      defaultLabels,
-				Finalizers:  []string{metav1.FinalizerDeleteDependents},
+				CreationTimestamp: creationTimestamp,
+				ResourceVersion:   resourceVersion,
+				UID:               uid,
+				Name:              name,
+				Namespace:         metav1.NamespaceNone,
+				Annotations:       map[string]string{},
+				Labels:            defaultLabels,
+				Finalizers:        []string{metav1.FinalizerDeleteDependents},
 			},
 			Provisioner:          consts.Identity,
 			AllowVolumeExpansion: &allowExpansion,
@@ -122,13 +155,26 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 			return nil
 		}
 
-		_, err := k8s.KubeClient().StorageV1().StorageClasses().Create(
-			ctx, storageClass, metav1.CreateOptions{},
-		)
-		if err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				err = nil
+		if delete {
+			err = k8s.KubeClient().StorageV1().StorageClasses().Delete(
+				ctx, name, metav1.DeleteOptions{},
+			)
+			if err != nil {
+				return err
 			}
+			time.Sleep(3 * time.Second)
+		}
+
+		if update {
+			_, err = k8s.KubeClient().StorageV1().StorageClasses().Update(
+				ctx, storageClass, metav1.UpdateOptions{},
+			)
+		} else {
+			_, err = k8s.KubeClient().StorageV1().StorageClasses().Create(
+				ctx, storageClass, metav1.CreateOptions{},
+			)
+		}
+		if err != nil {
 			return err
 		}
 
@@ -136,15 +182,46 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 		return err
 
 	case "v1beta1":
+		delete := false
+		update := false
+		creationTimestamp := metav1.Time{}
+		resourceVersion := ""
+		uid := types.UID("")
+		if !args.dryRun() {
+			storageClass, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Get(
+				ctx, name, metav1.GetOptions{},
+			)
+			switch {
+			case err != nil:
+				if !apierrors.IsNotFound(err) {
+					return err
+				}
+			default:
+				delete = storageClass.Provisioner != consts.Identity
+				if !delete {
+					update = true
+					creationTimestamp = storageClass.CreationTimestamp
+					resourceVersion = storageClass.ResourceVersion
+					uid = storageClass.UID
+				}
+				if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(storageClass)); err != nil {
+					return err
+				}
+			}
+		}
+
 		bindingMode := storagev1beta1.VolumeBindingWaitForFirstConsumer
 		storageClass := &storagev1beta1.StorageClass{
 			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1beta1", Kind: "StorageClass"},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   metav1.NamespaceNone,
-				Annotations: map[string]string{},
-				Labels:      defaultLabels,
-				Finalizers:  []string{metav1.FinalizerDeleteDependents},
+				CreationTimestamp: creationTimestamp,
+				ResourceVersion:   resourceVersion,
+				UID:               uid,
+				Name:              name,
+				Namespace:         metav1.NamespaceNone,
+				Annotations:       map[string]string{},
+				Labels:            defaultLabels,
+				Finalizers:        []string{metav1.FinalizerDeleteDependents},
 			},
 			Provisioner:          consts.Identity,
 			AllowVolumeExpansion: &allowExpansion,
@@ -161,13 +238,26 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 			return nil
 		}
 
-		_, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Create(
-			ctx, storageClass, metav1.CreateOptions{},
-		)
-		if err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				err = nil
+		if delete {
+			err = k8s.KubeClient().StorageV1beta1().StorageClasses().Delete(
+				ctx, name, metav1.DeleteOptions{},
+			)
+			if err != nil {
+				return err
 			}
+			time.Sleep(3 * time.Second)
+		}
+
+		if update {
+			_, err = k8s.KubeClient().StorageV1beta1().StorageClasses().Update(
+				ctx, storageClass, metav1.UpdateOptions{},
+			)
+		} else {
+			_, err = k8s.KubeClient().StorageV1beta1().StorageClasses().Create(
+				ctx, storageClass, metav1.CreateOptions{},
+			)
+		}
+		if err != nil {
 			return err
 		}
 

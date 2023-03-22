@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	podsecurityadmissionapi "k8s.io/pod-security-admission/api"
 )
 
@@ -67,23 +68,50 @@ func createNamespace(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		ns, err := k8s.KubeClient().CoreV1().Namespaces().Get(
+			ctx, namespace, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = ns.CreationTimestamp
+			resourceVersion = ns.ResourceVersion
+			uid = ns.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(ns)); err != nil {
+				return err
+			}
+		}
+	}
+
 	annotations := map[string]string{}
 	if args.podSecurityAdmission {
 		// Policy violations will cause the pods to be rejected
 		annotations[podsecurityadmissionapi.EnforceLevelLabel] = string(podsecurityadmissionapi.LevelPrivileged)
 	}
-
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Namespace",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        namespace,
-			Namespace:   metav1.NamespaceNone,
-			Annotations: annotations,
-			Labels:      defaultLabels,
-			Finalizers:  []string{metav1.FinalizerDeleteDependents},
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              namespace,
+			Namespace:         metav1.NamespaceNone,
+			Annotations:       annotations,
+			Labels:            defaultLabels,
+			Finalizers:        []string{metav1.FinalizerDeleteDependents},
 		},
 	}
 
@@ -91,11 +119,13 @@ func createNamespace(ctx context.Context, args *Args) (err error) {
 		args.DryRunPrinter(ns)
 		return nil
 	}
-	_, err = k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+
+	if update {
+		_, err = k8s.KubeClient().CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{})
+	} else {
+		_, err = k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
