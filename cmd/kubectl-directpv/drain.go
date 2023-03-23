@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022, 2023 MinIO, Inc.
+// Copyright (c) 2023 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -25,7 +25,6 @@ import (
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
@@ -42,7 +41,7 @@ import (
 type drainFunc func(ctx context.Context, nodeName string) error
 
 var drainCmd = &cobra.Command{
-	Use:           "drain [NODE ...]",
+	Use:           "drain <NODE> ...",
 	Short:         "Drain the " + consts.AppPrettyName + " resources from the node(s)",
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -58,13 +57,23 @@ var drainCmd = &cobra.Command{
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
-		input := getInput(color.HiRedString("Draining will forcefully remove all the " + consts.AppPrettyName + " resources from the specified node(s). Do you really want to continue (Yes|No)? "))
-		if input != "Yes" {
-			utils.Eprintf(quietFlag, false, "Aborting...\n")
+		if !dangerousFlag {
+			utils.Eprintf(quietFlag, true, "Draining will forcefully remove all the "+consts.AppPrettyName+" resources from the specified node(s). Please retry this command with `--dangerous` flag.\n")
 			os.Exit(1)
 		}
 		drainMain(c.Context())
 	},
+}
+
+func init() {
+	drainCmd.Flags().SortFlags = false
+	drainCmd.InheritedFlags().SortFlags = false
+	drainCmd.LocalFlags().SortFlags = false
+	drainCmd.LocalNonPersistentFlags().SortFlags = false
+	drainCmd.NonInheritedFlags().SortFlags = false
+	drainCmd.PersistentFlags().SortFlags = false
+
+	addDangerousFlag(drainCmd, "forcefully drain the "+consts.AppPrettyName+" resources from the node(s)")
 }
 
 func validateDrainCmd(ctx context.Context) error {

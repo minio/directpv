@@ -28,6 +28,7 @@ add_drives
 deploy_minio functests/minio.yaml
 uninstall_minio functests/minio.yaml
 test_volume_expansion functests/sleep.yaml
+test_drain_node functests/sleep.yaml
 remove_drives
 uninstall_directpv 4
 remove_luks

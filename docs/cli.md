@@ -115,6 +115,7 @@ USAGE:
 
 FLAGS:
       --timeout duration   specify timeout for the initialization process (default 2m0s)
+      --dangerous          Perform initialization of drives which will permanently erase existing data
   -h, --help               help for init
 
 GLOBAL FLAGS:
@@ -531,6 +532,31 @@ EXAMPLES:
 
 5. Remove drives are in 'error' status
    $ kubectl directpv remove --status=error
+
+```
+
+### Drain the DirectPV resources from the node(s)
+
+Forcefully remove the DirectPV resources from the detached node(s).
+
+```sh
+$ kubectl directpv drain --help
+Drain the DirectPV resources from the node(s)
+
+USAGE:
+  directpv drain <NODE> ... [flags]
+
+FLAGS:
+      --dangerous   forcefully drain the DirectPV resources from the node(s)
+  -h, --help        help for drain
+
+GLOBAL FLAGS:
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+EXAMPLES:
+1. Drain all the DirectPV resources from the node 'node1'
+   $ kubectl directpv drain node1
 
 ```
 

@@ -77,13 +77,13 @@ function install_directpv() {
     running_count=0
     while [[ $running_count -lt $required_count ]]; do
         echo "  ...waiting for $(( required_count - running_count )) DirectPV pods to come up"
-        sleep 1m
+        sleep 30
         running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv | wc -l)
     done
 
     while ! "${DIRECTPV_CLIENT}" info --quiet; do
         echo "  ...waiting for DirectPV to come up"
-        sleep 1m
+        sleep 30
     done
 
     sleep 10
@@ -99,11 +99,11 @@ function uninstall_directpv() {
     while [[ $pending -gt 0 ]]; do
         echo "  ...waiting for ${pending} DirectPV pods to go down"
         sleep 5
-        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv-min-io 2>/dev/null | wc -l)
+        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv 2>/dev/null | wc -l)
     done
 
-    while kubectl get namespace directpv-min-io --no-headers 2>/dev/null | grep -q .; do
-        echo "  ...waiting for directpv-min-io namespace to be removed"
+    while kubectl get namespace directpv --no-headers 2>/dev/null | grep -q .; do
+        echo "  ...waiting for directpv namespace to be removed"
         sleep 5
     done
 
@@ -166,7 +166,7 @@ function deploy_minio() {
     running_count=0
     while [[ $running_count -lt $required_count ]]; do
         echo "  ...waiting for $(( required_count - running_count )) minio pods to come up"
-        sleep 1m
+        sleep 30
         running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
     done
 }
@@ -239,13 +239,13 @@ function install_directcsi() {
     running_count=0
     while [[ $running_count -lt $required_count ]]; do
         echo "  ...waiting for $(( required_count - running_count )) DirectCSI pods to come up"
-        sleep 1m
+        sleep 30
         running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=direct-csi-min-io 2>/dev/null | wc -l)
     done
 
     while ! "${directcsi_client}" info >/dev/null 2>&1; do
         echo "  ...waiting for DirectCSI to come up"
-        sleep 1m
+        sleep 30
     done
 
     sleep 10
@@ -295,7 +295,7 @@ function test_volume_expansion() {
     kubectl apply -f "${sleep_yaml}" 1>/dev/null
     while ! kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -q sleep-pod; do
         echo "  ...waiting for sleep-pod to come up"
-        sleep 1m
+        sleep 30
     done
 
     kubectl get pvc sleep-pvc -o json > /tmp/8.json
@@ -312,17 +312,91 @@ EOF
     rm -f /tmp/16.json
     while [ "$(kubectl get pvc sleep-pvc --no-headers -o custom-columns=CAPACITY:.status.capacity.storage)" != "16Mi" ]; do
         echo "  ...waiting for sleep-pvc to be expanded"
-        sleep 1m
+        sleep 30
     done
 
     kubectl delete -f "${sleep_yaml}" 1>/dev/null
     while kubectl get pods sleep-pod --no-headers 2>/dev/null | grep -q sleep-pod; do
         echo "  ...waiting for sleep-pod to go down"
-        sleep 1m
+        sleep 30
     done
 
     while "${DIRECTPV_CLIENT}" list volumes --all --no-headers 2>/dev/null | grep -q .; do
         echo "  ...waiting for sleep-pvc volume to be removed"
-        sleep 1m
+        sleep 30
     done
 }
+
+
+# usage: test_drain_node <sleep-yaml>
+function test_drain_node() {
+    echo "* Testing node drain"
+
+    sleep_yaml="$1"
+    kubectl apply -f "${sleep_yaml}" 1>/dev/null
+    while ! kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -q sleep-pod; do
+        echo "  ...waiting for sleep-pod to come up"
+        sleep 30
+    done
+
+    node_name=$(kubectl get directpvnode -o custom-columns=:metadata.name --no-headers | sed -n '1p')
+
+    kubectl taint node "${node_name}" test=true:NoSchedule
+    kubectl delete pods -n directpv --all
+
+    pending=4
+    while [[ $pending -gt 0 ]]; do
+        echo "  ...waiting for ${pending} DirectPV pods to go down after tainting the node"
+        sleep 5
+        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv 2>/dev/null | wc -l)
+    done
+
+    kubectl get directpvdrives -o yaml > /tmp/drives.yaml
+    kubectl get directpvvolumes -o yaml > /tmp/volumes.yaml
+
+    if ! "${DIRECTPV_CLIENT}" drain "${node_name}" --dangerous --quiet  > /tmp/.output 2>&1; then
+        cat /tmp/.output
+        echo "$ME: error: failed to drain the node"
+        return 1
+    fi
+
+    if ! kubectl get directpvdrives --no-headers; then
+        echo "$ME: error: drives are still there after draining"
+        return 1
+    fi
+
+    if ! kubectl get directpvvolumes --no-headers; then
+        echo "$ME: error: volumes are still there after draining"
+        return 1
+    fi
+
+    if ! kubectl get directpvnodes --no-headers; then
+        echo "$ME: error: node ${node_name} is still there after draining"
+        return 1
+    fi
+
+    kubectl apply -f /tmp/drives.yaml
+    kubectl apply -f /tmp/volumes.yaml
+
+    kubectl taint node "${node_name}" test-
+
+    required_count=4
+    running_count=0
+    while [[ $running_count -lt $required_count ]]; do
+        echo "  ...waiting for $(( required_count - running_count )) DirectPV pods to come up"
+        sleep 30
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv | wc -l)
+    done
+
+    kubectl delete -f "${sleep_yaml}" 1>/dev/null
+    while kubectl get pods sleep-pod --no-headers 2>/dev/null | grep -q sleep-pod; do
+        echo "  ...waiting for sleep-pod to go down"
+        sleep 30
+    done
+
+    while "${DIRECTPV_CLIENT}" list volumes --all --no-headers 2>/dev/null | grep -q .; do
+        echo "  ...waiting for sleep-pvc volume to be removed"
+        sleep 30
+    done
+}
+
