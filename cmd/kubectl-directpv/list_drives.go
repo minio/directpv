@@ -58,7 +58,10 @@ var listDrivesCmd = &cobra.Command{
    $ kubectl {PLUGIN_NAME} list drives --output wide
 
 7. List drives with labels.
-   $ kubectl {PLUGIN_NAME} list drives --show-labels`,
+   $ kubectl {PLUGIN_NAME} list drives --show-labels
+
+8. List drives filtered by labels
+   $ kubectl {PLUGIN_NAME} list drives --labels tier=hot`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),

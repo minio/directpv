@@ -6,19 +6,23 @@ $ docker login --username <QUAY_USERNAME> https://quay.io
 ```
 3. Create `csi-provisioner`, `livenessprobe` and `csi-node-driver-registrar` repositories by pull/tag/push respective images to your `quay.io` account.
 ```bash
-$ docker pull quay.io/minio/csi-provisioner:v3.3.0 && \
-docker tag quay.io/minio/csi-provisioner:v3.3.0 quay.io/<QUAY_USERNAME>/csi-provisioner:v3.3.0 && \
-docker push quay.io/<QUAY_USERNAME>/csi-provisioner:v3.3.0
+$ docker pull quay.io/minio/csi-provisioner:v3.4.0 && \
+docker tag quay.io/minio/csi-provisioner:v3.4.0 quay.io/<QUAY_USERNAME>/csi-provisioner:v3.4.0 && \
+docker push quay.io/<QUAY_USERNAME>/csi-provisioner:v3.4.0
 
-$ docker pull quay.io/minio/livenessprobe:v2.8.0 && \
-docker tag quay.io/minio/livenessprobe:v2.8.0 quay.io/<QUAY_USERNAME>/livenessprobe:v2.8.0 && \
-docker push quay.io/<QUAY_USERNAME>/livenessprobe:v2.8.0
+$ docker pull quay.io/minio/livenessprobe:v2.9.0 && \
+docker tag quay.io/minio/livenessprobe:v2.9.0 quay.io/<QUAY_USERNAME>/livenessprobe:v2.9.0 && \
+docker push quay.io/<QUAY_USERNAME>/livenessprobe:v2.9.0
 
-$ docker pull quay.io/minio/csi-node-driver-registrar:v2.6.0 && \
-docker tag quay.io/minio/csi-node-driver-registrar:v2.6.0 quay.io/<QUAY_USERNAME>/csi-node-driver-registrar:v2.6.0 && \
-docker push quay.io/<QUAY_USERNAME>/csi-node-driver-registrar:v2.6.0
+$ docker pull quay.io/minio/csi-node-driver-registrar:v2.6.3 && \
+docker tag quay.io/minio/csi-node-driver-registrar:v2.6.3 quay.io/<QUAY_USERNAME>/csi-node-driver-registrar:v2.6.3 && \
+docker push quay.io/<QUAY_USERNAME>/csi-node-driver-registrar:v2.6.3
+
+$ docker pull quay.io/minio/csi-resizer:v1.7.0 && \
+docker tag quay.io/minio/csi-resizer:v1.7.0 quay.io/<QUAY_USERNAME>/csi-resizer:v1.7.0 && \
+docker push quay.io/<QUAY_USERNAME>/csi-resizer:v1.7.0
 ```
-4. Make sure `csi-provisioner`, `livenessprobe` and `csi-node-driver-registrar` repositories are `public` in your `quay.io` account.
+4. Make sure `csi-provisioner`, `livenessprobe`, `csi-node-driver-registrar` and `csi-resizer` repositories are `public` in your `quay.io` account.
 5. Go to your DirectPV project root.
 ```bash
 $ cd $GOPATH/src/github.com/minio/directpv
@@ -79,17 +83,17 @@ Install the freshly built version
 ./kubectl-directpv install --image directpv:<NEW_BUILD_TAG> --org <QUAY_USERNAME> --registry quay.io
 ```
 
-4. Check if the drives are showing up
-
-```bash
-./kubectl-directpv list drives
-```
-
-5. Format the drives
+4. Discover and initialize the drives
 
 ```bash
 ./kubectl-directpv discover --output-file drives.yaml
 ./kubectl-directpv init drives.yaml
+```
+
+5. Check if the drives are showing up
+
+```bash
+./kubectl-directpv list drives
 ```
 
 6. Apply the minio.yaml file

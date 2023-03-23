@@ -5,63 +5,75 @@ title: Scheduling
 Scheduling guidelines
 -------------
 
-### Access-tier based volume scheduling
+### Volume scheduling based on drive labels
 
-In addition to scheduling based on resource constraints (available space) and node topology (affinity/anti-affinity etc.), it is possible to further influence the scheduling of workloads to specific volumes based on "access-tiers". DirectPV pre-defines 3 access tiers:
+In addition to scheduling based on resource constraints (available space) and node topology (affinity/anti-affinity etc.), it is possible to further influence the scheduling of workloads to specific volumes based on drive labels. The DirectPV drives can be labeled based on its classification and such labels can be used in the storage class parameters to control scheduling to pick up the chosen drives for volumes. 
 
-- Hot
-- Warm
-- Cold
+By default, the DirectPV drives will not have any user defined labels set on them. Use `kubectl directpv label drives` command to set user defined labels to DirectPV drives.
 
-By default, directpv drives are not associated with any access-tier. An admin can associate drives to access tiers. Further instructions on the configuration is provided in the following sections.
+**Notes:**
 
-#### Step 1: Set access-tier tag on the drives
+- This applies only for creating new volumes as this is a schedule time process.
+- In the following example, please replace the place holders `<label-key>`,`<label-value>` and `<drive-name>` with appropriate values based on the classification you chose
 
-```
-kubectl directpv drives access-tier set hot|cold|warm [FLAGS]
-```
+#### Step 1: Set the label on the DirectPV drive(s)
 
-#### Step 2: Format the tiered drives (Incase of fresh/available drives)
-
-```
-kubectl directpv drives format --access-tier=hot|cold|warm
+```sh
+kubectl directpv label drives <label-key>=<label-value> --drives /dev/<drive-name>
 ```
 
-#### Step 3: Set the 'directpv-min-io/access-tier' parameter in storage class definition
+To Verify if the labels are properly set, list the drives with `--show-labels` flag
+
+```sh
+kubectl directpv list drives --drives /dev/<drive-name> --show-labels
+```
+
+#### Step 2: Set the 'directpv-min-io/<label-key>: <label-value>' parameter in storage class definition
 
 Create a storage class with the following parameter set
 
-```
+```yaml
 parameters:
-  direct-csi-min-io/access-tier: Warm|Hot|Cold
+  directpv.min.io/<label-key>: <label-value>
 ```
 
-For example, take the following storage class definition for Hot tiered drives
+For example, create a new storage class with the `parameters` section
 
-```
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: directpv-min-io-hot
-parameters:
-  fstype: xfs
-  direct-csi-min-io/access-tier: Hot
-provisioner: direct-csi-min-io
-reclaimPolicy: Delete
-volumeBindingMode: WaitForFirstConsumer
+(NOTE: Please refer the exiting storage class `kubectl get storageclass directpv-min-io -n directpv -o yaml` to compare and check if all the fields are present on the new storage class)
+
+```yaml
 allowVolumeExpansion: false
 allowedTopologies:
 - matchLabelExpressions:
-  - key: direct.csi.min.io/identity
+  - key: directpv.min.io/identity
     values:
-    - direct-csi-min-io
+    - directpv-min-io
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  finalizers:
+  - foregroundDeletion
+  labels:
+    application-name: directpv.min.io
+    application-type: CSIDriver
+    directpv.min.io/created-by: kubectl-directpv
+    directpv.min.io/version: v1beta1
+  name: directpv-min-io-new # Please choose any storage class name of your choice
+  resourceVersion: "511457"
+  uid: e93d8dab-b182-482f-b8eb-c69d4a1ec62d
+parameters:
+  fstype: xfs
+  directpv.min.io/<label-key>: <label-value>
+provisioner: directpv-min-io
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
 ```
 
-#### Step 4: Deploy the workload with the corresponding storage class name set
+#### Step 3: Deploy the workload with the new storage class name set
 
-You will see volumes placed on the tiered drives only. You can verify this by the following set of commands
+You will see volumes placed on the labeled drives only. You can verify this by the following command
 
-```
-kubectl directpv volumes ls --access-tier=warm|hot|cold
-kubectl directpv drives ls --access-tier=warm|hot|cold
+```sh
+kubectl directpv list drives --labels <label-key>:<label-value>
+kubectl directpv list volumes
 ```
