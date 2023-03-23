@@ -96,13 +96,6 @@ func toLabelValues(slice []string) (values []directpvtypes.LabelValue) {
 	return
 }
 
-func getInput(msg string) string {
-	fmt.Printf("%v", msg)
-	var input string
-	fmt.Scanln(&input)
-	return input
-}
-
 func validateOutputFormat(isWideSupported bool) error {
 	switch outputFormat {
 	case "":
