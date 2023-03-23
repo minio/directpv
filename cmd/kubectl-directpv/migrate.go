@@ -63,6 +63,6 @@ func migrateMain(ctx context.Context) {
 	}
 
 	if !quietFlag {
-		fmt.Println("Migration successful")
+		fmt.Println("Migration successful; Please restart the pods in '" + consts.AppName + "' namespace.")
 	}
 }

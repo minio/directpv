@@ -28,9 +28,10 @@ Please follow https://github.com/minio/directpv/blob/master/docs/upgrade.md#upgr
 In the latest version of DirectPV, the CSI sidecar images have been updated. If private registry is used for images, please make sure the following images are available in your registry before upgrade.
 
 ```
-quay.io/minio/csi-node-driver-registrar:v2.6.0
-quay.io/minio/csi-provisioner:v3.3.0
-quay.io/minio/livenessprobe:v2.8.0
+quay.io/minio/csi-node-driver-registrar:v2.6.3
+quay.io/minio/csi-provisioner:v3.4.0
+quay.io/minio/livenessprobe:v2.9.0
+quay.io/minio/csi-resizer:v1.7.0
 ```
 
 **Notes:**
