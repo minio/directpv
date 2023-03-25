@@ -59,7 +59,7 @@ func NewServer(identity, version string, capabilities []*csi.PluginCapability) (
 	}, nil
 }
 
-func (i *identityServer) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
+func (i *identityServer) GetPluginInfo(_ context.Context, _ *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	if i.identity == "" {
 		return nil, status.Error(codes.Unavailable, "Driver name not configured")
 	}
@@ -74,10 +74,10 @@ func (i *identityServer) GetPluginInfo(ctx context.Context, req *csi.GetPluginIn
 	}, nil
 }
 
-func (i *identityServer) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
+func (i *identityServer) Probe(_ context.Context, _ *csi.ProbeRequest) (*csi.ProbeResponse, error) {
 	return &csi.ProbeResponse{}, nil
 }
 
-func (i *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
+func (i *identityServer) GetPluginCapabilities(_ context.Context, _ *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	return &csi.GetPluginCapabilitiesResponse{Capabilities: i.capabilities}, nil
 }

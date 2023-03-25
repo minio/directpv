@@ -30,14 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	deploymentFinalizer        = consts.Identity + "/delete-protection"
-	adminServerCertsDir        = "admin-server-certs"
-	adminServerCertsSecretName = "adminservercerts"
-	adminServerCASecretName    = "adminservercacert"
-	adminServerSelectorValue   = "admin-server"
-	nodeAPIServerCADir         = "node-api-server-ca"
-)
+const deploymentFinalizer = consts.Identity + "/delete-protection"
 
 type deploymentTask struct{}
 

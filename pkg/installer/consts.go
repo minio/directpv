@@ -23,7 +23,6 @@ const (
 	UnixCSIEndpoint = "unix:///csi/csi.sock"
 
 	namespace                = consts.AppName
-	caCertFileName           = "ca.crt"
 	healthZContainerPortName = "healthz"
 	healthZContainerPort     = 9898
 	volumePathSysDir         = "/sys"

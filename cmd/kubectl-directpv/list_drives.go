@@ -72,7 +72,7 @@ var listDrivesCmd = &cobra.Command{
 			os.Exit(-1)
 		}
 
-		listDrivesMain(c.Context(), args)
+		listDrivesMain(c.Context())
 	},
 }
 
@@ -121,7 +121,7 @@ func validateListDrivesArgs() error {
 	return nil
 }
 
-func listDrivesMain(ctx context.Context, args []string) {
+func listDrivesMain(ctx context.Context) {
 	drives, err := drive.NewLister().
 		NodeSelector(toLabelValues(nodesArgs)).
 		DriveNameSelector(toLabelValues(drivesArgs)).

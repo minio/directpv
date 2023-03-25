@@ -76,6 +76,6 @@ func (handler *nodeEventHandler) Handle(ctx context.Context, eventType controlle
 
 // StartController starts node controller.
 func StartController(ctx context.Context, nodeID directpvtypes.NodeID) {
-	ctrl := controller.New(ctx, "node", newNodeEventHandler(nodeID), workerThreads, resyncPeriod)
+	ctrl := controller.New("node", newNodeEventHandler(nodeID), workerThreads, resyncPeriod)
 	ctrl.Run(ctx)
 }
