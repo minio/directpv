@@ -63,8 +63,6 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 		}
 		return nil
 	}
-	if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-		return err
-	}
-	return nil
+
+	return retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
 }

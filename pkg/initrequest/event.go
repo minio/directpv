@@ -196,7 +196,7 @@ func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *ty
 			wg.Add(1)
 			go func(i int, device pkgdevice.Device, force bool) {
 				defer wg.Done()
-				if err := handler.initDevice(ctx, device, force); err != nil {
+				if err := handler.initDevice(device, force); err != nil {
 					results[i].Error = err.Error()
 				}
 			}(i, device, req.Spec.Devices[i].Force)
@@ -223,7 +223,7 @@ func updateInitRequest(ctx context.Context, name string, results []types.InitDev
 	return retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
 }
 
-func (handler *initRequestEventHandler) initDevice(ctx context.Context, device pkgdevice.Device, force bool) error {
+func (handler *initRequestEventHandler) initDevice(device pkgdevice.Device, force bool) error {
 	devPath := utils.AddDevPrefix(device.Name)
 
 	deviceMap, majorMinorMap, err := handler.getMounts()
@@ -310,6 +310,6 @@ func StartController(ctx context.Context, nodeID directpvtypes.NodeID, identity,
 		klog.ErrorS(err, "unable to create initrequest event handler")
 		return
 	}
-	ctrl := controller.New(ctx, "initrequest", initRequestHandler, workerThreads, resyncPeriod)
+	ctrl := controller.New("initrequest", initRequestHandler, workerThreads, resyncPeriod)
 	ctrl.Run(ctx)
 }

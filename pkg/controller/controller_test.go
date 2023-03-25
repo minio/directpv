@@ -66,12 +66,12 @@ func (handler *testEventHandler) ObjectType() runtime.Object {
 	return &pkgtypes.Volume{}
 }
 
-func (handler *testEventHandler) Handle(ctx context.Context, eventType EventType, object runtime.Object) error {
+func (handler *testEventHandler) Handle(_ context.Context, eventType EventType, object runtime.Object) error {
 	return handler.handleFunc(eventType, object)
 }
 
-func startTestController(ctx context.Context, t *testing.T, handler *testEventHandler, threadiness int) {
-	controller := New(ctx, "test-volume-controller", handler, 1, 10*time.Second)
+func startTestController(ctx context.Context, handler *testEventHandler) {
+	controller := New("test-volume-controller", handler, 1, 10*time.Second)
 	go controller.Run(ctx)
 }
 
@@ -147,7 +147,7 @@ func TestController(t *testing.T) {
 
 	doneCh, handleFunc := getHandleFunc(t, AddEvent, volumesMap)
 	testHandler.handleFunc = handleFunc
-	startTestController(ctx, t, testHandler, 1)
+	startTestController(ctx, testHandler)
 	<-doneCh
 
 	volumes = []*pkgtypes.Volume{

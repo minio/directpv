@@ -35,7 +35,7 @@ func NewLegacyServer(nodeID directpvtypes.NodeID, rack, zone, region string) *Le
 
 // NodeGetInfo gets node information.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo
-func (server *LegacyServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+func (server *LegacyServer) NodeGetInfo(_ context.Context, _ *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	topology := &csi.Topology{
 		Segments: map[string]string{
 			"direct.csi.min.io/identity": server.identity,

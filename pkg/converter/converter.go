@@ -55,10 +55,7 @@ func MigrateList(fromList, toList *unstructured.UnstructuredList, groupVersion s
 	fromList.DeepCopyInto(toList)
 	fn := func(obj runtime.Object) error {
 		cpObj := obj.DeepCopyObject()
-		if err := Migrate(cpObj.(*unstructured.Unstructured), obj.(*unstructured.Unstructured), groupVersion); err != nil {
-			return err
-		}
-		return nil
+		return Migrate(cpObj.(*unstructured.Unstructured), obj.(*unstructured.Unstructured), groupVersion)
 	}
 	toList.SetAPIVersion(groupVersion.Group + "/" + groupVersion.Version)
 	return toList.EachListItem(fn)

@@ -232,9 +232,9 @@ func getLegacyFlag(ctx context.Context) bool {
 		if result.Err != nil {
 			utils.Eprintf(quietFlag, true, "unable to get volumes; %v", result.Err)
 			break
-		} else {
-			return true
 		}
+
+		return true
 	}
 
 	legacyclient.Init()
@@ -243,9 +243,9 @@ func getLegacyFlag(ctx context.Context) bool {
 		if result.Err != nil {
 			utils.Eprintf(quietFlag, true, "unable to get legacy volumes; %v", result.Err)
 			break
-		} else {
-			return true
 		}
+
+		return true
 	}
 
 	return false

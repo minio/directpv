@@ -32,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-var pspClusterRoleBindingName = "psp-" + consts.Identity
+const pspClusterRoleBindingName = "psp-" + consts.Identity
 
 var errPSPUnsupported = errors.New("pod security policy is not supported in your kubernetes version")
 

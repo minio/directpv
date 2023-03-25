@@ -74,7 +74,7 @@ type Controller struct {
 }
 
 // New creates a new controller for the provided handler
-func New(ctx context.Context, name string, handler EventHandler, workers int, resyncPeriod time.Duration) *Controller {
+func New(name string, handler EventHandler, workers int, resyncPeriod time.Duration) *Controller {
 	informer := cache.NewSharedIndexInformer(
 		handler.ListerWatcher(),
 		handler.ObjectType(),
@@ -154,7 +154,6 @@ func (c *Controller) HasSynced() bool {
 
 func (c *Controller) runWorker(ctx context.Context) {
 	for c.processNextItem(ctx) {
-		// continue looping
 	}
 }
 

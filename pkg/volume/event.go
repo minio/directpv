@@ -77,7 +77,7 @@ func (handler *volumeEventHandler) ObjectType() runtime.Object {
 	return &types.Volume{}
 }
 
-func (handler *volumeEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
+func (handler *volumeEventHandler) Handle(ctx context.Context, _ controller.EventType, object runtime.Object) error {
 	volume := object.(*types.Volume)
 	if !volume.GetDeletionTimestamp().IsZero() {
 		return handler.delete(ctx, volume)
@@ -198,6 +198,6 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, volume *ty
 
 // StartController starts volume controller.
 func StartController(ctx context.Context, nodeID directpvtypes.NodeID) {
-	ctrl := controller.New(ctx, "volume", newVolumeEventHandler(nodeID), workerThreads, resyncPeriod)
+	ctrl := controller.New("volume", newVolumeEventHandler(nodeID), workerThreads, resyncPeriod)
 	ctrl.Run(ctx)
 }

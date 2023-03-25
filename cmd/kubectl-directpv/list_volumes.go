@@ -80,7 +80,7 @@ var listVolumesCmd = &cobra.Command{
 			os.Exit(-1)
 		}
 
-		listVolumesMain(c.Context(), args)
+		listVolumesMain(c.Context())
 	},
 }
 
@@ -159,7 +159,7 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 	return "-"
 }
 
-func listVolumesMain(ctx context.Context, args []string) {
+func listVolumesMain(ctx context.Context) {
 	volumes, err := volume.NewLister().
 		NodeSelector(toLabelValues(nodesArgs)).
 		DriveNameSelector(toLabelValues(drivesArgs)).
