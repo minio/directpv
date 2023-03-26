@@ -41,6 +41,9 @@ var nodeServerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
+		if err := sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+			return err
+		}
 		if err := device.Sync(c.Context(), nodeID); err != nil {
 			return err
 		}
@@ -93,10 +96,6 @@ func startNodeServer(ctx context.Context) error {
 		metricsPort,
 	)
 	klog.V(3).Infof("Node server started")
-
-	if err = sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
-		return err
-	}
 
 	go func() {
 		if err := runServers(ctx, csiEndpoint, idServer, nil, nodeServer); err != nil {
