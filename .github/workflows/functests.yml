@@ -77,9 +77,11 @@ jobs:
 
       - name: Run migration tests with DirectCSI v3.2.2
         run: |
+          sudo rm -fr /var/lib/directpv
           functests/run-migration-tests.sh "v3.2.2"
 
       - name: Run migration tests with DirectCSI v2.0.9
         if: contains(fromJson('["v1.18.20", "v1.19.16", "v1.20.15", "v1.21.14", "v1.22.16"]'), matrix.kube-version)
         run: |
+          sudo rm -fr /var/lib/directpv /var/lib/direct-csi
           functests/run-migration-tests.sh "v2.0.9"

@@ -34,7 +34,7 @@ sed -e s:directpv-min-io:direct-csi-min-io:g -e s:directpv.min.io:direct.csi.min
 function migrate_test() {
     directcsi_client="$1"
     pod_count="$2"
-    
+
     setup_lvm
     setup_luks
 
