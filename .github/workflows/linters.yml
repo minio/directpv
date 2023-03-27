@@ -27,6 +27,6 @@ jobs:
           SHELLCHECK_OPTS: -e SC1091 -e SC2016
       - uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.51.2
+          version: v1.52.1
           args: --config ./.golangci.yml --timeout=60m
           skip-go-installation: true

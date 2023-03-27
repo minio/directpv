@@ -86,7 +86,7 @@ func NewServer(ctx context.Context,
 
 // NodeGetInfo gets node information.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo
-func (server *Server) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+func (server *Server) NodeGetInfo(_ context.Context, _ *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	topology := &csi.Topology{
 		Segments: map[string]string{
 			string(directpvtypes.TopologyDriverIdentity): server.identity,
@@ -105,7 +105,7 @@ func (server *Server) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 
 // NodeGetCapabilities gets node capabilities.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetcapabilities
-func (server *Server) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+func (server *Server) NodeGetCapabilities(_ context.Context, _ *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	nodeCap := func(cap csi.NodeServiceCapability_RPC_Type) *csi.NodeServiceCapability {
 		klog.V(5).InfoS("Using node capability", "NodeServiceCapability", cap)
 

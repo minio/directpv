@@ -86,11 +86,6 @@ const (
 	// MountRootDir is mount root directory.
 	MountRootDir = AppRootDir + "/mnt"
 
-	CredentialsSecretName = AppName + "-creds"
-
-	PrivateKeyFileName = "key.pem"
-	PublicCertFileName = "cert.pem"
-
 	NodeServerName       = "node-server"
 	ControllerServerName = "controller"
 	NodeControllerName   = "node-controller"

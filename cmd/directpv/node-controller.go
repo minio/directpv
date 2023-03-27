@@ -40,11 +40,11 @@ var nodeControllerCmd = &cobra.Command{
 		if err := node.Sync(c.Context(), nodeID); err != nil {
 			return err
 		}
-		return startNodeController(c.Context(), args)
+		return startNodeController(c.Context())
 	},
 }
 
-func startNodeController(ctx context.Context, args []string) error {
+func startNodeController(ctx context.Context) error {
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()

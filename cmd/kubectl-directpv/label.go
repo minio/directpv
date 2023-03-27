@@ -74,10 +74,8 @@ func validateLabelCmd() error {
 	if err := validateNodeArgs(); err != nil {
 		return err
 	}
-	if err := validateDriveNameArgs(); err != nil {
-		return err
-	}
-	return nil
+
+	return validateDriveNameArgs()
 }
 
 func parseLabel(kv string) (labelKey types.LabelKey, labelValue types.LabelValue, err error) {

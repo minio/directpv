@@ -38,7 +38,7 @@ func NewLegacyServer() *LegacyServer {
 
 // CreateVolume - Creates a volume
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#createvolume
-func (c *LegacyServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+func (c *LegacyServer) CreateVolume(_ context.Context, _ *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	return nil, status.Errorf(
 		codes.InvalidArgument,
 		fmt.Sprintf("legacy volume creation not supported; use %v storage class", consts.Identity),

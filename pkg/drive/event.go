@@ -59,10 +59,8 @@ func SetIOError(ctx context.Context, driveID directpvtypes.DriveID) error {
 		_, err = client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()})
 		return err
 	}
-	if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-		return err
-	}
-	return nil
+
+	return retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
 }
 
 // StageVolume creates and mounts staging target path of the volume to the drive.
@@ -190,7 +188,7 @@ func (handler *driveEventHandler) ObjectType() runtime.Object {
 	return &types.Drive{}
 }
 
-func (handler *driveEventHandler) unmountDrive(ctx context.Context, drive *types.Drive, skipDriveMount bool) error {
+func (handler *driveEventHandler) unmountDrive(drive *types.Drive, skipDriveMount bool) error {
 	mountPointMap, deviceMap, err := handler.getMounts()
 	if err != nil {
 		return err
@@ -225,7 +223,7 @@ func (handler *driveEventHandler) remove(ctx context.Context, drive *types.Drive
 	if volumeCount > 0 {
 		return fmt.Errorf("drive %v still contains %v volumes", drive.GetDriveID(), volumeCount)
 	}
-	if err := handler.unmountDrive(ctx, drive, false); err != nil {
+	if err := handler.unmountDrive(drive, false); err != nil {
 		return err
 	}
 	drive.RemoveFinalizers()
@@ -335,6 +333,6 @@ func (handler *driveEventHandler) Handle(ctx context.Context, eventType controll
 
 // StartController starts drive controller.
 func StartController(ctx context.Context, nodeID directpvtypes.NodeID) {
-	ctrl := controller.New(ctx, "drive", newDriveEventHandler(nodeID), workerThreads, resyncPeriod)
+	ctrl := controller.New("drive", newDriveEventHandler(nodeID), workerThreads, resyncPeriod)
 	ctrl.Run(ctx)
 }

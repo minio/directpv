@@ -81,7 +81,7 @@ func NewServer() *Server {
 
 // ControllerGetCapabilities constructs ControllerGetCapabilitiesResponse
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllergetcapabilities
-func (c *Server) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+func (c *Server) ControllerGetCapabilities(_ context.Context, _ *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: []*csi.ControllerServiceCapability{
 			{
@@ -100,7 +100,7 @@ func (c *Server) ControllerGetCapabilities(ctx context.Context, req *csi.Control
 
 // ValidateVolumeCapabilities validates volume capabilities
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#validatevolumecapabilities
-func (c *Server) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
+func (c *Server) ValidateVolumeCapabilities(_ context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	var message string
 	for _, vcap := range req.GetVolumeCapabilities() {
 		if vcap.GetAccessMode() != nil && vcap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
@@ -347,48 +347,48 @@ func (c *Server) ControllerExpandVolume(ctx context.Context, req *csi.Controller
 
 // ListVolumes implements ListVolumes controller RPC
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#listvolumes
-func (c *Server) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
+func (c *Server) ListVolumes(_ context.Context, _ *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 // ControllerPublishVolume - controller RPC to publish volumes
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllerpublishvolume
-func (c *Server) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+func (c *Server) ControllerPublishVolume(_ context.Context, _ *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 // ControllerUnpublishVolume - controller RPC to unpublish volumes
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllerunpublishvolume
-func (c *Server) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+func (c *Server) ControllerUnpublishVolume(_ context.Context, _ *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 // ControllerGetVolume - controller RPC for get volume
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllergetvolume
-func (c *Server) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+func (c *Server) ControllerGetVolume(_ context.Context, _ *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 // ListSnapshots - controller RPC for listing snapshots
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#listsnapshots
-func (c *Server) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+func (c *Server) ListSnapshots(_ context.Context, _ *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 // CreateSnapshot controller RPC for creating snapshots
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#createsnapshot
-func (c *Server) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+func (c *Server) CreateSnapshot(_ context.Context, _ *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 // DeleteSnapshot - controller RPC for deleting snapshots
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#deletesnapshot
-func (c *Server) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+func (c *Server) DeleteSnapshot(_ context.Context, _ *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 // GetCapacity - controller RPC to get capacity
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#getcapacity
-func (c *Server) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
+func (c *Server) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
