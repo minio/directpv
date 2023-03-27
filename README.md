@@ -54,9 +54,26 @@ $ kubectl apply -f functests/minio.yaml
 
 For air-gapped setups and advanced installations, please refer to the [Installation Guide](./docs/installation.md).
 
-### Upgrade from DirectPV v3.2.x
+### Upgrade
 
 Firstly, it is required to uninstall older version of DirectPV. Once it is uninstalled, follow [Installation instructions](#Installation) to install the latest DirectPV. In this process, all existing drives and volumes will be migrated automatically.
+
+#### Upgrade using krew
+
+Refer the following steps for upgrading DirectPV using krew
+
+```sh
+# Uninstall existing DirectPV installation
+$ kubectl directpv uninstall
+
+# Upgrade directpv plugin via krew
+$ kubectl krew upgrade directpv
+
+# Install latest DirectPV
+$ kubectl directpv install
+```
+
+#### Upgrade from DirectPV v3.2.x
 
 For migrating from older versions < v3.2.0, Please refer the [Upgrade Guide](./docs/upgrade.md)
 
