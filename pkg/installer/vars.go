@@ -17,6 +17,8 @@
 package installer
 
 import (
+	"os"
+
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +28,8 @@ import (
 const readinessPortName = "readinessport"
 
 var (
+	kubeletDirPath = "/var/lib/kubelet"
+
 	defaultLabels = map[string]string{
 		"application-name":                      consts.GroupName,
 		"application-type":                      "CSIDriver",
@@ -69,3 +73,9 @@ var (
 		},
 	}
 )
+
+func init() {
+	if value := os.Getenv("KUBELET_DIR_PATH"); value != "" {
+		kubeletDirPath = value
+	}
+}
