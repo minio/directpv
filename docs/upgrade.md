@@ -34,6 +34,8 @@ quay.io/minio/csi-resizer:v1.7.0
 
 - If your kubernetes version is less than v1.20, you need push `quay.io/minio/csi-provisioner:v2.2.0-go1.18`
 
-If you are on DirectPV versions < v4.0.0 and if you are using any custom storage classes for controlling volume scheduling based on access-tiers as explained [here](https://github.com/minio/directpv/blob/master_old/docs/scheduling.md), you need to make the following change to these custom storage classes.
+- If you are on DirectPV versions < v4.0.0 and if you are using any custom storage classes for controlling volume scheduling based on access-tiers as explained [here](https://github.com/minio/directpv/blob/master_old/docs/scheduling.md), you need to make the following change to these custom storage classes.
 
 You need to change `direct.csi.min.io/access-tier: <your_access_tier_value>` to `directpv.min.io/access-tier: <your_access_tier_value>` in the respective storage class parameters section.
+
+- The older CRDs (directcsidrives and directcsivolumes) are deprecated and not used in versions > v4.0.0, it can be removed after upgrading. Please use the [bash script](./tools/remove-directcsi.sh) to remove the older objects after upgrading to latest.

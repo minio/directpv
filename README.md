@@ -92,6 +92,7 @@ Please review the [security checklist](./security-checklist.md) before deploying
 - [Scheduling Guide](./docs/scheduling.md)
 - [Drive Replacement Guide](./docs/drive-replacement.md)
 - [Volume Expansion](./docs/volume-expansion.md)
+- [Drain a node](./docs/drain-node.md)
 - [Driver Specification](./docs/specification.md)
 - [Monitoring & Metrics](./docs/metrics.md)
 - [Developer Guide](./docs/development-and-testing.md)
