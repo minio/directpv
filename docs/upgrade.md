@@ -16,7 +16,7 @@ NOTE: For the users who don't prefer krew, Please find the latest images in [rel
 
 If you are on DirectPV version < 3.2.x, it is recommended to upgrade to v3.2.2 and then to the latest
 
-Please follow https://github.com/minio/directpv/blob/master/docs/upgrade.md#upgrade-to-v300 for the upgrade steps from legacy versions
+Please follow https://github.com/minio/directpv/blob/master_old/docs/upgrade.md#upgrade-to-v300 for the upgrade steps from legacy versions
 
 
 #### Upgrade from v3.2.x
@@ -34,6 +34,6 @@ quay.io/minio/csi-resizer:v1.7.0
 
 - If your kubernetes version is less than v1.20, you need push `quay.io/minio/csi-provisioner:v2.2.0-go1.18`
 
-If you are on DirectPV versions < v4.0.0 and if you are using any custom storage classes for controlling volume scheduling based on access-tiers as explained [here](https://github.com/minio/directpv/blob/master/docs/scheduling.md), you need to make the following change to these custom storage classes.
+If you are on DirectPV versions < v4.0.0 and if you are using any custom storage classes for controlling volume scheduling based on access-tiers as explained [here](https://github.com/minio/directpv/blob/master_old/docs/scheduling.md), you need to make the following change to these custom storage classes.
 
 You need to change `direct.csi.min.io/access-tier: <your_access_tier_value>` to `directpv.min.io/access-tier: <your_access_tier_value>` in the respective storage class parameters section.
