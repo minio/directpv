@@ -67,11 +67,21 @@ func createNamespace(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
-	annotations := map[string]string{}
-	if args.podSecurityAdmission {
+
+	labels := func() map[string]string {
+		if !args.podSecurityAdmission {
+			return defaultLabels
+		}
+
+		labels := map[string]string{}
+		for key, value := range defaultLabels {
+			labels[key] = value
+		}
+
 		// Policy violations will cause the pods to be rejected
-		annotations[podsecurityadmissionapi.EnforceLevelLabel] = string(podsecurityadmissionapi.LevelPrivileged)
-	}
+		labels[podsecurityadmissionapi.EnforceLevelLabel] = string(podsecurityadmissionapi.LevelPrivileged)
+		return labels
+	}()
 
 	ns := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
@@ -81,8 +91,8 @@ func createNamespace(ctx context.Context, args *Args) (err error) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        namespace,
 			Namespace:   metav1.NamespaceNone,
-			Annotations: annotations,
-			Labels:      defaultLabels,
+			Annotations: map[string]string{},
+			Labels:      labels,
 			Finalizers:  []string{metav1.FinalizerDeleteDependents},
 		},
 	}
