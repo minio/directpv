@@ -26,6 +26,7 @@ export DIRECTPV_CLIENT=./kubectl-directpv
 install_directpv 4
 add_drives
 deploy_minio functests/minio.yaml
+test_force_delete
 uninstall_minio functests/minio.yaml
 test_volume_expansion functests/sleep.yaml
 remove_drives

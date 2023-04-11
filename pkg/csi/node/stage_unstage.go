@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/client"
@@ -95,24 +94,18 @@ func (server *Server) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if !volume.IsStaged() {
-		return nil, status.Error(codes.NotFound, fmt.Sprintf("unstage is called without stage for volume %v", volume.Name))
-	}
-
-	if volume.Status.StagingTargetPath != stagingTargetPath {
-		return nil, status.Error(codes.NotFound, fmt.Sprintf("staging target path %v doesn't match with requested staging target path %v", volume.Status.StagingTargetPath, stagingTargetPath))
-	}
-
 	if err := server.unmount(stagingTargetPath); err != nil {
 		klog.ErrorS(err, "unable to unmount staging target path", "StagingTargetPath", stagingTargetPath)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	volume.Status.StagingTargetPath = ""
-	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
-		TypeMeta: types.NewVolumeTypeMeta(),
-	}); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+	if volume.Status.StagingTargetPath == stagingTargetPath {
+		volume.Status.StagingTargetPath = ""
+		if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
+			TypeMeta: types.NewVolumeTypeMeta(),
+		}); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
 	return &csi.NodeUnstageVolumeResponse{}, nil

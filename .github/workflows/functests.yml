@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         kube-version: ['v1.18.20', 'v1.19.16', 'v1.20.15', 'v1.21.14', 'v1.22.16', 'v1.23.14', 'v1.24.8', 'v1.25.4']
-        os: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04]
         exclude:
           - os: ubuntu-22.04
             kube-version: 'v1.18.20'

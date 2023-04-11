@@ -181,24 +181,18 @@ func (server *Server) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if !volume.IsPublished() {
-		return nil, status.Error(codes.NotFound, fmt.Sprintf("unpublish is called without publish for volume %v", volume.Name))
-	}
-
-	if volume.Status.TargetPath != targetPath {
-		return nil, status.Error(codes.NotFound, fmt.Sprintf("target path %v doesn't match with requested target path %v", volume.Status.TargetPath, targetPath))
-	}
-
 	if err := server.unmount(targetPath); err != nil {
 		klog.ErrorS(err, "unable to unmount target path", "TargetPath", targetPath)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	volume.Status.TargetPath = ""
-	if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
-		TypeMeta: types.NewVolumeTypeMeta(),
-	}); err != nil {
-		return nil, err
+	if volume.Status.TargetPath == targetPath {
+		volume.Status.TargetPath = ""
+		if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
+			TypeMeta: types.NewVolumeTypeMeta(),
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
