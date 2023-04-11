@@ -35,7 +35,7 @@ func (e *ErrMountPointAlreadyMounted) Error() string {
 }
 
 // GetMounts returns mount-point to devices and devices to mount-point maps.
-func GetMounts(includeMajorMinorMap bool) (mountPointMap, deviceMap, majorMinorMap map[string]utils.StringSet, err error) {
+func GetMounts(includeMajorMinorMap bool) (mountPointMap, deviceMap, majorMinorMap, rootMountPointMap map[string]utils.StringSet, err error) {
 	return getMounts(includeMajorMinorMap)
 }
 

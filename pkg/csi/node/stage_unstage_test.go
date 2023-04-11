@@ -76,8 +76,8 @@ func TestNodeStageVolume(t *testing.T) {
 		client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
 		nodeServer := createFakeServer()
-		nodeServer.getMounts = func() (map[string]utils.StringSet, error) {
-			return testCase.mountInfo, nil
+		nodeServer.getMounts = func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
+			return testCase.mountInfo, testCase.mountInfo, nil
 		}
 		nodeServer.bindMount = func(source, stagingTargetPath string, readOnly bool) error {
 			if _, found := testCase.mountInfo[source]; !found {
@@ -147,8 +147,8 @@ func TestStageUnstageVolume(t *testing.T) {
 	ctx := context.TODO()
 	ns := createFakeServer()
 	dataPath := path.Join(consts.MountRootDir, testDriveName, ".FSUUID."+testDriveName, testVolumeName50MB)
-	ns.getMounts = func() (map[string]utils.StringSet, error) {
-		return map[string]utils.StringSet{consts.MountRootDir: nil}, nil
+	ns.getMounts = func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
+		return map[string]utils.StringSet{consts.MountRootDir: nil}, map[string]utils.StringSet{consts.MountRootDir: nil}, nil
 	}
 
 	// Stage Volume test

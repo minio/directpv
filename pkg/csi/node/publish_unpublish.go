@@ -120,12 +120,14 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	mountPointMap, err := server.getMounts()
+	mountPointMap, _, err := server.getMounts()
 	if err != nil {
 		klog.ErrorS(err, "unable to get mounts")
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if _, found := mountPointMap[req.GetStagingTargetPath()]; !found {
+
+	stagingTargetPathDevices, found := mountPointMap[req.GetStagingTargetPath()]
+	if !found {
 		klog.Errorf("stagingPath %v is not mounted", req.GetStagingTargetPath())
 		return nil, status.Error(codes.Internal, fmt.Sprintf("stagingPath %v is not mounted", req.GetStagingTargetPath()))
 	}
@@ -140,9 +142,13 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "unable to create target path: %v", err)
 	}
 
-	if err := server.bindMount(req.GetStagingTargetPath(), req.GetTargetPath(), req.GetReadonly()); err != nil {
-		klog.ErrorS(err, "unable to bind mount staging target path to target path", "StagingTargetPath", req.GetStagingTargetPath(), "TargetPath", req.GetTargetPath())
-		return nil, status.Errorf(codes.Internal, "unable to bind mount staging target path to target path; %v", err)
+	if targetPathDevices, found := mountPointMap[req.GetTargetPath()]; found && targetPathDevices.Equal(stagingTargetPathDevices) {
+		klog.V(5).InfoS("stagingTargetPath is already bind-mounted to targetPath", "stagingTargetPath", req.GetStagingTargetPath(), "targetPath", req.GetTargetPath())
+	} else {
+		if err := server.bindMount(req.GetStagingTargetPath(), req.GetTargetPath(), req.GetReadonly()); err != nil {
+			klog.ErrorS(err, "unable to bind mount staging target path to target path", "StagingTargetPath", req.GetStagingTargetPath(), "TargetPath", req.GetTargetPath())
+			return nil, status.Errorf(codes.Internal, "unable to bind mount staging target path to target path; %v", err)
+		}
 	}
 
 	volume.Status.TargetPath = req.GetTargetPath()

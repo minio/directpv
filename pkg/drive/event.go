@@ -63,6 +63,24 @@ func SetIOError(ctx context.Context, driveID directpvtypes.DriveID) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
 }
 
+func stageVolumeMount(
+	volumeName, volumeDir, stagingTargetPath string,
+	getMounts func() (map[string]utils.StringSet, error),
+	bindMount func(volumeDir, stagingTargetPath string, readOnly bool) error,
+) error {
+	rootMountPointMap, err := getMounts()
+	if err != nil {
+		return err
+	}
+
+	if mountPoints, found := rootMountPointMap["/"+volumeName]; found && mountPoints.Exist(stagingTargetPath) {
+		klog.V(5).InfoS("volumeDir is already bind-mounted on stagingTargetPath", "volumeDir", volumeDir, "stagingTargetPath", stagingTargetPath)
+		return nil
+	}
+
+	return bindMount(volumeDir, stagingTargetPath, false)
+}
+
 // StageVolume creates and mounts staging target path of the volume to the drive.
 func StageVolume(
 	ctx context.Context,
@@ -72,6 +90,7 @@ func StageVolume(
 	mkdir func(volumeDir string) error,
 	setQuota func(ctx context.Context, device, stagingTargetPath, volumeName string, quota xfs.Quota, update bool) error,
 	bindMount func(volumeDir, stagingTargetPath string, readOnly bool) error,
+	getMounts func() (map[string]utils.StringSet, error),
 ) (codes.Code, error) {
 	device, err := getDeviceByFSUUID(volume.Status.FSUUID)
 	if err != nil {
@@ -114,7 +133,7 @@ func StageVolume(
 	}
 
 	if stagingTargetPath != "" {
-		if err := bindMount(volumeDir, stagingTargetPath, false); err != nil {
+		if err := stageVolumeMount(volume.Name, volumeDir, stagingTargetPath, getMounts, bindMount); err != nil {
 			return codes.Internal, fmt.Errorf("unable to bind mount volume directory to staging target path; %w", err)
 		}
 	}
@@ -133,7 +152,7 @@ func StageVolume(
 
 type driveEventHandler struct {
 	nodeID            directpvtypes.NodeID
-	getMounts         func() (mountPointMap, deviceMap map[string]utils.StringSet, err error)
+	getMounts         func() (mountPointMap, deviceMap, rootMountPointMap map[string]utils.StringSet, err error)
 	unmount           func(target string) error
 	mkdir             func(path string) error
 	bindMount         func(source, target string, readOnly bool) error
@@ -145,8 +164,8 @@ type driveEventHandler struct {
 func newDriveEventHandler(nodeID directpvtypes.NodeID) *driveEventHandler {
 	return &driveEventHandler{
 		nodeID: nodeID,
-		getMounts: func() (mountPointMap, deviceMap map[string]utils.StringSet, err error) {
-			mountPointMap, deviceMap, _, err = sys.GetMounts(false)
+		getMounts: func() (mountPointMap, deviceMap, rootMountPointMap map[string]utils.StringSet, err error) {
+			mountPointMap, deviceMap, _, rootMountPointMap, err = sys.GetMounts(false)
 			return
 		},
 		unmount: func(mountPoint string) error {
@@ -189,7 +208,7 @@ func (handler *driveEventHandler) ObjectType() runtime.Object {
 }
 
 func (handler *driveEventHandler) unmountDrive(drive *types.Drive, skipDriveMount bool) error {
-	mountPointMap, deviceMap, err := handler.getMounts()
+	mountPointMap, deviceMap, _, err := handler.getMounts()
 	if err != nil {
 		return err
 	}
@@ -280,6 +299,10 @@ func (handler *driveEventHandler) move(ctx context.Context, drive *types.Drive) 
 				handler.mkdir,
 				handler.setQuota,
 				handler.bindMount,
+				func() (rootMap map[string]utils.StringSet, err error) {
+					_, _, rootMap, err = handler.getMounts()
+					return
+				},
 			)
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				klog.ErrorS(err, "unable to stage volume after volume move",

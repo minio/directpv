@@ -42,7 +42,7 @@ type Server struct {
 	zone     string
 	region   string
 
-	getMounts         func() (map[string]utils.StringSet, error)
+	getMounts         func() (mountMap, rootMap map[string]utils.StringSet, err error)
 	getDeviceByFSUUID func(fsuuid string) (string, error)
 	bindMount         func(source, target string, readOnly bool) error
 	unmount           func(target string) error
@@ -59,8 +59,8 @@ func newServer(identity string, nodeID directpvtypes.NodeID, rack, zone, region 
 		zone:     zone,
 		region:   region,
 
-		getMounts: func() (mountMap map[string]utils.StringSet, err error) {
-			mountMap, _, _, err = sys.GetMounts(false)
+		getMounts: func() (mountMap, rootMap map[string]utils.StringSet, err error) {
+			mountMap, _, _, rootMap, err = sys.GetMounts(false)
 			return
 		},
 		getDeviceByFSUUID: sys.GetDeviceByFSUUID,

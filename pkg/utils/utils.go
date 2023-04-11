@@ -134,6 +134,21 @@ func (set StringSet) ToSlice() (values []string) {
 	return
 }
 
+// Equal checks whether given StringSet is same or not.
+func (set StringSet) Equal(set2 StringSet) (found bool) {
+	if len(set) != len(set2) {
+		return false
+	}
+
+	for value := range set {
+		if _, found := set2[value]; !found {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Eprintf prints the message to the stdout and stderr based on inputs
 func Eprintf(quiet, asErr bool, format string, a ...any) {
 	if quiet {
