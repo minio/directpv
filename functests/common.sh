@@ -171,6 +171,22 @@ function deploy_minio() {
     done
 }
 
+# usage: test_force_delete
+function test_force_delete() {
+    echo "* Testing force deletion"
+
+    running_count=0
+    required_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
+
+    kubectl delete pods --all --force --grace-period 0
+
+    while [[ $running_count -lt $required_count ]]; do
+        echo "  ...waiting for $(( required_count - running_count )) minio pods to come up after force deletion"
+        sleep 30
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
+    done
+}
+
 # usage: delete_minio <minio-yaml>
 function delete_minio() {
     echo "* Deleting minio"
