@@ -34,8 +34,8 @@ func createFakeServer() *Server {
 		rack:     "test-rack",
 		zone:     "test-zone",
 		region:   "test-region",
-		getMounts: func() (map[string]utils.StringSet, error) {
-			return map[string]utils.StringSet{consts.MountRootDir: nil}, nil
+		getMounts: func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
+			return map[string]utils.StringSet{consts.MountRootDir: nil}, map[string]utils.StringSet{consts.MountRootDir: nil}, nil
 		},
 		getDeviceByFSUUID: func(fsuuid string) (string, error) { return "", nil },
 		bindMount:         func(source, target string, readOnly bool) error { return nil },

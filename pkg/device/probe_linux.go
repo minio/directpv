@@ -88,7 +88,7 @@ func probe() (devices []Device, err error) {
 		return nil, err
 	}
 
-	_, deviceMountMap, majorMinorMap, err := sys.GetMounts(true)
+	_, deviceMountMap, majorMinorMap, _, err := sys.GetMounts(true)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func probe() (devices []Device, err error) {
 }
 
 func probeDevices(majorMinor ...string) (devices []Device, err error) {
-	_, deviceMountMap, majorMinorMap, err := sys.GetMounts(true)
+	_, deviceMountMap, majorMinorMap, _, err := sys.GetMounts(true)
 	if err != nil {
 		return nil, err
 	}

@@ -110,8 +110,8 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	ns := createFakeServer()
 
 	// Publish volume test
-	ns.getMounts = func() (map[string]utils.StringSet, error) {
-		return map[string]utils.StringSet{testStagingPath: nil}, nil
+	ns.getMounts = func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
+		return map[string]utils.StringSet{testStagingPath: nil}, map[string]utils.StringSet{testStagingPath: nil}, nil
 	}
 	_, err := ns.NodePublishVolume(ctx, &publishVolumeRequest)
 	if err != nil {

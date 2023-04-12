@@ -84,7 +84,7 @@ func newInitRequestEventHandler(ctx context.Context, nodeID directpvtypes.NodeID
 		probeDevices: pkgdevice.Probe,
 		getDevices:   pkgdevice.ProbeDevices,
 		getMounts: func() (deviceMap, majorMinorMap map[string]utils.StringSet, err error) {
-			if _, deviceMap, majorMinorMap, err = sys.GetMounts(true); err != nil {
+			if _, deviceMap, majorMinorMap, _, err = sys.GetMounts(true); err != nil {
 				err = fmt.Errorf("unable get mount points; %w", err)
 			}
 			return
