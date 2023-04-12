@@ -34,6 +34,7 @@ profile directpv flags=(attach_disconnected,mediate_deleted) {
   /var/lib/directpv/** w,
   /var/lib/kubelet/** w,
   /csi/** w,
+  /sys/fs/xfs/**/error/metadata/{EIO,ENOSPC}/retry_timeout_seconds rw,
 
   # only a limited set of binaries can be executed
   /usr/sbin/mkfs ix,
