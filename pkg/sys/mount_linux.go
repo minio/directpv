@@ -28,7 +28,6 @@ import (
 	"syscall"
 
 	"github.com/minio/directpv/pkg/utils"
-	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
 
@@ -93,91 +92,14 @@ func parseProc1Mountinfo(r io.Reader) (mountPointMap, deviceMap, majorMinorMap, 
 	return
 }
 
-func getMajorMinor(device string) (majorMinor string, err error) {
-	stat := syscall.Stat_t{}
-	if err = syscall.Stat(device, &stat); err == nil {
-		majorMinor = fmt.Sprintf("%v:%v", unix.Major(stat.Rdev), unix.Minor(stat.Rdev))
-	}
-	return
-}
-
-func parseProcMounts(r io.Reader, includeMajorMinorMap bool) (mountPointMap, deviceMap, majorMinorMap, rootMountPointMap map[string]utils.StringSet, err error) {
-	reader := bufio.NewReader(r)
-
-	mountPointMap = make(map[string]utils.StringSet)
-	deviceMap = make(map[string]utils.StringSet)
-	for {
-		s, err := reader.ReadString('\n')
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return nil, nil, nil, nil, err
-		}
-
-		// Refer /proc/mounts section in https://man7.org/linux/man-pages/man5/proc.5.html
-		// to know about this logic.
-		tokens := strings.Fields(strings.TrimSpace(s))
-		if len(tokens) < 2 {
-			continue
-		}
-
-		mountPoint := tokens[1]
-		device := tokens[0]
-
-		if _, found := mountPointMap[mountPoint]; !found {
-			mountPointMap[mountPoint] = make(utils.StringSet)
-		}
-		mountPointMap[mountPoint].Set(device)
-
-		if _, found := deviceMap[device]; !found {
-			deviceMap[device] = make(utils.StringSet)
-		}
-		deviceMap[device].Set(mountPoint)
-	}
-
-	if !includeMajorMinorMap {
-		return
-	}
-
-	majorMinorMap = make(map[string]utils.StringSet)
-	for device := range deviceMap {
-		// Ignore pseudo devices.
-		if !strings.HasPrefix(device, "/") {
-			continue
-		}
-
-		majorMinor, err := getMajorMinor(device)
-		if err != nil {
-			return nil, nil, nil, nil, err
-		}
-
-		if _, found := majorMinorMap[device]; !found {
-			majorMinorMap[majorMinor] = make(utils.StringSet)
-		}
-		majorMinorMap[majorMinor].Set(device)
-	}
-
-	return
-}
-
-func getMounts(includeMajorMinorMap bool) (mountPointMap, deviceMap, majorMinorMap, rootMountPointMap map[string]utils.StringSet, err error) {
+func getMounts(_ bool) (mountPointMap, deviceMap, majorMinorMap, rootMountPointMap map[string]utils.StringSet, err error) {
 	file, err := os.Open("/proc/1/mountinfo")
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return nil, nil, nil, nil, err
-		}
-	} else {
-		defer file.Close()
-		return parseProc1Mountinfo(file)
-	}
-
-	if file, err = os.Open("/proc/mounts"); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
 	defer file.Close()
-	return parseProcMounts(file, includeMajorMinorMap)
+	return parseProc1Mountinfo(file)
 }
 
 var mountFlagMap = map[string]uintptr{
