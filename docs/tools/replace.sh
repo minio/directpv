@@ -38,12 +38,14 @@ function get_volumes() {
 
 # usage: get_pod_name <volume>
 function get_pod_name() {
+    # shellcheck disable=SC2016
     kubectl get directpvvolumes "${1}" \
             -o go-template='{{range $k,$v := .metadata.labels}}{{if eq $k "directpv.min.io/pod.name"}}{{$v}}{{end}}{{end}}'
 }
 
 # usage: get_pod_namespace <volume>
 function get_pod_namespace() {
+    # shellcheck disable=SC2016
     kubectl get directpvvolumes "${1}" \
             -o go-template='{{range $k,$v := .metadata.labels}}{{if eq $k "directpv.min.io/pod.namespace"}}{{$v}}{{end}}{{end}}'
 }

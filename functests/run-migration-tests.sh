@@ -16,15 +16,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-ME=$(basename "$0")
-export ME
+ME=$(basename "$0"); export ME
 
 if [ "$#" -ne 1 ]; then
     echo "usage: $ME <DIRECTCSI-VERSION>"
     exit 255
 fi
 
-SCRIPT_DIR=$(dirname "$0")
-export SCRIPT_DIR
+cd "$(dirname "$0")" || exit 255
+DIRECTPV_DIR="$(cd .. && echo "$PWD")"
+export DIRECTPV_DIR
 
-"${SCRIPT_DIR}/execute.sh" "${SCRIPT_DIR}/migration-tests.sh" "$1"
+./execute.sh migration-tests.sh "$1"

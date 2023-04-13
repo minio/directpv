@@ -26,46 +26,47 @@ LEGACY_FILE="kubectl-direct_csi_${LEGACY_VERSION:1}_linux_amd64"
 
 set -ex
 
-source "${SCRIPT_DIR}/common.sh"
+# shellcheck source=/dev/null
+source "common.sh"
 
-sed -e s:directpv-min-io:direct-csi-min-io:g -e s:directpv.min.io:direct.csi.min.io:g functests/minio.yaml > functests/directcsi-minio.yaml
+sed -e s:directpv-min-io:direct-csi-min-io:g -e s:directpv.min.io:direct.csi.min.io:g minio.yaml > directcsi-minio.yaml
 
-# usage: migrate_test <plugin> <pod-count>
+# usage: migrate_test <plugin> <legacy-pod-count>
 function migrate_test() {
     directcsi_client="$1"
-    pod_count="$2"
+    legacy_pod_count=$(( $2 + ACTIVE_NODES - 1 ))
+    pod_count=$(( 6 + ACTIVE_NODES * 2 ))
 
     setup_lvm
     setup_luks
 
-    install_directcsi "${directcsi_client}" "${pod_count}"
+    install_directcsi "${directcsi_client}" "${legacy_pod_count}"
 
     "${directcsi_client}" drives format --all --force
 
-    deploy_minio functests/directcsi-minio.yaml
+    deploy_minio directcsi-minio.yaml
 
-    uninstall_directcsi "${directcsi_client}" "${pod_count}"
+    uninstall_directcsi "${directcsi_client}" "${legacy_pod_count}"
 
-    export DIRECTPV_CLIENT=./kubectl-directpv
-    install_directpv 8
+    install_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
 
-    delete_minio functests/directcsi-minio.yaml
+    delete_minio directcsi-minio.yaml
 
-    deploy_minio functests/directcsi-minio.yaml
+    deploy_minio directcsi-minio.yaml
 
-    uninstall_minio functests/directcsi-minio.yaml
+    uninstall_minio "${DIRECTPV_DIR}/kubectl-directpv" directcsi-minio.yaml
 
     force_uninstall_directcsi "${directcsi_client}"
 
-    remove_drives
-    uninstall_directpv 8
+    remove_drives "${DIRECTPV_DIR}/kubectl-directpv"
+    uninstall_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
 
-    mount | awk '/direct|pvc-/ {print $3}' | xargs sudo umount -fl
+    unmount_directpv
 
     remove_luks
     remove_lvm
 }
 
-wget --quiet "https://github.com/minio/directpv/releases/download/${LEGACY_VERSION}/${LEGACY_FILE}"
+curl --silent --location --insecure --fail --output "${LEGACY_FILE}" "https://github.com/minio/directpv/releases/download/${LEGACY_VERSION}/${LEGACY_FILE}"
 chmod a+x "${LEGACY_FILE}"
 migrate_test "./${LEGACY_FILE}" 4

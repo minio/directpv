@@ -1,4 +1,3 @@
 FROM alpine:latest
-WORKDIR /
-COPY sleep.sh /sleep.sh
-ENTRYPOINT ["/sleep.sh"]
+RUN echo 'while true; do echo I am in a sleep loop; sleep 3; done' > sleep.sh
+ENTRYPOINT sh sleep.sh
