@@ -16,6 +16,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+#
+# This script replaces source drive to destination drive in the specified node
+#
+
 set -e
 
 # usage: get_drive_id <node> <drive-name>
@@ -47,6 +51,8 @@ function get_pod_namespace() {
 function init() {
     if [[ $# -eq 4 ]]; then
         echo "usage: replace.sh <NODE> <SRC-DRIVE> <DEST-DRIVE>"
+        echo
+        echo "This script replaces source drive to destination drive in the specified node"
         exit 255
     fi
 
@@ -93,8 +99,8 @@ function main() {
     fi
 
     mapfile -t volumes < <(get_volumes "${src_drive_id}")
-
-    for volume in "${volumes[@]}"; do
+    IFS=' ' read -r -a volumes_arr <<< "${volumes[@]}"
+    for volume in "${volumes_arr[@]}"; do
         pod_name=$(get_pod_name "${volume}")
         pod_namespace=$(get_pod_namespace "${volume}")
 
@@ -104,10 +110,11 @@ function main() {
         fi
     done
 
-    if [ "${#volumes[@]}" -gt 0 ]; then
+    if [ "${#volumes_arr[@]}" -gt 0 ]; then
         # Wait for associated DirectPV volumes to be unbound
-        while kubectl directpv list volumes --no-headers "${volumes[@]}" | grep -q Bounded; do
+        while kubectl directpv list volumes --no-headers "${volumes_arr[@]}" | grep -q Bounded; do
             echo "...waiting for volumes to be unbound"
+            sleep 10
         done
     else
         echo "no volumes found in source drive ${src_drive} on node ${node}"
