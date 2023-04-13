@@ -195,6 +195,10 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 			return err
 		}
 
+		if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingCRD)); err != nil {
+			return err
+		}
+
 		if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Updating %s CRD", crd.Name), step, nil) {
 			return errSendProgress
 		}

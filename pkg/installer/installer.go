@@ -128,16 +128,56 @@ func Install(ctx context.Context, args *Args) (err error) {
 	}
 
 	for _, task := range Tasks {
-		if err := task.Start(ctx, args); err != nil {
-			return err
+		if err = task.Start(ctx, args); err != nil {
+			break
 		}
 		taskErr := task.Execute(ctx, args)
-		if err := task.End(ctx, args, taskErr); err != nil {
-			return err
+		if err = task.End(ctx, args, taskErr); err != nil {
+			break
 		}
 	}
 
-	return nil
+	if err == nil {
+		return nil
+	}
+
+	var errs []string
+	if err != nil {
+		// TODO: revert upgraded components if any
+		if rerr := revertNamespace(ctx); rerr != nil {
+			errs = append(errs, fmt.Sprintf("Namespace: %v", rerr))
+		}
+
+		if rerr := revertRBAC(ctx); rerr != nil {
+			errs = append(errs, fmt.Sprintf("RBAC: %v", rerr))
+		}
+
+		if rerr := revertPSP(ctx, args); rerr != nil {
+			errs = append(errs, fmt.Sprintf("PSP: %v", rerr))
+		}
+
+		if rerr := revertCSIDriver(ctx, args); rerr != nil {
+			errs = append(errs, fmt.Sprintf("CSIDriver: %v", rerr))
+		}
+
+		if rerr := revertStorageClass(ctx, args); rerr != nil {
+			errs = append(errs, fmt.Sprintf("StorageClass: %v", rerr))
+		}
+
+		if rerr := revertDaemonSet(ctx, args); rerr != nil {
+			errs = append(errs, fmt.Sprintf("DaemonSet: %v", rerr))
+		}
+
+		if rerr := revertDeployment(ctx); rerr != nil {
+			errs = append(errs, fmt.Sprintf("Deployment: %v", rerr))
+		}
+	}
+
+	if len(errs) == 0 {
+		return err
+	}
+
+	return fmt.Errorf("%w; %v", err, strings.Join(errs, "; "))
 }
 
 // Uninstall removes DirectPV from kubernetes.

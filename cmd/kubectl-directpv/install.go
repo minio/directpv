@@ -254,22 +254,32 @@ func getLegacyFlag(ctx context.Context) bool {
 func installMain(ctx context.Context) {
 	legacyFlag = getLegacyFlag(ctx)
 
-	auditFile := fmt.Sprintf("install.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
-	file, err := openAuditFile(auditFile)
+	timestamp := time.Now().UTC().Format(time.RFC3339Nano)
+
+	auditFile := "install.log." + timestamp
+	auditSafeFile, err := openAuditFile(auditFile)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "unable to open audit file %v; %v\n", auditFile, err)
-		utils.Eprintf(false, false, "%v\n", color.HiYellowString("Skipping audit logging"))
 	}
-
 	defer func() {
-		if file != nil {
-			if err := file.Close(); err != nil {
-				utils.Eprintf(quietFlag, true, "unable to close audit file; %v\n", err)
-			}
+		if err := auditSafeFile.Close(); err != nil {
+			utils.Eprintf(quietFlag, true, "unable to close audit file; %v\n", err)
 		}
 	}()
 
-	args, err := installer.NewArgs(image, file)
+	installBackupFile := "install.backup.yaml." + timestamp
+	backupFile, err := openAuditFile(installBackupFile)
+	if err != nil {
+		utils.Eprintf(quietFlag, true, "unable to open install backup file %v; %v\n", installBackupFile, err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := backupFile.Close(); err != nil {
+			utils.Eprintf(quietFlag, true, "unable to close install backup file; %v\n", err)
+		}
+	}()
+
+	args, err := installer.NewArgs(image, auditSafeFile, backupFile)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
@@ -374,10 +384,16 @@ func installMain(ctx context.Context) {
 		}()
 		args.ProgressCh = progressCh
 	}
-	if err := installer.Install(ctx, args); err != nil && args.ProgressCh == nil {
+
+	if err := installer.Install(ctx, args); err != nil {
+		if args.ProgressCh != nil {
+			wg.Wait()
+		}
+
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
+
 	if args.ProgressCh != nil {
 		wg.Wait()
 		if !failed {

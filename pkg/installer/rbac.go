@@ -18,7 +18,9 @@ package installer
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strings"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -27,6 +29,15 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+)
+
+var (
+	existingServiceAccount     *corev1.ServiceAccount
+	existingClusterRole        *rbacv1.ClusterRole
+	existingClusterRoleBinding *rbacv1.ClusterRoleBinding
+	existingRole               *rbacv1.Role
+	existingRoleBinding        *rbacv1.RoleBinding
 )
 
 const (
@@ -90,16 +101,44 @@ func createServiceAccount(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		existingServiceAccount, err = k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Get(
+			ctx, consts.Identity, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = existingServiceAccount.CreationTimestamp
+			resourceVersion = existingServiceAccount.ResourceVersion
+			uid = existingServiceAccount.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingServiceAccount)); err != nil {
+				return err
+			}
+		}
+	}
+
 	serviceAccount := &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "ServiceAccount",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        consts.Identity,
-			Namespace:   namespace,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              consts.Identity,
+			Namespace:         namespace,
+			Annotations:       map[string]string{},
+			Labels:            defaultLabels,
 		},
 		Secrets:                      []corev1.ObjectReference{},
 		ImagePullSecrets:             []corev1.LocalObjectReference{},
@@ -111,17 +150,39 @@ func createServiceAccount(ctx context.Context, args *Args) (err error) {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Create(
-		ctx, serviceAccount, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Update(
+			ctx, serviceAccount, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Create(
+			ctx, serviceAccount, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
 	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(serviceAccount))
+	return err
+}
+
+func revertServiceAccount(ctx context.Context) error {
+	if existingServiceAccount == nil {
+		return nil
+	}
+
+	serviceAccount, err := k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Get(
+		ctx, consts.Identity, metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	existingServiceAccount.ResourceVersion = serviceAccount.ResourceVersion
+	_, err = k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Update(
+		ctx, existingServiceAccount, metav1.UpdateOptions{},
+	)
 	return err
 }
 
@@ -136,14 +197,42 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		existingClusterRole, err = k8s.KubeClient().RbacV1().ClusterRoles().Get(
+			ctx, consts.Identity, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = existingClusterRole.CreationTimestamp
+			resourceVersion = existingClusterRole.ResourceVersion
+			uid = existingClusterRole.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingClusterRole)); err != nil {
+				return err
+			}
+		}
+	}
+
 	clusterRole := &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      consts.Identity,
-			Namespace: metav1.NamespaceNone,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              consts.Identity,
+			Namespace:         metav1.NamespaceNone,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
 			},
@@ -184,17 +273,39 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().RbacV1().ClusterRoles().Create(
-		ctx, clusterRole, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoles().Update(
+			ctx, clusterRole, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoles().Create(
+			ctx, clusterRole, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
 	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(clusterRole))
+	return err
+}
+
+func revertClusterRole(ctx context.Context) error {
+	if existingClusterRole == nil {
+		return nil
+	}
+
+	clusterRole, err := k8s.KubeClient().RbacV1().ClusterRoles().Get(
+		ctx, consts.Identity, metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	existingClusterRole.ResourceVersion = clusterRole.ResourceVersion
+	_, err = k8s.KubeClient().RbacV1().ClusterRoles().Update(
+		ctx, existingClusterRole, metav1.UpdateOptions{},
+	)
 	return err
 }
 
@@ -209,14 +320,42 @@ func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		existingClusterRoleBinding, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Get(
+			ctx, consts.Identity, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = existingClusterRoleBinding.CreationTimestamp
+			resourceVersion = existingClusterRoleBinding.ResourceVersion
+			uid = existingClusterRoleBinding.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingClusterRoleBinding)); err != nil {
+				return err
+			}
+		}
+	}
+
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      consts.Identity,
-			Namespace: metav1.NamespaceNone,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              consts.Identity,
+			Namespace:         metav1.NamespaceNone,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
 			},
@@ -241,17 +380,39 @@ func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(
-		ctx, clusterRoleBinding, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Update(
+			ctx, clusterRoleBinding, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(
+			ctx, clusterRoleBinding, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
 	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(clusterRoleBinding))
+	return err
+}
+
+func revertClusterRoleBinding(ctx context.Context) error {
+	if existingClusterRoleBinding == nil {
+		return nil
+	}
+
+	clusterRoleBinding, err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Get(
+		ctx, consts.Identity, metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	existingClusterRoleBinding.ResourceVersion = clusterRoleBinding.ResourceVersion
+	_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Update(
+		ctx, existingClusterRoleBinding, metav1.UpdateOptions{},
+	)
 	return err
 }
 
@@ -266,14 +427,42 @@ func createRole(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		existingRole, err = k8s.KubeClient().RbacV1().Roles(namespace).Get(
+			ctx, consts.Identity, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = existingRole.CreationTimestamp
+			resourceVersion = existingRole.ResourceVersion
+			uid = existingRole.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingRole)); err != nil {
+				return err
+			}
+		}
+	}
+
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      consts.Identity,
-			Namespace: namespace,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              consts.Identity,
+			Namespace:         namespace,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
 			},
@@ -289,17 +478,39 @@ func createRole(ctx context.Context, args *Args) (err error) {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().RbacV1().Roles(namespace).Create(
-		ctx, role, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().RbacV1().Roles(namespace).Update(
+			ctx, role, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().RbacV1().Roles(namespace).Create(
+			ctx, role, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
 	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(role))
+	return err
+}
+
+func revertRole(ctx context.Context) error {
+	if existingRole == nil {
+		return nil
+	}
+
+	role, err := k8s.KubeClient().RbacV1().Roles(namespace).Get(
+		ctx, consts.Identity, metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	existingRole.ResourceVersion = role.ResourceVersion
+	_, err = k8s.KubeClient().RbacV1().Roles(namespace).Update(
+		ctx, existingRole, metav1.UpdateOptions{},
+	)
 	return err
 }
 
@@ -314,14 +525,42 @@ func createRoleBinding(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		existingRoleBinding, err := k8s.KubeClient().RbacV1().RoleBindings(namespace).Get(
+			ctx, consts.Identity, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = existingRoleBinding.CreationTimestamp
+			resourceVersion = existingRoleBinding.ResourceVersion
+			uid = existingRoleBinding.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingRoleBinding)); err != nil {
+				return err
+			}
+		}
+	}
+
 	roleBinding := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      consts.Identity,
-			Namespace: namespace,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              consts.Identity,
+			Namespace:         namespace,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
 			},
@@ -346,17 +585,39 @@ func createRoleBinding(ctx context.Context, args *Args) (err error) {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().RbacV1().RoleBindings(namespace).Create(
-		ctx, roleBinding, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().RbacV1().RoleBindings(namespace).Update(
+			ctx, roleBinding, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().RbacV1().RoleBindings(namespace).Create(
+			ctx, roleBinding, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
 	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(roleBinding))
+	return err
+}
+
+func revertRoleBinding(ctx context.Context) error {
+	if existingRoleBinding == nil {
+		return nil
+	}
+
+	roleBinding, err := k8s.KubeClient().RbacV1().RoleBindings(namespace).Get(
+		ctx, consts.Identity, metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	existingRoleBinding.ResourceVersion = roleBinding.ResourceVersion
+	_, err = k8s.KubeClient().RbacV1().RoleBindings(namespace).Update(
+		ctx, existingRoleBinding, metav1.UpdateOptions{},
+	)
 	return err
 }
 
@@ -374,6 +635,36 @@ func createRBAC(ctx context.Context, args *Args) (err error) {
 		return err
 	}
 	return createRoleBinding(ctx, args)
+}
+
+func revertRBAC(ctx context.Context) (err error) {
+	var errs []string
+
+	if err = revertServiceAccount(ctx); err != nil {
+		errs = append(errs, fmt.Sprintf("ServiceAccount: %v", err))
+	}
+
+	if err = revertClusterRole(ctx); err != nil {
+		errs = append(errs, fmt.Sprintf("ClusterRole: %v", err))
+	}
+
+	if err = revertClusterRoleBinding(ctx); err != nil {
+		errs = append(errs, fmt.Sprintf("ClusterRoleBinding: %v", err))
+	}
+
+	if err = revertRole(ctx); err != nil {
+		errs = append(errs, fmt.Sprintf("Role: %v", err))
+	}
+
+	if err = revertRoleBinding(ctx); err != nil {
+		errs = append(errs, fmt.Sprintf("RoleBinding: %v", err))
+	}
+
+	if len(errs) != 0 {
+		return fmt.Errorf("unable to revert RBAC; %v", strings.Join(errs, "; "))
+	}
+
+	return nil
 }
 
 func deleteRBAC(ctx context.Context) error {

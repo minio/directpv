@@ -142,8 +142,9 @@ func TestGetKubeVersion(t *testing.T) {
 
 func TestInstallUinstall(t *testing.T) {
 	args := Args{
-		image:       "directpv-0.0.0dev0",
-		auditWriter: io.Discard,
+		image:        "directpv-0.0.0dev0",
+		auditWriter:  io.Discard,
+		backupWriter: io.Discard,
 	}
 
 	testVersions := []version.Info{

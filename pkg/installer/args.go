@@ -34,8 +34,9 @@ const (
 
 // Args represents DirectPV installation arguments.
 type Args struct {
-	image       string
-	auditWriter io.Writer
+	image        string
+	auditWriter  io.Writer
+	backupWriter io.Writer
 
 	// Optional arguments
 	Registry                 string
@@ -63,10 +64,11 @@ func (args Args) dryRun() bool {
 }
 
 // NewArgs creates arguments for DirectPV installation.
-func NewArgs(image string, auditWriter io.Writer) (*Args, error) {
+func NewArgs(image string, auditWriter, backupWriter io.Writer) (*Args, error) {
 	args := &Args{
-		image:       image,
-		auditWriter: auditWriter,
+		image:        image,
+		auditWriter:  auditWriter,
+		backupWriter: backupWriter,
 
 		Registry: "quay.io",
 		Org:      "minio",
@@ -90,6 +92,10 @@ func (args *Args) validate() error {
 
 	if args.auditWriter == nil {
 		return errors.New("audit writer must be provided")
+	}
+
+	if args.backupWriter == nil {
+		return errors.New("backup writer must be provided")
 	}
 
 	return nil

@@ -18,6 +18,7 @@ package installer
 
 import (
 	"os"
+	"path"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
@@ -76,6 +77,6 @@ var (
 
 func init() {
 	if value := os.Getenv("KUBELET_DIR_PATH"); value != "" {
-		kubeletDirPath = value
+		kubeletDirPath = path.Clean(value)
 	}
 }

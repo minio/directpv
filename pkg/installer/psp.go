@@ -19,7 +19,10 @@ package installer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"os"
+	"strings"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -30,11 +33,17 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const pspClusterRoleBindingName = "psp-" + consts.Identity
 
-var errPSPUnsupported = errors.New("pod security policy is not supported in your kubernetes version")
+var (
+	errPSPUnsupported = errors.New("pod security policy is not supported in your kubernetes version")
+
+	existingPSPClusterRoleBinding *rbac.ClusterRoleBinding
+	existingPodSecurityPolicy     *policy.PodSecurityPolicy
+)
 
 type pspTask struct{}
 
@@ -83,16 +92,44 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	if !args.dryRun() {
+		existingPSPClusterRoleBinding, err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Get(
+			ctx, pspClusterRoleBindingName, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = existingPSPClusterRoleBinding.CreationTimestamp
+			resourceVersion = existingPSPClusterRoleBinding.ResourceVersion
+			uid = existingPSPClusterRoleBinding.UID
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingPSPClusterRoleBinding)); err != nil {
+				return err
+			}
+		}
+	}
+
 	crb := &rbac.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        pspClusterRoleBindingName,
-			Namespace:   metav1.NamespaceNone,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              pspClusterRoleBindingName,
+			Namespace:         metav1.NamespaceNone,
+			Annotations:       map[string]string{},
+			Labels:            defaultLabels,
 		},
 		Subjects: []rbac.Subject{
 			{
@@ -113,15 +150,35 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
+	if update {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Update(ctx, crb, metav1.UpdateOptions{})
+	} else {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
 	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(crb))
+	return err
+}
+
+func revertPSPClusterRoleBinding(ctx context.Context) error {
+	if existingPSPClusterRoleBinding == nil {
+		return nil
+	}
+
+	pspClusterRoleBinding, err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Get(
+		ctx, pspClusterRoleBindingName, metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	existingPSPClusterRoleBinding.ResourceVersion = pspClusterRoleBinding.ResourceVersion
+	_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Update(
+		ctx, existingPSPClusterRoleBinding, metav1.UpdateOptions{},
+	)
 	return err
 }
 
@@ -136,16 +193,79 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	kubeletDir := kubeletDirPath
+
+	if !args.dryRun() {
+		existingPodSecurityPolicy, err := k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Get(
+			ctx, consts.Identity, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+			creationTimestamp = existingPodSecurityPolicy.CreationTimestamp
+			resourceVersion = existingPodSecurityPolicy.ResourceVersion
+			uid = existingPodSecurityPolicy.UID
+
+			// As it is not possible to get kubelet directory from an existing PodSecurityPolicy,
+			// below is a hack to get the value from deployment
+
+			deployment, err := k8s.KubeClient().AppsV1().Deployments(namespace).Get(
+				ctx, consts.ControllerServerName, metav1.GetOptions{},
+			)
+			if err != nil && apierrors.IsNotFound(err) {
+				deployment, err = k8s.KubeClient().AppsV1().Deployments(namespace).Get(
+					ctx, consts.LegacyControllerServerName, metav1.GetOptions{},
+				)
+			}
+
+			switch {
+			case err != nil:
+				if !apierrors.IsNotFound(err) {
+					return err
+				}
+			default:
+				_, found := os.LookupEnv("KUBELET_DIR_PATH")
+				if kubeletDir == "/var/lib/kubelet" && !found && len(deployment.Spec.Template.Spec.Volumes) != 0 {
+					for _, volume := range deployment.Spec.Template.Spec.Volumes {
+						if volume.Name == volumeNameSocketDir && volume.HostPath != nil {
+							kubeletDir = strings.TrimSuffix(
+								volume.HostPath.Path,
+								"/plugins/"+k8s.SanitizeResourceName(fmt.Sprintf("%s-controller", consts.ControllerServerName)),
+							)
+							break
+						}
+					}
+				}
+			}
+
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingPodSecurityPolicy)); err != nil {
+				return err
+			}
+		}
+	}
+
 	psp := &policy.PodSecurityPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policy/v1beta1",
 			Kind:       "PodSecurityPolicy",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        consts.Identity,
-			Namespace:   metav1.NamespaceNone,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              consts.Identity,
+			Namespace:         metav1.NamespaceNone,
+			Annotations:       map[string]string{},
+			Labels:            defaultLabels,
 		},
 		Spec: policy.PodSecurityPolicySpec{
 			Privileged:          true,
@@ -159,7 +279,7 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 				{PathPrefix: consts.UdevDataDir, ReadOnly: true},
 				{PathPrefix: consts.AppRootDir},
 				{PathPrefix: socketDir},
-				{PathPrefix: kubeletDirPath},
+				{PathPrefix: kubeletDir},
 			},
 			SELinux: policy.SELinuxStrategyOptions{
 				Rule: policy.SELinuxStrategyRunAsAny,
@@ -181,17 +301,39 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 		return nil
 	}
 
-	_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Create(
-		ctx, psp, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Update(
+			ctx, psp, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Create(
+			ctx, psp, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
 	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(psp))
+	return err
+}
+
+func revertPodSecurityPolicy(ctx context.Context) error {
+	if existingPodSecurityPolicy == nil {
+		return nil
+	}
+
+	podSecurityPolicy, err := k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Get(
+		ctx, consts.Identity, metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	existingPodSecurityPolicy.ResourceVersion = podSecurityPolicy.ResourceVersion
+	_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Update(
+		ctx, existingPodSecurityPolicy, metav1.UpdateOptions{},
+	)
 	return err
 }
 
@@ -217,6 +359,28 @@ func createPSP(ctx context.Context, args *Args) error {
 	}
 
 	return errPSPUnsupported
+}
+
+func revertPSP(ctx context.Context, args *Args) error {
+	if args.podSecurityAdmission {
+		return nil
+	}
+
+	var errs []string
+
+	if err := revertPodSecurityPolicy(ctx); err != nil {
+		errs = append(errs, fmt.Sprintf("PodSecurityPolicy: %v", err))
+	}
+
+	if err := revertPSPClusterRoleBinding(ctx); err != nil {
+		errs = append(errs, fmt.Sprintf("ClusterRoleBinding of PodSecurityPolicy: %v", err))
+	}
+
+	if len(errs) != 0 {
+		return fmt.Errorf("unable to revert PodSecurityPolicy; %v", strings.Join(errs, "; "))
+	}
+
+	return nil
 }
 
 func deletePSP(ctx context.Context) error {
