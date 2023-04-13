@@ -404,3 +404,124 @@ EOF
         sleep 1m
     done
 }
+
+function get_controller_image() {
+    # shellcheck disable=SC2016
+    kubectl -n directpv get deployment controller \
+            -o go-template='{{range $item := .spec.template.spec.containers}}{{if eq $item.name "controller"}}{{$item.image}}{{end}}{{end}}'
+}
+
+function get_node_server_image() {
+    # shellcheck disable=SC2016
+    kubectl -n directpv get daemonset node-server \
+            -o go-template='{{range $item := .spec.template.spec.containers}}{{if eq $item.name "node-server"}}{{$item.image}}{{end}}{{end}}'
+}
+
+function download_older_plugins() {
+    if [ ! -f "kubectl-directpv_4.0.2_linux_amd64" ]; then
+        curl --silent --location --insecure --fail --output "kubectl-directpv_4.0.2_linux_amd64" "https://github.com/minio/directpv/releases/download/v4.0.2/kubectl-directpv_4.0.2_linux_amd64"
+        chmod a+x "kubectl-directpv_4.0.2_linux_amd64"
+    fi
+
+    if [ ! -f "kubectl-directpv_3.2.2_linux_amd64" ]; then
+        curl --silent --location --insecure --fail --output "kubectl-directpv_3.2.2_linux_amd64" "https://github.com/minio/directpv/releases/download/v3.2.2/kubectl-directpv_3.2.2_linux_amd64"
+        chmod a+x "kubectl-directpv_3.2.2_linux_amd64"
+    fi
+}
+
+# test_upgrade [node-selector] [tolerations] [kubelet-dir]
+function test_upgrade() {
+    echo "* Run upgrade test"
+    download_older_plugins
+
+    node_selector="$1"
+    tolerations="$2"
+    kubelet_dir="$3"
+
+    setup_lvm
+    setup_luks
+
+    pod_count=$(( 3 + ACTIVE_NODES ))
+
+    minio_yaml=minio.yaml
+    if [ -n "${node_selector}" ]; then
+        old_minio_yaml="${minio_yaml}"
+        minio_yaml="node-selector-minio.yaml"
+        key_value="${node_selector/=/:\\ }"
+        sed "/containers:/i \ \ \ \ \ \ nodeSelector:\n\ \ \ \ \ \ \ \ ${key_value}" "${old_minio_yaml}" > "${minio_yaml}"
+    fi
+
+    if [ -n "${tolerations}" ]; then
+        old_minio_yaml="${minio_yaml}"
+        minio_yaml="tolerations-minio.yaml"
+        IFS='=' read -ra key_value <<< "${tolerations}"
+        IFS=':' read -ra value_effect <<< "${key_value[1]}"
+        sed "/containers:/i \ \ \ \ \ \ tolerations:\n\ \ \ \ \ \ -\ key:\ \"${key_value[0]}\"\n\ \ \ \ \ \ \ \ operator:\ \"Equal\"\n\ \ \ \ \ \ \ \ value:\ \"${value_effect[0]}\"\n\ \ \ \ \ \ \ \ effect:\ \"${value_effect[1]}\"" "${old_minio_yaml}" > "${minio_yaml}"
+    fi
+
+    install_directpv "./kubectl-directpv_4.0.2_linux_amd64" "${pod_count}" "${node_selector}" "${tolerations}" "${kubelet_dir}"
+    add_drives  "./kubectl-directpv_4.0.2_linux_amd64"
+    deploy_minio "${minio_yaml}"
+    install_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}" # here upgrade is done
+
+    version="$("${DIRECTPV_DIR}/kubectl-directpv" --version | awk '{ print $NF }')"
+    expected="quay.io/minio/directpv:${version}"
+    got="$(get_controller_image)"
+    if [ "${got}" !=  "${expected}" ]; then
+        echo "ERROR controller image differs; expected: ${expected}; got: ${got}"
+        return 1
+    fi
+    got="$(get_node_server_image)"
+    if [ "${got}" !=  "${expected}" ]; then
+        echo "ERROR node-server image differs; expected: ${expected}; got: ${got}"
+        return 1
+    fi
+
+    uninstall_minio "${DIRECTPV_DIR}/kubectl-directpv" "${minio_yaml}"
+    remove_drives "${DIRECTPV_DIR}/kubectl-directpv"
+    uninstall_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
+
+    remove_luks
+    remove_lvm
+}
+
+function test_upgrade_from_legacy() {
+    echo "* Run upgrade test from legacy"
+
+    download_older_plugins
+
+    sed -e s:directpv-min-io:direct-csi-min-io:g -e s:directpv.min.io:direct.csi.min.io:g minio.yaml > directcsi-minio.yaml
+
+    setup_lvm
+    setup_luks
+
+    legacy_pod_count=$(( 3 + ACTIVE_NODES ))
+    pod_count=$(( 6 + ACTIVE_NODES * 2 ))
+
+    install_directcsi "./kubectl-directpv_3.2.2_linux_amd64" "${legacy_pod_count}"
+
+    "./kubectl-directpv_3.2.2_linux_amd64" drives format --all --force
+
+    deploy_minio directcsi-minio.yaml
+
+    uninstall_directcsi "./kubectl-directpv_3.2.2_linux_amd64" "${legacy_pod_count}"
+
+    install_directpv "./kubectl-directpv_4.0.2_linux_amd64" "${pod_count}"
+    install_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}" # here upgrade is done
+
+    delete_minio directcsi-minio.yaml
+
+    deploy_minio directcsi-minio.yaml
+
+    uninstall_minio "${DIRECTPV_DIR}/kubectl-directpv" directcsi-minio.yaml
+
+    force_uninstall_directcsi "./kubectl-directpv_3.2.2_linux_amd64"
+
+    remove_drives "${DIRECTPV_DIR}/kubectl-directpv"
+    uninstall_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
+
+    unmount_directpv
+
+    remove_luks
+    remove_lvm
+}

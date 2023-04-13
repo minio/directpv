@@ -363,6 +363,41 @@ function run_func_tests() {
     cleanup_directpv
     ssh_cmd "${MASTER_VM_IP}" "ACTIVE_NODES=${ACTIVE_NODES} ./functests/run-migration-tests.sh v3.2.2"
     echo
+
+    # Immediately running below tests fail, sleep for one minute.
+    sleep 1m
+
+    echo "### Run upgrade tests"
+    cleanup_directpv
+    ssh_cmd "${MASTER_VM_IP}" "ACTIVE_NODES=${ACTIVE_NODES} ./functests/run-upgrade-tests.sh"
+    echo
+
+    if [ "${NODE_COUNT}" -eq 0 ]; then
+        return
+    fi
+
+    # Immediately running below tests fail, sleep for one minute.
+    sleep 1m
+
+    echo "### Run upgrade tests with node-selector"
+    cleanup_directpv
+    ssh_cmd "${MASTER_VM_IP}" "ACTIVE_NODES=1 ./functests/run-node-selector-upgrade-tests.sh kubernetes.io/hostname=node1"
+    echo
+
+    echo "### Run upgrade tests with tolerations"
+    cleanup_directpv
+    ssh_cmd "${MASTER_VM_IP}" "kubectl taint nodes node1 engineering=ProjectA:NoSchedule"
+    ssh_cmd "${MASTER_VM_IP}" "ACTIVE_NODES=${ACTIVE_NODES} ./functests/run-tolerations-upgrade-tests.sh engineering=ProjectA:NoSchedule"
+    echo
+
+    echo "### Run upgrade tests with KUBELET_DIR_PATH"
+    cleanup_directpv
+    ssh_cmd "${MASTER_VM_IP}" "ln -s /var/lib/kubelet /usr/share/my-kubelet"
+    for node_vm_ip in "${NODE_VM_IPS[@]}"; do
+        ssh_cmd "${node_vm_ip}" "ln -s /var/lib/kubelet /usr/share/my-kubelet"
+    done
+    ssh_cmd "${MASTER_VM_IP}" "ACTIVE_NODES=$(( ACTIVE_NODES - 1 )) ./functests/run-kubelet-dir-upgrade-tests.sh /usr/share/my-kubelet"
+    echo
 }
 
 function remove_vms() {
