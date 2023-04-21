@@ -335,7 +335,7 @@ func migrateVolumes(ctx context.Context, driveMap map[string]string, dryRun bool
 
 // Migrate migrates legacy drives and volumes.
 func Migrate(ctx context.Context, args *Args) (err error) {
-	if !args.Legacy {
+	if args.dryRun() || !args.Legacy {
 		return nil
 	}
 
