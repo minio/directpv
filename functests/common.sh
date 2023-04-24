@@ -23,7 +23,19 @@ export VG_NAME="testvg${RANDOM}"
 export LV_DEVICE=
 export LUKS_LOOP_DEVICE=
 export LUKS_DEVICE=
-export DIRECTPV_CLIENT=
+
+function is_github_workflow() {
+    [ "${GITHUB_ACTIONS}" == "true" ]
+}
+
+function unmount_directpv() {
+    mount | awk '/direct|pvc-/ {print $3}' > /tmp/.output
+    if grep -q . /tmp/.output; then
+        # shellcheck disable=SC2046
+        sudo umount -fl $(cat /tmp/.output)
+    fi
+    rm /tmp/.output
+}
 
 # usage: create_loop <newfile> <size>
 function create_loop() {
@@ -37,6 +49,10 @@ function create_loop() {
 }
 
 function setup_lvm() {
+    if ! is_github_workflow; then
+        return
+    fi
+
     LV_LOOP_DEVICE=$(create_loop testpv.img 1G)
     sudo pvcreate --quiet "${LV_LOOP_DEVICE}" >/dev/null 2>&1
     sudo vgcreate --quiet "${VG_NAME}" "${LV_LOOP_DEVICE}" >/dev/null 2>&1
@@ -45,6 +61,10 @@ function setup_lvm() {
 }
 
 function remove_lvm() {
+    if ! is_github_workflow; then
+        return
+    fi
+
     sudo lvchange --quiet --activate n "${VG_NAME}/testlv"
     sudo lvremove --quiet --yes "${VG_NAME}/testlv" >/dev/null 2>&1
     sudo vgremove --quiet "${VG_NAME}" >/dev/null 2>&1
@@ -54,26 +74,54 @@ function remove_lvm() {
 }
 
 function setup_luks() {
+    if ! is_github_workflow; then
+        return
+    fi
+
     LUKS_LOOP_DEVICE=$(create_loop testluks.img 1G)
     echo "mylukspassword" > lukspassfile
-    yes YES 2>/dev/null | sudo cryptsetup luksFormat "${LUKS_LOOP_DEVICE}" lukspassfile
+    echo -ne "YES\nYES\nYES\nYES\n" | sudo cryptsetup luksFormat "${LUKS_LOOP_DEVICE}" lukspassfile
     sudo cryptsetup luksOpen "${LUKS_LOOP_DEVICE}" myluks --key-file=lukspassfile
     LUKS_DEVICE=$(basename "$(readlink -f /dev/mapper/myluks)")
 }
 
 function remove_luks() {
+    if ! is_github_workflow; then
+        return
+    fi
+
     sudo cryptsetup luksClose myluks
     sudo losetup --detach "${LUKS_LOOP_DEVICE}"
     rm -f testluks.img
 }
 
-# install_directpv <pod_count>
+# install_directpv <plugin> <pod_count> [node-selector] [tolerations] [kubelet-dir]
 function install_directpv() {
-    echo "* Installing DirectPV"
+    directpv_client="$1"
+    node_selector="$3"
+    tolerations="$4"
+    kubelet_dir="$5"
 
-    "${DIRECTPV_CLIENT}" install --quiet
+    echo "* Installing DirectPV $(${directpv_client} --version | awk '{ print $NF }')"
 
-    required_count="$1"
+    cmd=( "${directpv_client}" install --quiet )
+    if [ -n "${node_selector}" ]; then
+        # shellcheck disable=SC2206
+        cmd=( ${cmd[@]} "--node-selector=${node_selector}" )
+    fi
+    if [ -n "${tolerations}" ]; then
+        # shellcheck disable=SC2206
+        cmd=( ${cmd[@]} "--tolerations=${tolerations}" )
+    fi
+    if [ -n "${kubelet_dir}" ]; then
+        export KUBELET_DIR_PATH="${kubelet_dir}"
+    fi
+
+    "${cmd[@]}"
+
+    unset KUBELET_DIR_PATH
+
+    required_count="$2"
     running_count=0
     while [[ $running_count -lt $required_count ]]; do
         echo "  ...waiting for $(( required_count - running_count )) DirectPV pods to come up"
@@ -81,7 +129,7 @@ function install_directpv() {
         running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv | wc -l)
     done
 
-    while ! "${DIRECTPV_CLIENT}" info --quiet; do
+    while ! "${directpv_client}" info --quiet; do
         echo "  ...waiting for DirectPV to come up"
         sleep 1m
     done
@@ -89,13 +137,15 @@ function install_directpv() {
     sleep 10
 }
 
-# uninstall_directpv <pod_count>
+# uninstall_directpv <plugin> <pod_count>
 function uninstall_directpv() {
-    echo "* Uninstalling DirectPV"
+    directpv_client="$1"
 
-    "${DIRECTPV_CLIENT}" uninstall --quiet
+    echo "* Uninstalling DirectPV $(${directpv_client} --version | awk '{ print $NF }')"
 
-    pending="$1"
+    "${directpv_client}" uninstall --quiet
+
+    pending="$2"
     while [[ $pending -gt 0 ]]; do
         echo "  ...waiting for ${pending} DirectPV pods to go down"
         sleep 5
@@ -110,33 +160,39 @@ function uninstall_directpv() {
     return 0
 }
 
-# usage: check_drives_status <status>
+# usage: check_drives_status <plugin>
 function check_drives_status() {
-    status="$1"
+    if ! is_github_workflow; then
+        return 0
+    fi
 
-    if ! "${DIRECTPV_CLIENT}" list drives -d "${LV_DEVICE}" --no-headers | grep -q -e "${LV_DEVICE}.*${status}"; then
-        echo "$ME: error: LVM device ${LV_DEVICE} not found in ${status} state"
+    directpv_client="$1"
+
+    if ! "${directpv_client}" list drives -d "${LV_DEVICE}" --no-headers | grep -q -e "${LV_DEVICE}.*Ready"; then
+        echo "$ME: error: LVM device ${LV_DEVICE} not found in Ready state"
         return 1
     fi
 
-    if ! "${DIRECTPV_CLIENT}" list drives -d "${LUKS_DEVICE}" --no-headers | grep -q -e "${LUKS_DEVICE}.*${status}"; then
-        echo "$ME: error: LUKS device ${LUKS_DEVICE} not found in ${status} state"
+    if ! "${directpv_client}" list drives -d "${LUKS_DEVICE}" --no-headers | grep -q -e "${LUKS_DEVICE}.*Ready"; then
+        echo "$ME: error: LUKS device ${LUKS_DEVICE} not found in Ready state"
         return 1
     fi
 }
 
+# usage: add_drives <plugin>
 function add_drives() {
     echo "* Adding drives"
 
+    directpv_client="$1"
     config_file="$(mktemp)"
 
-    if ! "${DIRECTPV_CLIENT}" discover --quiet --output-file "${config_file}" > /tmp/.output 2>&1; then
+    if ! "${directpv_client}" discover --quiet --output-file "${config_file}" > /tmp/.output 2>&1; then
         cat /tmp/.output
         echo "$ME: error: failed to discover the devices"
         rm "${config_file}"
         return 1
     fi
-    if ! "${DIRECTPV_CLIENT}" init --dangerous --quiet "${config_file}" > /tmp/.output 2>&1; then
+    if ! "${directpv_client}" init --dangerous --quiet "${config_file}" > /tmp/.output 2>&1; then
         cat /tmp/.output
         echo "$ME: error: failed to initialize the drives"
         rm "${config_file}"
@@ -145,13 +201,16 @@ function add_drives() {
 
     rm "${config_file}"
 
-    check_drives_status Ready
+    check_drives_status "${directpv_client}"
 }
 
+# usage: remove_drives <plugin>
 function remove_drives() {
     echo "* Deleting drives"
 
-    "${DIRECTPV_CLIENT}" remove --all --quiet
+    directpv_client="$1"
+
+    "${directpv_client}" remove --all --quiet
 }
 
 # usage: deploy_minio <minio-yaml>
@@ -213,11 +272,12 @@ function delete_minio() {
     done
 }
 
-# usage: uninstall_minio <minio-yaml>
+# usage: uninstall_minio <plugin> <minio-yaml>
 function uninstall_minio() {
     echo "* Uninstalling minio"
 
-    minio_yaml="$1"
+    directpv_client="$1"
+    minio_yaml="$2"
 
     delete_minio "${minio_yaml}"
 
@@ -228,10 +288,10 @@ function uninstall_minio() {
     sleep 5
 
     # clean all the volumes
-    "${DIRECTPV_CLIENT}" clean --all >/dev/null 2>&1 || true
+    "${directpv_client}" clean --all >/dev/null 2>&1 || true
 
     while true; do
-        count=$("${DIRECTPV_CLIENT}" list volumes --all --no-headers 2>/dev/null | wc -l)
+        count=$("${directpv_client}" list volumes --all --no-headers 2>/dev/null | wc -l)
         if [[ $count -eq 0 ]]; then
             break
         fi
@@ -303,11 +363,13 @@ function force_uninstall_directcsi() {
     sleep 5
 }
 
-# usage: test_volume_expansion <sleep-yaml>
+# usage: test_volume_expansion <plugin> <sleep-yaml>
 function test_volume_expansion() {
     echo "* Testing volume expansion"
 
-    sleep_yaml="$1"
+    directpv_client="$1"
+
+    sleep_yaml="$2"
     kubectl apply -f "${sleep_yaml}" 1>/dev/null
     while ! kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -q sleep-pod; do
         echo "  ...waiting for sleep-pod to come up"
@@ -337,7 +399,7 @@ EOF
         sleep 1m
     done
 
-    while "${DIRECTPV_CLIENT}" list volumes --all --no-headers 2>/dev/null | grep -q .; do
+    while "${directpv_client}" list volumes --all --no-headers 2>/dev/null | grep -q .; do
         echo "  ...waiting for sleep-pvc volume to be removed"
         sleep 1m
     done

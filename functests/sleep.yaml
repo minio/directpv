@@ -22,7 +22,7 @@ spec:
         claimName: sleep-pvc
   containers:
     - name: sleep-container
-      image: sleep:v0.0.1
+      image: example.org/test/sleep:v0.0.1
       volumeMounts:
         - mountPath: "/mnt"
           name: sleep-volume

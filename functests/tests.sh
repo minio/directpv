@@ -18,18 +18,23 @@
 
 set -ex
 
-source "${SCRIPT_DIR}/common.sh"
+# shellcheck source=/dev/null
+source "common.sh"
 
-setup_lvm
-setup_luks
-export DIRECTPV_CLIENT=./kubectl-directpv
-install_directpv 4
-add_drives
-deploy_minio functests/minio.yaml
-test_force_delete
-uninstall_minio functests/minio.yaml
-test_volume_expansion functests/sleep.yaml
-remove_drives
-uninstall_directpv 4
-remove_luks
-remove_lvm
+function run_tests() {
+    setup_lvm
+    setup_luks
+    pod_count=$(( 3 + ACTIVE_NODES ))
+    install_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
+    add_drives "${DIRECTPV_DIR}/kubectl-directpv"
+    deploy_minio minio.yaml
+    test_force_delete
+    uninstall_minio "${DIRECTPV_DIR}/kubectl-directpv" minio.yaml
+    test_volume_expansion "${DIRECTPV_DIR}/kubectl-directpv" sleep.yaml
+    remove_drives "${DIRECTPV_DIR}/kubectl-directpv"
+    uninstall_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
+    remove_luks
+    remove_lvm
+}
+
+run_tests
