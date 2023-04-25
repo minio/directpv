@@ -1,4 +1,4 @@
-DirectPV
+DirectPV:
 ----------
 
 DirectPV is a CSI driver for [Direct Attached Storage](https://en.wikipedia.org/wiki/Direct-attached_storage). In a simpler sense, it is a distributed persistent volume manager, and not a storage system like SAN or NAS. It is useful to *discover, format, mount, schedule and monitor* drives across servers. Since Kubernetes `hostPath` and `local` PVs are statically provisioned and limited in functionality, DirectPV was created to address this limitation. 
