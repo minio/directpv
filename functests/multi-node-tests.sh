@@ -256,8 +256,6 @@ EOF
 function build_docker_images() {
     echo "* Build DirectPV image. This may take longer time."
 
-    (cd "${DIRECTPV_DIR}" && ./build.sh)
-
     tag="$("${DIRECTPV_DIR}/kubectl-directpv" --version | awk '{ print $NF }')"
     directpv_image_tar="${TEST_ID}_directpv_${tag}.tar"
     directpv_image_tar_xz="${directpv_image_tar}.xz"
