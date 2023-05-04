@@ -17,7 +17,7 @@
 
 # Environment variables:
 #   - GITHUB_ACTIONS=true
-#     If set this setup nodes will be skipped.
+#     If set this tests will be skipped.
 
 if [ "${GITHUB_ACTIONS}" == "true" ]; then
     exit 0
@@ -105,5 +105,7 @@ export MASTER_VM_IP=
 
 export RSA_PRIVATE_KEY="${BASE_IMAGE}_rsa"
 export RSA_PUBLIC_KEY="${BASE_IMAGE}_rsa.pub"
+
+(cd "${DIRECTPV_DIR}" && ./build.sh)
 
 sudo -E ./execute.sh multi-node-tests.sh
