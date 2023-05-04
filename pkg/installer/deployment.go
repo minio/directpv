@@ -275,7 +275,11 @@ func doDeleteDeployment(ctx context.Context, name string) error {
 		return err
 	}
 
-	return deploymentClient.Delete(ctx, name, metav1.DeleteOptions{})
+	if err = deploymentClient.Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	return nil
 }
 
 func deleteDeployment(ctx context.Context) error {
