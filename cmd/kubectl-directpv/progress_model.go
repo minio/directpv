@@ -82,6 +82,11 @@ func (m progressModel) Init() tea.Cmd {
 
 func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Batch(tea.Sequence(finalPause(), tea.Quit))
+		}
+		return m, nil
 	case tea.WindowSizeMsg:
 		if m.model != nil {
 			m.model.Width = msg.Width - padding*2 - 4
