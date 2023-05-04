@@ -57,7 +57,7 @@ func probeDeviceMap() (map[string][]device, error) {
 		fsuuid, label, totalCapacity, freeCapacity, err := xfs.Probe(utils.AddDevPrefix(dev.Name))
 		if err != nil {
 			if !errors.Is(err, xfs.ErrFSNotFound) {
-				return nil, err
+				klog.ErrorS(err, "unable to probe XFS filesystem", "Device", dev.Name)
 			}
 			continue
 		}
