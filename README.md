@@ -96,6 +96,7 @@ Please review the [security checklist](./security-checklist.md) before deploying
 - [Driver Specification](./docs/specification.md)
 - [Monitoring & Metrics](./docs/metrics.md)
 - [Developer Guide](./docs/development-and-testing.md)
+- [FAQ](./docs/faq.md)
 
 ### Join Community
 
