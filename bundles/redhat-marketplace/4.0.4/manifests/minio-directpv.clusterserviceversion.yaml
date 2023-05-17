@@ -1,0 +1,339 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    createdAt: "2023-05-12T20:45:18Z"
+    operators.operatorframework.io/builder: operator-sdk-v1.28.0
+    operators.operatorframework.io/project_layout: unknown
+  name: minio-directpv.v4.0.4
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - kind: DirectPVDrive
+      name: directpvdrives.directpv.min.io
+      version: v1beta1
+    - kind: DirectPVVolume
+      name: directpvvolumes.directpv.min.io
+      version: v1beta1
+    - kind: DirectPVNode
+      name: directpvnodes.directpv.min.io
+      version: v1beta1
+    - kind: DirectPVInitRequest
+      name: directpvinitrequests.directpv.min.io
+      version: v1beta1
+  description: Minio Directpv description. TODO.
+  displayName: Minio Directpv
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumes
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumeclaims/status
+          verbs:
+          - patch
+        - apiGroups:
+          - policy
+          resources:
+          - podsecuritypolicies
+          verbs:
+          - use
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumeclaims
+          verbs:
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshots
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - snapshot.storage.k8s.io
+          resources:
+          - volumesnapshotcontents
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - csinodes
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - nodes
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - volumeattachments
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - endpoints
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - apiextensions.k8s.io
+          - directpv.min.io
+          resources:
+          - customresourcedefinitions
+          - customresourcedefinition
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - directpv.min.io
+          resources:
+          - directpvdrives
+          - directpvvolumes
+          - directpvnodes
+          - directpvinitrequests
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - pod
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          - secret
+          verbs:
+          - get
+          - list
+          - watch
+        serviceAccountName: directpv-min-io
+      deployments:
+      - label:
+          application-name: directpv.min.io
+          application-type: CSIDriver
+          directpv.min.io/created-by: kubectl-directpv
+          directpv.min.io/version: v1beta1
+        name: controller
+        spec:
+          replicas: 3
+          selector:
+            matchLabels:
+              selector.directpv.min.io: controller-aaz2c
+          strategy: {}
+          template:
+            metadata:
+              annotations:
+                created-by: kubectl-directpv
+              labels:
+                selector.directpv.min.io: controller-aaz2c
+              name: controller
+              namespace: directpv
+            spec:
+              containers:
+              - args:
+                - --v=3
+                - --timeout=300s
+                - --csi-address=$(CSI_ENDPOINT)
+                - --leader-election
+                - --feature-gates=Topology=true
+                - --strict-topology
+                env:
+                - name: CSI_ENDPOINT
+                  value: unix:///csi/csi.sock
+                image: quay.io/minio/csi-provisioner:v3.4.0
+                name: csi-provisioner
+                resources: {}
+                securityContext:
+                  privileged: true
+                terminationMessagePath: /var/log/controller-provisioner-termination-log
+                terminationMessagePolicy: FallbackToLogsOnError
+                volumeMounts:
+                - mountPath: /csi
+                  mountPropagation: None
+                  name: socket-dir
+              - args:
+                - --v=3
+                - --timeout=300s
+                - --csi-address=$(CSI_ENDPOINT)
+                - --leader-election
+                env:
+                - name: CSI_ENDPOINT
+                  value: unix:///csi/csi.sock
+                image: quay.io/minio/csi-resizer:v1.7.0
+                name: csi-resizer
+                resources: {}
+                securityContext:
+                  privileged: true
+                terminationMessagePath: /var/log/controller-csi-resizer-termination-log
+                terminationMessagePolicy: FallbackToLogsOnError
+                volumeMounts:
+                - mountPath: /csi
+                  mountPropagation: None
+                  name: socket-dir
+              - args:
+                - controller
+                - --identity=directpv-min-io
+                - -v=3
+                - --csi-endpoint=$(CSI_ENDPOINT)
+                - --kube-node-name=$(KUBE_NODE_NAME)
+                - --readiness-port=30443
+                env:
+                - name: KUBE_NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      apiVersion: v1
+                      fieldPath: spec.nodeName
+                - name: CSI_ENDPOINT
+                  value: unix:///csi/csi.sock
+                image: quay.io/minio/directpv:v4.0.4
+                name: controller
+                ports:
+                - containerPort: 30443
+                  name: readinessport
+                  protocol: TCP
+                - containerPort: 9898
+                  name: healthz
+                  protocol: TCP
+                readinessProbe:
+                  failureThreshold: 5
+                  httpGet:
+                    path: /ready
+                    port: readinessport
+                    scheme: HTTP
+                  initialDelaySeconds: 60
+                  periodSeconds: 10
+                  timeoutSeconds: 10
+                resources: {}
+                securityContext:
+                  privileged: true
+                volumeMounts:
+                - mountPath: /csi
+                  mountPropagation: None
+                  name: socket-dir
+              serviceAccountName: directpv-min-io
+              volumes:
+              - hostPath:
+                  path: /var/lib/kubelet/plugins/controller-controller
+                  type: DirectoryOrCreate
+                name: socket-dir
+      permissions:
+      - rules:
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        serviceAccountName: directpv-min-io
+    strategy: deployment
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - minio-directpv
+  links:
+  - name: Minio Directpv
+    url: https://minio-directpv.domain
+  maintainers:
+  - email: your@email.com
+    name: Maintainer Name
+  maturity: alpha
+  provider:
+    name: Provider Name
+    url: https://your.domain
+  version: 4.0.4
