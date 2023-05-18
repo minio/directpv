@@ -7,6 +7,8 @@ metadata:
     createdAt: "2023-05-10T22:03:17Z"
     operators.operatorframework.io/builder: operator-sdk-v1.28.0
     operators.operatorframework.io/project_layout: unknown
+    marketplace.openshift.io/remote-workflow: https://marketplace.redhat.com/en-us/operators/minio-directpv-operator-rhmp/pricing?utm_source=openshift_console
+    marketplace.openshift.io/support-workflow: https://marketplace.redhat.com/en-us/operators/minio-directpv-operator-rhmp/support?utm_source=openshift_console
   name: minio-directpv.v4.0.3
   namespace: placeholder
 spec:
