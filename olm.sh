@@ -1,7 +1,7 @@
 #!/bin/bash
 
 operator-sdk generate bundle \
-    --package minio-directpv \
+    --package minio-directpv-operator-rhmp \
     --version "$RELEASE" \
     --deploy-dir resources/base/"$RELEASE" \
     --manifests \
