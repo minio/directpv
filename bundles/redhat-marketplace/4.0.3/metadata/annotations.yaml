@@ -8,3 +8,4 @@ annotations:
   operators.operatorframework.io.metrics.builder: operator-sdk-v1.28.0
   operators.operatorframework.io.metrics.mediatype.v1: metrics+v1
   operators.operatorframework.io.metrics.project_layout: unknown
+  com.redhat.openshift.versions: v4.8-v4.12
