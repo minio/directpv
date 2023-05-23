@@ -7,7 +7,9 @@ metadata:
     createdAt: "2023-05-12T20:45:18Z"
     operators.operatorframework.io/builder: operator-sdk-v1.28.0
     operators.operatorframework.io/project_layout: unknown
-  name: minio-directpv.v4.0.4
+    marketplace.openshift.io/remote-workflow: https://marketplace.redhat.com/en-us/operators/minio-directpv-operator-rhmp/pricing?utm_source=openshift_console
+    marketplace.openshift.io/support-workflow: https://marketplace.redhat.com/en-us/operators/minio-directpv-operator-rhmp/support?utm_source=openshift_console
+  name: minio-directpv-operator-rhmp.v4.0.4
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -25,8 +27,8 @@ spec:
     - kind: DirectPVInitRequest
       name: directpvinitrequests.directpv.min.io
       version: v1beta1
-  description: Minio Directpv description. TODO.
-  displayName: Minio Directpv
+  description: Minio Directpv Operator Rhmp description. TODO.
+  displayName: Minio Directpv Operator Rhmp
   icon:
   - base64data: ""
     mediatype: ""
@@ -325,10 +327,10 @@ spec:
   - supported: true
     type: AllNamespaces
   keywords:
-  - minio-directpv
+  - minio-directpv-operator-rhmp
   links:
-  - name: Minio Directpv
-    url: https://minio-directpv.domain
+  - name: Minio Directpv Operator Rhmp
+    url: https://minio-directpv-operator-rhmp.domain
   maintainers:
   - email: your@email.com
     name: Maintainer Name
