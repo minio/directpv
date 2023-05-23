@@ -226,7 +226,7 @@ spec:
                 env:
                 - name: CSI_ENDPOINT
                   value: unix:///csi/csi.sock
-                image: quay.io/minio/csi-provisioner:v3.4.0
+                image: quay.io/minio/csi-provisioner@sha256:704fe68a6344774d4d0fde980af64fac2f2ddd27fb2e7f7c5b3d8fbddeae4ec8
                 name: csi-provisioner
                 resources: {}
                 securityContext:
@@ -245,7 +245,7 @@ spec:
                 env:
                 - name: CSI_ENDPOINT
                   value: unix:///csi/csi.sock
-                image: quay.io/minio/csi-resizer:v1.7.0
+                image: quay.io/minio/csi-resizer@sha256:a88ca4a9bfbd2e604aedae5a04a5c180540259e3ab75393755ff73d587a619b2
                 name: csi-resizer
                 resources: {}
                 securityContext:
@@ -271,7 +271,7 @@ spec:
                       fieldPath: spec.nodeName
                 - name: CSI_ENDPOINT
                   value: unix:///csi/csi.sock
-                image: quay.io/minio/directpv:v4.0.4
+                image: quay.io/minio/directpv@sha256:1f978ff8d13ba6ce9f11110218ab227545813c3d3003a7b489d483706637e7ea
                 name: controller
                 ports:
                 - containerPort: 30443
