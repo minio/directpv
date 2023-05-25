@@ -20,8 +20,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base32"
-	"fmt"
-	"io"
 	"path"
 	"strings"
 
@@ -186,17 +184,14 @@ func migrateLog(ctx context.Context, args *Args, errMsg string, showInProgress b
 				return errSendProgress
 			}
 		}
-	case !args.Quiet && !args.dryRun():
+	case !args.Quiet && !args.DryRun:
 		klog.Error(errMsg)
 	}
-	return writeToAuditFile(args.auditWriter, errMsg)
-}
 
-func writeToAuditFile(writer io.Writer, message string) error {
-	if writer == nil {
-		return nil
+	if args.ObjectWriter != nil {
+		_, err := args.ObjectWriter.Write([]byte(errMsg))
+		return err
 	}
-	log := fmt.Sprintf("\n%s\n---\n", message)
-	_, err := io.WriteString(writer, log)
-	return err
+
+	return nil
 }

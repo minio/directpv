@@ -19,12 +19,10 @@ package installer
 import (
 	"context"
 	"fmt"
-	"io"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
-	"github.com/minio/directpv/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -205,7 +203,7 @@ func livenessProbeContainer(image string) corev1.Container {
 	}
 }
 
-func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.DaemonSet {
+func newDaemonset(podSpec corev1.PodSpec, name, selectorValue, appArmorProfile string) *appsv1.DaemonSet {
 	annotations := map[string]string{createdByLabel: pluginName}
 	if appArmorProfile != "" {
 		// AppArmor profiles need to be specified per-container
@@ -213,7 +211,6 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 			annotations["container.apparmor.security.beta.kubernetes.io/"+container.Name] = "localhost/" + appArmorProfile
 		}
 	}
-	selectorValue := fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
 
 	return &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
@@ -239,6 +236,9 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 					},
 				},
 				Spec: podSpec,
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
 		},
 		Status: appsv1.DaemonSetStatus{},
@@ -280,25 +280,40 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 		Tolerations:  args.Tolerations,
 	}
 
-	daemonset := newDaemonset(podSpec, consts.NodeServerName, args.AppArmorProfile)
-
-	if args.dryRun() {
-		args.DryRunPrinter(daemonset)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
-		ctx, daemonset, metav1.CreateOptions{},
-	)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	var selectorValue string
+	if !args.DryRun {
+		daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+			ctx, consts.NodeServerName, metav1.GetOptions{},
+		)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
 		}
-		return err
+		if err == nil {
+			if !args.Declarative {
+				return nil
+			}
+
+			if daemonset.Spec.Selector != nil && daemonset.Spec.Selector.MatchLabels != nil {
+				selectorValue = daemonset.Spec.Selector.MatchLabels[selectorKey]
+			}
+		}
+	}
+	if selectorValue == "" {
+		selectorValue = fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(daemonset))
-	return err
+	daemonset := newDaemonset(podSpec, consts.NodeServerName, selectorValue, args.AppArmorProfile)
+
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+			ctx, daemonset, metav1.CreateOptions{},
+		)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	return args.writeObject(daemonset)
 }
 
 func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
@@ -328,78 +343,67 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 		Tolerations:  args.Tolerations,
 	}
 
-	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, args.AppArmorProfile)
-
-	if args.dryRun() {
-		args.DryRunPrinter(daemonset)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
-		ctx, daemonset, metav1.CreateOptions{},
-	)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	var selectorValue string
+	if !args.DryRun {
+		daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+			ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
+		)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
 		}
-		return err
+		if err == nil {
+			if !args.Declarative {
+				return nil
+			}
+
+			if daemonset.Spec.Selector != nil && daemonset.Spec.Selector.MatchLabels != nil {
+				selectorValue = daemonset.Spec.Selector.MatchLabels[selectorKey]
+			}
+		}
+	}
+	if selectorValue == "" {
+		selectorValue = fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(daemonset))
-	return err
+	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, selectorValue, args.AppArmorProfile)
+
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+			ctx, daemonset, metav1.CreateOptions{},
+		)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	return args.writeObject(daemonset)
 }
 
 func createDaemonset(ctx context.Context, args *Args) (err error) {
-	if args.dryRun() {
-		if err := doCreateDaemonset(ctx, args); err != nil {
-			return err
-		}
-
-		if args.Legacy {
-			if err := doCreateLegacyDaemonset(ctx, args); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.NodeServerName), 1, nil) {
 		return errSendProgress
 	}
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
-		ctx, consts.NodeServerName, metav1.GetOptions{},
-	)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		if err := doCreateDaemonset(ctx, args); err != nil {
-			return err
-		}
+	if err := doCreateDaemonset(ctx, args); err != nil {
+		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.NodeServerName), 1, daemonsetComponent(consts.NodeServerName)) {
 		return errSendProgress
 	}
+
 	if !args.Legacy {
 		return nil
 	}
+
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.LegacyNodeServerName), 2, nil) {
 		return errSendProgress
 	}
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
-		ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
-	)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		if err := doCreateLegacyDaemonset(ctx, args); err != nil {
-			return err
-		}
+	if err := doCreateLegacyDaemonset(ctx, args); err != nil {
+		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.LegacyNodeServerName), 2, daemonsetComponent(consts.LegacyNodeServerName)) {
 		return errSendProgress
 	}
+
 	return nil
 }
 

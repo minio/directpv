@@ -19,11 +19,9 @@ package installer
 import (
 	"context"
 	"fmt"
-	"io"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -178,7 +176,24 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 		},
 	}
 
-	selectorValue := fmt.Sprintf("%v-%v", consts.ControllerServerName, getRandSuffix())
+	var selectorValue string
+	if !args.DryRun {
+		deployment, err := k8s.KubeClient().AppsV1().Deployments(namespace).Get(
+			ctx, name, metav1.GetOptions{},
+		)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+		if err == nil {
+			if deployment.Spec.Selector != nil && deployment.Spec.Selector.MatchLabels != nil {
+				selectorValue = deployment.Spec.Selector.MatchLabels[selectorKey]
+			}
+		}
+	}
+	if selectorValue == "" {
+		selectorValue = fmt.Sprintf("%v-%v", consts.ControllerServerName, getRandSuffix())
+	}
+
 	replicas := int32(3)
 	deployment := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -208,27 +223,21 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 				},
 				Spec: podSpec,
 			},
+			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
 		},
 		Status: appsv1.DeploymentStatus{},
 	}
 
-	if args.dryRun() {
-		args.DryRunPrinter(deployment)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
-		ctx, deployment, metav1.CreateOptions{},
-	)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
+			ctx, deployment, metav1.CreateOptions{},
+		)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
-		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(deployment))
-	return err
+	return args.writeObject(deployment)
 }
 
 func createDeployment(ctx context.Context, args *Args) (err error) {

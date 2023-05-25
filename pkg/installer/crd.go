@@ -20,7 +20,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"io"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
@@ -29,7 +28,6 @@ import (
 	"github.com/minio/directpv/pkg/initrequest"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/node"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/volume"
 	"k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -114,19 +112,18 @@ func getLatestCRDVersionObject(
 }
 
 func updateCRD(
-	ctx context.Context,
 	existingCRD, newCRD *apiextensions.CustomResourceDefinition,
-) (*apiextensions.CustomResourceDefinition, error) {
+) (*apiextensions.CustomResourceDefinition, bool, error) {
 	existingCRDStorageVersion, err := apihelpers.GetCRDStorageVersion(existingCRD)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	setNoneConversionStrategy(existingCRD)
 
 	// CRD is already in the latest version
 	if existingCRDStorageVersion == consts.LatestAPIVersion {
-		return existingCRD, nil
+		return existingCRD, true, nil
 	}
 
 	var versionEntryFound bool
@@ -143,12 +140,12 @@ func updateCRD(
 	if !versionEntryFound {
 		latestVersionObject, err := getLatestCRDVersionObject(newCRD)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		existingCRD.Spec.Versions = append(existingCRD.Spec.Versions, latestVersionObject)
 	}
 
-	return k8s.CRDClient().Update(ctx, existingCRD, metav1.UpdateOptions{})
+	return existingCRD, false, nil
 }
 
 func createCRDs(ctx context.Context, args *Args) (err error) {
@@ -162,16 +159,16 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(object, &crd); err != nil {
 			return err
 		}
+		setNoneConversionStrategy(&crd)
+		updateLabels(
+			&crd,
+			map[directpvtypes.LabelKey]directpvtypes.LabelValue{
+				directpvtypes.VersionLabelKey: consts.LatestAPIVersion,
+			},
+		)
 
-		if args.dryRun() {
-			updateLabels(
-				&crd,
-				map[directpvtypes.LabelKey]directpvtypes.LabelValue{
-					directpvtypes.VersionLabelKey: consts.LatestAPIVersion,
-				},
-			)
-			args.DryRunPrinter(crd)
-			return nil
+		if args.DryRun {
+			return args.writeObject(&crd)
 		}
 
 		existingCRD, err := k8s.CRDClient().Get(ctx, crd.Name, metav1.GetOptions{})
@@ -180,33 +177,45 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 				return err
 			}
 
-			setNoneConversionStrategy(&crd)
 			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Registering %s CRD", crd.Name), step, nil) {
 				return errSendProgress
 			}
-			_, err := k8s.CRDClient().Create(ctx, &crd, metav1.CreateOptions{})
-			if err != nil {
-				return err
+
+			if !args.Declarative {
+				_, err := k8s.CRDClient().Create(ctx, &crd, metav1.CreateOptions{})
+				if err != nil {
+					return err
+				}
 			}
+
 			if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Registered %s CRD", crd.Name), step, crdComponent(crd.Name)) {
 				return errSendProgress
 			}
-			_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(crd))
-			return err
+			return args.writeObject(&crd)
 		}
 
 		if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Updating %s CRD", crd.Name), step, nil) {
 			return errSendProgress
 		}
-		updatedCRD, err := updateCRD(ctx, existingCRD, &crd)
+
+		updatedCRD, isLatest, err := updateCRD(existingCRD, &crd)
 		if err != nil {
 			return err
 		}
+
+		if !args.Declarative && !isLatest {
+			updatedCRD, err = k8s.CRDClient().Update(ctx, updatedCRD, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+
 		if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Updated %s CRD", crd.Name), step, crdComponent(crd.Name)) {
 			return errSendProgress
 		}
-		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(updatedCRD))
-		return err
+
+		updatedCRD.TypeMeta = crd.TypeMeta
+		return args.writeObject(updatedCRD)
 	}
 
 	if err := register(drivesYAML, 1); err != nil {

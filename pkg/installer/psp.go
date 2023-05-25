@@ -19,11 +19,9 @@ package installer
 import (
 	"context"
 	"errors"
-	"io"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
 	rbac "k8s.io/api/rbac/v1"
@@ -108,21 +106,14 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 		},
 	}
 
-	if args.dryRun() {
-		args.DryRunPrinter(crb)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
-		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(crb))
-	return err
+	return args.writeObject(crb)
 }
 
 func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
@@ -176,23 +167,16 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 		},
 	}
 
-	if args.dryRun() {
-		args.DryRunPrinter(psp)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Create(
-		ctx, psp, metav1.CreateOptions{},
-	)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Create(
+			ctx, psp, metav1.CreateOptions{},
+		)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
-		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(psp))
-	return err
+	return args.writeObject(psp)
 }
 
 func createPSP(ctx context.Context, args *Args) error {
@@ -200,7 +184,7 @@ func createPSP(ctx context.Context, args *Args) error {
 		return nil
 	}
 	var gvk *schema.GroupVersionKind
-	if !args.dryRun() {
+	if !args.DryRun {
 		var err error
 		if gvk, err = k8s.GetGroupVersionKind("policy", "PodSecurityPolicy", "v1beta1"); err != nil {
 			return err

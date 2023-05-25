@@ -19,13 +19,11 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 )
 
@@ -40,31 +38,19 @@ func Contains[ctype comparable](slice []ctype, value ctype) bool {
 	return false
 }
 
-// MustGetYAML converts the given object to YAML
-func MustGetYAML(i interface{}) string {
+// ToYAML converts any type to YAML
+func ToYAML(i interface{}) ([]byte, error) {
 	data, err := yaml.Marshal(i)
 	if err != nil {
-		klog.Fatalf("unable to marshal object to YAML; %w", err)
+		return nil, err
 	}
-	return fmt.Sprintf("%v\n---\n", string(data))
+
+	return append(data, []byte("\n---\n")...), nil
 }
 
-// MustGetJSON converts the given object to JSON
-func MustGetJSON(obj interface{}) string {
-	data, err := json.MarshalIndent(obj, "", "  ")
-	if err != nil {
-		klog.Fatalf("unable to marshal object to JSON; %w", err)
-	}
-	return fmt.Sprintf("%v\n---\n", string(data))
-}
-
-// WriteObject writes the writer content
-func WriteObject(writer io.Writer, obj interface{}) error {
-	if _, err := writer.Write([]byte(MustGetYAML(obj))); err != nil {
-		return err
-	}
-	_, err := writer.Write([]byte("---\n"))
-	return err
+// ToJSON converts any type to JSON
+func ToJSON(obj interface{}) ([]byte, error) {
+	return json.MarshalIndent(obj, "", "  ")
 }
 
 // SafeFile is used to write the yaml

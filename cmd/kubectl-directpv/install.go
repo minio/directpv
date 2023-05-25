@@ -35,6 +35,7 @@ import (
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/version"
 )
 
@@ -52,6 +53,7 @@ var (
 	k8sVersion       = "1.27.0"
 	kubeVersion      *version.Version
 	legacyFlag       bool
+	declarativeFlag  bool
 )
 
 var installCmd = &cobra.Command{
@@ -122,6 +124,8 @@ func init() {
 	addOutputFormatFlag(installCmd, "Generate installation manifest. One of: yaml|json")
 	installCmd.PersistentFlags().StringVar(&k8sVersion, "kube-version", k8sVersion, "Select the kubernetes version for manifest generation")
 	installCmd.PersistentFlags().BoolVar(&legacyFlag, "legacy", legacyFlag, "Enable legacy mode (Used with '-o')")
+	installCmd.PersistentFlags().BoolVar(&declarativeFlag, "declarative", declarativeFlag, "Output YAML for declarative installation")
+	installCmd.PersistentFlags().MarkHidden("declarative")
 }
 
 func validateNodeSelectorArgs() error {
@@ -254,22 +258,26 @@ func getLegacyFlag(ctx context.Context) bool {
 func installMain(ctx context.Context) {
 	legacyFlag = getLegacyFlag(ctx)
 
-	auditFile := fmt.Sprintf("install.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
-	file, err := openAuditFile(auditFile)
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "unable to open audit file %v; %v\n", auditFile, err)
-		utils.Eprintf(false, false, "%v\n", color.HiYellowString("Skipping audit logging"))
+	var file *utils.SafeFile
+	var err error
+	if dryRunPrinter == nil && !declarativeFlag {
+		auditFile := fmt.Sprintf("install.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
+		file, err = openAuditFile(auditFile)
+		if err != nil {
+			utils.Eprintf(quietFlag, true, "unable to open audit file %v; %v\n", auditFile, err)
+			utils.Eprintf(false, false, "%v\n", color.HiYellowString("Skipping audit logging"))
+		}
+
+		defer func() {
+			if file != nil {
+				if err := file.Close(); err != nil {
+					utils.Eprintf(quietFlag, true, "unable to close audit file; %v\n", err)
+				}
+			}
+		}()
 	}
 
-	defer func() {
-		if file != nil {
-			if err := file.Close(); err != nil {
-				utils.Eprintf(quietFlag, true, "unable to close audit file; %v\n", err)
-			}
-		}
-	}()
-
-	args, err := installer.NewArgs(image, file)
+	args := installer.NewArgs(image)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
@@ -285,12 +293,27 @@ func installMain(ctx context.Context) {
 	args.Quiet = quietFlag
 	args.KubeVersion = kubeVersion
 	args.Legacy = legacyFlag
-	args.DryRunPrinter = dryRunPrinter
+	if file != nil {
+		args.ObjectWriter = file
+	}
+	if dryRunPrinter != nil {
+		args.DryRun = true
+		if outputFormat == "yaml" {
+			args.ObjectMarshaler = func(obj runtime.Object) ([]byte, error) {
+				return utils.ToYAML(obj)
+			}
+		} else {
+			args.ObjectMarshaler = func(obj runtime.Object) ([]byte, error) {
+				return utils.ToJSON(obj)
+			}
+		}
+	}
+	args.Declarative = declarativeFlag
 
 	var failed bool
 	var installedComponents []installer.Component
 	var wg sync.WaitGroup
-	if dryRunPrinter == nil && !quietFlag {
+	if dryRunPrinter == nil && !declarativeFlag && !quietFlag {
 		m := newProgressModel(true)
 		teaProgram := tea.NewProgram(m)
 		wg.Add(1)

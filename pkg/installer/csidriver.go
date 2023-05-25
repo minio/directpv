@@ -20,12 +20,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
-	"github.com/minio/directpv/pkg/utils"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -107,21 +105,14 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 			},
 		}
 
-		if args.dryRun() {
-			args.DryRunPrinter(csiDriver)
-			return nil
-		}
-
-		_, err := k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
-		if err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				err = nil
+		if !args.DryRun && !args.Declarative {
+			_, err := k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				return err
 			}
-			return err
 		}
 
-		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(csiDriver))
-		return err
+		return args.writeObject(csiDriver)
 
 	case "v1beta1":
 		csiDriver := &storagev1beta1.CSIDriver{
@@ -145,21 +136,14 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 			},
 		}
 
-		if args.dryRun() {
-			args.DryRunPrinter(csiDriver)
-			return nil
-		}
-
-		_, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
-		if err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				err = nil
+		if !args.DryRun && !args.Declarative {
+			_, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				return err
 			}
-			return err
 		}
 
-		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(csiDriver))
-		return err
+		return args.writeObject(csiDriver)
 
 	default:
 		return errCSIDriverVersionUnsupported
@@ -168,7 +152,7 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 
 func createCSIDriver(ctx context.Context, args *Args) (err error) {
 	version := "v1"
-	if args.dryRun() {
+	if args.DryRun {
 		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 19 {
 			version = "v1beta1"
 		}

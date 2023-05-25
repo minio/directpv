@@ -18,10 +18,13 @@ package installer
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"path"
 
+	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/version"
 )
 
@@ -44,40 +47,37 @@ const (
 
 // Args represents DirectPV installation arguments.
 type Args struct {
-	image       string
-	auditWriter io.Writer
+	image string
 
 	// Optional arguments
-	Registry                 string
-	Org                      string
-	ImagePullSecrets         []string
-	NodeSelector             map[string]string
-	Tolerations              []corev1.Toleration
-	SeccompProfile           string
-	AppArmorProfile          string
-	Quiet                    bool
-	KubeVersion              *version.Version
-	Legacy                   bool
+	Registry         string
+	Org              string
+	ImagePullSecrets []string
+	NodeSelector     map[string]string
+	Tolerations      []corev1.Toleration
+	SeccompProfile   string
+	AppArmorProfile  string
+	Quiet            bool
+	KubeVersion      *version.Version
+	Legacy           bool
+	ObjectWriter     io.Writer
+	DryRun           bool
+	Declarative      bool
+	ObjectMarshaler  func(runtime.Object) ([]byte, error)
+	ProgressCh       chan<- Message
+	ForceUninstall   bool
+
 	podSecurityAdmission     bool
 	csiProvisionerImage      string
 	nodeDriverRegistrarImage string
 	livenessProbeImage       string
 	csiResizerImage          string
-	ProgressCh               chan<- Message
-	ForceUninstall           bool
-	DryRunPrinter            func(interface{})
-}
-
-func (args Args) dryRun() bool {
-	return args.DryRunPrinter != nil
 }
 
 // NewArgs creates arguments for DirectPV installation.
-func NewArgs(image string, auditWriter io.Writer) (*Args, error) {
-	args := &Args{
-		image:       image,
-		auditWriter: auditWriter,
-
+func NewArgs(image string) *Args {
+	return &Args{
+		image:    image,
 		Registry: "quay.io",
 		Org:      "minio",
 
@@ -86,11 +86,6 @@ func NewArgs(image string, auditWriter io.Writer) (*Args, error) {
 		livenessProbeImage:       livenessProbeImage,
 		csiResizerImage:          csiResizerImage,
 	}
-
-	if err := args.validate(); err != nil {
-		return nil, err
-	}
-	return args, nil
 }
 
 func (args *Args) validate() error {
@@ -98,11 +93,35 @@ func (args *Args) validate() error {
 		return errors.New("image name must be provided")
 	}
 
-	if args.auditWriter == nil {
-		return errors.New("audit writer must be provided")
+	if !args.DryRun && !args.Declarative && args.ObjectWriter == nil {
+		return errors.New("object writer must be provided")
+	}
+
+	if args.DryRun && args.ObjectMarshaler == nil {
+		return errors.New("object converter must be provided")
 	}
 
 	return nil
+}
+
+func (args *Args) writeObject(obj runtime.Object) (err error) {
+	var data []byte
+	if args.ObjectMarshaler != nil {
+		data, err = args.ObjectMarshaler(obj)
+	} else {
+		data, err = utils.ToYAML(obj)
+	}
+	if err != nil {
+		return err
+	}
+
+	if args.ObjectWriter != nil {
+		_, err = args.ObjectWriter.Write(data)
+	} else {
+		fmt.Print(string(data))
+	}
+
+	return err
 }
 
 func (args *Args) getImagePullSecrets() (refs []corev1.LocalObjectReference) {

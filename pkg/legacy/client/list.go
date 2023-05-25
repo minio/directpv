@@ -56,11 +56,8 @@ func ListDrives(ctx context.Context) <-chan ListDriveResult {
 			}
 
 			for _, item := range result.Items {
-				switch item.Status.DriveStatus {
-				case directv1beta5.DriveStatusReady, directv1beta5.DriveStatusInUse:
-					if !send(ListDriveResult{Drive: item}) {
-						return
-					}
+				if !send(ListDriveResult{Drive: item}) {
+					return
 				}
 			}
 
