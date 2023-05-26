@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        kube-version: ['v1.18.20', 'v1.19.16', 'v1.20.15', 'v1.21.14', 'v1.22.16', 'v1.23.14', 'v1.24.8', 'v1.25.4']
+        kube-version: ['v1.18.20', 'v1.19.16', 'v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.17', 'v1.24.14', 'v1.25.10', 'v1.26.5', 'v1.27.2']
         os: [ubuntu-20.04, ubuntu-22.04]
         exclude:
           - os: ubuntu-22.04
@@ -58,11 +58,10 @@ jobs:
           docker build --quiet -t example.org/test/sleep:v0.0.1 -f functests/Dockerfile.sleep functests
 
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.7.2
+        uses: medyagh/setup-minikube@latest
         with:
-          minikube version: 'v1.28.0'
-          kubernetes version: ${{ matrix.kube-version }}
-          github token: ${{ secrets.GITHUB_TOKEN }}
+          driver: none
+          kubernetes-version: ${{ matrix.kube-version }}
 
       - name: Check Minikube
         run: |
@@ -81,7 +80,7 @@ jobs:
           functests/run-migration-tests.sh "v3.2.2"
 
       - name: Run migration tests with DirectCSI v2.0.9
-        if: contains(fromJson('["v1.18.20", "v1.19.16", "v1.20.15", "v1.21.14", "v1.22.16"]'), matrix.kube-version)
+        if: contains(fromJson('["v1.18.20", "v1.19.16", "v1.20.15", "v1.21.14", "v1.22.17"]'), matrix.kube-version)
         run: |
           sudo rm -fr /var/lib/directpv /var/lib/direct-csi
           functests/run-migration-tests.sh "v2.0.9"
