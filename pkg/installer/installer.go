@@ -105,7 +105,7 @@ func Install(ctx context.Context, args *Args) (err error) {
 
 	if args.KubeVersion.Major() == 1 {
 		if args.KubeVersion.Minor() < 20 {
-			args.csiProvisionerImage = "csi-provisioner:v2.2.0-go1.18"
+			args.csiProvisionerImage = csiProvisionerImageV2_2_0
 		}
 		args.podSecurityAdmission = args.KubeVersion.Minor() > 24
 	}
