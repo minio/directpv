@@ -293,18 +293,15 @@ func discoverMain(ctx context.Context) {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
-
-	if dryRunPrinter != nil {
-		nodeList := types.NodeList{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "List",
-				APIVersion: string(directpvtypes.VersionLabelKey),
-			},
-			Items: nodes,
+	if len(nodesArgs) != 0 && len(nodes) == 0 {
+		suffix := ""
+		if len(nodesArgs) > 1 {
+			suffix = "s"
 		}
-		dryRunPrinter(nodeList)
-		return
+		utils.Eprintf(quietFlag, true, "node%v %v not found\n", suffix, nodesArgs)
+		os.Exit(1)
 	}
+
 	var teaProgram *tea.Program
 	var wg sync.WaitGroup
 	if !quietFlag {
