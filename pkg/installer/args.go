@@ -26,10 +26,20 @@ import (
 )
 
 const (
-	csiProvisionerImage      = "csi-provisioner:v3.4.0"
-	nodeDriverRegistrarImage = "csi-node-driver-registrar:v2.6.3"
-	livenessProbeImage       = "livenessprobe:v2.9.0"
-	csiResizerImage          = "csi-resizer:v1.7.0"
+	// csiProvisionerImage = csi-provisioner:v3.4.0
+	csiProvisionerImage = "csi-provisioner@sha256:704fe68a6344774d4d0fde980af64fac2f2ddd27fb2e7f7c5b3d8fbddeae4ec8"
+
+	// csiProvisionerImageV2_2_0 = "csi-provisioner:v2.2.0-go1.18"
+	csiProvisionerImageV2_2_0 = "csi-provisioner@sha256:c185db49ba02c384633165894147f8d7041b34b173e82a49d7145e50e809b8d6"
+
+	// nodeDriverRegistrarImage = csi-node-driver-registrar:v2.6.3
+	nodeDriverRegistrarImage = "csi-node-driver-registrar@sha256:68ee8f0b10acb4189e506d8a0e40c995362d886a35d5cbb17624e59913af0145"
+
+	// livenessProbeImage = livenessprobe:v2.9.0
+	livenessProbeImage = "livenessprobe@sha256:0522eff1d8e9269655080500c1f6388fe2573978e8a74e08beaf3452cd575c2e"
+
+	// csiResizerImage = csi-resizer:v1.7.0
+	csiResizerImage = "csi-resizer@sha256:a88ca4a9bfbd2e604aedae5a04a5c180540259e3ab75393755ff73d587a619b2"
 )
 
 // Args represents DirectPV installation arguments.
