@@ -83,9 +83,15 @@ func moveMain(ctx context.Context, src, dest string) {
 		os.Exit(1)
 	}
 
+	sourceVolumeNames := srcDrive.GetVolumes()
+	if len(sourceVolumeNames) == 0 {
+		utils.Eprintf(quietFlag, false, "No volumes found in source drive %v\n", src)
+		return
+	}
+
 	var requiredCapacity int64
 	var volumes []types.Volume
-	for result := range volume.NewLister().VolumeNameSelector(srcDrive.GetVolumes()).List(ctx) {
+	for result := range volume.NewLister().VolumeNameSelector(sourceVolumeNames).List(ctx) {
 		if result.Err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
 			os.Exit(1)

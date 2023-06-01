@@ -22,11 +22,15 @@
 
 set -e
 
-# usage: get_drive_id <node> <drive-name>
-function get_drive_id() {
+ME=$(basename "$0"); export ME
+
+export drive_id=""
+
+# usage: get_drive_ids <node> <drive-name>
+function get_drive_ids() {
     kubectl get directpvdrives \
             --selector="directpv.min.io/node==${1},directpv.min.io/drive-name==${2}" \
-            -o go-template='{{range .items}}{{.metadata.name}}{{end}}'
+            -o go-template='{{range .items}}{{.metadata.name}} {{end}}'
 }
 
 # usage: get_volumes <drive-id>
@@ -36,25 +40,73 @@ function get_volumes() {
             -o go-template='{{range .items}}{{.metadata.name}}{{ " " | print }}{{end}}'
 }
 
-# usage: get_pod_name <volume>
+# usage: get_pod_name <volume-id>
 function get_pod_name() {
     # shellcheck disable=SC2016
     kubectl get directpvvolumes "${1}" \
             -o go-template='{{range $k,$v := .metadata.labels}}{{if eq $k "directpv.min.io/pod.name"}}{{$v}}{{end}}{{end}}'
 }
 
-# usage: get_pod_namespace <volume>
+# usage: get_pod_namespace <volume-id>
 function get_pod_namespace() {
     # shellcheck disable=SC2016
     kubectl get directpvvolumes "${1}" \
             -o go-template='{{range $k,$v := .metadata.labels}}{{if eq $k "directpv.min.io/pod.namespace"}}{{$v}}{{end}}{{end}}'
 }
 
+# usage: get_node_name <drive-id>
+function get_node_name() {
+    # shellcheck disable=SC2016
+    kubectl get directpvdrives "${1}" \
+            -o go-template='{{range $k,$v := .metadata.labels}}{{if eq $k "directpv.min.io/node"}}{{$v}}{{end}}{{end}}'
+}
+
+# usage: is_uuid input
+function is_uuid() {
+    [[ "$1" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]
+}
+
+# usage: must_get_drive_id <node> <drive-name>
+function must_get_drive_id() {
+    if [ -z "${1}" ]; then
+        print "node argument must be provided for drive name"
+        exit 255
+    fi
+    # shellcheck disable=SC2207
+    drive_ids=( $(get_drive_ids "${1}" "${2}") )
+    if [ "${#drive_ids[@]}" -eq 0 ]; then
+        printf 'drive '%s' on node '%s' not found' "$2" "$1"
+        exit 255
+    fi
+    if [ "${#drive_ids[@]}" -gt 1 ]; then
+        printf 'duplicate drive ids found for '%s'' "$2"
+        exit 255
+    fi
+    drive_id="${drive_ids[0]}"
+}
+
 function init() {
-    if [[ $# -eq 4 ]]; then
-        echo "usage: replace.sh <NODE> <SRC-DRIVE> <DEST-DRIVE>"
-        echo
-        echo "This script replaces source drive to destination drive in the specified node"
+    if [[ $# -lt 2 || $# -gt 3 ]]; then
+        cat <<EOF
+NAME:
+  ${ME} - This script replaces source drive to destination drive in the specified node.
+
+USAGE:
+  ${ME} <SRC-DRIVE> <DEST-DRIVE> [NODE]
+
+ARGUMENTS:
+  SRC-DRIVE      Source drive by name or drive ID.
+  DEST-DRIVE     Destination drive by name or drive ID.
+  NODE           Valid node name. Should be provided if drive name is used to refer source/destination drive.
+
+EXAMPLE:
+  # Replace /dev/sdb by /dev/sdc on node worker4.
+  $ ${ME} /dev/sdb /dev/sdc worker4
+
+  # Replace detached /dev/sdb with drive ID 1bff96ba-f32e-4493-b95b-897c07d68460 by newly added /dev/sdb with 
+  # drive ID 52bf469b-e62e-40b8-a23e-941cd7fe03b3 on worker3.
+  $ ${ME} 1bff96ba-f32e-4493-b95b-897c07d68460 52bf469b-e62e-40b8-a23e-941cd7fe03b3
+EOF
         exit 255
     fi
 
@@ -70,21 +122,48 @@ function init() {
 }
 
 function main() {
-    node="$1"
-    src_drive="${2#/dev/}"
-    dest_drive="${3#/dev/}"
+    src_drive="${1#/dev/}"
+    dest_drive="${2#/dev/}"
+    node="${3}"
 
-    # Get source drive ID
-    src_drive_id=$(get_drive_id "${node}" "${src_drive}")
-    if [ -z "${src_drive_id}" ]; then
-        echo "source drive ${src_drive} on node ${node} not found"
+    if [ "${src_drive}" == "${dest_drive}" ]; then
+        echo "the source and destination drives are same"
+        exit 255
+    fi
+
+    if ! is_uuid "${src_drive}"; then
+        must_get_drive_id "${node}" "${src_drive}"
+        src_drive_id="${drive_id}"
+    else
+        src_drive_id="${src_drive}"
+    fi
+
+    if ! is_uuid "${dest_drive}"; then
+        must_get_drive_id "${node}" "${dest_drive}"
+        dest_drive_id="${drive_id}"
+    else
+        dest_drive_id="${dest_drive}"
+    fi
+
+    if [ "${src_drive_id}" == "${dest_drive_id}" ]; then
+        echo "the source and destination drive IDs are same"
         exit 1
     fi
 
-    # Get destination drive ID
-    dest_drive_id=$(get_drive_id "${node}" "${dest_drive}")
-    if [ -z "${dest_drive_id}" ]; then
-        echo "destination drive ${dest_drive} on node ${node} not found"
+    src_node=$(get_node_name "${src_drive_id}")
+    if [ -z "${src_node}" ]; then
+        echo "unable to find the node name of the source drive '${src_drive}'"
+        exit 1
+    fi
+
+    dest_node=$(get_node_name "${dest_drive_id}")
+    if [ -z "${dest_node}" ]; then
+        echo "unable to find the node name of the destination drive '${dest_drive}'"
+        exit 1
+    fi
+
+    if [ "${src_node}" != "${dest_node}" ]; then
+        echo "the drives are not from the same node"
         exit 1
     fi
 
@@ -95,8 +174,8 @@ function main() {
     fi
 
     # Cordon kubernetes node
-    if ! kubectl cordon "${node}"; then
-        echo "unable to cordon node ${node}"
+    if ! kubectl cordon "${src_node}"; then
+        echo "unable to cordon node '${src_node}'"
         exit 1
     fi
 
@@ -107,8 +186,7 @@ function main() {
         pod_namespace=$(get_pod_namespace "${volume}")
 
         if ! kubectl delete pod "${pod_name}" --namespace "${pod_namespace}"; then
-            echo "unable to delete pod ${pod_name} using volume ${volume}"
-            exit 1
+            echo "unable to delete pod '${pod_name}' using volume '${volume}'; please delete the pod manually"
         fi
     done
 
@@ -119,7 +197,7 @@ function main() {
             sleep 10
         done
     else
-        echo "no volumes found in source drive ${src_drive} on node ${node}"
+        echo "no volumes found in source drive '${src_drive}' on node '${src_node}'"
     fi
 
     # Run move command
@@ -129,7 +207,7 @@ function main() {
     kubectl directpv uncordon "${dest_drive_id}"
 
     # Uncordon kubernetes node
-    kubectl uncordon "${node}"
+    kubectl uncordon "${src_node}"
 }
 
 init "$@"

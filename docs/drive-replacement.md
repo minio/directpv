@@ -12,7 +12,7 @@ These are the steps to move the volumes from one drive to another drive from the
 Once the new drive has been attached to the node as a replacement of an older drive, Discover and initialize the newly added drive by executing the following steps
 
 ```sh
-$ kubectl directpv discover --drives /dev/<drive-name>
+$ kubectl directpv discover --drives /dev/<drive-name> --nodes <node-name>
 ```
 
 This command will generate `drives.yaml` which will be used later for initialization. Please refer [Discover CLI](./cli.md#discover-drives) for more helpers on discovery.
@@ -42,7 +42,7 @@ $ kubectl directpv cordon <source-drive-id> <dest-drive-id>
 ### STEP 4: Get the pods used by the source drive
 
 ```sh
-$ kubectl directpv volumes list --all --drives /dev/<source-drive-name> --nodes <node-name>
+$ kubectl directpv list volumes --drives /dev/<source-drive-name> --nodes <node-name>
 ```
 
 ### STEP 5: Cordon the corresponding kubernetes node and delete the pods used by the source drive
@@ -66,7 +66,7 @@ This pod will fall in "pending" state after deleting as the node is cordoned
 There shouldn't be any volumes in "Bounded" state
 
 ```sh
-$ kubectl directpv volumes list --all --pod-names=<pod-name> --pod-namespaces=<pod-ns>
+$ kubectl directpv list volumes --pod-names=<pod-name> --pod-namespaces=<pod-ns>
 ```
 
 ### STEP 7: Run move command
@@ -105,10 +105,10 @@ $ kubectl directpv remove <source-drive-id>
 
 ## Bash script for drive replacement
 
-Alternatively, after the "STEP 1" in the previous section, you can use this [bash script](./tools/replace.sh) to move the drives.
+Alternatively, after the "STEP 2" in the previous section, you can use this [bash script](./tools/replace.sh) to move the drives.
 
 #### Example Usage
 
 ```sh
-./replace.sh <node-name> /dev/<source-device-name> /dev/<destination-device-name>
+./replace.sh <source-drive-id> <dest-drive-id>
 ```
