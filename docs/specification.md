@@ -1,10 +1,6 @@
----
-title: Driver Specification
----
+# DirectPV CSI Driver Specification
 
-## Driver Specification
-
-### CSIDriver
+## CSIDriver
 
 | Key                 | Value                     |
 |---------------------|---------------------------|
@@ -16,55 +12,55 @@ title: Driver Specification
 | `storageCapacity`   | `false`                   |
 | `modes`             | `Persistent`, `Ephemeral` |
 
-### StorageClass
+## StorageClass
 
-| Key                    | Value                    |
-|------------------------|--------------------------|
-| `name`                 | `directpv-min-io`        |
-| `provisioner`          | `directpv-min-io`        |
-| `reclaimPolicy`        | `Delete`                 |
-| `allowVolumeExpansion` | `false`                  |
-| `volumeBindingMode`    | `WaitForFirstConsumer`   |
+| Key                    | Value                  |
+|------------------------|------------------------|
+| `name`                 | `directpv-min-io`      |
+| `provisioner`          | `directpv-min-io`      |
+| `reclaimPolicy`        | `Delete`               |
+| `allowVolumeExpansion` | `true`                 |
+| `volumeBindingMode`    | `WaitForFirstConsumer` |
 
-### DirectPVDrives CRD
+## DirectPVDrives CRD
 
-| Key          | Value                 |
-| -------------|-----------------------|
-| `name`       | `directpvdrives`      |
-| `apigroup`   | `directpv.min.io`     |
+| Key        | Value             |
+|------------|-------------------|
+| `name`     | `directpvdrives`  |
+| `apigroup` | `directpv.min.io` |
 
-### DirectPVVolumes CRD
+## DirectPVVolumes CRD
 
-| Key          | Value                 |
-| -------------|-----------------------|
-| `name`       | `directpvvolumes`     |
-| `apigroup`   | `directpv.min.io`     |
+| Key        | Value             |
+|------------|-------------------|
+| `name`     | `directpvvolumes` |
+| `apigroup` | `directpv.min.io` |
 
-### DirectPVNodes CRD
+## DirectPVNodes CRD
 
-| Key          | Value                 |
-| -------------|-----------------------|
-| `name`       | `directpvnodes`       |
-| `apigroup`   | `directpv.min.io`     |
+| Key        | Value             |
+|------------|-------------------|
+| `name`     | `directpvnodes`   |
+| `apigroup` | `directpv.min.io` |
 
-### DirectPVInitRequests CRD
+## DirectPVInitRequests CRD
 
-| Key          | Value                  |
-| -------------|------------------------|
-| `name`       | `directpvinitrequests` |
-| `apigroup`   | `directpv.min.io`      |
+| Key        | Value                  |
+|------------|------------------------|
+| `name`     | `directpvinitrequests` |
+| `apigroup` | `directpv.min.io`      |
 
-### Driver RBAC 
+## Driver RBAC 
 
-| apiGroup                  | Resources                   | Verbs                                                | 
-| --------------------------|-----------------------------|------------------------------------------------------|
-|  (core)                   | `endpoints`                 | `get`, `list`, `watch`, `create`, `update`, `delete` |
-|  (core)                   | `events`                    | `list`, `watch`, `create`, `update`, `patch`         |
-|  (core)                   | `nodes`                     | `get`, `list`, `watch`                               |
-|  (core)                   | `persistentvolumes`         | `get`, `list`, `watch`, `create`, `delete`           |
-|  (core)                   | `persistentvolumeclaims`    | `get`, `list`, `watch`, `update`                     |
-|  (core)                   | `pods,pod`                  | `get`, `list`, `watch`                               |
-|  `policy`                 | `podsecuritypolicies`       | `use`                                                |
+| apiGroup                  | Resources                   | Verbs                                                |
+|---------------------------|-----------------------------|------------------------------------------------------|
+| (core)                    | `endpoints`                 | `get`, `list`, `watch`, `create`, `update`, `delete` |
+| (core)                    | `events`                    | `list`, `watch`, `create`, `update`, `patch`         |
+| (core)                    | `nodes`                     | `get`, `list`, `watch`                               |
+| (core)                    | `persistentvolumes`         | `get`, `list`, `watch`, `create`, `delete`           |
+| (core)                    | `persistentvolumeclaims`    | `get`, `list`, `watch`, `update`                     |
+| (core)                    | `pods,pod`                  | `get`, `list`, `watch`                               |
+| `policy`                  | `podsecuritypolicies`       | `use`                                                |
 | `apiextensions.k8s.io`    | `customresourcedefinitions` | `get`, `list`, `watch`, `create`, `update`, `delete` |
 | `coordination.k8s.io`     | `leases`                    | `get`, `list`, `watch`, `update`, `delete`, `create` |
 | `directpv.min.io`         | `directpvdrives`            | `get`, `list`, `watch`, `create`, `update`, `delete` |
@@ -77,5 +73,4 @@ title: Driver Specification
 | `storage.k8s.io`          | `storageclasses`            | `get`, `list`, `watch`                               |
 | `storage.k8s.io`          | `volumeattachments`         | `get`, `list`, `watch`                               |
 
-
-The service account binded to the above clusterrole is `directpv-min-io` in `directpv` namespace and the corresponding clusterrolebinding is `directpv-min-io`
+The service account binded to the above clusterrole is `directpv-min-io` in `directpv` namespace and the corresponding clusterrolebinding is `directpv-min-io`.

@@ -1,150 +1,103 @@
----
-title: Installation
----
+# Installation
+DirectPV comes with two components.
+1. DirectPV plugin - installed on client machine.
+2. DirectPV CSI driver - installed on Kubernetes cluster.
 
-Installation
--------------
+## DirectPV plugin installation
+The plugin needs to be installed to manage DirectPV CSI driver in Kubernetes.
 
 ### Prerequisites
+* Access to Kubernetes cluster.
 
-| Name         | Version  |
-| -------------|----------|
-| kubectl      | v1.19+   |
-| kubernetes   | v1.19+   |
-
-
-### Plugin Installation
-
-DirectPV plugin can be installed from kubectl krew index using:
-
+### Installation using `Krew`
+The latest DirectPV plugin is available in `Krew` repository. Use below steps to install the plugin in your system.
 ```sh
-kubectl krew install directpv
+# Update the plugin list.
+$ kubectl krew update
+
+# Install DirectPV plugin.
+$ kubectl krew install directpv
 ```
 
-After running this installation:
-
- - The `directpv` plugin will be installed in your krew installation directory (default: `$HOME/.krew`) 
- - Run `kubectl directpv --version` to verify that the installation worked
- - If the error `Error: unknown command "directpv" for "kubectl"` is shown, try adding `$HOME/.krew/bin` to your `$PATH`
-
-### Driver Installation
-
-For installation in production grade environments, ensure that all criteria in the [Production Readiness Checklist](#production-readiness-checklist) are satisfied.
-
-(NOTE: Please refer the [CLI Guide](./cli.md) for more helpers on the following commands.)
-
-#### 1. Install the driver
-
+### Installation of release binary
+The plugin binary name starts by `kubectl-directpv` and is available at https://github.com/minio/directpv/releases/latest. Download the binary as per your operating system and architecture. Below is an example for `GNU/Linux` on `amd64` architecture:
 ```sh
-kubectl directpv install
+# Download DirectPV plugin.
+$ release=$(curl -sfL "https://api.github.com/repos/minio/directpv/releases/latest" | awk '/tag_name/ { print substr($2, 3, length($2)-4) }')
+$ curl -fLo kubectl-directpv https://github.com/minio/directpv/releases/download/v${release}/kubectl-directpv_${release}_linux_amd64
+
+# Make the binary executable.
+$ chmod a+x kubectl-directpv
 ```
 
-This will install `directpv-min-io` CSI driver in the kubernetes cluster.
+## DirectPV CSI driver installation
+Before starting the installation, it is required to have DirectPV plugin installed on your system. For plugin installation refer [this documentation](#directpv-plugin-installation). If you are not using `krew`, replace `kubectl directpv` by `kubectl-directpv` in below steps.
 
-**Notes:**
+### Prerequisites
+* Kubernetes >= v1.18 on GNU/Linux on amd64.
+* If you use private registry, below images must be pushed into your registry. You could use [this helper script](tools/push-images.sh) to do that.
+  - quay.io/minio/csi-node-driver-registrar:v2.8.0
+  - quay.io/minio/csi-provisioner:v3.5.0 _(for Kubernetes >= v1.20)_
+  - quay.io/minio/csi-provisioner:v2.2.0-go1.18 _(for kubernetes < v1.20)_
+  - quay.io/minio/livenessprobe:v2.10.0
+  - quay.io/minio/csi-resizer:v1.8.0
+  - quay.io/minio/directpv:latest
+* If `seccomp` is enabled, load [DirectPV seccomp profile](../seccomp.json) on nodes where you want to install DirectPV and use `--seccomp-profile` flag to `kubectl directpv install` command. For more information, refer Kubernetes documentation [here](https://kubernetes.io/docs/tutorials/clusters/seccomp/)
+* If `apparmor` is enabled, load [DirectPV apparmor profile](../apparmor.profile) on nodes where you want to install DirectPV and use `--apparmor-profile` flag to `kubectl directpv install` command. For more information, refer Kubernetes documentation [here](https://kubernetes.io/docs/tutorials/clusters/apparmor/)
+* Enabled `ExpandCSIVolumes` [feature gate](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) for [volume expansion](https://kubernetes-csi.github.io/docs/volume-expansion.html) feature.
+* Review [driver specification](./specification.md)
+* For Red Hat Openshift users, refer [Openshift documentation](./openshift.md) for configuration prior to install DirectPV.
 
- - DirectPV components are installed in the namespace `directpv`
- - alternate kubeconfig path can be specified using `kubectl directpv --kubeconfig /path/to/kubeconfig` 
- - the rbac requirements for the driver is [here](./specification.md#driver-rbac)
- - the driver runs in `privileged` mode, which is required for mounting, unmounting and formatting drives
- - The deamonset used by directpv will be using the ports `10443` for metrics and `30443` for readiness handlers. Make sure these ports are open on the nodes.
-
-#### 2. List discovered drives
-
+### Default installation
+To install DirectPV in all Kubernetes nodes, just run
 ```sh
-kubectl directpv discover
+$ kubectl directpv install
 ```
 
-This will list all available drives in the kubernetes cluster and will generate an init config file (default: drives.yaml) to initialize these drives.
+### Customized installation
+To install DirectPV on selected Kubernetes nodes and/or with tolerations and/or with non-standard `kubelet` directory, use below steps accordingly.
 
-#### 3. Intitialize the drives
-
+#### Installing on selected nodes
+To install DirectPV on selected nodes, use `--node-selector` flag to `install` command. Below is an example
 ```sh
-kubectl directpv init drives.yaml
+# Install DirectPV on nodes having label 'group-name' key and 'bigdata' value
+$ kubectl directpv install --node-selector group-name=bigdata
 ```
 
-This will initialize selected drives in drives.yaml
-
-**Notes:**
-
- - initialization will erase all data on the drives. Double check to make sure that only intended drives are specified 
-
-#### 4. Verify installation
-
+#### Installing on tainted nodes
+To install DirectPV on tainted nodes, use `--toleration` flag to `install` command. Below is an example
 ```sh
-kubectl directpv info
+# Install DirectPV on tainted nodes by tolerating 'key1' key, 'Equal' operator for 'value1' value with 'NoSchedule' effect
+$ kubectl directpv install --tolerations key1=value1:NoSchedule
+
+# Install DirectPV on tainted nodes by tolerating 'key2' key, 'Exists' operator with 'NoExecute' effect
+$ kubectl directpv install --tolerations key2:NoExecute
 ```
 
-This will show information about the drives formatted and added to DirectPV.
-
-After running this installation:
-
- - storage class named `directpv-min-io` is created
- - `directpv-min-io` can be specified as the `storageClassName` in in `PodSpec.VolumeClaimTemplates` to provision DirectPV volumes
- - example statefulset using `directpv-min-io` can be found [here](../minio.yaml#L61) 
- - optional: view the [driver specification](./specification.md)
-<!-- - view the [usage guide](./usage-guide.md) -->
-
-## Air-gapped Installation (Private Registry)
-
-Push the following images to your private registry
- 
- - quay.io/minio/csi-node-driver-registrar:v2.8.0
- - quay.io/minio/csi-provisioner:v3.5.0
- - quay.io/minio/livenessprobe:v2.10.0
- - quay.io/minio/csi-resizer:v1.8.0
- - quay.io/minio/directpv:${latest_tag_name}
- 
- **Notes:**
-
- - If your kubernetes version is less than v1.20, you need push `quay.io/minio/csi-provisioner:v2.2.0-go1.18`
-
-Here is a shell script to Copy-Paste into your terminal to do the above steps:
+#### Installing on non-standard `kubelet` directory
+To install on non-standard `kubelet` directory, set `KUBELET_DIR_PATH` environment variable and start the installation. Below is an example
 ```sh
-/bin/bash -e
-
-# set this to private registry URL (the URL should NOT include http or https)
-if [ -z $PRIVATE_REGISTRY_URL ]; then "PRIVATE_REGISTRY_URL env var should be set"; fi
-
-images[0]=quay.io/minio/csi-node-driver-registrar:v2.8.0
-images[1]=quay.io/minio/csi-provisioner:v3.5.0
-images[2]=quay.io/minio/livenessprobe:v2.10.0
-images[3]=quay.io/minio/csi-resizer:v1.8.0
-images[4]=quay.io/minio/directpv:$(curl -s "https://api.github.com/repos/minio/directpv/releases/latest" | grep tag_name | sed -E 's/.*"([^"]+)".*/\1/')
-
-function privatize(){ echo $1 | sed "s#quay.io#${PRIVATE_REGISTRY_URL}#g"; }
-function pull_tag_push(){ docker pull $1 &&  docker tag $1 $2 && docker push $2; }
-for image in ${images[*]}; do pull_tag_push $image $(privatize $image); done
+$ export KUBELET_DIR_PATH=/path/to/my/kubelet/dir
+$ kubectl directpv install
 ```
 
-## Custom Installation
-
-If any other customization is desired,
-
-Step 1: Generate the specification for installing DirectPV
+#### Installing on Openshift
+To install DirectPV on Openshift with specific configuration, use `--openshift` flag. Below is an example
 ```sh
-$ kubectl directpv install -o yaml > directpv-install.yaml
+$ kubectl directpv install --openshift
 ```
 
-Step 2: Make appropriate changes to the resources
-```
-$ emacs directpv-install.yaml
-```
-
-Step 3: Install DirectPV
-```
-$ kubectl create -f directpv-install.yaml
+#### Installing by generating DirectPV manifests
+To install using generated manifests file, run below command
+```sh
+$ curl -sfL https://github.com/minio/directpv/raw/master/docs/tools/install.sh | sh - apply
 ```
 
-**Notes:**
+## What's next
+* [Add drives](./drive-management.md#add-drives)
+* [Provision volumes](./volume-provisioning.md)
 
-- Client-side upgrade functionality will not be available for custom installations. You need to execute `kubectl directpv migrate` to migrate the old resources.
-
-## Production Readiness Checklist
-
-Make sure the following check-boxes are ticked before production deployment
-
- - [ ] If using a private registry, all the images listed in [air-gapped installation](#air-gapped-installation-private-registry) should be available in the private registry
- - [ ] If seccomp is enabled in the system, DirectPV [seccomp policy](../seccomp.json) should be loaded on all nodes. Instructions available [here](https://kubernetes.io/docs/tutorials/clusters/seccomp/)
- - [ ] If apparmor is enabled in the system, DirectPV [apparmor profile](../apparmor.profile) should be loaded on all nodes. Instructions available [here](https://kubernetes.io/docs/tutorials/clusters/apparmor/)
- - [ ] Review and Sign-off the [Security Checklist](../security-checklist.md) for providing elevated privileges to DirectPV.
+## Further reads
+* [Drive management guide](./drive-mangement.md)
+* [Volume management guide](./volume-management.md)
+* [Troubleshooting guide](./troubleshooting.md)

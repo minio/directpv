@@ -1,22 +1,34 @@
----
-title: Metrics
----
+# Monitoring using Prometheus
 
-Monitoring guidelines
-----------------------
+DirectPV nodes export Prometheus compatible metrics data via port `10443`. The metrics data includes
+* directpv_stats_bytes_used
+* directpv_stats_bytes_total
+and categorized by labels `tenant`, `volumeID` and `node`.
 
-DirectPV nodes export Prometheus compatible metrics data by exposing a metrics endpoint at /directpv/metrics. Users looking to monitor their tenants can point Prometheus configuration to scrape data from this endpoint.
+To scrape data in Prometheus, each node must be accessible by port `10443`. A simple example is below
 
-DirectPV node server exports the following metrics
-
-- directpv_stats_bytes_used
-- directpv_stats_bytes_total
-
-These metrics are categorized by labels ['tenant', 'volumeID', 'node']. These metrics will be representing the volume stats of the published volumes.
-
-Please apply the following Prometheus config to scrape the metrics exposed. 
-
+1. Make node server metrics port accessible by localhost:8080
 ```
+$ kubectl -n directpv port-forward node-server-4nd6q 8080:10443
+```
+
+2. Add below YAML configuration into Prometheus configuration.
+```yaml
+scrape_configs:
+  - job_name: 'directpv-monitor'
+    # Override the global default and scrape targets from this job every 5 seconds.
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['localhost:8080']
+        labels:
+          group: 'production'
+```
+
+3. Run `directpv_stats_bytes_total{node="node-3"}` promQL in Prometheus web interface.
+
+Below is an example comprehensive YAML configuration.
+
+```yaml
 global:
   scrape_interval: 15s
   external_labels:
@@ -66,18 +78,4 @@ scrape_configs:
   - source_labels: [__meta_kubernetes_service_name]
     action: replace
     target_label: kubernetes_name
-```
-
-For example, use the following promQL to query the volume stats.
-
-- To filter out the volumes scheduled in `node-3` node :-
-
-```
-directpv_stats_bytes_total{node="node-3"}
-```
-
-- To filter out the volumes of tenant `tenant-1` scheduled in `node-5` node :-
-
-```
-directpv_stats_bytes_used{tenant="tenant-1", node="node-5"}
 ```
