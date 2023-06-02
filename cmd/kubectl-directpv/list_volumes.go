@@ -179,7 +179,7 @@ func listVolumesMain(ctx context.Context) {
 		volumeList := types.VolumeList{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "List",
-				APIVersion: string(directpvtypes.VersionLabelKey),
+				APIVersion: "v1",
 			},
 			Items: volumes,
 		}

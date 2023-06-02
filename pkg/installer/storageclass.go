@@ -20,13 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
-	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
@@ -117,23 +115,16 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 			Parameters:    map[string]string{"fstype": "xfs"},
 		}
 
-		if args.dryRun() {
-			args.DryRunPrinter(storageClass)
-			return nil
-		}
-
-		_, err := k8s.KubeClient().StorageV1().StorageClasses().Create(
-			ctx, storageClass, metav1.CreateOptions{},
-		)
-		if err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				err = nil
+		if !args.DryRun && !args.Declarative {
+			_, err := k8s.KubeClient().StorageV1().StorageClasses().Create(
+				ctx, storageClass, metav1.CreateOptions{},
+			)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				return err
 			}
-			return err
 		}
 
-		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(storageClass))
-		return err
+		return args.writeObject(storageClass)
 
 	case "v1beta1":
 		bindingMode := storagev1beta1.VolumeBindingWaitForFirstConsumer
@@ -156,23 +147,16 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 			Parameters:    map[string]string{"fstype": "xfs"},
 		}
 
-		if args.dryRun() {
-			args.DryRunPrinter(storageClass)
-			return nil
-		}
-
-		_, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Create(
-			ctx, storageClass, metav1.CreateOptions{},
-		)
-		if err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				err = nil
+		if !args.DryRun && !args.Declarative {
+			_, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Create(
+				ctx, storageClass, metav1.CreateOptions{},
+			)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				return err
 			}
-			return err
 		}
 
-		_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(storageClass))
-		return err
+		return args.writeObject(storageClass)
 
 	default:
 		return errStorageClassVersionUnsupported
@@ -182,7 +166,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 func createStorageClass(ctx context.Context, args *Args) (err error) {
 	version := "v1"
 	switch {
-	case args.dryRun():
+	case args.DryRun:
 		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 16 {
 			version = "v1beta1"
 		}

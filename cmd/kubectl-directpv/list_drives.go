@@ -138,7 +138,7 @@ func listDrivesMain(ctx context.Context) {
 		driveList := types.DriveList{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "List",
-				APIVersion: string(directpvtypes.VersionLabelKey),
+				APIVersion: "v1",
 			},
 			Items: drives,
 		}

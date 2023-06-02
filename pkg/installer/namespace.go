@@ -18,10 +18,8 @@ package installer
 
 import (
 	"context"
-	"io"
 
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,20 +95,14 @@ func createNamespace(ctx context.Context, args *Args) (err error) {
 		},
 	}
 
-	if args.dryRun() {
-		args.DryRunPrinter(ns)
-		return nil
-	}
-	_, err = k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
-		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(ns))
-	return err
+	return args.writeObject(ns)
 }
 
 func deleteNamespace(ctx context.Context) error {

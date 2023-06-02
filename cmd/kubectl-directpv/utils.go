@@ -28,16 +28,27 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/mitchellh/go-homedir"
+	"k8s.io/klog/v2"
 )
 
 const dot = "•"
 
 func printYAML(obj interface{}) {
-	fmt.Print(utils.MustGetYAML(obj))
+	data, err := utils.ToYAML(obj)
+	if err != nil {
+		klog.Fatalf("unable to marshal object to YAML; %w", err)
+	}
+
+	fmt.Print(string(data))
 }
 
 func printJSON(obj interface{}) {
-	fmt.Print(utils.MustGetJSON(obj))
+	data, err := utils.ToJSON(obj)
+	if err != nil {
+		klog.Fatalf("unable to marshal object to JSON; %w", err)
+	}
+
+	fmt.Print(string(data))
 }
 
 func getDefaultAuditDir() (string, error) {
@@ -109,7 +120,10 @@ func validateOutputFormat(isWideSupported bool) error {
 	case "json":
 		dryRunPrinter = printJSON
 	default:
-		return errors.New("--output flag value must be one of wide|json|yaml or empty")
+		if isWideSupported {
+			return errors.New("--output flag value must be one of wide|json|yaml or empty")
+		}
+		return errors.New("--output flag value must be one of yaml|json")
 	}
 	return nil
 }

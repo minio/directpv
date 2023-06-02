@@ -18,11 +18,9 @@ package installer
 
 import (
 	"context"
-	"io"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -106,23 +104,16 @@ func createServiceAccount(ctx context.Context, args *Args) (err error) {
 		AutomountServiceAccountToken: nil,
 	}
 
-	if args.dryRun() {
-		args.DryRunPrinter(serviceAccount)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Create(
-		ctx, serviceAccount, metav1.CreateOptions{},
-	)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Create(
+			ctx, serviceAccount, metav1.CreateOptions{},
+		)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
-		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(serviceAccount))
-	return err
+	return args.writeObject(serviceAccount)
 }
 
 func createClusterRole(ctx context.Context, args *Args) (err error) {
@@ -179,23 +170,16 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 		AggregationRule: nil,
 	}
 
-	if args.dryRun() {
-		args.DryRunPrinter(clusterRole)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().RbacV1().ClusterRoles().Create(
-		ctx, clusterRole, metav1.CreateOptions{},
-	)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoles().Create(
+			ctx, clusterRole, metav1.CreateOptions{},
+		)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
-		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(clusterRole))
-	return err
+	return args.writeObject(clusterRole)
 }
 
 func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
@@ -236,23 +220,16 @@ func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 		},
 	}
 
-	if args.dryRun() {
-		args.DryRunPrinter(clusterRoleBinding)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(
-		ctx, clusterRoleBinding, metav1.CreateOptions{},
-	)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(
+			ctx, clusterRoleBinding, metav1.CreateOptions{},
+		)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
-		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(clusterRoleBinding))
-	return err
+	return args.writeObject(clusterRoleBinding)
 }
 
 func createRole(ctx context.Context, args *Args) (err error) {
@@ -284,23 +261,16 @@ func createRole(ctx context.Context, args *Args) (err error) {
 		},
 	}
 
-	if args.dryRun() {
-		args.DryRunPrinter(role)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().RbacV1().Roles(namespace).Create(
-		ctx, role, metav1.CreateOptions{},
-	)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().RbacV1().Roles(namespace).Create(
+			ctx, role, metav1.CreateOptions{},
+		)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
-		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(role))
-	return err
+	return args.writeObject(role)
 }
 
 func createRoleBinding(ctx context.Context, args *Args) (err error) {
@@ -341,23 +311,16 @@ func createRoleBinding(ctx context.Context, args *Args) (err error) {
 		},
 	}
 
-	if args.dryRun() {
-		args.DryRunPrinter(roleBinding)
-		return nil
-	}
-
-	_, err = k8s.KubeClient().RbacV1().RoleBindings(namespace).Create(
-		ctx, roleBinding, metav1.CreateOptions{},
-	)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
+	if !args.DryRun && !args.Declarative {
+		_, err = k8s.KubeClient().RbacV1().RoleBindings(namespace).Create(
+			ctx, roleBinding, metav1.CreateOptions{},
+		)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			return err
 		}
-		return err
 	}
 
-	_, err = io.WriteString(args.auditWriter, utils.MustGetYAML(roleBinding))
-	return err
+	return args.writeObject(roleBinding)
 }
 
 func createRBAC(ctx context.Context, args *Args) (err error) {
