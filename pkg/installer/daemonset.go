@@ -20,6 +20,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path"
+	"strings"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -29,7 +32,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+)
+
+var (
+	existingDaemonset       *appsv1.DaemonSet
+	existingLegacyDaemonset *appsv1.DaemonSet
 )
 
 const (
@@ -94,12 +103,12 @@ func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
 	return securityContext
 }
 
-func getVolumesAndMounts(pluginSocketDir string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func getVolumesAndMounts(kubeletDir, pluginSocketDir string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	volumes = []corev1.Volume{
 		newHostPathVolume(volumeNameSocketDir, pluginSocketDir),
-		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
-		newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
-		newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
+		newHostPathVolume(volumeNameMountpointDir, kubeletDir+"/pods"),
+		newHostPathVolume(volumeNameRegistrationDir, kubeletDir+"/plugins_registry"),
+		newHostPathVolume(volumeNamePluginDir, kubeletDir+"/plugins"),
 		newHostPathVolume(volumeNameAppRootDir, appRootDir),
 		newHostPathVolume(volumeNameSysDir, volumePathSysDir),
 		newHostPathVolume(volumeNameDevDir, volumePathDevDir),
@@ -108,8 +117,8 @@ func getVolumesAndMounts(pluginSocketDir string) (volumes []corev1.Volume, volum
 	}
 	volumeMounts = []corev1.VolumeMount{
 		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
-		newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", corev1.MountPropagationBidirectional, false),
-		newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", corev1.MountPropagationBidirectional, false),
+		newVolumeMount(volumeNameMountpointDir, kubeletDir+"/pods", corev1.MountPropagationBidirectional, false),
+		newVolumeMount(volumeNamePluginDir, kubeletDir+"/plugins", corev1.MountPropagationBidirectional, false),
 		newVolumeMount(volumeNameAppRootDir, appRootDir, corev1.MountPropagationBidirectional, false),
 		newVolumeMount(volumeNameSysDir, volumePathSysDir, corev1.MountPropagationBidirectional, false),
 		newVolumeMount(volumeNameDevDir, volumePathDevDir, corev1.MountPropagationHostToContainer, true),
@@ -205,7 +214,7 @@ func livenessProbeContainer(image string) corev1.Container {
 	}
 }
 
-func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.DaemonSet {
+func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string, creationTimestamp metav1.Time, resourceVersion string, uid types.UID, selectorValue string) *appsv1.DaemonSet {
 	annotations := map[string]string{createdByLabel: pluginName}
 	if appArmorProfile != "" {
 		// AppArmor profiles need to be specified per-container
@@ -213,7 +222,10 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 			annotations["container.apparmor.security.beta.kubernetes.io/"+container.Name] = "localhost/" + appArmorProfile
 		}
 	}
-	selectorValue := fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
+
+	if selectorValue == "" {
+		selectorValue = fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
+	}
 
 	return &appsv1.DaemonSet{
 		TypeMeta: metav1.TypeMeta{
@@ -221,10 +233,13 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 			Kind:       "DaemonSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              name,
+			Namespace:         namespace,
+			Annotations:       map[string]string{},
+			Labels:            defaultLabels,
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, selectorValue),
@@ -240,15 +255,131 @@ func newDaemonset(podSpec corev1.PodSpec, name, appArmorProfile string) *appsv1.
 				},
 				Spec: podSpec,
 			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
+			},
 		},
 		Status: appsv1.DaemonSetStatus{},
 	}
 }
 
+type daemonsetValues struct {
+	update                   bool
+	creationTimestamp        metav1.Time
+	resourceVersion          string
+	uid                      types.UID
+	selectorValue            string
+	nodeDriverRegistrarImage string
+	containerImage           string
+	livenessProbeImage       string
+	imagePullSecrets         []corev1.LocalObjectReference
+	nodeSelector             map[string]string
+	tolerations              []corev1.Toleration
+	securityContext          *corev1.SecurityContext
+	appArmorProfile          string
+	kubeletDir               string
+}
+
+func newDaemonsetValues(args *Args) *daemonsetValues {
+	return &daemonsetValues{
+		nodeDriverRegistrarImage: args.getNodeDriverRegistrarImage(),
+		containerImage:           args.getContainerImage(),
+		livenessProbeImage:       args.getLivenessProbeImage(),
+		imagePullSecrets:         args.getImagePullSecrets(),
+		nodeSelector:             args.NodeSelector,
+		tolerations:              args.Tolerations,
+		securityContext:          newSecurityContext(args.SeccompProfile),
+		appArmorProfile:          args.AppArmorProfile,
+		kubeletDir:               kubeletDirPath,
+	}
+}
+
+func (values *daemonsetValues) populate(daemonset *appsv1.DaemonSet) {
+	if daemonset == nil {
+		return
+	}
+
+	values.update = true
+	values.creationTimestamp = daemonset.CreationTimestamp
+	values.resourceVersion = daemonset.ResourceVersion
+	values.uid = daemonset.UID
+
+	if daemonset.Spec.Selector != nil && daemonset.Spec.Selector.MatchLabels != nil {
+		values.selectorValue = daemonset.Spec.Selector.MatchLabels[selectorKey]
+	}
+
+	if len(values.imagePullSecrets) == 0 && len(daemonset.Spec.Template.Spec.ImagePullSecrets) != 0 {
+		values.imagePullSecrets = daemonset.Spec.Template.Spec.ImagePullSecrets
+	}
+
+	if len(values.nodeSelector) == 0 && len(daemonset.Spec.Template.Spec.NodeSelector) != 0 {
+		values.nodeSelector = daemonset.Spec.Template.Spec.NodeSelector
+	}
+
+	if len(values.tolerations) == 0 && len(daemonset.Spec.Template.Spec.Tolerations) != 0 {
+		values.tolerations = daemonset.Spec.Template.Spec.Tolerations
+	}
+
+	if values.appArmorProfile == "" && len(daemonset.Spec.Template.Annotations) != 0 {
+		if value, found := daemonset.Spec.Template.Annotations["container.apparmor.security.beta.kubernetes.io/"+consts.NodeServerName]; found {
+			values.appArmorProfile = strings.TrimPrefix(value, "localhost/")
+		}
+	}
+
+	for _, container := range daemonset.Spec.Template.Spec.Containers {
+		if container.Name != consts.NodeServerName {
+			continue
+		}
+
+		if path.Dir(values.containerImage) == "quay.io/minio" {
+			if dir := path.Dir(container.Image); dir != "quay.io/minio" {
+				values.nodeDriverRegistrarImage = dir + "/" + path.Base(nodeDriverRegistrarImage)
+				values.containerImage = dir + "/" + path.Base(values.containerImage)
+				values.livenessProbeImage = dir + "/" + path.Base(livenessProbeImage)
+			}
+		}
+
+		if values.securityContext.SeccompProfile == nil && container.SecurityContext.SeccompProfile != nil {
+			values.securityContext.SeccompProfile = container.SecurityContext.SeccompProfile
+		}
+
+		break
+	}
+
+	_, found := os.LookupEnv("KUBELET_DIR_PATH")
+	if values.kubeletDir == "/var/lib/kubelet" && !found && len(daemonset.Spec.Template.Spec.Volumes) != 0 {
+		for _, volume := range daemonset.Spec.Template.Spec.Volumes {
+			if volume.Name == volumeNamePluginDir && volume.HostPath != nil {
+				values.kubeletDir = path.Dir(volume.HostPath.Path)
+				break
+			}
+		}
+	}
+}
+
 func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
-	securityContext := newSecurityContext(args.SeccompProfile)
-	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, consts.Identity)
-	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
+	values := newDaemonsetValues(args)
+	if !args.dryRun() {
+		daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+			ctx, consts.NodeServerName, metav1.GetOptions{},
+		)
+
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		if daemonset != nil && daemonset.UID != "" {
+			existingDaemonset = daemonset
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingDaemonset)); err != nil {
+				return err
+			}
+		}
+
+		values.populate(existingDaemonset)
+	}
+
+	pluginSocketDir := newPluginsSocketDir(values.kubeletDir, consts.Identity)
+	volumes, volumeMounts := getVolumesAndMounts(values.kubeletDir, pluginSocketDir)
 	containerArgs := []string{
 		consts.NodeServerName,
 		fmt.Sprintf("-v=%d", logLevel),
@@ -269,31 +400,37 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 		HostIPC:            false,
 		HostPID:            true,
 		Volumes:            volumes,
-		ImagePullSecrets:   args.getImagePullSecrets(),
+		ImagePullSecrets:   values.imagePullSecrets,
 		Containers: []corev1.Container{
-			nodeDriverRegistrarContainer(args.getNodeDriverRegistrarImage(), pluginSocketDir),
-			nodeServerContainer(args.getContainerImage(), containerArgs, securityContext, volumeMounts),
-			nodeControllerContainer(args.getContainerImage(), nodeControllerArgs, securityContext, volumeMounts),
-			livenessProbeContainer(args.getLivenessProbeImage()),
+			nodeDriverRegistrarContainer(values.nodeDriverRegistrarImage, pluginSocketDir),
+			nodeServerContainer(values.containerImage, containerArgs, values.securityContext, volumeMounts),
+			nodeControllerContainer(values.containerImage, nodeControllerArgs, values.securityContext, volumeMounts),
+			livenessProbeContainer(values.livenessProbeImage),
 		},
-		NodeSelector: args.NodeSelector,
-		Tolerations:  args.Tolerations,
+		NodeSelector: values.nodeSelector,
+		Tolerations:  values.tolerations,
 	}
 
-	daemonset := newDaemonset(podSpec, consts.NodeServerName, args.AppArmorProfile)
+	daemonset := newDaemonset(
+		podSpec, consts.NodeServerName, values.appArmorProfile, values.creationTimestamp,
+		values.resourceVersion, values.uid, values.selectorValue,
+	)
 
 	if args.dryRun() {
 		args.DryRunPrinter(daemonset)
 		return nil
 	}
 
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
-		ctx, daemonset, metav1.CreateOptions{},
-	)
+	if values.update {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Update(
+			ctx, daemonset, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+			ctx, daemonset, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
@@ -302,9 +439,28 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 }
 
 func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
-	securityContext := newSecurityContext(args.SeccompProfile)
-	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, legacyclient.Identity)
-	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
+	values := newDaemonsetValues(args)
+	if !args.dryRun() {
+		daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+			ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
+		)
+
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+
+		if daemonset != nil && daemonset.UID != "" {
+			existingLegacyDaemonset = daemonset
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(existingLegacyDaemonset)); err != nil {
+				return err
+			}
+		}
+
+		values.populate(existingLegacyDaemonset)
+	}
+
+	pluginSocketDir := newPluginsSocketDir(values.kubeletDir, legacyclient.Identity)
+	volumes, volumeMounts := getVolumesAndMounts(values.kubeletDir, pluginSocketDir)
 	containerArgs := []string{
 		consts.LegacyNodeServerName,
 		fmt.Sprintf("-v=%d", logLevel),
@@ -318,30 +474,36 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 		HostIPC:            false,
 		HostPID:            true,
 		Volumes:            volumes,
-		ImagePullSecrets:   args.getImagePullSecrets(),
+		ImagePullSecrets:   values.imagePullSecrets,
 		Containers: []corev1.Container{
-			nodeDriverRegistrarContainer(args.getNodeDriverRegistrarImage(), pluginSocketDir),
-			nodeServerContainer(args.getContainerImage(), containerArgs, securityContext, volumeMounts),
-			livenessProbeContainer(args.getLivenessProbeImage()),
+			nodeDriverRegistrarContainer(values.nodeDriverRegistrarImage, pluginSocketDir),
+			nodeServerContainer(values.containerImage, containerArgs, values.securityContext, volumeMounts),
+			livenessProbeContainer(values.livenessProbeImage),
 		},
-		NodeSelector: args.NodeSelector,
-		Tolerations:  args.Tolerations,
+		NodeSelector: values.nodeSelector,
+		Tolerations:  values.tolerations,
 	}
 
-	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, args.AppArmorProfile)
+	daemonset := newDaemonset(
+		podSpec, consts.LegacyNodeServerName, values.appArmorProfile, values.creationTimestamp,
+		values.resourceVersion, values.uid, values.selectorValue,
+	)
 
 	if args.dryRun() {
 		args.DryRunPrinter(daemonset)
 		return nil
 	}
 
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
-		ctx, daemonset, metav1.CreateOptions{},
-	)
+	if values.update {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Update(
+			ctx, daemonset, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+			ctx, daemonset, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
@@ -363,44 +525,86 @@ func createDaemonset(ctx context.Context, args *Args) (err error) {
 
 		return nil
 	}
+
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.NodeServerName), 1, nil) {
 		return errSendProgress
 	}
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
-		ctx, consts.NodeServerName, metav1.GetOptions{},
-	)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		if err := doCreateDaemonset(ctx, args); err != nil {
-			return err
-		}
+	if err := doCreateDaemonset(ctx, args); err != nil {
+		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.NodeServerName), 1, daemonsetComponent(consts.NodeServerName)) {
 		return errSendProgress
 	}
+
 	if !args.Legacy {
 		return nil
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.LegacyNodeServerName), 2, nil) {
 		return errSendProgress
 	}
-	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
-		ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
-	)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		if err := doCreateLegacyDaemonset(ctx, args); err != nil {
-			return err
-		}
+	if err := doCreateLegacyDaemonset(ctx, args); err != nil {
+		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.LegacyNodeServerName), 2, daemonsetComponent(consts.LegacyNodeServerName)) {
 		return errSendProgress
 	}
 	return nil
+}
+
+func doRevertDaemonSet(ctx context.Context) error {
+	if existingDaemonset == nil {
+		return nil
+	}
+
+	daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+		ctx, consts.NodeServerName, metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	existingDaemonset.ResourceVersion = daemonset.ResourceVersion
+	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Update(
+		ctx, existingDaemonset, metav1.UpdateOptions{},
+	)
+	return err
+}
+
+func doRevertLegacyDaemonSet(ctx context.Context) error {
+	if existingLegacyDaemonset == nil {
+		return nil
+	}
+
+	daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+		ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	existingLegacyDaemonset.ResourceVersion = daemonset.ResourceVersion
+	_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Update(
+		ctx, existingLegacyDaemonset, metav1.UpdateOptions{},
+	)
+	return err
+}
+
+func revertDaemonSet(ctx context.Context, args *Args) error {
+	var err, legacyErr error
+	err = doRevertDaemonSet(ctx)
+	if args.Legacy {
+		legacyErr = doRevertLegacyDaemonSet(ctx)
+	}
+
+	if err != nil && legacyErr != nil {
+		return fmt.Errorf("unable to revert; DaemonSet: %v; legacy DaemonSet: %v", err, legacyErr)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return legacyErr
 }
 
 func deleteDaemonset(ctx context.Context) error {

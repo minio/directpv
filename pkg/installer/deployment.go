@@ -20,6 +20,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path"
+	"strings"
 
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -28,9 +31,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const deploymentFinalizer = consts.Identity + "/delete-protection"
+
+var (
+	existingDeployment       *appsv1.Deployment
+	existingLegacyDeployment *appsv1.Deployment
+)
 
 type deploymentTask struct{}
 
@@ -81,6 +90,83 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 			}
 		}
 	}()
+
+	update := false
+	creationTimestamp := metav1.Time{}
+	resourceVersion := ""
+	uid := types.UID("")
+	selectorValue := ""
+	imagePullSecrets := args.getImagePullSecrets()
+	containerImage := args.getContainerImage()
+	csiProvisionerImage := args.getCSIProvisionerImage()
+	csiResizerImage := args.getCSIResizerImage()
+	kubeletDir := kubeletDirPath
+
+	if !args.dryRun() {
+		deployment, err := k8s.KubeClient().AppsV1().Deployments(namespace).Get(
+			ctx, name, metav1.GetOptions{},
+		)
+		switch {
+		case err != nil:
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		default:
+			update = true
+
+			if legacy {
+				existingLegacyDeployment = deployment
+			} else {
+				existingDeployment = deployment
+			}
+
+			creationTimestamp = deployment.CreationTimestamp
+			resourceVersion = deployment.ResourceVersion
+			uid = deployment.UID
+
+			if deployment.Spec.Selector != nil && deployment.Spec.Selector.MatchLabels != nil {
+				selectorValue = deployment.Spec.Selector.MatchLabels[selectorKey]
+			}
+
+			if len(imagePullSecrets) == 0 && len(deployment.Spec.Template.Spec.ImagePullSecrets) != 0 {
+				imagePullSecrets = deployment.Spec.Template.Spec.ImagePullSecrets
+			}
+
+			for _, container := range deployment.Spec.Template.Spec.Containers {
+				if container.Name != consts.ControllerServerName {
+					continue
+				}
+
+				if path.Dir(containerImage) == "quay.io/minio" {
+					if dir := path.Dir(container.Image); dir != "quay.io/minio" {
+						containerImage = dir + "/" + path.Base(containerImage)
+						csiProvisionerImage = dir + "/" + path.Base(csiProvisionerImage)
+						csiResizerImage = dir + "/" + path.Base(csiResizerImage)
+					}
+				}
+
+				break
+			}
+
+			_, found := os.LookupEnv("KUBELET_DIR_PATH")
+			if kubeletDir == "/var/lib/kubelet" && !found && len(deployment.Spec.Template.Spec.Volumes) != 0 {
+				for _, volume := range deployment.Spec.Template.Spec.Volumes {
+					if volume.Name == volumeNameSocketDir && volume.HostPath != nil {
+						kubeletDir = strings.TrimSuffix(
+							volume.HostPath.Path,
+							"/plugins/"+k8s.SanitizeResourceName(fmt.Sprintf("%s-controller", consts.ControllerServerName)),
+						)
+						break
+					}
+				}
+			}
+
+			if _, err = io.WriteString(args.backupWriter, utils.MustGetYAML(deployment)); err != nil {
+				return err
+			}
+		}
+	}
+
 	containerArgs = append(
 		containerArgs,
 		[]string{
@@ -90,21 +176,20 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 			fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
 		}...,
 	)
-
 	privileged := true
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: consts.Identity,
 		Volumes: []corev1.Volume{
 			newHostPathVolume(
 				volumeNameSocketDir,
-				newPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", consts.ControllerServerName)),
+				newPluginsSocketDir(kubeletDir, fmt.Sprintf("%s-controller", consts.ControllerServerName)),
 			),
 		},
-		ImagePullSecrets: args.getImagePullSecrets(),
+		ImagePullSecrets: imagePullSecrets,
 		Containers: []corev1.Container{
 			{
 				Name:  "csi-provisioner",
-				Image: args.getCSIProvisionerImage(),
+				Image: csiProvisionerImage,
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
@@ -138,7 +223,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 			},
 			{
 				Name:  "csi-resizer",
-				Image: args.getCSIResizerImage(),
+				Image: csiResizerImage,
 				Args: []string{
 					fmt.Sprintf("--v=%d", logLevel),
 					"--timeout=300s",
@@ -157,7 +242,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 			},
 			{
 				Name:  consts.ControllerServerName,
-				Image: args.getContainerImage(),
+				Image: containerImage,
 				Args:  containerArgs,
 				SecurityContext: &corev1.SecurityContext{
 					Privileged: &privileged,
@@ -178,7 +263,9 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 		},
 	}
 
-	selectorValue := fmt.Sprintf("%v-%v", consts.ControllerServerName, getRandSuffix())
+	if selectorValue == "" {
+		selectorValue = fmt.Sprintf("%v-%v", consts.ControllerServerName, getRandSuffix())
+	}
 	replicas := int32(3)
 	deployment := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -186,11 +273,14 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
-			Finalizers:  []string{deploymentFinalizer},
+			CreationTimestamp: creationTimestamp,
+			ResourceVersion:   resourceVersion,
+			UID:               uid,
+			Name:              name,
+			Namespace:         namespace,
+			Annotations:       map[string]string{},
+			Labels:            defaultLabels,
+			Finalizers:        []string{deploymentFinalizer},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
@@ -208,6 +298,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 				},
 				Spec: podSpec,
 			},
+			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
 		},
 		Status: appsv1.DeploymentStatus{},
 	}
@@ -217,13 +308,16 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 		return nil
 	}
 
-	_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
-		ctx, deployment, metav1.CreateOptions{},
-	)
+	if update {
+		_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Update(
+			ctx, deployment, metav1.UpdateOptions{},
+		)
+	} else {
+		_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
+			ctx, deployment, metav1.CreateOptions{},
+		)
+	}
 	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			err = nil
-		}
 		return err
 	}
 
@@ -243,6 +337,50 @@ func createDeployment(ctx context.Context, args *Args) (err error) {
 	}
 
 	return nil
+}
+
+func revertDeployment(ctx context.Context) error {
+	if existingDeployment == nil && existingLegacyDeployment == nil {
+		return nil
+	}
+
+	var err error
+	if existingDeployment != nil {
+		var deployment *appsv1.Deployment
+		deployment, err = k8s.KubeClient().AppsV1().Deployments(namespace).Get(
+			ctx, consts.ControllerServerName, metav1.GetOptions{},
+		)
+		if err == nil {
+			existingDeployment.ResourceVersion = deployment.ResourceVersion
+			_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Update(
+				ctx, existingDeployment, metav1.UpdateOptions{},
+			)
+		}
+	}
+
+	var legacyErr error
+	if existingLegacyDeployment != nil {
+		var deployment *appsv1.Deployment
+		deployment, legacyErr = k8s.KubeClient().AppsV1().Deployments(namespace).Get(
+			ctx, consts.LegacyControllerServerName, metav1.GetOptions{},
+		)
+		if legacyErr == nil {
+			existingLegacyDeployment.ResourceVersion = deployment.ResourceVersion
+			_, legacyErr = k8s.KubeClient().AppsV1().Deployments(namespace).Update(
+				ctx, existingLegacyDeployment, metav1.UpdateOptions{},
+			)
+		}
+	}
+
+	if err != nil && legacyErr != nil {
+		return fmt.Errorf("unable to revert; Deployment: %v; legacy Deployment: %v", err, legacyErr)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return legacyErr
 }
 
 func removeFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
