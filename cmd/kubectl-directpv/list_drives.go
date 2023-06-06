@@ -198,10 +198,14 @@ func listDrivesMain(ctx context.Context) {
 		if drive.IsUnschedulable() {
 			status += ",SchedulingDisabled"
 		}
+		driveMake := drive.Status.Make
+		if driveMake == "" {
+			driveMake = "-"
+		}
 		row := []interface{}{
 			drive.GetNodeID(),
 			drive.GetDriveName(),
-			drive.Status.Make,
+			driveMake,
 			printableBytes(drive.Status.TotalCapacity),
 			printableBytes(drive.Status.FreeCapacity),
 			volumes,
