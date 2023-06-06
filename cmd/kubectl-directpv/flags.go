@@ -186,6 +186,9 @@ func validateDriveIDArgs() error {
 		if driveIDArgs[i] == "" {
 			return fmt.Errorf("empty drive ID")
 		}
+		if !utils.IsUUID(driveIDArgs[i]) {
+			return fmt.Errorf("invalid drive ID %v", driveIDArgs[i])
+		}
 		driveIDSelectors = append(driveIDSelectors, directpvtypes.DriveID(driveIDArgs[i]))
 	}
 	return nil
