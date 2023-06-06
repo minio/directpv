@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -47,8 +46,6 @@ const (
 	legacyPVProtection       = legacyclient.GroupName + "/pv-protection"
 	legacyPurgeProtection    = legacyclient.GroupName + "/purge-protection"
 )
-
-var uuidRegex = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 type migrateTask struct{}
 
@@ -99,7 +96,7 @@ func migrateDrives(ctx context.Context, dryRun bool, progressCh chan<- Message) 
 			continue // ignore other than Ready/InUse drives
 		}
 
-		if !uuidRegex.MatchString(result.Drive.Status.FilesystemUUID) {
+		if !utils.IsUUID(result.Drive.Status.FilesystemUUID) {
 			legacyDriveErrors[result.Drive.Name] = fmt.Errorf(
 				"invalid filesystem UUID %v in legacy drive %v",
 				result.Drive.Status.FilesystemUUID, result.Drive.Name,

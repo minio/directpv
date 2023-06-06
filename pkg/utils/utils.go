@@ -21,11 +21,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/fatih/color"
 	"sigs.k8s.io/yaml"
 )
+
+var uuidRegex = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+// IsUUID checks whether value is UUID string.
+func IsUUID(value string) bool {
+	return uuidRegex.MatchString(value)
+}
 
 // Contains checks whether value in the slice.
 func Contains[ctype comparable](slice []ctype, value ctype) bool {
