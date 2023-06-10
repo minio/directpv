@@ -37,11 +37,8 @@ func readdirnames(dirname string, errorIfNotExist bool) ([]string, error) {
 	return dir.Readdirnames(-1)
 }
 
-func readFirstLine(filename string, errorIfNotExist bool) (string, error) {
+func readFirstLine(filename string) (string, error) {
 	getError := func(err error) error {
-		if errorIfNotExist {
-			return err
-		}
 		switch {
 		case errors.Is(err, os.ErrNotExist), errors.Is(err, os.ErrInvalid):
 			return nil
