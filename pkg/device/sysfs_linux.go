@@ -57,22 +57,22 @@ func getHidden(name string) bool {
 	// errors ignored since real devices do not have <sys>/hidden
 	// borrow idea from 'lsblk'
 	// https://github.com/util-linux/util-linux/commit/c8487d854ba5cf5bfcae78d8e5af5587e7622351
-	v, _ := readFirstLine("/sys/class/block/"+name+"/hidden", false)
+	v, _ := readFirstLine("/sys/class/block/" + name + "/hidden")
 	return v == "1"
 }
 
 func getRemovable(name string) (bool, error) {
-	s, err := readFirstLine("/sys/class/block/"+name+"/removable", false)
+	s, err := readFirstLine("/sys/class/block/" + name + "/removable")
 	return s != "" && s != "0", err
 }
 
 func getReadOnly(name string) (bool, error) {
-	s, err := readFirstLine("/sys/class/block/"+name+"/ro", false)
+	s, err := readFirstLine("/sys/class/block/" + name + "/ro")
 	return s != "" && s != "0", err
 }
 
 func getSize(name string) (uint64, error) {
-	s, err := readFirstLine("/sys/class/block/"+name+"/size", true)
+	s, err := readFirstLine("/sys/class/block/" + name + "/size")
 	if err != nil {
 		return 0, err
 	}
@@ -104,5 +104,5 @@ func getHolders(name string) ([]string, error) {
 }
 
 func getDMName(name string) (string, error) {
-	return readFirstLine("/sys/class/block/"+name+"/dm/name", false)
+	return readFirstLine("/sys/class/block/" + name + "/dm/name")
 }
