@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
@@ -32,10 +31,7 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
-	storagev1 "k8s.io/api/storage/v1"
-	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var infoCmd = &cobra.Command{
@@ -70,54 +66,9 @@ func infoMain(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	storageClient, gvk, err := k8s.GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
+	nodeList, err := getCSINodes(ctx)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
-		os.Exit(1)
-	}
-
-	nodeList := []string{}
-	switch gvk.Version {
-	case "v1":
-		result := &storagev1.CSINodeList{}
-		if err := storageClient.Get().
-			Resource("csinodes").
-			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
-			Timeout(10 * time.Second).
-			Do(ctx).
-			Into(result); err != nil {
-			utils.Eprintf(quietFlag, true, "unable to get CSI nodes; %v\n", err)
-			os.Exit(1)
-		}
-		for _, csiNode := range result.Items {
-			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == consts.Identity {
-					nodeList = append(nodeList, csiNode.Name)
-					break
-				}
-			}
-		}
-	case "v1beta1":
-		result := &storagev1beta1.CSINodeList{}
-		if err := storageClient.Get().
-			Resource(gvk.Kind).
-			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
-			Timeout(10 * time.Second).
-			Do(ctx).
-			Into(result); err != nil {
-			utils.Eprintf(quietFlag, true, "unable to get CSI nodes; %v\n", err)
-			os.Exit(1)
-		}
-		for _, csiNode := range result.Items {
-			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == consts.Identity {
-					nodeList = append(nodeList, csiNode.Name)
-					break
-				}
-			}
-		}
-	case "v1apha1":
-		utils.Eprintf(quietFlag, true, "storage.k8s.io/v1alpha1 is not supported\n")
 		os.Exit(1)
 	}
 

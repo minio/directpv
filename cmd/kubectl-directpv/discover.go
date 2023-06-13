@@ -285,7 +285,51 @@ func discoverDevices(ctx context.Context, nodes []types.Node, teaProgram *tea.Pr
 	}
 }
 
+func syncNodes(ctx context.Context) (err error) {
+	csiNodes, err := getCSINodes(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to get CSI nodes; %w", err)
+	}
+
+	nodes, err := node.NewLister().Get(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to get nodes; %w", err)
+	}
+
+	var nodeNames []string
+	for _, node := range nodes {
+		nodeNames = append(nodeNames, node.Name)
+	}
+
+	// Add missing nodes.
+	for _, csiNode := range csiNodes {
+		if !utils.Contains(nodeNames, csiNode) {
+			node := types.NewNode(directpvtypes.NodeID(csiNode), nil)
+			node.Spec.Refresh = true
+			if _, err = client.NodeClient().Create(ctx, node, metav1.CreateOptions{}); err != nil {
+				return fmt.Errorf("unable to create node %v; %w", csiNode, err)
+			}
+		}
+	}
+
+	// Remove non-existing nodes.
+	for _, nodeName := range nodeNames {
+		if !utils.Contains(csiNodes, nodeName) {
+			if err = client.NodeClient().Delete(ctx, nodeName, metav1.DeleteOptions{}); err != nil {
+				return fmt.Errorf("unable to remove non-existing node %v; %w", nodeName, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 func discoverMain(ctx context.Context) {
+	if err := syncNodes(ctx); err != nil {
+		utils.Eprintf(quietFlag, true, "sync failed; %v\n", err)
+		os.Exit(1)
+	}
+
 	nodes, err := node.NewLister().
 		NodeSelector(toLabelValues(nodesArgs)).
 		Get(ctx)
