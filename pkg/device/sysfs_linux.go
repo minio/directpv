@@ -84,7 +84,7 @@ func getSize(name string) (uint64, error) {
 }
 
 func getPartitions(name string) ([]string, error) {
-	names, err := readdirnames("/sys/block/"+name, false)
+	names, err := readdirnames("/sys/block/" + name)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func getPartitions(name string) ([]string, error) {
 }
 
 func getHolders(name string) ([]string, error) {
-	return readdirnames("/sys/class/block/"+name+"/holders", false)
+	return readdirnames("/sys/class/block/" + name + "/holders")
 }
 
 func getDMName(name string) (string, error) {

@@ -25,10 +25,10 @@ import (
 	"strings"
 )
 
-func readdirnames(dirname string, errorIfNotExist bool) ([]string, error) {
+func readdirnames(dirname string) ([]string, error) {
 	dir, err := os.Open(dirname)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) && !errorIfNotExist {
+		if errors.Is(err, os.ErrNotExist) {
 			err = nil
 		}
 		return nil, err
