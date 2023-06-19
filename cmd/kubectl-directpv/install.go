@@ -54,6 +54,7 @@ var (
 	kubeVersion      *version.Version
 	legacyFlag       bool
 	declarativeFlag  bool
+	openshiftFlag    bool
 )
 
 var installCmd = &cobra.Command{
@@ -126,6 +127,7 @@ func init() {
 	installCmd.PersistentFlags().BoolVar(&legacyFlag, "legacy", legacyFlag, "Enable legacy mode (Used with '-o')")
 	installCmd.PersistentFlags().BoolVar(&declarativeFlag, "declarative", declarativeFlag, "Output YAML for declarative installation")
 	installCmd.PersistentFlags().MarkHidden("declarative")
+	installCmd.PersistentFlags().BoolVar(&openshiftFlag, "openshift", openshiftFlag, "Use OpenShift specific installation")
 }
 
 func validateNodeSelectorArgs() error {
@@ -309,6 +311,7 @@ func installMain(ctx context.Context) {
 		}
 	}
 	args.Declarative = declarativeFlag
+	args.Openshift = openshiftFlag
 
 	var failed bool
 	var installedComponents []installer.Component
