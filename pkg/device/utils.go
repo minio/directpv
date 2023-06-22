@@ -25,10 +25,10 @@ import (
 	"strings"
 )
 
-func readdirnames(dirname string, errorIfNotExist bool) ([]string, error) {
+func readdirnames(dirname string) ([]string, error) {
 	dir, err := os.Open(dirname)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) && !errorIfNotExist {
+		if errors.Is(err, os.ErrNotExist) {
 			err = nil
 		}
 		return nil, err
@@ -37,11 +37,8 @@ func readdirnames(dirname string, errorIfNotExist bool) ([]string, error) {
 	return dir.Readdirnames(-1)
 }
 
-func readFirstLine(filename string, errorIfNotExist bool) (string, error) {
+func readFirstLine(filename string) (string, error) {
 	getError := func(err error) error {
-		if errorIfNotExist {
-			return err
-		}
 		switch {
 		case errors.Is(err, os.ErrNotExist), errors.Is(err, os.ErrInvalid):
 			return nil
