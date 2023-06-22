@@ -227,7 +227,7 @@ spec:
                 env:
                 - name: CSI_ENDPOINT
                   value: unix:///csi/csi.sock
-                image: quay.io/minio/csi-provisioner@sha256:704fe68a6344774d4d0fde980af64fac2f2ddd27fb2e7f7c5b3d8fbddeae4ec8
+                image: registry.redhat.io/openshift4/ose-csi-external-provisioner@sha256:778aa6e5ea046bfcd865e665679c30362dc8c00cfb33a0cdcc56b2395e8ab504
                 name: csi-provisioner
                 resources: {}
                 securityContext:
@@ -246,7 +246,7 @@ spec:
                 env:
                 - name: CSI_ENDPOINT
                   value: unix:///csi/csi.sock
-                image: quay.io/minio/csi-resizer@sha256:a88ca4a9bfbd2e604aedae5a04a5c180540259e3ab75393755ff73d587a619b2
+                image: registry.redhat.io/openshift4/ose-csi-external-resizer-rhel8@sha256:837b32a0c432123e2605ad6d029e7f3b4489d9c52a9d272c7a133d41ad10db87
                 name: csi-resizer
                 resources: {}
                 securityContext:
