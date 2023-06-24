@@ -49,10 +49,7 @@ var uncordonCmd = &cobra.Command{
 4. Uncordon specific drives from specific nodes
    $ kubectl {PLUGIN_NAME} uncordon --nodes=node{1...4} --drives=sd{a...f}
 
-5. Uncordon drives which are in 'warm' access-tier
-   $ kubectl {PLUGIN_NAME} uncordon --access-tier=warm
-
-6. Uncordon drives which are in 'error' status
+5. Uncordon drives which are in 'error' status
    $ kubectl {PLUGIN_NAME} uncordon --status=error`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
