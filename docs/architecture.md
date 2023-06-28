@@ -36,7 +36,7 @@ Below is a workflow diagram
 ```
 
 ## Legacy controller
-Legacy controller runs as `Deployment` Pods named `legacy-controller` which is three replicas in any Kubernetes nodes not limiting to where node server is running. In the three replicas, one instance is elected to serve requests. Each pod contains below running containers
+Legacy controller runs as `Deployment` Pods named `legacy-controller`, which are three replicas located in any Kubernetes nodes not limiting to where node server is running. In the three replicas, one instance is elected to serve requests. Each pod contains below running containers
 * `CSI provisioner` - Bridges legacy volume creation and deletion requests from `Persistent Volume Claim` to CSI controller.
 * `Controller` - Honors CSI requests to delete and expand volumes. Create volume request is prohibited i.e. this controller works only for legacy volumes previously created in `DirectCSI`.
 * `CSI resizer` - Bridges legacy volume expansion requests from `Persistent Volume Claim` to CSI controller.
@@ -59,6 +59,7 @@ Below is a workflow diagram
 │                     │              └─────────────────┘                  └────────────┘
 └─────────────────────┘
 ```
+
 ## Node server
 Node server runs as `DaemonSet` Pods named `node-server` in all or selected Kubernetes nodes. Each node server Pod runs on a node independently. Each pod contains below running containers
 * `Node driver registrar` - Registers node server to kubelet to get CSI RPC calls.

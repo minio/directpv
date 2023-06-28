@@ -143,7 +143,7 @@ status:
 ## Delete volume
 ***CAUTION: THIS IS DANGEROUS OPERATION WHICH LEADS TO DATA LOSS***
 
-Volume can be deleted only if it is in `Ready` state (that is, no pod is using it). Run the `kubectl delete pvc` command which triggers DirectPV volume deletion. As removing a volume leads to data loss, double checkwhat volume you are deleting. Below is an example
+Volume can be deleted only if it is in `Ready` state (that is, no pod is using it). Run the `kubectl delete pvc` command which triggers DirectPV volume deletion. As removing a volume leads to data loss, double check what volume you are deleting. Below is an example
 ```sh
 # Delete `sleep-pvc` volume
 kubectl delete pvc sleep-pvc

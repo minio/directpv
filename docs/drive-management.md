@@ -8,7 +8,8 @@
 Drives are added to DirectPV to provision volumes. This involves a two step process as shown below.
 
 1. Run `discover` command.
-The `discover` command probes eligible drives from DirectPV nodes and stores drive information in a YAML file. You should carefully examine the YAML file and set the `select` field to `yes` or `no` value to indicate drive selection. `select` field is set to `yes` value by default. Below is an example of `the discover` command
+The `discover` command probes eligible drives from DirectPV nodes and stores drive information in a YAML file. You should carefully examine the YAML file and set the `select` field to `yes` or `no` value to indicate drive selection. `select` field is set to `yes` value by default. Below is an example of the `discover` command:
+
 ```sh
 # Probe and save drive information to drives.yaml file.
 $ kubectl directpv discover
