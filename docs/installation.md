@@ -1,5 +1,5 @@
 # Installation
-DirectPV comes with two components.
+DirectPV comes with two components:
 1. DirectPV plugin - installed on client machine.
 2. DirectPV CSI driver - installed on Kubernetes cluster.
 
@@ -43,13 +43,13 @@ Before starting the installation, it is required to have DirectPV plugin install
   - quay.io/minio/csi-resizer:v1.8.0
   - quay.io/minio/directpv:latest
 * If `seccomp` is enabled, load [DirectPV seccomp profile](../seccomp.json) on nodes where you want to install DirectPV and use `--seccomp-profile` flag to `kubectl directpv install` command. For more information, refer Kubernetes documentation [here](https://kubernetes.io/docs/tutorials/clusters/seccomp/)
-* If `apparmor` is enabled, load [DirectPV apparmor profile](../apparmor.profile) on nodes where you want to install DirectPV and use `--apparmor-profile` flag to `kubectl directpv install` command. For more information, refer Kubernetes documentation [here](https://kubernetes.io/docs/tutorials/clusters/apparmor/)
+* If `apparmor` is enabled, load [DirectPV apparmor profile](../apparmor.profile) on nodes where you want to install DirectPV and use `--apparmor-profile` flag to `kubectl directpv install` command. For more information, refer to the [Kubernetes documentation](https://kubernetes.io/docs/tutorials/clusters/apparmor/).
 * Enabled `ExpandCSIVolumes` [feature gate](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) for [volume expansion](https://kubernetes-csi.github.io/docs/volume-expansion.html) feature.
-* Review [driver specification](./specification.md)
-* For Red Hat Openshift users, refer [Openshift documentation](./openshift.md) for configuration prior to install DirectPV.
+* Review the [driver specification documentation](./specification.md)
+* For Red Hat Openshift users, refer to the [Openshift specific documentation](./openshift.md) for configuration prior to install DirectPV.
 
 ### Default installation
-To install DirectPV in all Kubernetes nodes, just run
+To install DirectPV in all Kubernetes nodes, run
 ```sh
 $ kubectl directpv install
 ```
@@ -75,14 +75,14 @@ $ kubectl directpv install --tolerations key2:NoExecute
 ```
 
 #### Installing on non-standard `kubelet` directory
-To install on non-standard `kubelet` directory, set `KUBELET_DIR_PATH` environment variable and start the installation. Below is an example
+To install on non-standard `kubelet` directory, set the `KUBELET_DIR_PATH` environment variable and start the installation. Below is an example
 ```sh
 $ export KUBELET_DIR_PATH=/path/to/my/kubelet/dir
 $ kubectl directpv install
 ```
 
 #### Installing on Openshift
-To install DirectPV on Openshift with specific configuration, use `--openshift` flag. Below is an example
+To install DirectPV on Openshift with specific configuration, use the `--openshift` flag. Below is an example
 ```sh
 $ kubectl directpv install --openshift
 ```
@@ -98,6 +98,6 @@ $ curl -sfL https://github.com/minio/directpv/raw/master/docs/tools/install.sh |
 * [Provision volumes](./volume-provisioning.md)
 
 ## Further reads
-* [Drive management guide](./drive-mangement.md)
+* [Drive management guide](./drive-management.md)
 * [Volume management guide](./volume-management.md)
 * [Troubleshooting guide](./troubleshooting.md)

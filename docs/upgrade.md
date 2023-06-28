@@ -5,7 +5,7 @@
 ### Upgrade DirectPV CSI driver v4.x.x
 
 #### Offline upgrade
-Below steps to be followed for offline upgrade
+Follow the below steps for an offline upgrade
 1. Uninstall DirectPV CSI driver.
 ```sh
 $ kubectl directpv uninstall
@@ -14,15 +14,15 @@ $ kubectl directpv uninstall
 3. Install the latest DirectPV CSI driver by [this documentation](./installation.md#directpv-csi-driver-installation).
 
 #### In-place upgrade
-Below steps to be followed for in-place upgrade
+Follow the below steps for an in-place upgrade
 1. Upgrade DirectPV plugin by [this documentation](#upgrade-directpv-plugin).
-2. Run install script with appropriate node-selector, tolerations and KUBELET_DIR_PATH. Below is an example
+2. Run install script with appropriate node-selector, tolerations, and `KUBELET_DIR_PATH` environment variable. Below is an example
 ```sh
 $ curl -sfL https://github.com/minio/directpv/raw/master/docs/tools/install.sh | sh - apply
 ```
 
 ### Upgrade legacy DirectCSI CSI driver v3.x.x and v2.0.9
-Below steps to be followed to upgrade to the latest DirectPV CSI driver.
+Follow the below steps to upgrade to the latest DirectPV CSI driver from a legacy DirectCSI installation.
 1. Uninstall legacy DirectCSI CSI driver.
 ```sh
 $ kubectl directcsi uninstall
@@ -33,10 +33,10 @@ $ kubectl directcsi uninstall
 ## Upgrade DirectPV plugin
 
 ### Upgrade using `Krew`
-To upgrade the plugin, just run below command
+To upgrade the plugin, run below command
 ```sh
 $ kubectl krew upgrade directpv
 ```
 
 ### Upgrade of release binary
-Refer binary installation documentation [here](./installation.md#installation-of-release-binary).
+Refer to the [binary installation documentation](./installation.md#installation-of-release-binary).

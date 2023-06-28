@@ -13,13 +13,13 @@
 * [I see ```unable to find device by FSUUID xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx; either device is removed or run command `sudo udevadm control --reload-rules && sudo udevadm trigger` on the host to reload``` error. Why?](#i-see-unable-to-find-device-by-fsuuid-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx-either-device-is-removed-or-run-command-sudo-udevadm-control---reload-rules--sudo-udevadm-trigger-on-the-host-to-reload-error-why)
 
 ### DirectPV installation fails in my Kubernetes. Why?
-You need to have necessary privileges and permissions to perform installation. Go though [specifications](./specifications.md) here. For Red Hat OpenShift, refer [this](./openshift.md). 
+You need to have necessary privileges and permissions to perform installation. Go though the [specifications documentation](./specifications.md). For Red Hat OpenShift, refer to the [OpenShift specific documentation](./openshift.md). 
 
 ### After upgrading DirectPV to v4.x.x, I do not find `direct-csi-min-io` storage class. Why?
-Legacy DirectCSI is deprecated including storage class `direct-csi-min-io` and it is no longer supported, but previously created volumes are continued to work normally. For new volume requests, please use `directpv-min-io` storage class.
+Legacy DirectCSI is deprecated including storage class `direct-csi-min-io` and it is no longer supported. Previously created volumes continue to work normally. For new volume requests, use the `directpv-min-io` storage class.
 
 ### In the YAML output of `discover` command, I do not find my storage drive(s). Why?
-DirectPV ignores certain drives those met any one of the below conditions
+DirectPV ignores drives that meet any of the below conditions:
 * The size of the drive is less than 512MiB.
 * The drive is hidden.
 * The drive is read-only.
@@ -29,10 +29,10 @@ DirectPV ignores certain drives those met any one of the below conditions
 * The drive is in-use swap partition.
 * The drive is a CDROM.
 
-Check last column of `discover --all` command output to what conditions are met. Resolve the conditions and retry again.
+Check the last column of the `discover --all` command output to see what condition(s) exclude the drive. Resolve the conditions and try again.
 
 ### Do you support SAN, NAS, iSCSI, network drives etc.,?
-DirectPV is meant for high performance local volumes with Direct Attached Storage. We do not recommend any remote drives which may lead to poor performance.
+DirectPV is meant for high performance local volumes with Direct Attached Storage. We do not recommend any remote drives, as remote drives may lead to poor performance.
 
 ### Do you support LVM, Linux RAID, Hardware RAID, Software RAID etc.,?
 It works, but we strongly recommend to use raw devices for better performance.
@@ -57,8 +57,8 @@ Below is the reason and solution
 DirectPV comes with [WaitForFirstConsumer](https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode) volume binding mode i.e. Pod consuming volume must be scheduled first.
 
 ### I see volume consuming Pod still in `Pending` state. Why?
-* If you haven't created respective Persistent Volume Claim, create it.
-* You may be facing Kubernetes scheduling problem. Please refer Kubernetes documentation [here](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/)
+* If you haven't created the respective Persistent Volume Claim, create it.
+* You may be facing Kubernetes scheduling problem. Please refer to the Kubernetes documentation [on scheduling](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/)
 
 ### I see `volume XXXXX is not yet staged, but requested with YYYYY` error. Why?
 According to CSI specification, `Kubelet` should call `StageVolume` RPC first, then `PublishVolume` RPC next. In a rare event, `StageVolume` RPC is not fired/called, but `PublishVolume` RPC is called. Please restart your Kubelet and report this issue to your Kubernetes provider.

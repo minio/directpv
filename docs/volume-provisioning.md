@@ -128,4 +128,4 @@ spec:
 ```
 
 ## Further reads
-* [volume scheduling guide](./volume-scheduling.md)
+* [Volume scheduling guide](./volume-scheduling.md)

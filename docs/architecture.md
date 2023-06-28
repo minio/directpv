@@ -1,22 +1,22 @@
 # DirectPV CSI driver architecture
 
-DirectPV is implemented as per [CSI specification](https://github.com/container-storage-interface/spec/blob/master/spec.md). It comes with below components run as Pods in Kubernetes.
+DirectPV is implemented as per the [CSI specification](https://github.com/container-storage-interface/spec/blob/master/spec.md). It comes with the below components run as Pods in Kubernetes.
 * `Controller`
 * `Node server`
 
-When DirectPV contains legacy volumes from `DirectCSI`, below additional components run as Pods
+When DirectPV contains legacy volumes from `DirectCSI`, the below additional components also run as Pods.
 * `Legacy controller `
 * `Legacy node server`
 
 ## Controller
-Controller runs as `Deployment` Pods named `controller` which is three replicas in any Kubernetes nodes not limiting to where node server is running. In the three replicas, one instance is elected to serve requests. Each pod contains below running containers
+The Controller runs as `Deployment` Pods named `controller`, which are three replicas located in any Kubernetes nodes not limiting to where node server is running. In the three replicas, one instance is elected to serve requests. Each pod contains below running containers:
 * `CSI provisioner` - Bridges volume creation and deletion requests from `Persistent Volume Claim` to CSI controller.
 * `Controller` - Controller server which honors CSI requests to create, delete and expand volumes.
 * `CSI resizer` - Bridges volume expansion requests from `Persistent Volume Claim` to CSI controller.
 
 ### Controller server
 Controller server runs as container `controller` in a `controller` `Deployment` Pod. It handles below requests
-* `Create volume` - Controller server creates new `DirectPVVolume` CRD after reversing requested storage space on suitable `DirectPVDrive` CRD. For more information, refer [Volume scheduling guide](./volume-scheduling.md)
+* `Create volume` - Controller server creates new `DirectPVVolume` CRD after reversing requested storage space on suitable `DirectPVDrive` CRD. For more information, refer to the [Volume scheduling guide](./volume-scheduling.md)
 * `Delete volume` - Controller server deletes `DirectPVVolume` CRD for unbound volumes after releasing previously reserved space in `DirectPVDrive` CRD.
 * `Expand volume` - Controller server expands `DirectPVVolume` CRD after reversing requested storage space in `DirectPVDrive` CRD.
 
@@ -88,7 +88,7 @@ Below is a workflow diagram
 ```
 
 ## Legacy node server
-Legacy node server runs as `DaemonSet` Pods named `legacy-node-server` in all or selected Kubernetes nodes. Each legacy node server Pod runs on a node independently. Each pod contains below running containers
+Legacy node server runs as `DaemonSet` Pods named `legacy-node-server` in all or selected Kubernetes nodes. Each legacy node server Pod runs on a node independently. Each pod contains the below running containers:
 * `Node driver registrar` - Registers legacy node server to kubelet to get CSI RPC calls.
 * `Node server` - Honors stage, unstage, publish, unpublish and expand volume RPC requests.
 * `Liveness probe` - Exposes `/healthz` endpoint to check legacy node server liveness by Kubernetes.

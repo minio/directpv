@@ -1,8 +1,8 @@
 # Node management
 
 ## Prerequisites
-* Working DirectPV plugin. To install the plugin, refer [installation guide](./installation.md#directpv-plugin-installation).
-* Working DirectPV CSI driver in Kubernetes. To install the driver, refer [installation guide](./installation.md#directpv-csi-driver-installation).
+* Working DirectPV plugin. To install the plugin, refer to the [plugin installation guide](./installation.md#directpv-plugin-installation).
+* Working DirectPV CSI driver in Kubernetes. To install the driver, refer to the [driver installation guide](./installation.md#directpv-csi-driver-installation).
 
 ## Add node
 After Adding a node into DirectPV DaemonSet, run DirectPV plugin `discover` command. Below is an example
@@ -25,9 +25,9 @@ $ kubectl directpv info
 
 ```
 
-Refer [info command](./command-reference.md#info-command) for more information.
+Refer to the [info command](./command-reference.md#info-command) for more information.
 
 ## Delete node
 ***CAUTION: THIS IS DANGEROUS OPERATION WHICH LEADS TO DATA LOSS***
 
-Before removing a node make sure no volumes or drives on the node are in us, then remove the node from DirectPV DaemonSet and run [remove-node.sh](./tools/remove-node.sh) script.
+Before removing a node make sure no volumes or drives on the node are in use, then remove the node from DirectPV DaemonSet and run [remove-node.sh](./tools/remove-node.sh) script.

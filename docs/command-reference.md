@@ -1,11 +1,11 @@
 # Command reference
 
 ## Prerequisites
-* Working DirectPV plugin. To install the plugin, refer [installation guide](./installation.md#directpv-plugin-installation).
-* Working DirectPV CSI driver in Kubernetes. To install the driver, refer [installation guide](./installation.md#directpv-csi-driver-installation).
+* Working DirectPV plugin. To install the plugin, refer to the [plugin installation guide](./installation.md#directpv-plugin-installation).
+* Working DirectPV CSI driver in Kubernetes. To install the driver, refer to the [driver installation guide](./installation.md#directpv-csi-driver-installation).
 
 ## Note
-DirectPV plugin command is referred as `kubectl directpv` in this document. For direct binary users, replace with `kubectl-directpv`.
+The DirectPV plugin command is referred to as `kubectl directpv` in this document. If you are using the direct binary instead, replace with `kubectl-directpv` throughout.
 
 ## Command changes from DirectCSI
 | DirectCSI command                | DirectPV command                                          |
@@ -15,7 +15,7 @@ DirectPV plugin command is referred as `kubectl directpv` in this document. For 
 | `kubectl directcsi format`       | `kubectl directpv discover`, then `kubectl directpv init` |
 
 ## Global flags
-Any plugin command has below global flags.
+All of the plugin commands can use the following global flags.
 
 | Flag           | Argument | Description                                         |
 |:---------------|:---------|:----------------------------------------------------|

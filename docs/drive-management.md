@@ -1,13 +1,14 @@
 # Drive management
 
 ## Prerequisites
-* Working DirectPV plugin. To install the plugin, refer [installation guide](./installation.md#directpv-plugin-installation).
-* Working DirectPV CSI driver in Kubernetes. To install the driver, refer [installation guide](./installation.md#directpv-csi-driver-installation).
+* Working DirectPV plugin. To install the plugin, refer to the [plugin installation guide](./installation.md#directpv-plugin-installation).
+* Working DirectPV CSI driver in Kubernetes. To install the driver, refer to the [driver installation guide](./installation.md#directpv-csi-driver-installation).
 
 ## Add drives
-Drives are added to DirectPV to provision volumes. This involves two steps process. Below are the steps.
+Drives are added to DirectPV to provision volumes. This involves a two step process as shown below.
 
-1. Run `discover` command - `discover` command probes eligible drives from DirectPV nodes and stores drive information in YAML file. You should carefully examine the YAML file and set `select` field to `yes` or `no` value to indicate drive selection. `select` field is set to `yes` value by default. Below is an example of `discover` command
+1. Run `discover` command.
+The `discover` command probes eligible drives from DirectPV nodes and stores drive information in a YAML file. You should carefully examine the YAML file and set the `select` field to `yes` or `no` value to indicate drive selection. `select` field is set to `yes` value by default. Below is an example of `the discover` command
 ```sh
 # Probe and save drive information to drives.yaml file.
 $ kubectl directpv discover
@@ -45,7 +46,8 @@ nodes:
 
 ```
 
-2. Run `init` command - The `init` command creates a request to add the selected drives in the YAML file generated using the `discover` command. As this process wipes out all data on the selected drives, wrong drive selection will lead to permanent data loss. Below is an example of `init` command:
+2. Run `init` command.
+The `init` command creates a request to add the selected drives in the YAML file generated using the `discover` command. As this process wipes out all data on the selected drives, wrong drive selection will lead to permanent data loss. Below is an example of `init` command:
 
 ```sh
 $ kubectl directpv init drives.yaml
@@ -63,10 +65,10 @@ $ kubectl directpv init drives.yaml
 └──────────────────────────────────────┴────────┴───────┴─────────┘
 ```
 
-Refer [discover command](./command-reference.md#discover-command) and [init command](./command-reference.md#init-command) for more information.
+Refer to the [discover command](./command-reference.md#discover-command) and the [init command](./command-reference.md#init-command) for more information.
 
 ## List drives
-To get information of drives from DirectPV, just run `list drives` command. Below is an example
+To get information of drives from DirectPV, run the `list drives` command. Below is an example:
 
 ```sh
 $ kubectl directpv list drives
@@ -78,7 +80,7 @@ $ kubectl directpv list drives
 └────────┴──────┴──────┴─────────┴─────────┴─────────┴────────┘
 ```
 
-Refer [list drives command](./command-reference.md#drives-command) for more information.
+Refer to the [list drives command](./command-reference.md#drives-command) for more information.
 
 ## Label drives
 Drives are labeled to set custom tagging which can be used in volume provisioning. Below is an example
@@ -90,17 +92,17 @@ $ kubectl directpv label drives tiet=hot
 $ kubectl directpv label drives tier-
 ```
 
-Refer [label drives command](./command-reference.md#drives-command-1) for more information.
+Refer to the [label drives command](./command-reference.md#drives-command-1) for more information.
 
 ## Replace drive
-Faulty drive can be replaced with a new drive on a same node. In this process, all volumes in the faulty drive are moved to the new drive then faulty drive is removed from DirectPV. Currently DirectPV does not support moving volume data to the new drive. Use [replace.sh](./tools/replace.sh) script to perform drive replacement. Below is an example
+Replace a faulty drive with a new drive on a same node. In this process, all volumes in the faulty drive are moved to the new drive then faulty drive is removed from DirectPV. Currently DirectPV does not support moving volume data to the new drive. Use [replace.sh](./tools/replace.sh) script to perform drive replacement. Below is an example:
 ```sh
 # Replace 'sdd' drive by 'sdf' drive on 'node1' node
 $ replace.sh sdd sdf node1
 ```
 
 ## Remove drives
-Drives they are not part of any volume can be removed. Below is an example
+Drives that do not contain parts of any volume can be removed. Below is an example:
 ```sh
 # Remove drive 'vdb' from 'node1' node
 $ kubectl directpv remove --drives=vdb --nodes=node1
