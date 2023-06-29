@@ -26,7 +26,7 @@ scrape_configs:
 
 3. Run `directpv_stats_bytes_total{node="node-3"}` promQL in Prometheus web interface.
 
-Below is an example comprehensive YAML configuration.
+Below is an example comprehensive YAML configuration:
 
 ```yaml
 global:

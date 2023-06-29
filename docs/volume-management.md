@@ -9,7 +9,7 @@
 Refer to the [volume provisioning guide](./volume-provisioning.md).
 
 ## List volume
-To get information of volumes from DirectPV, run the `list volumes` command. Below is an example
+To get information of volumes from DirectPV, run the `list volumes` command. Below is an example:
 
 ```sh
 $ kubectl directpv list drives
@@ -24,7 +24,7 @@ $ kubectl directpv list drives
 Refer to the [list volumes command](./command-reference.md#volumes-command) for more information.
 
 ## Expand volume
-DirectPV supports online volume expansion which does not require restart of pods using those volumes. This is automatically done after setting expanded size to `Persistent Volume Claim`. Below is an example.
+DirectPV supports online volume expansion which does not require restart of pods using those volumes. This is automatically done after setting expanded size to `Persistent Volume Claim`. Below is an example:
 ```sh
 # Get 'minio-data-1-minio-0' Persistent volume claim.
 $ kubectl get pvc minio-data-1-minio-0 -o yaml > minio-data-1-minio-0.yaml
@@ -143,7 +143,7 @@ status:
 ## Delete volume
 ***CAUTION: THIS IS DANGEROUS OPERATION WHICH LEADS TO DATA LOSS***
 
-Volume can be deleted only if it is in `Ready` state (that is, no pod is using it). Run the `kubectl delete pvc` command which triggers DirectPV volume deletion. As removing a volume leads to data loss, double check what volume you are deleting. Below is an example
+Volume can be deleted only if it is in `Ready` state (that is, no pod is using it). Run the `kubectl delete pvc` command which triggers DirectPV volume deletion. As removing a volume leads to data loss, double check what volume you are deleting. Below is an example:
 ```sh
 # Delete `sleep-pvc` volume
 kubectl delete pvc sleep-pvc

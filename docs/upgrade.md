@@ -16,7 +16,7 @@ $ kubectl directpv uninstall
 #### In-place upgrade
 Follow the below steps for an in-place upgrade
 1. Upgrade DirectPV plugin by [this documentation](#upgrade-directpv-plugin).
-2. Run install script with appropriate node-selector, tolerations, and `KUBELET_DIR_PATH` environment variable. Below is an example
+2. Run install script with appropriate node-selector, tolerations, and `KUBELET_DIR_PATH` environment variable. Below is an example:
 ```sh
 $ curl -sfL https://github.com/minio/directpv/raw/master/docs/tools/install.sh | sh - apply
 ```

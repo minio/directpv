@@ -5,13 +5,13 @@
 * Working DirectPV CSI driver in Kubernetes. To install the driver, refer to the [driver installation guide](./installation.md#directpv-csi-driver-installation).
 
 ## Add node
-After Adding a node into DirectPV DaemonSet, run DirectPV plugin `discover` command. Below is an example
+After Adding a node into DirectPV DaemonSet, run DirectPV plugin `discover` command. Below is an example:
 ```sh
 $ kubectl directpv discover
 ```
 
 ## List node
-Run DirectPV plugin `info` command to get list of nodes. Below is an example
+Run DirectPV plugin `info` command to get list of nodes. Below is an example:
 ```sh
 $ kubectl directpv info
 ┌──────────┬──────────┬───────────┬─────────┬────────┐

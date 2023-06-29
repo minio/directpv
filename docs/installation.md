@@ -21,6 +21,7 @@ $ kubectl krew install directpv
 
 ### Installation of release binary
 The plugin binary name starts by `kubectl-directpv` and is available at https://github.com/minio/directpv/releases/latest. Download the binary as per your operating system and architecture. Below is an example for `GNU/Linux` on `amd64` architecture:
+
 ```sh
 # Download DirectPV plugin.
 $ release=$(curl -sfL "https://api.github.com/repos/minio/directpv/releases/latest" | awk '/tag_name/ { print substr($2, 3, length($2)-4) }')
@@ -58,14 +59,14 @@ $ kubectl directpv install
 To install DirectPV on selected Kubernetes nodes and/or with tolerations and/or with non-standard `kubelet` directory, use below steps accordingly.
 
 #### Installing on selected nodes
-To install DirectPV on selected nodes, use `--node-selector` flag to `install` command. Below is an example
+To install DirectPV on selected nodes, use `--node-selector` flag to `install` command. Below is an example:
 ```sh
 # Install DirectPV on nodes having label 'group-name' key and 'bigdata' value
 $ kubectl directpv install --node-selector group-name=bigdata
 ```
 
 #### Installing on tainted nodes
-To install DirectPV on tainted nodes, use `--toleration` flag to `install` command. Below is an example
+To install DirectPV on tainted nodes, use `--toleration` flag to `install` command. Below is an example:
 ```sh
 # Install DirectPV on tainted nodes by tolerating 'key1' key, 'Equal' operator for 'value1' value with 'NoSchedule' effect
 $ kubectl directpv install --tolerations key1=value1:NoSchedule
@@ -75,14 +76,14 @@ $ kubectl directpv install --tolerations key2:NoExecute
 ```
 
 #### Installing on non-standard `kubelet` directory
-To install on non-standard `kubelet` directory, set the `KUBELET_DIR_PATH` environment variable and start the installation. Below is an example
+To install on non-standard `kubelet` directory, set the `KUBELET_DIR_PATH` environment variable and start the installation. Below is an example:
 ```sh
 $ export KUBELET_DIR_PATH=/path/to/my/kubelet/dir
 $ kubectl directpv install
 ```
 
 #### Installing on Openshift
-To install DirectPV on Openshift with specific configuration, use the `--openshift` flag. Below is an example
+To install DirectPV on Openshift with specific configuration, use the `--openshift` flag. Below is an example:
 ```sh
 $ kubectl directpv install --openshift
 ```

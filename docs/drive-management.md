@@ -84,7 +84,7 @@ $ kubectl directpv list drives
 Refer to the [list drives command](./command-reference.md#drives-command) for more information.
 
 ## Label drives
-Drives are labeled to set custom tagging which can be used in volume provisioning. Below is an example
+Drives are labeled to set custom tagging which can be used in volume provisioning. Below is an example:
 ```sh
 # Set label 'tier' key to 'hot' value.
 $ kubectl directpv label drives tiet=hot
@@ -96,14 +96,14 @@ $ kubectl directpv label drives tier-
 Refer to the [label drives command](./command-reference.md#drives-command-1) for more information.
 
 ## Replace drive
-Replace a faulty drive with a new drive on a same node. In this process, all volumes in the faulty drive are moved to the new drive then faulty drive is removed from DirectPV. Currently DirectPV does not support moving volume data to the new drive. Use [replace.sh](./tools/replace.sh) script to perform drive replacement. Below is an example:
+Replace a faulty drive with a new drive on a same node. In this process, all volumes in the faulty drive are moved to the new drive then faulty drive is removed from DirectPV. Currently, DirectPV does not support moving data on the volume to the new drive. Use [replace.sh](./tools/replace.sh) script to perform drive replacement. Below is an example:
 ```sh
 # Replace 'sdd' drive by 'sdf' drive on 'node1' node
 $ replace.sh sdd sdf node1
 ```
 
 ## Remove drives
-Drives that do not contain parts of any volume can be removed. Below is an example:
+Drives that do not contain any volumes can be removed. Below is an example:
 ```sh
 # Remove drive 'vdb' from 'node1' node
 $ kubectl directpv remove --drives=vdb --nodes=node1

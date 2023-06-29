@@ -12,7 +12,7 @@ PV claim must be defined with specific parameters in `PersistentVolumeClaim` spe
 | `storageClassName` | `directpv-min-io` or any storage class name having `directpv-min-io` provisioner |
 | `accessModes`      | `[ "ReadWriteOnce" ]`                                                            |
 
-Below is an example claiming `8MiB` storage from `directpv-min-io` storage class for `sleep-pvc` PVC.
+Below is an example claiming `8MiB` storage from `directpv-min-io` storage class for `sleep-pvc` PVC:
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -27,7 +27,7 @@ spec:
       storage: 8Mi
 ```
 
-For `WaitForFirstConsumer` volume binding mode, a pod consuming `sleep-pvc` must be defined. Below is an example which uses `sleep-volume` mounted on `/mnt`
+For `WaitForFirstConsumer` volume binding mode, a pod consuming `sleep-pvc` must be defined. Below is an example which uses `sleep-volume` mounted on `/mnt`:
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -54,7 +54,7 @@ PV claim must be defined with specific parameters in `volumeClaimTemplates` spec
 | `storageClassName` | `directpv-min-io` or any storage class name having `directpv-min-io` provisioner |
 | `accessModes`      | `[ "ReadWriteOnce" ]`                                                            |
 
-Below is an example claiming two `16MiB` storage from `directpv-min-io` storage class for `minio-data-1` and `minio-data-2` PVC to two `minio` pods.
+Below is an example claiming two `16MiB` storage from `directpv-min-io` storage class for `minio-data-1` and `minio-data-2` PVC to two `minio` pods:
 
 ```yaml
 kind: Service
