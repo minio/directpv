@@ -227,7 +227,7 @@ spec:
                 env:
                 - name: CSI_ENDPOINT
                   value: unix:///csi/csi.sock
-                image: image: registry.redhat.io/openshift4/ose-csi-external-provisioner@sha256:778aa6e5ea046bfcd865e665679c30362dc8c00cfb33a0cdcc56b2395e8ab504
+                image: registry.redhat.io/openshift4/ose-csi-external-provisioner@sha256:778aa6e5ea046bfcd865e665679c30362dc8c00cfb33a0cdcc56b2395e8ab504
                 name: csi-provisioner
                 resources: {}
                 securityContext:
@@ -272,7 +272,7 @@ spec:
                       fieldPath: spec.nodeName
                 - name: CSI_ENDPOINT
                   value: unix:///csi/csi.sock
-                image: quay.io/minio/directpv@sha256:1f978ff8d13ba6ce9f11110218ab227545813c3d3003a7b489d483706637e7ea
+                image: registry.connect.redhat.com/minio/directpv@sha256:53610c35d42971ad57ce8491dbcab3b95395a68820d9024a1298b9f653802688
                 name: controller
                 ports:
                 - containerPort: 30443
