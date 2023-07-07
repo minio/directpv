@@ -148,3 +148,11 @@ Volume can be deleted only if it is in `Ready` state (that is, no pod is using i
 # Delete `sleep-pvc` volume
 kubectl delete pvc sleep-pvc
 ```
+
+## Clean stale volumes
+When Pods and/or Persistent Volume Claims are deleted forcefully, associated DirectPV volumes might be left undeleted and they becomes stale. These stale volumes are removed by running `clean` command. Below is an example:
+```sh
+$ kubectl directpv clean --all
+```
+
+Refer [clean command](./command-reference.md#clean-command) for more information.
