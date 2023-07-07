@@ -33,8 +33,8 @@ function get_yq() {
 }
 
 function get_kubectl_directpv() {
-    [ -f "kubectl-directpv_${BUILD_VERSION}_linux_amd64" ] && return 0
-    curl --silent --location --insecure --fail --output "${KUBECTL_DIRECTPV}" "https://github.com/minio/directpv/releases/download/v${BUILD_VERSION}/kubectl-directpv_${BUILD_VERSION}_linux_amd64"
+    [ -f "${KUBECTL_DIRECTPV}" ] && return 0
+    curl --silent --location --insecure --fail --output "${KUBECTL_DIRECTPV}" "https://github.com/minio/directpv/releases/download/v${BUILD_VERSION}/${KUBECTL_DIRECTPV:2}"
     chmod a+x "${KUBECTL_DIRECTPV}"
 }
 
@@ -53,7 +53,7 @@ EOF
     # assign after trimming 'v'
     BUILD_VERSION="${1/v/}"
     IMAGE_HASH="$2"
-    KUBECTL_DIRECTPV="./kubectl-directpv_${BUILD_VERSION}_linux_amd64"
+    KUBECTL_DIRECTPV="./kubectl-directpv_${BUILD_VERSION}_$(go env GOOS)_$(go env GOARCH)"
 
     echo "Downloading required tools"
 
