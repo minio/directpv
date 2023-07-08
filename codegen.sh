@@ -63,7 +63,12 @@ find . -name "*.go.in" | while read -r infile; do
     outfile="${infile%.in}"
     sed -e "s:{VERSION}:${VERSIONS[-1]}:g" -e "s:{CAPSVERSION}:${VERSIONS[-1]^}:g" \
         "${infile}" > "${outfile}"
-    sed -i -e '/^package/i // AUTO GENERATED CODE. DO NOT EDIT.\n' "${outfile}"
+    case "${OSTYPE}" in
+        darwin*) sed -i '' -e '/^package/i \
+// AUTO GENERATED CODE. DO NOT EDIT.\
+' "${outfile}" ;;
+        *) sed -i -e '/^package/i // AUTO GENERATED CODE. DO NOT EDIT.\n' "${outfile}" ;;
+    esac
 done
 
 # Prefix ${REPOSITORY}/pkg/apis/directpv.min.io to each versions.
