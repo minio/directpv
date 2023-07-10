@@ -58,6 +58,14 @@ func mount(device, target string) error {
 		klog.ErrorS(err, "unable to set ENOSPC retry_timeout_seconds for device", "name", name)
 	}
 
+	if err := os.WriteFile("/sys/fs/xfs/"+name+"/error/metadata/default/max_retries", []byte("1"), 0o644); err != nil {
+		klog.ErrorS(err, "unable to set default max_retires device", "name", name)
+	}
+
+	if err := os.WriteFile("/sys/fs/xfs/"+name+"/error/metadata/default/retry_timeout_seconds", []byte("5"), 0o644); err != nil {
+		klog.ErrorS(err, "unable to set default retry_timeout_seconds for device", "name", name)
+	}
+
 	return nil
 }
 
