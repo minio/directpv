@@ -6,20 +6,22 @@ metadata:
   creationTimestamp: null
   labels:
     directpv.min.io/version: v1beta1
-  name: directpvnodes.directpv.min.io
+  name: directpvdrives.directpv.min.io
 spec:
+  conversion:
+    strategy: None
   group: directpv.min.io
   names:
-    kind: DirectPVNode
-    listKind: DirectPVNodeList
-    plural: directpvnodes
-    singular: directpvnode
+    kind: DirectPVDrive
+    listKind: DirectPVDriveList
+    plural: directpvdrives
+    singular: directpvdrive
   scope: Cluster
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: DirectPVNode denotes Node CRD object.
+        description: DirectPVDrive denotes drive CRD object.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,14 +36,19 @@ spec:
           metadata:
             type: object
           spec:
-            description: NodeSpec represents DirectPV node specification values.
+            description: DriveSpec represents DirectPV drive specification values.
             properties:
-              refresh:
+              relabel:
+                type: boolean
+              unschedulable:
                 type: boolean
             type: object
           status:
-            description: NodeStatus denotes node information.
+            description: DriveStatus denotes drive information.
             properties:
+              allocatedCapacity:
+                format: int64
+                type: integer
               conditions:
                 items:
                   description: "Condition contains details for one aspect of the current
@@ -113,37 +120,30 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              devices:
-                items:
-                  description: Device denotes the device information in a drive
-                  properties:
-                    deniedReason:
-                      type: string
-                    fsType:
-                      type: string
-                    fsuuid:
-                      type: string
-                    id:
-                      type: string
-                    majorMinor:
-                      type: string
-                    make:
-                      type: string
-                    name:
-                      type: string
-                    size:
-                      format: int64
-                      type: integer
-                  required:
-                  - id
-                  - majorMinor
-                  - name
-                  - size
-                  type: object
-                type: array
-                x-kubernetes-list-type: atomic
+              freeCapacity:
+                format: int64
+                type: integer
+              fsuuid:
+                type: string
+              make:
+                type: string
+              status:
+                description: DriveStatus denotes drive status
+                type: string
+              topology:
+                additionalProperties:
+                  type: string
+                type: object
+              totalCapacity:
+                format: int64
+                type: integer
             required:
-            - devices
+            - allocatedCapacity
+            - freeCapacity
+            - fsuuid
+            - status
+            - topology
+            - totalCapacity
             type: object
         required:
         - metadata
