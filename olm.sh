@@ -109,6 +109,20 @@ function main() {
     icon_mediatype=image/png
     "${YQ}" -i ".spec.icon[0].base64data |= (\"${icon_base64data}\")" "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml"
     "${YQ}" -i ".spec.icon[0].mediatype |= (\"${icon_mediatype}\")" "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml"
+
+    # To add related images after bundle creation
+    image=$("${YQ}" '.spec.install.spec.deployments[0].spec.template.spec.containers[0].image' "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml")
+    "${YQ}" -i ".spec.relatedImages[0].image |= (\"${image}\")" "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml"
+    name=$("${YQ}" '.spec.install.spec.deployments[0].spec.template.spec.containers[0].name' "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml")
+    "${YQ}" -i ".spec.relatedImages[0].name |= \"${name}\"" "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml"
+    image=$("${YQ}" '.spec.install.spec.deployments[0].spec.template.spec.containers[1].image' "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml")
+    "${YQ}" -i ".spec.relatedImages[1].image |= (\"${image}\")" "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml"
+    name=$("${YQ}" '.spec.install.spec.deployments[0].spec.template.spec.containers[1].name' "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml")
+    "${YQ}" -i ".spec.relatedImages[1].name |= \"${name}\"" "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml"
+    image=$("${YQ}" '.spec.install.spec.deployments[0].spec.template.spec.containers[2].image' "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml")
+    "${YQ}" -i ".spec.relatedImages[2].image |= (\"${image}\")" "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml"
+    name=$("${YQ}" '.spec.install.spec.deployments[0].spec.template.spec.containers[2].name' "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml")
+    "${YQ}" -i ".spec.relatedImages[2].name |= \"${name}\"" "bundles/redhat-marketplace/${BUILD_VERSION}/manifests/${PACKAGE}.clusterserviceversion.yaml"
 }
 
 init "$@"
