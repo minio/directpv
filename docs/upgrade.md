@@ -19,15 +19,15 @@ If you are on DirectPV version < 3.2.x, it is recommended to upgrade to v3.2.2 a
 Please follow https://github.com/minio/directpv/blob/master_old/docs/upgrade.md#upgrade-to-v300 for the upgrade steps from legacy versions
 
 
-#### Upgrade from v3.2.x
+#### Upgrade from v3.2.x and above
 
 In the latest version of DirectPV, the CSI sidecar images have been updated. If private registry is used for images, please make sure the following images are available in your registry before upgrade.
 
 ```
-quay.io/minio/csi-node-driver-registrar:v2.6.3
-quay.io/minio/csi-provisioner:v3.4.0
-quay.io/minio/livenessprobe:v2.9.0
-quay.io/minio/csi-resizer:v1.7.0
+quay.io/minio/csi-node-driver-registrar:v2.8.0
+quay.io/minio/csi-provisioner:v3.5.0
+quay.io/minio/livenessprobe:v2.10.0
+quay.io/minio/csi-resizer:v1.8.0
 ```
 
 **Notes:**
