@@ -97,6 +97,21 @@ func (c *Server) ControllerGetCapabilities(_ context.Context, _ *csi.ControllerG
 					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME},
 				},
 			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES},
+				},
+			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_GET_VOLUME},
+				},
+			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_VOLUME_CONDITION},
+				},
+			},
 		},
 	}, nil
 }
@@ -359,8 +374,52 @@ func (c *Server) ControllerExpandVolume(ctx context.Context, req *csi.Controller
 
 // ListVolumes implements ListVolumes controller RPC
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#listvolumes
-func (c *Server) ListVolumes(_ context.Context, _ *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+func (c *Server) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
+	result, err := client.VolumeClient().List(ctx, metav1.ListOptions{
+		Limit:    int64(req.GetMaxEntries()),
+		Continue: req.GetStartingToken(),
+	})
+	if err != nil {
+		if req.GetStartingToken() != "" {
+			return nil, status.Errorf(codes.Aborted, "unable to list volumes: %v", err)
+		}
+		return nil, status.Errorf(codes.Internal, "unable to list volumes: %v", err)
+	}
+	var volumeEntries []*csi.ListVolumesResponse_Entry
+	for _, volume := range result.Items {
+		csiVolume, err := getCSIVolume(ctx, &volume)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		volumeEntries = append(volumeEntries, &csi.ListVolumesResponse_Entry{
+			Volume: csiVolume,
+			Status: &csi.ListVolumesResponse_VolumeStatus{
+				VolumeCondition: volume.GetCSIVolumeCondition(),
+			},
+		})
+	}
+	return &csi.ListVolumesResponse{
+		Entries:   volumeEntries,
+		NextToken: result.Continue,
+	}, nil
+}
+
+func getCSIVolume(ctx context.Context, volume *types.Volume) (*csi.Volume, error) {
+	drive, err := client.DriveClient().Get(ctx, string(volume.GetDriveID()), metav1.GetOptions{
+		TypeMeta: types.NewDriveTypeMeta(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &csi.Volume{
+		CapacityBytes: volume.Status.TotalCapacity,
+		VolumeId:      volume.Name,
+		AccessibleTopology: []*csi.Topology{
+			{
+				Segments: drive.Status.Topology,
+			},
+		},
+	}, nil
 }
 
 // ControllerPublishVolume - controller RPC to publish volumes
@@ -377,8 +436,23 @@ func (c *Server) ControllerUnpublishVolume(_ context.Context, _ *csi.ControllerU
 
 // ControllerGetVolume - controller RPC for get volume
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllergetvolume
-func (c *Server) ControllerGetVolume(_ context.Context, _ *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+func (c *Server) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+	volume, err := client.VolumeClient().Get(
+		ctx, req.GetVolumeId(), metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()},
+	)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	csiVolume, err := getCSIVolume(ctx, volume)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &csi.ControllerGetVolumeResponse{
+		Volume: csiVolume,
+		Status: &csi.ControllerGetVolumeResponse_VolumeStatus{
+			VolumeCondition: volume.GetCSIVolumeCondition(),
+		},
+	}, nil
 }
 
 // ListSnapshots - controller RPC for listing snapshots

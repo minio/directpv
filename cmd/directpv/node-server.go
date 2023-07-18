@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/consts"
@@ -33,7 +34,11 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var metricsPort = consts.MetricsPort
+var (
+	metricsPort                 = consts.MetricsPort
+	volumeHealthMonitorInterval = 10 * time.Minute
+	enableVolumeHealthMonitor   bool
+)
 
 var nodeServerCmd = &cobra.Command{
 	Use:           consts.NodeServerName,
@@ -56,6 +61,8 @@ var nodeServerCmd = &cobra.Command{
 
 func init() {
 	nodeServerCmd.PersistentFlags().IntVar(&metricsPort, "metrics-port", metricsPort, "Metrics port at "+consts.AppPrettyName+" exports metrics data")
+	nodeServerCmd.PersistentFlags().BoolVar(&enableVolumeHealthMonitor, "enable-volume-health-monitor", enableVolumeHealthMonitor, "Enable volume health monitoring")
+	nodeServerCmd.PersistentFlags().DurationVar(&volumeHealthMonitorInterval, "volume-health-monitor-interval", volumeHealthMonitorInterval, "Interval for volume health monitoring in duration. Example: '20m','1h'")
 }
 
 func startNodeServer(ctx context.Context) error {
@@ -113,6 +120,15 @@ func startNodeServer(ctx context.Context) error {
 			errCh <- err
 		}
 	}()
+
+	if enableVolumeHealthMonitor {
+		go func() {
+			if err := volume.RunHealthMonitor(ctx, nodeID, volumeHealthMonitorInterval); err != nil {
+				klog.ErrorS(err, "unable to run volume health monitor")
+				errCh <- err
+			}
+		}()
+	}
 
 	return <-errCh
 }

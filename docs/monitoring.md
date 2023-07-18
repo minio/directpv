@@ -79,3 +79,15 @@ scrape_configs:
     action: replace
     target_label: kubernetes_name
 ```
+
+# Monitoring volume health
+
+DirectPV monitors volume health and reports abnormalities as event to PVCs and Pods. Currently volume mounts are monitored and more checks will be added later. This feature uses [Volume health monitoring CSI feature](https://kubernetes.io/docs/concepts/storage/volume-health-monitoring/).
+
+To enable volume health monitoring, pass `--enable-volume-health-monitoring` flag to installation and `CSIVolumeHealth` feature gate must be enabled.
+
+For private registries, please note that the following image is required for enabling volume health monitoring
+
+```
+quay.io/minio/csi-external-health-monitor-controller:v0.10.0
+```

@@ -40,21 +40,22 @@ import (
 )
 
 var (
-	image            = consts.AppName + ":" + Version
-	registry         = "quay.io"
-	org              = "minio"
-	nodeSelectorArgs = []string{}
-	tolerationArgs   = []string{}
-	seccompProfile   = ""
-	apparmorProfile  = ""
-	imagePullSecrets = []string{}
-	nodeSelector     map[string]string
-	tolerations      []corev1.Toleration
-	k8sVersion       = "1.27.0"
-	kubeVersion      *version.Version
-	legacyFlag       bool
-	declarativeFlag  bool
-	openshiftFlag    bool
+	image                     = consts.AppName + ":" + Version
+	registry                  = "quay.io"
+	org                       = "minio"
+	nodeSelectorArgs          = []string{}
+	tolerationArgs            = []string{}
+	seccompProfile            = ""
+	apparmorProfile           = ""
+	imagePullSecrets          = []string{}
+	nodeSelector              map[string]string
+	tolerations               []corev1.Toleration
+	k8sVersion                = "1.27.0"
+	kubeVersion               *version.Version
+	legacyFlag                bool
+	declarativeFlag           bool
+	openshiftFlag             bool
+	enableVolumeHealthMonitor bool
 )
 
 var installCmd = &cobra.Command{
@@ -82,7 +83,10 @@ var installCmd = &cobra.Command{
    $ kubectl {PLUGIN_NAME} install --apparmor-profile directpv
 
 7. Install DirectPV with seccomp profile
-   $ kubectl {PLUGIN_NAME} install --seccomp-profile profiles/seccomp.json`,
+   $ kubectl {PLUGIN_NAME} install --seccomp-profile profiles/seccomp.json
+
+8. Install DirectPV with volume health monitoring enabled
+   $ kubectl {PLUGIN_NAME} install --enable-volume-health-monitoring`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -123,6 +127,7 @@ func init() {
 	installCmd.PersistentFlags().BoolVar(&declarativeFlag, "declarative", declarativeFlag, "Output YAML for declarative installation")
 	installCmd.PersistentFlags().MarkHidden("declarative")
 	installCmd.PersistentFlags().BoolVar(&openshiftFlag, "openshift", openshiftFlag, "Use OpenShift specific installation")
+	installCmd.PersistentFlags().BoolVar(&enableVolumeHealthMonitor, "enable-volume-health-monitoring", enableVolumeHealthMonitor, "Enable volume health monitoring")
 }
 
 func validateNodeSelectorArgs() error {
@@ -305,8 +310,9 @@ func installMain(ctx context.Context) {
 			}
 		}
 	}
-	args.Declarative = declarativeFlag
 	args.Openshift = openshiftFlag
+	args.Declarative = declarativeFlag
+	args.EnableVolumeHealthMonitor = enableVolumeHealthMonitor
 
 	var failed bool
 	var installedComponents []installer.Component

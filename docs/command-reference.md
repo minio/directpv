@@ -53,19 +53,20 @@ USAGE:
   directpv install [flags]
 
 FLAGS:
-      --node-selector strings        Select the storage nodes using labels (KEY=VALUE,..)
-      --tolerations strings          Set toleration labels on the storage nodes (KEY[=VALUE]:EFFECT,..)
-      --registry string              Name of container registry (default "quay.io")
-      --org string                   Organization name in the registry (default "minio")
-      --image string                 Name of the DirectPV image (default "directpv:v4.0.6")
-      --image-pull-secrets strings   Image pull secrets for DirectPV images (SECRET1,..)
-      --apparmor-profile string      Set path to Apparmor profile
-      --seccomp-profile string       Set path to Seccomp profile
-  -o, --output string                Generate installation manifest. One of: yaml|json
-      --kube-version string          Select the kubernetes version for manifest generation (default "1.27.0")
-      --legacy                       Enable legacy mode (Used with '-o')
-      --openshift                    Use OpenShift specific installation
-  -h, --help                         help for install
+      --node-selector strings             Select the storage nodes using labels (KEY=VALUE,..)
+      --tolerations strings               Set toleration labels on the storage nodes (KEY[=VALUE]:EFFECT,..)
+      --registry string                   Name of container registry (default "quay.io")
+      --org string                        Organization name in the registry (default "minio")
+      --image string                      Name of the DirectPV image (default "directpv:0.0.0-dev")
+      --image-pull-secrets strings        Image pull secrets for DirectPV images (SECRET1,..)
+      --apparmor-profile string           Set path to Apparmor profile
+      --seccomp-profile string            Set path to Seccomp profile
+  -o, --output string                     Generate installation manifest. One of: yaml|json
+      --kube-version string               Select the kubernetes version for manifest generation (default "1.27.0")
+      --legacy                            Enable legacy mode (Used with '-o')
+      --openshift                         Use OpenShift specific installation
+      --enable-volume-health-monitoring   Enable volume health monitoring
+  -h, --help                              help for install
 
 GLOBAL FLAGS:
       --kubeconfig string   Path to the kubeconfig file to use for CLI requests
@@ -92,6 +93,9 @@ EXAMPLES:
 
 7. Install DirectPV with seccomp profile
    $ kubectl directpv install --seccomp-profile profiles/seccomp.json
+
+8. Install DirectPV with volume health monitoring enabled
+   $ kubectl directpv install --enable-volume-health-monitoring
 ```
 
 ## `discover` command

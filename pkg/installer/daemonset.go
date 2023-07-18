@@ -249,7 +249,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, consts.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
-	containerArgs := []string{
+	nodeServerArgs := []string{
 		consts.NodeServerName,
 		fmt.Sprintf("-v=%d", logLevel),
 		fmt.Sprintf("--identity=%s", consts.Identity),
@@ -257,6 +257,12 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 		fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 		fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),
 		fmt.Sprintf("--metrics-port=%d", consts.MetricsPort),
+	}
+	if args.EnableVolumeHealthMonitor {
+		nodeServerArgs = append(nodeServerArgs,
+			fmt.Sprintf("--enable-volume-health-monitor"),
+			fmt.Sprintf("--volume-health-monitor-interval=%s", consts.VolumeHealthMonitorIntervalInDuration),
+		)
 	}
 	nodeControllerArgs := []string{
 		consts.NodeControllerName,
@@ -272,7 +278,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 		ImagePullSecrets:   args.getImagePullSecrets(),
 		Containers: []corev1.Container{
 			nodeDriverRegistrarContainer(args.getNodeDriverRegistrarImage(), pluginSocketDir),
-			nodeServerContainer(args.getContainerImage(), containerArgs, securityContext, volumeMounts),
+			nodeServerContainer(args.getContainerImage(), nodeServerArgs, securityContext, volumeMounts),
 			nodeControllerContainer(args.getContainerImage(), nodeControllerArgs, securityContext, volumeMounts),
 			livenessProbeContainer(args.getLivenessProbeImage()),
 		},
@@ -320,7 +326,7 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, legacyclient.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
-	containerArgs := []string{
+	nodeServerArgs := []string{
 		consts.LegacyNodeServerName,
 		fmt.Sprintf("-v=%d", logLevel),
 		fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
@@ -336,7 +342,7 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 		ImagePullSecrets:   args.getImagePullSecrets(),
 		Containers: []corev1.Container{
 			nodeDriverRegistrarContainer(args.getNodeDriverRegistrarImage(), pluginSocketDir),
-			nodeServerContainer(args.getContainerImage(), containerArgs, securityContext, volumeMounts),
+			nodeServerContainer(args.getContainerImage(), nodeServerArgs, securityContext, volumeMounts),
 			livenessProbeContainer(args.getLivenessProbeImage()),
 		},
 		NodeSelector: args.NodeSelector,

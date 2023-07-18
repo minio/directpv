@@ -241,6 +241,8 @@ func listVolumesMain(ctx context.Context) {
 			status = "Released"
 		case volume.IsDriveLost():
 			status = "Lost"
+		case volume.HasError():
+			status = "Error"
 		case volume.IsPublished():
 			status = "Bounded"
 		}

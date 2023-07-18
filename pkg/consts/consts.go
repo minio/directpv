@@ -97,4 +97,7 @@ const (
 
 	// TmpFS mount
 	TmpMountDir = AppRootDir + "/tmp"
+
+	// Volume Health Monitor
+	VolumeHealthMonitorIntervalInDuration = "10m"
 )

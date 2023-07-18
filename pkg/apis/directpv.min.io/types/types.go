@@ -120,7 +120,8 @@ type VolumeConditionType string
 
 // Enum value of VolumeConditionType type.
 const (
-	VolumeConditionTypeLost VolumeConditionType = "Lost"
+	VolumeConditionTypeLost  VolumeConditionType = "Lost"
+	VolumeConditionTypeError VolumeConditionType = "Error"
 )
 
 // VolumeConditionReason denotes volume reason. Allows maximum upto 1024 chars.
@@ -128,7 +129,9 @@ type VolumeConditionReason string
 
 // Enum values of VolumeConditionReason type.
 const (
-	VolumeConditionReasonDriveLost VolumeConditionReason = "DriveLost"
+	VolumeConditionReasonDriveLost  VolumeConditionReason = "DriveLost"
+	VolumeConditionReasonNotMounted VolumeConditionReason = "NotMounted"
+	VolumeConditionReasonNoError    VolumeConditionReason = "NoError"
 )
 
 // VolumeConditionMessage denotes drive message. Allows maximum upto 32768 chars.
@@ -136,7 +139,9 @@ type VolumeConditionMessage string
 
 // Enum values of VolumeConditionMessage type.
 const (
-	VolumeConditionMessageDriveLost VolumeConditionMessage = "Associated drive was removed. Refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md"
+	VolumeConditionMessageDriveLost             VolumeConditionMessage = "Associated drive was removed. Refer https://github.com/minio/directpv/blob/master/docs/troubleshooting.md"
+	VolumeConditionMessageStagingPathNotMounted VolumeConditionMessage = "Staging path is umounted from the host. Please restart the workload"
+	VolumeConditionMessageTargetPathNotMounted  VolumeConditionMessage = "Target path is umounted from the host. Please restart the workload"
 )
 
 // DriveConditionType denotes drive condition. Allows maximum upto 316 chars.

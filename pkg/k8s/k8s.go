@@ -122,16 +122,43 @@ func IsCondition(conditions []metav1.Condition, ctype string, status metav1.Cond
 }
 
 // UpdateCondition updates type/status/reason/message of conditions matched by condition type.
-func UpdateCondition(conditions []metav1.Condition, ctype string, status metav1.ConditionStatus, reason, message string) {
+func UpdateCondition(conditions []metav1.Condition, ctype string, status metav1.ConditionStatus, reason, message string) ([]metav1.Condition, bool) {
+	if condition := GetConditionByType(conditions, ctype); condition != nil {
+		var updated bool
+		if condition.Status != status {
+			condition.Status = status
+			updated = true
+		}
+		if condition.Reason != reason {
+			condition.Reason = reason
+			updated = true
+		}
+		if condition.Message != message {
+			condition.Message = message
+			updated = true
+		}
+		if updated {
+			condition.LastTransitionTime = metav1.Now()
+		}
+		return conditions, updated
+	}
+	return append(conditions, metav1.Condition{
+		Type:               ctype,
+		Status:             status,
+		Reason:             reason,
+		Message:            message,
+		LastTransitionTime: metav1.Now(),
+	}), true
+}
+
+// GetConditionByType returns the condition by type.
+func GetConditionByType(conditions []metav1.Condition, ctype string) *metav1.Condition {
 	for i := range conditions {
 		if conditions[i].Type == ctype {
-			conditions[i].Status = status
-			conditions[i].Reason = reason
-			conditions[i].Message = message
-			conditions[i].LastTransitionTime = metav1.Now()
-			break
+			return &conditions[i]
 		}
 	}
+	return nil
 }
 
 // MatchTrueConditions matches whether types and status list are in a true conditions or not.
@@ -160,6 +187,17 @@ func BoolToConditionStatus(val bool) metav1.ConditionStatus {
 		return metav1.ConditionTrue
 	}
 	return metav1.ConditionFalse
+}
+
+// ResetConditionIfMatches resets the condition values to default if the type, reason and message matches.
+func ResetConditionIfMatches(conditions []metav1.Condition, ctype string, reason, message, newReason string) {
+	for i := range conditions {
+		if conditions[i].Type == ctype && conditions[i].Reason == reason && conditions[i].Message == message {
+			conditions[i].Status = metav1.ConditionFalse
+			conditions[i].Reason = newReason
+			conditions[i].Message = ""
+		}
+	}
 }
 
 // SanitizeResourceName - Sanitize given name to a valid kubernetes name format.

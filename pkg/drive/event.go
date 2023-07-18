@@ -138,6 +138,7 @@ func StageVolume(
 		}
 	}
 
+	volume.ResetStageMountErrorCondition()
 	volume.Status.DataPath = volumeDir
 	volume.Status.StagingTargetPath = stagingTargetPath
 	volume.Status.Status = directpvtypes.VolumeStatusReady
