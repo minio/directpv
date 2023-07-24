@@ -76,6 +76,9 @@ const (
 
 	// RequestIDLabelKey label key for request ID
 	RequestIDLabelKey LabelKey = consts.GroupName + "/request-id"
+
+	// SuspendLabelKey denotes if the volume is suspended.
+	SuspendLabelKey LabelKey = consts.GroupName + "/suspend"
 )
 
 // LabelValue is a type definition for label value

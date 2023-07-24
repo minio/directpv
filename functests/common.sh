@@ -246,6 +246,32 @@ function test_force_delete() {
     done
 }
 
+# usage: test_volume_supending <plugin>
+function test_volume_supending() {
+    if ! is_github_workflow; then
+        return
+    fi
+
+    echo "* Testing volume suspending"
+
+    directpv_client="$1"
+    
+    "${directpv_client}" label volumes --drives "${LV_DEVICE}" directpv.min.io/suspend=true
+
+    running_count=0
+    required_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
+
+    kubectl delete pods --all --force
+
+    while [[ $running_count -lt $required_count ]]; do
+        echo "  ...waiting for $(( required_count - running_count )) minio pods to come up after suspending the volumes"
+        sleep 30
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
+    done
+
+    "${directpv_client}" label volumes --drives "${LV_DEVICE}" directpv.min.io/suspend-
+}
+
 # usage: delete_minio <minio-yaml>
 function delete_minio() {
     echo "* Deleting minio"
