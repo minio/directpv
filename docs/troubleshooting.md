@@ -41,7 +41,7 @@ It works, but we strongly recommend to use raw devices for better performance.
 Yes
 
 ### I am already using Local Persistent Volumes (Local PV) for storage. Why do I need DirectPV?
-Local Persistent Volumes are ephemeral and are tied to the lifecyle of pods. These volumes are lost when a pod is restarted or deleted; this may lead to data loss. Additionally Local Persistent Volumes lifecycle requires administrative skills. Whereas DirectPV dynamically provisions volumes on-demand; they are persistent through pod/node restarts. The lifecycle of DirectPV volumes are managed by associated Persistent Volume Claims (PVCs) which simplifies volume management.
+Local Persistent Volumes are statically created `PersistentVolume` which requires administrative skills. Whereas DirectPV dynamically provisions volumes on-demand; they are persistent through pod/node restarts. The lifecycle of DirectPV volumes are managd by associated Persistent Volume Claims (PVCs) which simplifies volume management.
 
 ### I see `no drive found ...` error message in my Persistent Volume Claim. Why?
 Below is the reason and solution
