@@ -21,4 +21,4 @@ Refer below documentation
 * [Volume scheduling guide](./volume-scheduling.md)
 * [Issue reporting](./issue-reporting.md)
 * [DirectPV CSI driver specification](./specification.md)
-* [Troubleshooting guide](./troubleshooting.md)
+* [Troubleshooting guide](./faq.md)

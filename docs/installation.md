@@ -101,4 +101,4 @@ $ curl -sfL https://github.com/minio/directpv/raw/master/docs/tools/install.sh |
 ## Further reads
 * [Drive management guide](./drive-management.md)
 * [Volume management guide](./volume-management.md)
-* [Troubleshooting guide](./troubleshooting.md)
+* [Troubleshooting guide](./faq.md)
