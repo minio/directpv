@@ -1,17 +1,50 @@
-### Install Kubectl plugin
+# Command reference
 
-The `directpv` kubectl plugin can be used to manage the lifecycle of volumes and drives in the kubernetes cluster
+## Prerequisites
+* Working DirectPV plugin. To install the plugin, refer to the [plugin installation guide](./installation.md#directpv-plugin-installation).
+* Working DirectPV CSI driver in Kubernetes. To install the driver, refer to the [driver installation guide](./installation.md#directpv-csi-driver-installation).
 
-```sh
-$ kubectl krew install directpv
+## Note
+The DirectPV plugin command is referred to as `kubectl directpv` in this document. If you are using the direct binary instead, replace with `kubectl-directpv` throughout.
+
+## Command changes from DirectCSI
+| DirectCSI command                | DirectPV command                                          |
+|:---------------------------------|:----------------------------------------------------------|
+| `kubectl directcsi drives list`  | `kubectl directpv list drives`                            |
+| `kubectl directcsi volumes list` | `kubectl directpv list volumes`                           |
+| `kubectl directcsi format`       | `kubectl directpv discover`, then `kubectl directpv init` |
+
+## Global flags
+All of the plugin commands can use the following global flags.
+
+| Flag           | Argument | Description                                         |
+|:---------------|:---------|:----------------------------------------------------|
+| `--kubeconfig` | _string_ | Path to the kubeconfig file to use for CLI requests |
+| `--quiet`      | -        | Suppress printing error messages                    |
+| `-h`, `--help` | -        | help for directpv                                   |
+| `--version`    | -        | version for directpv                                |
+                     
+## Commands
+List of subcommands are below
+
+| Subcommand  | Description                                                                       |
+|:------------|:----------------------------------------------------------------------------------|
+| `install`   | Install DirectPV in Kubernetes                                                    |
+| `discover`  | Discover new drives                                                               |
+| `init`      | Initialize the drives                                                             |
+| `info`      | Show information about DirectPV installation                                      |
+| `list`      | List drives and volumes                                                           |
+| `label`     | Set labels to drives and volumes                                                  |
+| `cordon`    | Mark drives as unschedulable                                                      |
+| `uncordon`  | Mark drives as schedulable                                                        |
+| `migrate`   | Migrate drives and volumes from legacy DirectCSI                                  |
+| `move`      | Move volumes excluding data from source drive to destination drive on a same node |
+| `clean`     | Cleanup stale volumes                                                             |
+| `remove`    | Remove unused drives from DirectPV                                                |
+| `uninstall` | Uninstall DirectPV in Kubernetes                                                  |
+
+## `install` command
 ```
-
-### Install DirectPV
-
-Install DirectPV in your kubernetes cluster
-
-```sh
-$ kubectl directpv install --help
 Install DirectPV in Kubernetes
 
 USAGE:
@@ -22,13 +55,14 @@ FLAGS:
       --tolerations strings          Set toleration labels on the storage nodes (KEY[=VALUE]:EFFECT,..)
       --registry string              Name of container registry (default "quay.io")
       --org string                   Organization name in the registry (default "minio")
-      --image string                 Name of the DirectPV image (default "directpv:0.0.0-dev")
+      --image string                 Name of the DirectPV image (default "directpv:v4.0.6")
       --image-pull-secrets strings   Image pull secrets for DirectPV images (SECRET1,..)
       --apparmor-profile string      Set path to Apparmor profile
       --seccomp-profile string       Set path to Seccomp profile
   -o, --output string                Generate installation manifest. One of: yaml|json
       --kube-version string          Select the kubernetes version for manifest generation (default "1.27.0")
       --legacy                       Enable legacy mode (Used with '-o')
+      --openshift                    Use OpenShift specific installation
   -h, --help                         help for install
 
 GLOBAL FLAGS:
@@ -56,15 +90,10 @@ EXAMPLES:
 
 7. Install DirectPV with seccomp profile
    $ kubectl directpv install --seccomp-profile profiles/seccomp.json
-
 ```
 
-### Discover drives
-
-Discover the block devices present in the cluster
-
-```sh
-$ kubectl directpv discover --help
+## `discover` command
+```
 Discover new drives
 
 USAGE:
@@ -97,17 +126,10 @@ EXAMPLES:
 
 5. Discover specific drives from specific nodes
    $ kubectl directpv discover --nodes=node{1...4} --drives=sd{a...f}
-
 ```
 
-### Initialize the available drives present in the cluster
-
-Initializing the drives will format the selected drives with XFS filesystem and mount them to `/var/lib/directpv/mnt/<UUID>`. DirectPV can then use the initialized drives for provisioning Persistent Volumes in respones to PVC with the `directpv-min-io` storage class.
-
-**Warning**: This command will completely and irreversibly erase the data (mkfs) in the selected disks by formatting them
-
-```sh
-$ kubectl directpv init --help
+## `init` command
+```
 Initialize the drives
 
 USAGE:
@@ -115,6 +137,7 @@ USAGE:
 
 FLAGS:
       --timeout duration   specify timeout for the initialization process (default 2m0s)
+      --dangerous          Perform initialization of drives which will permanently erase existing data
   -h, --help               help for init
 
 GLOBAL FLAGS:
@@ -124,13 +147,10 @@ GLOBAL FLAGS:
 EXAMPLES:
 1. Initialize the drives
    $ kubectl directpv init drives.yaml
-
 ```
 
-### Show overall information about the DirectPV installation in the cluster
-
-```sh
-$ kubectl directpv info --help
+## `info` command
+```
 Show information about DirectPV installation
 
 USAGE:
@@ -142,13 +162,35 @@ FLAGS:
 GLOBAL FLAGS:
       --kubeconfig string   Path to the kubeconfig file to use for CLI requests
       --quiet               Suppress printing error messages
-
 ```
 
-### List the drives initialized and managed by DirectPV
+## `list` command
+```
+List drives and volumes
 
-```sh
-$ kubectl directpv list drives --help
+USAGE:
+  directpv list [command]
+
+FLAGS:
+  -n, --nodes strings    Filter output by nodes; supports ellipses pattern e.g. node{1...10}
+  -d, --drives strings   Filter output by drive names; supports ellipses pattern e.g. sd{a...z}
+  -o, --output string    Output format. One of: json|yaml|wide
+      --no-headers       When using the default or custom-column output format, don't print headers (default print headers)
+  -h, --help             help for list
+
+GLOBAL FLAGS:
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+AVAILABLE COMMANDS:
+  drives      List drives
+  volumes     List volumes
+
+Use "directpv list [command] --help" for more information about this command.
+```
+
+### `drives` command
+```
 List drives
 
 USAGE:
@@ -196,13 +238,10 @@ EXAMPLES:
 
 8. List drives filtered by labels
    $ kubectl directpv list drives --labels tier=hot
-
 ```
 
-### List the volumes provisioned and managed by DirectPV
-
-```sh
-$ kubectl directpv list volumes --help
+### `volumes` command
+```
 List volumes
 
 USAGE:
@@ -260,13 +299,35 @@ EXAMPLES:
 
 10. List volumes filtered by labels
    $ kubectl directpv list volumes --labels tier=hot
-
 ```
 
-### Set lables on the drives managed by DirectPV
+## `label` command
+```
+Set labels to drives and volumes
 
-```sh
-$ kubectl directpv label drives --help
+USAGE:
+  directpv label [command]
+
+FLAGS:
+  -n, --nodes strings    If present, filter objects from given nodes; supports ellipses pattern e.g. node{1...10}
+  -d, --drives strings   If present, filter objects by given drive names; supports ellipses pattern e.g. sd{a...z}
+      --all              If present, select all objects
+      --dry-run          Run in dry run mode
+  -h, --help             help for label
+
+GLOBAL FLAGS:
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+AVAILABLE COMMANDS:
+  drives      Set labels to drives
+  volumes     Set labels to volumes
+
+Use "directpv label [command] --help" for more information about this command.
+```
+
+### `drives` command
+```
 Set labels to drives
 
 USAGE:
@@ -298,13 +359,10 @@ EXAMPLES:
 
 3. Remove 'tier: hot' label from all drives in all nodes
    $ kubectl directpv label drives tier- --all
-
 ```
 
-### Set labels on the volumes managed by DirectPV
-
-```sh
-$ kubectl directpv label volumes --help
+### `volumes` command
+```
 Set labels to volumes
 
 USAGE:
@@ -339,13 +397,10 @@ EXAMPLES:
 
 3. Remove 'tier: hot' label from all volumes in all nodes
    $ kubectl directpv label volumes tier- --all
-
 ```
 
-### Cordon the drives to make them unschedulable
-
-```sh
-$ kubectl directpv cordon --help
+## `cordon` command
+```
 Mark drives as unschedulable
 
 USAGE:
@@ -378,13 +433,10 @@ EXAMPLES:
 
 5. Cordon drives which are in 'error' status
    $ kubectl directpv cordon --status=error
-
 ```
 
-### Uncordon the cordoned drives
-
-```sh
-$ kubectl directpv uncordon --help
+## `uncordon` command
+```
 Mark drives as schedulable
 
 USAGE:
@@ -415,18 +467,32 @@ EXAMPLES:
 4. Uncordon specific drives from specific nodes
    $ kubectl directpv uncordon --nodes=node{1...4} --drives=sd{a...f}
 
-5. Uncordon drives which are in 'warm' access-tier
-   $ kubectl directpv uncordon --access-tier=warm
-
-6. Uncordon drives which are in 'error' status
+5. Uncordon drives which are in 'error' status
    $ kubectl directpv uncordon --status=error
-
 ```
 
-### Move volumes from one drive to another drive within a node (excluding data)
+## `migrate` command
+```
+Migrate drives and volumes from legacy DirectCSI
 
-```sh
-$ kubectl directpv move --help
+USAGE:
+  directpv migrate [flags]
+
+FLAGS:
+      --dry-run   Run in dry run mode
+  -h, --help      help for migrate
+
+GLOBAL FLAGS:
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+EXAMPLES:
+1. Migrate drives and volumes from legacy DirectCSI
+   $ kubectl directpv migrate
+```
+
+## `move` command
+```
 Move volumes excluding data from source drive to destination drive on a same node
 
 USAGE:
@@ -445,13 +511,10 @@ GLOBAL FLAGS:
 EXAMPLES:
 1. Move volumes from drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 to drive 834e8f4c-14f4-49b9-9b77-e8ac854108d5
    $ kubectl directpv drives move af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 834e8f4c-14f4-49b9-9b77-e8ac854108d5
-
 ```
 
-### Cleanup stale (released|deleted) volumes
-
-```sh
-$ kubectl directpv clean --help
+## `clean` command
+```
 Cleanup stale volumes
 
 USAGE:
@@ -492,13 +555,10 @@ EXAMPLES:
 
 7. Clean volumes by pod namespace
    $ kubectl directpv clean --pod-namespaces=tenant-{1...3}
-
 ```
 
-### Remove unused drives from DirectPV
-
-```sh
-$ kubectl directpv remove --help
+## `remove` command
+```
 Remove unused drives from DirectPV
 
 USAGE:
@@ -531,13 +591,10 @@ EXAMPLES:
 
 5. Remove drives are in 'error' status
    $ kubectl directpv remove --status=error
-
 ```
 
-### Uninstall DirectPV from the kubernetes cluster
-
-```sh
-$ kubectl directpv uninstall --help
+## `uninstall` command
+```
 Uninstall DirectPV in Kubernetes
 
 USAGE:
@@ -549,5 +606,4 @@ FLAGS:
 GLOBAL FLAGS:
       --kubeconfig string   Path to the kubeconfig file to use for CLI requests
       --quiet               Suppress printing error messages
-
 ```

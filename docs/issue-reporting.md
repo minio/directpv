@@ -1,23 +1,13 @@
----
-title: Security
----
+# Issue reporting
 
-Security
----------
+## Reporting bugs
+Please open Github issue at https://github.com/minio/directpv/issues
 
-**Important**: Report security issues to security@min.io. Please do not report security issues here.
+## Reporting security issues
 
-## Supported Versions
+The [latest release](https://github.com/minio/minio/releases/latest) of DirectPV comes with security and vulnerability fixes in previous releases. It is strongly recommended to use the latest version. Before reporting security/vulnerability issues, make sure those issues are not fixed in the latest release.
 
-We always provide security updates for the [latest release](https://github.com/minio/minio/releases/latest).
-Whenever there is a security update you just need to upgrade to the latest version.
-
-## Reporting a Vulnerability
-
-All security bugs in [minio/directpv](https://github,com/minio/directpv) (or other minio/* repositories)
-should be reported by email to security@min.io. Your email will be acknowledged within 48 hours,
-and you'll receive a more detailed response to your email within 72 hours indicating the next steps
-in handling your report.
+All security issues should be reported by email to security@min.io. Your email will be acknowledged within 48 hours, and you'll receive a more detailed response to your email within 72 hours indicating the next steps in handling your report. DO NOT OPEN GITHUB ISSUES for security bugs.
 
 Please, provide a detailed explanation of the issue. In particular, outline the type of the security
 issue (DoS, authentication bypass, information disclose, ...) and the assumptions you're making (e.g. do
@@ -47,15 +37,14 @@ This process can take some time, especially when coordination is required with m
 Every effort will be made to handle the bug in as timely a manner as possible, however it's important that we
 follow the process described above to ensure that disclosures are handled consistently.
 
-## Vulnerability Management Policy
--------------------------------------
+### Vulnerability Management Policy
 
 This document formally describes the process of addressing and managing a
 reported vulnerability that has been found in the MinIO server code base,
 any directly connected ecosystem component or a direct / indirect dependency
 of the code base.
 
-### Scope
+#### Scope
 
 The vulnerability management policy described in this document covers the
 process of investigating, assessing and resolving a vulnerability report
@@ -64,7 +53,7 @@ opened by a MinIO employee or an external third party.
 Therefore, it lists pre-conditions and actions that should be performed to
 resolve and fix a reported vulnerability.
 
-### Vulnerability Management Process
+#### Vulnerability Management Process
 
 The vulnerability management process requires that the vulnerability report
 contains the following information:
