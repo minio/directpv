@@ -293,6 +293,19 @@ func (volume DirectPVVolume) IsSuspended() bool {
 	return string(volume.getLabel(types.SuspendLabelKey)) == strconv.FormatBool(true)
 }
 
+// SetClaimID sets the provided claim id on the volume.
+func (volume *DirectPVVolume) SetClaimID(claimID string) {
+	if claimID == "" {
+		return
+	}
+	volume.SetLabel(types.ClaimIDLabelKey, types.LabelValue(claimID))
+}
+
+// GetClaimID gets the claim id set on the volume.
+func (volume *DirectPVVolume) GetClaimID() string {
+	return string(volume.getLabel(types.ClaimIDLabelKey))
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // DirectPVVolumeList denotes list of volumes.

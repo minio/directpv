@@ -79,6 +79,15 @@ const (
 
 	// SuspendLabelKey denotes if the volume is suspended.
 	SuspendLabelKey LabelKey = consts.GroupName + "/suspend"
+
+	// VolumeClaimIDLabelKey label key to denote the unique allocation of drives for volumes
+	VolumeClaimIDLabelKey LabelKey = consts.GroupName + "/volume-claim-id"
+
+	// VolumeClaimIDLabelKeyPrefix label key prefix for volume claim id to be set on the drive
+	VolumeClaimIDLabelKeyPrefix = consts.GroupName + "/volume-claim-id-"
+
+	// ClaimIDLabelKey label key to denote the claim id of the volumes
+	ClaimIDLabelKey LabelKey = consts.GroupName + "/claim-id"
 )
 
 // LabelValue is a type definition for label value

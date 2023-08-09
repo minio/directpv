@@ -11,6 +11,7 @@ DirectPV CSI controller selects suitable drive for `CreateVolume` request like b
    a. By requested capacity
    b. By access-tier if requested
    c. By topology constraints if requested
+   d. By volume claim ID if requested
 4. In the process of step (3), if more than one drive is selected, the maximum free capacity drive is picked.
 5. If step (4) picks up more than one drive, a drive is randomly selected.
 6. Finally the selected drive is updated with requested volume information.
@@ -51,14 +52,17 @@ DirectPV CSI controller selects suitable drive for `CreateVolume` request like b
       |           ╭╌╌╌╌╌╌╌V╌╌╌╌╌╌╌╮   |     │ if requested? │
       |     No    │ Is more than  │   |     ╰╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╯
       +-----------│   one drive   │   |             | Yes
-                  │    matched?   │   |     ┌───────V───────┐
-                  ╰╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╯   |     │   Append to   │
-                          | Yes       +<----│ matched drives│
-                  ┌───────V───────┐         └───────────────┘
-                  │     Return    │
-                  │    Randomly   │
-                  │ selected drive│
-                  └───────────────┘
+                  │    matched?   │   |     ╭╌╌╌╌╌╌╌V╌╌╌╌╌╌╌╮
+                  ╰╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╯   |     │   Match by    │
+                          | Yes       | Yes │ volume claim  │
+                  ┌───────V───────┐   |<----│      ID       │
+                  │     Return    │   |     │ if requested? │
+                  │    Randomly   │   |     ╰╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╯
+                  │ selected drive│   |             | No
+                  └───────────────┘   |     ┌───────V───────┐
+                                      |     │   Append to   │
+                                      +<----│ matched drives│
+                                            └───────────────┘
 ```
 
 ## Customizing drive selection
@@ -91,4 +95,85 @@ spec:
     requests:
       storage: 8Mi
 EOF
+```
+
+### Unique drive selection
+
+The default free capacity based drive selection leads to allocate more than one volume in a single drive for StatefulSet deployments which lacks performance and high availability for application like MinIO object storage. To overcome this behavior, DirectPV provides a way to allocate one volume per drive. This feature needs to be set by having custom storage class with label 'directpv.min.io/volume-claim-id'. Below is an example to create custom storage class using [create-storage-class.sh script](../tools/create-storage-class.sh):
+
+```sh
+create-storage-class.sh tenant-1-storage 'directpv.min.io/volume-claim-id: 555e99eb-e255-4407-83e3-fc443bf20f86'
+```
+
+This custom storage class has to be used in your StatefulSet deployment. Below is an example to deploy MinIO object storage
+
+```yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: minio
+  labels:
+    app: minio
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: minio
+      port: 9000
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  labels:
+    app: minio
+spec:
+  serviceName: "minio"
+  replicas: 2
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+        directpv.min.io/organization: minio
+        directpv.min.io/app: minio-example
+        directpv.min.io/tenant: tenant-1
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio
+        env:
+        - name: MINIO_ACCESS_KEY
+          value: minio
+        - name: MINIO_SECRET_KEY
+          value: minio123
+        volumeMounts:
+        - name: minio-data-1
+          mountPath: /data1
+        - name: minio-data-2
+          mountPath: /data2
+        args:
+        - "server"
+        - "http://minio-{0...1}.minio.default.svc.cluster.local:9000/data{1...2}"
+  volumeClaimTemplates:
+  - metadata:
+      name: minio-data-1
+    spec:
+      storageClassName: tenant-1-storage
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 16Mi
+  - metadata:
+      name: minio-data-2
+    spec:
+      storageClassName: tenant-1-storage
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 16Mi
 ```

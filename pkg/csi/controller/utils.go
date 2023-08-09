@@ -65,6 +65,11 @@ func matchDrive(drive *types.Drive, req *csi.CreateVolumeRequest) bool {
 			if len(accessTiers) > 0 && drive.GetAccessTier() != accessTiers[0] {
 				return false
 			}
+		case string(directpvtypes.VolumeClaimIDLabelKey):
+			if drive.HasVolumeClaimID(value) {
+				// Do not allocate another volume with this claim id
+				return false
+			}
 		default:
 			if labels[key] != value {
 				return false

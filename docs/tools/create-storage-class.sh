@@ -18,27 +18,40 @@
 
 set -e -C -o pipefail
 
-declare NAME DRIVE_LABEL
+declare NAME
+declare -a DRIVE_LABELS
 
 function init() {
-    if [[ $# -ne 2 ]]; then
+    if [[ $# -lt 2 ]]; then
         cat <<EOF
 USAGE:
-  create-storage-class.sh <NAME> <DRIVE-LABEL>
+  create-storage-class.sh <NAME> <DRIVE-LABELS> ...
 
 ARGUMENTS:
   NAME           new storage class name.
-  DRIVE-LABEL    drive labels to be attached.
+  DRIVE-LABELS   drive labels to be attached.
 
 EXAMPLE:
   # Create new storage class 'fast-tier-storage' with drive labels 'directpv.min.io/tier: fast'
   $ create-storage-class.sh fast-tier-storage 'directpv.min.io/tier: fast'
+
+  # Create new storage class with more than one drive label
+  $ create-storage-class.sh fast-tier-unique 'directpv.min.io/tier: fast' 'directpv.min.io/volume-claim-id: bcea279a-df70-4d23-be41-9490f9933004'
 EOF
         exit 255
     fi
 
     NAME="$1"
-    DRIVE_LABEL="$2"
+    shift
+    DRIVE_LABELS=( "$@" )
+
+    for val in "${DRIVE_LABELS[@]}"; do
+        if [[ "$val" =~ ^directpv.min.io/volume-claim-id:.* ]] && ! [[ "${val#directpv.min.io/volume-claim-id: }" =~ ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$ ]];
+        then
+            echo "invalid uuid value set for volume-claim-id; please set a valid uuid based on [RFC 4122]"
+            exit 255
+        fi
+    done
 
     if ! which kubectl >/dev/null 2>&1; then
         echo "kubectl not found; please install"
@@ -67,7 +80,7 @@ metadata:
   name: ${NAME}
 parameters:
   fstype: xfs
-  ${DRIVE_LABEL}
+$(printf '  %s\n' "${DRIVE_LABELS[@]}")
 provisioner: directpv-min-io
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer

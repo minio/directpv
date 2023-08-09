@@ -187,7 +187,7 @@ func (handler *volumeEventHandler) releaseVolume(ctx context.Context, volume *ty
 
 		drive.Status.FreeCapacity += volume.Status.TotalCapacity
 		drive.Status.AllocatedCapacity = drive.Status.TotalCapacity - drive.Status.FreeCapacity
-
+		drive.RemoveVolumeClaimID(volume.GetClaimID())
 		_, err = client.DriveClient().Update(
 			ctx, drive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 		)

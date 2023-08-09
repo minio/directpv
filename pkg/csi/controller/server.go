@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dustin/go-humanize"
@@ -31,6 +32,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
+
+var volumeClaimIDRegex = regexp.MustCompile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$")
 
 /*  Volume Lifecycle
  *
@@ -145,11 +148,18 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported filesystem type %v for volume %v", req.GetVolumeCapabilities()[0].GetMount().GetFsType(), name)
 	}
 
+	var volumeClaimID string
 	for key, value := range req.GetParameters() {
-		if key == string(directpvtypes.AccessTierLabelKey) {
+		switch key {
+		case string(directpvtypes.AccessTierLabelKey):
 			if _, err := directpvtypes.StringsToAccessTiers(value); err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "unknown access-tier %v for volume %v; %v", value, name, err)
 			}
+		case string(directpvtypes.VolumeClaimIDLabelKey):
+			if !volumeClaimIDRegex.MatchString(value) {
+				return nil, status.Errorf(codes.InvalidArgument, "invalid volume claim ID %v; ", value)
+			}
+			volumeClaimID = value
 		}
 	}
 
@@ -177,6 +187,7 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 		drive.GetDriveName(),
 		size,
 	)
+	newVolume.SetClaimID(volumeClaimID)
 
 	if _, err := client.VolumeClient().Create(ctx, newVolume, metav1.CreateOptions{}); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -206,6 +217,7 @@ func (c *Server) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest)
 	}
 
 	if drive.AddVolumeFinalizer(req.GetName()) {
+		drive.SetVolumeClaimID(volumeClaimID)
 		drive.Status.FreeCapacity -= size
 		drive.Status.AllocatedCapacity += size
 
