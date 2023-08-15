@@ -47,7 +47,7 @@ EOF
 }
 
 function main() {
-    mkdir -p "./helm/templates/"
+    mkdir -p "./helm-charts/directpv-chart/templates"
     "${KUBECTL_DIRECTPV}" install -o yaml | sed -e 's/^---/~~~/g' | awk '{f="file" NR; print $0 > f}' RS='~~~'
     for file in file*; do
         name=$(awk '/^kind:/ { print $NF }' "${file}")

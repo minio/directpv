@@ -1,0 +1,27 @@
+# permissions for end users to view directpvcharts.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: directpvchart-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: directpv-operator
+    app.kubernetes.io/part-of: directpv-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: directpvchart-viewer-role
+rules:
+- apiGroups:
+  - charts.quay.io
+  resources:
+  - directpvcharts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - charts.quay.io
+  resources:
+  - directpvcharts/status
+  verbs:
+  - get
