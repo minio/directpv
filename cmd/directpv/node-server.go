@@ -44,6 +44,9 @@ var nodeServerCmd = &cobra.Command{
 		if err := sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 			return err
 		}
+		if err := mountTempDir(); err != nil {
+			klog.ErrorS(err, "unable to make tmpfs mount", "Target", consts.TmpMountDir)
+		}
 		if err := device.Sync(c.Context(), nodeID); err != nil {
 			return err
 		}
@@ -112,4 +115,12 @@ func startNodeServer(ctx context.Context) error {
 	}()
 
 	return <-errCh
+}
+
+func mountTempDir() error {
+	if err := sys.Mkdir(consts.TmpMountDir, 0o777); err != nil && !errors.Is(err, os.ErrExist) {
+		return err
+	}
+	// This read-only tmp mount will be used for suspended volumes.
+	return sys.Mount("tmpfs", consts.TmpMountDir, "tmpfs", []string{"ro"}, "size=1")
 }

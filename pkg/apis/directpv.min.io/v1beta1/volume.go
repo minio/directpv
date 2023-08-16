@@ -17,6 +17,8 @@
 package v1beta1
 
 import (
+	"strconv"
+
 	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -284,6 +286,11 @@ func (volume DirectPVVolume) GetPodNS() string {
 // GetTenantName returns associated tenant name of this volume.
 func (volume DirectPVVolume) GetTenantName() string {
 	return string(volume.getLabel(types.LabelKey(Group + "/tenant")))
+}
+
+// IsSuspended returns if the volume is suspended.
+func (volume DirectPVVolume) IsSuspended() bool {
+	return string(volume.getLabel(types.SuspendLabelKey)) == strconv.FormatBool(true)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

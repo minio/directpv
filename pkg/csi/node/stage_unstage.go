@@ -54,6 +54,11 @@ func (server *Server) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
+	if volume.IsSuspended() {
+		// Suspended volumes doesn't require staging.
+		return &csi.NodeStageVolumeResponse{}, nil
+	}
+
 	code, err := drive.StageVolume(
 		ctx,
 		volume,

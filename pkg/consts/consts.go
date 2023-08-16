@@ -94,4 +94,7 @@ const (
 
 	LegacyNodeServerName       = "legacy-node-server"
 	LegacyControllerServerName = "legacy-controller"
+
+	// TmpFS mount
+	TmpMountDir = AppRootDir + "/tmp"
 )

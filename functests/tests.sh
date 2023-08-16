@@ -29,10 +29,12 @@ function run_tests() {
     add_drives "${DIRECTPV_DIR}/kubectl-directpv"
     deploy_minio minio.yaml
     test_force_delete
+    test_volume_supending "${DIRECTPV_DIR}/kubectl-directpv"
     uninstall_minio "${DIRECTPV_DIR}/kubectl-directpv" minio.yaml
     test_volume_expansion "${DIRECTPV_DIR}/kubectl-directpv" sleep.yaml
     remove_drives "${DIRECTPV_DIR}/kubectl-directpv"
     uninstall_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
+    unmount_directpv
     remove_luks
     remove_lvm
 }
