@@ -22,13 +22,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"google.golang.org/grpc/codes"
@@ -101,53 +99,26 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, "target path must not be empty")
 	}
 
-	podName, podNS, podLabels := getPodInfo(ctx, req)
-
 	volume, err := client.VolumeClient().Get(ctx, req.GetVolumeId(), metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if volume.Status.StagingTargetPath != req.GetStagingTargetPath() {
+	if !volume.IsSuspended() && volume.Status.StagingTargetPath != req.GetStagingTargetPath() {
 		return nil, status.Errorf(codes.FailedPrecondition, "volume %v is not yet staged, but requested with %v", volume.Name, req.GetStagingTargetPath())
 	}
 
+	if err := server.publishVolume(req, volume.IsSuspended()); err != nil {
+		klog.Errorf("unable to publish volume %s; %v", volume.Name, err)
+		return nil, status.Errorf(codes.Internal, "unable to publish volume; %v", err)
+	}
+
+	podName, podNS, podLabels := getPodInfo(ctx, req)
 	volume.SetPodName(podName)
 	volume.SetPodNS(podNS)
 	for key, value := range podLabels {
 		if strings.HasPrefix(key, consts.GroupName+"/") {
 			volume.SetLabel(directpvtypes.LabelKey(key), directpvtypes.LabelValue(value))
-		}
-	}
-
-	mountPointMap, _, err := server.getMounts()
-	if err != nil {
-		klog.ErrorS(err, "unable to get mounts")
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	stagingTargetPathDevices, found := mountPointMap[req.GetStagingTargetPath()]
-	if !found {
-		klog.Errorf("stagingPath %v is not mounted", req.GetStagingTargetPath())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("stagingPath %v is not mounted", req.GetStagingTargetPath()))
-	}
-
-	if err := server.mkdir(req.GetTargetPath()); err != nil && !errors.Is(err, os.ErrExist) {
-		if errors.Unwrap(err) == syscall.EIO {
-			if err := drive.SetIOError(ctx, volume.GetDriveID()); err != nil {
-				return nil, status.Errorf(codes.Internal, "unable to set drive error; %v", err)
-			}
-		}
-		klog.ErrorS(err, "unable to create target path", "TargetPath", req.GetTargetPath())
-		return nil, status.Errorf(codes.Internal, "unable to create target path: %v", err)
-	}
-
-	if targetPathDevices, found := mountPointMap[req.GetTargetPath()]; found && targetPathDevices.Equal(stagingTargetPathDevices) {
-		klog.V(5).InfoS("stagingTargetPath is already bind-mounted to targetPath", "stagingTargetPath", req.GetStagingTargetPath(), "targetPath", req.GetTargetPath())
-	} else {
-		if err := server.bindMount(req.GetStagingTargetPath(), req.GetTargetPath(), req.GetReadonly()); err != nil {
-			klog.ErrorS(err, "unable to bind mount staging target path to target path", "StagingTargetPath", req.GetStagingTargetPath(), "TargetPath", req.GetTargetPath())
-			return nil, status.Errorf(codes.Internal, "unable to bind mount staging target path to target path; %v", err)
 		}
 	}
 
@@ -160,6 +131,42 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (server *Server) publishVolume(req *csi.NodePublishVolumeRequest, isSuspended bool) error {
+	if err := server.mkdir(req.GetTargetPath()); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("unable to create target path; %v", err)
+	}
+	mountPointMap, _, err := server.getMounts()
+	if err != nil {
+		return err
+	}
+	if isSuspended {
+		// Suspended volumes will be bind-mounted as read-only to tmpfs mount (/var/lib/directpv/tmp).
+		if _, found := mountPointMap[consts.TmpMountDir]; !found {
+			return fmt.Errorf("%v is not mounted; restart this node server", consts.TmpMountDir)
+		}
+		if targetPathDevices, found := mountPointMap[req.GetTargetPath()]; found && targetPathDevices.Exist("tmpfs") {
+			klog.V(5).InfoS("stagingTargetPath is already bind-mounted to tmpfs mount", "stagingTargetPath", req.GetStagingTargetPath(), "targetPath", req.GetTargetPath())
+			return nil
+		}
+		if err := server.bindMount(consts.TmpMountDir, req.GetTargetPath(), true); err != nil {
+			return fmt.Errorf("unable to bind mount target path %v to %v; %v", req.GetTargetPath(), consts.TmpMountDir, err)
+		}
+		return nil
+	}
+	stagingTargetPathDevices, found := mountPointMap[req.GetStagingTargetPath()]
+	if !found {
+		return fmt.Errorf("stagingPath %v is not mounted", req.GetStagingTargetPath())
+	}
+	if targetPathDevices, found := mountPointMap[req.GetTargetPath()]; found && targetPathDevices.Equal(stagingTargetPathDevices) {
+		klog.V(5).InfoS("stagingTargetPath is already bind-mounted to targetPath", "stagingTargetPath", req.GetStagingTargetPath(), "targetPath", req.GetTargetPath())
+	} else {
+		if err := server.bindMount(req.GetStagingTargetPath(), req.GetTargetPath(), req.GetReadonly()); err != nil {
+			return fmt.Errorf("unable to bind mount staging target path to target path; %v", err)
+		}
+	}
+	return nil
 }
 
 // NodeUnpublishVolume is node unpublish volume handler.

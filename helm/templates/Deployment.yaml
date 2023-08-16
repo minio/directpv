@@ -1,0 +1,121 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  finalizers:
+  - directpv-min-io/delete-protection
+  labels:
+    application-name: directpv.min.io
+    application-type: CSIDriver
+    directpv.min.io/created-by: kubectl-directpv
+    directpv.min.io/version: v1beta1
+  name: controller
+  namespace: directpv
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      selector.directpv.min.io: controller-gpfig
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        created-by: kubectl-directpv
+      creationTimestamp: null
+      labels:
+        selector.directpv.min.io: controller-gpfig
+      name: controller
+      namespace: directpv
+    spec:
+      containers:
+      - args:
+        - --v=3
+        - --timeout=300s
+        - --csi-address=$(CSI_ENDPOINT)
+        - --leader-election
+        - --feature-gates=Topology=true
+        - --strict-topology
+        env:
+        - name: CSI_ENDPOINT
+          value: unix:///csi/csi.sock
+        image: quay.io/minio/csi-provisioner@sha256:7b5c070ec70d30b0895d91b10c39a0e6cc81c18e0d1566c77aeff2a3587fa316
+        name: csi-provisioner
+        resources: {}
+        securityContext:
+          privileged: true
+        terminationMessagePath: /var/log/controller-provisioner-termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /csi
+          mountPropagation: None
+          name: socket-dir
+      - args:
+        - --v=3
+        - --timeout=300s
+        - --csi-address=$(CSI_ENDPOINT)
+        - --leader-election
+        env:
+        - name: CSI_ENDPOINT
+          value: unix:///csi/csi.sock
+        image: quay.io/minio/csi-resizer@sha256:819f68a4daf75acec336302843f303cf360d4941249f9f5019ffbb690c8ac7c0
+        name: csi-resizer
+        resources: {}
+        securityContext:
+          privileged: true
+        terminationMessagePath: /var/log/controller-csi-resizer-termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /csi
+          mountPropagation: None
+          name: socket-dir
+      - args:
+        - controller
+        - --identity=directpv-min-io
+        - -v=3
+        - --csi-endpoint=$(CSI_ENDPOINT)
+        - --kube-node-name=$(KUBE_NODE_NAME)
+        - --readiness-port=30443
+        env:
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: CSI_ENDPOINT
+          value: unix:///csi/csi.sock
+        image: quay.io/minio/directpv:v4.0.7
+        name: controller
+        ports:
+        - containerPort: 30443
+          name: readinessport
+          protocol: TCP
+        - containerPort: 9898
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /ready
+            port: readinessport
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 10
+        resources: {}
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /csi
+          mountPropagation: None
+          name: socket-dir
+      serviceAccountName: directpv-min-io
+      volumes:
+      - hostPath:
+          path: /var/lib/kubelet/plugins/controller-controller
+          type: DirectoryOrCreate
+        name: socket-dir
+status: {}
+
+

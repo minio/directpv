@@ -205,7 +205,6 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 			Namespace:   namespace,
 			Annotations: map[string]string{},
 			Labels:      defaultLabels,
-			Finalizers:  []string{deploymentFinalizer},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
