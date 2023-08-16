@@ -1,4 +1,4 @@
-# DirectPV
+# DirectPV:
 
 [DirectPV](https://github.com/minio/directpv) is a [CSI](https://kubernetes.io/blog/2019/01/15/container-storage-interface-ga/) driver for [Direct Attached Storage](https://en.wikipedia.org/wiki/Direct-attached_storage). In a simpler sense, it is a distributed persistent volume manager, and not a storage system like SAN or NAS. It is useful to *discover, format, mount, schedule and monitor* drives across servers.
 
