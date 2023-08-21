@@ -250,6 +250,10 @@ func listVolumesMain(ctx context.Context) {
 			status = "Bounded"
 		}
 
+		if volume.IsSuspended() {
+			status += ",Suspended"
+		}
+
 		row := []interface{}{
 			volume.Name,
 			printableBytes(volume.Status.TotalCapacity),
