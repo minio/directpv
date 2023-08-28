@@ -43,6 +43,8 @@ jobs:
           mkdir -p "$(go env GOPATH)/src/github.com/minio/"
           ln -s "$PWD" "$(go env GOPATH)/src/github.com/minio/directpv"
           echo "VERSION=$(git describe --tags --always --dirty)" >> $GITHUB_ENV
+          # To Fix: chmod: cannot access '/etc/cni/net.d': No such file or directory
+          sudo mkdir -p /etc/cni/net.d
 
       - name: Build binaries
         env:
