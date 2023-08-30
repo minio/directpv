@@ -37,7 +37,9 @@ EOF
     BUILD_VERSION="${1/v/}"
     IMAGE_TAG_BASE=quay.io/minio/directpv-operator
     IMG="$IMAGE_TAG_BASE:$BUILD_VERSION"
+    PACKAGE=minio-directpv-operator-rhmp
     BUNDLE_GEN_FLAGS="-q --overwrite --version ${BUILD_VERSION}"
+    BUNDLE_GEN_FLAGS="${BUNDLE_GEN_FLAGS} --package ${PACKAGE}"
     BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:v${BUILD_VERSION}"
 
 }
