@@ -144,15 +144,18 @@ func cordonMain(ctx context.Context) {
 			continue
 		}
 
-		for vresult := range volume.NewLister().VolumeNameSelector(result.Drive.GetVolumes()).IgnoreNotFound(true).List(ctx) {
-			if vresult.Err != nil {
-				utils.Eprintf(quietFlag, true, "%v\n", vresult.Err)
-				os.Exit(1)
-			}
+		volumes := result.Drive.GetVolumes()
+		if len(volumes) != 0 {
+			for vresult := range volume.NewLister().VolumeNameSelector(volumes).IgnoreNotFound(true).List(ctx) {
+				if vresult.Err != nil {
+					utils.Eprintf(quietFlag, true, "%v\n", vresult.Err)
+					os.Exit(1)
+				}
 
-			if vresult.Volume.Status.Status == directpvtypes.VolumeStatusPending {
-				utils.Eprintf(quietFlag, true, "unable to cordon drive %v; pending volumes found\n", result.Drive.GetDriveID())
-				os.Exit(1)
+				if vresult.Volume.Status.Status == directpvtypes.VolumeStatusPending {
+					utils.Eprintf(quietFlag, true, "unable to cordon drive %v; pending volumes found\n", result.Drive.GetDriveID())
+					os.Exit(1)
+				}
 			}
 		}
 
