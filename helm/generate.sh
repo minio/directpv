@@ -46,12 +46,12 @@ EOF
 
 function main() {
 
-    # docker-build: Build docker image with the manager.
-    docker buildx build --platform linux/amd64 -t "${IMG}" .
-
     # Ask admin to run this command for you as it requires privileges
-    # docker-push: Push docker image with the manager.
-    # docker push "${IMG}"
+    # docker-build: Build and push docker image with the manager.
+    docker buildx build --push --no-cache \
+    -t "${IMG}" \
+    --platform=linux/amd64,linux/arm64,linux/ppc64le,linux/s390x \
+    -f Dockerfile .
 
     # bundle: Generate bundle manifests and metadata, then validate generated files.
     operator-sdk generate kustomize manifests -q
