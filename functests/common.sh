@@ -246,17 +246,43 @@ function test_force_delete() {
     done
 }
 
-# usage: test_volume_supending <plugin>
-function test_volume_supending() {
-    if ! is_github_workflow; then
-        return
-    fi
-
-    echo "* Testing volume suspending"
+# usage: test_drive_suspension <plugin>
+function test_drive_suspension() {
+    echo "* Testing drive suspension"
 
     directpv_client="$1"
     
-    "${directpv_client}" label volumes --drives "${LV_DEVICE}" directpv.min.io/suspend=true
+    "${directpv_client}" suspend drives --drives "${LV_DEVICE}" --dangerous --quiet
+
+    running_count=0
+    required_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
+
+    kubectl delete pods --all --force
+
+    while [[ $running_count -lt $required_count ]]; do
+        echo "  ...waiting for $(( required_count - running_count )) minio pods to come up after suspending the drive"
+        sleep 10
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
+    done
+
+    "${directpv_client}" resume drives --drives "${LV_DEVICE}" --quiet
+
+    kubectl delete pods --all --force
+
+    while [[ $running_count -lt $required_count ]]; do
+        echo "  ...waiting for $(( required_count - running_count )) minio pods to come up after resuming the drive"
+        sleep 10
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
+    done
+}
+
+# usage: test_drive_suspension <plugin>
+function test_volume_suspension() {
+    echo "* Testing volume suspension"
+
+    directpv_client="$1"
+
+    "${directpv_client}" suspend volumes --drives "${LV_DEVICE}" --dangerous --quiet
 
     running_count=0
     required_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
@@ -265,11 +291,19 @@ function test_volume_supending() {
 
     while [[ $running_count -lt $required_count ]]; do
         echo "  ...waiting for $(( required_count - running_count )) minio pods to come up after suspending the volumes"
-        sleep 30
+        sleep 10
         running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
     done
 
-    "${directpv_client}" label volumes --drives "${LV_DEVICE}" directpv.min.io/suspend-
+    "${directpv_client}" resume volumes --drives "${LV_DEVICE}" --quiet
+
+    kubectl delete pods --all --force
+
+    while [[ $running_count -lt $required_count ]]; do
+        echo "  ...waiting for $(( required_count - running_count )) minio pods to come up after suspending the volumes"
+        sleep 10
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers 2>/dev/null | grep -c '^minio-' || true)
+    done
 }
 
 # usage: delete_minio <minio-yaml>

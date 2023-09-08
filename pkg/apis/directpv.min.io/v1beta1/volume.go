@@ -306,6 +306,16 @@ func (volume *DirectPVVolume) GetClaimID() string {
 	return string(volume.getLabel(types.ClaimIDLabelKey))
 }
 
+// Suspend suspends the volume by setting the label `directpv.min.io/suspend: true`.
+func (volume *DirectPVVolume) Suspend() bool {
+	return volume.SetLabel(types.SuspendLabelKey, types.ToLabelValue(strconv.FormatBool(true)))
+}
+
+// Resume reverts the suspended volume by removing the label `directpv.min.io/suspend`.
+func (volume *DirectPVVolume) Resume() bool {
+	return volume.RemoveLabel(types.SuspendLabelKey)
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // DirectPVVolumeList denotes list of volumes.

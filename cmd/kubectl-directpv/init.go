@@ -80,12 +80,7 @@ var initCmd = &cobra.Command{
 }
 
 func init() {
-	initCmd.Flags().SortFlags = false
-	initCmd.InheritedFlags().SortFlags = false
-	initCmd.LocalFlags().SortFlags = false
-	initCmd.LocalNonPersistentFlags().SortFlags = false
-	initCmd.NonInheritedFlags().SortFlags = false
-	initCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(initCmd)
 
 	initCmd.PersistentFlags().DurationVar(&initRequestListTimeout, "timeout", initRequestListTimeout, "specify timeout for the initialization process")
 	addDangerousFlag(initCmd, "Perform initialization of drives which will permanently erase existing data")

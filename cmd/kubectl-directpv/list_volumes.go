@@ -85,12 +85,7 @@ var listVolumesCmd = &cobra.Command{
 }
 
 func init() {
-	listVolumesCmd.Flags().SortFlags = false
-	listVolumesCmd.InheritedFlags().SortFlags = false
-	listVolumesCmd.LocalFlags().SortFlags = false
-	listVolumesCmd.LocalNonPersistentFlags().SortFlags = false
-	listVolumesCmd.NonInheritedFlags().SortFlags = false
-	listVolumesCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(listVolumesCmd)
 
 	addDriveIDFlag(listVolumesCmd, "Filter output by drive IDs")
 	addPodNameFlag(listVolumesCmd, "Filter output by pod names")

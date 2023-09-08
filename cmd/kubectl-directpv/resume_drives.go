@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2021, 2022, 2023 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -29,91 +29,68 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
-var uncordonCmd = &cobra.Command{
-	Use:           "uncordon [DRIVE ...]",
-	Short:         "Mark drives as schedulable",
+var resumeDrivesCmd = &cobra.Command{
+	Use:           "drives [DRIVE ...]",
+	Short:         "Resume suspended drives",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
-		`1. Uncordon all drives from all nodes
-   $ kubectl {PLUGIN_NAME} uncordon --all
+		`1. Resume all suspended drives from a node
+   $ kubectl {PLUGIN_NAME} resume drives --nodes=node1
 
-2. Uncordon all drives from a node
-   $ kubectl {PLUGIN_NAME} uncordon --nodes=node1
+2. Resume specific drive from specific node
+   $ kubectl {PLUGIN_NAME} resume drives --nodes=node1 --drives=sda
 
-3. Uncordon a drive from all nodes
-   $ kubectl {PLUGIN_NAME} uncordon --drives=nvme1n1
-
-4. Uncordon specific drives from specific nodes
-   $ kubectl {PLUGIN_NAME} uncordon --nodes=node{1...4} --drives=sd{a...f}
-
-5. Uncordon drives which are in 'error' status
-   $ kubectl {PLUGIN_NAME} uncordon --status=error`,
+3. Resume a suspended drive by its DRIVE-ID 'af3b8b4c-73b4-4a74-84b7-1ec30492a6f0'
+   $ kubectl {PLUGIN_NAME} resume drives af3b8b4c-73b4-4a74-84b7-1ec30492a6f0`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
 	Run: func(c *cobra.Command, args []string) {
 		driveIDArgs = args
 
-		if err := validateUncordonCmd(); err != nil {
+		if err := validateResumeDrivesCmd(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)
 		}
 
-		uncordonMain(c.Context())
+		resumeDrivesMain(c.Context())
 	},
 }
 
 func init() {
-	setFlagOpts(uncordonCmd)
+	setFlagOpts(resumeDrivesCmd)
 
-	addNodesFlag(uncordonCmd, "If present, select drives from given nodes")
-	addDrivesFlag(uncordonCmd, "If present, select drives by given names")
-	addDriveStatusFlag(uncordonCmd, "If present, select drives by status")
-	addAllFlag(uncordonCmd, "If present, select all drives")
-	addDryRunFlag(uncordonCmd, "Run in dry run mode")
+	addNodesFlag(resumeDrivesCmd, "If present, resume drives from given nodes")
+	addDrivesFlag(resumeDrivesCmd, "If present, resume drives by given names")
 }
 
-func validateUncordonCmd() error {
+func validateResumeDrivesCmd() error {
 	if err := validateNodeArgs(); err != nil {
 		return err
 	}
-
 	if err := validateDriveNameArgs(); err != nil {
 		return err
 	}
-
-	if err := validateDriveStatusArgs(); err != nil {
-		return err
-	}
-
 	if err := validateDriveIDArgs(); err != nil {
 		return err
 	}
 
 	switch {
-	case allFlag:
 	case len(nodesArgs) != 0:
 	case len(drivesArgs) != 0:
-	case len(driveStatusArgs) != 0:
 	case len(driveIDArgs) != 0:
 	default:
-		return errors.New("no drive selected to uncordon")
-	}
-
-	if allFlag {
-		nodesArgs = nil
-		drivesArgs = nil
-		driveStatusSelectors = nil
-		driveIDSelectors = nil
+		return errors.New("no drive selected to resume")
 	}
 
 	return nil
 }
 
-func uncordonMain(ctx context.Context) {
+func resumeDrivesMain(ctx context.Context) {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -122,7 +99,6 @@ func uncordonMain(ctx context.Context) {
 	resultCh := drive.NewLister().
 		NodeSelector(toLabelValues(nodesArgs)).
 		DriveNameSelector(toLabelValues(drivesArgs)).
-		StatusSelector(driveStatusSelectors).
 		DriveIDSelector(driveIDSelectors).
 		List(ctx)
 	for result := range resultCh {
@@ -133,23 +109,32 @@ func uncordonMain(ctx context.Context) {
 
 		processed = true
 
-		if !result.Drive.IsUnschedulable() {
+		if !result.Drive.IsSuspended() {
+			// only suspended drives can be resumed.
 			continue
 		}
 
-		result.Drive.Schedulable()
-		var err error
-		if !dryRunFlag {
-			_, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
+		driveClient := client.DriveClient()
+		updateFunc := func() error {
+			drive, err := driveClient.Get(ctx, result.Drive.Name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			drive.Resume()
+			if !dryRunFlag {
+				if _, err := driveClient.Update(ctx, drive, metav1.UpdateOptions{}); err != nil {
+					return err
+				}
+			}
+			return nil
 		}
-
-		if err != nil {
-			utils.Eprintf(quietFlag, true, "unable to uncordon drive %v; %v\n", result.Drive.GetDriveID(), err)
+		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
+			utils.Eprintf(quietFlag, true, "unable to resume drive %v; %v\n", result.Drive.GetDriveID(), err)
 			os.Exit(1)
 		}
 
 		if !quietFlag {
-			fmt.Printf("Drive %v/%v uncordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+			fmt.Printf("Drive %v/%v resumed\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
 		}
 	}
 

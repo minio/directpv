@@ -69,12 +69,7 @@ var cordonCmd = &cobra.Command{
 }
 
 func init() {
-	cordonCmd.Flags().SortFlags = false
-	cordonCmd.InheritedFlags().SortFlags = false
-	cordonCmd.LocalFlags().SortFlags = false
-	cordonCmd.LocalNonPersistentFlags().SortFlags = false
-	cordonCmd.NonInheritedFlags().SortFlags = false
-	cordonCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(cordonCmd)
 
 	addNodesFlag(cordonCmd, "If present, select drives from given nodes")
 	addDrivesFlag(cordonCmd, "If present, select drives by given names")

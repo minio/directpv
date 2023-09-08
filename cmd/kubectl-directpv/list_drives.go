@@ -77,12 +77,7 @@ var listDrivesCmd = &cobra.Command{
 }
 
 func init() {
-	listDrivesCmd.Flags().SortFlags = false
-	listDrivesCmd.InheritedFlags().SortFlags = false
-	listDrivesCmd.LocalFlags().SortFlags = false
-	listDrivesCmd.LocalNonPersistentFlags().SortFlags = false
-	listDrivesCmd.NonInheritedFlags().SortFlags = false
-	listDrivesCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(listDrivesCmd)
 
 	addDriveStatusFlag(listDrivesCmd, "Filter output by drive status")
 	addShowLabelsFlag(listDrivesCmd)
@@ -197,6 +192,9 @@ func listDrivesMain(ctx context.Context) {
 		status := drive.Status.Status
 		if drive.IsUnschedulable() {
 			status += ",SchedulingDisabled"
+		}
+		if drive.IsSuspended() {
+			status += ",Suspended"
 		}
 		driveMake := drive.Status.Make
 		if driveMake == "" {

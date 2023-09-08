@@ -92,12 +92,7 @@ Use "{{.CommandPath}} [command] --help" for more information about this command.
 		image = consts.AppName + ":0.0.0-dev"
 	}
 
-	mainCmd.Flags().SortFlags = false
-	mainCmd.InheritedFlags().SortFlags = false
-	mainCmd.LocalFlags().SortFlags = false
-	mainCmd.LocalNonPersistentFlags().SortFlags = false
-	mainCmd.NonInheritedFlags().SortFlags = false
-	mainCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(mainCmd)
 
 	viper.AutomaticEnv()
 
@@ -156,6 +151,8 @@ Use "{{.CommandPath}} [command] --help" for more information about this command.
 	mainCmd.AddCommand(migrateCmd)
 	mainCmd.AddCommand(moveCmd)
 	mainCmd.AddCommand(cleanCmd)
+	mainCmd.AddCommand(suspendCmd)
+	mainCmd.AddCommand(resumeCmd)
 	mainCmd.AddCommand(removeCmd)
 	mainCmd.AddCommand(uninstallCmd)
 	mainCmd.SetHelpCommand(&cobra.Command{

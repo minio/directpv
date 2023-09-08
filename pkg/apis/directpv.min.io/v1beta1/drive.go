@@ -339,6 +339,21 @@ func (drive *DirectPVDrive) IsMigrated() bool {
 	return drive.getLabel(types.MigratedLabelKey) == "true"
 }
 
+// IsSuspended returns if the drive is suspended.
+func (drive DirectPVDrive) IsSuspended() bool {
+	return string(drive.getLabel(types.SuspendLabelKey)) == strconv.FormatBool(true)
+}
+
+// Suspend suspends the drive by setting the label `directpv.min.io/suspend: true`.
+func (drive *DirectPVDrive) Suspend() bool {
+	return drive.SetLabel(types.SuspendLabelKey, types.ToLabelValue(strconv.FormatBool(true)))
+}
+
+// Resume reverts the suspended drive by removing the label `directpv.min.io/suspend`.
+func (drive *DirectPVDrive) Resume() bool {
+	return drive.RemoveLabel(types.SuspendLabelKey)
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // DirectPVDriveList denotes list of drives.

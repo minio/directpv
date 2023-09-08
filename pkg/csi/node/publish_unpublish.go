@@ -79,6 +79,17 @@ func getPodInfo(ctx context.Context, req *csi.NodePublishVolumeRequest) (podName
 	return
 }
 
+func isDriveSuspended(ctx context.Context, driveID directpvtypes.DriveID) bool {
+	drive, err := client.DriveClient().Get(ctx, string(driveID), metav1.GetOptions{
+		TypeMeta: types.NewDriveTypeMeta(),
+	})
+	if err != nil {
+		klog.ErrorS(err, "unable to get the drive", "Drive ID", driveID)
+		return false
+	}
+	return drive.IsSuspended()
+}
+
 // NodePublishVolume is node publish volume request handler.
 // reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#nodepublishvolume
 func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -104,11 +115,12 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
-	if !volume.IsSuspended() && volume.Status.StagingTargetPath != req.GetStagingTargetPath() {
+	isSuspended := volume.IsSuspended() || isDriveSuspended(ctx, volume.GetDriveID())
+	if !isSuspended && volume.Status.StagingTargetPath != req.GetStagingTargetPath() {
 		return nil, status.Errorf(codes.FailedPrecondition, "volume %v is not yet staged, but requested with %v", volume.Name, req.GetStagingTargetPath())
 	}
 
-	if err := server.publishVolume(req, volume.IsSuspended()); err != nil {
+	if err := server.publishVolume(req, isSuspended); err != nil {
 		klog.Errorf("unable to publish volume %s; %v", volume.Name, err)
 		return nil, status.Errorf(codes.Internal, "unable to publish volume; %v", err)
 	}
