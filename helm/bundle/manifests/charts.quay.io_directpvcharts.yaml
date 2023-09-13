@@ -6,8 +6,8 @@ metadata:
 spec:
   group: charts.quay.io
   names:
-    kind: DirectpvChart
-    listKind: DirectpvChartList
+    kind: DirectPVChart
+    listKind: DirectPVChartList
     plural: directpvcharts
     singular: directpvchart
   scope: Namespaced
@@ -15,7 +15,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: DirectpvChart is the Schema for the directpvcharts API
+        description: DirectPVChart is the Schema for the directpvcharts API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -30,11 +30,11 @@ spec:
           metadata:
             type: object
           spec:
-            description: Spec defines the desired state of DirectpvChart
+            description: Spec defines the desired state of DirectPVChart
             type: object
             x-kubernetes-preserve-unknown-fields: true
           status:
-            description: Status defines the observed state of DirectpvChart
+            description: Status defines the observed state of DirectPVChart
             type: object
             x-kubernetes-preserve-unknown-fields: true
         type: object

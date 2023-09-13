@@ -54,7 +54,7 @@ function main() {
     # docker push "${IMG}"
 
     # bundle: Generate bundle manifests and metadata, then validate generated files.
-    operator-sdk generate kustomize manifests -q
+    operator-sdk generate kustomize manifests -q --package minio-directpv-operator-rhmp
     (cd config/manager && kustomize edit set image controller="$IMG")
     kustomize build config/manifests | operator-sdk generate bundle "$BUNDLE_GEN_FLAGS"
     operator-sdk bundle validate ./bundle
