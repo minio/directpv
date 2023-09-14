@@ -65,6 +65,8 @@ metadata:
     capabilities: Basic Install
     createdAt: "2023-08-17T13:36:51Z"
     operators.operatorframework.io/builder: operator-sdk-v1.31.0
+    marketplace.openshift.io/remote-workflow: https://marketplace.redhat.com/en-us/operators/minio-operator-rhmp/pricing?utm_source=openshift_console
+    marketplace.openshift.io/support-workflow: https://marketplace.redhat.com/en-us/operators/minio-operator-rhmp/support?utm_source=openshift_console
     operators.operatorframework.io/project_layout: helm.sdk.operatorframework.io/v1
   name: minio-directpv-operator-rhmp.v4.0.7
   namespace: placeholder
