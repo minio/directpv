@@ -1,0 +1,53 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[{"apiVersion": "charts.quay.io/v1alpha1","kind": "DirectPVChart","metadata":
+      {"name": "directpvchart-sample"},"spec":{"affinity": {},"autoscaling": {"enabled":
+      false,"maxReplicas": 100,"minReplicas": 1,"targetCPUUtilizationPercentage":
+      80},"fullnameOverride": "","image": {"pullPolicy": "IfNotPresent","repository":
+      "nginx","tag": ""},"imagePullSecrets": [],"ingress": {"annotations": {},"className":
+      "","enabled": false,"hosts": [{"host": "chart-example.local","paths": [{"path":
+      "/","pathType": "ImplementationSpecific"}]}],"tls": []},"nameOverride": "","nodeSelector":
+      {},"podAnnotations": {},"podSecurityContext": {},"replicaCount": 1,"resources":
+      {},"securityContext": {},"service": {"port": 80,"type": "ClusterIP"},"serviceAccount":
+      {"annotations": {},"create": true,"name": ""},"tolerations": []}}]'
+    capabilities: Basic Install
+    marketplace.openshift.io/remote-workflow: https://marketplace.redhat.com/en-us/operators/minio-operator-rhmp/pricing?utm_source=openshift_console
+    marketplace.openshift.io/support-workflow: https://marketplace.redhat.com/en-us/operators/minio-operator-rhmp/support?utm_source=openshift_console
+  name: minio-directpv-operator-rhmp.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions: {}
+  description: Minio DirectPV Operator manages DirectPV deployments.
+  displayName: DirectPV
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - DirectPV
+  links:
+  - name: Minio DirectPV Operator
+    url: https://min.io/directpv
+  maintainers:
+  - email: dev@minio.io
+    name: DirectPV
+  maturity: alpha
+  provider:
+    name: DirectPV
+    url: https://min.io/directpv
+  version: 0.0.0
