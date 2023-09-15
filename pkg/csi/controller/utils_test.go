@@ -34,21 +34,21 @@ import (
 
 const GiB = 1024 * 1024 * 1024
 
-func TestGetFilteredDrives(t *testing.T) {
-	newDriveWithLabels := func(driveID directpvtypes.DriveID, status types.DriveStatus, nodeID directpvtypes.NodeID, driveName directpvtypes.DriveName, labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *types.Drive {
-		drive := types.NewDrive(
-			driveID,
-			status,
-			nodeID,
-			driveName,
-			directpvtypes.AccessTierDefault,
-		)
-		for k, v := range labels {
-			drive.SetLabel(k, v)
-		}
-		return drive
+func newDriveWithLabels(driveID directpvtypes.DriveID, status types.DriveStatus, nodeID directpvtypes.NodeID, driveName directpvtypes.DriveName, labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *types.Drive {
+	drive := types.NewDrive(
+		driveID,
+		status,
+		nodeID,
+		driveName,
+		directpvtypes.AccessTierDefault,
+	)
+	for k, v := range labels {
+		drive.SetLabel(k, v)
 	}
+	return drive
+}
 
+func TestGetFilteredDrives(t *testing.T) {
 	case2Result := []types.Drive{
 		*types.NewDrive(
 			"drive-1",
@@ -493,16 +493,49 @@ func TestGetFilteredDrives(t *testing.T) {
 }
 
 func TestGetDrive(t *testing.T) {
-	case2Result := types.NewDrive(
+	case1Result := types.NewDrive(
 		"drive-1",
 		types.DriveStatus{},
 		"node-1",
 		directpvtypes.DriveName("sda"),
 		directpvtypes.AccessTierDefault,
 	)
-	case2Result.AddVolumeFinalizer("volume-1")
-	case2Objects := []runtime.Object{case2Result}
-	case2Request := &csi.CreateVolumeRequest{Name: "volume-1"}
+	case1Result.AddVolumeFinalizer("volume-1")
+	case1Objects := []runtime.Object{case1Result}
+	case1Request := &csi.CreateVolumeRequest{Name: "volume-1"}
+
+	case2Objects := []runtime.Object{
+		types.NewDrive(
+			"drive-1",
+			types.DriveStatus{Status: directpvtypes.DriveStatusReady},
+			"node-1",
+			directpvtypes.DriveName("sda"),
+			directpvtypes.AccessTierDefault,
+		),
+		newDriveWithLabels(
+			"drive-2",
+			types.DriveStatus{
+				Status:   directpvtypes.DriveStatusReady,
+				Topology: map[string]string{"node": "node1", "rack": "rack1", "zone": "zone1", "region": "region1"},
+			},
+			"node-1",
+			directpvtypes.DriveName("sdd"),
+			map[directpvtypes.LabelKey]directpvtypes.LabelValue{
+				consts.GroupName + "/volume-claim-id-xxx": "true",
+			},
+		),
+	}
+	case2Request := &csi.CreateVolumeRequest{
+		Name:       "volume-1",
+		Parameters: map[string]string{consts.GroupName + "/volume-claim-id": "xxx"},
+	}
+	case2Result := types.NewDrive(
+		"drive-1",
+		types.DriveStatus{Status: directpvtypes.DriveStatusReady},
+		"node-1",
+		directpvtypes.DriveName("sda"),
+		directpvtypes.AccessTierDefault,
+	)
 
 	testCases := []struct {
 		objects        []runtime.Object
@@ -511,6 +544,7 @@ func TestGetDrive(t *testing.T) {
 		expectErr      bool
 	}{
 		{[]runtime.Object{}, nil, nil, true},
+		{case1Objects, case1Request, case1Result, false},
 		{case2Objects, case2Request, case2Result, false},
 	}
 
@@ -520,7 +554,9 @@ func TestGetDrive(t *testing.T) {
 		client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
 		result, err := selectDrive(context.TODO(), testCase.request)
-
+		if err != nil && !testCase.expectErr {
+			t.Fatalf("case %v: unable to select drive; %v", i+1, err)
+		}
 		if testCase.expectErr {
 			if err == nil {
 				t.Fatalf("case %v: expected error, but succeeded", i+1)

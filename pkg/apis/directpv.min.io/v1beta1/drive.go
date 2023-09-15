@@ -17,6 +17,7 @@
 package v1beta1
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -219,6 +220,30 @@ func (drive *DirectPVDrive) SetNodeID(name types.NodeID) {
 // GetNodeID returns node ID of this drive.
 func (drive DirectPVDrive) GetNodeID() types.NodeID {
 	return types.NodeID(drive.getLabel(types.NodeLabelKey))
+}
+
+// HasVolumeClaimID checks if the provided volume claim id is set on the drive.
+func (drive *DirectPVDrive) HasVolumeClaimID(claimID string) bool {
+	if claimID == "" {
+		return false
+	}
+	return drive.GetLabels()[types.VolumeClaimIDLabelKeyPrefix+claimID] == strconv.FormatBool(true)
+}
+
+// SetVolumeClaimID sets the provided claim id on the drive.
+func (drive *DirectPVDrive) SetVolumeClaimID(claimID string) {
+	if claimID == "" {
+		return
+	}
+	drive.SetLabel(types.LabelKey(types.VolumeClaimIDLabelKeyPrefix+claimID), types.LabelValue(strconv.FormatBool(true)))
+}
+
+// RemoveVolumeClaimID removes the volume claim id label.
+func (drive *DirectPVDrive) RemoveVolumeClaimID(claimID string) {
+	if claimID == "" {
+		return
+	}
+	drive.RemoveLabel(types.LabelKey(types.VolumeClaimIDLabelKeyPrefix + claimID))
 }
 
 // SetLabel sets label to this drive.
