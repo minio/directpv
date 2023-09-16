@@ -114,7 +114,11 @@ function update_charts() {
 function make_release() {
     export IMAGE_TAG_BASE=quay.io/minio/directpv-operator
     export IMG="${IMAGE_TAG_BASE}:${BUILD_VERSION}"
-    export BUNDLE_GEN_FLAGS="-q --overwrite --version ${BUILD_VERSION} --package minio-directpv-operator-rhmp"
+    # We need RedHat annotations, if you set overwrite to true, they will be
+    # removed, please set it to true only when needed for something new but
+    # right after, put RedHat annotations back in place. For example:
+    # com.redhat.openshift.versions: v4.8-v4.13
+    export BUNDLE_GEN_FLAGS="-q --overwrite=false --version ${BUILD_VERSION} --package minio-directpv-operator-rhmp"
     export BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:v${BUILD_VERSION}"
 
     cd operator
