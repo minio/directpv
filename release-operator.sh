@@ -127,6 +127,12 @@ function make_release() {
     (cd config/manager && "${KUSTOMIZE}" edit set image controller="${IMG}")
     # shellcheck disable=SC2086
     "${KUSTOMIZE}" build config/manifests | "${OPERATOR_SDK}" generate bundle ${BUNDLE_GEN_FLAGS}
+    # Since above line overwrites our redhat annotation,
+    # it will be added back:
+    {
+        echo "  # Annotations to specify OCP versions compatibility."
+        echo "  com.redhat.openshift.versions: v4.8-v4.13"
+    } >> operator/bundle/metadata/annotations.yaml
     "${OPERATOR_SDK}" bundle validate ./bundle
     git_commit "Update operator bundle for v${BUILD_VERSION}"
 
