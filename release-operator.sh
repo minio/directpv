@@ -150,9 +150,43 @@ function make_release() {
     cd -
 }
 
+### subsequent_steps() objective:
+#
+# To add additional things once images has been pushed in make_release()
+#
+### Reasoning:
+#
+# We can't add these additional things until images are pushed.
+# This is why we need this function, similar to what we are doing at
+# Operator repo: https://github.com/minio/operator/blob/master/olm-post-script.sh
+#
+function subsequent_steps() {
+    "${PODMAN}" pull quay.io/minio/directpv-operator:"${BUILD_VERSION}"
+    "${PODMAN}" pull gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+    PROXY_DIGEST=$("${PODMAN}" image list gcr.io/kubebuilder/kube-rbac-proxy --digests | grep sha | awk -F ' ' '{print $3}')
+    OPERATOR_DIGEST=$("${PODMAN}" image list quay.io/minio/directpv-operator --digests | grep sha | awk -F ' ' '{print $3}')
+
+    ### relatedImages: Field needed by RedHat Certification.
+    # kind: ClusterServiceVersion
+    # spec:
+    #   relatedImages:
+    #     - image: gcr.io/kubebuilder/kube-rbac-proxy@sha256:<digest>
+    #       name: kube-rbac-proxy
+    #     - image: quay.io/minio/directpv-operator@sha256:<digest>
+    #       name: manager
+    #
+    # Add relatedImages to CSV
+    yq -i ".spec.relatedImages |= []" ./operator/bundle/manifests/minio-directpv-operator-rhmp.clusterserviceversion.yaml
+    # Add kube-rbac-proxy image
+    yq -i ".spec.relatedImages[0] = {\"image\": \"gcr.io/kubebuilder/kube-rbac-proxy@${PROXY_DIGEST}\", \"name\": \"kube-rbac-proxy\"}" ./operator/bundle/manifests/minio-directpv-operator-rhmp.clusterserviceversion.yaml
+    # Add manager image
+    yq -i ".spec.relatedImages[1] = {\"image\": \"quay.io/minio/directpv-operator@${OPERATOR_DIGEST}\", \"name\": \"manager\"}" ./operator/bundle/manifests/minio-directpv-operator-rhmp.clusterserviceversion.yaml
+}
+
 function main() {
     update_charts
     make_release
+    subsequent_steps
 }
 
 init "$@"
