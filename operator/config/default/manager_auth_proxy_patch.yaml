@@ -31,7 +31,7 @@ spec:
           capabilities:
             drop:
               - "ALL"
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
+        image: gcr.io/kubebuilder/kube-rbac-proxy@sha256:d4883d7c622683b3319b5e6b3a7edfbf2594c18060131a8bf64504805f875522
         args:
         - "--secure-listen-address=0.0.0.0:8443"
         - "--upstream=http://127.0.0.1:8080/"

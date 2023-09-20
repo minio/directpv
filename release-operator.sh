@@ -114,6 +114,9 @@ function update_charts() {
 function make_release() {
     export IMAGE_TAG_BASE=quay.io/minio/directpv-operator
     export IMG="${IMAGE_TAG_BASE}:${BUILD_VERSION}"
+    SHA_DIGEST=$("${PODMAN}" pull "${IMAGE_TAG_BASE}":"${BUILD_VERSION}" | grep Digest | awk -F ' ' '{print $2}')
+    export SHA_DIGEST
+    export DIGEST="${IMAGE_TAG_BASE}@${SHA_DIGEST}"
     export BUNDLE_GEN_FLAGS="-q --overwrite --version ${BUILD_VERSION} --package minio-directpv-operator-rhmp"
     export BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:v${BUILD_VERSION}"
 
@@ -124,7 +127,11 @@ function make_release() {
     git_commit "Update operator for v${BUILD_VERSION}"
 
     "${OPERATOR_SDK}" generate kustomize manifests --quiet --package minio-directpv-operator-rhmp
-    (cd config/manager && "${KUSTOMIZE}" edit set image controller="${IMG}")
+    # Controller image, should be in SHA Digest form for RHMP to pass test:
+    # verify-pinned-digest where all your container images should use SHA digests instead of tags.
+    # Example:
+    # (cd config/manager && kustomize edit set image controller=quay.io/cniackz4/directpv-operator@sha256:04fec2fbd0d17f449a17c0f509b359c18d6c662e0a22e84cd625b538ca2a1af2)
+    (cd config/manager && "${KUSTOMIZE}" edit set image controller="${DIGEST}")
     # shellcheck disable=SC2086
     "${KUSTOMIZE}" build config/manifests | "${OPERATOR_SDK}" generate bundle ${BUNDLE_GEN_FLAGS}
     # Since above line overwrites our redhat annotation,
