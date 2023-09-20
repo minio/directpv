@@ -18,6 +18,9 @@ You need to have necessary privileges and permissions to perform installation. G
 ### After upgrading DirectPV to v4.x.x, I do not find `direct-csi-min-io` storage class. Why?
 Legacy DirectCSI is deprecated including storage class `direct-csi-min-io` and it is no longer supported. Previously created volumes continue to work normally. For new volume requests, use the `directpv-min-io` storage class.
 
+### DirectPV installation fails with error message like _Error; unable to get legacy drives; conversion webhook for direct.csi.min.io/v1beta3, ..._ or similar. Why?
+Installing DirectPV also tries to upgrade legacy DirectCSI. Upgrading DirectCSI older than v3.1.0 requires _Conversion webhook_ service running. For appropriate upgrade process, refer [this documentation](./upgrade.md#upgrade-legacy-directcsi-csi-driver)
+
 ### In the YAML output of `discover` command, I do not find my storage drive(s). Why?
 DirectPV ignores drives that meet any of the below conditions:
 * The size of the drive is less than 512MiB.
