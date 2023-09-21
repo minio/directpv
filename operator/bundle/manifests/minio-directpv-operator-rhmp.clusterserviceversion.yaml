@@ -332,3 +332,8 @@ spec:
     name: DirectPV
     url: https://min.io/directpv
   version: 4.0.7
+  relatedImages:
+    - image: gcr.io/kubebuilder/kube-rbac-proxy@sha256:d4883d7c622683b3319b5e6b3a7edfbf2594c18060131a8bf64504805f875522
+      name: kube-rbac-proxy
+    - image: quay.io/minio/directpv-operator@sha256:dadf28674b15c256bc5dec3e99d90f811ea3ac1fdee17c51e2928063a5341e5e
+      name: manager
