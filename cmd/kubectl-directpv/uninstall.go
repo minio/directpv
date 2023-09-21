@@ -38,12 +38,7 @@ var uninstallCmd = &cobra.Command{
 }
 
 func init() {
-	uninstallCmd.Flags().SortFlags = false
-	uninstallCmd.InheritedFlags().SortFlags = false
-	uninstallCmd.LocalFlags().SortFlags = false
-	uninstallCmd.LocalNonPersistentFlags().SortFlags = false
-	uninstallCmd.NonInheritedFlags().SortFlags = false
-	uninstallCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(uninstallCmd)
 
 	addDangerousFlag(uninstallCmd, "If present, uninstall forcefully which may cause data loss")
 	uninstallCmd.PersistentFlags().MarkHidden("dangerous")

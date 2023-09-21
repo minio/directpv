@@ -37,12 +37,7 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	listCmd.Flags().SortFlags = false
-	listCmd.InheritedFlags().SortFlags = false
-	listCmd.LocalFlags().SortFlags = false
-	listCmd.LocalNonPersistentFlags().SortFlags = false
-	listCmd.NonInheritedFlags().SortFlags = false
-	listCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(listCmd)
 
 	addNodesFlag(listCmd, "Filter output by nodes")
 	addDrivesFlag(listCmd, "Filter output by drive names")

@@ -107,12 +107,7 @@ func init() {
 		image = consts.AppName + ":0.0.0-dev"
 	}
 
-	installCmd.Flags().SortFlags = false
-	installCmd.InheritedFlags().SortFlags = false
-	installCmd.LocalFlags().SortFlags = false
-	installCmd.LocalNonPersistentFlags().SortFlags = false
-	installCmd.NonInheritedFlags().SortFlags = false
-	installCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(installCmd)
 
 	installCmd.PersistentFlags().StringSliceVar(&nodeSelectorArgs, "node-selector", nodeSelectorArgs, "Select the storage nodes using labels (KEY=VALUE,..)")
 	installCmd.PersistentFlags().StringSliceVar(&tolerationArgs, "tolerations", tolerationArgs, "Set toleration labels on the storage nodes (KEY[=VALUE]:EFFECT,..)")

@@ -77,12 +77,7 @@ var cleanCmd = &cobra.Command{
 }
 
 func init() {
-	cleanCmd.Flags().SortFlags = false
-	cleanCmd.InheritedFlags().SortFlags = false
-	cleanCmd.LocalFlags().SortFlags = false
-	cleanCmd.LocalNonPersistentFlags().SortFlags = false
-	cleanCmd.NonInheritedFlags().SortFlags = false
-	cleanCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(cleanCmd)
 
 	addNodesFlag(cleanCmd, "If present, select volumes from given nodes")
 	addDrivesFlag(cleanCmd, "If present, select volumes by given drive names")

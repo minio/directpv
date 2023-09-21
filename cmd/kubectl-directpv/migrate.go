@@ -46,12 +46,7 @@ var migrateCmd = &cobra.Command{
 }
 
 func init() {
-	migrateCmd.Flags().SortFlags = false
-	migrateCmd.InheritedFlags().SortFlags = false
-	migrateCmd.LocalFlags().SortFlags = false
-	migrateCmd.LocalNonPersistentFlags().SortFlags = false
-	migrateCmd.NonInheritedFlags().SortFlags = false
-	migrateCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(migrateCmd)
 
 	addDryRunFlag(migrateCmd, "Run in dry run mode")
 	migrateCmd.PersistentFlags().BoolVar(&retainFlag, "retain", retainFlag, "retain legacy CRD after migration")

@@ -119,6 +119,15 @@ func addLabelsFlag(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().StringSliceVar(&labelArgs, "labels", labelArgs, usage+"; supports comma separated kv pairs. e.g. tier=hot,region=east")
 }
 
+func setFlagOpts(cmd *cobra.Command) {
+	cmd.Flags().SortFlags = false
+	cmd.InheritedFlags().SortFlags = false
+	cmd.LocalFlags().SortFlags = false
+	cmd.LocalNonPersistentFlags().SortFlags = false
+	cmd.NonInheritedFlags().SortFlags = false
+	cmd.PersistentFlags().SortFlags = false
+}
+
 var (
 	wideOutput bool
 

@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/types"
@@ -40,14 +41,17 @@ func TestNodePublishVolume(t *testing.T) {
 		},
 	}
 
-	volume := &types.Volume{
-		TypeMeta:   types.NewVolumeTypeMeta(),
-		ObjectMeta: metav1.ObjectMeta{Name: "volume-id-1"},
-		Status:     types.VolumeStatus{StagingTargetPath: "volume-id-1-staging-target-path"},
-	}
+	nodeID := directpvtypes.NodeID("node-1")
+	driveID := directpvtypes.DriveID("drive-1")
+	driveName := directpvtypes.DriveName("sda")
+	accessTier := directpvtypes.AccessTierDefault
+	volume := types.NewVolume("volume-id-1", "fsuuid-1", nodeID, driveID, driveName, 100)
+	volume.Status = types.VolumeStatus{StagingTargetPath: "volume-id-1-staging-target-path"}
+	drive := types.NewDrive(driveID, types.DriveStatus{}, nodeID, driveName, accessTier)
 
-	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(volume))
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(drive, volume))
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 
 	nodeServer := createFakeServer()
 	if _, err := nodeServer.NodePublishVolume(context.TODO(), req); err == nil {

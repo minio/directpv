@@ -40,6 +40,8 @@ List of subcommands are below
 | `migrate`   | Migrate drives and volumes from legacy DirectCSI                                  |
 | `move`      | Move volumes excluding data from source drive to destination drive on a same node |
 | `clean`     | Cleanup stale volumes                                                             |
+| `suspend`   | Suspend drives and volumes                                                        |
+| `resume`    | Resume suspended drives and volumes                                               |
 | `remove`    | Remove unused drives from DirectPV                                                |
 | `uninstall` | Uninstall DirectPV in Kubernetes                                                  |
 
@@ -555,6 +557,169 @@ EXAMPLES:
 
 7. Clean volumes by pod namespace
    $ kubectl directpv clean --pod-namespaces=tenant-{1...3}
+```
+
+## `suspend` command
+```
+Suspend drives and volumes
+
+USAGE:
+  directpv suspend [command]
+
+FLAGS:
+      --dry-run   Run in dry run mode
+  -h, --help      help for suspend
+
+GLOBAL FLAGS:
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+AVAILABLE COMMANDS:
+  drives      Suspend drives
+  volumes     Suspend volumes
+
+Use "directpv suspend [command] --help" for more information about this command.
+```
+
+### `drives` command
+```
+Suspend the drives (CAUTION: This will make the corresponding volumes as read-only)
+
+USAGE:
+  directpv suspend drives [DRIVE ...] [flags]
+
+FLAGS:
+  -n, --nodes strings    If present, suspend drives from given nodes; supports ellipses pattern e.g. node{1...10}
+  -d, --drives strings   If present, suspend drives by given names; supports ellipses pattern e.g. sd{a...z}
+      --dangerous        Suspending the drives will make the corresponding volumes as read-only
+  -h, --help             help for drives
+
+GLOBAL FLAGS:
+      --dry-run             Run in dry run mode
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+EXAMPLES:
+1. Suspend all drives from a node
+   $ kubectl directpv suspend drives --nodes=node1
+
+2. Suspend specific drive from specific node
+   $ kubectl directpv suspend drives --nodes=node1 --drives=sda
+
+3. Suspend a drive by its DRIVE-ID 'af3b8b4c-73b4-4a74-84b7-1ec30492a6f0'
+   $ kubectl directpv suspend drives af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
+```
+
+### `volumes` command
+```
+Suspend the volumes (CAUTION: This will make the corresponding volumes as read-only)
+
+USAGE:
+  directpv suspend volumes [VOLUME ...] [flags]
+
+FLAGS:
+  -n, --nodes strings            If present, suspend volumes from given nodes; supports ellipses pattern e.g. node{1...10}
+  -d, --drives strings           If present, suspend volumes by given drive names; supports ellipses pattern e.g. sd{a...z}
+      --pod-names strings        If present, suspend volumes by given pod names; supports ellipses pattern e.g. minio-{0...4}
+      --pod-namespaces strings   If present, suspend volumes by given pod namespaces; supports ellipses pattern e.g. tenant-{0...3}
+      --dangerous                Suspending the volumes will make them as read-only
+  -h, --help                     help for volumes
+
+GLOBAL FLAGS:
+      --dry-run             Run in dry run mode
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+EXAMPLES:
+1. Suspend all volumes from a node
+   $ kubectl directpv suspend volumes --nodes=node1
+
+2. Suspend specific volume from specific node
+   $ kubectl directpv suspend volumes --nodes=node1 --volumes=sda
+
+3. Suspend a volume by its name 'pvc-0700b8c7-85b2-4894-b83a-274484f220d0'
+   $ kubectl directpv suspend volumes pvc-0700b8c7-85b2-4894-b83a-274484f220d0
+```
+
+## `resume` command
+```
+Resume suspended drives and volumes
+
+USAGE:
+  directpv resume [command]
+
+FLAGS:
+      --dry-run   Run in dry run mode
+  -h, --help      help for resume
+
+GLOBAL FLAGS:
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+AVAILABLE COMMANDS:
+  drives      Resume suspended drives
+  volumes     Resume suspended volumes
+
+Use "directpv resume [command] --help" for more information about this command.
+```
+
+### `drives` command
+```
+Resume suspended drives
+
+USAGE:
+  directpv resume drives [DRIVE ...] [flags]
+
+FLAGS:
+  -n, --nodes strings    If present, resume drives from given nodes; supports ellipses pattern e.g. node{1...10}
+  -d, --drives strings   If present, resume drives by given names; supports ellipses pattern e.g. sd{a...z}
+  -h, --help             help for drives
+      --dry-run          Run in dry run mode
+
+GLOBAL FLAGS:
+      --dry-run             Run in dry run mode
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+EXAMPLES:
+1. Resume all suspended drives from a node
+   $ kubectl directpv resume drives --nodes=node1
+
+2. Resume specific drive from specific node
+   $ kubectl directpv resume drives --nodes=node1 --drives=sda
+
+3. Resume a suspended drive by its DRIVE-ID 'af3b8b4c-73b4-4a74-84b7-1ec30492a6f0'
+   $ kubectl directpv resume drives af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
+```
+
+### `volumes` command
+```
+Resume suspended volumes
+
+USAGE:
+  directpv resume volumes [VOLUME ...] [flags]
+
+FLAGS:
+  -n, --nodes strings            If present, resume volumes from given nodes; supports ellipses pattern e.g. node{1...10}
+  -d, --drives strings           If present, resume volumes by given drive names; supports ellipses pattern e.g. sd{a...z}
+      --pod-names strings        If present, resume volumes by given pod names; supports ellipses pattern e.g. minio-{0...4}
+      --pod-namespaces strings   If present, resume volumes by given pod namespaces; supports ellipses pattern e.g. tenant-{0...3}
+  -h, --help                     help for volumes
+
+GLOBAL FLAGS:
+      --dry-run             Run in dry run mode
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+EXAMPLES:
+1. Resume all volumes from a node
+   $ kubectl directpv resume volumes --nodes=node1
+
+2. Resume specific volume from specific node
+   $ kubectl directpv resume volumes --nodes=node1 --volumes=sda
+
+3. Resume a volume by its name 'pvc-0700b8c7-85b2-4894-b83a-274484f220d0'
+   $ kubectl directpv resume volumes pvc-0700b8c7-85b2-4894-b83a-274484f220d0
 ```
 
 ## `remove` command

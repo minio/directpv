@@ -79,12 +79,7 @@ var discoverCmd = &cobra.Command{
 }
 
 func init() {
-	discoverCmd.Flags().SortFlags = false
-	discoverCmd.InheritedFlags().SortFlags = false
-	discoverCmd.LocalFlags().SortFlags = false
-	discoverCmd.LocalNonPersistentFlags().SortFlags = false
-	discoverCmd.NonInheritedFlags().SortFlags = false
-	discoverCmd.PersistentFlags().SortFlags = false
+	setFlagOpts(discoverCmd)
 
 	addNodesFlag(discoverCmd, "discover drives from given nodes")
 	addDrivesFlag(discoverCmd, "discover drives by given names")

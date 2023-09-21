@@ -161,10 +161,14 @@ Refer [clean command](./command-reference.md#clean-command) for more information
 
 ***CAUTION: THIS IS DANGEROUS OPERATION WHICH LEADS TO DATA LOSS***
 
-By Kubernetes design, [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) workload is active only if all of its pods are in running state. Any faulty volumes will prevent the statefulset from starting up. DirectPV provides a workaround to suspend failed volumes by mounting them on empty `/var/lib/directpv/tmp` directory with read-only access. This can be done by adding `directpv.min.io/suspend: "true"` label on the respective volumes. Below is an example:
+By Kubernetes design, [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) workload is active only if all of its pods are in running state. Any faulty volume(s) will prevent the statefulset from starting up. DirectPV provides a workaround to suspend failed volumes by mounting them on empty `/var/lib/directpv/tmp` directory with read-only access. This can be done by executing the `suspend volumes` command. Below is an example:
 
 ```sh
-> kubectl directpv label volumes --nodes node-1 --drives dm-3 directpv.min.io/suspend=true
+> kubectl directpv suspend volumes --nodes node-1 --drives dm-3
 ```
 
-This label can be removed once the failed volumes are fixed. Upon removal, the volumes will resume using the respective allocated drives.
+Suspended volumes can be resumed once they are fixed. Upon resuming, the corresponding volumes will resume using the respective allocated drives. This can be done by using the `resume volumes` command. Below is an example:
+
+```sh
+> kubectl directpv resume volumes --nodes node-1 --drives dm-3
+```
