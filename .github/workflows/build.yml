@@ -17,10 +17,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
         with:
-          go-version: 1.20.x
+          go-version: 1.21.x
           check-latest: true
       - name: Set environment
         run: |
@@ -33,9 +33,9 @@ jobs:
         run: |
           ./build.sh
           go test -v ./...
-      - uses: docker/setup-qemu-action@v2
+      - uses: docker/setup-qemu-action@v3
       - name: Check Goreleaser
-        uses: goreleaser/goreleaser-action@v4
+        uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
           args: release --skip-publish --skip-sign --clean --snapshot
