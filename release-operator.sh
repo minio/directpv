@@ -114,11 +114,6 @@ function update_charts() {
 function make_release() {
     export IMAGE_TAG_BASE=quay.io/minio/directpv-operator
     export IMG="${IMAGE_TAG_BASE}:${BUILD_VERSION}"
-    SHA_DIGEST=$("${PODMAN}" pull "${IMAGE_TAG_BASE}":"${BUILD_VERSION}" | grep Digest | awk -F ' ' '{print $2}')
-    export SHA_DIGEST
-    export DIGEST="${IMAGE_TAG_BASE}@${SHA_DIGEST}"
-    export BUNDLE_GEN_FLAGS="-q --overwrite --version ${BUILD_VERSION} --package minio-directpv-operator-rhmp"
-    export BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:v${BUILD_VERSION}"
 
     cd operator
 
@@ -126,28 +121,8 @@ function make_release() {
     "${PODMAN}" push "${IMG}"
     git_commit "Update operator for v${BUILD_VERSION}"
 
-    "${OPERATOR_SDK}" generate kustomize manifests --quiet --package minio-directpv-operator-rhmp
-    # Controller image, should be in SHA Digest form for RHMP to pass test:
-    # verify-pinned-digest where all your container images should use SHA digests instead of tags.
-    # Example:
-    # (cd config/manager && kustomize edit set image controller=quay.io/cniackz4/directpv-operator@sha256:04fec2fbd0d17f449a17c0f509b359c18d6c662e0a22e84cd625b538ca2a1af2)
-    (cd config/manager && "${KUSTOMIZE}" edit set image controller="${DIGEST}")
-    # shellcheck disable=SC2086
-    "${KUSTOMIZE}" build config/manifests | "${OPERATOR_SDK}" generate bundle ${BUNDLE_GEN_FLAGS}
-    # Since above line overwrites our redhat annotation,
-    # it will be added back:
-    {
-        echo "  # Annotations to specify OCP versions compatibility."
-        echo "  com.redhat.openshift.versions: v4.8-v4.13"
-    } >> operator/bundle/metadata/annotations.yaml
-    "${OPERATOR_SDK}" bundle validate ./bundle
-    git_commit "Update operator bundle for v${BUILD_VERSION}"
-
-    "${PODMAN}" build -f bundle.Dockerfile --tag "${BUNDLE_IMG}" .
-    "${PODMAN}" push "${BUNDLE_IMG}"
-    git_commit "Update operator bundle image for v${BUILD_VERSION}"
-
-    cd -
+    # Package is intended for certified operators only not for rhmp anymore.
+    "${OPERATOR_SDK}" generate kustomize manifests --quiet --package minio-directpv-operator
 }
 
 ### subsequent_steps() objective:
@@ -161,10 +136,40 @@ function make_release() {
 # Operator repo: https://github.com/minio/operator/blob/master/olm-post-script.sh
 #
 function subsequent_steps() {
-    "${PODMAN}" pull quay.io/minio/directpv-operator:"${BUILD_VERSION}"
+    export IMAGE_TAG_BASE=quay.io/minio/directpv-operator
+    # Package is intended for certified operators only not for rhmp anymore.
+    export BUNDLE_GEN_FLAGS="-q --overwrite --version ${BUILD_VERSION} --package minio-directpv-operator"
+    export BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:v${BUILD_VERSION}"
+
+    "${PODMAN}" pull "${IMAGE_TAG_BASE}":"${BUILD_VERSION}"
+    OPERATOR_DIGEST=$("${PODMAN}" image list quay.io/minio/directpv-operator --digests | grep sha | awk -F ' ' '{print $3}')
+    export OPERATOR_DIGEST
+    export DIGEST="${IMAGE_TAG_BASE}@${OPERATOR_DIGEST}"
+
+    # Controller image, should be in SHA Digest form for certification to pass test:
+    # verify-pinned-digest where all your container images should use SHA digests instead of tags.
+    # Example:
+    # (cd config/manager && kustomize edit set image controller=quay.io/minio/directpv-operator@sha256:04fec2fbd0d17f449a17c0f509b359c18d6c662e0a22e84cd625b538ca2a1af2)
+    (cd config/manager && "${KUSTOMIZE}" edit set image controller="${DIGEST}")
+    # shellcheck disable=SC2086
+    "${KUSTOMIZE}" build config/manifests | "${OPERATOR_SDK}" generate bundle ${BUNDLE_GEN_FLAGS}
+    # Since above line overwrites our redhat annotation,
+    # it will be added back:
+    {
+        echo "  # Annotations to specify OCP versions compatibility."
+        echo "  com.redhat.openshift.versions: v4.8-v4.13"
+    } >> bundle/metadata/annotations.yaml
+    "${OPERATOR_SDK}" bundle validate ./bundle
+    git_commit "Update operator bundle for v${BUILD_VERSION}"
+
+    "${PODMAN}" build -f bundle.Dockerfile --tag "${BUNDLE_IMG}" .
+    "${PODMAN}" push "${BUNDLE_IMG}"
+    git_commit "Update operator bundle image for v${BUILD_VERSION}"
+
+    cd -
+
     "${PODMAN}" pull gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
     PROXY_DIGEST=$("${PODMAN}" image list gcr.io/kubebuilder/kube-rbac-proxy --digests | grep sha | awk -F ' ' '{print $3}')
-    OPERATOR_DIGEST=$("${PODMAN}" image list quay.io/minio/directpv-operator --digests | grep sha | awk -F ' ' '{print $3}')
 
     ### relatedImages: Field needed by RedHat Certification.
     # kind: ClusterServiceVersion
@@ -176,11 +181,11 @@ function subsequent_steps() {
     #       name: manager
     #
     # Add relatedImages to CSV
-    yq -i ".spec.relatedImages |= []" ./operator/bundle/manifests/minio-directpv-operator-rhmp.clusterserviceversion.yaml
+    yq -i ".spec.relatedImages |= []" ./operator/bundle/manifests/minio-directpv-operator.clusterserviceversion.yaml
     # Add kube-rbac-proxy image
-    yq -i ".spec.relatedImages[0] = {\"image\": \"gcr.io/kubebuilder/kube-rbac-proxy@${PROXY_DIGEST}\", \"name\": \"kube-rbac-proxy\"}" ./operator/bundle/manifests/minio-directpv-operator-rhmp.clusterserviceversion.yaml
+    yq -i ".spec.relatedImages[0] = {\"image\": \"gcr.io/kubebuilder/kube-rbac-proxy@${PROXY_DIGEST}\", \"name\": \"kube-rbac-proxy\"}" ./operator/bundle/manifests/minio-directpv-operator.clusterserviceversion.yaml
     # Add manager image
-    yq -i ".spec.relatedImages[1] = {\"image\": \"quay.io/minio/directpv-operator@${OPERATOR_DIGEST}\", \"name\": \"manager\"}" ./operator/bundle/manifests/minio-directpv-operator-rhmp.clusterserviceversion.yaml
+    yq -i ".spec.relatedImages[1] = {\"image\": \"quay.io/minio/directpv-operator@${OPERATOR_DIGEST}\", \"name\": \"manager\"}" ./operator/bundle/manifests/minio-directpv-operator.clusterserviceversion.yaml
 }
 
 function main() {
