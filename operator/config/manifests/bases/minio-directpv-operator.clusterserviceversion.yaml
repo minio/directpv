@@ -15,7 +15,7 @@ metadata:
     capabilities: Basic Install
     marketplace.openshift.io/remote-workflow: https://marketplace.redhat.com/en-us/operators/minio-directpv-operator-rhmp/pricing?utm_source=openshift_console
     marketplace.openshift.io/support-workflow: https://marketplace.redhat.com/en-us/operators/minio-directpv-operator-rhmp/support?utm_source=openshift_console
-  name: minio-directpv-operator-rhmp.v0.0.0
+  name: minio-directpv-operator.v0.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
