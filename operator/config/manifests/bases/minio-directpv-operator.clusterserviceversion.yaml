@@ -13,8 +13,6 @@ metadata:
       {},"securityContext": {},"service": {"port": 80,"type": "ClusterIP"},"serviceAccount":
       {"annotations": {},"create": true,"name": ""},"tolerations": []}}]'
     capabilities: Basic Install
-    marketplace.openshift.io/remote-workflow: https://marketplace.redhat.com/en-us/operators/minio-directpv-operator-rhmp/pricing?utm_source=openshift_console
-    marketplace.openshift.io/support-workflow: https://marketplace.redhat.com/en-us/operators/minio-directpv-operator-rhmp/support?utm_source=openshift_console
   name: minio-directpv-operator.v0.0.0
   namespace: placeholder
 spec:
