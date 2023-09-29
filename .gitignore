@@ -8,3 +8,6 @@ kubectl-directpv
 vdb.xml
 drives.yaml
 dist/
+kustomize
+operator-sdk
+kubectl-directpv_*

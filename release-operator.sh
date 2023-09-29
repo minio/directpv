@@ -138,19 +138,17 @@ function make_release() {
 function subsequent_steps() {
     export IMAGE_TAG_BASE=quay.io/minio/directpv-operator
     # Package is intended for certified operators only not for rhmp anymore.
-    export BUNDLE_GEN_FLAGS="-q --overwrite --version ${BUILD_VERSION} --package minio-directpv-operator"
+    # --use-image-digests flag will create relatedImages section by digest
+    # there is no need for any further modification if using --use-image-digests flag to get the digest form.
+    export BUNDLE_GEN_FLAGS="-q --overwrite --version ${BUILD_VERSION} --package minio-directpv-operator --use-image-digests"
     export BUNDLE_IMG="${IMAGE_TAG_BASE}-bundle:v${BUILD_VERSION}"
-
-    "${PODMAN}" pull "${IMAGE_TAG_BASE}":"${BUILD_VERSION}"
-    OPERATOR_DIGEST=$("${PODMAN}" image list quay.io/minio/directpv-operator --digests | grep sha | awk -F ' ' '{print $3}')
-    export OPERATOR_DIGEST
-    export DIGEST="${IMAGE_TAG_BASE}@${OPERATOR_DIGEST}"
+    export CONTROLLER_IMAGE="${IMAGE_TAG_BASE}:${BUILD_VERSION}"
 
     # Controller image, should be in SHA Digest form for certification to pass test:
     # verify-pinned-digest where all your container images should use SHA digests instead of tags.
     # Example:
     # (cd config/manager && kustomize edit set image controller=quay.io/minio/directpv-operator@sha256:04fec2fbd0d17f449a17c0f509b359c18d6c662e0a22e84cd625b538ca2a1af2)
-    (cd config/manager && "${KUSTOMIZE}" edit set image controller="${DIGEST}")
+    (cd config/manager && "${KUSTOMIZE}" edit set image controller="${CONTROLLER_IMAGE}")
     # shellcheck disable=SC2086
     "${KUSTOMIZE}" build config/manifests | "${OPERATOR_SDK}" generate bundle ${BUNDLE_GEN_FLAGS}
     # Since above line overwrites our redhat annotation,
@@ -168,24 +166,6 @@ function subsequent_steps() {
 
     cd -
 
-    "${PODMAN}" pull gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
-    PROXY_DIGEST=$("${PODMAN}" image list gcr.io/kubebuilder/kube-rbac-proxy --digests | grep sha | awk -F ' ' '{print $3}')
-
-    ### relatedImages: Field needed by RedHat Certification.
-    # kind: ClusterServiceVersion
-    # spec:
-    #   relatedImages:
-    #     - image: gcr.io/kubebuilder/kube-rbac-proxy@sha256:<digest>
-    #       name: kube-rbac-proxy
-    #     - image: quay.io/minio/directpv-operator@sha256:<digest>
-    #       name: manager
-    #
-    # Add relatedImages to CSV
-    yq -i ".spec.relatedImages |= []" ./operator/bundle/manifests/minio-directpv-operator.clusterserviceversion.yaml
-    # Add kube-rbac-proxy image
-    yq -i ".spec.relatedImages[0] = {\"image\": \"gcr.io/kubebuilder/kube-rbac-proxy@${PROXY_DIGEST}\", \"name\": \"kube-rbac-proxy\"}" ./operator/bundle/manifests/minio-directpv-operator.clusterserviceversion.yaml
-    # Add manager image
-    yq -i ".spec.relatedImages[1] = {\"image\": \"quay.io/minio/directpv-operator@${OPERATOR_DIGEST}\", \"name\": \"manager\"}" ./operator/bundle/manifests/minio-directpv-operator.clusterserviceversion.yaml
 }
 
 function main() {
