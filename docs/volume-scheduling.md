@@ -80,6 +80,8 @@ $ kubectl directpv label drives --drives=nvme1n1 tier=fast
 $ create-storage-class.sh fast-tier-storage 'directpv.min.io/tier: fast'
 ```
 
+p.s. the label keyName has to be prefixed with `directpv.min.io/`, otherwise it won't be considered
+
 * Use newly created storage class in [volume provisioning](./volume-provisioning.md). Below is an example:
 ```sh
 $ kubectl apply -f - <<EOF
