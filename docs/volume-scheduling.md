@@ -71,7 +71,7 @@ Apart from controlling drive selection based on node selectors, pod affinity and
 * Label selected drives by [label drives](./command-reference.md#drives-command-1) command. Below is an example:
 ```sh
 # Label 'nvme1n1' drive in all nodes as 'fast' value to 'tier' key.
-$ kubectl directpv label drives --drives=nvme1n1 tier=fast
+$ kubectl directpv label drives --drives=nvme1n1 directpv.min.io/tier=fast
 ```
 
 * Create new storage class with drive labels using [create-storage-class.sh script](../tools/create-storage-class.sh). Below is an example:
