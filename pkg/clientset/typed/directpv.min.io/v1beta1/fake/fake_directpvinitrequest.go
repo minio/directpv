@@ -24,7 +24,6 @@ import (
 	v1beta1 "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,9 +34,9 @@ type FakeDirectPVInitRequests struct {
 	Fake *FakeDirectpvV1beta1
 }
 
-var directpvinitrequestsResource = schema.GroupVersionResource{Group: "directpv.min.io", Version: "v1beta1", Resource: "directpvinitrequests"}
+var directpvinitrequestsResource = v1beta1.SchemeGroupVersion.WithResource("directpvinitrequests")
 
-var directpvinitrequestsKind = schema.GroupVersionKind{Group: "directpv.min.io", Version: "v1beta1", Kind: "DirectPVInitRequest"}
+var directpvinitrequestsKind = v1beta1.SchemeGroupVersion.WithKind("DirectPVInitRequest")
 
 // Get takes name of the directPVInitRequest, and returns the corresponding directPVInitRequest object, and an error if there is any.
 func (c *FakeDirectPVInitRequests) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.DirectPVInitRequest, err error) {
