@@ -21,14 +21,18 @@ Follow the below steps for an in-place upgrade
 $ curl -sfL https://github.com/minio/directpv/raw/master/docs/tools/install.sh | sh - apply
 ```
 
-### Upgrade legacy DirectCSI CSI driver v3.x.x and v2.0.9
+### Upgrade legacy DirectCSI CSI driver
 Follow the below steps to upgrade to the latest DirectPV CSI driver from a legacy DirectCSI installation.
-1. Uninstall legacy DirectCSI CSI driver.
+1. Uninstall DirectCSI driver if you run v3.1.0 or newer version. For other versions, skip this step.
 ```sh
 $ kubectl directcsi uninstall
 ```
 2. Install the latest DirectPV plugin by [this documentation](./installation.md#directpv-plugin-installation) or upgrade existing DirectPV plugin by [this documentation](#upgrade-directpv-plugin).
 3. Install the latest DirectPV CSI driver by [this documentation](./installation.md#directpv-csi-driver-installation).
+4. Uninstall DirectCSI driver if you run older than v3.1.0 version. For other versions, skip this step.
+```sh
+$ kubectl directcsi uninstall
+```
 
 ## Upgrade DirectPV plugin
 

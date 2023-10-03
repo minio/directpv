@@ -24,7 +24,6 @@ import (
 	v1beta1 "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,9 +34,9 @@ type FakeDirectPVDrives struct {
 	Fake *FakeDirectpvV1beta1
 }
 
-var directpvdrivesResource = schema.GroupVersionResource{Group: "directpv.min.io", Version: "v1beta1", Resource: "directpvdrives"}
+var directpvdrivesResource = v1beta1.SchemeGroupVersion.WithResource("directpvdrives")
 
-var directpvdrivesKind = schema.GroupVersionKind{Group: "directpv.min.io", Version: "v1beta1", Kind: "DirectPVDrive"}
+var directpvdrivesKind = v1beta1.SchemeGroupVersion.WithKind("DirectPVDrive")
 
 // Get takes name of the directPVDrive, and returns the corresponding directPVDrive object, and an error if there is any.
 func (c *FakeDirectPVDrives) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.DirectPVDrive, err error) {
