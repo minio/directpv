@@ -18,10 +18,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -39,8 +39,6 @@ func (l label) String() string {
 }
 
 var labels []label
-
-var errInvalidKVPair = errors.New("invalid kv pair")
 
 var labelCmd = &cobra.Command{
 	Use:   "label",
@@ -73,46 +71,35 @@ func validateLabelCmd() error {
 	return validateDriveNameArgs()
 }
 
-func parseLabel(kv string) (labelKey types.LabelKey, labelValue types.LabelValue, err error) {
-	kvParts := strings.Split(kv, "=")
-	if len(kvParts) != 2 {
-		err = errInvalidKVPair
-		return
-	}
-	labelKey, err = types.NewLabelKey(kvParts[0])
-	if err != nil {
-		return
-	}
-	labelValue, err = types.NewLabelValue(kvParts[1])
-	if err != nil {
-		return
-	}
-	return
-}
-
 func validateLabelCmdArgs(args []string) (labels []label, err error) {
-	parse := func(arg string) (label label, err error) {
-		switch {
-		case strings.Contains(arg, "="):
-			label.key, label.value, err = parseLabel(arg)
-		case strings.HasSuffix(arg, "-"):
-			label.remove = true
-			label.key, err = types.NewLabelKey(arg[:len(arg)-1])
-		default:
-			err = errInvalidKVPair
-		}
-		return
-	}
 	if len(args) == 0 {
-		utils.Eprintf(quietFlag, false, "Please specify k=v|k- argument to set or unset label\n")
-		return nil, errInvalidKVPair
+		return nil, errors.New("at least one label must be provided")
 	}
+
 	for _, arg := range args {
-		label, err := parse(arg)
-		if err != nil {
-			return nil, err
+		var label label
+		tokens := strings.Split(arg, "=")
+		switch len(tokens) {
+		case 1:
+			if !strings.HasSuffix(arg, "-") {
+				return nil, fmt.Errorf("argument %v must end with '-' to remove label", arg)
+			}
+			label.remove = true
+			if label.key, err = types.NewLabelKey(arg[:len(arg)-1]); err != nil {
+				return nil, err
+			}
+		case 2:
+			if label.key, err = types.NewLabelKey(tokens[0]); err != nil {
+				return nil, err
+			}
+			if label.value, err = types.NewLabelValue(tokens[1]); err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("argument must be formatted k=v or k-")
 		}
 		labels = append(labels, label)
 	}
+
 	return labels, nil
 }

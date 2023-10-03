@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/utils"
@@ -268,14 +269,20 @@ func validateLabelArgs() error {
 		labelSelectors = make(map[directpvtypes.LabelKey]directpvtypes.LabelValue)
 	}
 	for i := range labelArgs {
-		if !strings.Contains(labelArgs[i], "=") {
+		tokens := strings.Split(labelArgs[i], "=")
+		if len(tokens) != 2 {
 			return errInvalidLabel
 		}
-		k, v, err := parseLabel(labelArgs[i])
+		key, err := types.NewLabelKey(tokens[0])
 		if err != nil {
 			return err
 		}
-		labelSelectors[k] = v
+		value, err := types.NewLabelValue(tokens[1])
+		if err != nil {
+			return err
+		}
+
+		labelSelectors[key] = value
 	}
 	return nil
 }

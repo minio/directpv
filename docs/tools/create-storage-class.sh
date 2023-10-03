@@ -46,9 +46,12 @@ EOF
     DRIVE_LABELS=( "$@" )
 
     for val in "${DRIVE_LABELS[@]}"; do
-        if [[ "$val" =~ ^directpv.min.io/volume-claim-id:.* ]] && ! [[ "${val#directpv.min.io/volume-claim-id: }" =~ ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$ ]];
-        then
-            echo "invalid uuid value set for volume-claim-id; please set a valid uuid based on [RFC 4122]"
+        if ! [[ "${val}" =~ ^directpv.min.io/.* ]]; then
+            echo "invalid label ${val}; label must start with 'directpv.min.io/'"
+            exit 255
+        fi
+        if [[ "${val}" =~ ^directpv.min.io/volume-claim-id:.* ]] && ! [[ "${val#directpv.min.io/volume-claim-id: }" =~ ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$ ]]; then
+            echo "invalid volume-claim-id value; the value must be UUID as textual representation mentioned in https://en.wikipedia.org/wiki/Universally_unique_identifier#Textual_representation"
             exit 255
         fi
     done
