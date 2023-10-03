@@ -1,5 +1,5 @@
 apiVersion: charts.quay.io/v1alpha1
-kind: DirectpvChart
+kind: DirectPVChart
 metadata:
   name: directpvchart-sample
 spec:
@@ -21,5 +21,3 @@ spec:
     create: true
     name: ""
   tolerations: []
-  
-  
