@@ -26,6 +26,8 @@ import (
 	"io"
 	"os"
 	"time"
+
+	"k8s.io/klog/v2"
 )
 
 func bytesToUUIDString(uuid [16]byte) string {
@@ -95,7 +97,7 @@ func readSuperBlock(reader io.Reader) (fsuuid, label string, totalCapacity, free
 
 // probe probes FSUUID, total and free capacity.
 func probe(path string) (fsuuid, label string, totalCapacity, freeCapacity uint64, err error) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancelFunc()
 
 	doneCh := make(chan struct{})
@@ -111,12 +113,18 @@ func probe(path string) (fsuuid, label string, totalCapacity, freeCapacity uint6
 		close(doneCh)
 	}()
 
-	select {
-	case <-ctx.Done():
-		err = fmt.Errorf("%w; %v", ErrCanceled, ctx.Err())
-		return
-	case <-doneCh:
-	}
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
-	return fsuuid, label, totalCapacity, freeCapacity, err
+	for {
+		select {
+		case <-ticker.C:
+			klog.InfoS("XFS probe is taking too long; still waiting", "device", path)
+		case <-ctx.Done():
+			err = fmt.Errorf("%w; %v", ErrCanceled, ctx.Err())
+			return
+		case <-doneCh:
+			return fsuuid, label, totalCapacity, freeCapacity, err
+		}
+	}
 }
