@@ -130,7 +130,7 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 
 				// verify mount
 				switch drive.Status.Status {
-				case directpvtypes.DriveStatusReady, directpvtypes.DriveStatusError, directpvtypes.DriveStatusMoving:
+				case directpvtypes.DriveStatusReady, directpvtypes.DriveStatusLost, directpvtypes.DriveStatusError, directpvtypes.DriveStatusMoving:
 					source := utils.AddDevPrefix(string(drive.GetDriveName()))
 					target := types.GetDriveMountDir(drive.Status.FSUUID)
 					if err = xfs.Mount(source, target); err != nil {
@@ -147,6 +147,11 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 							client.EventReasonDriveMounted,
 							"Drive mounted successfully to %s", target,
 						)
+
+						if drive.Status.Status == directpvtypes.DriveStatusLost {
+							updated = true
+							drive.Status.Status = directpvtypes.DriveStatusReady
+						}
 
 						latestErrorConditionType := drive.GetLatestErrorConditionType()
 						if drive.Status.Status == directpvtypes.DriveStatusError {
