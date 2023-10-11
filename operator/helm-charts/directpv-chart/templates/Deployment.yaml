@@ -14,7 +14,7 @@ spec:
   replicas: 3
   selector:
     matchLabels:
-      selector.directpv.min.io: controller-2sdbb
+      selector.directpv.min.io: controller-hdt7v
   strategy:
     type: Recreate
   template:
@@ -23,7 +23,7 @@ spec:
         created-by: kubectl-directpv
       creationTimestamp: null
       labels:
-        selector.directpv.min.io: controller-2sdbb
+        selector.directpv.min.io: controller-hdt7v
       name: controller
       namespace: directpv
     spec:
@@ -83,7 +83,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: quay.io/minio/directpv:v4.0.8
+        image: quay.io/minio/directpv:v4.0.9
         name: controller
         ports:
         - containerPort: 30443
