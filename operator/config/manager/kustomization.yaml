@@ -3,6 +3,6 @@ resources:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
-- digest: sha256:dadf28674b15c256bc5dec3e99d90f811ea3ac1fdee17c51e2928063a5341e5e
-  name: controller
+- name: controller
   newName: quay.io/minio/directpv-operator
+  newTag: 4.0.9

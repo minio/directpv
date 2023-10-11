@@ -2,12 +2,71 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[]'
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "charts.quay.io/v1alpha1",
+          "kind": "DirectPVChart",
+          "metadata": {
+            "name": "directpvchart-sample"
+          },
+          "spec": {
+            "affinity": {},
+            "autoscaling": {
+              "enabled": false,
+              "maxReplicas": 100,
+              "minReplicas": 1,
+              "targetCPUUtilizationPercentage": 80
+            },
+            "fullnameOverride": "",
+            "image": {
+              "pullPolicy": "IfNotPresent",
+              "repository": "nginx",
+              "tag": ""
+            },
+            "imagePullSecrets": [],
+            "ingress": {
+              "annotations": {},
+              "className": "",
+              "enabled": false,
+              "hosts": [
+                {
+                  "host": "chart-example.local",
+                  "paths": [
+                    {
+                      "path": "/",
+                      "pathType": "ImplementationSpecific"
+                    }
+                  ]
+                }
+              ],
+              "tls": []
+            },
+            "nameOverride": "",
+            "nodeSelector": {},
+            "podAnnotations": {},
+            "podSecurityContext": {},
+            "replicaCount": 1,
+            "resources": {},
+            "securityContext": {},
+            "service": {
+              "port": 80,
+              "type": "ClusterIP"
+            },
+            "serviceAccount": {
+              "annotations": {},
+              "create": true,
+              "name": ""
+            },
+            "tolerations": []
+          }
+        }
+      ]
     capabilities: Basic Install
-    createdAt: "2023-09-26T14:31:36Z"
+    createdAt: "2023-10-11T20:34:55Z"
     operators.operatorframework.io/builder: operator-sdk-v1.31.0
     operators.operatorframework.io/project_layout: helm.sdk.operatorframework.io/v1
-  name: minio-directpv-operator.v4.0.8
+  name: minio-directpv-operator.v4.0.9
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -184,10 +243,7 @@ spec:
                       - --metrics-bind-address=127.0.0.1:8080
                       - --leader-elect
                       - --leader-election-id=directpv-operator
-                    image: |-
-                      quay.io/cniackz4/directpv-operator@sha256:b74241c40d52e8967c85881e94b4fd760fbd8073052a5d1b45c9a61f84e62449
-                      sha256:de8ab6152131ae84fd1f9e70874b263d0a4af45df9cd472d3247cacf0aeb6777
-                      sha256:de8ab6152131ae84fd1f9e70874b263d0a4af45df9cd472d3247cacf0aeb6777
+                    image: quay.io/minio/directpv-operator@sha256:787255f71b0e76541b51e234a3ecf1f51d0fab868cf9eba8bcc6fdcd53c2cb6c
                     livenessProbe:
                       httpGet:
                         path: /healthz
@@ -273,12 +329,9 @@ spec:
   provider:
     name: DirectPV
     url: https://min.io/directpv
-  version: 4.0.8
   relatedImages:
+    - image: quay.io/minio/directpv-operator@sha256:787255f71b0e76541b51e234a3ecf1f51d0fab868cf9eba8bcc6fdcd53c2cb6c
+      name: manager
     - image: gcr.io/kubebuilder/kube-rbac-proxy@sha256:d4883d7c622683b3319b5e6b3a7edfbf2594c18060131a8bf64504805f875522
       name: kube-rbac-proxy
-    - image: |-
-        quay.io/minio/directpv-operator@sha256:b74241c40d52e8967c85881e94b4fd760fbd8073052a5d1b45c9a61f84e62449
-        sha256:de8ab6152131ae84fd1f9e70874b263d0a4af45df9cd472d3247cacf0aeb6777
-        sha256:de8ab6152131ae84fd1f9e70874b263d0a4af45df9cd472d3247cacf0aeb6777
-      name: manager
+  version: 4.0.9
