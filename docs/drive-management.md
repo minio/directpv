@@ -87,7 +87,7 @@ Refer to the [list drives command](./command-reference.md#drives-command) for mo
 Drives are labeled to set custom tagging which can be used in volume provisioning. Below is an example:
 ```sh
 # Set label 'tier' key to 'hot' value.
-$ kubectl directpv label drives tiet=hot
+$ kubectl directpv label drives tier=hot
 
 # Remove label 'tier'.
 $ kubectl directpv label drives tier-
