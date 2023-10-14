@@ -48,7 +48,6 @@ func (server *LegacyServer) NodeGetInfo(_ context.Context, _ *csi.NodeGetInfoReq
 
 	return &csi.NodeGetInfoResponse{
 		NodeId:             string(server.nodeID),
-		MaxVolumesPerNode:  100,
 		AccessibleTopology: topology,
 	}, nil
 }
