@@ -30,6 +30,7 @@ import (
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/xfs"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -77,13 +78,35 @@ func (handler *volumeEventHandler) ObjectType() runtime.Object {
 	return &types.Volume{}
 }
 
-func (handler *volumeEventHandler) Handle(ctx context.Context, _ controller.EventType, object runtime.Object) error {
+func (handler *volumeEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
 	volume := object.(*types.Volume)
 	if !volume.GetDeletionTimestamp().IsZero() {
 		return handler.delete(ctx, volume)
 	}
 
+	if eventType == controller.AddEvent {
+		return sync(ctx, volume)
+	}
+
 	return nil
+}
+
+func sync(ctx context.Context, volume *types.Volume) error {
+	drive, err := client.DriveClient().Get(ctx, string(volume.GetDriveID()), metav1.GetOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		return nil
+	}
+	driveName := drive.GetDriveName()
+	if volume.GetDriveName() != driveName {
+		volume.SetDriveName(driveName)
+		_, err = client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
+			TypeMeta: types.NewVolumeTypeMeta(),
+		})
+	}
+	return err
 }
 
 func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Volume) error {
