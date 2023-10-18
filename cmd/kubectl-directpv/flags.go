@@ -24,6 +24,7 @@ import (
 	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/ellipsis"
+	"github.com/minio/directpv/pkg/jobs"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
@@ -43,6 +44,16 @@ var volumeStatusValues = []string{
 	strings.ToLower(string(directpvtypes.VolumeStatusReady)),
 }
 
+var jobStatusValues = []string{
+	string(jobs.JobStatusActive),
+	string(jobs.JobStatusFailed),
+	string(jobs.JobStatusSucceeded),
+}
+
+var jobTypeValues = []string{
+	string(jobs.JobTypeCopy),
+}
+
 var (
 	kubeconfig       string   // --kubeconfig flag
 	quietFlag        bool     // --quiet flag
@@ -55,7 +66,9 @@ var (
 	driveIDArgs      []string // --drive-id flag
 	podNameArgs      []string // --pod-name flag
 	podNSArgs        []string // --pod-namespace flag
-	volumeStatusArgs []string // --status flag of volumes
+	volumeStatusArgs []string // --status flag for volumes
+	jobStatusArgs    []string // --status flag for jobs
+	jobTypeArgs      []string // --type flag for jobs
 	pvcFlag          bool     // --pvc flag
 	dryRunFlag       bool     // --dry-run flag
 	idArgs           []string // --id flag
@@ -108,6 +121,14 @@ func addVolumeStatusFlag(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().StringSliceVar(&volumeStatusArgs, "status", volumeStatusArgs, fmt.Sprintf("%v; one of: %v", usage, strings.Join(volumeStatusValues, "|")))
 }
 
+func addJobsStatusFlag(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().StringSliceVar(&jobStatusArgs, "status", jobStatusArgs, fmt.Sprintf("%v; one of: %v", usage, strings.Join(jobStatusValues, "|")))
+}
+
+func addJobsTypeFlag(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().StringSliceVar(&jobTypeArgs, "type", jobTypeArgs, fmt.Sprintf("%v; one of: %v", usage, strings.Join(jobTypeValues, "|")))
+}
+
 func addIDFlag(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().StringSliceVar(&idArgs, "ids", idArgs, usage)
 }
@@ -136,6 +157,8 @@ var (
 	driveIDSelectors      []directpvtypes.DriveID
 	volumeStatusSelectors []directpvtypes.VolumeStatus
 	labelSelectors        map[directpvtypes.LabelKey]directpvtypes.LabelValue
+	jobStatusSelectors    []jobs.JobStatus
+	jobTypeSelectors      []jobs.JobType
 
 	dryRunPrinter func(interface{})
 )
@@ -243,13 +266,21 @@ func validatePodNSArgs() error {
 }
 
 func validateVolumeNameArgs() error {
-	for i := range volumeNameArgs {
-		volumeNameArgs[i] = strings.TrimSpace(volumeNameArgs[i])
-		if volumeNameArgs[i] == "" {
-			return fmt.Errorf("empty volume name")
+	return validateNameArgs(volumeNameArgs)
+}
+
+func validateNameArgs(args []string) error {
+	for i := range args {
+		args[i] = strings.TrimSpace(args[i])
+		if args[i] == "" {
+			return fmt.Errorf("empty name")
 		}
 	}
 	return nil
+}
+
+func validateJobNameArgs() error {
+	return validateNameArgs(jobNameArgs)
 }
 
 func validateVolumeStatusArgs() error {
@@ -260,6 +291,30 @@ func validateVolumeStatusArgs() error {
 			return err
 		}
 		volumeStatusSelectors = append(volumeStatusSelectors, status)
+	}
+	return nil
+}
+
+func validateJobStatusArgs() error {
+	for i := range jobStatusArgs {
+		jobStatusArgs[i] = strings.TrimSpace(jobStatusArgs[i])
+		status, err := jobs.ToStatus(jobStatusArgs[i])
+		if err != nil {
+			return err
+		}
+		jobStatusSelectors = append(jobStatusSelectors, status)
+	}
+	return nil
+}
+
+func validateJobTypeArgs() error {
+	for i := range jobTypeArgs {
+		jobTypeArgs[i] = strings.ToLower(strings.TrimSpace(jobTypeArgs[i]))
+		jobType, err := jobs.ToType(jobTypeArgs[i])
+		if err != nil {
+			return err
+		}
+		jobTypeSelectors = append(jobTypeSelectors, jobType)
 	}
 	return nil
 }

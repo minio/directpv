@@ -94,6 +94,18 @@ const (
 
 	// PluginVersionLabelKey denotes the plugin version
 	PluginVersionLabelKey LabelKey = consts.GroupName + "/plugin-version"
+
+	// JobTypeLabelKey denotes the type of the job
+	JobTypeLabelKey LabelKey = consts.GroupName + "/job-type"
+
+	// SourceDriveLabelKey denotes the source drive id
+	SourceDriveLabelKey LabelKey = consts.GroupName + "/source-drive"
+
+	// DestinationDriveLabelKey denotes the destination drive id
+	DestinationDriveLabelKey LabelKey = consts.GroupName + "/destination-drive"
+
+	// VolumeLabelKey denotes the volume name
+	VolumeLabelKey LabelKey = consts.GroupName + "/volume"
 )
 
 // LabelValue is a type definition for label value

@@ -134,6 +134,10 @@ func removeMain(ctx context.Context) {
 			os.Exit(1)
 		}
 
+		if result.Drive.IsCopyProtected() {
+			continue
+		}
+
 		processed = true
 		switch result.Drive.Status.Status {
 		case directpvtypes.DriveStatusRemoved:

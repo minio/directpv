@@ -170,6 +170,7 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 			),
 			newPolicyRule([]string{"pods", "pod"}, nil, getVerb, listVerb, watchVerb),
 			newPolicyRule([]string{"secrets", "secret"}, nil, getVerb, listVerb, watchVerb),
+			newPolicyRule([]string{"jobs"}, []string{"batch"}, createVerb, deleteVerb, getVerb, listVerb, updateVerb, watchVerb),
 		},
 		AggregationRule: nil,
 	}

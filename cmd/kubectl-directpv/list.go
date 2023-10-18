@@ -27,7 +27,7 @@ import (
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List drives and volumes",
+	Short: fmt.Sprintf("List %s resources", consts.AppPrettyName),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if parent := cmd.Parent(); parent != nil {
 			parent.PersistentPreRunE(parent, args)
@@ -40,12 +40,12 @@ func init() {
 	setFlagOpts(listCmd)
 
 	addNodesFlag(listCmd, "Filter output by nodes")
-	addDrivesFlag(listCmd, "Filter output by drive names")
 	addOutputFormatFlag(listCmd, "Output format. One of: json|yaml|wide")
 	listCmd.PersistentFlags().BoolVar(&noHeaders, "no-headers", noHeaders, "When using the default or custom-column output format, don't print headers (default print headers)")
 
 	listCmd.AddCommand(listDrivesCmd)
 	listCmd.AddCommand(listVolumesCmd)
+	listCmd.AddCommand(listJobsCmd)
 }
 
 func validateListCmd() error {
@@ -53,9 +53,6 @@ func validateListCmd() error {
 		return err
 	}
 	if err := validateNodeArgs(); err != nil {
-		return err
-	}
-	if err := validateDriveNameArgs(); err != nil {
 		return err
 	}
 	return validateLabelArgs()

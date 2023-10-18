@@ -22,48 +22,67 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/jobs"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
-var moveCmd = &cobra.Command{
-	Use:           "move SRC-DRIVE DEST-DRIVE",
-	Aliases:       []string{"mv"},
-	SilenceUsage:  true,
-	SilenceErrors: true,
-	Short:         "Move volumes excluding data from source drive to destination drive on a same node",
-	Example: strings.ReplaceAll(
-		`1. Move volumes from drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 to drive 834e8f4c-14f4-49b9-9b77-e8ac854108d5
-   $ kubectl {PLUGIN_NAME} drives move af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 834e8f4c-14f4-49b9-9b77-e8ac854108d5`,
-		`{PLUGIN_NAME}`,
-		consts.AppName,
-	),
-	Run: func(c *cobra.Command, args []string) {
-		if len(args) != 2 {
-			utils.Eprintf(quietFlag, true, "only one source and one destination drive must be provided\n")
-			os.Exit(-1)
-		}
+var (
+	withData, overwrite bool
+	moveCmd             = &cobra.Command{
+		Use:           "move SRC-DRIVE DEST-DRIVE",
+		Aliases:       []string{"mv"},
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Short:         "Move volumes excluding data from source drive to destination drive on a same node",
+		Example: strings.ReplaceAll(
+			`1. Move volumes from drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 to drive 834e8f4c-14f4-49b9-9b77-e8ac854108d5
+   $ kubectl {PLUGIN_NAME} drives move af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 834e8f4c-14f4-49b9-9b77-e8ac854108d5
 
-		src := strings.TrimSpace(args[0])
-		if src == "" {
-			utils.Eprintf(quietFlag, true, "empty source drive\n")
-			os.Exit(-1)
-		}
+2. Move volumes from drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 to drive 834e8f4c-14f4-49b9-9b77-e8ac854108d5 with data
+$ kubectl {PLUGIN_NAME} drives move af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 834e8f4c-14f4-49b9-9b77-e8ac854108d5 --with-data`,
+			`{PLUGIN_NAME}`,
+			consts.AppName,
+		),
+		Run: func(c *cobra.Command, args []string) {
+			if len(args) != 2 {
+				utils.Eprintf(quietFlag, true, "only one source and one destination drive must be provided\n")
+				os.Exit(-1)
+			}
 
-		dest := strings.TrimSpace(args[1])
-		if dest == "" {
-			utils.Eprintf(quietFlag, true, "empty destination drive\n")
-			os.Exit(-1)
-		}
+			src := strings.TrimSpace(args[0])
+			if src == "" {
+				utils.Eprintf(quietFlag, true, "empty source drive\n")
+				os.Exit(-1)
+			}
 
-		moveMain(c.Context(), src, dest)
-	},
+			dest := strings.TrimSpace(args[1])
+			if dest == "" {
+				utils.Eprintf(quietFlag, true, "empty destination drive\n")
+				os.Exit(-1)
+			}
+
+			if overwrite && !withData {
+				utils.Eprintf(quietFlag, true, "'--overwrite' flag must be set only when '--with-data' flag is set")
+			}
+
+			moveMain(c.Context(), src, dest)
+		},
+	}
+)
+
+func init() {
+	moveCmd.PersistentFlags().BoolVar(&withData, "with-data", withData, "move the volume with data")
+	moveCmd.PersistentFlags().BoolVar(&overwrite, "overwrite", overwrite, "overwrite any duplicate volume copy job if present")
 }
 
 func moveMain(ctx context.Context, src, dest string) {
@@ -133,7 +152,10 @@ func moveMain(ctx context.Context, src, dest string) {
 		os.Exit(1)
 	}
 
-	if destDrive.Status.Status != directpvtypes.DriveStatusReady {
+	switch {
+	case destDrive.Status.Status == directpvtypes.DriveStatusReady:
+	case destDrive.Status.Status == directpvtypes.DriveStatusMoving && withData:
+	default:
 		utils.Eprintf(quietFlag, true, "destination drive is not in ready state\n")
 		os.Exit(1)
 	}
@@ -160,12 +182,51 @@ func moveMain(ctx context.Context, src, dest string) {
 		os.Exit(1)
 	}
 
+	var jobParams jobs.ContainerParams
+	if withData {
+		jobParams.Image, jobParams.ImagePullSecrets, jobParams.Tolerations, err = getContainerParams(ctx)
+		if err != nil {
+			utils.Eprintf(quietFlag, true, "unable to get container params; %v", err)
+			os.Exit(1)
+		}
+		srcDrive.AddCopyProtectionFinalizer()
+	}
+
+	var processed bool
 	for _, volume := range volumes {
+		if withData {
+			if err := jobs.CreateCopyJob(ctx, jobs.CopyOpts{
+				SourceDriveID:      srcDrive.GetDriveID(),
+				DestinationDriveID: destDrive.GetDriveID(),
+				VolumeID:           volume.Name,
+				NodeID:             srcDrive.GetNodeID(),
+			}, jobParams, overwrite); err != nil {
+				if apierrors.IsAlreadyExists(err) && !overwrite {
+					utils.Eprintf(quietFlag, false, "duplicate job found for %v; Please use `--overwrite` for this volume to be moved", volume.Name)
+				}
+				utils.Eprintf(quietFlag, true, "unable to create copy job for volume %v; %v", volume.Name, err)
+				continue
+			}
+			if err := setVolumeStatusCopying(ctx, volume.Name); err != nil {
+				utils.Eprintf(quietFlag, true, "unable to set volume status moving; %v", err)
+				os.Exit(1)
+			}
+		}
+		processed = true
+		if !quietFlag {
+			fmt.Println("Moving volume ", volume.Name)
+		}
 		if destDrive.AddVolumeFinalizer(volume.Name) {
 			destDrive.Status.FreeCapacity -= volume.Status.TotalCapacity
 			destDrive.Status.AllocatedCapacity += volume.Status.TotalCapacity
 		}
+		srcDrive.RemoveVolumeFinalizer(volume.Name)
 	}
+
+	if !processed {
+		os.Exit(1)
+	}
+
 	destDrive.Status.Status = directpvtypes.DriveStatusMoving
 	_, err = client.DriveClient().Update(
 		ctx, destDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
@@ -175,13 +236,6 @@ func moveMain(ctx context.Context, src, dest string) {
 		os.Exit(1)
 	}
 
-	for _, volume := range volumes {
-		if !quietFlag {
-			fmt.Println("Moving volume", volume.Name)
-		}
-	}
-
-	srcDrive.ResetFinalizers()
 	_, err = client.DriveClient().Update(
 		ctx, srcDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 	)
@@ -189,4 +243,25 @@ func moveMain(ctx context.Context, src, dest string) {
 		utils.Eprintf(quietFlag, true, "unable to remove volume references in source drive; %v\n", err)
 		os.Exit(1)
 	}
+
+	if withData && !quietFlag {
+		color.HiGreen("Jobs created successfully to copy the volume data. Please uncordon the node to get the jobs scheduled")
+	}
+}
+
+func setVolumeStatusCopying(ctx context.Context, volumeName string) error {
+	updateFunc := func() error {
+		volume, err := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{
+			TypeMeta: types.NewVolumeTypeMeta(),
+		})
+		if err != nil {
+			return err
+		}
+		volume.Status.Status = directpvtypes.VolumeStatusCopying
+		_, err = client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
+			TypeMeta: types.NewVolumeTypeMeta(),
+		})
+		return err
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
 }

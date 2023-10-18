@@ -154,6 +154,7 @@ Use "{{.CommandPath}} [command] --help" for more information about this command.
 	mainCmd.AddCommand(suspendCmd)
 	mainCmd.AddCommand(resumeCmd)
 	mainCmd.AddCommand(removeCmd)
+	mainCmd.AddCommand(purgeCmd)
 	mainCmd.AddCommand(uninstallCmd)
 	mainCmd.SetHelpCommand(&cobra.Command{
 		Hidden: true,

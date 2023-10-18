@@ -126,6 +126,8 @@ function main() {
     dest_drive="${2#/dev/}"
     node="${3}"
 
+    shift 3
+
     if [ "${src_drive}" == "${dest_drive}" ]; then
         echo "the source and destination drives are same"
         exit 255
@@ -201,7 +203,7 @@ function main() {
     fi
 
     # Run move command
-    kubectl directpv move "${src_drive_id}" "${dest_drive_id}"
+    kubectl directpv move "${src_drive_id}" "${dest_drive_id}" "$@"
 
     # Uncordon destination drive
     kubectl directpv uncordon "${dest_drive_id}"

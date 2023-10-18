@@ -38,7 +38,7 @@ var (
 	}
 
 	kubeNodeNameEnvVar = corev1.EnvVar{
-		Name: kubeNodeNameEnvVarName,
+		Name: consts.KubeNodeNameEnvVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
 				APIVersion: "v1",

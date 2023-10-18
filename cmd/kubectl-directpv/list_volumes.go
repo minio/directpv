@@ -87,6 +87,7 @@ var listVolumesCmd = &cobra.Command{
 func init() {
 	setFlagOpts(listVolumesCmd)
 
+	addDrivesFlag(listVolumesCmd, "Filter output by drive names")
 	addDriveIDFlag(listVolumesCmd, "Filter output by drive IDs")
 	addPodNameFlag(listVolumesCmd, "Filter output by pod names")
 	addPodNSFlag(listVolumesCmd, "Filter output by pod namespaces")
@@ -98,6 +99,10 @@ func init() {
 }
 
 func validateListVolumesArgs() error {
+	if err := validateDriveNameArgs(); err != nil {
+		return err
+	}
+
 	if err := validateDriveIDArgs(); err != nil {
 		return err
 	}

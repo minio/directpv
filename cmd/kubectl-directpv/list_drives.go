@@ -79,6 +79,7 @@ var listDrivesCmd = &cobra.Command{
 func init() {
 	setFlagOpts(listDrivesCmd)
 
+	addDrivesFlag(listDrivesCmd, "Filter output by drive names")
 	addDriveStatusFlag(listDrivesCmd, "Filter output by drive status")
 	addShowLabelsFlag(listDrivesCmd)
 	addLabelsFlag(listDrivesCmd, "Filter output by drive labels")
@@ -86,6 +87,10 @@ func init() {
 }
 
 func validateListDrivesArgs() error {
+	if err := validateDriveNameArgs(); err != nil {
+		return err
+	}
+
 	if err := validateDriveStatusArgs(); err != nil {
 		return err
 	}

@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/types"
@@ -57,6 +58,10 @@ func (server *Server) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if volume.IsSuspended() || isDriveSuspended(ctx, volume.GetDriveID()) {
 		// Suspended volumes doesn't require staging.
 		return &csi.NodeStageVolumeResponse{}, nil
+	}
+
+	if volume.Status.Status == directpvtypes.VolumeStatusCopying {
+		return nil, status.Error(codes.FailedPrecondition, "volume is busy; copying the data from the source")
 	}
 
 	code, err := drive.StageVolume(

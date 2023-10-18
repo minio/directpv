@@ -31,8 +31,10 @@ import (
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/mitchellh/go-homedir"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
@@ -185,4 +187,28 @@ func getCSINodes(ctx context.Context) (nodes []string, err error) {
 	}
 
 	return nodes, err
+}
+
+func getContainerParams(ctx context.Context) (string, []corev1.LocalObjectReference, []corev1.Toleration, error) {
+	daemonSet, err := k8s.KubeClient().AppsV1().DaemonSets(consts.AppName).Get(
+		ctx, consts.NodeServerName, metav1.GetOptions{},
+	)
+
+	if err != nil && !apierrors.IsNotFound(err) {
+		return "", nil, nil, err
+	}
+
+	if daemonSet == nil || daemonSet.UID == "" {
+		return "", nil, nil, fmt.Errorf("invalid daemonset found")
+	}
+
+	var containerImage string
+	for _, container := range daemonSet.Spec.Template.Spec.Containers {
+		if container.Name == consts.NodeServerName {
+			containerImage = container.Image
+			break
+		}
+	}
+
+	return containerImage, daemonSet.Spec.Template.Spec.ImagePullSecrets, daemonSet.Spec.Template.Spec.Tolerations, nil
 }

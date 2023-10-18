@@ -69,6 +69,7 @@ type VolumeStatus string
 const (
 	VolumeStatusPending VolumeStatus = "Pending"
 	VolumeStatusReady   VolumeStatus = "Ready"
+	VolumeStatusCopying VolumeStatus = "Copying"
 )
 
 // ToVolumeStatus converts string value to VolumeStatus.

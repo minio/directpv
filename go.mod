@@ -13,6 +13,7 @@ require (
 	github.com/google/uuid v1.3.1
 	github.com/jedib0t/go-pretty/v6 v6.4.7
 	github.com/kubernetes-csi/csi-lib-utils v0.15.0
+	github.com/minio/filepath v1.0.0
 	github.com/minio/sha256-simd v1.0.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/prometheus/client_golang v1.17.0

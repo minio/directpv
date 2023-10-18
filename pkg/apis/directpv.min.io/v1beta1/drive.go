@@ -122,8 +122,13 @@ func (drive DirectPVDrive) GetDriveID() types.DriveID {
 }
 
 // GetVolumeCount returns number of volumes on this drive.
-func (drive DirectPVDrive) GetVolumeCount() int {
-	return len(drive.Finalizers) - 1
+func (drive DirectPVDrive) GetVolumeCount() (count int) {
+	for _, finalizer := range drive.Finalizers {
+		if strings.HasPrefix(finalizer, driveFinalizerVolumePrefix) {
+			count++
+		}
+	}
+	return
 }
 
 // VolumeExist returns whether given volume is on this drive or not.
@@ -157,20 +162,49 @@ func (drive *DirectPVDrive) RemoveFinalizers() bool {
 
 // AddVolumeFinalizer adds volume to this drive's finalizer.
 func (drive *DirectPVDrive) AddVolumeFinalizer(volume string) (added bool) {
-	value := driveFinalizerVolumePrefix + volume
+	return drive.addFinalizer(driveFinalizerVolumePrefix + volume)
+}
+
+func (drive *DirectPVDrive) addFinalizer(value string) (added bool) {
 	for _, finalizer := range drive.Finalizers {
 		if finalizer == value {
 			return false
 		}
 	}
-
 	drive.Finalizers = append(drive.Finalizers, value)
 	return true
 }
 
+// AddCopyProtectionFinalizer adds a finalizer to protect drive deletions
+// while the drive is being copied.
+func (drive *DirectPVDrive) AddCopyProtectionFinalizer() (added bool) {
+	return drive.addFinalizer(consts.CopyProtectionFinalizer)
+}
+
+// IsCopyProtected checks if copy protection finalizer is
+// present on the drive.
+func (drive *DirectPVDrive) IsCopyProtected() (added bool) {
+	value := consts.CopyProtectionFinalizer
+	for _, finalizer := range drive.Finalizers {
+		if finalizer == value {
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveCopyProtectionFinalizer removes the copy protection finalizer
+// present on the drive
+func (drive *DirectPVDrive) RemoveCopyProtectionFinalizer() (found bool) {
+	return drive.removeFinalizer(consts.CopyProtectionFinalizer)
+}
+
 // RemoveVolumeFinalizer remove volume from this drive's finalizer.
 func (drive *DirectPVDrive) RemoveVolumeFinalizer(volume string) (found bool) {
-	value := driveFinalizerVolumePrefix + volume
+	return drive.removeFinalizer(driveFinalizerVolumePrefix + volume)
+}
+
+func (drive *DirectPVDrive) removeFinalizer(value string) (found bool) {
 	finalizers := []string{}
 	for _, finalizer := range drive.Finalizers {
 		if finalizer == value {
@@ -179,11 +213,9 @@ func (drive *DirectPVDrive) RemoveVolumeFinalizer(volume string) (found bool) {
 			finalizers = append(finalizers, finalizer)
 		}
 	}
-
 	if found {
 		drive.Finalizers = finalizers
 	}
-
 	return
 }
 
