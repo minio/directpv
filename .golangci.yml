@@ -1,6 +1,6 @@
 linters-settings:
-  gofumpt:
-    lang-version: "1.22"
+run:
+  go: "1.22"
 
   misspell:
     locale: US

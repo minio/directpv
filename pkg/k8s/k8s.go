@@ -322,3 +322,29 @@ func ParseTolerations(values []string) ([]corev1.Toleration, error) {
 
 	return tolerations, nil
 }
+
+// NewHostPathVolume - creates volume for given name and host path.
+func NewHostPathVolume(name, path string) corev1.Volume {
+	hostPathType := corev1.HostPathDirectoryOrCreate
+	volumeSource := corev1.VolumeSource{
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: path,
+			Type: &hostPathType,
+		},
+	}
+
+	return corev1.Volume{
+		Name:         name,
+		VolumeSource: volumeSource,
+	}
+}
+
+// NewVolumeMount - creates volume mount for given name, path, mount propagation and read only flag.
+func NewVolumeMount(name, path string, mountPropogation corev1.MountPropagationMode, readOnly bool) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:             name,
+		ReadOnly:         readOnly,
+		MountPath:        path,
+		MountPropagation: &mountPropogation,
+	}
+}
