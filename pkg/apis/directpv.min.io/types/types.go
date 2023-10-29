@@ -48,6 +48,9 @@ const (
 
 	// DriveStatusMoving denotes drive is moving volumes.
 	DriveStatusMoving DriveStatus = "Moving"
+
+	// DriveStatusRepairing denotes drive is repairing it's filesystem.
+	DriveStatusRepairing DriveStatus = "Repairing"
 )
 
 // ToDriveStatus converts string value to DriveStatus.

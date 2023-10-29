@@ -93,8 +93,8 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: consts.Identity,
 		Volumes: []corev1.Volume{
-			newHostPathVolume(
-				volumeNameSocketDir,
+			k8s.NewHostPathVolume(
+				csiDirVolumeName,
 				newPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", consts.ControllerServerName)),
 			),
 		},
@@ -113,7 +113,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 				},
 				Env: []corev1.EnvVar{csiEndpointEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+					k8s.NewVolumeMount(csiDirVolumeName, csiDirVolumePath, corev1.MountPropagationNone, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/controller-provisioner-termination-log",
@@ -145,7 +145,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 				},
 				Env: []corev1.EnvVar{csiEndpointEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+					k8s.NewVolumeMount(csiDirVolumeName, csiDirVolumePath, corev1.MountPropagationNone, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/controller-csi-resizer-termination-log",
@@ -170,7 +170,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 				},
 				Env: []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+					k8s.NewVolumeMount(csiDirVolumeName, csiDirVolumePath, corev1.MountPropagationNone, false),
 				},
 			},
 		},
