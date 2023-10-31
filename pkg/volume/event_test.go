@@ -188,3 +188,66 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 		t.Errorf("[%s] DeleteVolumeHandle expected to fail but succeeded", newObj.Name)
 	}
 }
+
+func TestSync(t *testing.T) {
+	newDrive := func(name, driveName, volume string) *types.Drive {
+		drive := types.NewDrive(
+			directpvtypes.DriveID(name),
+			types.DriveStatus{
+				TotalCapacity: 100,
+				Make:          "make",
+			},
+			directpvtypes.NodeID("nodeId"),
+			directpvtypes.DriveName(driveName),
+			directpvtypes.AccessTierDefault,
+		)
+		drive.AddVolumeFinalizer(volume)
+		return drive
+	}
+
+	newVolume := func(name, driveID, driveName string) *types.Volume {
+		volume := types.NewVolume(
+			name,
+			"fsuuid",
+			"nodeId",
+			directpvtypes.DriveID(driveID),
+			directpvtypes.DriveName(driveName),
+			100,
+		)
+		volume.Status.DataPath = "datapath"
+		return volume
+	}
+
+	drive := newDrive("drive-1", "sda", "volume-1")
+	volume := newVolume("volume-1", "drive-1", "sdb")
+	objects := []runtime.Object{
+		drive,
+		volume,
+	}
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
+	volume, err := client.VolumeClient().Get(context.TODO(), volume.Name, metav1.GetOptions{
+		TypeMeta: types.NewVolumeTypeMeta(),
+	})
+	if err != nil {
+		t.Fatalf("Volume (%s) not found; %v", volume.Name, err)
+	}
+
+	err = sync(context.TODO(), volume)
+	if err != nil {
+		t.Fatalf("unable to sync; %v", err)
+	}
+
+	volume, err = client.VolumeClient().Get(context.TODO(), volume.Name, metav1.GetOptions{
+		TypeMeta: types.NewVolumeTypeMeta(),
+	})
+	if err != nil {
+		t.Fatalf("Volume (%s) not found after sync; %v", volume.Name, err)
+	}
+
+	if volume.GetDriveName() != drive.GetDriveName() {
+		t.Fatalf("expected drive name: %v; but got %v", drive.GetDriveName(), volume.GetDriveName())
+	}
+}

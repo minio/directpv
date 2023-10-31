@@ -159,6 +159,7 @@ type driveEventHandler struct {
 	getDeviceByFSUUID func(fsuuid string) (string, error)
 	setQuota          func(ctx context.Context, device, path, volumeName string, quota xfs.Quota, update bool) (err error)
 	rmdir             func(fsuuid string) error
+	exists            func(name string) error
 }
 
 func newDriveEventHandler(nodeID directpvtypes.NodeID) *driveEventHandler {
@@ -187,6 +188,10 @@ func newDriveEventHandler(nodeID directpvtypes.NodeID) *driveEventHandler {
 				return err
 			}
 			return nil
+		},
+		exists: func(name string) (err error) {
+			_, err = os.Lstat(name)
+			return err
 		},
 	}
 }
@@ -345,10 +350,92 @@ func (handler *driveEventHandler) handleUpdate(ctx context.Context, drive *types
 	return nil
 }
 
+func (handler *driveEventHandler) checkDrive(ctx context.Context, drive *types.Drive) error {
+	switch drive.Status.Status {
+	case directpvtypes.DriveStatusReady:
+		if err := handler.exists(types.GetVolumeRootDir(drive.Status.FSUUID)); err != nil {
+			if errors.Unwrap(err) == syscall.EIO {
+				if uerr := SetIOError(ctx, drive.GetDriveID()); uerr != nil {
+					klog.ErrorS(uerr, "unable to set I/O error", "drive", drive.GetDriveID())
+				}
+			} else {
+				klog.ErrorS(err, "unable to check volume root directory existent", "drive", drive.GetDriveID())
+			}
+
+			return nil
+		}
+
+		if _, err := handler.getDeviceByFSUUID(drive.Status.FSUUID); err != nil {
+			klog.ErrorS(
+				err,
+				"unable to find device by FSUUID; "+
+					"either device is removed or run command "+
+					"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+
+					"on the host to reload",
+				"FSUUID", drive.Status.FSUUID)
+			client.Eventf(
+				drive, client.EventTypeWarning, client.EventReasonDeviceNotFoundError,
+				"unable to find device by FSUUID %v; "+
+					"either device is removed or run command "+
+					"`sudo udevadm control --reload-rules && sudo udevadm trigger`"+
+					" on the host to reload", drive.Status.FSUUID)
+
+			drive.Status.Status = directpvtypes.DriveStatusLost
+			_, err = client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{
+				TypeMeta: types.NewDriveTypeMeta(),
+			})
+			if err != nil {
+				klog.ErrorS(err, "unable to mark lost drive", "drive", drive.GetDriveID())
+			}
+		}
+	case directpvtypes.DriveStatusLost:
+		device, err := handler.getDeviceByFSUUID(drive.Status.FSUUID)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				klog.ErrorS(err, "unable to get device by FSUUID", "FSUUID", drive.Status.FSUUID, "drive", drive.GetDriveID())
+			}
+			return nil
+		}
+
+		source := utils.AddDevPrefix(device)
+		target := types.GetDriveMountDir(drive.Status.FSUUID)
+		if err = xfs.Mount(source, target); err != nil {
+			drive.Status.Status = directpvtypes.DriveStatusError
+			drive.SetMountErrorCondition(fmt.Sprintf("unable to mount; %v", err))
+			client.Eventf(drive, client.EventTypeWarning, client.EventReasonDriveMountError, "unable to mount the drive; %v", err)
+			klog.ErrorS(err, "unable to mount the drive", "Source", source, "Target", target)
+		} else {
+			drive.Status.Status = directpvtypes.DriveStatusReady
+			client.Eventf(
+				drive,
+				client.EventTypeNormal,
+				client.EventReasonDriveMounted,
+				"Drive mounted successfully to %s", target,
+			)
+		}
+		drive.SetDriveName(directpvtypes.DriveName(utils.TrimDevPrefix(device)))
+		_, err = client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{
+			TypeMeta: types.NewDriveTypeMeta(),
+		})
+		if err != nil {
+			klog.ErrorS(err, "unable to mark drive ready", "drive", drive.GetDriveID())
+		}
+	}
+
+	return nil
+}
+
 func (handler *driveEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
+	drive := object.(*types.Drive)
 	switch eventType {
-	case controller.AddEvent, controller.UpdateEvent:
-		return handler.handleUpdate(ctx, object.(*types.Drive))
+	case controller.AddEvent:
+		return handler.handleUpdate(ctx, drive)
+	case controller.UpdateEvent:
+		if err := handler.handleUpdate(ctx, drive); err != nil {
+			return err
+		}
+
+		return handler.checkDrive(ctx, drive)
 	}
 
 	return nil

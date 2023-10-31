@@ -52,6 +52,7 @@ const (
 	EventReasonDriveIOError            EventReason = "DriveHasIOError"
 	EventReasonDriveRelabelError       EventReason = "DriveHasRelabelError"
 	EventReasonInitError               EventReason = "InitError"
+	EventReasonDeviceNotFoundError     EventReason = "DeviceNotFoundError"
 )
 
 var (
