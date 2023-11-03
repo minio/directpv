@@ -47,6 +47,9 @@ const (
 	// csiResizerImage = csi-resizer:v1.8.0
 	csiResizerImage          = "csi-resizer@sha256:819f68a4daf75acec336302843f303cf360d4941249f9f5019ffbb690c8ac7c0"
 	openshiftCSIResizerImage = "registry.redhat.io/openshift4/ose-csi-external-resizer-rhel8@sha256:837b32a0c432123e2605ad6d029e7f3b4489d9c52a9d272c7a133d41ad10db87"
+
+	// csiHealthMonitorImage = csi-external-health-monitor-controller:v0.10.0
+	csiHealthMonitorImage = "registry.k8s.io/sig-storage/csi-external-health-monitor-controller:v0.10.0"
 )
 
 // Args represents DirectPV installation arguments.
@@ -54,23 +57,24 @@ type Args struct {
 	image string
 
 	// Optional arguments
-	Registry         string
-	Org              string
-	ImagePullSecrets []string
-	NodeSelector     map[string]string
-	Tolerations      []corev1.Toleration
-	SeccompProfile   string
-	AppArmorProfile  string
-	Quiet            bool
-	KubeVersion      *version.Version
-	Legacy           bool
-	ObjectWriter     io.Writer
-	DryRun           bool
-	Declarative      bool
-	Openshift        bool
-	ObjectMarshaler  func(runtime.Object) ([]byte, error)
-	ProgressCh       chan<- Message
-	ForceUninstall   bool
+	Registry                  string
+	Org                       string
+	ImagePullSecrets          []string
+	NodeSelector              map[string]string
+	Tolerations               []corev1.Toleration
+	SeccompProfile            string
+	AppArmorProfile           string
+	Quiet                     bool
+	KubeVersion               *version.Version
+	Legacy                    bool
+	ObjectWriter              io.Writer
+	DryRun                    bool
+	Declarative               bool
+	Openshift                 bool
+	ObjectMarshaler           func(runtime.Object) ([]byte, error)
+	ProgressCh                chan<- Message
+	ForceUninstall            bool
+	EnableVolumeHealthMonitor bool
 
 	podSecurityAdmission     bool
 	csiProvisionerImage      string
@@ -166,4 +170,8 @@ func (args *Args) getCSIResizerImage() string {
 		return openshiftCSIResizerImage
 	}
 	return path.Join(args.Registry, args.Org, args.csiResizerImage)
+}
+
+func (args *Args) getCSIHealthMonitorImage() string {
+	return csiHealthMonitorImage
 }

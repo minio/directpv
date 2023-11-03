@@ -25,15 +25,21 @@ import (
 	"github.com/minio/directpv/pkg/xfs"
 )
 
-const testNodeName = "test-node"
+const (
+	testNodeName     = "test-node"
+	testIdentityName = "test-identity"
+	testRackName     = "test-rack"
+	testZoneName     = "test-zone"
+	testRegionName   = "test-region"
+)
 
 func createFakeServer() *Server {
 	return &Server{
 		nodeID:   testNodeName,
-		identity: "test-identity",
-		rack:     "test-rack",
-		zone:     "test-zone",
-		region:   "test-region",
+		identity: testIdentityName,
+		rack:     testRackName,
+		zone:     testZoneName,
+		region:   testRegionName,
 		getMounts: func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
 			return map[string]utils.StringSet{consts.MountRootDir: nil}, map[string]utils.StringSet{consts.MountRootDir: nil}, nil
 		},

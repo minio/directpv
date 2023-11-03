@@ -134,6 +134,7 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	volume.ResetTargetMountErrorCondition()
 	volume.Status.TargetPath = req.GetTargetPath()
 	_, err = client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
@@ -212,6 +213,7 @@ func (server *Server) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	if volume.Status.TargetPath == targetPath {
+		volume.ResetTargetMountErrorCondition()
 		volume.Status.TargetPath = ""
 		if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 			TypeMeta: types.NewVolumeTypeMeta(),

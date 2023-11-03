@@ -275,6 +275,21 @@ func TestControllerGetCapabilities(t *testing.T) {
 					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME},
 				},
 			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES},
+				},
+			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_GET_VOLUME},
+				},
+			},
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{Type: csi.ControllerServiceCapability_RPC_VOLUME_CONDITION},
+				},
+			},
 		},
 	}
 	if !reflect.DeepEqual(result, expectedResult) {
@@ -331,8 +346,131 @@ func TestValidateVolumeCapabilities(t *testing.T) {
 }
 
 func TestListVolumes(t *testing.T) {
-	if _, err := NewServer().ListVolumes(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
+	testObjects := []runtime.Object{
+		&types.Drive{
+			TypeMeta: types.NewDriveTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-drive",
+			},
+			Status: types.DriveStatus{
+				Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+			},
+		},
+		&types.Volume{
+			TypeMeta: types.NewVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-abnormal-volume-1",
+				Labels: map[string]string{
+					string(directpvtypes.DriveLabelKey):     "test-drive",
+					string(directpvtypes.NodeLabelKey):      "N1",
+					string(directpvtypes.DriveNameLabelKey): "/dev/test-drive",
+					string(directpvtypes.CreatedByLabelKey): consts.ControllerName,
+				},
+			},
+			Status: types.VolumeStatus{
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directpvtypes.VolumeConditionTypeError),
+						Status:             metav1.ConditionTrue,
+						Message:            string(directpvtypes.VolumeConditionMessageStagingPathNotMounted),
+						Reason:             string(directpvtypes.VolumeConditionReasonNotMounted),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+		&types.Volume{
+			TypeMeta: types.NewVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-abnormal-volume-2",
+				Labels: map[string]string{
+					string(directpvtypes.DriveLabelKey):     "test-drive",
+					string(directpvtypes.NodeLabelKey):      "N1",
+					string(directpvtypes.DriveNameLabelKey): "/dev/test-drive",
+					string(directpvtypes.CreatedByLabelKey): consts.ControllerName,
+				},
+			},
+			Status: types.VolumeStatus{
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directpvtypes.VolumeConditionTypeError),
+						Status:             metav1.ConditionTrue,
+						Message:            string(directpvtypes.VolumeConditionMessageTargetPathNotMounted),
+						Reason:             string(directpvtypes.VolumeConditionReasonNotMounted),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+		&types.Volume{
+			TypeMeta: types.NewVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-normal-volume-1",
+				Labels: map[string]string{
+					string(directpvtypes.DriveLabelKey):     "test-drive",
+					string(directpvtypes.NodeLabelKey):      "N1",
+					string(directpvtypes.DriveNameLabelKey): "/dev/test-drive",
+					string(directpvtypes.CreatedByLabelKey): consts.ControllerName,
+				},
+			},
+			Status: types.VolumeStatus{
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directpvtypes.VolumeConditionTypeError),
+						Status:             metav1.ConditionFalse,
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+	}
+
+	ctx := context.TODO()
+	cl := NewServer()
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testObjects...))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
+	getListVolumeResponseEntry := func(volumeId string, abnormal bool, message string) *csi.ListVolumesResponse_Entry {
+		return &csi.ListVolumesResponse_Entry{
+			Volume: &csi.Volume{
+				CapacityBytes: int64(100),
+				VolumeId:      volumeId,
+				AccessibleTopology: []*csi.Topology{
+					{
+						Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+					},
+				},
+			},
+			Status: &csi.ListVolumesResponse_VolumeStatus{
+				VolumeCondition: &csi.VolumeCondition{
+					Abnormal: abnormal,
+					Message:  message,
+				},
+			},
+		}
+	}
+
+	expectedListVolumeResponseEntries := []*csi.ListVolumesResponse_Entry{
+		getListVolumeResponseEntry("test-abnormal-volume-1", true, string(directpvtypes.VolumeConditionMessageStagingPathNotMounted)),
+		getListVolumeResponseEntry("test-abnormal-volume-2", true, string(directpvtypes.VolumeConditionMessageTargetPathNotMounted)),
+		getListVolumeResponseEntry("test-normal-volume-1", false, ""),
+	}
+
+	req := &csi.ListVolumesRequest{
+		MaxEntries:    int32(3),
+		StartingToken: "",
+	}
+	listVolumesRes, err := cl.ListVolumes(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listVolumeResponseEntries := listVolumesRes.GetEntries()
+	if !reflect.DeepEqual(listVolumeResponseEntries, expectedListVolumeResponseEntries) {
+		t.Fatalf("expected volume response entries: %#+v, got: %#+v\n", expectedListVolumeResponseEntries, listVolumeResponseEntries)
 	}
 }
 
@@ -396,8 +534,146 @@ func TestControllerExpandVolume(t *testing.T) {
 }
 
 func TestControllerGetVolume(t *testing.T) {
-	if _, err := NewServer().ControllerGetVolume(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
+	testObjects := []runtime.Object{
+		&types.Drive{
+			TypeMeta: types.NewDriveTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-drive",
+			},
+			Status: types.DriveStatus{
+				Topology: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+			},
+		},
+		&types.Volume{
+			TypeMeta: types.NewVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-abnormal-volume-1",
+				Labels: map[string]string{
+					string(directpvtypes.DriveLabelKey):     "test-drive",
+					string(directpvtypes.NodeLabelKey):      "N1",
+					string(directpvtypes.DriveNameLabelKey): "/dev/test-drive",
+					string(directpvtypes.CreatedByLabelKey): consts.ControllerName,
+				},
+			},
+			Status: types.VolumeStatus{
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directpvtypes.VolumeConditionTypeError),
+						Status:             metav1.ConditionTrue,
+						Message:            string(directpvtypes.VolumeConditionMessageStagingPathNotMounted),
+						Reason:             string(directpvtypes.VolumeConditionReasonNotMounted),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+		&types.Volume{
+			TypeMeta: types.NewVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-abnormal-volume-2",
+				Labels: map[string]string{
+					string(directpvtypes.DriveLabelKey):     "test-drive",
+					string(directpvtypes.NodeLabelKey):      "N1",
+					string(directpvtypes.DriveNameLabelKey): "/dev/test-drive",
+					string(directpvtypes.CreatedByLabelKey): consts.ControllerName,
+				},
+			},
+			Status: types.VolumeStatus{
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directpvtypes.VolumeConditionTypeError),
+						Status:             metav1.ConditionTrue,
+						Message:            string(directpvtypes.VolumeConditionMessageTargetPathNotMounted),
+						Reason:             string(directpvtypes.VolumeConditionReasonNotMounted),
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+		&types.Volume{
+			TypeMeta: types.NewVolumeTypeMeta(),
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-normal-volume-1",
+				Labels: map[string]string{
+					string(directpvtypes.DriveLabelKey):     "test-drive",
+					string(directpvtypes.NodeLabelKey):      "N1",
+					string(directpvtypes.DriveNameLabelKey): "/dev/test-drive",
+					string(directpvtypes.CreatedByLabelKey): consts.ControllerName,
+				},
+			},
+			Status: types.VolumeStatus{
+				TotalCapacity: int64(100),
+				Conditions: []metav1.Condition{
+					{
+						Type:               string(directpvtypes.VolumeConditionTypeError),
+						Status:             metav1.ConditionFalse,
+						LastTransitionTime: metav1.Now(),
+					},
+				},
+			},
+		},
+	}
+
+	ctx := context.TODO()
+	cl := NewServer()
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testObjects...))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+
+	getControllerGetVolumeResponse := func(volumeId string, abnormal bool, message string) *csi.ControllerGetVolumeResponse {
+		return &csi.ControllerGetVolumeResponse{
+			Volume: &csi.Volume{
+				CapacityBytes: int64(100),
+				VolumeId:      volumeId,
+				AccessibleTopology: []*csi.Topology{
+					{
+						Segments: map[string]string{"node": "N1", "rack": "RK1", "zone": "Z1", "region": "R1"},
+					},
+				},
+			},
+			Status: &csi.ControllerGetVolumeResponse_VolumeStatus{
+				VolumeCondition: &csi.VolumeCondition{
+					Abnormal: abnormal,
+					Message:  message,
+				},
+			},
+		}
+	}
+
+	testCases := []struct {
+		req         *csi.ControllerGetVolumeRequest
+		expectedRes *csi.ControllerGetVolumeResponse
+	}{
+		{
+			req: &csi.ControllerGetVolumeRequest{
+				VolumeId: "test-abnormal-volume-1",
+			},
+			expectedRes: getControllerGetVolumeResponse("test-abnormal-volume-1", true, string(directpvtypes.VolumeConditionMessageStagingPathNotMounted)),
+		},
+		{
+			req: &csi.ControllerGetVolumeRequest{
+				VolumeId: "test-abnormal-volume-2",
+			},
+			expectedRes: getControllerGetVolumeResponse("test-abnormal-volume-2", true, string(directpvtypes.VolumeConditionMessageTargetPathNotMounted)),
+		},
+		{
+			req: &csi.ControllerGetVolumeRequest{
+				VolumeId: "test-normal-volume-1",
+			},
+			expectedRes: getControllerGetVolumeResponse("test-normal-volume-1", false, ""),
+		},
+	}
+
+	for i, testCase := range testCases {
+		result, err := cl.ControllerGetVolume(ctx, testCase.req)
+		if err != nil {
+			t.Fatalf("case %v: unexpected error %v", i+1, err)
+		}
+		if !reflect.DeepEqual(result, testCase.expectedRes) {
+			t.Fatalf("case %v: expected: %#+v, got: %#+v\n", i+1, testCase.expectedRes, result)
+		}
 	}
 }
 

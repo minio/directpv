@@ -19,8 +19,10 @@ package v1beta1
 import (
 	"strconv"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -121,6 +123,12 @@ func (volume DirectPVVolume) IsDriveLost() bool {
 	}
 
 	return false
+}
+
+// HasError returns if the volume is in error state.
+func (volume DirectPVVolume) HasError() bool {
+	condition := k8s.GetConditionByType(volume.Status.Conditions, string(types.VolumeConditionTypeError))
+	return condition != nil && condition.Status == metav1.ConditionTrue
 }
 
 // SetDriveLost sets associated drive is lost.
@@ -314,6 +322,39 @@ func (volume *DirectPVVolume) Suspend() bool {
 // Resume reverts the suspended volume by removing the label `directpv.min.io/suspend`.
 func (volume *DirectPVVolume) Resume() bool {
 	return volume.RemoveLabel(types.SuspendLabelKey)
+}
+
+// ResetStageMountErrorCondition resets the stage volume mount error condition.
+func (volume *DirectPVVolume) ResetStageMountErrorCondition() {
+	k8s.ResetConditionIfMatches(volume.Status.Conditions,
+		string(types.VolumeConditionTypeError),
+		string(types.VolumeConditionReasonNotMounted),
+		string(types.VolumeConditionMessageStagingPathNotMounted),
+		string(types.VolumeConditionReasonNoError))
+}
+
+// ResetTargetMountErrorCondition resets the target volume mount error condition.
+func (volume *DirectPVVolume) ResetTargetMountErrorCondition() {
+	k8s.ResetConditionIfMatches(volume.Status.Conditions,
+		string(types.VolumeConditionTypeError),
+		string(types.VolumeConditionReasonNotMounted),
+		string(types.VolumeConditionMessageTargetPathNotMounted),
+		string(types.VolumeConditionReasonNoError))
+}
+
+// GetCSIVolumeCondition returns the CSI volume condition.
+func (volume *DirectPVVolume) GetCSIVolumeCondition() *csi.VolumeCondition {
+	var isAbnormal bool
+	var message string
+	errorCondition := k8s.GetConditionByType(volume.Status.Conditions, string(types.VolumeConditionTypeError))
+	if errorCondition != nil && errorCondition.Status == metav1.ConditionTrue {
+		isAbnormal = true
+		message = errorCondition.Message
+	}
+	return &csi.VolumeCondition{
+		Abnormal: isAbnormal,
+		Message:  message,
+	}
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

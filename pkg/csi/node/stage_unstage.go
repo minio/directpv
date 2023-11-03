@@ -110,6 +110,7 @@ func (server *Server) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	}
 
 	if volume.Status.StagingTargetPath == stagingTargetPath {
+		volume.ResetStageMountErrorCondition()
 		volume.Status.StagingTargetPath = ""
 		if _, err := client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{
 			TypeMeta: types.NewVolumeTypeMeta(),

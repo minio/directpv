@@ -123,6 +123,7 @@ func (server *Server) NodeGetCapabilities(_ context.Context, _ *csi.NodeGetCapab
 			nodeCap(csi.NodeServiceCapability_RPC_GET_VOLUME_STATS),
 			nodeCap(csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME),
 			nodeCap(csi.NodeServiceCapability_RPC_EXPAND_VOLUME),
+			nodeCap(csi.NodeServiceCapability_RPC_VOLUME_CONDITION),
 		},
 	}, nil
 }
@@ -142,6 +143,15 @@ func (server *Server) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	if volumeCondition := volume.GetCSIVolumeCondition(); volumeCondition != nil && volumeCondition.GetAbnormal() {
+		res := &csi.NodeGetVolumeStatsResponse{}
+		res.Usage = []*csi.VolumeUsage{
+			{},
+		}
+		res.VolumeCondition = volumeCondition
+		return res, nil
 	}
 
 	device, err := server.getDeviceByFSUUID(volume.Status.FSUUID)
