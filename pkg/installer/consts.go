@@ -25,9 +25,8 @@ const (
 	namespace                = consts.AppName
 	healthZContainerPortName = "healthz"
 	healthZContainerPort     = 9898
-	volumePathSysDir         = "/sys"
-	volumeNameSocketDir      = "socket-dir"
-	socketDir                = "/csi"
+	csiDirVolumeName         = "socket-dir"
+	csiDirVolumePath         = "/csi"
 	selectorKey              = "selector." + consts.GroupName
 	kubeNodeNameEnvVarName   = "KUBE_NODE_NAME"
 	csiEndpointEnvVarName    = "CSI_ENDPOINT"

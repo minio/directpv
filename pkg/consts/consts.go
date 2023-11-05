@@ -97,4 +97,22 @@ const (
 
 	// TmpFS mount
 	TmpMountDir = AppRootDir + "/tmp"
+
+	// LegacyAppRootDir is legacy application root directory.
+	LegacyAppRootDir = "/var/lib/direct-csi"
+
+	AppRootDirVolumeName = AppName + "-common-root"
+	AppRootDirVolumePath = AppRootDir + "/"
+
+	LegacyAppRootDirVolumeName = "direct-csi-common-root"
+	LegacyAppRootDirVolumePath = LegacyAppRootDir + "/"
+
+	SysDirVolumeName = "sysfs"
+	SysDirVolumePath = "/sys"
+
+	DevDirVolumeName = "devfs"
+	DevDirVolumePath = "/dev"
+
+	RunUdevDataVolumeName = "run-udev-data-dir"
+	RunUdevDataVolumePath = UdevDataDir
 )

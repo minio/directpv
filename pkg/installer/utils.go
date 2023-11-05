@@ -24,36 +24,11 @@ import (
 	"strings"
 
 	"github.com/minio/directpv/pkg/k8s"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 )
 
-func newHostPathVolume(name, path string) corev1.Volume {
-	hostPathType := corev1.HostPathDirectoryOrCreate
-	volumeSource := corev1.VolumeSource{
-		HostPath: &corev1.HostPathVolumeSource{
-			Path: path,
-			Type: &hostPathType,
-		},
-	}
-
-	return corev1.Volume{
-		Name:         name,
-		VolumeSource: volumeSource,
-	}
-}
-
 func newPluginsSocketDir(kubeletDir, name string) string {
 	return path.Join(kubeletDir, "plugins", k8s.SanitizeResourceName(name))
-}
-
-func newVolumeMount(name, path string, mountPropogation corev1.MountPropagationMode, readOnly bool) corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:             name,
-		ReadOnly:         readOnly,
-		MountPath:        path,
-		MountPropagation: &mountPropogation,
-	}
 }
 
 func getRandSuffix() string {
