@@ -82,7 +82,7 @@ metadata:
     directpv.min.io/version: v1beta1
   name: ${NAME}
 parameters:
-  fstype: xfs
+  csi.storage.k8s.io/fstype: xfs
 $(printf '  %s\n' "${DRIVE_LABELS[@]}")
 provisioner: directpv-min-io
 reclaimPolicy: Delete
