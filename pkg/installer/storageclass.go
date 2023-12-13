@@ -112,7 +112,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 				allowTopologiesWithName,
 			},
 			ReclaimPolicy: &retainPolicy,
-			Parameters:    map[string]string{"fstype": "xfs"},
+			Parameters:    map[string]string{"csi.storage.k8s.io/fstype": "xfs"},
 		}
 
 		if !args.DryRun && !args.Declarative {
@@ -144,7 +144,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 				allowTopologiesWithName,
 			},
 			ReclaimPolicy: &retainPolicy,
-			Parameters:    map[string]string{"fstype": "xfs"},
+			Parameters:    map[string]string{"csi.storage.k8s.io/fstype": "xfs"},
 		}
 
 		if !args.DryRun && !args.Declarative {

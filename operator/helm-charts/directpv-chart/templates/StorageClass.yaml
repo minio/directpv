@@ -18,7 +18,7 @@ metadata:
     directpv.min.io/version: v1beta1
   name: directpv-min-io
 parameters:
-  fstype: xfs
+  csi.storage.k8s.io/fstype: xfs
 provisioner: directpv-min-io
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
