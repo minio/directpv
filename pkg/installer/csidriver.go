@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
@@ -90,10 +91,12 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 				Kind:       "CSIDriver",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   metav1.NamespaceNone,
-				Annotations: map[string]string{},
-				Labels:      defaultLabels,
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+				Annotations: map[string]string{
+					string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
+				},
+				Labels: defaultLabels,
 			},
 			Spec: storagev1.CSIDriverSpec{
 				PodInfoOnMount: &podInfoOnMount,
@@ -121,10 +124,12 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 				Kind:       "CSIDriver",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   metav1.NamespaceNone,
-				Annotations: map[string]string{},
-				Labels:      defaultLabels,
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+				Annotations: map[string]string{
+					string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
+				},
+				Labels: defaultLabels,
 			},
 			Spec: storagev1beta1.CSIDriverSpec{
 				PodInfoOnMount: &podInfoOnMount,

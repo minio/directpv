@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"regexp"
 
 	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -71,16 +72,25 @@ type Args struct {
 	ObjectMarshaler  func(runtime.Object) ([]byte, error)
 	ProgressCh       chan<- Message
 	ForceUninstall   bool
+	PluginVersion    string
 
 	podSecurityAdmission     bool
 	csiProvisionerImage      string
 	nodeDriverRegistrarImage string
 	livenessProbeImage       string
 	csiResizerImage          string
+	imageTag                 string
 }
+
+var imageTagRegex = regexp.MustCompile(`:([^/]+)$`)
 
 // NewArgs creates arguments for DirectPV installation.
 func NewArgs(image string) *Args {
+	imageTag := "dev"
+	matchIndex := imageTagRegex.FindStringSubmatchIndex(image)
+	if len(matchIndex) > 0 && len(image) > matchIndex[0]+1 {
+		imageTag = image[matchIndex[0]+1:]
+	}
 	return &Args{
 		image:    image,
 		Registry: "quay.io",
@@ -90,6 +100,7 @@ func NewArgs(image string) *Args {
 		nodeDriverRegistrarImage: nodeDriverRegistrarImage,
 		livenessProbeImage:       livenessProbeImage,
 		csiResizerImage:          csiResizerImage,
+		imageTag:                 imageTag,
 	}
 }
 

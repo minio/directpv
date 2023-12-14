@@ -280,6 +280,11 @@ func installMain(ctx context.Context) {
 		os.Exit(1)
 	}
 
+	pluginVersion := "dev"
+	if Version != "" {
+		pluginVersion = Version
+	}
+
 	args.Registry = registry
 	args.Org = org
 	args.ImagePullSecrets = imagePullSecrets
@@ -290,6 +295,7 @@ func installMain(ctx context.Context) {
 	args.Quiet = quietFlag
 	args.KubeVersion = kubeVersion
 	args.Legacy = legacyFlag
+	args.PluginVersion = pluginVersion
 	if file != nil {
 		args.ObjectWriter = file
 	}

@@ -19,6 +19,7 @@ package installer
 import (
 	"context"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
@@ -94,10 +95,12 @@ func createServiceAccount(ctx context.Context, args *Args) (err error) {
 			Kind:       "ServiceAccount",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        consts.Identity,
-			Namespace:   namespace,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
+			Name:      consts.Identity,
+			Namespace: namespace,
+			Annotations: map[string]string{
+				string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
+			},
+			Labels: defaultLabels,
 		},
 		Secrets:                      []corev1.ObjectReference{},
 		ImagePullSecrets:             []corev1.LocalObjectReference{},
@@ -137,6 +140,7 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 			Namespace: metav1.NamespaceNone,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
+				string(directpvtypes.PluginVersionLabelKey):   args.PluginVersion,
 			},
 			Labels: defaultLabels,
 		},
@@ -203,6 +207,7 @@ func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 			Namespace: metav1.NamespaceNone,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
+				string(directpvtypes.PluginVersionLabelKey):   args.PluginVersion,
 			},
 			Labels: defaultLabels,
 		},
@@ -253,6 +258,7 @@ func createRole(ctx context.Context, args *Args) (err error) {
 			Namespace: namespace,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
+				string(directpvtypes.PluginVersionLabelKey):   args.PluginVersion,
 			},
 			Labels: defaultLabels,
 		},
@@ -294,6 +300,7 @@ func createRoleBinding(ctx context.Context, args *Args) (err error) {
 			Namespace: namespace,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
+				string(directpvtypes.PluginVersionLabelKey):   args.PluginVersion,
 			},
 			Labels: defaultLabels,
 		},
