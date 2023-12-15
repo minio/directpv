@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
@@ -203,12 +204,12 @@ func livenessProbeContainer(image string) corev1.Container {
 	}
 }
 
-func newDaemonset(podSpec corev1.PodSpec, name, selectorValue, appArmorProfile string) *appsv1.DaemonSet {
+func newDaemonset(podSpec corev1.PodSpec, name, selectorValue string, args *Args) *appsv1.DaemonSet {
 	annotations := map[string]string{createdByLabel: pluginName}
-	if appArmorProfile != "" {
+	if args.AppArmorProfile != "" {
 		// AppArmor profiles need to be specified per-container
 		for _, container := range podSpec.Containers {
-			annotations["container.apparmor.security.beta.kubernetes.io/"+container.Name] = "localhost/" + appArmorProfile
+			annotations["container.apparmor.security.beta.kubernetes.io/"+container.Name] = "localhost/" + args.AppArmorProfile
 		}
 	}
 
@@ -218,10 +219,13 @@ func newDaemonset(podSpec corev1.PodSpec, name, selectorValue, appArmorProfile s
 			Kind:       "DaemonSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   namespace,
-			Annotations: map[string]string{},
-			Labels:      defaultLabels,
+			Name:      name,
+			Namespace: namespace,
+			Annotations: map[string]string{
+				string(directpvtypes.ImageTagLabelKey):      args.imageTag,
+				string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
+			},
+			Labels: defaultLabels,
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, selectorValue),
@@ -302,7 +306,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 		selectorValue = fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
 	}
 
-	daemonset := newDaemonset(podSpec, consts.NodeServerName, selectorValue, args.AppArmorProfile)
+	daemonset := newDaemonset(podSpec, consts.NodeServerName, selectorValue, args)
 
 	if !args.DryRun && !args.Declarative {
 		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
@@ -365,7 +369,7 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 		selectorValue = fmt.Sprintf("%v-%v", consts.Identity, getRandSuffix())
 	}
 
-	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, selectorValue, args.AppArmorProfile)
+	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, selectorValue, args)
 
 	if !args.DryRun && !args.Declarative {
 		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(

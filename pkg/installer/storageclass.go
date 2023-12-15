@@ -99,11 +99,13 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 		storageClass := &storagev1.StorageClass{
 			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1", Kind: "StorageClass"},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   metav1.NamespaceNone,
-				Annotations: map[string]string{},
-				Labels:      defaultLabels,
-				Finalizers:  []string{metav1.FinalizerDeleteDependents},
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+				Annotations: map[string]string{
+					string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
+				},
+				Labels:     defaultLabels,
+				Finalizers: []string{metav1.FinalizerDeleteDependents},
 			},
 			Provisioner:          consts.Identity,
 			AllowVolumeExpansion: &allowExpansion,
@@ -131,11 +133,13 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 		storageClass := &storagev1beta1.StorageClass{
 			TypeMeta: metav1.TypeMeta{APIVersion: "storage.k8s.io/v1beta1", Kind: "StorageClass"},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   metav1.NamespaceNone,
-				Annotations: map[string]string{},
-				Labels:      defaultLabels,
-				Finalizers:  []string{metav1.FinalizerDeleteDependents},
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+				Annotations: map[string]string{
+					string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
+				},
+				Labels:     defaultLabels,
+				Finalizers: []string{metav1.FinalizerDeleteDependents},
 			},
 			Provisioner:          consts.Identity,
 			AllowVolumeExpansion: &allowExpansion,
