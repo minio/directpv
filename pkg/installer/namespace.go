@@ -20,6 +20,7 @@ import (
 	"context"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/jobs"
 	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -109,8 +110,17 @@ func createNamespace(ctx context.Context, args *Args) (err error) {
 }
 
 func deleteNamespace(ctx context.Context) error {
+	jobObjects, err := jobs.NewLister().IgnoreNotFound(true).Get(ctx)
+	if err != nil {
+		return err
+	}
+	if len(jobObjects) > 0 {
+		// Do not delete the namespace if there
+		// are jobs in directpv namespace
+		return nil
+	}
 	propagationPolicy := metav1.DeletePropagationForeground
-	err := k8s.KubeClient().CoreV1().Namespaces().Delete(
+	err = k8s.KubeClient().CoreV1().Namespaces().Delete(
 		ctx, namespace, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy},
 	)
 	if err != nil {

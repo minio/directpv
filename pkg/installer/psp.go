@@ -151,10 +151,10 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 			Volumes:             []policy.FSType{policy.HostPath},
 			AllowedHostPaths: []policy.AllowedHostPath{
 				{PathPrefix: "/proc", ReadOnly: true},
-				{PathPrefix: volumePathSysDir},
+				{PathPrefix: consts.SysDirVolumePath},
 				{PathPrefix: consts.UdevDataDir, ReadOnly: true},
 				{PathPrefix: consts.AppRootDir},
-				{PathPrefix: socketDir},
+				{PathPrefix: csiDirVolumePath},
 				{PathPrefix: kubeletDirPath},
 			},
 			SELinux: policy.SELinuxStrategyOptions{

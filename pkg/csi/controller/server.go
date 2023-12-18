@@ -270,6 +270,10 @@ func (c *Server) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest)
 		return nil, status.Errorf(codes.Internal, "unable to get volume %v; %v", volumeID, err)
 	}
 
+	if volume.Status.Status == directpvtypes.VolumeStatusCopying {
+		return nil, status.Errorf(codes.FailedPrecondition, "volume %s is busy copying the data", volumeID)
+	}
+
 	if volume.IsStaged() || volume.IsPublished() {
 		return nil, status.Errorf(codes.FailedPrecondition, "volume %v is not yet unstaged for deletion", volumeID)
 	}

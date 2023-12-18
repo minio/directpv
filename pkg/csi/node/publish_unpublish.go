@@ -120,6 +120,10 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.FailedPrecondition, "volume %v is not yet staged, but requested with %v", volume.Name, req.GetStagingTargetPath())
 	}
 
+	if volume.Status.Status == directpvtypes.VolumeStatusCopying {
+		return nil, status.Error(codes.FailedPrecondition, "volume is busy; copying the data from the source")
+	}
+
 	if err := server.publishVolume(req, isSuspended); err != nil {
 		klog.Errorf("unable to publish volume %s; %v", volume.Name, err)
 		return nil, status.Errorf(codes.Internal, "unable to publish volume; %v", err)

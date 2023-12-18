@@ -79,7 +79,15 @@ func New(name string, handler EventHandler, workers int, resyncPeriod time.Durat
 		handler.ListerWatcher(),
 		handler.ObjectType(),
 		resyncPeriod,
-		cache.Indexers{},
+		cache.Indexers{
+			"objectname": func(obj interface{}) ([]string, error) {
+				key, err := cache.MetaNamespaceKeyFunc(obj)
+				if err != nil {
+					return nil, err
+				}
+				return []string{key}, nil
+			},
+		},
 	)
 
 	queue := workqueue.NewRateLimitingQueue(

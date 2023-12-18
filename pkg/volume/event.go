@@ -113,6 +113,9 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	if !volume.IsReleased() {
 		return fmt.Errorf("volume %v must be released before cleaning up", volume.Name)
 	}
+	if volume.Status.Status == directpvtypes.VolumeStatusCopying {
+		return fmt.Errorf("volume %v is busy copying data", volume.Name)
+	}
 
 	if volume.Status.TargetPath != "" {
 		if err := handler.unmount(volume.Status.TargetPath); err != nil {

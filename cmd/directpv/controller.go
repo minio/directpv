@@ -18,12 +18,19 @@ package main
 
 import (
 	"context"
+	"os"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/csi/controller"
 	pkgidentity "github.com/minio/directpv/pkg/csi/identity"
+	"github.com/minio/directpv/pkg/jobs"
+	"github.com/minio/directpv/pkg/k8s"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 )
 
@@ -75,5 +82,44 @@ func startController(ctx context.Context) error {
 		}
 	}()
 
+	go func() {
+		runJobsController(ctx)
+	}()
+
 	return <-errCh
+}
+
+func runJobsController(ctx context.Context) {
+	podName := os.Getenv("HOSTNAME")
+	if podName == "" {
+		klog.V(5).Info("unable to get the pod name from env; defaulting to pod name: directpv-controller")
+		podName = "directpv-controller"
+	}
+	lock := &resourcelock.LeaseLock{
+		LeaseMeta: metav1.ObjectMeta{
+			Name:      consts.AppName + "-jobs-controller",
+			Namespace: consts.AppNamespace,
+		},
+		Client: k8s.KubeClient().CoordinationV1(),
+		LockConfig: resourcelock.ResourceLockConfig{
+			Identity: podName,
+		},
+	}
+	// start the leader election code loop
+	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+		Lock:            lock,
+		ReleaseOnCancel: true,
+		LeaseDuration:   60 * time.Second,
+		RenewDeadline:   15 * time.Second,
+		RetryPeriod:     5 * time.Second,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(ctx context.Context) {
+				klog.Info("started leading")
+				jobs.StartController(ctx)
+			},
+			OnStoppedLeading: func() {
+				klog.Infof("leader lost")
+			},
+		},
+	})
 }

@@ -20,6 +20,9 @@ const (
 	// AppName denotes application/library/plugin/tool name
 	AppName = "directpv"
 
+	// AppNamespace denotes the namespace
+	AppNamespace = "directpv"
+
 	// AppPrettyName denotes application/library/plugin/tool pretty name
 	AppPrettyName = "DirectPV"
 
@@ -95,4 +98,26 @@ const (
 
 	// TmpFS mount
 	TmpMountDir = AppRootDir + "/tmp"
+
+	// LegacyAppRootDir is legacy application root directory.
+	LegacyAppRootDir = "/var/lib/direct-csi"
+
+	AppRootDirVolumeName = AppName + "-common-root"
+	AppRootDirVolumePath = AppRootDir + "/"
+
+	LegacyAppRootDirVolumeName = "direct-csi-common-root"
+	LegacyAppRootDirVolumePath = LegacyAppRootDir + "/"
+
+	SysDirVolumeName = "sysfs"
+	SysDirVolumePath = "/sys"
+
+	DevDirVolumeName = "devfs"
+	DevDirVolumePath = "/dev"
+
+	RunUdevDataVolumeName = "run-udev-data-dir"
+	RunUdevDataVolumePath = UdevDataDir
+
+	KubeNodeNameEnvVarName = "KUBE_NODE_NAME"
+
+	CopyProtectionFinalizer = GroupName + "/copy-protection"
 )

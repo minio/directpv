@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -152,6 +153,9 @@ func cleanMain(ctx context.Context) {
 		List(ctx)
 
 	matchFunc := func(volume *types.Volume) bool {
+		if volume.Status.Status == directpvtypes.VolumeStatusCopying {
+			return false
+		}
 		pv, err := k8s.KubeClient().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
