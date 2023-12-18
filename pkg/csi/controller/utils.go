@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -131,13 +132,19 @@ func selectDrive(ctx context.Context, req *csi.CreateVolumeRequest) (*types.Driv
 
 	if len(drives) == 0 {
 		if len(req.GetAccessibilityRequirements().GetPreferred()) != 0 || len(req.GetAccessibilityRequirements().GetRequisite()) != 0 {
-			return nil, status.Error(codes.ResourceExhausted, "no drive found for requested topology")
+			requestedSize := "nil"
+			if req.GetCapacityRange() != nil {
+				requestedSize = fmt.Sprintf("%d bytes", req.GetCapacityRange().GetRequiredBytes())
+			}
+			var requestedNodes []string
+			if requestedNodes = getNodeNamesFromTopology(req.AccessibilityRequirements.GetPreferred()); len(requestedNodes) == 0 {
+				requestedNodes = getNodeNamesFromTopology(req.AccessibilityRequirements.GetRequisite())
+			}
+			return nil, status.Errorf(codes.ResourceExhausted, "no drive found for requested topology; requested node(s): %s; requested size: %s", strings.Join(requestedNodes, ","), requestedSize)
 		}
-
 		if req.GetCapacityRange() != nil {
 			return nil, status.Errorf(codes.OutOfRange, "no drive found for requested size %v", req.GetCapacityRange().GetRequiredBytes())
 		}
-
 		return nil, status.Error(codes.FailedPrecondition, "no drive found")
 	}
 
@@ -163,4 +170,16 @@ func selectDrive(ctx context.Context, req *csi.CreateVolumeRequest) (*types.Driv
 	}
 
 	return &maxFreeCapacityDrives[n.Int64()], nil
+}
+
+func getNodeNamesFromTopology(topologies []*csi.Topology) (requestedNodes []string) {
+	for _, topology := range topologies {
+		for key, value := range topology.GetSegments() {
+			if key == string(directpvtypes.TopologyDriverNode) {
+				requestedNodes = append(requestedNodes, value)
+				break
+			}
+		}
+	}
+	return
 }
