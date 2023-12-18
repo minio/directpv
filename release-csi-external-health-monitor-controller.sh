@@ -72,7 +72,7 @@ function main() {
     cd "external-health-monitor-${BUILD_VERSION}" || return
     make build
     "${PODMAN}" buildx build --platform linux/amd64 --tag "${IMG}" -f - . <<EOF
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.8
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.9
 LABEL maintainers="dev@min.io"
 LABEL description="Rebuild of CSI External Health Monitor Controller for Red Hat Marketplace"
 COPY ./bin/csi-external-health-monitor-controller csi-external-health-monitor-controller
