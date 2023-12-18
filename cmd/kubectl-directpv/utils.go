@@ -43,7 +43,7 @@ const dot = "•"
 func printYAML(obj interface{}) {
 	data, err := utils.ToYAML(obj)
 	if err != nil {
-		klog.Fatalf("unable to marshal object to YAML; %w", err)
+		klog.Fatalf("unable to marshal object to YAML; %v", err)
 	}
 
 	fmt.Print(string(data))
@@ -52,7 +52,7 @@ func printYAML(obj interface{}) {
 func printJSON(obj interface{}) {
 	data, err := utils.ToJSON(obj)
 	if err != nil {
-		klog.Fatalf("unable to marshal object to JSON; %w", err)
+		klog.Fatalf("unable to marshal object to JSON; %v", err)
 	}
 
 	fmt.Print(string(data))
