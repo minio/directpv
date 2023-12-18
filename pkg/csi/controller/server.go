@@ -404,3 +404,9 @@ func (c *Server) DeleteSnapshot(_ context.Context, _ *csi.DeleteSnapshotRequest)
 func (c *Server) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
+
+// ControllerModifyVolume - controller RPC to controller modify volume
+// reference: https://github.com/container-storage-interface/spec/blob/master/spec.md#controllermodifyvolume
+func (c *Server) ControllerModifyVolume(_ context.Context, _ *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
+}
