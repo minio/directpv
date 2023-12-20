@@ -25,8 +25,8 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -107,7 +107,7 @@ func getFilteredDrives(ctx context.Context, req *csi.CreateVolumeRequest) (drive
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	for result := range drive.NewLister().List(ctx) {
+	for result := range client.NewDriveLister().List(ctx) {
 		if result.Err != nil {
 			return nil, result.Err
 		}

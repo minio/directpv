@@ -22,6 +22,7 @@ import (
 	"github.com/minio/directpv/pkg/clientset"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 )
 
@@ -30,13 +31,19 @@ func Init() {
 	if atomic.AddInt32(&initialized, 1) != 1 {
 		return
 	}
-
 	k8s.Init()
+	InitWithConfig(k8s.KubeConfig())
+}
 
-	cs, err := clientset.NewForConfig(k8s.KubeConfig())
+// InitWithConfig initializes the clients with k8s config provided
+func InitWithConfig(c *rest.Config) {
+	cs, err := clientset.NewForConfig(c)
 	if err != nil {
 		klog.Fatalf("unable to create new clientset interface; %v", err)
 	}
+
+	k8s.Init()
+
 	clientsetInterface = types.NewExtClientset(cs)
 
 	restClient = clientsetInterface.DirectpvLatest().RESTClient()

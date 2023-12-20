@@ -17,24 +17,17 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path"
-	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/mitchellh/go-homedir"
-	storagev1 "k8s.io/api/storage/v1"
-	storagev1beta1 "k8s.io/api/storage/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 )
 
@@ -133,56 +126,4 @@ func validateOutputFormat(isWideSupported bool) error {
 		return errors.New("--output flag value must be one of yaml|json")
 	}
 	return nil
-}
-
-func getCSINodes(ctx context.Context) (nodes []string, err error) {
-	storageClient, gvk, err := k8s.GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
-	if err != nil {
-		return nil, err
-	}
-
-	switch gvk.Version {
-	case "v1apha1":
-		err = fmt.Errorf("unsupported CSINode storage.k8s.io/v1alpha1")
-	case "v1":
-		result := &storagev1.CSINodeList{}
-		if err = storageClient.Get().
-			Resource("csinodes").
-			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
-			Timeout(10 * time.Second).
-			Do(ctx).
-			Into(result); err != nil {
-			err = fmt.Errorf("unable to get csinodes; %w", err)
-			break
-		}
-		for _, csiNode := range result.Items {
-			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == consts.Identity {
-					nodes = append(nodes, csiNode.Name)
-					break
-				}
-			}
-		}
-	case "v1beta1":
-		result := &storagev1beta1.CSINodeList{}
-		if err = storageClient.Get().
-			Resource(gvk.Kind).
-			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
-			Timeout(10 * time.Second).
-			Do(ctx).
-			Into(result); err != nil {
-			err = fmt.Errorf("unable to get csinodes; %w", err)
-			break
-		}
-		for _, csiNode := range result.Items {
-			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == consts.Identity {
-					nodes = append(nodes, csiNode.Name)
-					break
-				}
-			}
-		}
-	}
-
-	return nodes, err
 }

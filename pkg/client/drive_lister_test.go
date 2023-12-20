@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package drive
+package client
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
-	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,8 +29,8 @@ import (
 
 func TestGetDriveList(t *testing.T) {
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
-	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	drives, err := NewLister().Get(context.TODO())
+	SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	drives, err := NewDriveLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -47,8 +46,8 @@ func TestGetDriveList(t *testing.T) {
 	}
 
 	clientset = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
-	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	drives, err = NewLister().Get(context.TODO())
+	SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	drives, err = NewDriveLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

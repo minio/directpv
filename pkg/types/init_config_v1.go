@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2023 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,13 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package types
 
 import directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-
-const (
-	driveSelectedValue = "yes"
-)
 
 // InitConfigV1 defines the config to initialize the devices
 type InitConfigV1 struct {

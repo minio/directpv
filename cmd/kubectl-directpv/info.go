@@ -25,11 +25,10 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -66,7 +65,7 @@ func infoMain(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	nodeList, err := getCSINodes(ctx)
+	nodeList, err := k8s.GetCSINodes(ctx)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
@@ -77,13 +76,13 @@ func infoMain(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	drives, err := drive.NewLister().Get(ctx)
+	drives, err := client.NewDriveLister().Get(ctx)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "unable to get drive list; %v\n", err)
 		os.Exit(1)
 	}
 
-	volumes, err := volume.NewLister().Get(ctx)
+	volumes, err := client.NewVolumeLister().Get(ctx)
 	if err != nil {
 		utils.Eprintf(quietFlag, true, "unable to get volume list; %v\n", err)
 		os.Exit(1)

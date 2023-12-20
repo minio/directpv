@@ -23,11 +23,11 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -155,7 +155,7 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 }
 
 func listVolumesMain(ctx context.Context) {
-	volumes, err := volume.NewLister().
+	volumes, err := client.NewVolumeLister().
 		NodeSelector(toLabelValues(nodesArgs)).
 		DriveNameSelector(toLabelValues(drivesArgs)).
 		DriveIDSelector(toLabelValues(driveIDArgs)).

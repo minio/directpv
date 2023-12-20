@@ -28,7 +28,6 @@ import (
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -141,7 +140,7 @@ func cleanMain(ctx context.Context) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh := volume.NewLister().
+	resultCh := client.NewVolumeLister().
 		NodeSelector(toLabelValues(nodesArgs)).
 		DriveNameSelector(toLabelValues(drivesArgs)).
 		DriveIDSelector(toLabelValues(driveIDArgs)).

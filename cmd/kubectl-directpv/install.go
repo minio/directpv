@@ -28,11 +28,11 @@ import (
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/installer"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -221,7 +221,7 @@ func getLegacyFlag(ctx context.Context) bool {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh := volume.NewLister().
+	resultCh := client.NewVolumeLister().
 		LabelSelector(
 			map[directpvtypes.LabelKey]directpvtypes.LabelValue{
 				directpvtypes.MigratedLabelKey: "true",

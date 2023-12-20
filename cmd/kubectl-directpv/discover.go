@@ -31,7 +31,6 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
@@ -93,33 +92,6 @@ func validateDiscoverCmd() error {
 		return err
 	}
 	return validateDriveNameArgs()
-}
-
-func toInitConfig(resultMap map[directpvtypes.NodeID][]types.Device) InitConfig {
-	nodeInfo := []NodeInfo{}
-	initConfig := NewInitConfig()
-	for node, devices := range resultMap {
-		driveInfo := []DriveInfo{}
-		for _, device := range devices {
-			if device.DeniedReason != "" {
-				continue
-			}
-			driveInfo = append(driveInfo, DriveInfo{
-				ID:     device.ID,
-				Name:   device.Name,
-				Size:   device.Size,
-				Make:   device.Make,
-				FS:     device.FSType,
-				Select: driveSelectedValue,
-			})
-		}
-		nodeInfo = append(nodeInfo, NodeInfo{
-			Name:   node,
-			Drives: driveInfo,
-		})
-	}
-	initConfig.Nodes = nodeInfo
-	return initConfig
 }
 
 func showDevices(resultMap map[directpvtypes.NodeID][]types.Device) error {
@@ -189,7 +161,7 @@ func showDevices(resultMap map[directpvtypes.NodeID][]types.Device) error {
 	return nil
 }
 
-func writeInitConfig(config InitConfig) error {
+func writeInitConfig(config types.InitConfig) error {
 	f, err := os.OpenFile(outputFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
@@ -232,7 +204,7 @@ func discoverDevices(ctx context.Context, nodes []types.Node, teaProgram *tea.Pr
 	ctx, cancel := context.WithTimeout(ctx, nodeListTimeout)
 	defer cancel()
 
-	eventCh, stop, err := node.NewLister().
+	eventCh, stop, err := client.NewNodeLister().
 		NodeSelector(toLabelValues(nodeNames)).
 		Watch(ctx)
 	if err != nil {
@@ -253,7 +225,7 @@ func discoverDevices(ctx context.Context, nodes []types.Node, teaProgram *tea.Pr
 			}
 			switch event.Type {
 			case watch.Modified, watch.Added:
-				node := event.Node
+				node := event.Item
 				if !node.Spec.Refresh {
 					devices[directpvtypes.NodeID(node.Name)] = node.GetDevicesByNames(drivesArgs)
 					if teaProgram != nil {
@@ -280,52 +252,13 @@ func discoverDevices(ctx context.Context, nodes []types.Node, teaProgram *tea.Pr
 	}
 }
 
-func syncNodes(ctx context.Context) (err error) {
-	csiNodes, err := getCSINodes(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to get CSI nodes; %w", err)
-	}
-
-	nodes, err := node.NewLister().Get(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to get nodes; %w", err)
-	}
-
-	var nodeNames []string
-	for _, node := range nodes {
-		nodeNames = append(nodeNames, node.Name)
-	}
-
-	// Add missing nodes.
-	for _, csiNode := range csiNodes {
-		if !utils.Contains(nodeNames, csiNode) {
-			node := types.NewNode(directpvtypes.NodeID(csiNode), nil)
-			node.Spec.Refresh = true
-			if _, err = client.NodeClient().Create(ctx, node, metav1.CreateOptions{}); err != nil {
-				return fmt.Errorf("unable to create node %v; %w", csiNode, err)
-			}
-		}
-	}
-
-	// Remove non-existing nodes.
-	for _, nodeName := range nodeNames {
-		if !utils.Contains(csiNodes, nodeName) {
-			if err = client.NodeClient().Delete(ctx, nodeName, metav1.DeleteOptions{}); err != nil {
-				return fmt.Errorf("unable to remove non-existing node %v; %w", nodeName, err)
-			}
-		}
-	}
-
-	return nil
-}
-
 func discoverMain(ctx context.Context) {
-	if err := syncNodes(ctx); err != nil {
+	if err := client.SyncNodes(ctx); err != nil {
 		utils.Eprintf(quietFlag, true, "sync failed; %v\n", err)
 		os.Exit(1)
 	}
 
-	nodes, err := node.NewLister().
+	nodes, err := client.NewNodeLister().
 		NodeSelector(toLabelValues(nodesArgs)).
 		Get(ctx)
 	if err != nil {
@@ -374,7 +307,7 @@ func discoverMain(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	if err := writeInitConfig(toInitConfig(resultMap)); err != nil {
+	if err := writeInitConfig(types.ToInitConfig(resultMap)); err != nil {
 		utils.Eprintf(quietFlag, true, "unable to write init config; %v\n", err)
 	} else if !quietFlag {
 		color.HiGreen("Generated '%s' successfully.", outputFile)

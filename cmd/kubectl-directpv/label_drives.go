@@ -25,7 +25,6 @@ import (
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,7 +99,7 @@ func labelDrivesMain(ctx context.Context) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh := drive.NewLister().
+	resultCh := client.NewDriveLister().
 		NodeSelector(toLabelValues(nodesArgs)).
 		DriveNameSelector(toLabelValues(drivesArgs)).
 		StatusSelector(driveStatusSelectors).
