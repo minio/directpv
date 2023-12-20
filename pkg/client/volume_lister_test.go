@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package volume
+package client
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
-	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,10 +29,10 @@ import (
 
 func TestGetVolumeList(t *testing.T) {
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
-	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+	SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	volumes, err := NewLister().Get(context.TODO())
+	volumes, err := NewVolumeLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -49,10 +48,10 @@ func TestGetVolumeList(t *testing.T) {
 	}
 
 	clientset = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
-	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+	SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	volumes, err = NewLister().Get(context.TODO())
+	volumes, err = NewVolumeLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -63,10 +62,10 @@ func TestGetVolumeList(t *testing.T) {
 
 func TestGetSortedVolumeList(t *testing.T) {
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
-	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+	SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	volumes, err := NewLister().Get(context.TODO())
+	volumes, err := NewVolumeLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,10 +91,10 @@ func TestGetSortedVolumeList(t *testing.T) {
 	}
 
 	clientset = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
-	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+	SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+	SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	volumes, err = NewLister().Get(context.TODO())
+	volumes, err = NewVolumeLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

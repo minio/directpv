@@ -24,11 +24,7 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
-	"github.com/minio/directpv/pkg/initrequest"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/node"
-	"github.com/minio/directpv/pkg/volume"
 	"k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -237,7 +233,7 @@ func removeVolumes(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	for result := range volume.NewLister().List(ctx) {
+	for result := range client.NewVolumeLister().List(ctx) {
 		if result.Err != nil {
 			if apierrors.IsNotFound(result.Err) {
 				break
@@ -266,7 +262,7 @@ func removeDrives(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	for result := range drive.NewLister().List(ctx) {
+	for result := range client.NewDriveLister().List(ctx) {
 		if result.Err != nil {
 			if apierrors.IsNotFound(result.Err) {
 				break
@@ -292,7 +288,7 @@ func removeNodes(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	for result := range node.NewLister().List(ctx) {
+	for result := range client.NewNodeLister().List(ctx) {
 		if result.Err != nil {
 			if apierrors.IsNotFound(result.Err) {
 				break
@@ -317,7 +313,7 @@ func removeInitRequests(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	for result := range initrequest.NewLister().List(ctx) {
+	for result := range client.NewInitRequestLister().List(ctx) {
 		if result.Err != nil {
 			if apierrors.IsNotFound(result.Err) {
 				break

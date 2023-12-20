@@ -26,9 +26,7 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -121,7 +119,7 @@ func cordonMain(ctx context.Context) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	resultCh := drive.NewLister().
+	resultCh := client.NewDriveLister().
 		NodeSelector(toLabelValues(nodesArgs)).
 		DriveNameSelector(toLabelValues(drivesArgs)).
 		StatusSelector(driveStatusSelectors).
@@ -141,7 +139,7 @@ func cordonMain(ctx context.Context) {
 
 		volumes := result.Drive.GetVolumes()
 		if len(volumes) != 0 {
-			for vresult := range volume.NewLister().VolumeNameSelector(volumes).IgnoreNotFound(true).List(ctx) {
+			for vresult := range client.NewVolumeLister().VolumeNameSelector(volumes).IgnoreNotFound(true).List(ctx) {
 				if vresult.Err != nil {
 					utils.Eprintf(quietFlag, true, "%v\n", vresult.Err)
 					os.Exit(1)

@@ -17,12 +17,18 @@
 package k8s
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path"
 	"strings"
+	"time"
 
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/viper"
+	storagev1 "k8s.io/api/storage/v1"
+	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -189,4 +195,57 @@ func SanitizeResourceName(name string) string {
 	}
 
 	return string(result)
+}
+
+// GetCSINodes fetches the CSI Node list
+func GetCSINodes(ctx context.Context) (nodes []string, err error) {
+	storageClient, gvk, err := GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
+	if err != nil {
+		return nil, err
+	}
+
+	switch gvk.Version {
+	case "v1apha1":
+		err = fmt.Errorf("unsupported CSINode storage.k8s.io/v1alpha1")
+	case "v1":
+		result := &storagev1.CSINodeList{}
+		if err = storageClient.Get().
+			Resource("csinodes").
+			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
+			Timeout(10 * time.Second).
+			Do(ctx).
+			Into(result); err != nil {
+			err = fmt.Errorf("unable to get csinodes; %w", err)
+			break
+		}
+		for _, csiNode := range result.Items {
+			for _, driver := range csiNode.Spec.Drivers {
+				if driver.Name == consts.Identity {
+					nodes = append(nodes, csiNode.Name)
+					break
+				}
+			}
+		}
+	case "v1beta1":
+		result := &storagev1beta1.CSINodeList{}
+		if err = storageClient.Get().
+			Resource(gvk.Kind).
+			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
+			Timeout(10 * time.Second).
+			Do(ctx).
+			Into(result); err != nil {
+			err = fmt.Errorf("unable to get csinodes; %w", err)
+			break
+		}
+		for _, csiNode := range result.Items {
+			for _, driver := range csiNode.Spec.Drivers {
+				if driver.Name == consts.Identity {
+					nodes = append(nodes, csiNode.Name)
+					break
+				}
+			}
+		}
+	}
+
+	return nodes, err
 }

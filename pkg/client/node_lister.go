@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package node
+package client
 
 import (
 	"context"
@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,47 +36,47 @@ type ListNodeResult struct {
 	Err  error
 }
 
-// Lister is node lister.
-type Lister struct {
+// NodeLister is node lister.
+type NodeLister struct {
 	nodes          []directpvtypes.LabelValue
 	nodeNames      []string
 	maxObjects     int64
 	ignoreNotFound bool
 }
 
-// NewLister creates new volume lister.
-func NewLister() *Lister {
-	return &Lister{
+// NewNodeLister creates new volume lister.
+func NewNodeLister() *NodeLister {
+	return &NodeLister{
 		maxObjects: k8s.MaxThreadCount,
 	}
 }
 
 // NodeSelector adds filter listing by nodes.
-func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
+func (lister *NodeLister) NodeSelector(nodes []directpvtypes.LabelValue) *NodeLister {
 	lister.nodes = nodes
 	return lister
 }
 
 // NodeNameSelector adds filter listing by node names.
-func (lister *Lister) NodeNameSelector(nodeNames []string) *Lister {
+func (lister *NodeLister) NodeNameSelector(nodeNames []string) *NodeLister {
 	lister.nodeNames = nodeNames
 	return lister
 }
 
 // MaxObjects controls number of items to be fetched in every iteration.
-func (lister *Lister) MaxObjects(n int64) *Lister {
+func (lister *NodeLister) MaxObjects(n int64) *NodeLister {
 	lister.maxObjects = n
 	return lister
 }
 
 // IgnoreNotFound controls listing to ignore node not found error.
-func (lister *Lister) IgnoreNotFound(b bool) *Lister {
+func (lister *NodeLister) IgnoreNotFound(b bool) *NodeLister {
 	lister.ignoreNotFound = b
 	return lister
 }
 
 // List returns channel to loop through node items.
-func (lister *Lister) List(ctx context.Context) <-chan ListNodeResult {
+func (lister *NodeLister) List(ctx context.Context) <-chan ListNodeResult {
 	getOnly := len(lister.nodes) == 0 &&
 		len(lister.nodeNames) != 0
 
@@ -105,7 +104,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListNodeResult {
 				LabelSelector: labelSelector,
 			}
 			for {
-				result, err := client.NodeClient().List(ctx, options)
+				result, err := NodeClient().List(ctx, options)
 				if err != nil {
 					send(ListNodeResult{Err: err})
 					return
@@ -139,7 +138,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListNodeResult {
 		}
 
 		for _, nodeName := range lister.nodeNames {
-			node, err := client.NodeClient().Get(ctx, nodeName, metav1.GetOptions{})
+			node, err := NodeClient().Get(ctx, nodeName, metav1.GetOptions{})
 			if err != nil {
 				send(ListNodeResult{Err: err})
 				return
@@ -154,7 +153,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListNodeResult {
 }
 
 // Get returns list of nodes.
-func (lister *Lister) Get(ctx context.Context) ([]types.Node, error) {
+func (lister *NodeLister) Get(ctx context.Context) ([]types.Node, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -169,22 +168,22 @@ func (lister *Lister) Get(ctx context.Context) ([]types.Node, error) {
 	return nodeList, nil
 }
 
-// WatchEvent represents the node events.
-type WatchEvent struct {
+// WatchEvent represents the events used in the Lister.
+type WatchEvent[I any] struct {
 	Type watch.EventType
-	Node *types.Node
+	Item I
 	Err  error
 }
 
 // Watch looks for changes in NodeList and reports them.
-func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), error) {
+func (lister *NodeLister) Watch(ctx context.Context) (<-chan WatchEvent[*types.Node], func(), error) {
 	if len(lister.nodeNames) > 0 {
 		return nil, nil, errors.New("unsupported selector")
 	}
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
 		directpvtypes.NodeLabelKey: lister.nodes,
 	}
-	nodeWatchInterface, err := client.NodeClient().Watch(ctx, metav1.ListOptions{
+	nodeWatchInterface, err := NodeClient().Watch(ctx, metav1.ListOptions{
 		LabelSelector: directpvtypes.ToLabelSelector(labelMap),
 	})
 	if err != nil {
@@ -192,7 +191,7 @@ func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), err
 	}
 	stopFn := nodeWatchInterface.Stop
 
-	watchCh := make(chan WatchEvent)
+	watchCh := make(chan WatchEvent[*types.Node])
 	go func() {
 		defer close(watchCh)
 		resultCh := nodeWatchInterface.ResultChan()
@@ -205,15 +204,15 @@ func (lister *Lister) Watch(ctx context.Context) (<-chan WatchEvent, func(), err
 			var node types.Node
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &node)
 			if err != nil {
-				watchCh <- WatchEvent{
+				watchCh <- WatchEvent[*types.Node]{
 					Type: result.Type,
 					Err:  fmt.Errorf("unable to convert unstructured object %s; %v", unstructured.GetName(), err),
 				}
 				continue
 			}
-			watchCh <- WatchEvent{
+			watchCh <- WatchEvent[*types.Node]{
 				Type: result.Type,
-				Node: &node,
+				Item: &node,
 			}
 		}
 	}()

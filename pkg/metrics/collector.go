@@ -24,7 +24,6 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/minio/directpv/pkg/xfs"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog/v2"
@@ -101,7 +100,7 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	resultCh := volume.NewLister().
+	resultCh := client.NewVolumeLister().
 		NodeSelector([]directpvtypes.LabelValue{directpvtypes.ToLabelValue(string(c.nodeID))}).
 		List(ctx)
 	for result := range resultCh {

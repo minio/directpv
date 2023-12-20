@@ -26,12 +26,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
-	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/initrequest"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
@@ -84,26 +82,6 @@ func init() {
 
 	initCmd.PersistentFlags().DurationVar(&initRequestListTimeout, "timeout", initRequestListTimeout, "specify timeout for the initialization process")
 	addDangerousFlag(initCmd, "Perform initialization of drives which will permanently erase existing data")
-}
-
-func toInitRequestObjects(config *InitConfig, requestID string) (initRequests []types.InitRequest) {
-	for _, node := range config.Nodes {
-		initDevices := []types.InitDevice{}
-		for _, device := range node.Drives {
-			if strings.ToLower(device.Select) != driveSelectedValue {
-				continue
-			}
-			initDevices = append(initDevices, types.InitDevice{
-				ID:    device.ID,
-				Name:  device.Name,
-				Force: device.FS != "",
-			})
-		}
-		if len(initDevices) > 0 {
-			initRequests = append(initRequests, *types.NewInitRequest(requestID, node.Name, initDevices))
-		}
-	}
-	return
 }
 
 func showResults(results []initResult) {
@@ -195,7 +173,7 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 	ctx, cancel := context.WithTimeout(ctx, initRequestListTimeout)
 	defer cancel()
 
-	eventCh, stop, err := initrequest.NewLister().
+	eventCh, stop, err := client.NewInitRequestLister().
 		RequestIDSelector(toLabelValues([]string{requestID})).
 		Watch(ctx)
 	if err != nil {
@@ -216,7 +194,7 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 			}
 			switch event.Type {
 			case watch.Modified, watch.Added:
-				initReq := event.InitRequest
+				initReq := event.Item
 				if initReq.Status.Status != directpvtypes.InitStatusPending {
 					results = append(results, initResult{
 						requestID: initReq.Name,
@@ -250,13 +228,13 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 	}
 }
 
-func readInitConfig(inputFile string) (*InitConfig, error) {
+func readInitConfig(inputFile string) (*types.InitConfig, error) {
 	f, err := os.Open(inputFile)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return parseInitConfig(f)
+	return types.ParseInitConfig(f)
 }
 
 func initMain(ctx context.Context, inputFile string) {
@@ -265,8 +243,7 @@ func initMain(ctx context.Context, inputFile string) {
 		utils.Eprintf(quietFlag, true, "unable to read the input file; %v", err.Error())
 		os.Exit(1)
 	}
-	requestID := uuid.New().String()
-	initRequests := toInitRequestObjects(initConfig, requestID)
+	initRequests, requestID := initConfig.ToInitRequestObjects()
 	if len(initRequests) == 0 {
 		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to init"))
 		os.Exit(1)

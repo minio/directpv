@@ -27,7 +27,6 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -91,7 +90,7 @@ func moveMain(ctx context.Context, src, dest string) {
 
 	var requiredCapacity int64
 	var volumes []types.Volume
-	for result := range volume.NewLister().VolumeNameSelector(sourceVolumeNames).List(ctx) {
+	for result := range client.NewVolumeLister().VolumeNameSelector(sourceVolumeNames).List(ctx) {
 		if result.Err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
 			os.Exit(1)

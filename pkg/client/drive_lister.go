@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package volume
+package client
 
 import (
 	"context"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -28,121 +27,97 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ListVolumeResult denotes list of volume result.
-type ListVolumeResult struct {
-	Volume types.Volume
-	Err    error
+// ListDriveResult denotes list of drive result.
+type ListDriveResult struct {
+	Drive types.Drive
+	Err   error
 }
 
-// Lister is volume lister.
-type Lister struct {
+// DriveLister is lister wrapper for DirectPVDrive listing.
+type DriveLister struct {
 	nodes          []directpvtypes.LabelValue
 	driveNames     []directpvtypes.LabelValue
-	driveIDs       []directpvtypes.LabelValue
-	podNames       []directpvtypes.LabelValue
-	podNSs         []directpvtypes.LabelValue
-	statusList     []directpvtypes.VolumeStatus
-	volumeNames    []string
+	accessTiers    []directpvtypes.LabelValue
+	statusList     []directpvtypes.DriveStatus
+	driveIDs       []directpvtypes.DriveID
 	labels         map[directpvtypes.LabelKey]directpvtypes.LabelValue
 	maxObjects     int64
 	ignoreNotFound bool
 }
 
-// NewLister creates new volume lister.
-func NewLister() *Lister {
-	return &Lister{
+// NewDriveLister creates new drive lister.
+func NewDriveLister() *DriveLister {
+	return &DriveLister{
 		maxObjects: k8s.MaxThreadCount,
 	}
 }
 
 // NodeSelector adds filter listing by nodes.
-func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
+func (lister *DriveLister) NodeSelector(nodes []directpvtypes.LabelValue) *DriveLister {
 	lister.nodes = nodes
 	return lister
 }
 
 // DriveNameSelector adds filter listing by drive names.
-func (lister *Lister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *Lister {
+func (lister *DriveLister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *DriveLister {
 	lister.driveNames = driveNames
 	return lister
 }
 
-// DriveIDSelector adds filter listing by drive IDs.
-func (lister *Lister) DriveIDSelector(driveIDs []directpvtypes.LabelValue) *Lister {
-	lister.driveIDs = driveIDs
-	return lister
-}
-
-// PodNameSelector adds filter listing by pod names.
-func (lister *Lister) PodNameSelector(podNames []directpvtypes.LabelValue) *Lister {
-	lister.podNames = podNames
-	return lister
-}
-
-// PodNSSelector adds filter listing by pod namespaces.
-func (lister *Lister) PodNSSelector(podNSs []directpvtypes.LabelValue) *Lister {
-	lister.podNSs = podNSs
-	return lister
-}
-
-// StatusSelector adds filter listing by volume status.
-func (lister *Lister) StatusSelector(statusList []directpvtypes.VolumeStatus) *Lister {
+// StatusSelector adds filter listing by drive status.
+func (lister *DriveLister) StatusSelector(statusList []directpvtypes.DriveStatus) *DriveLister {
 	lister.statusList = statusList
 	return lister
 }
 
-// VolumeNameSelector adds filter listing by volume names.
-func (lister *Lister) VolumeNameSelector(volumeNames []string) *Lister {
-	lister.volumeNames = volumeNames
+// DriveIDSelector adds filter listing by drive IDs.
+func (lister *DriveLister) DriveIDSelector(driveIDs []directpvtypes.DriveID) *DriveLister {
+	lister.driveIDs = driveIDs
 	return lister
 }
 
 // LabelSelector adds filter listing by labels.
-func (lister *Lister) LabelSelector(labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *Lister {
+func (lister *DriveLister) LabelSelector(labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *DriveLister {
 	lister.labels = labels
 	return lister
 }
 
 // MaxObjects controls number of items to be fetched in every iteration.
-func (lister *Lister) MaxObjects(n int64) *Lister {
+func (lister *DriveLister) MaxObjects(n int64) *DriveLister {
 	lister.maxObjects = n
 	return lister
 }
 
 // IgnoreNotFound controls listing to ignore drive not found error.
-func (lister *Lister) IgnoreNotFound(b bool) *Lister {
+func (lister *DriveLister) IgnoreNotFound(b bool) *DriveLister {
 	lister.ignoreNotFound = b
 	return lister
 }
 
-// List returns channel to loop through volume items.
-func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
+// List returns channel to loop through drive items.
+func (lister *DriveLister) List(ctx context.Context) <-chan ListDriveResult {
 	getOnly := len(lister.nodes) == 0 &&
 		len(lister.driveNames) == 0 &&
-		len(lister.driveIDs) == 0 &&
-		len(lister.podNames) == 0 &&
-		len(lister.podNSs) == 0 &&
+		len(lister.accessTiers) == 0 &&
 		len(lister.statusList) == 0 &&
 		len(lister.labels) == 0 &&
-		len(lister.volumeNames) != 0
+		len(lister.driveIDs) != 0
 
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-		directpvtypes.NodeLabelKey:      lister.nodes,
-		directpvtypes.DriveNameLabelKey: lister.driveNames,
-		directpvtypes.DriveLabelKey:     lister.driveIDs,
-		directpvtypes.PodNameLabelKey:   lister.podNames,
-		directpvtypes.PodNSLabelKey:     lister.podNSs,
+		directpvtypes.NodeLabelKey:       lister.nodes,
+		directpvtypes.DriveNameLabelKey:  lister.driveNames,
+		directpvtypes.AccessTierLabelKey: lister.accessTiers,
 	}
 	for k, v := range lister.labels {
 		labelMap[k] = []directpvtypes.LabelValue{v}
 	}
 	labelSelector := directpvtypes.ToLabelSelector(labelMap)
 
-	resultCh := make(chan ListVolumeResult)
+	resultCh := make(chan ListDriveResult)
 	go func() {
 		defer close(resultCh)
 
-		send := func(result ListVolumeResult) bool {
+		send := func(result ListDriveResult) bool {
 			select {
 			case <-ctx.Done():
 				return false
@@ -156,32 +131,30 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 				Limit:         lister.maxObjects,
 				LabelSelector: labelSelector,
 			}
-
 			for {
-				result, err := client.VolumeClient().List(ctx, options)
+				result, err := DriveClient().List(ctx, options)
 				if err != nil {
 					if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 						break
 					}
-
-					send(ListVolumeResult{Err: err})
+					send(ListDriveResult{Err: err})
 					return
 				}
 
 				for _, item := range result.Items {
 					var found bool
-					var values []string
-					for i := range lister.volumeNames {
-						if lister.volumeNames[i] == item.Name {
+					var values []directpvtypes.DriveID
+					for i := range lister.driveIDs {
+						if lister.driveIDs[i] == item.GetDriveID() {
 							found = true
 						} else {
-							values = append(values, lister.volumeNames[i])
+							values = append(values, lister.driveIDs[i])
 						}
 					}
-					lister.volumeNames = values
+					lister.driveIDs = values
 
 					if found || len(lister.statusList) == 0 || utils.Contains(lister.statusList, item.Status.Status) {
-						if !send(ListVolumeResult{Volume: item}) {
+						if !send(ListDriveResult{Drive: item}) {
 							return
 						}
 					}
@@ -195,17 +168,18 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 			}
 		}
 
-		for _, volumeName := range lister.volumeNames {
-			volume, err := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{})
+		for _, driveID := range lister.driveIDs {
+			drive, err := DriveClient().Get(ctx, string(driveID), metav1.GetOptions{})
 			if err != nil {
 				if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 					continue
 				}
 
-				send(ListVolumeResult{Err: err})
+				send(ListDriveResult{Err: err})
 				return
 			}
-			if !send(ListVolumeResult{Volume: *volume}) {
+
+			if !send(ListDriveResult{Drive: *drive}) {
 				return
 			}
 		}
@@ -214,18 +188,18 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 	return resultCh
 }
 
-// Get returns list of volumes.
-func (lister *Lister) Get(ctx context.Context) ([]types.Volume, error) {
+// Get returns list of drives.
+func (lister *DriveLister) Get(ctx context.Context) ([]types.Drive, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	volumeList := []types.Volume{}
+	driveList := []types.Drive{}
 	for result := range lister.List(ctx) {
 		if result.Err != nil {
-			return volumeList, result.Err
+			return driveList, result.Err
 		}
-		volumeList = append(volumeList, result.Volume)
+		driveList = append(driveList, result.Drive)
 	}
 
-	return volumeList, nil
+	return driveList, nil
 }
