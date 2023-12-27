@@ -2,6 +2,9 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
+  annotations:
+    directpv.min.io/image-tag: v4.0.10
+    directpv.min.io/plugin-version: v4.0.10
   creationTimestamp: null
   labels:
     application-name: directpv.min.io
@@ -13,14 +16,14 @@ metadata:
 spec:
   selector:
     matchLabels:
-      selector.directpv.min.io: directpv-min-io-knrfr
+      selector.directpv.min.io: directpv-min-io-qlp2m
   template:
     metadata:
       annotations:
         created-by: kubectl-directpv
       creationTimestamp: null
       labels:
-        selector.directpv.min.io: directpv-min-io-knrfr
+        selector.directpv.min.io: directpv-min-io-qlp2m
         selector.directpv.min.io.service: enabled
       name: node-server
       namespace: directpv
@@ -64,7 +67,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: quay.io/minio/directpv:v4.0.9
+        image: quay.io/minio/directpv:v4.0.10
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -135,7 +138,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: spec.nodeName
-        image: quay.io/minio/directpv:v4.0.9
+        image: quay.io/minio/directpv:v4.0.10
         name: node-controller
         resources: {}
         securityContext:

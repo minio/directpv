@@ -1,6 +1,8 @@
 apiVersion: v1
 kind: Namespace
 metadata:
+  annotations:
+    directpv.min.io/plugin-version: v4.0.10
   creationTimestamp: null
   finalizers:
   - foregroundDeletion

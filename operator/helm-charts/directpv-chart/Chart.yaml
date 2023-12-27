@@ -3,7 +3,7 @@ name: directpv-chart
 description: A Helm chart for DirectPV
 type: application
 version: 0.1.0
-appVersion: "4.0.9"
+appVersion: "4.0.10"
 maintainers:
 - email: dev@min.io
   name: MinIO
