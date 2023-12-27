@@ -63,10 +63,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2023-10-11T20:34:55Z"
+    createdAt: "2023-12-27T17:15:14Z"
     operators.operatorframework.io/builder: operator-sdk-v1.31.0
     operators.operatorframework.io/project_layout: helm.sdk.operatorframework.io/v1
-  name: minio-directpv-operator.v4.0.9
+  name: minio-directpv-operator.v4.0.10
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -243,7 +243,7 @@ spec:
                       - --metrics-bind-address=127.0.0.1:8080
                       - --leader-elect
                       - --leader-election-id=directpv-operator
-                    image: quay.io/minio/directpv-operator@sha256:787255f71b0e76541b51e234a3ecf1f51d0fab868cf9eba8bcc6fdcd53c2cb6c
+                    image: quay.io/minio/directpv-operator@sha256:a1a462e2d5194b2b3460f59d37f6969d255ef6e081a3366961d3f2d8f8590b5c
                     livenessProbe:
                       httpGet:
                         path: /healthz
@@ -330,8 +330,8 @@ spec:
     name: DirectPV
     url: https://min.io/directpv
   relatedImages:
-    - image: quay.io/minio/directpv-operator@sha256:787255f71b0e76541b51e234a3ecf1f51d0fab868cf9eba8bcc6fdcd53c2cb6c
+    - image: quay.io/minio/directpv-operator@sha256:a1a462e2d5194b2b3460f59d37f6969d255ef6e081a3366961d3f2d8f8590b5c
       name: manager
     - image: gcr.io/kubebuilder/kube-rbac-proxy@sha256:d4883d7c622683b3319b5e6b3a7edfbf2594c18060131a8bf64504805f875522
       name: kube-rbac-proxy
-  version: 4.0.9
+  version: 4.0.10

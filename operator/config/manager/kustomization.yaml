@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: quay.io/minio/directpv-operator
-  newTag: 4.0.9
+  newTag: 4.0.10
