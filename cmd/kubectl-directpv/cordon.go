@@ -19,16 +19,13 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var cordonCmd = &cobra.Command{
@@ -114,64 +111,15 @@ func validateCordonCmd() error {
 }
 
 func cordonMain(ctx context.Context) {
-	var processed bool
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh := client.NewDriveLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		StatusSelector(driveStatusSelectors).
-		DriveIDSelector(driveIDSelectors).
-		List(ctx)
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-
-		processed = true
-
-		if result.Drive.IsUnschedulable() {
-			continue
-		}
-
-		volumes := result.Drive.GetVolumes()
-		if len(volumes) != 0 {
-			for vresult := range client.NewVolumeLister().VolumeNameSelector(volumes).IgnoreNotFound(true).List(ctx) {
-				if vresult.Err != nil {
-					utils.Eprintf(quietFlag, true, "%v\n", vresult.Err)
-					os.Exit(1)
-				}
-
-				if vresult.Volume.Status.Status == directpvtypes.VolumeStatusPending {
-					utils.Eprintf(quietFlag, true, "unable to cordon drive %v; pending volumes found\n", result.Drive.GetDriveID())
-					os.Exit(1)
-				}
-			}
-		}
-
-		result.Drive.Unschedulable()
-		if !dryRunFlag {
-			if _, err := client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{}); err != nil {
-				utils.Eprintf(quietFlag, true, "unable to cordon drive %v; %v\n", result.Drive.GetDriveID(), err)
-				os.Exit(1)
-			}
-		}
-
-		if !quietFlag {
-			fmt.Printf("Drive %v/%v cordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-		}
-	}
-
-	if !processed {
-		if allFlag {
-			utils.Eprintf(quietFlag, false, "No resources found\n")
-		} else {
-			utils.Eprintf(quietFlag, false, "No matching resources found\n")
-		}
-
+	if err := admin.Cordon(ctx, admin.CordonArgs{
+		Nodes:    nodesArgs,
+		Drives:   drivesArgs,
+		Status:   driveStatusSelectors,
+		DriveIDs: driveIDSelectors,
+		Quiet:    quietFlag,
+		DryRun:   dryRunFlag,
+	}); err != nil {
+		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

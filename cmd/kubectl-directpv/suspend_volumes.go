@@ -19,16 +19,13 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 var suspendVolumesCmd = &cobra.Command{
@@ -107,56 +104,16 @@ func validateSuspendVolumesCmd() error {
 }
 
 func suspendVolumesMain(ctx context.Context) {
-	var processed bool
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh := client.NewVolumeLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		PodNameSelector(toLabelValues(podNameArgs)).
-		PodNSSelector(toLabelValues(podNSArgs)).
-		VolumeNameSelector(volumeNameArgs).
-		List(ctx)
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-
-		processed = true
-
-		if result.Volume.IsSuspended() {
-			continue
-		}
-
-		volumeClient := client.VolumeClient()
-		updateFunc := func() error {
-			volume, err := volumeClient.Get(ctx, result.Volume.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			volume.Suspend()
-			if !dryRunFlag {
-				if _, err := volumeClient.Update(ctx, volume, metav1.UpdateOptions{}); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			utils.Eprintf(quietFlag, true, "unable to suspend volume %v; %v\n", result.Volume.Name, err)
-			os.Exit(1)
-		}
-
-		if !quietFlag {
-			fmt.Printf("Volume %v/%v suspended\n", result.Volume.GetNodeID(), result.Volume.Name)
-		}
-	}
-
-	if !processed {
-		utils.Eprintf(quietFlag, false, "No matching resources found\n")
+	if err := admin.SuspendVolumes(ctx, admin.SuspendVolumeArgs{
+		Nodes:         nodesArgs,
+		Drives:        drivesArgs,
+		PodNames:      podNameArgs,
+		PodNamespaces: podNSArgs,
+		VolumeNames:   volumeNameArgs,
+		DryRun:        dryRunFlag,
+		Quiet:         quietFlag,
+	}); err != nil {
+		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

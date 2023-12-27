@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"sigs.k8s.io/yaml"
 )
 
@@ -152,4 +153,12 @@ func Eprintf(quiet, asErr bool, format string, a ...any) {
 		fmt.Fprintf(os.Stderr, "%v ", color.RedString("ERROR"))
 	}
 	fmt.Fprintf(os.Stderr, format, a...)
+}
+
+// ToLabelValues converts a string list to label values
+func ToLabelValues(slice []string) (values []directpvtypes.LabelValue) {
+	for _, s := range slice {
+		values = append(values, directpvtypes.ToLabelValue(s))
+	}
+	return
 }

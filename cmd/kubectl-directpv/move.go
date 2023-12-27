@@ -18,17 +18,14 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
+	"github.com/minio/directpv/pkg/admin"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var moveCmd = &cobra.Command{
@@ -61,131 +58,17 @@ var moveCmd = &cobra.Command{
 			os.Exit(-1)
 		}
 
-		moveMain(c.Context(), src, dest)
+		moveMain(c.Context(), directpvtypes.DriveID(src), directpvtypes.DriveID(dest))
 	},
 }
 
-func moveMain(ctx context.Context, src, dest string) {
-	if src == dest {
-		utils.Eprintf(quietFlag, true, "source and destination drives are same\n")
-		os.Exit(1)
-	}
-
-	srcDrive, err := client.DriveClient().Get(ctx, src, metav1.GetOptions{})
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "unable to get source drive; %v\n", err)
-		os.Exit(1)
-	}
-
-	if !srcDrive.IsUnschedulable() {
-		utils.Eprintf(quietFlag, true, "source drive is not cordoned\n")
-		os.Exit(1)
-	}
-
-	sourceVolumeNames := srcDrive.GetVolumes()
-	if len(sourceVolumeNames) == 0 {
-		utils.Eprintf(quietFlag, false, "No volumes found in source drive %v\n", src)
-		return
-	}
-
-	var requiredCapacity int64
-	var volumes []types.Volume
-	for result := range client.NewVolumeLister().VolumeNameSelector(sourceVolumeNames).List(ctx) {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-
-		if result.Volume.IsPublished() {
-			utils.Eprintf(quietFlag, true, "cannot move published volume %v\n", result.Volume.Name)
-			os.Exit(1)
-		}
-
-		requiredCapacity += result.Volume.Status.TotalCapacity
-		volumes = append(volumes, result.Volume)
-	}
-
-	if len(volumes) == 0 {
-		utils.Eprintf(quietFlag, false, "No volumes found in source drive %v\n", src)
-		return
-	}
-
-	destDrive, err := client.DriveClient().Get(ctx, dest, metav1.GetOptions{})
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "unable to get destination drive; %v\n", err)
-		os.Exit(1)
-	}
-
-	if destDrive.GetNodeID() != srcDrive.GetNodeID() {
-		utils.Eprintf(
-			quietFlag,
-			true,
-			"source and destination drives must be in same node; source node %v; desination node %v\n",
-			srcDrive.GetNodeID(),
-			destDrive.GetNodeID(),
-		)
-		os.Exit(1)
-	}
-
-	if !destDrive.IsUnschedulable() {
-		utils.Eprintf(quietFlag, true, "destination drive is not cordoned\n")
-		os.Exit(1)
-	}
-
-	if destDrive.Status.Status != directpvtypes.DriveStatusReady {
-		utils.Eprintf(quietFlag, true, "destination drive is not in ready state\n")
-		os.Exit(1)
-	}
-
-	if srcDrive.GetAccessTier() != destDrive.GetAccessTier() {
-		utils.Eprintf(
-			quietFlag,
-			true,
-			"source drive access-tier %v and destination drive access-tier %v differ\n",
-			srcDrive.GetAccessTier(),
-			destDrive.GetAccessTier(),
-		)
-		os.Exit(1)
-	}
-
-	if destDrive.Status.FreeCapacity < requiredCapacity {
-		utils.Eprintf(
-			quietFlag,
-			true,
-			"insufficient free capacity on destination drive; required=%v free=%v\n",
-			printableBytes(requiredCapacity),
-			printableBytes(destDrive.Status.FreeCapacity),
-		)
-		os.Exit(1)
-	}
-
-	for _, volume := range volumes {
-		if destDrive.AddVolumeFinalizer(volume.Name) {
-			destDrive.Status.FreeCapacity -= volume.Status.TotalCapacity
-			destDrive.Status.AllocatedCapacity += volume.Status.TotalCapacity
-		}
-	}
-	destDrive.Status.Status = directpvtypes.DriveStatusMoving
-	_, err = client.DriveClient().Update(
-		ctx, destDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
-	)
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "unable to move volumes to destination drive; %v\n", err)
-		os.Exit(1)
-	}
-
-	for _, volume := range volumes {
-		if !quietFlag {
-			fmt.Println("Moving volume", volume.Name)
-		}
-	}
-
-	srcDrive.ResetFinalizers()
-	_, err = client.DriveClient().Update(
-		ctx, srcDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
-	)
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "unable to remove volume references in source drive; %v\n", err)
+func moveMain(ctx context.Context, src, dest directpvtypes.DriveID) {
+	if err := admin.Move(ctx, admin.MoveArgs{
+		Source:      src,
+		Destination: dest,
+		Quiet:       quietFlag,
+	}); err != nil {
+		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
 	}
 }

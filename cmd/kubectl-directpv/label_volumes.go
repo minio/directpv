@@ -19,16 +19,13 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 var labelVolumesCmd = &cobra.Command{
@@ -105,51 +102,17 @@ func init() {
 }
 
 func labelVolumesMain(ctx context.Context) {
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh := client.NewVolumeLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		DriveIDSelector(toLabelValues(driveIDArgs)).
-		PodNameSelector(toLabelValues(podNameArgs)).
-		PodNSSelector(toLabelValues(podNSArgs)).
-		StatusSelector(volumeStatusSelectors).
-		VolumeNameSelector(volumeNameArgs).
-		LabelSelector(labelSelectors).
-		List(ctx)
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-
-		var verb string
-		volume := &result.Volume
-		for i := range labels {
-			updateFunc := func() (err error) {
-				if labels[i].remove {
-					if ok := volume.RemoveLabel(labels[i].key); !ok {
-						return
-					}
-					verb = "removed from"
-				} else {
-					if ok := volume.SetLabel(labels[i].key, labels[i].value); !ok {
-						return
-					}
-					verb = "set on"
-				}
-				if !dryRunFlag {
-					volume, err = client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{})
-				}
-				if err != nil {
-					utils.Eprintf(quietFlag, true, "%v: %v\n", volume.Name, err)
-				} else if !quietFlag {
-					fmt.Printf("Label '%s' successfully %s %v\n", labels[i].String(), verb, volume.Name)
-				}
-				return
-			}
-			retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
-		}
+	if err := admin.LabelVolumes(ctx, admin.LabelVolumeArgs{
+		Nodes:          nodesArgs,
+		Drives:         drivesArgs,
+		DriveIDs:       driveIDArgs,
+		PodNames:       podNameArgs,
+		PodNamespaces:  podNSArgs,
+		VolumeStatus:   volumeStatusSelectors,
+		VolumeNames:    volumeNameArgs,
+		LabelSelectors: labelSelectors,
+	}, labels); err != nil {
+		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+		os.Exit(1)
 	}
 }

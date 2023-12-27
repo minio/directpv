@@ -23,12 +23,10 @@ import (
 	"os"
 	"strings"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var removeCmd = &cobra.Command{
@@ -114,59 +112,15 @@ func validateRemoveCmd() error {
 }
 
 func removeMain(ctx context.Context) {
-	var processed bool
-	var failed bool
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh := client.NewDriveLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		StatusSelector(driveStatusSelectors).
-		DriveIDSelector(driveIDSelectors).
-		IgnoreNotFound(true).
-		List(ctx)
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-
-		processed = true
-		switch result.Drive.Status.Status {
-		case directpvtypes.DriveStatusRemoved:
-		default:
-			volumeCount := result.Drive.GetVolumeCount()
-			if volumeCount > 0 {
-				failed = true
-			} else {
-				result.Drive.Status.Status = directpvtypes.DriveStatusRemoved
-				var err error
-				if !dryRunFlag {
-					_, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
-				}
-				if err != nil {
-					failed = true
-					utils.Eprintf(quietFlag, true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
-				} else if !quietFlag {
-					fmt.Printf("Removing %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-				}
-			}
-		}
-	}
-
-	if !processed {
-		if allFlag {
-			utils.Eprintf(quietFlag, false, "No resources found\n")
-		} else {
-			utils.Eprintf(quietFlag, false, "No matching resources found\n")
-		}
-
-		os.Exit(1)
-	}
-
-	if failed {
+	if err := admin.Remove(ctx, admin.RemoveArgs{
+		Nodes:       nodesArgs,
+		Drives:      drivesArgs,
+		DriveStatus: driveStatusSelectors,
+		DriveIDs:    driveIDSelectors,
+		Quiet:       quietFlag,
+		DryRun:      dryRunFlag,
+	}); err != nil {
+		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }
