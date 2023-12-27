@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2023 MinIO, Inc.
+// Copyright (c) 2024 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package types
+package admin
 
 import (
 	"errors"
@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/uuid"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/types"
 	"gopkg.in/yaml.v3"
 )
 
@@ -71,7 +72,7 @@ func (config InitConfig) Write(w io.Writer) error {
 }
 
 // ToInitConfig converts the map to InitConfig
-func ToInitConfig(resultMap map[directpvtypes.NodeID][]Device) InitConfig {
+func ToInitConfig(resultMap map[directpvtypes.NodeID][]types.Device) InitConfig {
 	nodeInfo := []NodeInfo{}
 	initConfig := NewInitConfig()
 	for node, devices := range resultMap {
@@ -114,22 +115,22 @@ func ToInitConfig(resultMap map[directpvtypes.NodeID][]Device) InitConfig {
 //			})
 //		}()
 //	```
-func (config *InitConfig) ToInitRequestObjects() (initRequests []InitRequest, requestID string) {
+func (config *InitConfig) ToInitRequestObjects() (initRequests []types.InitRequest, requestID string) {
 	requestID = uuid.New().String()
 	for _, node := range config.Nodes {
-		initDevices := []InitDevice{}
+		initDevices := []types.InitDevice{}
 		for _, device := range node.Drives {
 			if strings.ToLower(device.Select) != DriveSelectedValue {
 				continue
 			}
-			initDevices = append(initDevices, InitDevice{
+			initDevices = append(initDevices, types.InitDevice{
 				ID:    device.ID,
 				Name:  device.Name,
 				Force: device.FS != "",
 			})
 		}
 		if len(initDevices) > 0 {
-			initRequests = append(initRequests, *NewInitRequest(requestID, node.Name, initDevices))
+			initRequests = append(initRequests, *types.NewInitRequest(requestID, node.Name, initDevices))
 		}
 	}
 	return

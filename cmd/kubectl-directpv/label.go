@@ -21,24 +21,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/spf13/cobra"
 )
 
-type label struct {
-	key    types.LabelKey
-	value  types.LabelValue
-	remove bool
-}
-
-func (l label) String() string {
-	if l.value == "" {
-		return string(l.key)
-	}
-	return string(l.key) + ":" + string(l.value)
-}
-
-var labels []label
+var labels []admin.Label
 
 var labelCmd = &cobra.Command{
 	Use:   "label",
@@ -71,28 +59,28 @@ func validateLabelCmd() error {
 	return validateDriveNameArgs()
 }
 
-func validateLabelCmdArgs(args []string) (labels []label, err error) {
+func validateLabelCmdArgs(args []string) (labels []admin.Label, err error) {
 	if len(args) == 0 {
 		return nil, errors.New("at least one label must be provided")
 	}
 
 	for _, arg := range args {
-		var label label
+		var label admin.Label
 		tokens := strings.Split(arg, "=")
 		switch len(tokens) {
 		case 1:
 			if !strings.HasSuffix(arg, "-") {
 				return nil, fmt.Errorf("argument %v must end with '-' to remove label", arg)
 			}
-			label.remove = true
-			if label.key, err = types.NewLabelKey(arg[:len(arg)-1]); err != nil {
+			label.Remove = true
+			if label.Key, err = types.NewLabelKey(arg[:len(arg)-1]); err != nil {
 				return nil, err
 			}
 		case 2:
-			if label.key, err = types.NewLabelKey(tokens[0]); err != nil {
+			if label.Key, err = types.NewLabelKey(tokens[0]); err != nil {
 				return nil, err
 			}
-			if label.value, err = types.NewLabelValue(tokens[1]); err != nil {
+			if label.Value, err = types.NewLabelValue(tokens[1]); err != nil {
 				return nil, err
 			}
 		default:

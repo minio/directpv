@@ -118,8 +118,8 @@ func validateListDrivesArgs() error {
 
 func listDrivesMain(ctx context.Context) {
 	drives, err := client.NewDriveLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
+		NodeSelector(utils.ToLabelValues(nodesArgs)).
+		DriveNameSelector(utils.ToLabelValues(drivesArgs)).
 		StatusSelector(driveStatusSelectors).
 		DriveIDSelector(driveIDSelectors).
 		LabelSelector(labelSelectors).

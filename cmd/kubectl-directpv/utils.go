@@ -20,14 +20,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 
 	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/v6/table"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/mitchellh/go-homedir"
 	"k8s.io/klog/v2"
 )
 
@@ -49,25 +45,6 @@ func printJSON(obj interface{}) {
 	}
 
 	fmt.Print(string(data))
-}
-
-func getDefaultAuditDir() (string, error) {
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		return "", err
-	}
-	return path.Join(homeDir, "."+consts.AppName, "audit"), nil
-}
-
-func openAuditFile(auditFile string) (*utils.SafeFile, error) {
-	defaultAuditDir, err := getDefaultAuditDir()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get default audit directory; %w", err)
-	}
-	if err := os.MkdirAll(defaultAuditDir, 0o700); err != nil {
-		return nil, fmt.Errorf("unable to create default audit directory; %w", err)
-	}
-	return utils.NewSafeFile(path.Join(defaultAuditDir, auditFile))
 }
 
 func printableString(s string) string {
@@ -98,13 +75,6 @@ func newTableWriter(header table.Row, sortBy []table.SortBy, noHeader bool) tabl
 	writer.SetStyle(style)
 
 	return writer
-}
-
-func toLabelValues(slice []string) (values []directpvtypes.LabelValue) {
-	for _, s := range slice {
-		values = append(values, directpvtypes.ToLabelValue(s))
-	}
-	return
 }
 
 func validateOutputFormat(isWideSupported bool) error {

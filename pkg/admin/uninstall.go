@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2022 MinIO, Inc.
+// Copyright (c) 2023 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,32 +14,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package client
+package admin
 
 import (
-	"log"
-	"sync/atomic"
+	"context"
 
-	"github.com/minio/directpv/pkg/k8s"
-	"k8s.io/klog/v2"
+	"github.com/minio/directpv/pkg/installer"
 )
 
-// Init initializes legacy clients.
-func Init() {
-	if atomic.AddInt32(&initialized, 1) != 1 {
-		return
-	}
+// UninstallArgs represents the args to uninstall
+type UninstallArgs struct {
+	Quiet     bool
+	Dangerous bool
+}
 
-	if err := k8s.Init(); err != nil {
-		log.Fatalf("unable to initialize k8s clients; %v", err)
-	}
-
-	var err error
-	if driveClient, err = DirectCSIDriveInterfaceForConfig(k8s.KubeConfig()); err != nil {
-		klog.Fatalf("unable to create new DirectCSI drive interface; %v", err)
-	}
-
-	if volumeClient, err = DirectCSIVolumeInterfaceForConfig(k8s.KubeConfig()); err != nil {
-		klog.Fatalf("unable to create new DirectCSI volume interface; %v", err)
-	}
+// Uninstall uninstalls directpv
+func Uninstall(ctx context.Context, args UninstallArgs) error {
+	return installer.Uninstall(ctx, args.Quiet, args.Dangerous)
 }

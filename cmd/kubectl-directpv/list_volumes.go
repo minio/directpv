@@ -156,11 +156,11 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 
 func listVolumesMain(ctx context.Context) {
 	volumes, err := client.NewVolumeLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		DriveIDSelector(toLabelValues(driveIDArgs)).
-		PodNameSelector(toLabelValues(podNameArgs)).
-		PodNSSelector(toLabelValues(podNSArgs)).
+		NodeSelector(utils.ToLabelValues(nodesArgs)).
+		DriveNameSelector(utils.ToLabelValues(drivesArgs)).
+		DriveIDSelector(utils.ToLabelValues(driveIDArgs)).
+		PodNameSelector(utils.ToLabelValues(podNameArgs)).
+		PodNSSelector(utils.ToLabelValues(podNSArgs)).
 		StatusSelector(volumeStatusSelectors).
 		VolumeNameSelector(volumeNameArgs).
 		LabelSelector(labelSelectors).

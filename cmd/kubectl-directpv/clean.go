@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2024 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -19,19 +19,13 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var cleanCmd = &cobra.Command{
@@ -137,65 +131,16 @@ func validateCleanCmd() error {
 }
 
 func cleanMain(ctx context.Context) {
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh := client.NewVolumeLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		DriveIDSelector(toLabelValues(driveIDArgs)).
-		PodNameSelector(toLabelValues(podNameArgs)).
-		PodNSSelector(toLabelValues(podNSArgs)).
-		StatusSelector(volumeStatusSelectors).
-		VolumeNameSelector(volumeNameArgs).
-		List(ctx)
-
-	matchFunc := func(volume *types.Volume) bool {
-		pv, err := k8s.KubeClient().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return true
-			}
-			utils.Eprintf(quietFlag, true, "unable to get PV for volume %v; %v\n", volume.Name, err)
-			return false
-		}
-		switch pv.Status.Phase {
-		case corev1.VolumeReleased, corev1.VolumeFailed:
-			return true
-		default:
-			return false
-		}
-	}
-
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-
-		if !matchFunc(&result.Volume) {
-			continue
-		}
-
-		result.Volume.RemovePVProtection()
-
-		if dryRunFlag {
-			continue
-		}
-
-		if _, err := client.VolumeClient().Update(ctx, &result.Volume, metav1.UpdateOptions{
-			TypeMeta: types.NewVolumeTypeMeta(),
-		}); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
-			os.Exit(1)
-		}
-		if err := client.VolumeClient().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
-			os.Exit(1)
-		}
-
-		if !quietFlag {
-			fmt.Println("Removing volume", result.Volume.Name)
-		}
+	if err := admin.Clean(ctx, admin.CleanArgs{
+		Nodes:         nodesArgs,
+		Drives:        drivesArgs,
+		DriveIDs:      driveIDArgs,
+		PodNames:      podNameArgs,
+		PodNamespaces: podNSArgs,
+		VolumeStatus:  volumeStatusSelectors,
+		VolumeNames:   volumeNameArgs,
+	}); err != nil {
+		utils.Eprintf(quietFlag, true, "%v\n", err)
+		os.Exit(1)
 	}
 }

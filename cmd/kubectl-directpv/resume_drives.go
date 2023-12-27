@@ -19,16 +19,13 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 var resumeDrivesCmd = &cobra.Command{
@@ -90,60 +87,14 @@ func validateResumeDrivesCmd() error {
 }
 
 func resumeDrivesMain(ctx context.Context) {
-	var processed bool
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh := client.NewDriveLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		DriveIDSelector(driveIDSelectors).
-		List(ctx)
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-
-		processed = true
-
-		if !result.Drive.IsSuspended() {
-			// only suspended drives can be resumed.
-			continue
-		}
-
-		driveClient := client.DriveClient()
-		updateFunc := func() error {
-			drive, err := driveClient.Get(ctx, result.Drive.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			drive.Resume()
-			if !dryRunFlag {
-				if _, err := driveClient.Update(ctx, drive, metav1.UpdateOptions{}); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			utils.Eprintf(quietFlag, true, "unable to resume drive %v; %v\n", result.Drive.GetDriveID(), err)
-			os.Exit(1)
-		}
-
-		if !quietFlag {
-			fmt.Printf("Drive %v/%v resumed\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-		}
-	}
-
-	if !processed {
-		if allFlag {
-			utils.Eprintf(quietFlag, false, "No resources found\n")
-		} else {
-			utils.Eprintf(quietFlag, false, "No matching resources found\n")
-		}
-
+	if err := admin.ResumeDrives(ctx, admin.ResumeDriveArgs{
+		Nodes:            nodesArgs,
+		Drives:           drivesArgs,
+		DriveIDSelectors: driveIDSelectors,
+		Quiet:            quietFlag,
+		DryRun:           dryRunFlag,
+	}); err != nil {
+		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

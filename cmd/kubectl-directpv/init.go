@@ -18,31 +18,18 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 )
-
-type initResult struct {
-	requestID string
-	nodeID    directpvtypes.NodeID
-	failed    bool
-	devices   []types.InitDeviceResult
-}
 
 var initRequestListTimeout = 2 * time.Minute
 
@@ -84,7 +71,7 @@ func init() {
 	addDangerousFlag(initCmd, "Perform initialization of drives which will permanently erase existing data")
 }
 
-func showResults(results []initResult) {
+func showResults(results []admin.InitResult) {
 	if len(results) == 0 {
 		return
 	}
@@ -113,26 +100,26 @@ func showResults(results []initResult) {
 	)
 
 	for _, result := range results {
-		if result.failed {
+		if result.Failed {
 			writer.AppendRow(
 				[]interface{}{
-					result.requestID,
-					result.nodeID,
+					result.RequestID,
+					result.NodeID,
 					"-",
 					color.HiRedString("ERROR; Failed to initialize"),
 				},
 			)
 			continue
 		}
-		for _, device := range result.devices {
+		for _, device := range result.Devices {
 			msg := "Success"
 			if device.Error != "" {
 				msg = color.HiRedString("Failed; " + device.Error)
 			}
 			writer.AppendRow(
 				[]interface{}{
-					result.requestID,
-					result.nodeID,
+					result.RequestID,
+					result.NodeID,
 					device.Name,
 					msg,
 				},
@@ -142,99 +129,13 @@ func showResults(results []initResult) {
 	writer.Render()
 }
 
-func toProgressLogs(progressMap map[string]progressLog) (logs []progressLog) {
-	for _, v := range progressMap {
-		logs = append(logs, v)
-	}
-	return
-}
-
-func initDevices(ctx context.Context, initRequests []types.InitRequest, requestID string, teaProgram *tea.Program) (results []initResult, err error) {
-	totalReqCount := len(initRequests)
-	totalTasks := totalReqCount * 2
-	var completedTasks int
-	initProgressMap := make(map[string]progressLog, totalReqCount)
-	for i := range initRequests {
-		initReq, err := client.InitRequestClient().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
-		if err != nil {
-			return nil, err
-		}
-		if teaProgram != nil {
-			completedTasks++
-			initProgressMap[initReq.Name] = progressLog{
-				log: fmt.Sprintf("Processing initialization request '%s' for node '%v'", initReq.Name, initReq.GetNodeID()),
-			}
-			teaProgram.Send(progressNotification{
-				progressLogs: toProgressLogs(initProgressMap),
-				percent:      float64(completedTasks) / float64(totalTasks),
-			})
-		}
-	}
-	ctx, cancel := context.WithTimeout(ctx, initRequestListTimeout)
-	defer cancel()
-
-	eventCh, stop, err := client.NewInitRequestLister().
-		RequestIDSelector(toLabelValues([]string{requestID})).
-		Watch(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer stop()
-
-	results = []initResult{}
-	for {
-		select {
-		case event, ok := <-eventCh:
-			if !ok {
-				return
-			}
-			if event.Err != nil {
-				err = event.Err
-				return
-			}
-			switch event.Type {
-			case watch.Modified, watch.Added:
-				initReq := event.Item
-				if initReq.Status.Status != directpvtypes.InitStatusPending {
-					results = append(results, initResult{
-						requestID: initReq.Name,
-						nodeID:    initReq.GetNodeID(),
-						devices:   initReq.Status.Results,
-						failed:    initReq.Status.Status == directpvtypes.InitStatusError,
-					})
-					if teaProgram != nil {
-						completedTasks++
-						initProgressMap[initReq.Name] = progressLog{
-							log:  fmt.Sprintf("Processed initialization request '%s' for node '%v'", initReq.Name, initReq.GetNodeID()),
-							done: true,
-						}
-						teaProgram.Send(progressNotification{
-							progressLogs: toProgressLogs(initProgressMap),
-							percent:      float64(completedTasks) / float64(totalTasks),
-						})
-					}
-				}
-				if len(results) >= totalReqCount {
-					return
-				}
-			case watch.Deleted:
-				return
-			default:
-			}
-		case <-ctx.Done():
-			err = fmt.Errorf("unable to initialize devices; %v", ctx.Err())
-			return
-		}
-	}
-}
-
-func readInitConfig(inputFile string) (*types.InitConfig, error) {
+func readInitConfig(inputFile string) (*admin.InitConfig, error) {
 	f, err := os.Open(inputFile)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return types.ParseInitConfig(f)
+	return admin.ParseInitConfig(f)
 }
 
 func initMain(ctx context.Context, inputFile string) {
@@ -243,44 +144,18 @@ func initMain(ctx context.Context, inputFile string) {
 		utils.Eprintf(quietFlag, true, "unable to read the input file; %v", err.Error())
 		os.Exit(1)
 	}
-	initRequests, requestID := initConfig.ToInitRequestObjects()
-	if len(initRequests) == 0 {
-		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to init"))
-		os.Exit(1)
-	}
-	defer func() {
-		labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-			directpvtypes.RequestIDLabelKey: toLabelValues([]string{requestID}),
+	results, err := admin.InitDevices(ctx, admin.InitDevicesArgs{
+		InitConfig:    initConfig,
+		PrintProgress: !quietFlag,
+		ListTimeout:   initRequestListTimeout,
+	})
+	if err != nil {
+		if errors.Is(err, admin.ErrNoDrivesAvailableToInit) {
+			utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to init"))
+		} else {
+			utils.Eprintf(quietFlag, true, "%v\n", err)
 		}
-		client.InitRequestClient().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
-			LabelSelector: directpvtypes.ToLabelSelector(labelMap),
-		})
-	}()
-	var teaProgram *tea.Program
-	var wg sync.WaitGroup
-	if !quietFlag {
-		m := newProgressModel(true)
-		teaProgram = tea.NewProgram(m)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if _, err := teaProgram.Run(); err != nil {
-				fmt.Println("error running program:", err)
-				os.Exit(1)
-			}
-		}()
-	}
-	results, err := initDevices(ctx, initRequests, requestID, teaProgram)
-	if err != nil && quietFlag {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
 		os.Exit(1)
-	}
-	if teaProgram != nil {
-		teaProgram.Send(progressNotification{
-			done: true,
-			err:  err,
-		})
-		wg.Wait()
 	}
 	showResults(results)
 }
