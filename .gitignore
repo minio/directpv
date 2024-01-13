@@ -11,3 +11,4 @@ dist/
 kustomize
 operator-sdk
 kubectl-directpv_*
+directpv.tar

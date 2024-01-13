@@ -7,3 +7,4 @@ default.etcd
 *.bzip2
 *.zip
 dist/
+*.sock
