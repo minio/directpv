@@ -170,7 +170,7 @@ func (c *metricsCollector) publishDriveStats(ctx context.Context, drive *types.D
 			prometheus.BuildFQName(consts.AppName, "stats", "drive_total_bytes_read"),
 			"Total number of bytes read from the drive",
 			[]string{"drive"}, nil),
-		prometheus.CounterValue,
+		prometheus.GaugeValue,
 		float64(driveStat.ReadSectors)*sectorSizeBytes, drive.Name,
 	)
 
@@ -179,7 +179,7 @@ func (c *metricsCollector) publishDriveStats(ctx context.Context, drive *types.D
 			prometheus.BuildFQName(consts.AppName, "stats", "drive_total_bytes_written"),
 			"Total number of bytes written to the drive",
 			[]string{"drive"}, nil),
-		prometheus.CounterValue,
+		prometheus.GaugeValue,
 		float64(driveStat.WriteSectors)*sectorSizeBytes, drive.Name,
 	)
 
