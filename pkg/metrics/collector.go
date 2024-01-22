@@ -230,7 +230,6 @@ func (c *metricsCollector) publishDriveStats(ctx context.Context, drive *types.D
 		prometheus.GaugeValue,
 		float64(driveStat.TimeInQueue)/1000, drive.Name,
 	)
-
 }
 
 func readDriveStats(filePath string) (*DriveStats, error) {
@@ -260,6 +259,7 @@ func parseStats(reader *os.File) (*DriveStats, error) {
 
 	return nil, fmt.Errorf("stat file is empty")
 }
+
 func parseDriveStats(fields []string) (*DriveStats, error) {
 	var stats DriveStats
 	var err error
