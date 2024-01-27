@@ -102,7 +102,7 @@ func (c *metricsCollector) publishVolumeStats(ctx context.Context, volume *types
 	)
 }
 
-type DriveStats struct {
+type driveStats struct {
 	ReadSectors  int64
 	ReadTicks    int64
 	WriteSectors int64
@@ -110,7 +110,7 @@ type DriveStats struct {
 	TimeInQueue  int64
 }
 
-func (c *metricsCollector) publishDriveStats(ctx context.Context, drive *types.Drive, ch chan<- prometheus.Metric) {
+func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prometheus.Metric) {
 	device, err := c.getDeviceByFSUUID(drive.Status.FSUUID)
 	if err != nil {
 		ch <- prometheus.MustNewConstMetric(
@@ -246,7 +246,7 @@ func (c *metricsCollector) publishDriveStats(ctx context.Context, drive *types.D
 	)
 }
 
-func readDriveStats(filePath string) (*DriveStats, error) {
+func readDriveStats(filePath string) (*driveStats, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("opening stat file: %w", err)
@@ -256,7 +256,7 @@ func readDriveStats(filePath string) (*DriveStats, error) {
 	return parseStats(file)
 }
 
-func parseStats(reader *os.File) (*DriveStats, error) {
+func parseStats(reader *os.File) (*driveStats, error) {
 	scanner := bufio.NewScanner(reader)
 	if scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
@@ -274,8 +274,8 @@ func parseStats(reader *os.File) (*DriveStats, error) {
 	return nil, fmt.Errorf("stat file is empty")
 }
 
-func parseDriveStats(fields []string) (*DriveStats, error) {
-	var stats DriveStats
+func parseDriveStats(fields []string) (*driveStats, error) {
+	var stats driveStats
 	var err error
 
 	stats.ReadSectors, err = strconv.ParseInt(fields[2], 10, 64)
@@ -362,6 +362,6 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 
-		c.publishDriveStats(ctx, &result.Drive, ch)
+		c.publishDriveStats(&result.Drive, ch)
 	}
 }
