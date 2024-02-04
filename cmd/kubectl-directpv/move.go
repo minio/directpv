@@ -63,7 +63,7 @@ var moveCmd = &cobra.Command{
 }
 
 func moveMain(ctx context.Context, src, dest directpvtypes.DriveID) {
-	if err := admin.Move(ctx, admin.MoveArgs{
+	if err := adminClient.Move(ctx, admin.MoveArgs{
 		Source:      src,
 		Destination: dest,
 		Quiet:       quietFlag,

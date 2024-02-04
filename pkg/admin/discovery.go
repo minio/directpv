@@ -26,7 +26,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +43,7 @@ type DiscoverArgs struct {
 }
 
 // DiscoverDevices discovers and fetches the devices present in the cluster
-func DiscoverDevices(ctx context.Context, args DiscoverArgs) (map[directpvtypes.NodeID][]types.Device, error) {
+func (client *Client) DiscoverDevices(ctx context.Context, args DiscoverArgs) (map[directpvtypes.NodeID][]types.Device, error) {
 	if err := client.SyncNodes(ctx); err != nil {
 		return nil, err
 	}
@@ -77,7 +76,7 @@ func DiscoverDevices(ctx context.Context, args DiscoverArgs) (map[directpvtypes.
 			}
 		}()
 	}
-	resultMap, err := discoverDevices(ctx, nodes, args.Drives, teaProgram)
+	resultMap, err := client.discoverDevices(ctx, nodes, args.Drives, teaProgram)
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +90,9 @@ func DiscoverDevices(ctx context.Context, args DiscoverArgs) (map[directpvtypes.
 	return resultMap, nil
 }
 
-func discoverDevices(ctx context.Context, nodes []types.Node, drives []string, teaProgram *tea.Program) (devices map[directpvtypes.NodeID][]types.Device, err error) {
+func (client *Client) discoverDevices(ctx context.Context, nodes []types.Node, drives []string, teaProgram *tea.Program) (devices map[directpvtypes.NodeID][]types.Device, err error) {
 	var nodeNames []string
-	nodeClient := client.NodeClient()
+	nodeClient := client.Node()
 	totalNodeCount := len(nodes)
 	discoveryProgressMap := make(map[string]progressLog, totalNodeCount)
 	for i := range nodes {

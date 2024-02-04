@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -31,7 +31,9 @@ import (
 
 const deploymentFinalizer = consts.Identity + "/delete-protection"
 
-type deploymentTask struct{}
+type deploymentTask struct {
+	client *client.Client
+}
 
 func (deploymentTask) Name() string {
 	return "Deployment"
@@ -55,15 +57,15 @@ func (deploymentTask) End(ctx context.Context, args *Args, err error) error {
 	return nil
 }
 
-func (deploymentTask) Execute(ctx context.Context, args *Args) error {
-	return createDeployment(ctx, args)
+func (t deploymentTask) Execute(ctx context.Context, args *Args) error {
+	return t.createDeployment(ctx, args)
 }
 
-func (deploymentTask) Delete(ctx context.Context, _ *Args) error {
-	return deleteDeployment(ctx)
+func (t deploymentTask) Delete(ctx context.Context, _ *Args) error {
+	return t.deleteDeployment(ctx)
 }
 
-func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) (err error) {
+func (t deploymentTask) doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) (err error) {
 	name := consts.ControllerServerName
 	containerArgs := []string{name, fmt.Sprintf("--identity=%s", consts.Identity)}
 	if legacy {
@@ -179,7 +181,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 
 	var selectorValue string
 	if !args.DryRun {
-		deployment, err := k8s.KubeClient().AppsV1().Deployments(namespace).Get(
+		deployment, err := t.client.Kube().AppsV1().Deployments(namespace).Get(
 			ctx, name, metav1.GetOptions{},
 		)
 		if err != nil && !apierrors.IsNotFound(err) {
@@ -232,7 +234,7 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 	}
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().AppsV1().Deployments(namespace).Create(
+		_, err = t.client.Kube().AppsV1().Deployments(namespace).Create(
 			ctx, deployment, metav1.CreateOptions{},
 		)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -243,13 +245,13 @@ func doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) 
 	return args.writeObject(deployment)
 }
 
-func createDeployment(ctx context.Context, args *Args) (err error) {
-	if err := doCreateDeployment(ctx, args, false, 1); err != nil {
+func (t deploymentTask) createDeployment(ctx context.Context, args *Args) (err error) {
+	if err := t.doCreateDeployment(ctx, args, false, 1); err != nil {
 		return err
 	}
 
 	if args.Legacy {
-		if err := doCreateDeployment(ctx, args, true, 2); err != nil {
+		if err := t.doCreateDeployment(ctx, args, true, 2); err != nil {
 			return err
 		}
 	}
@@ -271,8 +273,8 @@ func removeFinalizer(objectMeta *metav1.ObjectMeta, finalizer string) []string {
 	return finalizers
 }
 
-func doDeleteDeployment(ctx context.Context, name string) error {
-	deploymentClient := k8s.KubeClient().AppsV1().Deployments(namespace)
+func (t deploymentTask) doDeleteDeployment(ctx context.Context, name string) error {
+	deploymentClient := t.client.Kube().AppsV1().Deployments(namespace)
 
 	deployment, err := deploymentClient.Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -294,10 +296,10 @@ func doDeleteDeployment(ctx context.Context, name string) error {
 	return nil
 }
 
-func deleteDeployment(ctx context.Context) error {
-	if err := doDeleteDeployment(ctx, consts.ControllerServerName); err != nil {
+func (t deploymentTask) deleteDeployment(ctx context.Context) error {
+	if err := t.doDeleteDeployment(ctx, consts.ControllerServerName); err != nil {
 		return err
 	}
 
-	return doDeleteDeployment(ctx, consts.LegacyControllerServerName)
+	return t.doDeleteDeployment(ctx, consts.LegacyControllerServerName)
 }

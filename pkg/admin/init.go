@@ -25,7 +25,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,7 +63,7 @@ func (args *InitDevicesArgs) Validate() error {
 }
 
 // InitDevices creates InitRequest objects and waits until it gets initialized
-func InitDevices(ctx context.Context, args InitDevicesArgs) ([]InitResult, error) {
+func (client *Client) InitDevices(ctx context.Context, args InitDevicesArgs) ([]InitResult, error) {
 	if err := args.Validate(); err != nil {
 		return nil, fmt.Errorf("unable to validate args; %v", err)
 	}
@@ -76,7 +75,7 @@ func InitDevices(ctx context.Context, args InitDevicesArgs) ([]InitResult, error
 		labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
 			directpvtypes.RequestIDLabelKey: utils.ToLabelValues([]string{requestID}),
 		}
-		client.InitRequestClient().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
+		client.InitRequest().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 			LabelSelector: directpvtypes.ToLabelSelector(labelMap),
 		})
 	}()
@@ -94,7 +93,7 @@ func InitDevices(ctx context.Context, args InitDevicesArgs) ([]InitResult, error
 			}
 		}()
 	}
-	results, err := initDevices(ctx, initRequests, requestID, teaProgram, args.ListTimeout)
+	results, err := client.initDevices(ctx, initRequests, requestID, teaProgram, args.ListTimeout)
 	if err != nil && teaProgram == nil {
 		return nil, err
 	}
@@ -108,13 +107,13 @@ func InitDevices(ctx context.Context, args InitDevicesArgs) ([]InitResult, error
 	return results, nil
 }
 
-func initDevices(ctx context.Context, initRequests []types.InitRequest, requestID string, teaProgram *tea.Program, listTimeout time.Duration) (results []InitResult, err error) {
+func (client *Client) initDevices(ctx context.Context, initRequests []types.InitRequest, requestID string, teaProgram *tea.Program, listTimeout time.Duration) (results []InitResult, err error) {
 	totalReqCount := len(initRequests)
 	totalTasks := totalReqCount * 2
 	var completedTasks int
 	initProgressMap := make(map[string]progressLog, totalReqCount)
 	for i := range initRequests {
-		initReq, err := client.InitRequestClient().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
+		initReq, err := client.InitRequest().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
 		if err != nil {
 			return nil, err
 		}

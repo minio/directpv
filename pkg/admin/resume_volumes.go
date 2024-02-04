@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -30,7 +29,7 @@ import (
 type ResumeVolumeArgs = SuspendVolumeArgs
 
 // ResumeVolumes will resume the suspended volumes
-func ResumeVolumes(ctx context.Context, args ResumeVolumeArgs) error {
+func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs) error {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -52,7 +51,7 @@ func ResumeVolumes(ctx context.Context, args ResumeVolumeArgs) error {
 			// only suspended drives can be resumed.
 			continue
 		}
-		volumeClient := client.VolumeClient()
+		volumeClient := client.Volume()
 		updateFunc := func() error {
 			volume, err := volumeClient.Get(ctx, result.Volume.Name, metav1.GetOptions{})
 			if err != nil {

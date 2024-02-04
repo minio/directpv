@@ -31,7 +31,7 @@ type ListDriveResult struct {
 }
 
 // ListDrives returns channel to loop through drive items.
-func ListDrives(ctx context.Context) <-chan ListDriveResult {
+func (client Client) ListDrives(ctx context.Context) <-chan ListDriveResult {
 	resultCh := make(chan ListDriveResult)
 	go func() {
 		defer close(resultCh)
@@ -47,7 +47,7 @@ func ListDrives(ctx context.Context) <-chan ListDriveResult {
 
 		options := metav1.ListOptions{Limit: 1000}
 		for {
-			result, err := DriveClient().List(ctx, options)
+			result, err := client.Drive().List(ctx, options)
 			if err != nil {
 				if !apierrors.IsNotFound(err) {
 					send(ListDriveResult{Err: err})
@@ -79,7 +79,7 @@ type ListVolumeResult struct {
 }
 
 // ListVolumes returns channel to loop through volume items.
-func ListVolumes(ctx context.Context) <-chan ListVolumeResult {
+func (client Client) ListVolumes(ctx context.Context) <-chan ListVolumeResult {
 	resultCh := make(chan ListVolumeResult)
 	go func() {
 		defer close(resultCh)
@@ -95,7 +95,7 @@ func ListVolumes(ctx context.Context) <-chan ListVolumeResult {
 
 		options := metav1.ListOptions{Limit: 1000}
 		for {
-			result, err := VolumeClient().List(ctx, options)
+			result, err := client.Volume().List(ctx, options)
 			if err != nil {
 				if !apierrors.IsNotFound(err) {
 					send(ListVolumeResult{Err: err})

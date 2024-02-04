@@ -28,7 +28,6 @@ import (
 	"path/filepath"
 
 	"github.com/minio/directpv/pkg/admin"
-	"github.com/minio/directpv/pkg/client"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -59,12 +58,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to get kubeconfig; %v", err)
 	}
-
-	if err := client.InitWithConfig(kubeConfig); err != nil {
+	adminClient, err := admin.NewClient(kubeConfig)
+	if err != nil {
 		log.Fatalf("unable to initialize client; %v", err)
 	}
-
-	if err := admin.Remove(context.Background(), admin.RemoveArgs{
+	if err := adminClient.Remove(context.Background(), admin.RemoveArgs{
 		Nodes:  []string{"praveen-thinkpad-x1-carbon-6th"},
 		Drives: []string{"dm-0"},
 	}); err != nil {

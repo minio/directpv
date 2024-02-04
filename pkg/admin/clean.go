@@ -21,8 +21,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -44,7 +42,7 @@ type CleanArgs struct {
 }
 
 // Clean removes the stale/abandoned volumes
-func Clean(ctx context.Context, args CleanArgs) error {
+func (client *Client) Clean(ctx context.Context, args CleanArgs) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -59,7 +57,7 @@ func Clean(ctx context.Context, args CleanArgs) error {
 		List(ctx)
 
 	matchFunc := func(volume *types.Volume) bool {
-		pv, err := k8s.KubeClient().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
+		pv, err := client.Kube().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return true
@@ -86,12 +84,12 @@ func Clean(ctx context.Context, args CleanArgs) error {
 		if args.DryRun {
 			continue
 		}
-		if _, err := client.VolumeClient().Update(ctx, &result.Volume, metav1.UpdateOptions{
+		if _, err := client.Volume().Update(ctx, &result.Volume, metav1.UpdateOptions{
 			TypeMeta: types.NewVolumeTypeMeta(),
 		}); err != nil {
 			return err
 		}
-		if err := client.VolumeClient().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		if err := client.Volume().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 		if !args.Quiet {

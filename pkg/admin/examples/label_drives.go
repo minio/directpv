@@ -29,7 +29,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -60,24 +59,21 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to get kubeconfig; %v", err)
 	}
-
-	if err := client.InitWithConfig(kubeConfig); err != nil {
+	adminClient, err := admin.NewClient(kubeConfig)
+	if err != nil {
 		log.Fatalf("unable to initialize client; %v", err)
 	}
-
 	labels := []admin.Label{
 		{
 			Key:   directpvtypes.LabelKey("example-key"),
 			Value: directpvtypes.LabelValue("example-value"),
 		},
 	}
-
-	if err := admin.LabelDrives(context.Background(), admin.LabelDriveArgs{
+	if err := adminClient.LabelDrives(context.Background(), admin.LabelDriveArgs{
 		Nodes:  []string{"praveen-thinkpad-x1-carbon-6th"},
 		Drives: []string{"dm-0"},
 	}, labels); err != nil {
 		log.Fatalf("unable to label the drive; %v", err)
 	}
-
 	fmt.Println("successfully labelled the drive(s)")
 }

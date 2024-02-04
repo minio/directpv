@@ -100,21 +100,6 @@ func ToInitConfig(resultMap map[directpvtypes.NodeID][]types.Device) InitConfig 
 }
 
 // ToInitRequestObjects converts initConfig to init request objects.
-//
-// NOTE: After initrequest object creation, use the requestID for the cleanup
-//
-// Example :-
-//
-//	 ```
-//		defer func() {
-//			labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-//				directpvtypes.RequestIDLabelKey: toLabelValues([]string{requestID}),
-//			}
-//			client.InitRequestClient().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
-//				LabelSelector: directpvtypes.ToLabelSelector(labelMap),
-//			})
-//		}()
-//	```
 func (config *InitConfig) ToInitRequestObjects() (initRequests []types.InitRequest, requestID string) {
 	requestID = uuid.New().String()
 	for _, node := range config.Nodes {

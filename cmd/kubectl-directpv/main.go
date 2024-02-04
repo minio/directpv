@@ -23,11 +23,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 )
 
@@ -35,7 +37,10 @@ import (
 // e.g. $ go build -ldflags="-X main.Version=v4.0.1"
 var Version string
 
-var disableInit bool
+var (
+	disableInit bool
+	adminClient *admin.Client
+)
 
 var mainCmd = &cobra.Command{
 	Use:           consts.AppName,
@@ -48,7 +53,15 @@ var mainCmd = &cobra.Command{
 	Version: Version,
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		if !disableInit {
-			client.Init()
+			kubeConfig, err := k8s.GetKubeConfig()
+			if err != nil {
+				klog.Fatalf("unable to get kubernetes configuration; %v", err)
+			}
+			kubeConfig.WarningHandler = rest.NoWarnings{}
+			adminClient, err = admin.NewClient(kubeConfig)
+			if err != nil {
+				klog.Fatalf("unable to create admin client; %v", err)
+			}
 		}
 		return nil
 	},

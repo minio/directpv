@@ -20,14 +20,16 @@ import (
 	"context"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/client"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	podsecurityadmissionapi "k8s.io/pod-security-admission/api"
 )
 
-type namespaceTask struct{}
+type namespaceTask struct {
+	client *client.Client
+}
 
 func (namespaceTask) Name() string {
 	return "Namespace"
@@ -40,8 +42,8 @@ func (namespaceTask) Start(ctx context.Context, args *Args) error {
 	return nil
 }
 
-func (namespaceTask) Execute(ctx context.Context, args *Args) error {
-	return createNamespace(ctx, args)
+func (t namespaceTask) Execute(ctx context.Context, args *Args) error {
+	return t.createNamespace(ctx, args)
 }
 
 func (namespaceTask) End(ctx context.Context, args *Args, err error) error {
@@ -51,11 +53,11 @@ func (namespaceTask) End(ctx context.Context, args *Args, err error) error {
 	return nil
 }
 
-func (namespaceTask) Delete(ctx context.Context, _ *Args) error {
-	return deleteNamespace(ctx)
+func (t namespaceTask) Delete(ctx context.Context, _ *Args) error {
+	return t.deleteNamespace(ctx)
 }
 
-func createNamespace(ctx context.Context, args *Args) (err error) {
+func (t namespaceTask) createNamespace(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating namespace", 1, nil) {
 		return errSendProgress
 	}
@@ -99,7 +101,7 @@ func createNamespace(ctx context.Context, args *Args) (err error) {
 	}
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+		_, err = t.client.Kube().CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 		if err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -108,9 +110,9 @@ func createNamespace(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(ns)
 }
 
-func deleteNamespace(ctx context.Context) error {
+func (t namespaceTask) deleteNamespace(ctx context.Context) error {
 	propagationPolicy := metav1.DeletePropagationForeground
-	err := k8s.KubeClient().CoreV1().Namespaces().Delete(
+	err := t.client.Kube().CoreV1().Namespaces().Delete(
 		ctx, namespace, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy},
 	)
 	if err != nil {

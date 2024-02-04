@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -30,7 +29,7 @@ import (
 type ResumeDriveArgs = SuspendDriveArgs
 
 // ResumeDrives will resume the suspended drives
-func ResumeDrives(ctx context.Context, args ResumeDriveArgs) error {
+func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs) error {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -50,7 +49,7 @@ func ResumeDrives(ctx context.Context, args ResumeDriveArgs) error {
 			// only suspended drives can be resumed.
 			continue
 		}
-		driveClient := client.DriveClient()
+		driveClient := client.Drive()
 		updateFunc := func() error {
 			drive, err := driveClient.Get(ctx, result.Drive.Name, metav1.GetOptions{})
 			if err != nil {

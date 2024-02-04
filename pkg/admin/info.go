@@ -21,9 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -36,8 +34,8 @@ type NodeLevelInfo struct {
 }
 
 // Info returns the overall info of the directpv installation
-func Info(ctx context.Context) (map[string]NodeLevelInfo, error) {
-	crds, err := k8s.CRDClient().List(ctx, metav1.ListOptions{})
+func (client *Client) Info(ctx context.Context) (map[string]NodeLevelInfo, error) {
+	crds, err := client.CRD().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("unable to list CRDs; %v", err)
 	}
@@ -54,7 +52,7 @@ func Info(ctx context.Context) (map[string]NodeLevelInfo, error) {
 	if !drivesFound || !volumesFound {
 		return nil, fmt.Errorf("%v installation not found", consts.AppPrettyName)
 	}
-	nodeList, err := k8s.GetCSINodes(ctx)
+	nodeList, err := client.K8s().GetCSINodes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get CSI nodes; %v", err)
 	}

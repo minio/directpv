@@ -25,8 +25,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/minio/directpv/pkg/admin"
+	"github.com/minio/directpv/pkg/admin/installer"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/installer"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
@@ -146,7 +146,7 @@ func installMain(ctx context.Context) {
 		pluginVersion = Version
 	}
 	enableProgress := dryRunPrinter == nil && !declarativeFlag && !quietFlag
-	installedComponents, err := admin.Install(ctx, admin.InstallArgs{
+	installedComponents, err := adminClient.Install(ctx, admin.InstallArgs{
 		Image:            image,
 		Registry:         registry,
 		Org:              org,

@@ -37,17 +37,19 @@ type ListInitRequestResult struct {
 
 // InitRequestLister is initRequest lister.
 type InitRequestLister struct {
-	nodes            []directpvtypes.LabelValue
-	requestIDs       []directpvtypes.LabelValue
-	initRequestNames []string
-	maxObjects       int64
-	ignoreNotFound   bool
+	nodes             []directpvtypes.LabelValue
+	requestIDs        []directpvtypes.LabelValue
+	initRequestNames  []string
+	maxObjects        int64
+	ignoreNotFound    bool
+	initRequestClient types.LatestInitRequestInterface
 }
 
 // NewInitRequestLister creates new volume lister.
-func NewInitRequestLister() *InitRequestLister {
+func (client Client) NewInitRequestLister() *InitRequestLister {
 	return &InitRequestLister{
-		maxObjects: k8s.MaxThreadCount,
+		maxObjects:        k8s.MaxThreadCount,
+		initRequestClient: client.InitRequest(),
 	}
 }
 
@@ -112,7 +114,7 @@ func (lister *InitRequestLister) List(ctx context.Context) <-chan ListInitReques
 				LabelSelector: labelSelector,
 			}
 			for {
-				result, err := InitRequestClient().List(ctx, options)
+				result, err := lister.initRequestClient.List(ctx, options)
 				if err != nil {
 					send(ListInitRequestResult{Err: err})
 					return
@@ -146,7 +148,7 @@ func (lister *InitRequestLister) List(ctx context.Context) <-chan ListInitReques
 		}
 
 		for _, initRequestName := range lister.initRequestNames {
-			initRequest, err := InitRequestClient().Get(ctx, initRequestName, metav1.GetOptions{})
+			initRequest, err := lister.initRequestClient.Get(ctx, initRequestName, metav1.GetOptions{})
 			if err != nil {
 				send(ListInitRequestResult{Err: err})
 				return
@@ -182,7 +184,7 @@ func (lister *InitRequestLister) Watch(ctx context.Context) (<-chan WatchEvent[*
 		directpvtypes.NodeLabelKey:      lister.nodes,
 		directpvtypes.RequestIDLabelKey: lister.requestIDs,
 	}
-	initRequestWatchInterface, err := InitRequestClient().Watch(ctx, metav1.ListOptions{
+	initRequestWatchInterface, err := lister.initRequestClient.Watch(ctx, metav1.ListOptions{
 		LabelSelector: directpvtypes.ToLabelSelector(labelMap),
 	})
 	if err != nil {

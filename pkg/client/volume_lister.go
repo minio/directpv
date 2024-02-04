@@ -45,12 +45,14 @@ type VolumeLister struct {
 	labels         map[directpvtypes.LabelKey]directpvtypes.LabelValue
 	maxObjects     int64
 	ignoreNotFound bool
+	volumeClient   types.LatestVolumeInterface
 }
 
 // NewVolumeLister creates new volume lister.
-func NewVolumeLister() *VolumeLister {
+func (client Client) NewVolumeLister() *VolumeLister {
 	return &VolumeLister{
-		maxObjects: k8s.MaxThreadCount,
+		maxObjects:   k8s.MaxThreadCount,
+		volumeClient: client.Volume(),
 	}
 }
 
@@ -157,7 +159,7 @@ func (lister *VolumeLister) List(ctx context.Context) <-chan ListVolumeResult {
 			}
 
 			for {
-				result, err := VolumeClient().List(ctx, options)
+				result, err := lister.volumeClient.List(ctx, options)
 				if err != nil {
 					if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 						break
@@ -195,7 +197,7 @@ func (lister *VolumeLister) List(ctx context.Context) <-chan ListVolumeResult {
 		}
 
 		for _, volumeName := range lister.volumeNames {
-			volume, err := VolumeClient().Get(ctx, volumeName, metav1.GetOptions{})
+			volume, err := lister.volumeClient.Get(ctx, volumeName, metav1.GetOptions{})
 			if err != nil {
 				if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 					continue

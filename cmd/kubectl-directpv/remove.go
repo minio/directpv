@@ -112,7 +112,7 @@ func validateRemoveCmd() error {
 }
 
 func removeMain(ctx context.Context) {
-	if err := admin.Remove(ctx, admin.RemoveArgs{
+	if err := adminClient.Remove(ctx, admin.RemoveArgs{
 		Nodes:       nodesArgs,
 		Drives:      drivesArgs,
 		DriveStatus: driveStatusSelectors,

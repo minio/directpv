@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,7 +37,7 @@ type RemoveArgs struct {
 }
 
 // Remove removes the initialized drive(s)
-func Remove(ctx context.Context, args RemoveArgs) error {
+func (client *Client) Remove(ctx context.Context, args RemoveArgs) error {
 	var processed bool
 	var failed bool
 
@@ -68,7 +67,7 @@ func Remove(ctx context.Context, args RemoveArgs) error {
 				result.Drive.Status.Status = directpvtypes.DriveStatusRemoved
 				var err error
 				if !args.DryRun {
-					_, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
+					_, err = client.Drive().Update(ctx, &result.Drive, metav1.UpdateOptions{})
 				}
 				if err != nil {
 					failed = true

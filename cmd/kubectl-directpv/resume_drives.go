@@ -87,7 +87,7 @@ func validateResumeDrivesCmd() error {
 }
 
 func resumeDrivesMain(ctx context.Context) {
-	if err := admin.ResumeDrives(ctx, admin.ResumeDriveArgs{
+	if err := adminClient.ResumeDrives(ctx, admin.ResumeDriveArgs{
 		Nodes:            nodesArgs,
 		Drives:           drivesArgs,
 		DriveIDSelectors: driveIDSelectors,

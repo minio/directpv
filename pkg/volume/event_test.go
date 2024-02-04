@@ -30,6 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func init() {
+	client.FakeInit()
+}
+
 const MiB = 1024 * 1024
 
 func createFakeVolumeEventListener(nodeID directpvtypes.NodeID) *volumeEventHandler {

@@ -24,7 +24,6 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -117,7 +116,7 @@ func validateListDrivesArgs() error {
 }
 
 func listDrivesMain(ctx context.Context) {
-	drives, err := client.NewDriveLister().
+	drives, err := adminClient.NewDriveLister().
 		NodeSelector(utils.ToLabelValues(nodesArgs)).
 		DriveNameSelector(utils.ToLabelValues(drivesArgs)).
 		StatusSelector(driveStatusSelectors).

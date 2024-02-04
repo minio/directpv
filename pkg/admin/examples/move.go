@@ -32,7 +32,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -63,12 +62,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to get kubeconfig; %v", err)
 	}
-
-	if err := client.InitWithConfig(kubeConfig); err != nil {
+	adminClient, err := admin.NewClient(kubeConfig)
+	if err != nil {
 		log.Fatalf("unable to initialize client; %v", err)
 	}
-
-	if err := admin.Move(context.Background(), admin.MoveArgs{
+	if err := adminClient.Move(context.Background(), admin.MoveArgs{
 		Source:      directpvtypes.DriveID("2786de98-2a84-40d4-8cee-8f73686928f8"),
 		Destination: directpvtypes.DriveID("b35f1f8e-6bf3-4747-9976-192b23c1a019"),
 	}); err != nil {

@@ -31,7 +31,6 @@ import (
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 )
 
@@ -40,12 +39,12 @@ type dynamicInterface struct {
 	groupVersion      schema.GroupVersion
 }
 
-func dynamicInterfaceForConfig(config *rest.Config, kind, resource string) (*dynamicInterface, error) {
-	gvk, err := k8s.GetGroupVersionKind(consts.GroupName, kind, types.Versions...)
+func dynamicInterfaceForConfig(k8sClient *k8s.Client, kind, resource string) (*dynamicInterface, error) {
+	gvk, err := k8sClient.GetGroupVersionKind(consts.GroupName, kind, types.Versions...)
 	if err != nil && !meta.IsNoMatchError(err) {
 		return nil, err
 	}
-	resourceInterface, err := dynamic.NewForConfig(config)
+	resourceInterface, err := dynamic.NewForConfig(k8sClient.KubeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -229,8 +228,8 @@ type latestDriveClient struct {
 }
 
 // latestDriveClientForConfig creates new dynamic drive interface.
-func latestDriveClientForConfig(config *rest.Config) (*latestDriveClient, error) {
-	inter, err := dynamicInterfaceForConfig(config, consts.DriveKind, consts.DriveResource)
+func latestDriveClientForConfig(k8sClient *k8s.Client) (*latestDriveClient, error) {
+	inter, err := dynamicInterfaceForConfig(k8sClient, consts.DriveKind, consts.DriveResource)
 	if err != nil {
 		return nil, err
 	}
@@ -351,8 +350,8 @@ type latestVolumeClient struct {
 }
 
 // latestVolumeClientForConfig creates new dynamic volume interface.
-func latestVolumeClientForConfig(config *rest.Config) (*latestVolumeClient, error) {
-	inter, err := dynamicInterfaceForConfig(config, consts.VolumeKind, consts.VolumeResource)
+func latestVolumeClientForConfig(k8sClient *k8s.Client) (*latestVolumeClient, error) {
+	inter, err := dynamicInterfaceForConfig(k8sClient, consts.VolumeKind, consts.VolumeResource)
 	if err != nil {
 		return nil, err
 	}
@@ -473,8 +472,8 @@ type latestNodeClient struct {
 }
 
 // latestNodeClientForConfig creates new dynamic node interface.
-func latestNodeClientForConfig(config *rest.Config) (*latestNodeClient, error) {
-	inter, err := dynamicInterfaceForConfig(config, consts.NodeKind, consts.NodeResource)
+func latestNodeClientForConfig(k8sClient *k8s.Client) (*latestNodeClient, error) {
+	inter, err := dynamicInterfaceForConfig(k8sClient, consts.NodeKind, consts.NodeResource)
 	if err != nil {
 		return nil, err
 	}
@@ -597,8 +596,8 @@ type latestInitRequestClient struct {
 }
 
 // latestInitRequestClientForConfig creates new dynamic initrequest interface.
-func latestInitRequestClientForConfig(config *rest.Config) (*latestInitRequestClient, error) {
-	inter, err := dynamicInterfaceForConfig(config, consts.InitRequestKind, consts.InitRequestResource)
+func latestInitRequestClientForConfig(k8sClient *k8s.Client) (*latestInitRequestClient, error) {
+	inter, err := dynamicInterfaceForConfig(k8sClient, consts.InitRequestKind, consts.InitRequestResource)
 	if err != nil {
 		return nil, err
 	}

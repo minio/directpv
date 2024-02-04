@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2023 MinIO, Inc.
+// Copyright (c) 2024 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -17,23 +17,22 @@
 package admin
 
 import (
-	"context"
-
-	"github.com/minio/directpv/pkg/admin/installer"
-	legacyclient "github.com/minio/directpv/pkg/legacy/client"
+	"github.com/minio/directpv/pkg/client"
+	"k8s.io/client-go/rest"
 )
 
-// UninstallArgs represents the args to uninstall
-type UninstallArgs struct {
-	Quiet     bool
-	Dangerous bool
+// Client represents the admin clientset
+type Client struct {
+	*client.Client
 }
 
-// Uninstall uninstalls directpv
-func (client Client) Uninstall(ctx context.Context, args UninstallArgs) error {
-	legacyClient, err := legacyclient.NewClient(client.K8s())
+// NewClient returns a new admin client
+func NewClient(c *rest.Config) (*Client, error) {
+	directpvClientSet, err := client.NewClient(c)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return installer.Uninstall(ctx, args.Quiet, args.Dangerous, installer.GetTasks(client.Client, legacyClient))
+	return &Client{
+		Client: directpvClientSet,
+	}, nil
 }

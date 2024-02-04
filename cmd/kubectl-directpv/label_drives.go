@@ -93,7 +93,7 @@ func init() {
 }
 
 func labelDrivesMain(ctx context.Context) {
-	if err := admin.LabelDrives(ctx, admin.LabelDriveArgs{
+	if err := adminClient.LabelDrives(ctx, admin.LabelDriveArgs{
 		Nodes:          nodesArgs,
 		Drives:         drivesArgs,
 		DriveStatus:    driveStatusSelectors,

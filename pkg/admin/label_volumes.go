@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -42,7 +41,7 @@ type LabelVolumeArgs struct {
 }
 
 // LabelVolumes sets/removes labels on/from the volumes
-func LabelVolumes(ctx context.Context, args LabelVolumeArgs, labels []Label) error {
+func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, labels []Label) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -78,7 +77,7 @@ func LabelVolumes(ctx context.Context, args LabelVolumeArgs, labels []Label) err
 					verb = "set on"
 				}
 				if !args.DryRun {
-					volume, err = client.VolumeClient().Update(ctx, volume, metav1.UpdateOptions{})
+					volume, err = client.Volume().Update(ctx, volume, metav1.UpdateOptions{})
 				}
 				if err != nil {
 					utils.Eprintf(args.Quiet, true, "%v: %v\n", volume.Name, err)

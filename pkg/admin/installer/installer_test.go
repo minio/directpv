@@ -23,12 +23,15 @@ import (
 
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/k8s"
+	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	versionpkg "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apimachinery/pkg/version"
 )
 
 func init() {
 	client.FakeInit()
+	legacyclient.FakeInit()
 }
 
 var (
@@ -93,57 +96,15 @@ func getDiscoveryGroupsAndMethods() ([]*metav1.APIGroup, []*metav1.APIResourceLi
 	return apiGroups, apiResourceList, nil
 }
 
-func TestGetKubeVersion(t *testing.T) {
-	testCases := []struct {
-		info      version.Info
-		major     uint
-		minor     uint
-		expectErr bool
-	}{
-		{version.Info{Major: "a", Minor: "0"}, 0, 0, true},                                   // invalid major
-		{version.Info{Major: "-1", Minor: "0"}, 0, 0, true},                                  // invalid major
-		{version.Info{Major: "0", Minor: "a"}, 0, 0, true},                                   // invalid minor
-		{version.Info{Major: "0", Minor: "-1"}, 0, 0, true},                                  // invalid minor
-		{version.Info{Major: "0", Minor: "-1", GitVersion: "commit-eks-id"}, 0, 0, true},     // invalid minor for eks
-		{version.Info{Major: "0", Minor: "incompat", GitVersion: "commit-eks-"}, 0, 0, true}, // invalid minor for eks
-		{version.Info{Major: "0", Minor: "0"}, 0, 0, false},
-		{version.Info{Major: "1", Minor: "0"}, 1, 0, false},
-		{version.Info{Major: "0", Minor: "1"}, 0, 1, false},
-		{version.Info{Major: "1", Minor: "18"}, 1, 18, false},
-		{version.Info{Major: "1", Minor: "18+", GitVersion: "commit-eks-id"}, 1, 18, false},
-		{version.Info{Major: "1", Minor: "18-", GitVersion: "commit-eks-id"}, 1, 18, false},
-		{version.Info{Major: "1", Minor: "18incompat", GitVersion: "commit-eks-id"}, 1, 18, false},
-		{version.Info{Major: "1", Minor: "18-incompat", GitVersion: "commit-eks-id"}, 1, 18, false},
-	}
-
-	for i, testCase := range testCases {
-		k8s.SetDiscoveryInterface(getDiscoveryGroupsAndMethods, &testCase.info)
-		major, minor, err := getKubeVersion()
-		if testCase.expectErr {
-			if err == nil {
-				t.Fatalf("case %v: expected error, but succeeded", i+1)
-			}
-			continue
-		}
-
-		if err != nil {
-			t.Fatalf("case %v: unexpected error: %v", i+1, err)
-		}
-
-		if major != testCase.major {
-			t.Fatalf("case %v: major: expected: %v, got: %v", i+1, testCase.major, major)
-		}
-
-		if minor != testCase.minor {
-			t.Fatalf("case %v: minor: expected: %v, got: %v", i+1, testCase.minor, minor)
-		}
-	}
-}
-
 func TestInstallUinstall(t *testing.T) {
+	kversion, err := versionpkg.ParseSemantic("1.26.0")
+	if err != nil {
+		t.Fatalf("unable to parse version; %v", err)
+	}
 	args := Args{
 		image:        "directpv-0.0.0dev0",
 		ObjectWriter: io.Discard,
+		KubeVersion:  kversion,
 	}
 
 	testVersions := []version.Info{
@@ -161,16 +122,18 @@ func TestInstallUinstall(t *testing.T) {
 	}
 
 	for i, testVersion := range testVersions {
-		k8s.SetDiscoveryInterface(getDiscoveryGroupsAndMethods, &testVersion)
+		client := client.GetClient()
+		legacyClient := legacyclient.GetClient()
+		client.K8sClient.DiscoveryClient = k8s.NewFakeDiscovery(getDiscoveryGroupsAndMethods, &testVersion)
 		ctx := context.TODO()
 		args := args
-		if err := Install(ctx, &args); err != nil {
+		tasks := GetTasks(client, legacyClient)
+		if err := Install(ctx, &args, tasks); err != nil {
 			t.Fatalf("case %v: unexpected error; %v", i+1, err)
 		}
-		if err := Uninstall(ctx, false, true); err != nil {
+		if err := Uninstall(ctx, false, true, tasks); err != nil {
 			t.Fatalf("csae %v: unexpected error; %v", i+1, err)
 		}
-
 		_, err := k8s.KubeClient().CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 		if err == nil {
 			t.Fatalf("case %v: uninstall on kube version v%v.%v not removed namespace", i+1, testVersion.Major, testVersion.Minor)
