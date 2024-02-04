@@ -94,7 +94,7 @@ func validateSuspendDrivesCmd() error {
 }
 
 func suspendDrivesMain(ctx context.Context) {
-	if err := admin.SuspendDrives(ctx, admin.SuspendDriveArgs{
+	if err := adminClient.SuspendDrives(ctx, admin.SuspendDriveArgs{
 		Nodes:            nodesArgs,
 		Drives:           drivesArgs,
 		DriveIDSelectors: driveIDSelectors,

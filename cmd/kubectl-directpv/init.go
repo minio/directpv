@@ -144,7 +144,7 @@ func initMain(ctx context.Context, inputFile string) {
 		utils.Eprintf(quietFlag, true, "unable to read the input file; %v", err.Error())
 		os.Exit(1)
 	}
-	results, err := admin.InitDevices(ctx, admin.InitDevicesArgs{
+	results, err := adminClient.InitDevices(ctx, admin.InitDevicesArgs{
 		InitConfig:    initConfig,
 		PrintProgress: !quietFlag,
 		ListTimeout:   initRequestListTimeout,

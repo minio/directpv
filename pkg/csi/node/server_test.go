@@ -27,6 +27,10 @@ import (
 	"github.com/minio/directpv/pkg/xfs"
 )
 
+func init() {
+	client.FakeInit()
+}
+
 func TestNodeExpandVolume(t *testing.T) {
 	volumeID := "volume-id-1"
 	volume := types.NewVolume(volumeID, "fsuuid1", "node-1", "drive-1", "sda", 100*MiB)

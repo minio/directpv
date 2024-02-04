@@ -131,7 +131,7 @@ func validateCleanCmd() error {
 }
 
 func cleanMain(ctx context.Context) {
-	if err := admin.Clean(ctx, admin.CleanArgs{
+	if err := adminClient.Clean(ctx, admin.CleanArgs{
 		Nodes:         nodesArgs,
 		Drives:        drivesArgs,
 		DriveIDs:      driveIDArgs,

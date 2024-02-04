@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,7 +28,7 @@ import (
 type UncordonArgs = CordonArgs
 
 // Uncordon makes the drive schedulable again
-func Uncordon(ctx context.Context, args UncordonArgs) error {
+func (client *Client) Uncordon(ctx context.Context, args UncordonArgs) error {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -55,7 +54,7 @@ func Uncordon(ctx context.Context, args UncordonArgs) error {
 		result.Drive.Schedulable()
 		var err error
 		if !args.DryRun {
-			_, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
+			_, err = client.Drive().Update(ctx, &result.Drive, metav1.UpdateOptions{})
 		}
 
 		if err != nil {

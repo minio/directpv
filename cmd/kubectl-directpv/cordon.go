@@ -111,7 +111,7 @@ func validateCordonCmd() error {
 }
 
 func cordonMain(ctx context.Context) {
-	if err := admin.Cordon(ctx, admin.CordonArgs{
+	if err := adminClient.Cordon(ctx, admin.CordonArgs{
 		Nodes:    nodesArgs,
 		Drives:   drivesArgs,
 		Status:   driveStatusSelectors,

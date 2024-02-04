@@ -111,7 +111,7 @@ func validateUncordonCmd() error {
 }
 
 func uncordonMain(ctx context.Context) {
-	if err := admin.Uncordon(ctx, admin.UncordonArgs{
+	if err := adminClient.Uncordon(ctx, admin.UncordonArgs{
 		Nodes:    nodesArgs,
 		Drives:   drivesArgs,
 		Status:   driveStatusSelectors,

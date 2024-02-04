@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -53,7 +52,7 @@ type LabelDriveArgs struct {
 }
 
 // LabelDrives sets/removes labels on/from the drives
-func LabelDrives(ctx context.Context, args LabelDriveArgs, labels []Label) error {
+func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labels []Label) error {
 	var processed bool
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
@@ -86,7 +85,7 @@ func LabelDrives(ctx context.Context, args LabelDriveArgs, labels []Label) error
 					verb = "set on"
 				}
 				if !args.DryRun {
-					drive, err = client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{})
+					drive, err = client.Drive().Update(ctx, drive, metav1.UpdateOptions{})
 				}
 				if err != nil {
 					utils.Eprintf(args.Quiet, true, "%v/%v: %v\n", drive.GetNodeID(), drive.GetDriveName(), err)

@@ -28,7 +28,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/admin"
-	"github.com/minio/directpv/pkg/client"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -59,12 +58,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to get kubeconfig; %v", err)
 	}
-
-	if err := client.InitWithConfig(kubeConfig); err != nil {
+	adminClient, err := admin.NewClient(kubeConfig)
+	if err != nil {
 		log.Fatalf("unable to initialize client; %v", err)
 	}
-
-	if _, err := admin.Install(context.Background(), admin.InstallArgs{
+	if _, err := adminClient.Install(context.Background(), admin.InstallArgs{
 		Image:         "directpv:v4.0.10",
 		Registry:      "quay.io",
 		Org:           "minio",

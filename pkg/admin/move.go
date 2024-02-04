@@ -23,7 +23,6 @@ import (
 
 	"github.com/dustin/go-humanize"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -36,12 +35,12 @@ type MoveArgs struct {
 }
 
 // Move - moves the volume references from source to destination
-func Move(ctx context.Context, args MoveArgs) error {
+func (client *Client) Move(ctx context.Context, args MoveArgs) error {
 	if args.Source == args.Destination {
 		return errors.New("source and destination drives are same")
 	}
 
-	srcDrive, err := client.DriveClient().Get(ctx, string(args.Source), metav1.GetOptions{})
+	srcDrive, err := client.Drive().Get(ctx, string(args.Source), metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to get source drive; %v", err)
 	}
@@ -72,7 +71,7 @@ func Move(ctx context.Context, args MoveArgs) error {
 		return fmt.Errorf("no volumes found in source drive %v", args.Source)
 	}
 
-	destDrive, err := client.DriveClient().Get(ctx, string(args.Destination), metav1.GetOptions{})
+	destDrive, err := client.Drive().Get(ctx, string(args.Destination), metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("unable to get destination drive %v; %v", args.Destination, err)
 	}
@@ -107,7 +106,7 @@ func Move(ctx context.Context, args MoveArgs) error {
 		}
 	}
 	destDrive.Status.Status = directpvtypes.DriveStatusMoving
-	_, err = client.DriveClient().Update(
+	_, err = client.Drive().Update(
 		ctx, destDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 	)
 	if err != nil {
@@ -121,7 +120,7 @@ func Move(ctx context.Context, args MoveArgs) error {
 	}
 
 	srcDrive.ResetFinalizers()
-	_, err = client.DriveClient().Update(
+	_, err = client.Drive().Update(
 		ctx, srcDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 	)
 	if err != nil {

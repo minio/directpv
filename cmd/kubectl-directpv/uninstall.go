@@ -45,7 +45,7 @@ func init() {
 }
 
 func uninstallMain(ctx context.Context) {
-	if err := admin.Uninstall(ctx, admin.UninstallArgs{
+	if err := adminClient.Uninstall(ctx, admin.UninstallArgs{
 		Quiet:     quietFlag,
 		Dangerous: dangerousFlag,
 	}); err != nil {

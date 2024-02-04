@@ -166,7 +166,7 @@ func writeInitConfig(config admin.InitConfig) error {
 }
 
 func discoverMain(ctx context.Context) {
-	resultMap, err := admin.DiscoverDevices(ctx, admin.DiscoverArgs{
+	resultMap, err := adminClient.DiscoverDevices(ctx, admin.DiscoverArgs{
 		Nodes:         nodesArgs,
 		Drives:        drivesArgs,
 		PrintProgress: !quietFlag,

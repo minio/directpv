@@ -42,12 +42,14 @@ type NodeLister struct {
 	nodeNames      []string
 	maxObjects     int64
 	ignoreNotFound bool
+	nodeClient     types.LatestNodeInterface
 }
 
 // NewNodeLister creates new volume lister.
-func NewNodeLister() *NodeLister {
+func (client Client) NewNodeLister() *NodeLister {
 	return &NodeLister{
 		maxObjects: k8s.MaxThreadCount,
+		nodeClient: client.Node(),
 	}
 }
 
@@ -104,7 +106,7 @@ func (lister *NodeLister) List(ctx context.Context) <-chan ListNodeResult {
 				LabelSelector: labelSelector,
 			}
 			for {
-				result, err := NodeClient().List(ctx, options)
+				result, err := lister.nodeClient.List(ctx, options)
 				if err != nil {
 					send(ListNodeResult{Err: err})
 					return
@@ -138,7 +140,7 @@ func (lister *NodeLister) List(ctx context.Context) <-chan ListNodeResult {
 		}
 
 		for _, nodeName := range lister.nodeNames {
-			node, err := NodeClient().Get(ctx, nodeName, metav1.GetOptions{})
+			node, err := lister.nodeClient.Get(ctx, nodeName, metav1.GetOptions{})
 			if err != nil {
 				send(ListNodeResult{Err: err})
 				return
@@ -183,7 +185,7 @@ func (lister *NodeLister) Watch(ctx context.Context) (<-chan WatchEvent[*types.N
 	labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
 		directpvtypes.NodeLabelKey: lister.nodes,
 	}
-	nodeWatchInterface, err := NodeClient().Watch(ctx, metav1.ListOptions{
+	nodeWatchInterface, err := lister.nodeClient.Watch(ctx, metav1.ListOptions{
 		LabelSelector: directpvtypes.ToLabelSelector(labelMap),
 	})
 	if err != nil {

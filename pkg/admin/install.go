@@ -27,16 +27,16 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
+	"github.com/minio/directpv/pkg/admin/installer"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/installer"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/mitchellh/go-homedir"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/version"
+	versionpkg "k8s.io/apimachinery/pkg/util/version"
+	"k8s.io/klog/v2"
 )
 
 // ErrInstallationIncomplete denotes that the installation couldn't complete
@@ -69,7 +69,7 @@ type InstallArgs struct {
 	// Quiet enables quiet mode
 	Quiet bool
 	// KubeVersion is required for declarative and dryrun manifests
-	KubeVersion *version.Version
+	KubeVersion *versionpkg.Version
 	// DryRun when set, runs in dryrun mode and generates the manifests
 	DryRun bool
 	// OutputFormat denotes the output format (yaml|json) for the manifests; to be used for DryRun
@@ -95,7 +95,7 @@ func (args *InstallArgs) Validate() error {
 }
 
 // Install - installs directpv with the provided arguments
-func Install(ctx context.Context, args InstallArgs) ([]installer.Component, error) {
+func (client *Client) Install(ctx context.Context, args InstallArgs) ([]installer.Component, error) {
 	if err := args.Validate(); err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func Install(ctx context.Context, args InstallArgs) ([]installer.Component, erro
 	installerArgs.AppArmorProfile = args.AppArmorProfile
 	installerArgs.Quiet = args.Quiet
 	installerArgs.KubeVersion = args.KubeVersion
-	installerArgs.Legacy = isLegacyEnabled(ctx, args)
+	installerArgs.Legacy = client.isLegacyEnabled(ctx, args)
 	installerArgs.PluginVersion = version
 	if file != nil {
 		installerArgs.ObjectWriter = file
@@ -153,6 +153,21 @@ func Install(ctx context.Context, args InstallArgs) ([]installer.Component, erro
 				return utils.ToJSON(obj)
 			}
 		}
+		if installerArgs.KubeVersion == nil {
+			// default higher version
+			if installerArgs.KubeVersion, err = versionpkg.ParseSemantic("1.29.0"); err != nil {
+				klog.Fatalf("this should not happen; %v", err)
+			}
+		}
+	} else {
+		major, minor, err := client.K8s().GetKubeVersion()
+		if err != nil {
+			return nil, err
+		}
+		installerArgs.KubeVersion, err = versionpkg.ParseSemantic(fmt.Sprintf("%v.%v.0", major, minor))
+		if err != nil {
+			klog.Fatalf("this should not happen; %v", err)
+		}
 	}
 	installerArgs.Declarative = args.Declarative
 	installerArgs.Openshift = args.Openshift
@@ -160,6 +175,11 @@ func Install(ctx context.Context, args InstallArgs) ([]installer.Component, erro
 	var failed bool
 	var installedComponents []installer.Component
 	var wg sync.WaitGroup
+	legacyClient, err := legacyclient.NewClient(client.K8s())
+	if err != nil {
+		return nil, err
+	}
+	installerTasks := installer.GetTasks(client.Client, legacyClient)
 	if args.PrintProgress {
 		m := newProgressModel(true)
 		teaProgram := tea.NewProgram(m)
@@ -174,7 +194,7 @@ func Install(ctx context.Context, args InstallArgs) ([]installer.Component, erro
 		wg.Add(1)
 		var totalSteps, step, completedTasks int
 		var currentPercent float64
-		totalTasks := len(installer.Tasks)
+		totalTasks := len(installerTasks)
 		weightagePerTask := 1.0 / totalTasks
 		progressCh := make(chan installer.Message)
 		go func() {
@@ -244,7 +264,7 @@ func Install(ctx context.Context, args InstallArgs) ([]installer.Component, erro
 		}()
 		installerArgs.ProgressCh = progressCh
 	}
-	if err := installer.Install(ctx, installerArgs); err != nil && installerArgs.ProgressCh == nil {
+	if err := installer.Install(ctx, installerArgs, installerTasks); err != nil && installerArgs.ProgressCh == nil {
 		return installedComponents, err
 	}
 	if installerArgs.ProgressCh != nil {
@@ -256,7 +276,7 @@ func Install(ctx context.Context, args InstallArgs) ([]installer.Component, erro
 	return installedComponents, nil
 }
 
-func isLegacyEnabled(ctx context.Context, args InstallArgs) bool {
+func (client Client) isLegacyEnabled(ctx context.Context, args InstallArgs) bool {
 	if args.DryRun {
 		return args.EnableLegacy
 	}
@@ -281,9 +301,13 @@ func isLegacyEnabled(ctx context.Context, args InstallArgs) bool {
 		return true
 	}
 
-	legacyclient.Init()
+	legacyClient, err := legacyclient.NewClient(client.K8s())
+	if err != nil {
+		utils.Eprintf(args.Quiet, true, "unable to create legacy client; %v", err)
+		return false
+	}
 
-	for result := range legacyclient.ListVolumes(ctx) {
+	for result := range legacyClient.ListVolumes(ctx) {
 		if result.Err != nil {
 			utils.Eprintf(args.Quiet, true, "unable to get legacy volumes; %v", result.Err)
 			break

@@ -17,7 +17,7 @@
 package client
 
 import (
-	"log"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/minio/directpv/pkg/k8s"
@@ -29,17 +29,29 @@ func Init() {
 	if atomic.AddInt32(&initialized, 1) != 1 {
 		return
 	}
-
-	if err := k8s.Init(); err != nil {
-		log.Fatalf("unable to initialize k8s clients; %v", err)
-	}
-
 	var err error
-	if driveClient, err = DirectCSIDriveInterfaceForConfig(k8s.KubeConfig()); err != nil {
-		klog.Fatalf("unable to create new DirectCSI drive interface; %v", err)
+	if err = k8s.Init(); err != nil {
+		klog.Fatalf("unable to initialize k8s clients; %v", err)
 	}
+	client, err = NewClient(k8s.GetClient())
+	if err != nil {
+		klog.Fatalf("unable to create legacy client; %v", err)
+	}
+}
 
-	if volumeClient, err = DirectCSIVolumeInterfaceForConfig(k8s.KubeConfig()); err != nil {
-		klog.Fatalf("unable to create new DirectCSI volume interface; %v", err)
+// NewClient creates a legacy client
+func NewClient(k8sClient *k8s.Client) (*Client, error) {
+	driveClient, err := DirectCSIDriveInterfaceForConfig(k8sClient)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create new DirectCSI drive interface; %v", err)
 	}
+	volumeClient, err := DirectCSIVolumeInterfaceForConfig(k8sClient)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create new DirectCSI volume interface; %v", err)
+	}
+	return &Client{
+		DriveClient:  driveClient,
+		VolumeClient: volumeClient,
+		K8sClient:    k8sClient,
+	}, nil
 }

@@ -32,7 +32,6 @@ import (
 	"strings"
 
 	"github.com/minio/directpv/pkg/admin"
-	"github.com/minio/directpv/pkg/client"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -136,17 +135,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to get kubeconfig; %v", err)
 	}
-
-	if err := client.InitWithConfig(kubeConfig); err != nil {
+	adminClient, err := admin.NewClient(kubeConfig)
+	if err != nil {
 		log.Fatalf("unable to initialize client; %v", err)
 	}
-
 	initConfig, err := admin.ParseInitConfig(strings.NewReader(initConfigJson))
 	if err != nil {
 		log.Fatalf("unable to parse init config; %v", err)
 	}
-
-	results, err := admin.InitDevices(context.Background(), admin.InitDevicesArgs{
+	results, err := adminClient.InitDevices(context.Background(), admin.InitDevicesArgs{
 		InitConfig: initConfig,
 	})
 	if err != nil {

@@ -117,6 +117,10 @@ func (args *Args) validate() error {
 		return errors.New("object converter must be provided")
 	}
 
+	if args.KubeVersion == nil {
+		return errors.New("kubeversion is not set")
+	}
+
 	return nil
 }
 

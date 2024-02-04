@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -41,7 +40,7 @@ type SuspendDriveArgs struct {
 }
 
 // SuspendDrives suspends the drive
-func SuspendDrives(ctx context.Context, args SuspendDriveArgs) error {
+func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs) error {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -63,7 +62,7 @@ func SuspendDrives(ctx context.Context, args SuspendDriveArgs) error {
 			continue
 		}
 
-		driveClient := client.DriveClient()
+		driveClient := client.Drive()
 		updateFunc := func() error {
 			drive, err := driveClient.Get(ctx, result.Drive.Name, metav1.GetOptions{})
 			if err != nil {

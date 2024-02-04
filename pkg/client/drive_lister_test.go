@@ -30,7 +30,7 @@ import (
 func TestGetDriveList(t *testing.T) {
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
 	SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	drives, err := NewDriveLister().Get(context.TODO())
+	drives, err := client.NewDriveLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestGetDriveList(t *testing.T) {
 
 	clientset = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
 	SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	drives, err = NewDriveLister().Get(context.TODO())
+	drives, err = client.NewDriveLister().Get(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

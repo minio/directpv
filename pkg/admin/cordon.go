@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,7 +36,7 @@ type CordonArgs struct {
 }
 
 // Cordon makes a drive unschedulable
-func Cordon(ctx context.Context, args CordonArgs) error {
+func (client *Client) Cordon(ctx context.Context, args CordonArgs) error {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -75,7 +74,7 @@ func Cordon(ctx context.Context, args CordonArgs) error {
 
 		result.Drive.Unschedulable()
 		if !args.DryRun {
-			if _, err := client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{}); err != nil {
+			if _, err := client.Drive().Update(ctx, &result.Drive, metav1.UpdateOptions{}); err != nil {
 				return fmt.Errorf("unable to cordon drive %v; %v", result.Drive.GetDriveID(), err)
 			}
 		}

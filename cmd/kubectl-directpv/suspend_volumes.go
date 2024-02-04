@@ -104,7 +104,7 @@ func validateSuspendVolumesCmd() error {
 }
 
 func suspendVolumesMain(ctx context.Context) {
-	if err := admin.SuspendVolumes(ctx, admin.SuspendVolumeArgs{
+	if err := adminClient.SuspendVolumes(ctx, admin.SuspendVolumeArgs{
 		Nodes:         nodesArgs,
 		Drives:        drivesArgs,
 		PodNames:      podNameArgs,

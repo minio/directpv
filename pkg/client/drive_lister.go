@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2021-2024 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -43,12 +43,14 @@ type DriveLister struct {
 	labels         map[directpvtypes.LabelKey]directpvtypes.LabelValue
 	maxObjects     int64
 	ignoreNotFound bool
+	driveClient    types.LatestDriveInterface
 }
 
 // NewDriveLister creates new drive lister.
-func NewDriveLister() *DriveLister {
+func (client Client) NewDriveLister() *DriveLister {
 	return &DriveLister{
-		maxObjects: k8s.MaxThreadCount,
+		maxObjects:  k8s.MaxThreadCount,
+		driveClient: client.Drive(),
 	}
 }
 
@@ -132,7 +134,7 @@ func (lister *DriveLister) List(ctx context.Context) <-chan ListDriveResult {
 				LabelSelector: labelSelector,
 			}
 			for {
-				result, err := DriveClient().List(ctx, options)
+				result, err := lister.driveClient.List(ctx, options)
 				if err != nil {
 					if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 						break
@@ -169,7 +171,7 @@ func (lister *DriveLister) List(ctx context.Context) <-chan ListDriveResult {
 		}
 
 		for _, driveID := range lister.driveIDs {
-			drive, err := DriveClient().Get(ctx, string(driveID), metav1.GetOptions{})
+			drive, err := lister.driveClient.Get(ctx, string(driveID), metav1.GetOptions{})
 			if err != nil {
 				if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 					continue

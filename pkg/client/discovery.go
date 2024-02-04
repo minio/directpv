@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2023 MinIO, Inc.
+// Copyright (c) 2024 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,13 +28,12 @@ import (
 
 // SyncNodes compares the csinodes with directpvnode list and syncs them
 // It adds the missing nodes and deletes the non-existing nodes
-func SyncNodes(ctx context.Context) (err error) {
-	csiNodes, err := k8s.GetCSINodes(ctx)
+func (c Client) SyncNodes(ctx context.Context) (err error) {
+	csiNodes, err := c.K8s().GetCSINodes(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to get CSI nodes; %w", err)
 	}
-
-	nodes, err := NewNodeLister().Get(ctx)
+	nodes, err := c.NewNodeLister().Get(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to get nodes; %w", err)
 	}
@@ -50,7 +48,7 @@ func SyncNodes(ctx context.Context) (err error) {
 		if !utils.Contains(nodeNames, csiNode) {
 			node := types.NewNode(directpvtypes.NodeID(csiNode), []types.Device{})
 			node.Spec.Refresh = true
-			if _, err = NodeClient().Create(ctx, node, metav1.CreateOptions{}); err != nil {
+			if _, err = c.Node().Create(ctx, node, metav1.CreateOptions{}); err != nil {
 				return fmt.Errorf("unable to create node %v; %w", csiNode, err)
 			}
 		}
@@ -59,11 +57,10 @@ func SyncNodes(ctx context.Context) (err error) {
 	// Remove non-existing nodes.
 	for _, nodeName := range nodeNames {
 		if !utils.Contains(csiNodes, nodeName) {
-			if err = NodeClient().Delete(ctx, nodeName, metav1.DeleteOptions{}); err != nil {
+			if err = c.Node().Delete(ctx, nodeName, metav1.DeleteOptions{}); err != nil {
 				return fmt.Errorf("unable to remove non-existing node %v; %w", nodeName, err)
 			}
 		}
 	}
-
 	return nil
 }

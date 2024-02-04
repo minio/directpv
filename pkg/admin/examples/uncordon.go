@@ -27,7 +27,6 @@ import (
 	"path/filepath"
 
 	"github.com/minio/directpv/pkg/admin"
-	"github.com/minio/directpv/pkg/client"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -58,12 +57,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to get kubeconfig; %v", err)
 	}
-
-	if err := client.InitWithConfig(kubeConfig); err != nil {
+	adminClient, err := admin.NewClient(kubeConfig)
+	if err != nil {
 		log.Fatalf("unable to initialize client; %v", err)
 	}
-
-	if err := admin.Uncordon(context.Background(), admin.UncordonArgs{
+	if err := adminClient.Uncordon(context.Background(), admin.UncordonArgs{
 		Drives: []string{"dm-1"},
 	}); err != nil {
 		log.Fatalf("unable to uncordon the drive; %v", err)

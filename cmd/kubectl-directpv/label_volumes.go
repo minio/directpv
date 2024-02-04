@@ -102,7 +102,7 @@ func init() {
 }
 
 func labelVolumesMain(ctx context.Context) {
-	if err := admin.LabelVolumes(ctx, admin.LabelVolumeArgs{
+	if err := adminClient.LabelVolumes(ctx, admin.LabelVolumeArgs{
 		Nodes:          nodesArgs,
 		Drives:         drivesArgs,
 		DriveIDs:       driveIDArgs,

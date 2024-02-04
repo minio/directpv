@@ -97,7 +97,7 @@ func validateResumeVolumesCmd() error {
 }
 
 func resumeVolumesMain(ctx context.Context) {
-	if err := admin.ResumeVolumes(ctx, admin.ResumeVolumeArgs{
+	if err := adminClient.ResumeVolumes(ctx, admin.ResumeVolumeArgs{
 		Nodes:         nodesArgs,
 		Drives:        drivesArgs,
 		PodNames:      podNameArgs,

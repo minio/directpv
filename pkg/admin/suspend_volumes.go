@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -38,7 +37,7 @@ type SuspendVolumeArgs struct {
 }
 
 // SuspendVolumes suspends the volume
-func SuspendVolumes(ctx context.Context, args SuspendVolumeArgs) error {
+func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs) error {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -59,7 +58,7 @@ func SuspendVolumes(ctx context.Context, args SuspendVolumeArgs) error {
 		if result.Volume.IsSuspended() {
 			continue
 		}
-		volumeClient := client.VolumeClient()
+		volumeClient := client.Volume()
 		updateFunc := func() error {
 			volume, err := volumeClient.Get(ctx, result.Volume.Name, metav1.GetOptions{})
 			if err != nil {
