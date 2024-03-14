@@ -69,7 +69,7 @@ var discoverCmd = &cobra.Command{
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
-	Run: func(c *cobra.Command, args []string) {
+	Run: func(c *cobra.Command, _ []string) {
 		if err := validateDiscoverCmd(); err != nil {
 			utils.Eprintf(quietFlag, true, "%v\n", err)
 			os.Exit(-1)

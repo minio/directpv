@@ -46,7 +46,7 @@ var mainCmd = &cobra.Command{
 		DisableDefaultCmd: true,
 	},
 	Version: Version,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		if !disableInit {
 			client.Init()
 		}

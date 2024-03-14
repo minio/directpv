@@ -97,7 +97,7 @@ var installCmd = &cobra.Command{
 		}
 		return nil
 	},
-	Run: func(c *cobra.Command, args []string) {
+	Run: func(c *cobra.Command, _ []string) {
 		installMain(c.Context())
 	},
 }

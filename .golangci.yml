@@ -30,4 +30,4 @@ issues:
       - exitAfterDefer
 
 service:
-  golangci-lint-version: 1.55.2 # use the fixed version to not introduce new linters unexpectedly
+  golangci-lint-version: 1.56.2 # use the fixed version to not introduce new linters unexpectedly

@@ -40,7 +40,7 @@ var migrateCmd = &cobra.Command{
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
-	Run: func(c *cobra.Command, args []string) {
+	Run: func(c *cobra.Command, _ []string) {
 		migrateMain(c.Context())
 	},
 }

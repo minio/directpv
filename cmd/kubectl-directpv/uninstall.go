@@ -32,7 +32,7 @@ var uninstallCmd = &cobra.Command{
 	Short:         "Uninstall " + consts.AppPrettyName + " in Kubernetes",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	Run: func(c *cobra.Command, args []string) {
+	Run: func(c *cobra.Command, _ []string) {
 		uninstallMain(c.Context())
 	},
 }

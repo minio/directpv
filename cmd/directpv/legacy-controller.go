@@ -32,7 +32,7 @@ var legacyControllerCmd = &cobra.Command{
 	Short:         "Start legacy controller server.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	RunE: func(c *cobra.Command, args []string) error {
+	RunE: func(c *cobra.Command, _ []string) error {
 		return startLegacyController(c.Context())
 	},
 }
