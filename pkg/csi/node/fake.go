@@ -37,13 +37,13 @@ func createFakeServer() *Server {
 		getMounts: func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
 			return map[string]utils.StringSet{consts.MountRootDir: nil}, map[string]utils.StringSet{consts.MountRootDir: nil}, nil
 		},
-		getDeviceByFSUUID: func(fsuuid string) (string, error) { return "", nil },
-		bindMount:         func(source, target string, readOnly bool) error { return nil },
-		unmount:           func(target string) error { return nil },
-		getQuota: func(ctx context.Context, device, volumeName string) (quota *xfs.Quota, err error) {
+		getDeviceByFSUUID: func(_ string) (string, error) { return "", nil },
+		bindMount:         func(_, _ string, _ bool) error { return nil },
+		unmount:           func(_ string) error { return nil },
+		getQuota: func(_ context.Context, _, _ string) (quota *xfs.Quota, err error) {
 			return &xfs.Quota{}, nil
 		},
-		setQuota: func(ctx context.Context, device, path, volumeName string, quota xfs.Quota, update bool) (err error) {
+		setQuota: func(_ context.Context, _, _, _ string, _ xfs.Quota, _ bool) (err error) {
 			return nil
 		},
 		mkdir: func(path string) error {

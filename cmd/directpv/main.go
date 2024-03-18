@@ -65,7 +65,7 @@ var mainCmd = &cobra.Command{
 		DisableDescriptions: true,
 		HiddenDefaultCmd:    true,
 	},
-	PersistentPreRunE: func(c *cobra.Command, args []string) error {
+	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		if kubeNodeName == "" {
 			return fmt.Errorf("value to --kube-node-name must be provided")
 		}

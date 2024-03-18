@@ -32,7 +32,7 @@ var legacyNodeServerCmd = &cobra.Command{
 	Short:         "Start legacy node server.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	RunE: func(c *cobra.Command, args []string) error {
+	RunE: func(c *cobra.Command, _ []string) error {
 		return startLegacyNodeServer(c.Context())
 	},
 }

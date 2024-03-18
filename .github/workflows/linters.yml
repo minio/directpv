@@ -25,6 +25,6 @@ jobs:
       - uses: ludeeus/action-shellcheck@master
       - uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.55.2
+          version: v1.56.2
           args: --config ./.golangci.yml --timeout=60m
           skip-go-installation: true

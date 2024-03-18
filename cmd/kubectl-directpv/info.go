@@ -39,7 +39,7 @@ var infoCmd = &cobra.Command{
 	Short:         "Show information about " + consts.AppPrettyName + " installation",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	Run: func(c *cobra.Command, args []string) {
+	Run: func(c *cobra.Command, _ []string) {
 		infoMain(c.Context())
 	},
 }

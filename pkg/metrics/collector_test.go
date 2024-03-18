@@ -61,8 +61,8 @@ func createFakeMetricsCollector() *metricsCollector {
 	return &metricsCollector{
 		desc:              prometheus.NewDesc(consts.AppName+"_stats", "Statistics exposed by "+consts.AppPrettyName, nil, nil),
 		nodeID:            "test-node-1",
-		getDeviceByFSUUID: func(fsuuid string) (string, error) { return "", nil },
-		getQuota: func(ctx context.Context, device, volumeID string) (quota *xfs.Quota, err error) {
+		getDeviceByFSUUID: func(_ string) (string, error) { return "", nil },
+		getQuota: func(_ context.Context, _, volumeID string) (quota *xfs.Quota, err error) {
 			for _, volume := range volumes {
 				if volume.Name == volumeID {
 					return &xfs.Quota{
