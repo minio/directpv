@@ -27,7 +27,6 @@ import (
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -155,12 +154,12 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 }
 
 func listVolumesMain(ctx context.Context) {
-	volumes, err := volume.NewLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		DriveIDSelector(toLabelValues(driveIDArgs)).
-		PodNameSelector(toLabelValues(podNameArgs)).
-		PodNSSelector(toLabelValues(podNSArgs)).
+	volumes, err := adminClient.NewVolumeLister().
+		NodeSelector(utils.ToLabelValues(nodesArgs)).
+		DriveNameSelector(utils.ToLabelValues(drivesArgs)).
+		DriveIDSelector(utils.ToLabelValues(driveIDArgs)).
+		PodNameSelector(utils.ToLabelValues(podNameArgs)).
+		PodNSSelector(utils.ToLabelValues(podNSArgs)).
 		StatusSelector(volumeStatusSelectors).
 		VolumeNameSelector(volumeNameArgs).
 		LabelSelector(labelSelectors).

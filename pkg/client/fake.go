@@ -25,36 +25,46 @@ import (
 // FakeInit initializes fake clients.
 func FakeInit() {
 	k8s.FakeInit()
+	k8sClient := k8s.GetClient()
+	clientsetInterface := types.NewExtFakeClientset(fake.NewSimpleClientset())
+	driveClient := clientsetInterface.DirectpvLatest().DirectPVDrives()
+	volumeClient := clientsetInterface.DirectpvLatest().DirectPVVolumes()
+	nodeClient := clientsetInterface.DirectpvLatest().DirectPVNodes()
+	initRequestClient := clientsetInterface.DirectpvLatest().DirectPVInitRequests()
+	restClient := clientsetInterface.DirectpvLatest().RESTClient()
 
-	clientsetInterface = types.NewExtFakeClientset(fake.NewSimpleClientset())
-	driveClient = clientsetInterface.DirectpvLatest().DirectPVDrives()
-	volumeClient = clientsetInterface.DirectpvLatest().DirectPVVolumes()
-	nodeClient = clientsetInterface.DirectpvLatest().DirectPVNodes()
-	initRequestClient = clientsetInterface.DirectpvLatest().DirectPVInitRequests()
-
-	initEvent(k8s.KubeClient())
+	initEvent(k8sClient.KubeClient)
+	client = &Client{
+		K8sClient:          k8sClient,
+		ClientsetInterface: clientsetInterface,
+		RESTClient:         restClient,
+		DriveClient:        driveClient,
+		VolumeClient:       volumeClient,
+		NodeClient:         nodeClient,
+		InitRequestClient:  initRequestClient,
+	}
 }
 
 // SetDriveInterface sets latest drive interface.
 // Note: To be used for writing test cases only
 func SetDriveInterface(i types.LatestDriveInterface) {
-	driveClient = i
+	client.DriveClient = i
 }
 
 // SetVolumeInterface sets the latest volume interface.
 // Note: To be used for writing test cases only
 func SetVolumeInterface(i types.LatestVolumeInterface) {
-	volumeClient = i
+	client.VolumeClient = i
 }
 
 // SetNodeInterface sets latest node interface.
 // Note: To be used for writing test cases only
 func SetNodeInterface(i types.LatestNodeInterface) {
-	nodeClient = i
+	client.NodeClient = i
 }
 
 // SetInitRequestInterface sets latest initrequest interface.
 // Note: To be used for writing test cases only
 func SetInitRequestInterface(i types.LatestInitRequestInterface) {
-	initRequestClient = i
+	client.InitRequestClient = i
 }

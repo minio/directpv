@@ -24,7 +24,6 @@ import (
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/xfs"
@@ -220,7 +219,7 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 	if err != nil {
 		return err
 	}
-	drives, err := drive.NewLister().NodeSelector([]directpvtypes.LabelValue{directpvtypes.ToLabelValue(string(nodeID))}).Get(ctx)
+	drives, err := client.NewDriveLister().NodeSelector([]directpvtypes.LabelValue{directpvtypes.ToLabelValue(string(nodeID))}).Get(ctx)
 	if err != nil {
 		return err
 	}

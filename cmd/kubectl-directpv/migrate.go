@@ -18,13 +18,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/installer"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
@@ -53,41 +52,14 @@ func init() {
 }
 
 func migrateMain(ctx context.Context) {
-	if err := installer.Migrate(ctx, &installer.Args{
-		Quiet:  quietFlag,
-		Legacy: true,
-	}, false); err != nil {
+	suffix := time.Now().Format(time.RFC3339)
+	if err := adminClient.Migrate(ctx, admin.MigrateArgs{
+		Quiet:             quietFlag,
+		Retain:            retainFlag,
+		DrivesBackupFile:  "directcsidrives-" + suffix + ".yaml",
+		VolumesBackupFile: "directcsivolumes-" + suffix + ".yaml",
+	}); err != nil {
 		utils.Eprintf(quietFlag, true, "migration failed; %v", err)
 		os.Exit(1)
-	}
-
-	if !quietFlag {
-		fmt.Println("Migration successful; Please restart the pods in '" + consts.AppName + "' namespace.")
-	}
-
-	if retainFlag {
-		return
-	}
-
-	suffix := time.Now().Format(time.RFC3339)
-
-	drivesBackupFile := "directcsidrives-" + suffix + ".yaml"
-	backupCreated, err := installer.RemoveLegacyDrives(ctx, drivesBackupFile)
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "unable to remove legacy drive CRDs; %v", err)
-		os.Exit(1)
-	}
-	if backupCreated && !quietFlag {
-		fmt.Println("Legacy drive CRDs backed up to", drivesBackupFile)
-	}
-
-	volumesBackupFile := "directcsivolumes-" + suffix + ".yaml"
-	backupCreated, err = installer.RemoveLegacyVolumes(ctx, volumesBackupFile)
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "unable to remove legacy volume CRDs; %v", err)
-		os.Exit(1)
-	}
-	if backupCreated && !quietFlag {
-		fmt.Println("Legacy volume CRDs backed up to", volumesBackupFile)
 	}
 }

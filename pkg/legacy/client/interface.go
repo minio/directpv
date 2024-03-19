@@ -42,8 +42,8 @@ import (
 )
 
 // GetGroupVersion probes group and version of given resource kind.
-func GetGroupVersion(kind string) (version, group string, err error) {
-	gvk, err := GetGroupKindVersions(
+func GetGroupVersion(k8sClient *k8s.Client, kind string) (version, group string, err error) {
+	gvk, err := k8sClient.GetGroupVersionKind(
 		directcsi.Group,
 		kind,
 		directcsi.Version,
@@ -56,7 +56,6 @@ func GetGroupVersion(kind string) (version, group string, err error) {
 	if err != nil && !meta.IsNoMatchError(err) {
 		return "", "", err
 	}
-
 	version = directcsi.Version
 	if gvk != nil {
 		version = gvk.Version
@@ -65,13 +64,12 @@ func GetGroupVersion(kind string) (version, group string, err error) {
 	if gvk != nil {
 		group = gvk.Group
 	}
-
 	return version, group, nil
 }
 
 // GetLatestDirectCSIRESTClient gets REST client of the latest direct-csi.
-func GetLatestDirectCSIRESTClient() rest.Interface {
-	directClientset, err := clientset.NewForConfig(k8s.KubeConfig())
+func GetLatestDirectCSIRESTClient(k8sClient *k8s.Client) rest.Interface {
+	directClientset, err := clientset.NewForConfig(k8sClient.KubeConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -100,13 +98,13 @@ type directCSIInterface struct {
 	groupVersion      schema.GroupVersion
 }
 
-func directCSIInterfaceForConfig(config *rest.Config, kind, resource string) (*directCSIInterface, error) {
-	version, group, err := GetGroupVersion(kind)
+func directCSIInterfaceForConfig(k8sClient *k8s.Client, kind, resource string) (*directCSIInterface, error) {
+	version, group, err := GetGroupVersion(k8sClient, kind)
 	if err != nil {
 		return nil, err
 	}
 
-	resourceInterface, err := dynamic.NewForConfig(config)
+	resourceInterface, err := dynamic.NewForConfig(k8sClient.KubeConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -284,8 +282,8 @@ type DirectCSIDriveInterface struct {
 }
 
 // DirectCSIDriveInterfaceForConfig provides a dynamic client interface for DirectCSIDrives
-func DirectCSIDriveInterfaceForConfig(config *rest.Config) (*DirectCSIDriveInterface, error) {
-	inter, err := directCSIInterfaceForConfig(config, "DirectCSIDrive", "directcsidrives")
+func DirectCSIDriveInterfaceForConfig(k8sClient *k8s.Client) (*DirectCSIDriveInterface, error) {
+	inter, err := directCSIInterfaceForConfig(k8sClient, "DirectCSIDrive", "directcsidrives")
 	if err != nil {
 		return nil, err
 	}
@@ -398,8 +396,8 @@ type DirectCSIVolumeInterface struct {
 }
 
 // DirectCSIVolumeInterfaceForConfig provides a dynamic client interface for DirectCSIVolumes
-func DirectCSIVolumeInterfaceForConfig(config *rest.Config) (*DirectCSIVolumeInterface, error) {
-	inter, err := directCSIInterfaceForConfig(config, "DirectCSIVolume", "directcsivolumes")
+func DirectCSIVolumeInterfaceForConfig(k8sClient *k8s.Client) (*DirectCSIVolumeInterface, error) {
+	inter, err := directCSIInterfaceForConfig(k8sClient, "DirectCSIVolume", "directcsivolumes")
 	if err != nil {
 		return nil, err
 	}
