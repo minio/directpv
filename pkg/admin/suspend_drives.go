@@ -36,11 +36,16 @@ type SuspendDriveArgs struct {
 	Drives           []string
 	DriveIDSelectors []directpvtypes.DriveID
 	DryRun           bool
-	Quiet            bool
+}
+
+// SuspendDriveResult represents the suspended drive
+type SuspendDriveResult struct {
+	NodeID    directpvtypes.NodeID
+	DriveName directpvtypes.DriveName
 }
 
 // SuspendDrives suspends the drive
-func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs) error {
+func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs, log logFn) (results []SuspendDriveResult, err error) {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -53,7 +58,8 @@ func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs) 
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			return result.Err
+			err = result.Err
+			return
 		}
 
 		processed = true
@@ -76,16 +82,22 @@ func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs) 
 			}
 			return nil
 		}
-		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			return fmt.Errorf("unable to suspend drive %v; %v", result.Drive.GetDriveID(), err)
+		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
+			err = fmt.Errorf("unable to suspend drive %v; %v", result.Drive.GetDriveID(), err)
+			return
 		}
 
-		if !args.Quiet {
-			fmt.Printf("Drive %v/%v suspended\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-		}
+		log(false, "Drive %v/%v suspended\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+
+		results = append(results, SuspendDriveResult{
+			NodeID:    result.Drive.GetNodeID(),
+			DriveName: result.Drive.GetDriveName(),
+		})
 	}
+
 	if !processed {
-		return ErrNoMatchingResourcesFound
+		return nil, ErrNoMatchingResourcesFound
 	}
-	return nil
+
+	return results, nil
 }

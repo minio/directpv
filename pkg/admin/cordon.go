@@ -25,18 +25,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CordonResult represents the
+type CordonResult struct {
+	NodeID    directpvtypes.NodeID
+	DriveName directpvtypes.DriveName
+}
+
 // CordonArgs represents the args to Cordon the drive
 type CordonArgs struct {
 	Nodes    []string
 	Drives   []string
 	Status   []directpvtypes.DriveStatus
 	DriveIDs []directpvtypes.DriveID
-	Quiet    bool
 	DryRun   bool
 }
 
 // Cordon makes a drive unschedulable
-func (client *Client) Cordon(ctx context.Context, args CordonArgs) error {
+func (client *Client) Cordon(ctx context.Context, args CordonArgs, log logFn) (results []CordonResult, err error) {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -50,7 +55,8 @@ func (client *Client) Cordon(ctx context.Context, args CordonArgs) error {
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			return result.Err
+			err = result.Err
+			return
 		}
 
 		processed = true
@@ -63,29 +69,35 @@ func (client *Client) Cordon(ctx context.Context, args CordonArgs) error {
 		if len(volumes) != 0 {
 			for vresult := range client.NewVolumeLister().VolumeNameSelector(volumes).IgnoreNotFound(true).List(ctx) {
 				if vresult.Err != nil {
-					return vresult.Err
+					err = vresult.Err
+					return
 				}
 
 				if vresult.Volume.Status.Status == directpvtypes.VolumeStatusPending {
-					return fmt.Errorf("unable to cordon drive %v; pending volumes found", result.Drive.GetDriveID())
+					err = fmt.Errorf("unable to cordon drive %v; pending volumes found", result.Drive.GetDriveID())
+					return
 				}
 			}
 		}
 
 		result.Drive.Unschedulable()
 		if !args.DryRun {
-			if _, err := client.Drive().Update(ctx, &result.Drive, metav1.UpdateOptions{}); err != nil {
-				return fmt.Errorf("unable to cordon drive %v; %v", result.Drive.GetDriveID(), err)
+			if _, err = client.Drive().Update(ctx, &result.Drive, metav1.UpdateOptions{}); err != nil {
+				err = fmt.Errorf("unable to cordon drive %v; %v", result.Drive.GetDriveID(), err)
+				return
 			}
 		}
 
-		if !args.Quiet {
-			fmt.Printf("Drive %v/%v cordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-		}
+		log(false, "Drive %v/%v cordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+
+		results = append(results, CordonResult{
+			NodeID:    result.Drive.GetNodeID(),
+			DriveName: result.Drive.GetDriveName(),
+		})
 	}
 
 	if !processed {
-		return ErrNoMatchingResourcesFound
+		return nil, ErrNoMatchingResourcesFound
 	}
-	return nil
+	return
 }

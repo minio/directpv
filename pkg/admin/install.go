@@ -20,19 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path"
-	"sync"
-	"time"
+	"io"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/fatih/color"
 	"github.com/minio/directpv/pkg/admin/installer"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/consts"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/mitchellh/go-homedir"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	versionpkg "k8s.io/apimachinery/pkg/util/version"
@@ -62,8 +55,6 @@ type InstallArgs struct {
 	AppArmorProfile string
 	// EnableLegacy to run in legacy mode
 	EnableLegacy bool
-	// EnableAudit will create an audit file and writes to it
-	EnableAudit bool
 	// PluginVersion denotes the plugin version; this will be set in node-server's annotations
 	PluginVersion string
 	// Quiet enables quiet mode
@@ -78,8 +69,10 @@ type InstallArgs struct {
 	Declarative bool
 	// Openshift when set, runs openshift specific installation
 	Openshift bool
-	// PrintProgress when set, displays the progress in the UI
-	PrintProgress bool
+	// ProgressCh represents the progress channel
+	ProgressCh chan<- installer.Message
+	// AuditWriter denotes the writer passed to record the audit log
+	AuditWriter io.Writer
 }
 
 // Validate - validates the args
@@ -95,39 +88,16 @@ func (args *InstallArgs) Validate() error {
 }
 
 // Install - installs directpv with the provided arguments
-func (client *Client) Install(ctx context.Context, args InstallArgs) ([]installer.Component, error) {
-	if err := args.Validate(); err != nil {
-		return nil, err
-	}
-	var file *utils.SafeFile
+func (client *Client) Install(ctx context.Context, args InstallArgs, installerTasks []installer.Task) error {
 	var err error
-	if !args.DryRun && !args.Declarative {
-		auditFile := fmt.Sprintf("install.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
-		file, err = openAuditFile(auditFile)
-		if err != nil {
-			utils.Eprintf(args.Quiet, true, "unable to open audit file %v; %v\n", auditFile, err)
-			utils.Eprintf(false, false, "%v\n", color.HiYellowString("Skipping audit logging"))
-		}
-
-		defer func() {
-			if file != nil {
-				if err := file.Close(); err != nil {
-					utils.Eprintf(args.Quiet, true, "unable to close audit file; %v\n", err)
-				}
-			}
-		}()
+	if err := args.Validate(); err != nil {
+		return err
 	}
-
 	installerArgs := installer.NewArgs(args.Image)
-	if err != nil {
-		return nil, err
-	}
-
 	var version string
 	if args.PluginVersion != "" {
 		version = args.PluginVersion
 	}
-
 	installerArgs.Registry = args.Registry
 	installerArgs.Org = args.Org
 	installerArgs.ImagePullSecrets = args.ImagePullSecrets
@@ -139,8 +109,8 @@ func (client *Client) Install(ctx context.Context, args InstallArgs) ([]installe
 	installerArgs.KubeVersion = args.KubeVersion
 	installerArgs.Legacy = client.isLegacyEnabled(ctx, args)
 	installerArgs.PluginVersion = version
-	if file != nil {
-		installerArgs.ObjectWriter = file
+	if args.AuditWriter != nil {
+		installerArgs.ObjectWriter = args.AuditWriter
 	}
 	if args.DryRun {
 		installerArgs.DryRun = true
@@ -162,7 +132,7 @@ func (client *Client) Install(ctx context.Context, args InstallArgs) ([]installe
 	} else {
 		major, minor, err := client.K8s().GetKubeVersion()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		installerArgs.KubeVersion, err = versionpkg.ParseSemantic(fmt.Sprintf("%v.%v.0", major, minor))
 		if err != nil {
@@ -171,109 +141,9 @@ func (client *Client) Install(ctx context.Context, args InstallArgs) ([]installe
 	}
 	installerArgs.Declarative = args.Declarative
 	installerArgs.Openshift = args.Openshift
+	installerArgs.ProgressCh = args.ProgressCh
 
-	var failed bool
-	var installedComponents []installer.Component
-	var wg sync.WaitGroup
-	legacyClient, err := legacyclient.NewClient(client.K8s())
-	if err != nil {
-		return nil, err
-	}
-	installerTasks := installer.GetTasks(client.Client, legacyClient)
-	if args.PrintProgress {
-		m := newProgressModel(true)
-		teaProgram := tea.NewProgram(m)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if _, err := teaProgram.Run(); err != nil {
-				fmt.Println("error running program:", err)
-				return
-			}
-		}()
-		wg.Add(1)
-		var totalSteps, step, completedTasks int
-		var currentPercent float64
-		totalTasks := len(installerTasks)
-		weightagePerTask := 1.0 / totalTasks
-		progressCh := make(chan installer.Message)
-		go func() {
-			defer wg.Done()
-			defer close(installerArgs.ProgressCh)
-			var perStepWeightage float64
-			var done bool
-			var message string
-			for {
-				var log string
-				var installedComponent *installer.Component
-				var err error
-				select {
-				case progressMessage, ok := <-progressCh:
-					if !ok {
-						teaProgram.Send(progressNotification{
-							done: true,
-						})
-						return
-					}
-					switch progressMessage.Type() {
-					case installer.StartMessageType:
-						totalSteps = progressMessage.StartMessage()
-						perStepWeightage = float64(weightagePerTask) / float64(totalSteps)
-					case installer.ProgressMessageType:
-						message, step, installedComponent = progressMessage.ProgressMessage()
-						if step > totalSteps {
-							step = totalSteps
-						}
-						if step > 0 {
-							currentPercent += float64(step) * perStepWeightage
-						}
-					case installer.EndMessageType:
-						installedComponent, err = progressMessage.EndMessage()
-						if err == nil {
-							completedTasks++
-							currentPercent = float64(completedTasks) / float64(totalTasks)
-						}
-					case installer.LogMessageType:
-						log = progressMessage.LogMessage()
-					case installer.DoneMessageType:
-						err = progressMessage.DoneMessage()
-						message = ""
-						done = true
-					}
-					if err != nil {
-						failed = true
-					}
-					if installedComponent != nil {
-						installedComponents = append(installedComponents, *installedComponent)
-					}
-					teaProgram.Send(progressNotification{
-						message: message,
-						log:     log,
-						percent: currentPercent,
-						done:    done,
-						err:     err,
-					})
-					if done {
-						return
-					}
-				case <-ctx.Done():
-					fmt.Println("exiting installation; ", ctx.Err())
-					os.Exit(1)
-				}
-			}
-		}()
-		installerArgs.ProgressCh = progressCh
-	}
-	if err := installer.Install(ctx, installerArgs, installerTasks); err != nil && installerArgs.ProgressCh == nil {
-		return installedComponents, err
-	}
-	if installerArgs.ProgressCh != nil {
-		wg.Wait()
-	}
-	if failed {
-		return installedComponents, ErrInstallationIncomplete
-	}
-	return installedComponents, nil
+	return installer.Install(ctx, installerArgs, installerTasks)
 }
 
 func (client Client) isLegacyEnabled(ctx context.Context, args InstallArgs) bool {
@@ -317,23 +187,4 @@ func (client Client) isLegacyEnabled(ctx context.Context, args InstallArgs) bool
 	}
 
 	return false
-}
-
-func openAuditFile(auditFile string) (*utils.SafeFile, error) {
-	defaultAuditDir, err := getDefaultAuditDir()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get default audit directory; %w", err)
-	}
-	if err := os.MkdirAll(defaultAuditDir, 0o700); err != nil {
-		return nil, fmt.Errorf("unable to create default audit directory; %w", err)
-	}
-	return utils.NewSafeFile(path.Join(defaultAuditDir, auditFile))
-}
-
-func getDefaultAuditDir() (string, error) {
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		return "", err
-	}
-	return path.Join(homeDir, "."+consts.AppName, "audit"), nil
 }

@@ -19,6 +19,7 @@ package admin
 import (
 	"errors"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/google/uuid"
@@ -52,8 +53,17 @@ func NewInitConfig() InitConfig {
 	}
 }
 
-// ParseInitConfig reads and parses the init config
-func ParseInitConfig(r io.Reader) (*InitConfig, error) {
+// ReadInitConfig reads the init config from a file
+func ReadInitConfig(inputFile string) (*InitConfig, error) {
+	f, err := os.Open(inputFile)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return parseInitConfig(f)
+}
+
+func parseInitConfig(r io.Reader) (*InitConfig, error) {
 	var config InitConfig
 	if err := yaml.NewDecoder(r).Decode(&config); err != nil {
 		return nil, err

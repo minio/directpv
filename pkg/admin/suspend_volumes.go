@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -33,11 +34,16 @@ type SuspendVolumeArgs struct {
 	PodNamespaces []string
 	VolumeNames   []string
 	DryRun        bool
-	Quiet         bool
+}
+
+// SuspendVolumeResult represents the suspended volume
+type SuspendVolumeResult struct {
+	NodeID     directpvtypes.NodeID
+	VolumeName string
 }
 
 // SuspendVolumes suspends the volume
-func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs) error {
+func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs, log logFn) (results []SuspendVolumeResult, err error) {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -52,7 +58,8 @@ func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			return result.Err
+			err = result.Err
+			return
 		}
 		processed = true
 		if result.Volume.IsSuspended() {
@@ -72,15 +79,20 @@ func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs
 			}
 			return nil
 		}
-		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			return fmt.Errorf("unable to suspend volume %v; %v", result.Volume.Name, err)
+		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
+			err = fmt.Errorf("unable to suspend volume %v; %v", result.Volume.Name, err)
+			return
 		}
-		if !args.Quiet {
-			fmt.Printf("Volume %v/%v suspended\n", result.Volume.GetNodeID(), result.Volume.Name)
-		}
+
+		log(false, "Volume %v/%v suspended\n", result.Volume.GetNodeID(), result.Volume.Name)
+
+		results = append(results, SuspendVolumeResult{
+			NodeID:     result.Volume.GetNodeID(),
+			VolumeName: result.Volume.Name,
+		})
 	}
 	if !processed {
-		return ErrNoMatchingResourcesFound
+		return nil, ErrNoMatchingResourcesFound
 	}
-	return nil
+	return
 }

@@ -24,7 +24,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -61,7 +60,7 @@ var cleanCmd = &cobra.Command{
 		volumeNameArgs = args
 
 		if err := validateCleanCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			log(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -131,7 +130,7 @@ func validateCleanCmd() error {
 }
 
 func cleanMain(ctx context.Context) {
-	if err := adminClient.Clean(ctx, admin.CleanArgs{
+	if _, err := adminClient.Clean(ctx, admin.CleanArgs{
 		Nodes:         nodesArgs,
 		Drives:        drivesArgs,
 		DriveIDs:      driveIDArgs,
@@ -139,8 +138,8 @@ func cleanMain(ctx context.Context) {
 		PodNamespaces: podNSArgs,
 		VolumeStatus:  volumeStatusSelectors,
 		VolumeNames:   volumeNameArgs,
-	}); err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+	}, log); err != nil {
+		log(true, "%v\n", err)
 		os.Exit(1)
 	}
 }

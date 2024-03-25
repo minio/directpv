@@ -127,7 +127,7 @@ func TestInstallUinstall(t *testing.T) {
 		client.K8sClient.DiscoveryClient = k8s.NewFakeDiscovery(getDiscoveryGroupsAndMethods, &testVersion)
 		ctx := context.TODO()
 		args := args
-		tasks := GetTasks(client, legacyClient)
+		tasks := GetDefaultTasks(client, legacyClient)
 		if err := Install(ctx, &args, tasks); err != nil {
 			t.Fatalf("case %v: unexpected error; %v", i+1, err)
 		}

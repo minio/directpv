@@ -27,8 +27,11 @@ import (
 // UncordonArgs represents the args for uncordoning a drive
 type UncordonArgs = CordonArgs
 
+// UncordonResult represents the uncordoned drive
+type UncordonResult = CordonResult
+
 // Uncordon makes the drive schedulable again
-func (client *Client) Uncordon(ctx context.Context, args UncordonArgs) error {
+func (client *Client) Uncordon(ctx context.Context, args UncordonArgs, log logFn) (results []UncordonResult, err error) {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -42,7 +45,8 @@ func (client *Client) Uncordon(ctx context.Context, args UncordonArgs) error {
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			return result.Err
+			err = result.Err
+			return
 		}
 
 		processed = true
@@ -52,22 +56,24 @@ func (client *Client) Uncordon(ctx context.Context, args UncordonArgs) error {
 		}
 
 		result.Drive.Schedulable()
-		var err error
 		if !args.DryRun {
 			_, err = client.Drive().Update(ctx, &result.Drive, metav1.UpdateOptions{})
 		}
-
 		if err != nil {
-			return fmt.Errorf("unable to uncordon drive %v; %v", result.Drive.GetDriveID(), err)
+			err = fmt.Errorf("unable to uncordon drive %v; %v", result.Drive.GetDriveID(), err)
+			return
 		}
 
-		if !args.Quiet {
-			fmt.Printf("Drive %v/%v uncordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-		}
+		log(false, "Drive %v/%v uncordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+
+		results = append(results, UncordonResult{
+			NodeID:    result.Drive.GetNodeID(),
+			DriveName: result.Drive.GetDriveName(),
+		})
 	}
 
 	if !processed {
-		return ErrNoMatchingResourcesFound
+		return nil, ErrNoMatchingResourcesFound
 	}
-	return nil
+	return
 }

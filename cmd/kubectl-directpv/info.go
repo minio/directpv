@@ -25,7 +25,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +41,7 @@ var infoCmd = &cobra.Command{
 func infoMain(ctx context.Context) {
 	nodeInfoMap, err := adminClient.Info(ctx)
 	if err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+		log(true, "%v\n", err)
 		os.Exit(1)
 	}
 	writer := newTableWriter(

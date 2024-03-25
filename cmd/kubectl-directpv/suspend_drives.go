@@ -24,7 +24,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -50,12 +49,12 @@ var suspendDrivesCmd = &cobra.Command{
 		driveIDArgs = args
 
 		if err := validateSuspendDrivesCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			log(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
 		if !dangerousFlag {
-			utils.Eprintf(quietFlag, true, "Suspending the drives will make the corresponding volumes as read-only. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag..\n")
+			log(true, "Suspending the drives will make the corresponding volumes as read-only. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag..\n")
 			os.Exit(1)
 		}
 
@@ -94,14 +93,13 @@ func validateSuspendDrivesCmd() error {
 }
 
 func suspendDrivesMain(ctx context.Context) {
-	if err := adminClient.SuspendDrives(ctx, admin.SuspendDriveArgs{
+	if _, err := adminClient.SuspendDrives(ctx, admin.SuspendDriveArgs{
 		Nodes:            nodesArgs,
 		Drives:           drivesArgs,
 		DriveIDSelectors: driveIDSelectors,
-		Quiet:            quietFlag,
 		DryRun:           dryRunFlag,
-	}); err != nil {
-		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	}, log); err != nil {
+		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

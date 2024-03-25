@@ -28,8 +28,11 @@ import (
 // ResumeDriveArgs represents the args to be passed for resuming the drive
 type ResumeDriveArgs = SuspendDriveArgs
 
+// ResumeDriveResult represents the resumed drive
+type ResumeDriveResult = SuspendDriveResult
+
 // ResumeDrives will resume the suspended drives
-func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs) error {
+func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs, log logFn) (results []ResumeDriveResult, err error) {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -42,7 +45,8 @@ func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs) er
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			return result.Err
+			err = result.Err
+			return
 		}
 		processed = true
 		if !result.Drive.IsSuspended() {
@@ -63,15 +67,20 @@ func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs) er
 			}
 			return nil
 		}
-		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			return fmt.Errorf("unable to resume drive %v; %v", result.Drive.GetDriveID(), err)
+		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
+			err = fmt.Errorf("unable to resume drive %v; %v", result.Drive.GetDriveID(), err)
+			return
 		}
-		if !args.Quiet {
-			fmt.Printf("Drive %v/%v resumed\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-		}
+
+		log(false, "Drive %v/%v resumed\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+
+		results = append(results, ResumeDriveResult{
+			NodeID:    result.Drive.GetNodeID(),
+			DriveName: result.Drive.GetDriveName(),
+		})
 	}
 	if !processed {
-		return ErrNoMatchingResourcesFound
+		return nil, ErrNoMatchingResourcesFound
 	}
-	return nil
+	return
 }

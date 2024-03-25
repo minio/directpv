@@ -18,7 +18,6 @@ package admin
 
 import (
 	"context"
-	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/types"
@@ -27,6 +26,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type logFn func(isErr bool, format string, a ...any)
 
 // CleanArgs represents the arguments to clean the volumes
 type CleanArgs struct {
@@ -37,12 +38,11 @@ type CleanArgs struct {
 	PodNamespaces []string
 	VolumeStatus  []directpvtypes.VolumeStatus
 	VolumeNames   []string
-	Quiet         bool
 	DryRun        bool
 }
 
 // Clean removes the stale/abandoned volumes
-func (client *Client) Clean(ctx context.Context, args CleanArgs) error {
+func (client *Client) Clean(ctx context.Context, args CleanArgs, log logFn) (removedVolumes []string, err error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -62,7 +62,7 @@ func (client *Client) Clean(ctx context.Context, args CleanArgs) error {
 			if apierrors.IsNotFound(err) {
 				return true
 			}
-			utils.Eprintf(args.Quiet, true, "unable to get PV for volume %v; %v\n", volume.Name, err)
+			log(true, "unable to get PV for volume %v; %v\n", volume.Name, err)
 			return false
 		}
 		switch pv.Status.Phase {
@@ -75,7 +75,8 @@ func (client *Client) Clean(ctx context.Context, args CleanArgs) error {
 
 	for result := range resultCh {
 		if result.Err != nil {
-			return result.Err
+			err = result.Err
+			return
 		}
 		if !matchFunc(&result.Volume) {
 			continue
@@ -84,18 +85,17 @@ func (client *Client) Clean(ctx context.Context, args CleanArgs) error {
 		if args.DryRun {
 			continue
 		}
-		if _, err := client.Volume().Update(ctx, &result.Volume, metav1.UpdateOptions{
+		if _, err = client.Volume().Update(ctx, &result.Volume, metav1.UpdateOptions{
 			TypeMeta: types.NewVolumeTypeMeta(),
 		}); err != nil {
-			return err
+			return
 		}
-		if err := client.Volume().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			return err
+		log(false, "Removing volume %s\n", result.Volume.Name)
+		if err = client.Volume().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			return
 		}
-		if !args.Quiet {
-			fmt.Println("Removing volume", result.Volume.Name)
-		}
+		removedVolumes = append(removedVolumes, result.Volume.Name)
 	}
 
-	return nil
+	return
 }

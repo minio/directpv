@@ -35,5 +35,5 @@ func (client Client) Uninstall(ctx context.Context, args UninstallArgs) error {
 	if err != nil {
 		return err
 	}
-	return installer.Uninstall(ctx, args.Quiet, args.Dangerous, installer.GetTasks(client.Client, legacyClient))
+	return installer.Uninstall(ctx, args.Quiet, args.Dangerous, installer.GetDefaultTasks(client.Client, legacyClient))
 }

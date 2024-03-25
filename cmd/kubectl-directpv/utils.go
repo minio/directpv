@@ -20,10 +20,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 
 	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
+	"github.com/mitchellh/go-homedir"
 	"k8s.io/klog/v2"
 )
 
@@ -96,4 +99,23 @@ func validateOutputFormat(isWideSupported bool) error {
 		return errors.New("--output flag value must be one of yaml|json")
 	}
 	return nil
+}
+
+func openAuditFile(auditFile string) (*utils.SafeFile, error) {
+	defaultAuditDir, err := getDefaultAuditDir()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get default audit directory; %w", err)
+	}
+	if err := os.MkdirAll(defaultAuditDir, 0o700); err != nil {
+		return nil, fmt.Errorf("unable to create default audit directory; %w", err)
+	}
+	return utils.NewSafeFile(path.Join(defaultAuditDir, auditFile))
+}
+
+func getDefaultAuditDir() (string, error) {
+	homeDir, err := homedir.Dir()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(homeDir, "."+consts.AppName, "audit"), nil
 }

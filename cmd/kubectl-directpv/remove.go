@@ -25,7 +25,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -56,7 +55,7 @@ var removeCmd = &cobra.Command{
 		driveIDArgs = args
 
 		if err := validateRemoveCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			log(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -112,15 +111,14 @@ func validateRemoveCmd() error {
 }
 
 func removeMain(ctx context.Context) {
-	if err := adminClient.Remove(ctx, admin.RemoveArgs{
+	if _, err := adminClient.Remove(ctx, admin.RemoveArgs{
 		Nodes:       nodesArgs,
 		Drives:      drivesArgs,
 		DriveStatus: driveStatusSelectors,
 		DriveIDs:    driveIDSelectors,
-		Quiet:       quietFlag,
 		DryRun:      dryRunFlag,
-	}); err != nil {
-		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	}, log); err != nil {
+		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

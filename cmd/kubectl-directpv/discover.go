@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/minio/directpv/pkg/admin"
@@ -32,6 +34,7 @@ import (
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 var (
@@ -65,7 +68,7 @@ var discoverCmd = &cobra.Command{
 	),
 	Run: func(c *cobra.Command, _ []string) {
 		if err := validateDiscoverCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			log(true, "%v\n", err)
 			os.Exit(-1)
 		}
 		discoverMain(c.Context())
@@ -149,7 +152,7 @@ func showDevices(resultMap map[directpvtypes.NodeID][]types.Device) error {
 	}
 
 	if writer.Length() == 0 || !foundAvailableDrive {
-		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to initialize"))
+		log(false, color.HiYellowString("No drives are available to initialize")+"\n")
 		return errDiscoveryFailed
 	}
 
@@ -166,24 +169,136 @@ func writeInitConfig(config admin.InitConfig) error {
 }
 
 func discoverMain(ctx context.Context) {
-	resultMap, err := adminClient.DiscoverDevices(ctx, admin.DiscoverArgs{
-		Nodes:         nodesArgs,
-		Drives:        drivesArgs,
-		PrintProgress: !quietFlag,
-	})
+	var teaProgram *tea.Program
+	var wg sync.WaitGroup
+	if !quietFlag {
+		m := newProgressModel(false)
+		teaProgram = tea.NewProgram(m)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := teaProgram.Run(); err != nil {
+				fmt.Println("error running program:", err)
+				os.Exit(1)
+			}
+		}()
+	}
+
+	nodeCh, errCh, err := adminClient.RefreshNodes(ctx, nodesArgs)
 	if err != nil {
-		utils.Eprintf(quietFlag, true, "discovery failed; %v\n", err)
+		log(true, "discovery failed; %v\n", err)
 		os.Exit(1)
+	}
+
+	var nodeNames []string
+	discoveryProgressMap := make(map[string]progressLog)
+	var refreshwg sync.WaitGroup
+	refreshwg.Add(1)
+	go func() {
+		defer refreshwg.Done()
+		for {
+			select {
+			case nodeID, ok := <-nodeCh:
+				if !ok {
+					return
+				}
+				nodeNames = append(nodeNames, string(nodeID))
+				if teaProgram != nil {
+					discoveryProgressMap[string(nodeID)] = progressLog{
+						log: fmt.Sprintf("Discovering node '%v'", nodeID),
+					}
+					teaProgram.Send(progressNotification{
+						progressLogs: toProgressLogs(discoveryProgressMap),
+					})
+				}
+			case err, ok := <-errCh:
+				if !ok {
+					return
+				}
+				log(true, "discovery failed; %v\n", err)
+				os.Exit(1)
+			case <-ctx.Done():
+				log(true, ctx.Err().Error())
+				os.Exit(1)
+			}
+		}
+	}()
+	refreshwg.Wait()
+
+	resultMap, err := discoverDevices(ctx, nodeNames, drivesArgs, teaProgram)
+	if err != nil {
+		log(true, "discovery failed; %v\n", err)
+		os.Exit(1)
+	}
+	if teaProgram != nil {
+		teaProgram.Send(progressNotification{
+			done: true,
+			err:  err,
+		})
+		wg.Wait()
 	}
 	if err := showDevices(resultMap); err != nil {
 		if !errors.Is(err, errDiscoveryFailed) {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			log(true, "%v\n", err)
 		}
 		os.Exit(1)
 	}
 	if err := writeInitConfig(admin.ToInitConfig(resultMap)); err != nil {
-		utils.Eprintf(quietFlag, true, "unable to write init config; %v\n", err)
+		log(true, "unable to write init config; %v\n", err)
 	} else if !quietFlag {
 		color.HiGreen("Generated '%s' successfully.", outputFile)
+	}
+}
+
+func discoverDevices(ctx context.Context, nodes, drives []string, teaProgram *tea.Program) (devices map[directpvtypes.NodeID][]types.Device, err error) {
+	ctx, cancel := context.WithTimeout(ctx, nodeListTimeout)
+	defer cancel()
+
+	eventCh, stop, err := adminClient.NewNodeLister().
+		NodeSelector(utils.ToLabelValues(nodes)).
+		Watch(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer stop()
+
+	discoveryProgressMap := make(map[string]progressLog)
+	devices = map[directpvtypes.NodeID][]types.Device{}
+	for {
+		select {
+		case event, ok := <-eventCh:
+			if !ok {
+				return
+			}
+			if event.Err != nil {
+				err = event.Err
+				return
+			}
+			switch event.Type {
+			case watch.Modified, watch.Added:
+				node := event.Item
+				if !node.Spec.Refresh {
+					devices[directpvtypes.NodeID(node.Name)] = node.GetDevicesByNames(drives)
+					if teaProgram != nil {
+						discoveryProgressMap[node.Name] = progressLog{
+							log:  fmt.Sprintf("Discovered node '%v'", node.Name),
+							done: true,
+						}
+						teaProgram.Send(progressNotification{
+							progressLogs: toProgressLogs(discoveryProgressMap),
+						})
+					}
+				}
+				if len(devices) >= len(nodes) {
+					return
+				}
+			case watch.Deleted:
+				return
+			default:
+			}
+		case <-ctx.Done():
+			err = fmt.Errorf("unable to complete the discovery; %v", ctx.Err())
+			return
+		}
 	}
 }

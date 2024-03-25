@@ -21,13 +21,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/admin/installer"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
+	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -83,7 +87,7 @@ var installCmd = &cobra.Command{
 	),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if err := validateInstallCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			log(true, "%v\n", err)
 			os.Exit(-1)
 		}
 		disableInit = dryRunPrinter != nil
@@ -145,8 +149,26 @@ func installMain(ctx context.Context) {
 	if Version != "" {
 		pluginVersion = Version
 	}
-	enableProgress := dryRunPrinter == nil && !declarativeFlag && !quietFlag
-	installedComponents, err := adminClient.Install(ctx, admin.InstallArgs{
+	dryRun := dryRunPrinter != nil
+	var file *utils.SafeFile
+	var err error
+	if !dryRun && !declarativeFlag {
+		auditFile := fmt.Sprintf("install.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
+		file, err = openAuditFile(auditFile)
+		if err != nil {
+			log(true, "unable to open audit file %v; %v\n", auditFile, err)
+			log(false, "%v\n", color.HiYellowString("Skipping audit logging"))
+		}
+		defer func() {
+			if file != nil {
+				if err := file.Close(); err != nil {
+					log(true, "unable to close audit file; %v\n", err)
+				}
+			}
+		}()
+	}
+
+	args := admin.InstallArgs{
 		Image:            image,
 		Registry:         registry,
 		Org:              org,
@@ -156,7 +178,6 @@ func installMain(ctx context.Context) {
 		SeccompProfile:   seccompProfile,
 		AppArmorProfile:  apparmorProfile,
 		EnableLegacy:     legacyFlag,
-		EnableAudit:      dryRunPrinter == nil && !declarativeFlag,
 		PluginVersion:    pluginVersion,
 		Quiet:            quietFlag,
 		KubeVersion:      kubeVersion,
@@ -164,17 +185,114 @@ func installMain(ctx context.Context) {
 		OutputFormat:     outputFormat,
 		Declarative:      declarativeFlag,
 		Openshift:        openshiftFlag,
-		PrintProgress:    enableProgress,
-	})
+		AuditWriter:      file,
+	}
+
+	var failed bool
+	var wg sync.WaitGroup
+	var installedComponents []installer.Component
+	legacyClient, err := legacyclient.NewClient(adminClient.K8s())
 	if err != nil {
-		if !enableProgress {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
-		}
+		fmt.Println("error creating legacy client:", err)
+		return
+	}
+	installerTasks := installer.GetDefaultTasks(adminClient.Client, legacyClient)
+	enableProgress := !dryRun && !declarativeFlag && !quietFlag
+	if enableProgress {
+		m := newProgressModel(true)
+		teaProgram := tea.NewProgram(m)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := teaProgram.Run(); err != nil {
+				fmt.Println("error running program:", err)
+				return
+			}
+		}()
+		var totalSteps, step, completedTasks int
+		var currentPercent float64
+		totalTasks := len(installerTasks)
+		weightagePerTask := 1.0 / totalTasks
+		progressCh := make(chan installer.Message)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer close(args.ProgressCh)
+			var perStepWeightage float64
+			var done bool
+			var message string
+			for {
+				var log string
+				var installedComponent *installer.Component
+				var err error
+				select {
+				case progressMessage, ok := <-progressCh:
+					if !ok {
+						teaProgram.Send(progressNotification{
+							done: true,
+						})
+						return
+					}
+					switch progressMessage.Type() {
+					case installer.StartMessageType:
+						totalSteps = progressMessage.StartMessage()
+						perStepWeightage = float64(weightagePerTask) / float64(totalSteps)
+					case installer.ProgressMessageType:
+						message, step, installedComponent = progressMessage.ProgressMessage()
+						if step > totalSteps {
+							step = totalSteps
+						}
+						if step > 0 {
+							currentPercent += float64(step) * perStepWeightage
+						}
+					case installer.EndMessageType:
+						installedComponent, err = progressMessage.EndMessage()
+						if err == nil {
+							completedTasks++
+							currentPercent = float64(completedTasks) / float64(totalTasks)
+						}
+					case installer.LogMessageType:
+						log = progressMessage.LogMessage()
+					case installer.DoneMessageType:
+						err = progressMessage.DoneMessage()
+						message = ""
+						done = true
+					}
+					if err != nil {
+						failed = true
+					}
+					if installedComponent != nil {
+						installedComponents = append(installedComponents, *installedComponent)
+					}
+					teaProgram.Send(progressNotification{
+						message: message,
+						log:     log,
+						percent: currentPercent,
+						done:    done,
+						err:     err,
+					})
+					if done {
+						return
+					}
+				case <-ctx.Done():
+					fmt.Println("exiting installation; ", ctx.Err())
+					os.Exit(1)
+				}
+			}
+		}()
+		args.ProgressCh = progressCh
+	}
+
+	if err := adminClient.Install(ctx, args, installerTasks); err != nil && args.ProgressCh == nil {
+		log(true, "%v\n", err)
 		os.Exit(1)
 	}
-	if enableProgress {
-		printTable(installedComponents)
-		color.HiGreen("\nDirectPV installed successfully")
+	if args.ProgressCh != nil {
+		wg.Wait()
+		if !failed {
+			printTable(installedComponents)
+			color.HiGreen("\nDirectPV installed successfully")
+		}
 	}
 }
 

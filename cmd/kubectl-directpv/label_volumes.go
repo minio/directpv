@@ -24,7 +24,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +48,7 @@ var labelVolumesCmd = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		volumeNameArgs = idArgs
 		if err := validateLabelVolumesCmd(args); err != nil {
-			utils.Eprintf(quietFlag, true, "%s; Check `--help` for usage\n", err.Error())
+			log(true, "%s; Check `--help` for usage\n", err.Error())
 			os.Exit(1)
 		}
 		labelVolumesMain(c.Context())
@@ -102,7 +101,7 @@ func init() {
 }
 
 func labelVolumesMain(ctx context.Context) {
-	if err := adminClient.LabelVolumes(ctx, admin.LabelVolumeArgs{
+	if _, err := adminClient.LabelVolumes(ctx, admin.LabelVolumeArgs{
 		Nodes:          nodesArgs,
 		Drives:         drivesArgs,
 		DriveIDs:       driveIDArgs,
@@ -111,8 +110,8 @@ func labelVolumesMain(ctx context.Context) {
 		VolumeStatus:   volumeStatusSelectors,
 		VolumeNames:    volumeNameArgs,
 		LabelSelectors: labelSelectors,
-	}, labels); err != nil {
-		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	}, labels, log); err != nil {
+		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

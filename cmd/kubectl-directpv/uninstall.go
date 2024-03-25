@@ -23,7 +23,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +48,7 @@ func uninstallMain(ctx context.Context) {
 		Quiet:     quietFlag,
 		Dangerous: dangerousFlag,
 	}); err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+		log(true, "%v\n", err)
 		os.Exit(1)
 	}
 	if !quietFlag {

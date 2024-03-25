@@ -18,7 +18,6 @@ package admin
 
 import (
 	"context"
-	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -36,12 +35,17 @@ type LabelVolumeArgs struct {
 	VolumeStatus   []directpvtypes.VolumeStatus
 	VolumeNames    []string
 	LabelSelectors map[directpvtypes.LabelKey]directpvtypes.LabelValue
-	Quiet          bool
 	DryRun         bool
 }
 
+// LabelVolumeResult represents the labeled volume
+type LabelVolumeResult struct {
+	NodeID     directpvtypes.NodeID
+	VolumeName string
+}
+
 // LabelVolumes sets/removes labels on/from the volumes
-func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, labels []Label) error {
+func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, labels []Label, log logFn) (results []LabelVolumeResult, err error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -58,7 +62,8 @@ func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, la
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			return result.Err
+			err = result.Err
+			return
 		}
 		var verb string
 		processed = true
@@ -80,17 +85,21 @@ func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, la
 					volume, err = client.Volume().Update(ctx, volume, metav1.UpdateOptions{})
 				}
 				if err != nil {
-					utils.Eprintf(args.Quiet, true, "%v: %v\n", volume.Name, err)
-				} else if !args.Quiet {
-					fmt.Printf("Label '%s' successfully %s %v\n", labels[i].String(), verb, volume.Name)
+					log(true, "%v: %v\n", volume.Name, err)
+				} else {
+					log(false, "Label '%s' successfully %s %v\n", labels[i].String(), verb, volume.Name)
 				}
+				results = append(results, LabelVolumeResult{
+					NodeID:     volume.GetNodeID(),
+					VolumeName: volume.Name,
+				})
 				return
 			}
 			retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
 		}
 	}
 	if !processed {
-		return ErrNoMatchingResourcesFound
+		return nil, ErrNoMatchingResourcesFound
 	}
-	return nil
+	return
 }

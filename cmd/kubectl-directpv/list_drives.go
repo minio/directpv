@@ -67,7 +67,7 @@ var listDrivesCmd = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		driveIDArgs = args
 		if err := validateListDrivesArgs(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			log(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -124,7 +124,7 @@ func listDrivesMain(ctx context.Context) {
 		LabelSelector(labelSelectors).
 		Get(ctx)
 	if err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+		log(true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -224,9 +224,9 @@ func listDrivesMain(ctx context.Context) {
 	}
 
 	if allFlag {
-		utils.Eprintf(quietFlag, false, "No resources found\n")
+		log(false, "No resources found\n")
 	} else {
-		utils.Eprintf(quietFlag, false, "No matching resources found\n")
+		log(false, "No matching resources found\n")
 	}
 
 	os.Exit(1)

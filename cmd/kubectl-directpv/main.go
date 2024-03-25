@@ -40,6 +40,9 @@ var Version string
 var (
 	disableInit bool
 	adminClient *admin.Client
+	log         = func(isErr bool, format string, a ...any) {
+		utils.Eprintf(quietFlag, isErr, format, a...)
+	}
 )
 
 var mainCmd = &cobra.Command{
@@ -183,7 +186,7 @@ func main() {
 	go func() {
 		select {
 		case signal := <-signalCh:
-			utils.Eprintf(quietFlag, false, "\nExiting on signal %v\n", signal)
+			log(false, "\nExiting on signal %v\n", signal)
 			cancelFunc()
 			os.Exit(1)
 		case <-ctx.Done():
@@ -191,7 +194,7 @@ func main() {
 	}()
 
 	if err := mainCmd.ExecuteContext(ctx); err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+		log(true, "%v\n", err)
 		os.Exit(1)
 	}
 }

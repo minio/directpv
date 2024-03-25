@@ -28,8 +28,11 @@ import (
 // ResumeVolumeArgs represents the args to be passed for resuming the volume
 type ResumeVolumeArgs = SuspendVolumeArgs
 
+// ResumeVolumeResult represents the suspended volume
+type ResumeVolumeResult = SuspendVolumeResult
+
 // ResumeVolumes will resume the suspended volumes
-func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs) error {
+func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs, log logFn) (results []ResumeVolumeResult, err error) {
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -44,7 +47,8 @@ func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs) 
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			return result.Err
+			err = result.Err
+			return
 		}
 		processed = true
 		if !result.Volume.IsSuspended() {
@@ -65,15 +69,21 @@ func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs) 
 			}
 			return nil
 		}
-		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			return fmt.Errorf("unable to resume volume %v; %v", result.Volume.Name, err)
+
+		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
+			err = fmt.Errorf("unable to resume volume %v; %v", result.Volume.Name, err)
+			return
 		}
-		if !args.Quiet {
-			fmt.Printf("Volume %v/%v resumed\n", result.Volume.GetNodeID(), result.Volume.Name)
-		}
+
+		log(false, "Volume %v/%v resumed\n", result.Volume.GetNodeID(), result.Volume.Name)
+
+		results = append(results, ResumeVolumeResult{
+			NodeID:     result.Volume.GetNodeID(),
+			VolumeName: result.Volume.Name,
+		})
 	}
 	if !processed {
-		return ErrNoMatchingResourcesFound
+		return nil, ErrNoMatchingResourcesFound
 	}
-	return nil
+	return
 }

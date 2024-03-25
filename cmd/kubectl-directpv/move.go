@@ -24,7 +24,6 @@ import (
 	"github.com/minio/directpv/pkg/admin"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -42,19 +41,19 @@ var moveCmd = &cobra.Command{
 	),
 	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 2 {
-			utils.Eprintf(quietFlag, true, "only one source and one destination drive must be provided\n")
+			log(true, "only one source and one destination drive must be provided\n")
 			os.Exit(-1)
 		}
 
 		src := strings.TrimSpace(args[0])
 		if src == "" {
-			utils.Eprintf(quietFlag, true, "empty source drive\n")
+			log(true, "empty source drive\n")
 			os.Exit(-1)
 		}
 
 		dest := strings.TrimSpace(args[1])
 		if dest == "" {
-			utils.Eprintf(quietFlag, true, "empty destination drive\n")
+			log(true, "empty destination drive\n")
 			os.Exit(-1)
 		}
 
@@ -66,9 +65,8 @@ func moveMain(ctx context.Context, src, dest directpvtypes.DriveID) {
 	if err := adminClient.Move(ctx, admin.MoveArgs{
 		Source:      src,
 		Destination: dest,
-		Quiet:       quietFlag,
-	}); err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+	}, log); err != nil {
+		log(true, "%v\n", err)
 		os.Exit(1)
 	}
 }

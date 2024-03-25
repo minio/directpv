@@ -24,7 +24,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -55,7 +54,7 @@ var cordonCmd = &cobra.Command{
 		driveIDArgs = args
 
 		if err := validateCordonCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			log(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -111,15 +110,14 @@ func validateCordonCmd() error {
 }
 
 func cordonMain(ctx context.Context) {
-	if err := adminClient.Cordon(ctx, admin.CordonArgs{
+	if _, err := adminClient.Cordon(ctx, admin.CordonArgs{
 		Nodes:    nodesArgs,
 		Drives:   drivesArgs,
 		Status:   driveStatusSelectors,
 		DriveIDs: driveIDSelectors,
-		Quiet:    quietFlag,
 		DryRun:   dryRunFlag,
-	}); err != nil {
-		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	}, log); err != nil {
+		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

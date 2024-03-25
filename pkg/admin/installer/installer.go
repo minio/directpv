@@ -25,8 +25,8 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 )
 
-// GetTasks returns the installer tasks to be run
-func GetTasks(client *client.Client, legacyClient *legacyclient.Client) []Task {
+// GetDefaultTasks returns the installer tasks to be run
+func GetDefaultTasks(client *client.Client, legacyClient *legacyclient.Client) []Task {
 	return []Task{
 		namespaceTask{client},
 		rbacTask{client},

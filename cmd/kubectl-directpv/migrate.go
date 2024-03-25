@@ -24,7 +24,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -59,7 +58,7 @@ func migrateMain(ctx context.Context) {
 		DrivesBackupFile:  "directcsidrives-" + suffix + ".yaml",
 		VolumesBackupFile: "directcsivolumes-" + suffix + ".yaml",
 	}); err != nil {
-		utils.Eprintf(quietFlag, true, "migration failed; %v", err)
+		log(true, "migration failed; %v", err)
 		os.Exit(1)
 	}
 }

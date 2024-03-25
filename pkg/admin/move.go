@@ -31,11 +31,10 @@ import (
 type MoveArgs struct {
 	Source      directpvtypes.DriveID
 	Destination directpvtypes.DriveID
-	Quiet       bool
 }
 
 // Move - moves the volume references from source to destination
-func (client *Client) Move(ctx context.Context, args MoveArgs) error {
+func (client *Client) Move(ctx context.Context, args MoveArgs, log logFn) error {
 	if args.Source == args.Destination {
 		return errors.New("source and destination drives are same")
 	}
@@ -114,9 +113,7 @@ func (client *Client) Move(ctx context.Context, args MoveArgs) error {
 	}
 
 	for _, volume := range volumes {
-		if !args.Quiet {
-			fmt.Println("Moving volume", volume.Name)
-		}
+		log(false, "Moving volume %v", volume.Name)
 	}
 
 	srcDrive.ResetFinalizers()

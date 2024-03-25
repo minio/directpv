@@ -18,7 +18,6 @@ package admin
 
 import (
 	"context"
-	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -40,6 +39,12 @@ func (l Label) String() string {
 	return string(l.Key) + ":" + string(l.Value)
 }
 
+// LabelDriveResult represents the labeled drives
+type LabelDriveResult struct {
+	NodeID    directpvtypes.NodeID
+	DriveName directpvtypes.DriveName
+}
+
 // LabelDriveArgs represents the arguments for adding/removing labels on/from the drives
 type LabelDriveArgs struct {
 	Nodes          []string
@@ -47,12 +52,11 @@ type LabelDriveArgs struct {
 	DriveStatus    []directpvtypes.DriveStatus
 	DriveIDs       []directpvtypes.DriveID
 	LabelSelectors map[directpvtypes.LabelKey]directpvtypes.LabelValue
-	Quiet          bool
 	DryRun         bool
 }
 
 // LabelDrives sets/removes labels on/from the drives
-func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labels []Label) error {
+func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labels []Label, log logFn) (results []LabelDriveResult, err error) {
 	var processed bool
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
@@ -66,7 +70,8 @@ func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labe
 		List(ctx)
 	for result := range resultCh {
 		if result.Err != nil {
-			return result.Err
+			err = result.Err
+			return
 		}
 		processed = true
 		drive := &result.Drive
@@ -88,17 +93,21 @@ func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labe
 					drive, err = client.Drive().Update(ctx, drive, metav1.UpdateOptions{})
 				}
 				if err != nil {
-					utils.Eprintf(args.Quiet, true, "%v/%v: %v\n", drive.GetNodeID(), drive.GetDriveName(), err)
-				} else if !args.Quiet {
-					fmt.Printf("Label '%s' successfully %s %v/%v\n", labels[i].String(), verb, drive.GetNodeID(), drive.GetDriveName())
+					log(true, "%v/%v: %v\n", drive.GetNodeID(), drive.GetDriveName(), err)
+				} else {
+					log(false, "Label '%s' successfully %s %v/%v\n", labels[i].String(), verb, drive.GetNodeID(), drive.GetDriveName())
 				}
+				results = append(results, LabelDriveResult{
+					NodeID:    drive.GetNodeID(),
+					DriveName: drive.GetDriveName(),
+				})
 				return
 			}
 			retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
 		}
 	}
 	if !processed {
-		return ErrNoMatchingResourcesFound
+		return nil, ErrNoMatchingResourcesFound
 	}
-	return nil
+	return
 }

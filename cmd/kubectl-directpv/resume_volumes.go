@@ -24,7 +24,6 @@ import (
 
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +48,7 @@ var resumeVolumesCmd = &cobra.Command{
 		volumeNameArgs = args
 
 		if err := validateResumeVolumesCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			log(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -97,16 +96,15 @@ func validateResumeVolumesCmd() error {
 }
 
 func resumeVolumesMain(ctx context.Context) {
-	if err := adminClient.ResumeVolumes(ctx, admin.ResumeVolumeArgs{
+	if _, err := adminClient.ResumeVolumes(ctx, admin.ResumeVolumeArgs{
 		Nodes:         nodesArgs,
 		Drives:        drivesArgs,
 		PodNames:      podNameArgs,
 		PodNamespaces: podNSArgs,
 		VolumeNames:   volumeNameArgs,
-		Quiet:         quietFlag,
 		DryRun:        dryRunFlag,
-	}); err != nil {
-		utils.Eprintf(quietFlag, !errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	}, log); err != nil {
+		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }
