@@ -64,7 +64,7 @@ func (handler *nodeEventHandler) ObjectType() runtime.Object {
 
 func (handler *nodeEventHandler) Handle(ctx context.Context, eventType controller.EventType, object runtime.Object) error {
 	switch eventType {
-	case controller.UpdateEvent:
+	case controller.UpdateEvent, controller.AddEvent:
 		node := object.(*types.Node)
 		if node.Spec.Refresh {
 			return Sync(ctx, directpvtypes.NodeID(node.Name))

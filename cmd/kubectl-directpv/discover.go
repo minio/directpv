@@ -299,7 +299,7 @@ func syncNodes(ctx context.Context) (err error) {
 	// Add missing nodes.
 	for _, csiNode := range csiNodes {
 		if !utils.Contains(nodeNames, csiNode) {
-			node := types.NewNode(directpvtypes.NodeID(csiNode), nil)
+			node := types.NewNode(directpvtypes.NodeID(csiNode), []types.Device{})
 			node.Spec.Refresh = true
 			if _, err = client.NodeClient().Create(ctx, node, metav1.CreateOptions{}); err != nil {
 				return fmt.Errorf("unable to create node %v; %w", csiNode, err)

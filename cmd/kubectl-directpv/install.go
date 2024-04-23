@@ -50,7 +50,7 @@ var (
 	imagePullSecrets = []string{}
 	nodeSelector     map[string]string
 	tolerations      []corev1.Toleration
-	k8sVersion       = "1.27.0"
+	k8sVersion       = "1.29.0"
 	kubeVersion      *version.Version
 	legacyFlag       bool
 	declarativeFlag  bool

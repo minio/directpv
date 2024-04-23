@@ -35,7 +35,7 @@ $ chmod a+x kubectl-directpv
 Before starting the installation, it is required to have DirectPV plugin installed on your system. For plugin installation refer [this documentation](#directpv-plugin-installation). If you are not using `krew`, replace `kubectl directpv` by `kubectl-directpv` in below steps.
 
 ### Prerequisites
-* Kubernetes >= v1.18 on GNU/Linux on amd64.
+* Kubernetes >= v1.20 on GNU/Linux on amd64.
 * If you use private registry, below images must be pushed into your registry. You could use [this helper script](tools/push-images.sh) to do that.
   - quay.io/minio/csi-node-driver-registrar:v2.8.0
   - quay.io/minio/csi-provisioner:v3.5.0 _(for Kubernetes >= v1.20)_

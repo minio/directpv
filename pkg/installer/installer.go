@@ -88,7 +88,7 @@ func Install(ctx context.Context, args *Args) (err error) {
 	case args.DryRun:
 		if args.KubeVersion == nil {
 			// default higher version
-			if args.KubeVersion, err = version.ParseSemantic("1.27.0"); err != nil {
+			if args.KubeVersion, err = version.ParseSemantic("1.29.0"); err != nil {
 				klog.Fatalf("this should not happen; %v", err)
 			}
 		}
@@ -112,7 +112,7 @@ func Install(ctx context.Context, args *Args) (err error) {
 
 	if args.KubeVersion.Major() != 1 ||
 		args.KubeVersion.Minor() < 18 ||
-		args.KubeVersion.Minor() > 27 {
+		args.KubeVersion.Minor() > 30 {
 		if !args.DryRun {
 			utils.Eprintf(
 				args.Quiet,
