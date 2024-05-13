@@ -238,7 +238,7 @@ func getLegacyFlag(ctx context.Context) bool {
 		return true
 	}
 
-	legacyclient.Init()
+	legacyclient.Init(genericOptions)
 
 	for result := range legacyclient.ListVolumes(ctx) {
 		if result.Err != nil {

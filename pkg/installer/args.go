@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/version"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 const (
@@ -73,6 +74,7 @@ type Args struct {
 	ProgressCh       chan<- Message
 	ForceUninstall   bool
 	PluginVersion    string
+	GenericOptions   *genericclioptions.ConfigFlags
 
 	podSecurityAdmission     bool
 	csiProvisionerImage      string

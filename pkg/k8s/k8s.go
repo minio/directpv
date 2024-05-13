@@ -17,34 +17,22 @@
 package k8s
 
 import (
-	"os"
-	"path"
 	"strings"
 
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
 
 // GetKubeConfig gets kubernetes configuration from command line argument,
 // ~/.kube/config or in-cluster configuration.
-func GetKubeConfig() (*rest.Config, error) {
-	kubeconfigPath := viper.GetString("kubeconfig")
-	if kubeconfigPath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			klog.ErrorS(err, "unable to find user home directory")
-		}
-		kubeconfigPath = path.Join(home, ".kube", "config")
-	}
-
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+func GetKubeConfig(flags *genericclioptions.ConfigFlags) (*rest.Config, error) {
+	config, err := flags.ToRESTConfig()
 	if err != nil {
 		if config, err = rest.InClusterConfig(); err != nil {
 			return nil, err
