@@ -31,6 +31,7 @@ import (
 	"github.com/minio/directpv/pkg/installer"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 )
 
@@ -46,12 +47,12 @@ var (
 	zone                 = "default"
 	region               = "default"
 	csiEndpoint          = installer.UnixCSIEndpoint
-	kubeconfig           = ""
 	conversionHealthzURL = ""
 	readinessPort        = consts.ReadinessPort
-
-	nodeID directpvtypes.NodeID
+	nodeID               directpvtypes.NodeID
 )
+
+var genericOptions *genericclioptions.ConfigFlags
 
 var mainCmd = &cobra.Command{
 	Use:           consts.AppName,
@@ -72,7 +73,7 @@ var mainCmd = &cobra.Command{
 
 		nodeID = directpvtypes.NodeID(kubeNodeName)
 
-		client.Init()
+		client.Init(genericOptions)
 		return nil
 	},
 }
@@ -94,7 +95,9 @@ func init() {
 	flag.Set("logtostderr", "true")
 	flag.Set("alsologtostderr", "true")
 
-	mainCmd.PersistentFlags().StringVarP(&kubeconfig, "kubeconfig", "k", kubeconfig, "Path to the kubeconfig file to use for Kubernetes requests.")
+	genericOptions = genericclioptions.NewConfigFlags(true)
+	genericOptions.AddFlags(mainCmd.PersistentFlags())
+
 	mainCmd.PersistentFlags().StringVar(&identity, "identity", identity, "Identity of "+consts.AppPrettyName+" instances")
 	mainCmd.PersistentFlags().StringVar(&csiEndpoint, "csi-endpoint", csiEndpoint, "CSI endpoint")
 	mainCmd.PersistentFlags().StringVar(&kubeNodeName, "kube-node-name", kubeNodeName, "Kubernetes node name (MUST BE SET)")

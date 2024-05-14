@@ -28,6 +28,7 @@ import (
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 )
 
@@ -35,7 +36,10 @@ import (
 // e.g. $ go build -ldflags="-X main.Version=v4.0.1"
 var Version string
 
-var disableInit bool
+var (
+	genericOptions *genericclioptions.ConfigFlags
+	disableInit    bool
+)
 
 var mainCmd = &cobra.Command{
 	Use:           consts.AppName,
@@ -48,7 +52,7 @@ var mainCmd = &cobra.Command{
 	Version: Version,
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		if !disableInit {
-			client.Init()
+			client.Init(genericOptions)
 		}
 		return nil
 	},
@@ -106,13 +110,6 @@ Use "{{.CommandPath}} [command] --help" for more information about this command.
 	flag.Set("logtostderr", "true")
 	flag.Set("alsologtostderr", "true")
 
-	mainCmd.PersistentFlags().StringVarP(
-		&kubeconfig,
-		"kubeconfig",
-		"",
-		kubeconfig,
-		"Path to the kubeconfig file to use for CLI requests",
-	)
 	mainCmd.PersistentFlags().BoolVarP(
 		&quietFlag,
 		"quiet",
@@ -120,6 +117,9 @@ Use "{{.CommandPath}} [command] --help" for more information about this command.
 		quietFlag,
 		"Suppress printing error messages",
 	)
+
+	genericOptions = genericclioptions.NewConfigFlags(true)
+	genericOptions.AddFlags(mainCmd.PersistentFlags())
 
 	mainCmd.PersistentFlags().MarkHidden("alsologtostderr")
 	mainCmd.PersistentFlags().MarkHidden("add_dir_header")

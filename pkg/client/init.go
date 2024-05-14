@@ -22,16 +22,17 @@ import (
 	"github.com/minio/directpv/pkg/clientset"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 )
 
 // Init initializes various clients.
-func Init() {
+func Init(flags *genericclioptions.ConfigFlags) {
 	if atomic.AddInt32(&initialized, 1) != 1 {
 		return
 	}
 
-	k8s.Init()
+	k8s.Init(flags)
 
 	cs, err := clientset.NewForConfig(k8s.KubeConfig())
 	if err != nil {

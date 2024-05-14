@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -32,14 +33,14 @@ import (
 )
 
 // Init initializes various client interfaces.
-func Init() {
+func Init(flags *genericclioptions.ConfigFlags) {
 	if atomic.AddInt32(&initialized, 1) != 1 {
 		return
 	}
 
 	var err error
 
-	if kubeConfig, err = GetKubeConfig(); err != nil {
+	if kubeConfig, err = GetKubeConfig(flags); err != nil {
 		klog.Fatalf("unable to get kubernetes configuration; %v", err)
 	}
 

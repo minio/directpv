@@ -44,7 +44,6 @@ var volumeStatusValues = []string{
 }
 
 var (
-	kubeconfig       string   // --kubeconfig flag
 	quietFlag        bool     // --quiet flag
 	outputFormat     string   // --output flag
 	noHeaders        bool     // --no-headers flag

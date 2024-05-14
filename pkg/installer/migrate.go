@@ -337,7 +337,7 @@ func Migrate(ctx context.Context, args *Args, installer bool) (err error) {
 		return nil
 	}
 
-	legacyclient.Init()
+	legacyclient.Init(args.GenericOptions)
 
 	version, _, err := legacyclient.GetGroupVersion("DirectCSIDrive")
 	if err != nil {

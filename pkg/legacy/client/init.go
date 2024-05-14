@@ -20,16 +20,17 @@ import (
 	"sync/atomic"
 
 	"github.com/minio/directpv/pkg/k8s"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/klog/v2"
 )
 
 // Init initializes legacy clients.
-func Init() {
+func Init(flags *genericclioptions.ConfigFlags) {
 	if atomic.AddInt32(&initialized, 1) != 1 {
 		return
 	}
 
-	k8s.Init()
+	k8s.Init(flags)
 
 	var err error
 	if driveClient, err = DirectCSIDriveInterfaceForConfig(k8s.KubeConfig()); err != nil {
