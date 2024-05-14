@@ -36,8 +36,10 @@ import (
 // e.g. $ go build -ldflags="-X main.Version=v4.0.1"
 var Version string
 
-var genericOptions *genericclioptions.ConfigFlags
-var disableInit bool
+var (
+	genericOptions *genericclioptions.ConfigFlags
+	disableInit    bool
+)
 
 var mainCmd = &cobra.Command{
 	Use:           consts.AppName,

@@ -47,7 +47,6 @@ var (
 	zone                 = "default"
 	region               = "default"
 	csiEndpoint          = installer.UnixCSIEndpoint
-	kubeconfig           = ""
 	conversionHealthzURL = ""
 	readinessPort        = consts.ReadinessPort
 	nodeID               directpvtypes.NodeID
