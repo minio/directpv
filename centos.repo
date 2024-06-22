@@ -1,12 +1,13 @@
-[base-8]
-name=CentOS 8 - $basearch - Base
-baseurl=http://mirrors.kernel.org/centos/8-stream/BaseOS/$basearch/os/
+[base-9]
+name=CentOS 9 - $basearch - Base
+baseurl=https://mirror.stream.centos.org/9-stream/BaseOS/$basearch/os/
 gpgcheck=1
 enabled=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official
-[appstream-8]
-name=CentOS 8 - $basearch - AppStream
-baseurl=http://mirrors.kernel.org/centos/8-stream/AppStream/$basearch/os/
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official-SHA256
+
+[appstream-9]
+name=CentOS 9 - $basearch - AppStream
+baseurl=https://mirror.stream.centos.org/9-stream/AppStream/$basearch/os/
 gpgcheck=1
 enabled=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official-SHA256

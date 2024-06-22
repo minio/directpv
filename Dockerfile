@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.9
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 WORKDIR /
 
@@ -11,8 +11,8 @@ RUN microdnf update --nodocs
 COPY centos.repo /etc/yum.repos.d/CentOS.repo
 
 RUN \
-    curl -L https://www.centos.org/keys/RPM-GPG-KEY-CentOS-Official -o /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official && \
-    microdnf install xfsprogs --nodocs && \
+    curl -L https://www.centos.org/keys/RPM-GPG-KEY-CentOS-Official-SHA256 -o /etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-Official-SHA256 && \
+    microdnf install xfsprogs -y --nodocs && \
     microdnf clean all && \
     rm -f /etc/yum.repos.d/CentOS.repo
 
