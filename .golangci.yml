@@ -1,6 +1,6 @@
 linters-settings:
   gofumpt:
-    lang-version: "1.21"
+    lang-version: "1.22"
 
   misspell:
     locale: US
@@ -30,4 +30,4 @@ issues:
       - exitAfterDefer
 
 service:
-  golangci-lint-version: 1.56.2 # use the fixed version to not introduce new linters unexpectedly
+  golangci-lint-version: 1.59.0 # use the fixed version to not introduce new linters unexpectedly
