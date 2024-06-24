@@ -172,3 +172,18 @@ Suspended volumes can be resumed once they are fixed. Upon resuming, the corresp
 ```sh
 > kubectl directpv resume volumes --nodes node-1 --drives dm-3
 ```
+
+## SELinux in OpenShift:
+
+If you encounter the `relabel failed` error after executing the `suspend` or `resume` commands, you should set `spc_t` at the Tenant level Specification, as demonstrated below:
+
+```yaml
+kind: Tenant
+spec:
+  pools:
+  - containerSecurityContext:
+      seLinuxOptions:
+        type: spc_t
+```
+
+Ensure that the appropriate Security Context Constraints (SCCs) are in place, as illustrated in the following link: https://access.redhat.com/solutions/7025337.
