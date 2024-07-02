@@ -171,3 +171,10 @@ func (m progressModel) View() (str string) {
 	}
 	return str + pad
 }
+
+func toProgressLogs(progressMap map[string]progressLog) (logs []progressLog) {
+	for _, v := range progressMap {
+		logs = append(logs, v)
+	}
+	return
+}

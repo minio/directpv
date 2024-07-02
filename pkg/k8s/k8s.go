@@ -17,12 +17,19 @@
 package k8s
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path"
 	"strings"
+	"time"
 
+	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/viper"
+	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
+	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -57,8 +64,8 @@ func GetKubeConfig() (*rest.Config, error) {
 }
 
 // GetGroupVersionKind gets group/version/kind of given versions.
-func GetGroupVersionKind(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
-	apiGroupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
+func (client Client) GetGroupVersionKind(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
+	apiGroupResources, err := restmapper.GetAPIGroupResources(client.DiscoveryClient)
 	if err != nil {
 		klog.ErrorS(err, "unable to get API group resources")
 		return nil, err
@@ -83,13 +90,13 @@ func GetGroupVersionKind(group, kind string, versions ...string) (*schema.GroupV
 }
 
 // GetClientForNonCoreGroupVersionKind gets client for group/kind of given versions.
-func GetClientForNonCoreGroupVersionKind(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
-	gvk, err := GetGroupVersionKind(group, kind, versions...)
+func (client Client) GetClientForNonCoreGroupVersionKind(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
+	gvk, err := client.GetGroupVersionKind(group, kind, versions...)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	config := *kubeConfig
+	config := *client.KubeConfig
 	config.GroupVersion = &schema.GroupVersion{
 		Group:   gvk.Group,
 		Version: gvk.Version,
@@ -100,12 +107,12 @@ func GetClientForNonCoreGroupVersionKind(group, kind string, versions ...string)
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 	}
 
-	client, err := rest.RESTClientFor(&config)
+	restClient, err := rest.RESTClientFor(&config)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return client, gvk, nil
+	return restClient, gvk, nil
 }
 
 // IsCondition checks whether type/status/reason/message in conditions or not.
@@ -189,4 +196,129 @@ func SanitizeResourceName(name string) string {
 	}
 
 	return string(result)
+}
+
+// GetCSINodes fetches the CSI Node list
+func (client Client) GetCSINodes(ctx context.Context) (nodes []string, err error) {
+	storageClient, gvk, err := client.GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
+	if err != nil {
+		return nil, err
+	}
+
+	switch gvk.Version {
+	case "v1apha1":
+		err = fmt.Errorf("unsupported CSINode storage.k8s.io/v1alpha1")
+	case "v1":
+		result := &storagev1.CSINodeList{}
+		if err = storageClient.Get().
+			Resource("csinodes").
+			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
+			Timeout(10 * time.Second).
+			Do(ctx).
+			Into(result); err != nil {
+			err = fmt.Errorf("unable to get csinodes; %w", err)
+			break
+		}
+		for _, csiNode := range result.Items {
+			for _, driver := range csiNode.Spec.Drivers {
+				if driver.Name == consts.Identity {
+					nodes = append(nodes, csiNode.Name)
+					break
+				}
+			}
+		}
+	case "v1beta1":
+		result := &storagev1beta1.CSINodeList{}
+		if err = storageClient.Get().
+			Resource(gvk.Kind).
+			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
+			Timeout(10 * time.Second).
+			Do(ctx).
+			Into(result); err != nil {
+			err = fmt.Errorf("unable to get csinodes; %w", err)
+			break
+		}
+		for _, csiNode := range result.Items {
+			for _, driver := range csiNode.Spec.Drivers {
+				if driver.Name == consts.Identity {
+					nodes = append(nodes, csiNode.Name)
+					break
+				}
+			}
+		}
+	}
+
+	return nodes, err
+}
+
+// ParseNodeSelector parses the provided node selector values
+func ParseNodeSelector(values []string) (map[string]string, error) {
+	nodeSelector := map[string]string{}
+	for _, value := range values {
+		tokens := strings.Split(value, "=")
+		if len(tokens) != 2 {
+			return nil, fmt.Errorf("invalid node selector value %v", value)
+		}
+		if tokens[0] == "" {
+			return nil, fmt.Errorf("invalid key in node selector value %v", value)
+		}
+		nodeSelector[tokens[0]] = tokens[1]
+	}
+	return nodeSelector, nil
+}
+
+// ParseTolerations parses the provided toleration values
+func ParseTolerations(values []string) ([]corev1.Toleration, error) {
+	var tolerations []corev1.Toleration
+	for _, value := range values {
+		var k, v, e string
+		tokens := strings.SplitN(value, "=", 2)
+		switch len(tokens) {
+		case 1:
+			k = tokens[0]
+			tokens = strings.Split(k, ":")
+			switch len(tokens) {
+			case 1:
+			case 2:
+				k, e = tokens[0], tokens[1]
+			default:
+				if len(tokens) != 2 {
+					return nil, fmt.Errorf("invalid toleration %v", value)
+				}
+			}
+		case 2:
+			k, v = tokens[0], tokens[1]
+		default:
+			if len(tokens) != 2 {
+				return nil, fmt.Errorf("invalid toleration %v", value)
+			}
+		}
+		if k == "" {
+			return nil, fmt.Errorf("invalid key in toleration %v", value)
+		}
+		if v != "" {
+			if tokens = strings.Split(v, ":"); len(tokens) != 2 {
+				return nil, fmt.Errorf("invalid value in toleration %v", value)
+			}
+			v, e = tokens[0], tokens[1]
+		}
+		effect := corev1.TaintEffect(e)
+		switch effect {
+		case corev1.TaintEffectNoSchedule, corev1.TaintEffectPreferNoSchedule, corev1.TaintEffectNoExecute:
+		default:
+			return nil, fmt.Errorf("invalid toleration effect in toleration %v", value)
+		}
+		operator := corev1.TolerationOpExists
+		if v != "" {
+			operator = corev1.TolerationOpEqual
+		}
+		tolerations = append(tolerations, corev1.Toleration{
+			Key:      k,
+			Operator: operator,
+			Value:    v,
+			Effect:   effect,
+		})
+	}
+
+	return tolerations, nil
 }

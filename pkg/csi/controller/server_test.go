@@ -27,7 +27,6 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -177,7 +176,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 
 	// Fetch the drive objects
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	driveList, err := drive.NewLister().Get(ctx)
+	driveList, err := client.NewDriveLister().Get(ctx)
 	if err != nil {
 		t.Errorf("Listing drives failed: %v", err)
 	}

@@ -18,61 +18,30 @@ package installer
 
 import (
 	"context"
-	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/fatih/color"
-	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/client"
+	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/minio/directpv/pkg/utils"
-	"k8s.io/apimachinery/pkg/util/version"
-	"k8s.io/klog/v2"
 )
 
-// Tasks is a list of tasks to performed during installation and uninstallation
-var Tasks = []Task{
-	namespaceTask{},
-	rbacTask{},
-	pspTask{},
-	crdTask{},
-	migrateTask{},
-	csiDriverTask{},
-	storageClassTask{},
-	daemonsetTask{},
-	deploymentTask{},
-}
-
-func getKubeVersion() (major, minor uint, err error) {
-	versionInfo, err := k8s.DiscoveryClient().ServerVersion()
-	if err != nil {
-		return 0, 0, err
+// GetDefaultTasks returns the installer tasks to be run
+func GetDefaultTasks(client *client.Client, legacyClient *legacyclient.Client) []Task {
+	return []Task{
+		namespaceTask{client},
+		rbacTask{client},
+		pspTask{client},
+		crdTask{client},
+		migrateTask{client, legacyClient},
+		csiDriverTask{client},
+		storageClassTask{client},
+		daemonsetTask{client},
+		deploymentTask{client},
 	}
-
-	var u64 uint64
-	if u64, err = strconv.ParseUint(versionInfo.Major, 10, 64); err != nil {
-		return 0, 0, fmt.Errorf("unable to parse major version %v; %v", versionInfo.Major, err)
-	}
-	major = uint(u64)
-
-	minorString := versionInfo.Minor
-	if strings.Contains(versionInfo.GitVersion, "-eks-") {
-		// Do trimming only for EKS.
-		// Refer https://github.com/aws/containers-roadmap/issues/1404
-		i := strings.IndexFunc(minorString, func(r rune) bool { return r < '0' || r > '9' })
-		if i > -1 {
-			minorString = minorString[:i]
-		}
-	}
-	if u64, err = strconv.ParseUint(minorString, 10, 64); err != nil {
-		return 0, 0, fmt.Errorf("unable to parse minor version %v; %v", minor, err)
-	}
-	minor = uint(u64)
-
-	return major, minor, nil
 }
 
 // Install performs DirectPV installation on kubernetes.
-func Install(ctx context.Context, args *Args) (err error) {
+func Install(ctx context.Context, args *Args, tasks []Task) (err error) {
 	defer func() {
 		if !sendDoneMessage(ctx, args.ProgressCh, err) {
 			err = errSendProgress
@@ -82,25 +51,6 @@ func Install(ctx context.Context, args *Args) (err error) {
 	err = args.validate()
 	if err != nil {
 		return err
-	}
-
-	switch {
-	case args.DryRun:
-		if args.KubeVersion == nil {
-			// default higher version
-			if args.KubeVersion, err = version.ParseSemantic("1.29.0"); err != nil {
-				klog.Fatalf("this should not happen; %v", err)
-			}
-		}
-	default:
-		major, minor, err := getKubeVersion()
-		if err != nil {
-			return err
-		}
-		args.KubeVersion, err = version.ParseSemantic(fmt.Sprintf("%v.%v.0", major, minor))
-		if err != nil {
-			klog.Fatalf("this should not happen; %v", err)
-		}
 	}
 
 	if args.KubeVersion.Major() == 1 {
@@ -127,7 +77,7 @@ func Install(ctx context.Context, args *Args) (err error) {
 		}
 	}
 
-	for _, task := range Tasks {
+	for _, task := range tasks {
 		if err := task.Start(ctx, args); err != nil {
 			return err
 		}
@@ -141,12 +91,12 @@ func Install(ctx context.Context, args *Args) (err error) {
 }
 
 // Uninstall removes DirectPV from kubernetes.
-func Uninstall(ctx context.Context, quiet, force bool) (err error) {
+func Uninstall(ctx context.Context, quiet, force bool, tasks []Task) (err error) {
 	args := &Args{
 		ForceUninstall: force,
 		Quiet:          quiet,
 	}
-	for _, task := range Tasks {
+	for _, task := range tasks {
 		if err := task.Delete(ctx, args); err != nil {
 			return err
 		}

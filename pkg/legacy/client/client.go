@@ -17,20 +17,45 @@
 package client
 
 import (
+	"context"
+	"fmt"
+	"os"
+
 	"github.com/minio/directpv/pkg/k8s"
 	directcsi "github.com/minio/directpv/pkg/legacy/apis/direct.csi.min.io/v1beta5"
+	directv1beta5 "github.com/minio/directpv/pkg/legacy/apis/direct.csi.min.io/v1beta5"
 	typeddirectcsi "github.com/minio/directpv/pkg/legacy/clientset/typed/direct.csi.min.io/v1beta5"
+	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/restmapper"
-	"k8s.io/klog/v2"
+	"k8s.io/client-go/discovery"
 )
 
 var (
-	initialized  int32
-	driveClient  typeddirectcsi.DirectCSIDriveInterface
-	volumeClient typeddirectcsi.DirectCSIVolumeInterface
+	initialized int32
+	client      *Client
 )
+
+// Client represents the legacy client
+type Client struct {
+	DriveClient  typeddirectcsi.DirectCSIDriveInterface
+	VolumeClient typeddirectcsi.DirectCSIVolumeInterface
+	K8sClient    *k8s.Client
+}
+
+// Discovery returns the discovery client
+func (client Client) Discovery() discovery.DiscoveryInterface {
+	return client.K8sClient.DiscoveryClient
+}
+
+// Drive returns the legacy drive client
+func (client Client) Drive() typeddirectcsi.DirectCSIDriveInterface {
+	return client.DriveClient
+}
+
+// Volume returns the volume client
+func (client Client) Volume() typeddirectcsi.DirectCSIVolumeInterface {
+	return client.VolumeClient
+}
 
 // DirectCSI group and identity names.
 const (
@@ -57,38 +82,99 @@ func DirectCSIVolumeTypeMeta() metav1.TypeMeta {
 	}
 }
 
-// GetGroupKindVersions gets group/version/kind of given versions.
-func GetGroupKindVersions(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
-	apiGroupResources, err := restmapper.GetAPIGroupResources(k8s.DiscoveryClient())
-	if err != nil {
-		klog.V(3).Infof("could not obtain API group resources: %v", err)
-		return nil, err
-	}
-	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
-	gk := schema.GroupKind{
-		Group: group,
-		Kind:  kind,
-	}
-	mapper, err := restMapper.RESTMapping(gk, versions...)
-	if err != nil {
-		klog.V(3).Infof("could not find valid restmapping: %v", err)
-		return nil, err
-	}
-
-	gvk := &schema.GroupVersionKind{
-		Group:   mapper.Resource.Group,
-		Version: mapper.Resource.Version,
-		Kind:    mapper.Resource.Resource,
-	}
-	return gvk, nil
-}
-
 // DriveClient gets latest versioned drive interface.
 func DriveClient() typeddirectcsi.DirectCSIDriveInterface {
-	return driveClient
+	return client.DriveClient
 }
 
 // VolumeClient gets latest versioned volume interface.
 func VolumeClient() typeddirectcsi.DirectCSIVolumeInterface {
-	return volumeClient
+	return client.VolumeClient
+}
+
+// GetClient returns the client
+func GetClient() *Client {
+	return client
+}
+
+// RemoveAllDrives removes legacy drive CRDs.
+func (client Client) RemoveAllDrives(ctx context.Context, backupFile string) (backupCreated bool, err error) {
+	var drives []directv1beta5.DirectCSIDrive
+	for result := range client.ListDrives(ctx) {
+		if result.Err != nil {
+			return false, fmt.Errorf("unable to get legacy drives; %w", result.Err)
+		}
+		drives = append(drives, result.Drive)
+	}
+	if len(drives) == 0 {
+		return false, nil
+	}
+
+	data, err := utils.ToYAML(directv1beta5.DirectCSIDriveList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "List",
+			APIVersion: "v1",
+		},
+		Items: drives,
+	})
+	if err != nil {
+		return false, fmt.Errorf("unable to generate legacy drives YAML; %w", err)
+	}
+
+	if err = os.WriteFile(backupFile, data, os.ModePerm); err != nil {
+		return false, fmt.Errorf("unable to write legacy drives YAML; %w", err)
+	}
+
+	for _, drive := range drives {
+		drive.Finalizers = []string{}
+		if _, err := client.Drive().Update(ctx, &drive, metav1.UpdateOptions{}); err != nil {
+			return false, fmt.Errorf("unable to update legacy drive %v; %w", drive.Name, err)
+		}
+		if err := client.Drive().Delete(ctx, drive.Name, metav1.DeleteOptions{}); err != nil {
+			return false, fmt.Errorf("unable to remove legacy drive %v; %w", drive.Name, err)
+		}
+	}
+
+	return true, nil
+}
+
+// RemoveAllVolumes removes legacy volume CRDs.
+func (client Client) RemoveAllVolumes(ctx context.Context, backupFile string) (backupCreated bool, err error) {
+	var volumes []directv1beta5.DirectCSIVolume
+	for result := range client.ListVolumes(ctx) {
+		if result.Err != nil {
+			return false, fmt.Errorf("unable to get legacy volumes; %w", result.Err)
+		}
+		volumes = append(volumes, result.Volume)
+	}
+	if len(volumes) == 0 {
+		return false, nil
+	}
+
+	data, err := utils.ToYAML(directv1beta5.DirectCSIVolumeList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "List",
+			APIVersion: "v1",
+		},
+		Items: volumes,
+	})
+	if err != nil {
+		return false, fmt.Errorf("unable to generate legacy volumes YAML; %w", err)
+	}
+
+	if err = os.WriteFile(backupFile, data, os.ModePerm); err != nil {
+		return false, fmt.Errorf("unable to write legacy volumes YAML; %w", err)
+	}
+
+	for _, volume := range volumes {
+		volume.Finalizers = nil
+		if _, err := client.Volume().Update(ctx, &volume, metav1.UpdateOptions{}); err != nil {
+			return false, fmt.Errorf("unable to update legacy volume %v; %w", volume.Name, err)
+		}
+		if err := client.Volume().Delete(ctx, volume.Name, metav1.DeleteOptions{}); err != nil {
+			return false, fmt.Errorf("unable to remove legacy volume %v; %w", volume.Name, err)
+		}
+	}
+
+	return true, nil
 }

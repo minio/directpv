@@ -22,36 +22,56 @@ import (
 )
 
 var (
-	initialized        int32
-	clientsetInterface types.ExtClientsetInterface
-	restClient         rest.Interface
-	driveClient        types.LatestDriveInterface
-	volumeClient       types.LatestVolumeInterface
-	nodeClient         types.LatestNodeInterface
-	initRequestClient  types.LatestInitRequestInterface
+	initialized int32
+	client      *Client
 )
+
+// GetClient returns the client
+func GetClient() *Client {
+	return client
+}
 
 // RESTClient gets latest versioned REST client.
 func RESTClient() rest.Interface {
-	return restClient
+	return client.REST()
 }
 
 // DriveClient gets latest versioned drive interface.
 func DriveClient() types.LatestDriveInterface {
-	return driveClient
+	return client.Drive()
 }
 
 // VolumeClient gets latest versioned volume interface.
 func VolumeClient() types.LatestVolumeInterface {
-	return volumeClient
+	return client.Volume()
 }
 
 // NodeClient gets latest versioned node interface.
 func NodeClient() types.LatestNodeInterface {
-	return nodeClient
+	return client.Node()
 }
 
 // InitRequestClient gets latest versioned init request interface.
 func InitRequestClient() types.LatestInitRequestInterface {
-	return initRequestClient
+	return client.InitRequest()
+}
+
+// NewDriveLister returns the new drive lister
+func NewDriveLister() *DriveLister {
+	return client.NewDriveLister()
+}
+
+// NewVolumeLister returns the new volume lister
+func NewVolumeLister() *VolumeLister {
+	return client.NewVolumeLister()
+}
+
+// NewNodeLister returns the new node lister
+func NewNodeLister() *NodeLister {
+	return client.NewNodeLister()
+}
+
+// NewInitRequestLister returns the new initrequest lister
+func NewInitRequestLister() *InitRequestLister {
+	return client.NewInitRequestLister()
 }

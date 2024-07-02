@@ -20,8 +20,8 @@ import (
 	"context"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -50,7 +50,9 @@ func newPolicyRule(resources []string, apiGroups []string, verbs ...string) rbac
 	}
 }
 
-type rbacTask struct{}
+type rbacTask struct {
+	client *client.Client
+}
 
 func (rbacTask) Name() string {
 	return "RBAC"
@@ -70,15 +72,15 @@ func (rbacTask) End(ctx context.Context, args *Args, err error) error {
 	return nil
 }
 
-func (rbacTask) Execute(ctx context.Context, args *Args) error {
-	return createRBAC(ctx, args)
+func (t rbacTask) Execute(ctx context.Context, args *Args) error {
+	return t.createRBAC(ctx, args)
 }
 
-func (rbacTask) Delete(ctx context.Context, _ *Args) error {
-	return deleteRBAC(ctx)
+func (t rbacTask) Delete(ctx context.Context, _ *Args) error {
+	return t.deleteRBAC(ctx)
 }
 
-func createServiceAccount(ctx context.Context, args *Args) (err error) {
+func (t rbacTask) createServiceAccount(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating service account", 1, nil) {
 		return errSendProgress
 	}
@@ -108,7 +110,7 @@ func createServiceAccount(ctx context.Context, args *Args) (err error) {
 	}
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Create(
+		_, err = t.client.Kube().CoreV1().ServiceAccounts(namespace).Create(
 			ctx, serviceAccount, metav1.CreateOptions{},
 		)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -119,7 +121,7 @@ func createServiceAccount(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(serviceAccount)
 }
 
-func createClusterRole(ctx context.Context, args *Args) (err error) {
+func (t rbacTask) createClusterRole(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating cluster role", 2, nil) {
 		return errSendProgress
 	}
@@ -175,7 +177,7 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 	}
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().RbacV1().ClusterRoles().Create(
+		_, err = t.client.Kube().RbacV1().ClusterRoles().Create(
 			ctx, clusterRole, metav1.CreateOptions{},
 		)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -186,7 +188,7 @@ func createClusterRole(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(clusterRole)
 }
 
-func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
+func (t rbacTask) createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating cluster role binding", 3, nil) {
 		return errSendProgress
 	}
@@ -226,7 +228,7 @@ func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 	}
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(
+		_, err = t.client.Kube().RbacV1().ClusterRoleBindings().Create(
 			ctx, clusterRoleBinding, metav1.CreateOptions{},
 		)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -237,7 +239,7 @@ func createClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(clusterRoleBinding)
 }
 
-func createRole(ctx context.Context, args *Args) (err error) {
+func (t rbacTask) createRole(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating role", 4, nil) {
 		return errSendProgress
 	}
@@ -268,7 +270,7 @@ func createRole(ctx context.Context, args *Args) (err error) {
 	}
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().RbacV1().Roles(namespace).Create(
+		_, err = t.client.Kube().RbacV1().Roles(namespace).Create(
 			ctx, role, metav1.CreateOptions{},
 		)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -279,7 +281,7 @@ func createRole(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(role)
 }
 
-func createRoleBinding(ctx context.Context, args *Args) (err error) {
+func (t rbacTask) createRoleBinding(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating role binding", 5, nil) {
 		return errSendProgress
 	}
@@ -319,7 +321,7 @@ func createRoleBinding(ctx context.Context, args *Args) (err error) {
 	}
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().RbacV1().RoleBindings(namespace).Create(
+		_, err = t.client.Kube().RbacV1().RoleBindings(namespace).Create(
 			ctx, roleBinding, metav1.CreateOptions{},
 		)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -330,52 +332,52 @@ func createRoleBinding(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(roleBinding)
 }
 
-func createRBAC(ctx context.Context, args *Args) (err error) {
-	if err = createServiceAccount(ctx, args); err != nil {
+func (t rbacTask) createRBAC(ctx context.Context, args *Args) (err error) {
+	if err = t.createServiceAccount(ctx, args); err != nil {
 		return err
 	}
-	if err = createClusterRole(ctx, args); err != nil {
+	if err = t.createClusterRole(ctx, args); err != nil {
 		return err
 	}
-	if err = createClusterRoleBinding(ctx, args); err != nil {
+	if err = t.createClusterRoleBinding(ctx, args); err != nil {
 		return err
 	}
-	if err = createRole(ctx, args); err != nil {
+	if err = t.createRole(ctx, args); err != nil {
 		return err
 	}
-	return createRoleBinding(ctx, args)
+	return t.createRoleBinding(ctx, args)
 }
 
-func deleteRBAC(ctx context.Context) error {
-	err := k8s.KubeClient().CoreV1().ServiceAccounts(namespace).Delete(
+func (t rbacTask) deleteRBAC(ctx context.Context) error {
+	err := t.client.Kube().CoreV1().ServiceAccounts(namespace).Delete(
 		ctx, consts.Identity, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().RbacV1().ClusterRoles().Delete(
+	err = t.client.Kube().RbacV1().ClusterRoles().Delete(
 		ctx, consts.Identity, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Delete(
+	err = t.client.Kube().RbacV1().ClusterRoleBindings().Delete(
 		ctx, consts.Identity, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().RbacV1().Roles(namespace).Delete(
+	err = t.client.Kube().RbacV1().Roles(namespace).Delete(
 		ctx, consts.Identity, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().RbacV1().RoleBindings(namespace).Delete(
+	err = t.client.Kube().RbacV1().RoleBindings(namespace).Delete(
 		ctx, consts.Identity, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {

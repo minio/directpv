@@ -47,28 +47,34 @@ func (fd *FakeDiscovery) ServerGroupsAndResources() ([]*metav1.APIGroup, []*meta
 
 // FakeInit initializes fake clients.
 func FakeInit() {
+	var kubeClient kubernetes.Interface
 	kubeClient = kubernetesfake.NewSimpleClientset()
-	crdClient = &apiextensionsv1fake.FakeCustomResourceDefinitions{
+	crdClient := &apiextensionsv1fake.FakeCustomResourceDefinitions{
 		Fake: &apiextensionsv1fake.FakeApiextensionsV1{
 			Fake: &kubeClient.(*kubernetesfake.Clientset).Fake,
 		},
 	}
-	discoveryClient = &discoveryfake.FakeDiscovery{}
+	discoveryClient := &discoveryfake.FakeDiscovery{}
 	scheme := runtime.NewScheme()
 	_ = metav1.AddMetaToScheme(scheme)
+	client = &Client{
+		KubeClient:      kubeClient,
+		CRDClient:       crdClient,
+		DiscoveryClient: discoveryClient,
+	}
 }
 
 // SetKubeInterface sets the given kube interface
 // Note: To be used for writing test cases only
 func SetKubeInterface(i kubernetes.Interface) {
-	kubeClient = i
+	client.KubeClient = i
 }
 
-// SetDiscoveryInterface sets the fake discovery interface
+// NewFakeDiscovery creates a fake discovery interface
 // Note: To be used for writing test cases only
-func SetDiscoveryInterface(groupsAndMethodsFn fakeServerGroupsAndResourcesMethod, serverVersionInfo *version.Info) {
-	discoveryClient = &FakeDiscovery{
-		FakeDiscovery:                      discoveryfake.FakeDiscovery{Fake: &kubeClient.(*kubernetesfake.Clientset).Fake},
+func NewFakeDiscovery(groupsAndMethodsFn fakeServerGroupsAndResourcesMethod, serverVersionInfo *version.Info) *FakeDiscovery {
+	return &FakeDiscovery{
+		FakeDiscovery:                      discoveryfake.FakeDiscovery{Fake: &client.KubeClient.(*kubernetesfake.Clientset).Fake},
 		fakeServerGroupsAndResourcesMethod: groupsAndMethodsFn,
 		versionInfo:                        serverVersionInfo,
 	}

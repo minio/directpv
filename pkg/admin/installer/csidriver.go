@@ -22,8 +22,8 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	storagev1 "k8s.io/api/storage/v1"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
@@ -31,7 +31,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type csiDriverTask struct{}
+type csiDriverTask struct {
+	client *client.Client
+}
 
 func (csiDriverTask) Name() string {
 	return "CSIDriver"
@@ -55,17 +57,17 @@ func (csiDriverTask) End(ctx context.Context, args *Args, err error) error {
 	return nil
 }
 
-func (csiDriverTask) Execute(ctx context.Context, args *Args) error {
-	return createCSIDriver(ctx, args)
+func (t csiDriverTask) Execute(ctx context.Context, args *Args) error {
+	return t.createCSIDriver(ctx, args)
 }
 
-func (csiDriverTask) Delete(ctx context.Context, _ *Args) error {
-	return deleteCSIDriver(ctx)
+func (t csiDriverTask) Delete(ctx context.Context, _ *Args) error {
+	return t.deleteCSIDriver(ctx)
 }
 
 var errCSIDriverVersionUnsupported = errors.New("unsupported CSIDriver version found")
 
-func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy bool, step int) (err error) {
+func (t csiDriverTask) doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy bool, step int) (err error) {
 	name := consts.Identity
 	if legacy {
 		name = legacyclient.Identity
@@ -109,7 +111,7 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 		}
 
 		if !args.DryRun && !args.Declarative {
-			_, err := k8s.KubeClient().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
+			_, err := t.client.Kube().StorageV1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
 			if err != nil && !apierrors.IsAlreadyExists(err) {
 				return err
 			}
@@ -142,7 +144,7 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 		}
 
 		if !args.DryRun && !args.Declarative {
-			_, err := k8s.KubeClient().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
+			_, err := t.client.Kube().StorageV1beta1().CSIDrivers().Create(ctx, csiDriver, metav1.CreateOptions{})
 			if err != nil && !apierrors.IsAlreadyExists(err) {
 				return err
 			}
@@ -155,26 +157,26 @@ func doCreateCSIDriver(ctx context.Context, args *Args, version string, legacy b
 	}
 }
 
-func createCSIDriver(ctx context.Context, args *Args) (err error) {
+func (t csiDriverTask) createCSIDriver(ctx context.Context, args *Args) (err error) {
 	version := "v1"
 	if args.DryRun {
 		if args.KubeVersion.Major() >= 1 && args.KubeVersion.Minor() < 19 {
 			version = "v1beta1"
 		}
 	} else {
-		gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
+		gvk, err := t.client.K8s().GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
 		if err != nil {
 			return err
 		}
 		version = gvk.Version
 	}
 
-	if err := doCreateCSIDriver(ctx, args, version, false, 1); err != nil {
+	if err := t.doCreateCSIDriver(ctx, args, version, false, 1); err != nil {
 		return err
 	}
 
 	if args.Legacy {
-		if err := doCreateCSIDriver(ctx, args, version, true, 2); err != nil {
+		if err := t.doCreateCSIDriver(ctx, args, version, true, 2); err != nil {
 			return err
 		}
 	}
@@ -182,14 +184,14 @@ func createCSIDriver(ctx context.Context, args *Args) (err error) {
 	return nil
 }
 
-func doDeleteCSIDriver(ctx context.Context, version, name string) (err error) {
+func (t csiDriverTask) doDeleteCSIDriver(ctx context.Context, version, name string) (err error) {
 	switch version {
 	case "v1":
-		err = k8s.KubeClient().StorageV1().CSIDrivers().Delete(
+		err = t.client.Kube().StorageV1().CSIDrivers().Delete(
 			ctx, name, metav1.DeleteOptions{},
 		)
 	case "v1beta1":
-		err = k8s.KubeClient().StorageV1beta1().CSIDrivers().Delete(
+		err = t.client.Kube().StorageV1beta1().CSIDrivers().Delete(
 			ctx, name, metav1.DeleteOptions{},
 		)
 	default:
@@ -203,15 +205,15 @@ func doDeleteCSIDriver(ctx context.Context, version, name string) (err error) {
 	return nil
 }
 
-func deleteCSIDriver(ctx context.Context) error {
-	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
+func (t csiDriverTask) deleteCSIDriver(ctx context.Context) error {
+	gvk, err := t.client.K8s().GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
 	if err != nil {
 		return err
 	}
 
-	if err = doDeleteCSIDriver(ctx, gvk.Version, consts.Identity); err != nil {
+	if err = t.doDeleteCSIDriver(ctx, gvk.Version, consts.Identity); err != nil {
 		return err
 	}
 
-	return doDeleteCSIDriver(ctx, gvk.Version, legacyclient.Identity)
+	return t.doDeleteCSIDriver(ctx, gvk.Version, legacyclient.Identity)
 }

@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2021-2024 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package drive
+package client
 
 import (
 	"context"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -34,8 +33,8 @@ type ListDriveResult struct {
 	Err   error
 }
 
-// Lister is drive lister.
-type Lister struct {
+// DriveLister is lister wrapper for DirectPVDrive listing.
+type DriveLister struct {
 	nodes          []directpvtypes.LabelValue
 	driveNames     []directpvtypes.LabelValue
 	accessTiers    []directpvtypes.LabelValue
@@ -44,59 +43,61 @@ type Lister struct {
 	labels         map[directpvtypes.LabelKey]directpvtypes.LabelValue
 	maxObjects     int64
 	ignoreNotFound bool
+	driveClient    types.LatestDriveInterface
 }
 
-// NewLister creates new drive lister.
-func NewLister() *Lister {
-	return &Lister{
-		maxObjects: k8s.MaxThreadCount,
+// NewDriveLister creates new drive lister.
+func (client Client) NewDriveLister() *DriveLister {
+	return &DriveLister{
+		maxObjects:  k8s.MaxThreadCount,
+		driveClient: client.Drive(),
 	}
 }
 
 // NodeSelector adds filter listing by nodes.
-func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
+func (lister *DriveLister) NodeSelector(nodes []directpvtypes.LabelValue) *DriveLister {
 	lister.nodes = nodes
 	return lister
 }
 
 // DriveNameSelector adds filter listing by drive names.
-func (lister *Lister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *Lister {
+func (lister *DriveLister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *DriveLister {
 	lister.driveNames = driveNames
 	return lister
 }
 
 // StatusSelector adds filter listing by drive status.
-func (lister *Lister) StatusSelector(statusList []directpvtypes.DriveStatus) *Lister {
+func (lister *DriveLister) StatusSelector(statusList []directpvtypes.DriveStatus) *DriveLister {
 	lister.statusList = statusList
 	return lister
 }
 
 // DriveIDSelector adds filter listing by drive IDs.
-func (lister *Lister) DriveIDSelector(driveIDs []directpvtypes.DriveID) *Lister {
+func (lister *DriveLister) DriveIDSelector(driveIDs []directpvtypes.DriveID) *DriveLister {
 	lister.driveIDs = driveIDs
 	return lister
 }
 
 // LabelSelector adds filter listing by labels.
-func (lister *Lister) LabelSelector(labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *Lister {
+func (lister *DriveLister) LabelSelector(labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *DriveLister {
 	lister.labels = labels
 	return lister
 }
 
 // MaxObjects controls number of items to be fetched in every iteration.
-func (lister *Lister) MaxObjects(n int64) *Lister {
+func (lister *DriveLister) MaxObjects(n int64) *DriveLister {
 	lister.maxObjects = n
 	return lister
 }
 
 // IgnoreNotFound controls listing to ignore drive not found error.
-func (lister *Lister) IgnoreNotFound(b bool) *Lister {
+func (lister *DriveLister) IgnoreNotFound(b bool) *DriveLister {
 	lister.ignoreNotFound = b
 	return lister
 }
 
 // List returns channel to loop through drive items.
-func (lister *Lister) List(ctx context.Context) <-chan ListDriveResult {
+func (lister *DriveLister) List(ctx context.Context) <-chan ListDriveResult {
 	getOnly := len(lister.nodes) == 0 &&
 		len(lister.driveNames) == 0 &&
 		len(lister.accessTiers) == 0 &&
@@ -133,7 +134,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListDriveResult {
 				LabelSelector: labelSelector,
 			}
 			for {
-				result, err := client.DriveClient().List(ctx, options)
+				result, err := lister.driveClient.List(ctx, options)
 				if err != nil {
 					if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 						break
@@ -170,7 +171,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListDriveResult {
 		}
 
 		for _, driveID := range lister.driveIDs {
-			drive, err := client.DriveClient().Get(ctx, string(driveID), metav1.GetOptions{})
+			drive, err := lister.driveClient.Get(ctx, string(driveID), metav1.GetOptions{})
 			if err != nil {
 				if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 					continue
@@ -190,7 +191,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListDriveResult {
 }
 
 // Get returns list of drives.
-func (lister *Lister) Get(ctx context.Context) ([]types.Drive, error) {
+func (lister *DriveLister) Get(ctx context.Context) ([]types.Drive, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 

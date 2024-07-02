@@ -62,7 +62,7 @@ FLAGS:
       --apparmor-profile string      Set path to Apparmor profile
       --seccomp-profile string       Set path to Seccomp profile
   -o, --output string                Generate installation manifest. One of: yaml|json
-      --kube-version string          Select the kubernetes version for manifest generation (default "1.27.0")
+      --kube-version string          Select the kubernetes version for manifest generation (default "1.29.0")
       --legacy                       Enable legacy mode (Used with '-o')
       --openshift                    Use OpenShift specific installation
   -h, --help                         help for install

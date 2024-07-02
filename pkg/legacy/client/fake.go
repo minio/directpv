@@ -24,20 +24,21 @@ import (
 // FakeInit initializes fake clients.
 func FakeInit() {
 	k8s.FakeInit()
-
 	fakeClientset := legacyclientsetfake.NewSimpleClientset()
-	driveClient = fakeClientset.DirectV1beta5().DirectCSIDrives()
-	volumeClient = fakeClientset.DirectV1beta5().DirectCSIVolumes()
+	client = &Client{
+		DriveClient:  fakeClientset.DirectV1beta5().DirectCSIDrives(),
+		VolumeClient: fakeClientset.DirectV1beta5().DirectCSIVolumes(),
+	}
 }
 
 // SetDriveClient sets drive interface from fake clientset.
 // Note: To be used for writing test cases only
 func SetDriveClient(clientset *legacyclientsetfake.Clientset) {
-	driveClient = clientset.DirectV1beta5().DirectCSIDrives()
+	client.DriveClient = clientset.DirectV1beta5().DirectCSIDrives()
 }
 
 // SetVolumeClient sets volume interface from fake clientset.
 // Note: To be used for writing test cases only
 func SetVolumeClient(clientset *legacyclientsetfake.Clientset) {
-	volumeClient = clientset.DirectV1beta5().DirectCSIVolumes()
+	client.VolumeClient = clientset.DirectV1beta5().DirectCSIVolumes()
 }

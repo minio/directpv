@@ -21,8 +21,8 @@ import (
 	"errors"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	corev1 "k8s.io/api/core/v1"
 	policy "k8s.io/api/policy/v1beta1"
 	rbac "k8s.io/api/rbac/v1"
@@ -35,7 +35,9 @@ const pspClusterRoleBindingName = "psp-" + consts.Identity
 
 var errPSPUnsupported = errors.New("pod security policy is not supported in your kubernetes version")
 
-type pspTask struct{}
+type pspTask struct {
+	client *client.Client
+}
 
 func (pspTask) Name() string {
 	return "PSP"
@@ -55,12 +57,12 @@ func (pspTask) End(ctx context.Context, args *Args, err error) error {
 	return nil
 }
 
-func (pspTask) Execute(ctx context.Context, args *Args) error {
-	return createPSP(ctx, args)
+func (t pspTask) Execute(ctx context.Context, args *Args) error {
+	return t.createPSP(ctx, args)
 }
 
-func (pspTask) Delete(ctx context.Context, _ *Args) error {
-	major, minor, err := getKubeVersion()
+func (t pspTask) Delete(ctx context.Context, _ *Args) error {
+	major, minor, err := t.client.K8s().GetKubeVersion()
 	if err != nil {
 		return err
 	}
@@ -68,10 +70,10 @@ func (pspTask) Delete(ctx context.Context, _ *Args) error {
 	if podSecurityAdmission {
 		return nil
 	}
-	return deletePSP(ctx)
+	return t.deletePSP(ctx)
 }
 
-func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
+func (t pspTask) createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating psp cluster role binding", 2, nil) {
 		return errSendProgress
 	}
@@ -110,7 +112,7 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 	}
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
+		_, err = t.client.Kube().RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
 		if err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
@@ -119,7 +121,7 @@ func createPSPClusterRoleBinding(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(crb)
 }
 
-func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
+func (t pspTask) createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, "Creating pod security policy", 1, nil) {
 		return errSendProgress
 	}
@@ -173,7 +175,7 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 	}
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Create(
+		_, err = t.client.Kube().PolicyV1beta1().PodSecurityPolicies().Create(
 			ctx, psp, metav1.CreateOptions{},
 		)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -184,14 +186,14 @@ func createPodSecurityPolicy(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(psp)
 }
 
-func createPSP(ctx context.Context, args *Args) error {
+func (t pspTask) createPSP(ctx context.Context, args *Args) error {
 	if args.podSecurityAdmission {
 		return nil
 	}
 	var gvk *schema.GroupVersionKind
 	if !args.DryRun {
 		var err error
-		if gvk, err = k8s.GetGroupVersionKind("policy", "PodSecurityPolicy", "v1beta1"); err != nil {
+		if gvk, err = t.client.K8s().GetGroupVersionKind("policy", "PodSecurityPolicy", "v1beta1"); err != nil {
 			return err
 		}
 	} else {
@@ -199,24 +201,24 @@ func createPSP(ctx context.Context, args *Args) error {
 	}
 
 	if gvk.Version == "v1beta1" {
-		if err := createPodSecurityPolicy(ctx, args); err != nil {
+		if err := t.createPodSecurityPolicy(ctx, args); err != nil {
 			return err
 		}
-		return createPSPClusterRoleBinding(ctx, args)
+		return t.createPSPClusterRoleBinding(ctx, args)
 	}
 
 	return errPSPUnsupported
 }
 
-func deletePSP(ctx context.Context) error {
-	err := k8s.KubeClient().RbacV1().ClusterRoleBindings().Delete(
+func (t pspTask) deletePSP(ctx context.Context) error {
+	err := t.client.Kube().RbacV1().ClusterRoleBindings().Delete(
 		ctx, pspClusterRoleBindingName, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().PolicyV1beta1().PodSecurityPolicies().Delete(
+	err = t.client.Kube().PolicyV1beta1().PodSecurityPolicies().Delete(
 		ctx, consts.Identity, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
