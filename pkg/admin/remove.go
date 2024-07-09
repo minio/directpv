@@ -19,6 +19,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -41,7 +42,11 @@ type RemoveResult struct {
 }
 
 // Remove removes the initialized drive(s)
-func (client *Client) Remove(ctx context.Context, args RemoveArgs, log logFn) (results []RemoveResult, err error) {
+func (client *Client) Remove(ctx context.Context, args RemoveArgs, log LogFunc) (results []RemoveResult, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	var processed bool
 	var failed bool
 
@@ -76,9 +81,24 @@ func (client *Client) Remove(ctx context.Context, args RemoveArgs, log logFn) (r
 				}
 				if err != nil {
 					failed = true
-					log(true, "%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err)
+					log(
+						LogMessage{
+							Type:             ErrorLogType,
+							Err:              err,
+							Message:          "unable to remove drive",
+							Values:           map[string]any{"node": result.Drive.GetNodeID(), "driveName": result.Drive.GetDriveName()},
+							FormattedMessage: fmt.Sprintf("%v/%v: %v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName(), err),
+						},
+					)
 				} else {
-					log(false, "Removing %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+					log(
+						LogMessage{
+							Type:             InfoLogType,
+							Message:          "removing drive",
+							Values:           map[string]any{"node": result.Drive.GetNodeID(), "driveName": result.Drive.GetDriveName()},
+							FormattedMessage: fmt.Sprintf("Removing %v/%v\n", result.Drive.GetNodeID(), result.Drive.GetDriveName()),
+						},
+					)
 				}
 				results = append(results, RemoveResult{
 					NodeID:    result.Drive.GetNodeID(),

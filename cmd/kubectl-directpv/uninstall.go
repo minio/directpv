@@ -44,11 +44,15 @@ func init() {
 }
 
 func uninstallMain(ctx context.Context) {
-	if err := adminClient.Uninstall(ctx, admin.UninstallArgs{
-		Quiet:     quietFlag,
-		Dangerous: dangerousFlag,
-	}); err != nil {
-		log(true, "%v\n", err)
+	err := adminClient.Uninstall(
+		ctx,
+		admin.UninstallArgs{
+			Quiet:     quietFlag,
+			Dangerous: dangerousFlag,
+		},
+	)
+	if err != nil {
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 	if !quietFlag {

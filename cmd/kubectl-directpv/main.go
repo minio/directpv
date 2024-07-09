@@ -26,7 +26,6 @@ import (
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/rest"
@@ -40,9 +39,6 @@ var Version string
 var (
 	disableInit bool
 	adminClient *admin.Client
-	log         = func(isErr bool, format string, a ...any) {
-		utils.Eprintf(quietFlag, isErr, format, a...)
-	}
 )
 
 var mainCmd = &cobra.Command{
@@ -186,7 +182,7 @@ func main() {
 	go func() {
 		select {
 		case signal := <-signalCh:
-			log(false, "\nExiting on signal %v\n", signal)
+			eprintf(false, "\nExiting on signal %v\n", signal)
 			cancelFunc()
 			os.Exit(1)
 		case <-ctx.Done():
@@ -194,7 +190,7 @@ func main() {
 	}()
 
 	if err := mainCmd.ExecuteContext(ctx); err != nil {
-		log(true, "%v\n", err)
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 }

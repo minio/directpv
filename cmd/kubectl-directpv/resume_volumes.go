@@ -48,7 +48,7 @@ var resumeVolumesCmd = &cobra.Command{
 		volumeNameArgs = args
 
 		if err := validateResumeVolumesCmd(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -96,15 +96,20 @@ func validateResumeVolumesCmd() error {
 }
 
 func resumeVolumesMain(ctx context.Context) {
-	if _, err := adminClient.ResumeVolumes(ctx, admin.ResumeVolumeArgs{
-		Nodes:         nodesArgs,
-		Drives:        drivesArgs,
-		PodNames:      podNameArgs,
-		PodNamespaces: podNSArgs,
-		VolumeNames:   volumeNameArgs,
-		DryRun:        dryRunFlag,
-	}, log); err != nil {
-		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	_, err := adminClient.ResumeVolumes(
+		ctx,
+		admin.ResumeVolumeArgs{
+			Nodes:         nodesArgs,
+			Drives:        drivesArgs,
+			PodNames:      podNameArgs,
+			PodNamespaces: podNSArgs,
+			VolumeNames:   volumeNameArgs,
+			DryRun:        dryRunFlag,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

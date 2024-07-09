@@ -41,7 +41,7 @@ var infoCmd = &cobra.Command{
 func infoMain(ctx context.Context) {
 	nodeInfoMap, err := adminClient.Info(ctx)
 	if err != nil {
-		log(true, "%v\n", err)
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 	writer := newTableWriter(

@@ -43,7 +43,11 @@ type SuspendVolumeResult struct {
 }
 
 // SuspendVolumes suspends the volume
-func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs, log logFn) (results []SuspendVolumeResult, err error) {
+func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs, log LogFunc) (results []SuspendVolumeResult, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -84,7 +88,14 @@ func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs
 			return
 		}
 
-		log(false, "Volume %v/%v suspended\n", result.Volume.GetNodeID(), result.Volume.Name)
+		log(
+			LogMessage{
+				Type:             InfoLogType,
+				Message:          "volume suspended",
+				Values:           map[string]any{"node": result.Volume.GetNodeID(), "volume": result.Volume.Name},
+				FormattedMessage: fmt.Sprintf("Volume %v/%v suspended\n", result.Volume.GetNodeID(), result.Volume.Name),
+			},
+		)
 
 		results = append(results, SuspendVolumeResult{
 			NodeID:     result.Volume.GetNodeID(),

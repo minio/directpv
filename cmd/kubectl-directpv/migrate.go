@@ -58,7 +58,7 @@ func migrateMain(ctx context.Context) {
 		DrivesBackupFile:  "directcsidrives-" + suffix + ".yaml",
 		VolumesBackupFile: "directcsivolumes-" + suffix + ".yaml",
 	}); err != nil {
-		log(true, "migration failed; %v", err)
+		eprintf(true, "migration failed; %v", err)
 		os.Exit(1)
 	}
 }

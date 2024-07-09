@@ -18,6 +18,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -56,7 +57,11 @@ type LabelDriveArgs struct {
 }
 
 // LabelDrives sets/removes labels on/from the drives
-func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labels []Label, log logFn) (results []LabelDriveResult, err error) {
+func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labels []Label, log LogFunc) (results []LabelDriveResult, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	var processed bool
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
@@ -93,9 +98,24 @@ func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labe
 					drive, err = client.Drive().Update(ctx, drive, metav1.UpdateOptions{})
 				}
 				if err != nil {
-					log(true, "%v/%v: %v\n", drive.GetNodeID(), drive.GetDriveName(), err)
+					log(
+						LogMessage{
+							Type:             ErrorLogType,
+							Err:              err,
+							Message:          "unable to " + verb + " label to drive",
+							Values:           map[string]any{"node": drive.GetNodeID(), "driveName": drive.GetDriveName()},
+							FormattedMessage: fmt.Sprintf("%v/%v: %v\n", drive.GetNodeID(), drive.GetDriveName(), err),
+						},
+					)
 				} else {
-					log(false, "Label '%s' successfully %s %v/%v\n", labels[i].String(), verb, drive.GetNodeID(), drive.GetDriveName())
+					log(
+						LogMessage{
+							Type:             InfoLogType,
+							Message:          "label successfully " + verb + " label to drive",
+							Values:           map[string]any{"label": labels[i].String(), "verb": verb, "node": drive.GetNodeID(), "driveName": drive.GetDriveName()},
+							FormattedMessage: fmt.Sprintf("Label '%s' successfully %s %v/%v\n", labels[i].String(), verb, drive.GetNodeID(), drive.GetDriveName()),
+						},
+					)
 				}
 				results = append(results, LabelDriveResult{
 					NodeID:    drive.GetNodeID(),

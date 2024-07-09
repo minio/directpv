@@ -87,7 +87,7 @@ var installCmd = &cobra.Command{
 	),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if err := validateInstallCmd(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 		disableInit = dryRunPrinter != nil
@@ -156,13 +156,13 @@ func installMain(ctx context.Context) {
 		auditFile := fmt.Sprintf("install.log.%v", time.Now().UTC().Format(time.RFC3339Nano))
 		file, err = openAuditFile(auditFile)
 		if err != nil {
-			log(true, "unable to open audit file %v; %v\n", auditFile, err)
-			log(false, "%v\n", color.HiYellowString("Skipping audit logging"))
+			eprintf(true, "unable to open audit file %v; %v\n", auditFile, err)
+			eprintf(false, "%v\n", color.HiYellowString("Skipping audit logging"))
 		}
 		defer func() {
 			if file != nil {
 				if err := file.Close(); err != nil {
-					log(true, "unable to close audit file; %v\n", err)
+					eprintf(true, "unable to close audit file; %v\n", err)
 				}
 			}
 		}()
@@ -284,7 +284,7 @@ func installMain(ctx context.Context) {
 	}
 
 	if err := adminClient.Install(ctx, args, installerTasks); err != nil && args.ProgressCh == nil {
-		log(true, "%v\n", err)
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 	if args.ProgressCh != nil {

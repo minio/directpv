@@ -18,6 +18,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -45,7 +46,11 @@ type LabelVolumeResult struct {
 }
 
 // LabelVolumes sets/removes labels on/from the volumes
-func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, labels []Label, log logFn) (results []LabelVolumeResult, err error) {
+func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, labels []Label, log LogFunc) (results []LabelVolumeResult, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -85,9 +90,24 @@ func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, la
 					volume, err = client.Volume().Update(ctx, volume, metav1.UpdateOptions{})
 				}
 				if err != nil {
-					log(true, "%v: %v\n", volume.Name, err)
+					log(
+						LogMessage{
+							Type:             ErrorLogType,
+							Err:              err,
+							Message:          "unable to " + verb + " label to volume",
+							Values:           map[string]any{"verb": verb, "volume": volume.Name},
+							FormattedMessage: fmt.Sprintf("%v: %v\n", volume.Name, err),
+						},
+					)
 				} else {
-					log(false, "Label '%s' successfully %s %v\n", labels[i].String(), verb, volume.Name)
+					log(
+						LogMessage{
+							Type:             InfoLogType,
+							Message:          "label successfully " + verb + " label to volume",
+							Values:           map[string]any{"label": labels[i].String(), "verb": verb, "volume": volume.Name},
+							FormattedMessage: fmt.Sprintf("Label '%s' successfully %s %v\n", labels[i].String(), verb, volume.Name),
+						},
+					)
 				}
 				results = append(results, LabelVolumeResult{
 					NodeID:     volume.GetNodeID(),

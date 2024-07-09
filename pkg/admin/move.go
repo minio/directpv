@@ -34,7 +34,11 @@ type MoveArgs struct {
 }
 
 // Move - moves the volume references from source to destination
-func (client *Client) Move(ctx context.Context, args MoveArgs, log logFn) error {
+func (client *Client) Move(ctx context.Context, args MoveArgs, log LogFunc) error {
+	if log == nil {
+		log = nullLogger
+	}
+
 	if args.Source == args.Destination {
 		return errors.New("source and destination drives are same")
 	}
@@ -113,7 +117,14 @@ func (client *Client) Move(ctx context.Context, args MoveArgs, log logFn) error 
 	}
 
 	for _, volume := range volumes {
-		log(false, "Moving volume %v", volume.Name)
+		log(
+			LogMessage{
+				Type:             InfoLogType,
+				Message:          "moving volume",
+				Values:           map[string]any{"volume": volume.Name},
+				FormattedMessage: fmt.Sprintf("Moving volume %v\n", volume.Name),
+			},
+		)
 	}
 
 	srcDrive.ResetFinalizers()

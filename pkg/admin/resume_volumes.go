@@ -32,7 +32,11 @@ type ResumeVolumeArgs = SuspendVolumeArgs
 type ResumeVolumeResult = SuspendVolumeResult
 
 // ResumeVolumes will resume the suspended volumes
-func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs, log logFn) (results []ResumeVolumeResult, err error) {
+func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs, log LogFunc) (results []ResumeVolumeResult, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -75,7 +79,14 @@ func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs, 
 			return
 		}
 
-		log(false, "Volume %v/%v resumed\n", result.Volume.GetNodeID(), result.Volume.Name)
+		log(
+			LogMessage{
+				Type:             InfoLogType,
+				Message:          "volume resumed",
+				Values:           map[string]any{"node": result.Volume.GetNodeID(), "volume": result.Volume.Name},
+				FormattedMessage: fmt.Sprintf("Volume %v/%v resumed\n", result.Volume.GetNodeID(), result.Volume.Name),
+			},
+		)
 
 		results = append(results, ResumeVolumeResult{
 			NodeID:     result.Volume.GetNodeID(),

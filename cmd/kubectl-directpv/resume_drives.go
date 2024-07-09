@@ -48,7 +48,7 @@ var resumeDrivesCmd = &cobra.Command{
 		driveIDArgs = args
 
 		if err := validateResumeDrivesCmd(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -86,13 +86,18 @@ func validateResumeDrivesCmd() error {
 }
 
 func resumeDrivesMain(ctx context.Context) {
-	if _, err := adminClient.ResumeDrives(ctx, admin.ResumeDriveArgs{
-		Nodes:            nodesArgs,
-		Drives:           drivesArgs,
-		DriveIDSelectors: driveIDSelectors,
-		DryRun:           dryRunFlag,
-	}, log); err != nil {
-		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	_, err := adminClient.ResumeDrives(
+		ctx,
+		admin.ResumeDriveArgs{
+			Nodes:            nodesArgs,
+			Drives:           drivesArgs,
+			DriveIDSelectors: driveIDSelectors,
+			DryRun:           dryRunFlag,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

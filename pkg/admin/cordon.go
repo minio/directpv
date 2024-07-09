@@ -41,7 +41,11 @@ type CordonArgs struct {
 }
 
 // Cordon makes a drive unschedulable
-func (client *Client) Cordon(ctx context.Context, args CordonArgs, log logFn) (results []CordonResult, err error) {
+func (client *Client) Cordon(ctx context.Context, args CordonArgs, log LogFunc) (results []CordonResult, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -88,7 +92,14 @@ func (client *Client) Cordon(ctx context.Context, args CordonArgs, log logFn) (r
 			}
 		}
 
-		log(false, "Drive %v/%v cordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+		log(
+			LogMessage{
+				Type:             InfoLogType,
+				Message:          "drive cordoned",
+				Values:           map[string]any{"nodeId": result.Drive.GetNodeID(), "driveName": result.Drive.GetDriveName()},
+				FormattedMessage: fmt.Sprintf("Drive %v/%v cordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName()),
+			},
+		)
 
 		results = append(results, CordonResult{
 			NodeID:    result.Drive.GetNodeID(),

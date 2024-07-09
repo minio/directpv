@@ -60,7 +60,7 @@ var cleanCmd = &cobra.Command{
 		volumeNameArgs = args
 
 		if err := validateCleanCmd(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -130,16 +130,21 @@ func validateCleanCmd() error {
 }
 
 func cleanMain(ctx context.Context) {
-	if _, err := adminClient.Clean(ctx, admin.CleanArgs{
-		Nodes:         nodesArgs,
-		Drives:        drivesArgs,
-		DriveIDs:      driveIDArgs,
-		PodNames:      podNameArgs,
-		PodNamespaces: podNSArgs,
-		VolumeStatus:  volumeStatusSelectors,
-		VolumeNames:   volumeNameArgs,
-	}, log); err != nil {
-		log(true, "%v\n", err)
+	_, err := adminClient.Clean(
+		ctx,
+		admin.CleanArgs{
+			Nodes:         nodesArgs,
+			Drives:        drivesArgs,
+			DriveIDs:      driveIDArgs,
+			PodNames:      podNameArgs,
+			PodNamespaces: podNSArgs,
+			VolumeStatus:  volumeStatusSelectors,
+			VolumeNames:   volumeNameArgs,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 }

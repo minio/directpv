@@ -45,7 +45,11 @@ type SuspendDriveResult struct {
 }
 
 // SuspendDrives suspends the drive
-func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs, log logFn) (results []SuspendDriveResult, err error) {
+func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs, log LogFunc) (results []SuspendDriveResult, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -87,7 +91,14 @@ func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs, 
 			return
 		}
 
-		log(false, "Drive %v/%v suspended\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+		log(
+			LogMessage{
+				Type:             InfoLogType,
+				Message:          "drive suspended",
+				Values:           map[string]any{"node": result.Drive.GetNodeID(), "driveName": result.Drive.GetDriveName()},
+				FormattedMessage: fmt.Sprintf("Drive %v/%v suspended\n", result.Drive.GetNodeID(), result.Drive.GetDriveName()),
+			},
+		)
 
 		results = append(results, SuspendDriveResult{
 			NodeID:    result.Drive.GetNodeID(),

@@ -48,7 +48,7 @@ var labelDrivesCmd = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		driveIDArgs = idArgs
 		if err := validateLabelDrivesCmd(args); err != nil {
-			log(true, "%s; Check `--help` for usage\n", err.Error())
+			eprintf(true, "%s; Check `--help` for usage\n", err.Error())
 			os.Exit(1)
 		}
 		labelDrivesMain(c.Context())
@@ -92,15 +92,21 @@ func init() {
 }
 
 func labelDrivesMain(ctx context.Context) {
-	if _, err := adminClient.LabelDrives(ctx, admin.LabelDriveArgs{
-		Nodes:          nodesArgs,
-		Drives:         drivesArgs,
-		DriveStatus:    driveStatusSelectors,
-		DriveIDs:       driveIDSelectors,
-		LabelSelectors: labelSelectors,
-		DryRun:         dryRunFlag,
-	}, labels, log); err != nil {
-		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	_, err := adminClient.LabelDrives(
+		ctx,
+		admin.LabelDriveArgs{
+			Nodes:          nodesArgs,
+			Drives:         drivesArgs,
+			DriveStatus:    driveStatusSelectors,
+			DriveIDs:       driveIDSelectors,
+			LabelSelectors: labelSelectors,
+			DryRun:         dryRunFlag,
+		},
+		labels,
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

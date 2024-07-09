@@ -32,7 +32,11 @@ type ResumeDriveArgs = SuspendDriveArgs
 type ResumeDriveResult = SuspendDriveResult
 
 // ResumeDrives will resume the suspended drives
-func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs, log logFn) (results []ResumeDriveResult, err error) {
+func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs, log LogFunc) (results []ResumeDriveResult, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -72,7 +76,14 @@ func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs, lo
 			return
 		}
 
-		log(false, "Drive %v/%v resumed\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+		log(
+			LogMessage{
+				Type:             InfoLogType,
+				Message:          "drive resumed",
+				Values:           map[string]any{"node": result.Drive.GetNodeID(), "driveName": result.Drive.GetDriveName()},
+				FormattedMessage: fmt.Sprintf("Drive %v/%v resumed\n", result.Drive.GetNodeID(), result.Drive.GetDriveName()),
+			},
+		)
 
 		results = append(results, ResumeDriveResult{
 			NodeID:    result.Drive.GetNodeID(),

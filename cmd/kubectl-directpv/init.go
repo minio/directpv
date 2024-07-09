@@ -61,15 +61,15 @@ var initCmd = &cobra.Command{
 		switch len(args) {
 		case 1:
 		case 0:
-			log(true, "Please provide the input file. Check `--help` for usage.\n")
+			eprintf(true, "Please provide the input file. Check `--help` for usage.\n")
 			os.Exit(-1)
 		default:
-			log(true, "Too many input args. Check `--help` for usage.\n")
+			eprintf(true, "Too many input args. Check `--help` for usage.\n")
 			os.Exit(-1)
 		}
 
 		if !dangerousFlag {
-			log(true, "Initializing the drives will permanently erase existing data. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag.\n")
+			eprintf(true, "Initializing the drives will permanently erase existing data. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag.\n")
 			os.Exit(1)
 		}
 
@@ -224,13 +224,13 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 func initMain(ctx context.Context, inputFile string) {
 	initConfig, err := admin.ReadInitConfig(inputFile)
 	if err != nil {
-		log(true, "unable to read the input file; %v", err.Error())
+		eprintf(true, "unable to read the input file; %v", err.Error())
 		os.Exit(1)
 	}
 
 	initRequests, requestID := initConfig.ToInitRequestObjects()
 	if len(initRequests) == 0 {
-		log(false, "%v\n", color.HiYellowString("No drives are available to init"))
+		eprintf(false, "%v\n", color.HiYellowString("No drives are available to init"))
 		os.Exit(1)
 	}
 	defer func() {
@@ -257,7 +257,7 @@ func initMain(ctx context.Context, inputFile string) {
 	}
 	results, err := initDevices(ctx, initRequests, requestID, teaProgram)
 	if err != nil && quietFlag {
-		log(true, "%v\n", err)
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 	if teaProgram != nil {

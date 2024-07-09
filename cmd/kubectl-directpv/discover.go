@@ -68,7 +68,7 @@ var discoverCmd = &cobra.Command{
 	),
 	Run: func(c *cobra.Command, _ []string) {
 		if err := validateDiscoverCmd(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 		discoverMain(c.Context())
@@ -152,7 +152,7 @@ func showDevices(resultMap map[directpvtypes.NodeID][]types.Device) error {
 	}
 
 	if writer.Length() == 0 || !foundAvailableDrive {
-		log(false, color.HiYellowString("No drives are available to initialize")+"\n")
+		eprintf(false, color.HiYellowString("No drives are available to initialize")+"\n")
 		return errDiscoveryFailed
 	}
 
@@ -186,7 +186,7 @@ func discoverMain(ctx context.Context) {
 
 	nodeCh, errCh, err := adminClient.RefreshNodes(ctx, nodesArgs)
 	if err != nil {
-		log(true, "discovery failed; %v\n", err)
+		eprintf(true, "discovery failed; %v\n", err)
 		os.Exit(1)
 	}
 
@@ -215,10 +215,10 @@ func discoverMain(ctx context.Context) {
 				if !ok {
 					return
 				}
-				log(true, "discovery failed; %v\n", err)
+				eprintf(true, "discovery failed; %v\n", err)
 				os.Exit(1)
 			case <-ctx.Done():
-				log(true, ctx.Err().Error())
+				eprintf(true, ctx.Err().Error())
 				os.Exit(1)
 			}
 		}
@@ -227,7 +227,7 @@ func discoverMain(ctx context.Context) {
 
 	resultMap, err := discoverDevices(ctx, nodeNames, drivesArgs, teaProgram)
 	if err != nil {
-		log(true, "discovery failed; %v\n", err)
+		eprintf(true, "discovery failed; %v\n", err)
 		os.Exit(1)
 	}
 	if teaProgram != nil {
@@ -239,12 +239,12 @@ func discoverMain(ctx context.Context) {
 	}
 	if err := showDevices(resultMap); err != nil {
 		if !errors.Is(err, errDiscoveryFailed) {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 		}
 		os.Exit(1)
 	}
 	if err := writeInitConfig(admin.ToInitConfig(resultMap)); err != nil {
-		log(true, "unable to write init config; %v\n", err)
+		eprintf(true, "unable to write init config; %v\n", err)
 	} else if !quietFlag {
 		color.HiGreen("Generated '%s' successfully.", outputFile)
 	}

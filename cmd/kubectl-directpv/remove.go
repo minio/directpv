@@ -55,7 +55,7 @@ var removeCmd = &cobra.Command{
 		driveIDArgs = args
 
 		if err := validateRemoveCmd(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -111,14 +111,19 @@ func validateRemoveCmd() error {
 }
 
 func removeMain(ctx context.Context) {
-	if _, err := adminClient.Remove(ctx, admin.RemoveArgs{
-		Nodes:       nodesArgs,
-		Drives:      drivesArgs,
-		DriveStatus: driveStatusSelectors,
-		DriveIDs:    driveIDSelectors,
-		DryRun:      dryRunFlag,
-	}, log); err != nil {
-		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	_, err := adminClient.Remove(
+		ctx,
+		admin.RemoveArgs{
+			Nodes:       nodesArgs,
+			Drives:      drivesArgs,
+			DriveStatus: driveStatusSelectors,
+			DriveIDs:    driveIDSelectors,
+			DryRun:      dryRunFlag,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

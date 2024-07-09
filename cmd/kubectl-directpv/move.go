@@ -41,19 +41,19 @@ var moveCmd = &cobra.Command{
 	),
 	Run: func(c *cobra.Command, args []string) {
 		if len(args) != 2 {
-			log(true, "only one source and one destination drive must be provided\n")
+			eprintf(true, "only one source and one destination drive must be provided\n")
 			os.Exit(-1)
 		}
 
 		src := strings.TrimSpace(args[0])
 		if src == "" {
-			log(true, "empty source drive\n")
+			eprintf(true, "empty source drive\n")
 			os.Exit(-1)
 		}
 
 		dest := strings.TrimSpace(args[1])
 		if dest == "" {
-			log(true, "empty destination drive\n")
+			eprintf(true, "empty destination drive\n")
 			os.Exit(-1)
 		}
 
@@ -62,11 +62,16 @@ var moveCmd = &cobra.Command{
 }
 
 func moveMain(ctx context.Context, src, dest directpvtypes.DriveID) {
-	if err := adminClient.Move(ctx, admin.MoveArgs{
-		Source:      src,
-		Destination: dest,
-	}, log); err != nil {
-		log(true, "%v\n", err)
+	err := adminClient.Move(
+		ctx,
+		admin.MoveArgs{
+			Source:      src,
+			Destination: dest,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 }

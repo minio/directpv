@@ -48,7 +48,7 @@ var labelVolumesCmd = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		volumeNameArgs = idArgs
 		if err := validateLabelVolumesCmd(args); err != nil {
-			log(true, "%s; Check `--help` for usage\n", err.Error())
+			eprintf(true, "%s; Check `--help` for usage\n", err.Error())
 			os.Exit(1)
 		}
 		labelVolumesMain(c.Context())
@@ -101,17 +101,23 @@ func init() {
 }
 
 func labelVolumesMain(ctx context.Context) {
-	if _, err := adminClient.LabelVolumes(ctx, admin.LabelVolumeArgs{
-		Nodes:          nodesArgs,
-		Drives:         drivesArgs,
-		DriveIDs:       driveIDArgs,
-		PodNames:       podNameArgs,
-		PodNamespaces:  podNSArgs,
-		VolumeStatus:   volumeStatusSelectors,
-		VolumeNames:    volumeNameArgs,
-		LabelSelectors: labelSelectors,
-	}, labels, log); err != nil {
-		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	_, err := adminClient.LabelVolumes(
+		ctx,
+		admin.LabelVolumeArgs{
+			Nodes:          nodesArgs,
+			Drives:         drivesArgs,
+			DriveIDs:       driveIDArgs,
+			PodNames:       podNameArgs,
+			PodNamespaces:  podNSArgs,
+			VolumeStatus:   volumeStatusSelectors,
+			VolumeNames:    volumeNameArgs,
+			LabelSelectors: labelSelectors,
+		},
+		labels,
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

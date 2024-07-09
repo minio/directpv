@@ -31,7 +31,11 @@ type UncordonArgs = CordonArgs
 type UncordonResult = CordonResult
 
 // Uncordon makes the drive schedulable again
-func (client *Client) Uncordon(ctx context.Context, args UncordonArgs, log logFn) (results []UncordonResult, err error) {
+func (client *Client) Uncordon(ctx context.Context, args UncordonArgs, log LogFunc) (results []UncordonResult, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	var processed bool
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -64,7 +68,14 @@ func (client *Client) Uncordon(ctx context.Context, args UncordonArgs, log logFn
 			return
 		}
 
-		log(false, "Drive %v/%v uncordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
+		log(
+			LogMessage{
+				Type:             InfoLogType,
+				Message:          "drive uncordoned",
+				Values:           map[string]any{"node": result.Drive.GetNodeID(), "driveName": result.Drive.GetDriveName()},
+				FormattedMessage: fmt.Sprintf("Drive %v/%v uncordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName()),
+			},
+		)
 
 		results = append(results, UncordonResult{
 			NodeID:    result.Drive.GetNodeID(),

@@ -49,12 +49,12 @@ var suspendDrivesCmd = &cobra.Command{
 		driveIDArgs = args
 
 		if err := validateSuspendDrivesCmd(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
 		if !dangerousFlag {
-			log(true, "Suspending the drives will make the corresponding volumes as read-only. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag..\n")
+			eprintf(true, "Suspending the drives will make the corresponding volumes as read-only. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag..\n")
 			os.Exit(1)
 		}
 
@@ -93,13 +93,18 @@ func validateSuspendDrivesCmd() error {
 }
 
 func suspendDrivesMain(ctx context.Context) {
-	if _, err := adminClient.SuspendDrives(ctx, admin.SuspendDriveArgs{
-		Nodes:            nodesArgs,
-		Drives:           drivesArgs,
-		DriveIDSelectors: driveIDSelectors,
-		DryRun:           dryRunFlag,
-	}, log); err != nil {
-		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	_, err := adminClient.SuspendDrives(
+		ctx,
+		admin.SuspendDriveArgs{
+			Nodes:            nodesArgs,
+			Drives:           drivesArgs,
+			DriveIDSelectors: driveIDSelectors,
+			DryRun:           dryRunFlag,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

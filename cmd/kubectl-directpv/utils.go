@@ -24,6 +24,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/mitchellh/go-homedir"
@@ -118,4 +119,12 @@ func getDefaultAuditDir() (string, error) {
 		return "", err
 	}
 	return path.Join(homeDir, "."+consts.AppName, "audit"), nil
+}
+
+func eprintf(isErr bool, format string, args ...any) {
+	utils.Eprintf(quietFlag, isErr, format, args...)
+}
+
+func logFunc(log admin.LogMessage) {
+	eprintf(log.Type == admin.ErrorLogType, log.FormattedMessage)
 }

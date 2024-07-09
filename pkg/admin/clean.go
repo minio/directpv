@@ -18,6 +18,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/types"
@@ -26,8 +27,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-type logFn func(isErr bool, format string, a ...any)
 
 // CleanArgs represents the arguments to clean the volumes
 type CleanArgs struct {
@@ -42,7 +41,11 @@ type CleanArgs struct {
 }
 
 // Clean removes the stale/abandoned volumes
-func (client *Client) Clean(ctx context.Context, args CleanArgs, log logFn) (removedVolumes []string, err error) {
+func (client *Client) Clean(ctx context.Context, args CleanArgs, log LogFunc) (removedVolumes []string, err error) {
+	if log == nil {
+		log = nullLogger
+	}
+
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -62,7 +65,15 @@ func (client *Client) Clean(ctx context.Context, args CleanArgs, log logFn) (rem
 			if apierrors.IsNotFound(err) {
 				return true
 			}
-			log(true, "unable to get PV for volume %v; %v\n", volume.Name, err)
+			log(
+				LogMessage{
+					Type:             ErrorLogType,
+					Err:              err,
+					Message:          "unable to get PV for volume",
+					Values:           map[string]any{"volume": volume.Name},
+					FormattedMessage: fmt.Sprintf("unable to get PV for volume %v; %v\n", volume.Name, err),
+				},
+			)
 			return false
 		}
 		switch pv.Status.Phase {
@@ -90,7 +101,16 @@ func (client *Client) Clean(ctx context.Context, args CleanArgs, log logFn) (rem
 		}); err != nil {
 			return
 		}
-		log(false, "Removing volume %s\n", result.Volume.Name)
+
+		log(
+			LogMessage{
+				Type:             InfoLogType,
+				Message:          "removing volume",
+				Values:           map[string]any{"volume": result.Volume.Name},
+				FormattedMessage: fmt.Sprintf("Removing volume %v\n", result.Volume.Name),
+			},
+		)
+
 		if err = client.Volume().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			return
 		}

@@ -54,7 +54,7 @@ var cordonCmd = &cobra.Command{
 		driveIDArgs = args
 
 		if err := validateCordonCmd(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -110,14 +110,19 @@ func validateCordonCmd() error {
 }
 
 func cordonMain(ctx context.Context) {
-	if _, err := adminClient.Cordon(ctx, admin.CordonArgs{
-		Nodes:    nodesArgs,
-		Drives:   drivesArgs,
-		Status:   driveStatusSelectors,
-		DriveIDs: driveIDSelectors,
-		DryRun:   dryRunFlag,
-	}, log); err != nil {
-		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	_, err := adminClient.Cordon(
+		ctx,
+		admin.CordonArgs{
+			Nodes:    nodesArgs,
+			Drives:   drivesArgs,
+			Status:   driveStatusSelectors,
+			DriveIDs: driveIDSelectors,
+			DryRun:   dryRunFlag,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

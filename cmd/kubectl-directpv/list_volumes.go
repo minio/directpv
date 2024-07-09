@@ -75,7 +75,7 @@ var listVolumesCmd = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		volumeNameArgs = args
 		if err := validateListVolumesArgs(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -165,7 +165,7 @@ func listVolumesMain(ctx context.Context) {
 		LabelSelector(labelSelectors).
 		Get(ctx)
 	if err != nil {
-		log(true, "%v\n", err)
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -275,9 +275,9 @@ func listVolumesMain(ctx context.Context) {
 	}
 
 	if allFlag {
-		log(false, "No resources found\n")
+		eprintf(false, "No resources found\n")
 	} else {
-		log(false, "No matching resources found\n")
+		eprintf(false, "No matching resources found\n")
 	}
 
 	os.Exit(1)

@@ -49,12 +49,12 @@ var suspendVolumesCmd = &cobra.Command{
 		volumeNameArgs = args
 
 		if err := validateSuspendVolumesCmd(); err != nil {
-			log(true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
 		if !dangerousFlag {
-			log(true, "Suspending the volumes will make them as read-only. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag.\n")
+			eprintf(true, "Suspending the volumes will make them as read-only. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag.\n")
 			os.Exit(1)
 		}
 
@@ -103,15 +103,20 @@ func validateSuspendVolumesCmd() error {
 }
 
 func suspendVolumesMain(ctx context.Context) {
-	if _, err := adminClient.SuspendVolumes(ctx, admin.SuspendVolumeArgs{
-		Nodes:         nodesArgs,
-		Drives:        drivesArgs,
-		PodNames:      podNameArgs,
-		PodNamespaces: podNSArgs,
-		VolumeNames:   volumeNameArgs,
-		DryRun:        dryRunFlag,
-	}, log); err != nil {
-		log(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+	_, err := adminClient.SuspendVolumes(
+		ctx,
+		admin.SuspendVolumeArgs{
+			Nodes:         nodesArgs,
+			Drives:        drivesArgs,
+			PodNames:      podNameArgs,
+			PodNamespaces: podNSArgs,
+			VolumeNames:   volumeNameArgs,
+			DryRun:        dryRunFlag,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }
