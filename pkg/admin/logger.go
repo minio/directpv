@@ -16,14 +16,19 @@
 
 package admin
 
+// LogType represents the type of the log
 type LogType int
 
 const (
+	// UnknownLogType denotes the dummy LogType
 	UnknownLogType LogType = iota
+	// ErrorLogType denotes the error LogType
 	ErrorLogType
+	// InfoLogType denotes the non-error info LogType
 	InfoLogType
 )
 
+// LogMessage represents the log message
 type LogMessage struct {
 	Type             LogType
 	Err              error
@@ -33,6 +38,7 @@ type LogMessage struct {
 	FormattedMessage string
 }
 
+// LogFunc represents the logger
 type LogFunc func(LogMessage)
 
 func nullLogger(_ LogMessage) {}
