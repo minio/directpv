@@ -19,16 +19,12 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var uncordonCmd = &cobra.Command{
@@ -58,7 +54,7 @@ var uncordonCmd = &cobra.Command{
 		driveIDArgs = args
 
 		if err := validateUncordonCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -114,52 +110,19 @@ func validateUncordonCmd() error {
 }
 
 func uncordonMain(ctx context.Context) {
-	var processed bool
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh := drive.NewLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		StatusSelector(driveStatusSelectors).
-		DriveIDSelector(driveIDSelectors).
-		List(ctx)
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-
-		processed = true
-
-		if !result.Drive.IsUnschedulable() {
-			continue
-		}
-
-		result.Drive.Schedulable()
-		var err error
-		if !dryRunFlag {
-			_, err = client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
-		}
-
-		if err != nil {
-			utils.Eprintf(quietFlag, true, "unable to uncordon drive %v; %v\n", result.Drive.GetDriveID(), err)
-			os.Exit(1)
-		}
-
-		if !quietFlag {
-			fmt.Printf("Drive %v/%v uncordoned\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-		}
-	}
-
-	if !processed {
-		if allFlag {
-			utils.Eprintf(quietFlag, false, "No resources found\n")
-		} else {
-			utils.Eprintf(quietFlag, false, "No matching resources found\n")
-		}
-
+	_, err := adminClient.Uncordon(
+		ctx,
+		admin.UncordonArgs{
+			Nodes:    nodesArgs,
+			Drives:   drivesArgs,
+			Status:   driveStatusSelectors,
+			DriveIDs: driveIDSelectors,
+			DryRun:   dryRunFlag,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +48,9 @@ const (
 	totalDaemonsetSteps        = 2
 )
 
-type daemonsetTask struct{}
+type daemonsetTask struct {
+	client *client.Client
+}
 
 func (daemonsetTask) Name() string {
 	return "Daemonset"
@@ -72,12 +74,12 @@ func (daemonsetTask) End(ctx context.Context, args *Args, err error) error {
 	return nil
 }
 
-func (daemonsetTask) Execute(ctx context.Context, args *Args) error {
-	return createDaemonset(ctx, args)
+func (t daemonsetTask) Execute(ctx context.Context, args *Args) error {
+	return t.createDaemonset(ctx, args)
 }
 
-func (daemonsetTask) Delete(ctx context.Context, _ *Args) error {
-	return deleteDaemonset(ctx)
+func (t daemonsetTask) Delete(ctx context.Context, _ *Args) error {
+	return t.deleteDaemonset(ctx)
 }
 
 func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
@@ -249,7 +251,7 @@ func newDaemonset(podSpec corev1.PodSpec, name, selectorValue string, args *Args
 	}
 }
 
-func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
+func (t daemonsetTask) doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, consts.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
@@ -286,7 +288,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 
 	var selectorValue string
 	if !args.DryRun {
-		daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+		daemonset, err := t.client.Kube().AppsV1().DaemonSets(namespace).Get(
 			ctx, consts.NodeServerName, metav1.GetOptions{},
 		)
 		if err != nil && !apierrors.IsNotFound(err) {
@@ -309,7 +311,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 	daemonset := newDaemonset(podSpec, consts.NodeServerName, selectorValue, args)
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+		_, err = t.client.Kube().AppsV1().DaemonSets(namespace).Create(
 			ctx, daemonset, metav1.CreateOptions{},
 		)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -320,7 +322,7 @@ func doCreateDaemonset(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(daemonset)
 }
 
-func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
+func (t daemonsetTask) doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 	securityContext := newSecurityContext(args.SeccompProfile)
 	pluginSocketDir := newPluginsSocketDir(kubeletDirPath, legacyclient.Identity)
 	volumes, volumeMounts := getVolumesAndMounts(pluginSocketDir)
@@ -349,7 +351,7 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 
 	var selectorValue string
 	if !args.DryRun {
-		daemonset, err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Get(
+		daemonset, err := t.client.Kube().AppsV1().DaemonSets(namespace).Get(
 			ctx, consts.LegacyNodeServerName, metav1.GetOptions{},
 		)
 		if err != nil && !apierrors.IsNotFound(err) {
@@ -372,7 +374,7 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 	daemonset := newDaemonset(podSpec, consts.LegacyNodeServerName, selectorValue, args)
 
 	if !args.DryRun && !args.Declarative {
-		_, err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Create(
+		_, err = t.client.Kube().AppsV1().DaemonSets(namespace).Create(
 			ctx, daemonset, metav1.CreateOptions{},
 		)
 		if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -383,11 +385,11 @@ func doCreateLegacyDaemonset(ctx context.Context, args *Args) (err error) {
 	return args.writeObject(daemonset)
 }
 
-func createDaemonset(ctx context.Context, args *Args) (err error) {
+func (t daemonsetTask) createDaemonset(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.NodeServerName), 1, nil) {
 		return errSendProgress
 	}
-	if err := doCreateDaemonset(ctx, args); err != nil {
+	if err := t.doCreateDaemonset(ctx, args); err != nil {
 		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.NodeServerName), 1, daemonsetComponent(consts.NodeServerName)) {
@@ -401,7 +403,7 @@ func createDaemonset(ctx context.Context, args *Args) (err error) {
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Creating %s Daemonset", consts.LegacyNodeServerName), 2, nil) {
 		return errSendProgress
 	}
-	if err := doCreateLegacyDaemonset(ctx, args); err != nil {
+	if err := t.doCreateLegacyDaemonset(ctx, args); err != nil {
 		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, fmt.Sprintf("Created %s Daemonset", consts.LegacyNodeServerName), 2, daemonsetComponent(consts.LegacyNodeServerName)) {
@@ -411,15 +413,15 @@ func createDaemonset(ctx context.Context, args *Args) (err error) {
 	return nil
 }
 
-func deleteDaemonset(ctx context.Context) error {
-	err := k8s.KubeClient().AppsV1().DaemonSets(namespace).Delete(
+func (t daemonsetTask) deleteDaemonset(ctx context.Context) error {
+	err := t.client.Kube().AppsV1().DaemonSets(namespace).Delete(
 		ctx, consts.NodeServerName, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = k8s.KubeClient().AppsV1().DaemonSets(namespace).Delete(
+	err = t.client.Kube().AppsV1().DaemonSets(namespace).Delete(
 		ctx, consts.LegacyNodeServerName, metav1.DeleteOptions{},
 	)
 	if err != nil && !apierrors.IsNotFound(err) {

@@ -19,17 +19,12 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 var labelDrivesCmd = &cobra.Command{
@@ -53,7 +48,7 @@ var labelDrivesCmd = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		driveIDArgs = idArgs
 		if err := validateLabelDrivesCmd(args); err != nil {
-			utils.Eprintf(quietFlag, true, "%s; Check `--help` for usage\n", err.Error())
+			eprintf(true, "%s; Check `--help` for usage\n", err.Error())
 			os.Exit(1)
 		}
 		labelDrivesMain(c.Context())
@@ -97,47 +92,21 @@ func init() {
 }
 
 func labelDrivesMain(ctx context.Context) {
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh := drive.NewLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		StatusSelector(driveStatusSelectors).
-		DriveIDSelector(driveIDSelectors).
-		LabelSelector(labelSelectors).
-		List(ctx)
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-		drive := &result.Drive
-		var verb string
-		for i := range labels {
-			updateFunc := func() (err error) {
-				if labels[i].remove {
-					if ok := drive.RemoveLabel(labels[i].key); !ok {
-						return
-					}
-					verb = "removed from"
-				} else {
-					if ok := drive.SetLabel(labels[i].key, labels[i].value); !ok {
-						return
-					}
-					verb = "set on"
-				}
-				if !dryRunFlag {
-					drive, err = client.DriveClient().Update(ctx, drive, metav1.UpdateOptions{})
-				}
-				if err != nil {
-					utils.Eprintf(quietFlag, true, "%v/%v: %v\n", drive.GetNodeID(), drive.GetDriveName(), err)
-				} else if !quietFlag {
-					fmt.Printf("Label '%s' successfully %s %v/%v\n", labels[i].String(), verb, drive.GetNodeID(), drive.GetDriveName())
-				}
-				return
-			}
-			retry.RetryOnConflict(retry.DefaultRetry, updateFunc)
-		}
+	_, err := adminClient.LabelDrives(
+		ctx,
+		admin.LabelDriveArgs{
+			Nodes:          nodesArgs,
+			Drives:         drivesArgs,
+			DriveStatus:    driveStatusSelectors,
+			DriveIDs:       driveIDSelectors,
+			LabelSelectors: labelSelectors,
+			DryRun:         dryRunFlag,
+		},
+		labels,
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
+		os.Exit(1)
 	}
 }

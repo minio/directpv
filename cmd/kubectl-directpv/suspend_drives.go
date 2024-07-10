@@ -19,17 +19,12 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
-	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 var suspendDrivesCmd = &cobra.Command{
@@ -54,12 +49,12 @@ var suspendDrivesCmd = &cobra.Command{
 		driveIDArgs = args
 
 		if err := validateSuspendDrivesCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
 		if !dangerousFlag {
-			utils.Eprintf(quietFlag, true, "Suspending the drives will make the corresponding volumes as read-only. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag..\n")
+			eprintf(true, "Suspending the drives will make the corresponding volumes as read-only. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag..\n")
 			os.Exit(1)
 		}
 
@@ -98,54 +93,18 @@ func validateSuspendDrivesCmd() error {
 }
 
 func suspendDrivesMain(ctx context.Context) {
-	var processed bool
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-	defer cancelFunc()
-
-	resultCh := drive.NewLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		DriveIDSelector(driveIDSelectors).
-		List(ctx)
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", result.Err)
-			os.Exit(1)
-		}
-
-		processed = true
-
-		if result.Drive.IsSuspended() {
-			continue
-		}
-
-		driveClient := client.DriveClient()
-		updateFunc := func() error {
-			drive, err := driveClient.Get(ctx, result.Drive.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			drive.Suspend()
-			if !dryRunFlag {
-				if _, err := driveClient.Update(ctx, drive, metav1.UpdateOptions{}); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-		if err := retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			utils.Eprintf(quietFlag, true, "unable to suspend drive %v; %v\n", result.Drive.GetDriveID(), err)
-			os.Exit(1)
-		}
-
-		if !quietFlag {
-			fmt.Printf("Drive %v/%v suspended\n", result.Drive.GetNodeID(), result.Drive.GetDriveName())
-		}
-	}
-
-	if !processed {
-		utils.Eprintf(quietFlag, false, "No matching resources found\n")
+	_, err := adminClient.SuspendDrives(
+		ctx,
+		admin.SuspendDriveArgs{
+			Nodes:            nodesArgs,
+			Drives:           drivesArgs,
+			DriveIDSelectors: driveIDSelectors,
+			DryRun:           dryRunFlag,
+		},
+		logFunc,
+	)
+	if err != nil {
+		eprintf(!errors.Is(err, admin.ErrNoMatchingResourcesFound), "%v\n", err)
 		os.Exit(1)
 	}
 }

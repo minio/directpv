@@ -22,8 +22,8 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
+	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -34,7 +34,9 @@ import (
 
 var errStorageClassVersionUnsupported = errors.New("unsupported StorageClass version found")
 
-type storageClassTask struct{}
+type storageClassTask struct {
+	client *client.Client
+}
 
 func (storageClassTask) Name() string {
 	return "StorageClass"
@@ -58,15 +60,15 @@ func (storageClassTask) End(ctx context.Context, args *Args, err error) error {
 	return nil
 }
 
-func (storageClassTask) Execute(ctx context.Context, args *Args) error {
-	return createStorageClass(ctx, args)
+func (t storageClassTask) Execute(ctx context.Context, args *Args) error {
+	return t.createStorageClass(ctx, args)
 }
 
-func (storageClassTask) Delete(ctx context.Context, _ *Args) error {
-	return deleteStorageClass(ctx)
+func (t storageClassTask) Delete(ctx context.Context, _ *Args) error {
+	return t.deleteStorageClass(ctx)
 }
 
-func doCreateStorageClass(ctx context.Context, args *Args, version string, legacy bool, step int) (err error) {
+func (t storageClassTask) doCreateStorageClass(ctx context.Context, args *Args, version string, legacy bool, step int) (err error) {
 	name := consts.Identity
 	if legacy {
 		name = legacyclient.Identity
@@ -118,7 +120,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 		}
 
 		if !args.DryRun && !args.Declarative {
-			_, err := k8s.KubeClient().StorageV1().StorageClasses().Create(
+			_, err := t.client.Kube().StorageV1().StorageClasses().Create(
 				ctx, storageClass, metav1.CreateOptions{},
 			)
 			if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -152,7 +154,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 		}
 
 		if !args.DryRun && !args.Declarative {
-			_, err := k8s.KubeClient().StorageV1beta1().StorageClasses().Create(
+			_, err := t.client.Kube().StorageV1beta1().StorageClasses().Create(
 				ctx, storageClass, metav1.CreateOptions{},
 			)
 			if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -167,7 +169,7 @@ func doCreateStorageClass(ctx context.Context, args *Args, version string, legac
 	}
 }
 
-func createStorageClass(ctx context.Context, args *Args) (err error) {
+func (t storageClassTask) createStorageClass(ctx context.Context, args *Args) (err error) {
 	version := "v1"
 	switch {
 	case args.DryRun:
@@ -175,19 +177,19 @@ func createStorageClass(ctx context.Context, args *Args) (err error) {
 			version = "v1beta1"
 		}
 	default:
-		gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
+		gvk, err := t.client.K8s().GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
 		if err != nil {
 			return err
 		}
 		version = gvk.Version
 	}
 
-	if err := doCreateStorageClass(ctx, args, version, false, 1); err != nil {
+	if err := t.doCreateStorageClass(ctx, args, version, false, 1); err != nil {
 		return err
 	}
 
 	if args.Legacy {
-		if err := doCreateStorageClass(ctx, args, version, true, 2); err != nil {
+		if err := t.doCreateStorageClass(ctx, args, version, true, 2); err != nil {
 			return err
 		}
 	}
@@ -195,14 +197,14 @@ func createStorageClass(ctx context.Context, args *Args) (err error) {
 	return nil
 }
 
-func doDeleteStorageClass(ctx context.Context, version, name string) (err error) {
+func (t storageClassTask) doDeleteStorageClass(ctx context.Context, version, name string) (err error) {
 	switch version {
 	case "v1":
-		err = k8s.KubeClient().StorageV1().StorageClasses().Delete(
+		err = t.client.Kube().StorageV1().StorageClasses().Delete(
 			ctx, name, metav1.DeleteOptions{},
 		)
 	case "v1beta1":
-		err = k8s.KubeClient().StorageV1beta1().StorageClasses().Delete(
+		err = t.client.Kube().StorageV1beta1().StorageClasses().Delete(
 			ctx, name, metav1.DeleteOptions{},
 		)
 	default:
@@ -216,15 +218,15 @@ func doDeleteStorageClass(ctx context.Context, version, name string) (err error)
 	return nil
 }
 
-func deleteStorageClass(ctx context.Context) error {
-	gvk, err := k8s.GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
+func (t storageClassTask) deleteStorageClass(ctx context.Context) error {
+	gvk, err := t.client.K8s().GetGroupVersionKind("storage.k8s.io", "CSIDriver", "v1", "v1beta1")
 	if err != nil {
 		return err
 	}
 
-	if err = doDeleteStorageClass(ctx, gvk.Version, consts.StorageClassName); err != nil {
+	if err = t.doDeleteStorageClass(ctx, gvk.Version, consts.StorageClassName); err != nil {
 		return err
 	}
 
-	return doDeleteStorageClass(ctx, gvk.Version, legacyclient.Identity)
+	return t.doDeleteStorageClass(ctx, gvk.Version, legacyclient.Identity)
 }

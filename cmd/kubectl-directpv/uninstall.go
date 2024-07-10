@@ -21,9 +21,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/installer"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -45,8 +44,15 @@ func init() {
 }
 
 func uninstallMain(ctx context.Context) {
-	if err := installer.Uninstall(ctx, quietFlag, dangerousFlag); err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+	err := adminClient.Uninstall(
+		ctx,
+		admin.UninstallArgs{
+			Quiet:     quietFlag,
+			Dangerous: dangerousFlag,
+		},
+	)
+	if err != nil {
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 	if !quietFlag {

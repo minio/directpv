@@ -1,5 +1,5 @@
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2023 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,13 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package volume
+package client
 
 import (
 	"context"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
@@ -34,8 +33,8 @@ type ListVolumeResult struct {
 	Err    error
 }
 
-// Lister is volume lister.
-type Lister struct {
+// VolumeLister is volume lister.
+type VolumeLister struct {
 	nodes          []directpvtypes.LabelValue
 	driveNames     []directpvtypes.LabelValue
 	driveIDs       []directpvtypes.LabelValue
@@ -46,77 +45,79 @@ type Lister struct {
 	labels         map[directpvtypes.LabelKey]directpvtypes.LabelValue
 	maxObjects     int64
 	ignoreNotFound bool
+	volumeClient   types.LatestVolumeInterface
 }
 
-// NewLister creates new volume lister.
-func NewLister() *Lister {
-	return &Lister{
-		maxObjects: k8s.MaxThreadCount,
+// NewVolumeLister creates new volume lister.
+func (client Client) NewVolumeLister() *VolumeLister {
+	return &VolumeLister{
+		maxObjects:   k8s.MaxThreadCount,
+		volumeClient: client.Volume(),
 	}
 }
 
 // NodeSelector adds filter listing by nodes.
-func (lister *Lister) NodeSelector(nodes []directpvtypes.LabelValue) *Lister {
+func (lister *VolumeLister) NodeSelector(nodes []directpvtypes.LabelValue) *VolumeLister {
 	lister.nodes = nodes
 	return lister
 }
 
 // DriveNameSelector adds filter listing by drive names.
-func (lister *Lister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *Lister {
+func (lister *VolumeLister) DriveNameSelector(driveNames []directpvtypes.LabelValue) *VolumeLister {
 	lister.driveNames = driveNames
 	return lister
 }
 
 // DriveIDSelector adds filter listing by drive IDs.
-func (lister *Lister) DriveIDSelector(driveIDs []directpvtypes.LabelValue) *Lister {
+func (lister *VolumeLister) DriveIDSelector(driveIDs []directpvtypes.LabelValue) *VolumeLister {
 	lister.driveIDs = driveIDs
 	return lister
 }
 
 // PodNameSelector adds filter listing by pod names.
-func (lister *Lister) PodNameSelector(podNames []directpvtypes.LabelValue) *Lister {
+func (lister *VolumeLister) PodNameSelector(podNames []directpvtypes.LabelValue) *VolumeLister {
 	lister.podNames = podNames
 	return lister
 }
 
 // PodNSSelector adds filter listing by pod namespaces.
-func (lister *Lister) PodNSSelector(podNSs []directpvtypes.LabelValue) *Lister {
+func (lister *VolumeLister) PodNSSelector(podNSs []directpvtypes.LabelValue) *VolumeLister {
 	lister.podNSs = podNSs
 	return lister
 }
 
 // StatusSelector adds filter listing by volume status.
-func (lister *Lister) StatusSelector(statusList []directpvtypes.VolumeStatus) *Lister {
+func (lister *VolumeLister) StatusSelector(statusList []directpvtypes.VolumeStatus) *VolumeLister {
 	lister.statusList = statusList
 	return lister
 }
 
 // VolumeNameSelector adds filter listing by volume names.
-func (lister *Lister) VolumeNameSelector(volumeNames []string) *Lister {
+func (lister *VolumeLister) VolumeNameSelector(volumeNames []string) *VolumeLister {
 	lister.volumeNames = volumeNames
 	return lister
 }
 
 // LabelSelector adds filter listing by labels.
-func (lister *Lister) LabelSelector(labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *Lister {
+func (lister *VolumeLister) LabelSelector(labels map[directpvtypes.LabelKey]directpvtypes.LabelValue) *VolumeLister {
 	lister.labels = labels
 	return lister
 }
 
 // MaxObjects controls number of items to be fetched in every iteration.
-func (lister *Lister) MaxObjects(n int64) *Lister {
+func (lister *VolumeLister) MaxObjects(n int64) *VolumeLister {
 	lister.maxObjects = n
 	return lister
 }
 
 // IgnoreNotFound controls listing to ignore drive not found error.
-func (lister *Lister) IgnoreNotFound(b bool) *Lister {
+func (lister *VolumeLister) IgnoreNotFound(b bool) *VolumeLister {
 	lister.ignoreNotFound = b
 	return lister
 }
 
 // List returns channel to loop through volume items.
-func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
+func (lister *VolumeLister) List(ctx context.Context) <-chan ListVolumeResult {
 	getOnly := len(lister.nodes) == 0 &&
 		len(lister.driveNames) == 0 &&
 		len(lister.driveIDs) == 0 &&
@@ -158,7 +159,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 			}
 
 			for {
-				result, err := client.VolumeClient().List(ctx, options)
+				result, err := lister.volumeClient.List(ctx, options)
 				if err != nil {
 					if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 						break
@@ -196,7 +197,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 		}
 
 		for _, volumeName := range lister.volumeNames {
-			volume, err := client.VolumeClient().Get(ctx, volumeName, metav1.GetOptions{})
+			volume, err := lister.volumeClient.Get(ctx, volumeName, metav1.GetOptions{})
 			if err != nil {
 				if apierrors.IsNotFound(err) && lister.ignoreNotFound {
 					continue
@@ -215,7 +216,7 @@ func (lister *Lister) List(ctx context.Context) <-chan ListVolumeResult {
 }
 
 // Get returns list of volumes.
-func (lister *Lister) Get(ctx context.Context) ([]types.Volume, error) {
+func (lister *VolumeLister) Get(ctx context.Context) ([]types.Volume, error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 

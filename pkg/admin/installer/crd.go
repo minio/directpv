@@ -24,11 +24,6 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
-	"github.com/minio/directpv/pkg/initrequest"
-	"github.com/minio/directpv/pkg/k8s"
-	"github.com/minio/directpv/pkg/node"
-	"github.com/minio/directpv/pkg/volume"
 	"k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,7 +44,9 @@ var nodesYAML []byte
 //go:embed directpv.min.io_directpvinitrequests.yaml
 var initrequestsYAML []byte
 
-type crdTask struct{}
+type crdTask struct {
+	client *client.Client
+}
 
 func (crdTask) Name() string {
 	return "CRD"
@@ -69,12 +66,12 @@ func (crdTask) End(ctx context.Context, args *Args, err error) error {
 	return nil
 }
 
-func (crdTask) Execute(ctx context.Context, args *Args) error {
-	return createCRDs(ctx, args)
+func (t crdTask) Execute(ctx context.Context, args *Args) error {
+	return t.createCRDs(ctx, args)
 }
 
-func (c crdTask) Delete(ctx context.Context, args *Args) error {
-	return deleteCRDs(ctx, args.ForceUninstall)
+func (t crdTask) Delete(ctx context.Context, args *Args) error {
+	return t.deleteCRDs(ctx, args.ForceUninstall)
 }
 
 func setNoneConversionStrategy(crd *apiextensions.CustomResourceDefinition) {
@@ -148,7 +145,7 @@ func updateCRD(
 	return existingCRD, false, nil
 }
 
-func createCRDs(ctx context.Context, args *Args) (err error) {
+func (t crdTask) createCRDs(ctx context.Context, args *Args) (err error) {
 	register := func(data []byte, step int) error {
 		object := map[string]interface{}{}
 		if err := yaml.Unmarshal(data, &object); err != nil {
@@ -171,7 +168,7 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 			return args.writeObject(&crd)
 		}
 
-		existingCRD, err := k8s.CRDClient().Get(ctx, crd.Name, metav1.GetOptions{})
+		existingCRD, err := t.client.CRD().Get(ctx, crd.Name, metav1.GetOptions{})
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
 				return err
@@ -182,7 +179,7 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 			}
 
 			if !args.Declarative {
-				_, err := k8s.CRDClient().Create(ctx, &crd, metav1.CreateOptions{})
+				_, err := t.client.CRD().Create(ctx, &crd, metav1.CreateOptions{})
 				if err != nil {
 					return err
 				}
@@ -204,7 +201,7 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 		}
 
 		if !args.Declarative && !isLatest {
-			updatedCRD, err = k8s.CRDClient().Update(ctx, updatedCRD, metav1.UpdateOptions{})
+			updatedCRD, err = t.client.CRD().Update(ctx, updatedCRD, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -233,11 +230,11 @@ func createCRDs(ctx context.Context, args *Args) (err error) {
 	return register(initrequestsYAML, 4)
 }
 
-func removeVolumes(ctx context.Context) error {
+func (t crdTask) removeVolumes(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	for result := range volume.NewLister().List(ctx) {
+	for result := range t.client.NewVolumeLister().List(ctx) {
 		if result.Err != nil {
 			if apierrors.IsNotFound(result.Err) {
 				break
@@ -248,12 +245,12 @@ func removeVolumes(ctx context.Context) error {
 		result.Volume.RemovePVProtection()
 		result.Volume.RemovePurgeProtection()
 
-		_, err := client.VolumeClient().Update(ctx, &result.Volume, metav1.UpdateOptions{})
+		_, err := t.client.Volume().Update(ctx, &result.Volume, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 
-		err = client.VolumeClient().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{})
+		err = t.client.Volume().Delete(ctx, result.Volume.Name, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
@@ -262,11 +259,11 @@ func removeVolumes(ctx context.Context) error {
 	return nil
 }
 
-func removeDrives(ctx context.Context) error {
+func (t crdTask) removeDrives(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	for result := range drive.NewLister().List(ctx) {
+	for result := range t.client.NewDriveLister().List(ctx) {
 		if result.Err != nil {
 			if apierrors.IsNotFound(result.Err) {
 				break
@@ -274,12 +271,12 @@ func removeDrives(ctx context.Context) error {
 			return result.Err
 		}
 		result.Drive.Finalizers = []string{}
-		_, err := client.DriveClient().Update(ctx, &result.Drive, metav1.UpdateOptions{})
+		_, err := t.client.Drive().Update(ctx, &result.Drive, metav1.UpdateOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 
-		err = client.DriveClient().Delete(ctx, result.Drive.Name, metav1.DeleteOptions{})
+		err = t.client.Drive().Delete(ctx, result.Drive.Name, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
@@ -288,11 +285,11 @@ func removeDrives(ctx context.Context) error {
 	return nil
 }
 
-func removeNodes(ctx context.Context) error {
+func (t crdTask) removeNodes(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	for result := range node.NewLister().List(ctx) {
+	for result := range t.client.NewNodeLister().List(ctx) {
 		if result.Err != nil {
 			if apierrors.IsNotFound(result.Err) {
 				break
@@ -300,11 +297,11 @@ func removeNodes(ctx context.Context) error {
 			return result.Err
 		}
 		result.Node.Finalizers = []string{}
-		_, err := client.NodeClient().Update(ctx, &result.Node, metav1.UpdateOptions{})
+		_, err := t.client.Node().Update(ctx, &result.Node, metav1.UpdateOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
-		err = client.NodeClient().Delete(ctx, result.Node.Name, metav1.DeleteOptions{})
+		err = t.client.Node().Delete(ctx, result.Node.Name, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
@@ -313,11 +310,11 @@ func removeNodes(ctx context.Context) error {
 	return nil
 }
 
-func removeInitRequests(ctx context.Context) error {
+func (t crdTask) removeInitRequests(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	for result := range initrequest.NewLister().List(ctx) {
+	for result := range t.client.NewInitRequestLister().List(ctx) {
 		if result.Err != nil {
 			if apierrors.IsNotFound(result.Err) {
 				break
@@ -325,11 +322,11 @@ func removeInitRequests(ctx context.Context) error {
 			return result.Err
 		}
 		result.InitRequest.Finalizers = []string{}
-		_, err := client.InitRequestClient().Update(ctx, &result.InitRequest, metav1.UpdateOptions{})
+		_, err := t.client.InitRequest().Update(ctx, &result.InitRequest, metav1.UpdateOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
-		err = client.InitRequestClient().Delete(ctx, result.InitRequest.Name, metav1.DeleteOptions{})
+		err = t.client.InitRequest().Delete(ctx, result.InitRequest.Name, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
@@ -338,47 +335,47 @@ func removeInitRequests(ctx context.Context) error {
 	return nil
 }
 
-func deleteCRDs(ctx context.Context, force bool) error {
+func (t crdTask) deleteCRDs(ctx context.Context, force bool) error {
 	if !force {
 		return nil
 	}
 
-	if err := removeVolumes(ctx); err != nil {
+	if err := t.removeVolumes(ctx); err != nil {
 		return err
 	}
 
-	if err := removeDrives(ctx); err != nil {
+	if err := t.removeDrives(ctx); err != nil {
 		return err
 	}
 
-	if err := removeNodes(ctx); err != nil {
+	if err := t.removeNodes(ctx); err != nil {
 		return err
 	}
 
-	if err := removeInitRequests(ctx); err != nil {
+	if err := t.removeInitRequests(ctx); err != nil {
 		return err
 	}
 
 	driveCRDName := consts.DriveResource + "." + consts.GroupName
-	err := k8s.CRDClient().Delete(ctx, driveCRDName, metav1.DeleteOptions{})
+	err := t.client.CRD().Delete(ctx, driveCRDName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
 	volumeCRDName := consts.VolumeResource + "." + consts.GroupName
-	err = k8s.CRDClient().Delete(ctx, volumeCRDName, metav1.DeleteOptions{})
+	err = t.client.CRD().Delete(ctx, volumeCRDName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
 	nodeCRDName := consts.NodeResource + "." + consts.GroupName
-	err = k8s.CRDClient().Delete(ctx, nodeCRDName, metav1.DeleteOptions{})
+	err = t.client.CRD().Delete(ctx, nodeCRDName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
 	initRequestCRDName := consts.InitRequestResource + "." + consts.GroupName
-	err = k8s.CRDClient().Delete(ctx, initRequestCRDName, metav1.DeleteOptions{})
+	err = t.client.CRD().Delete(ctx, initRequestCRDName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}

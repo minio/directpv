@@ -25,7 +25,6 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
@@ -68,7 +67,7 @@ var listDrivesCmd = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		driveIDArgs = args
 		if err := validateListDrivesArgs(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -117,15 +116,15 @@ func validateListDrivesArgs() error {
 }
 
 func listDrivesMain(ctx context.Context) {
-	drives, err := drive.NewLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
+	drives, err := adminClient.NewDriveLister().
+		NodeSelector(utils.ToLabelValues(nodesArgs)).
+		DriveNameSelector(utils.ToLabelValues(drivesArgs)).
 		StatusSelector(driveStatusSelectors).
 		DriveIDSelector(driveIDSelectors).
 		LabelSelector(labelSelectors).
 		Get(ctx)
 	if err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -225,9 +224,9 @@ func listDrivesMain(ctx context.Context) {
 	}
 
 	if allFlag {
-		utils.Eprintf(quietFlag, false, "No resources found\n")
+		eprintf(false, "No resources found\n")
 	} else {
-		utils.Eprintf(quietFlag, false, "No matching resources found\n")
+		eprintf(false, "No matching resources found\n")
 	}
 
 	os.Exit(1)

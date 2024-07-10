@@ -27,30 +27,31 @@ import (
 const MaxThreadCount = 200
 
 var (
-	initialized         int32
-	kubeConfig          *rest.Config
-	kubeClient          kubernetes.Interface
-	apiextensionsClient apiextensions.ApiextensionsV1Interface
-	crdClient           apiextensions.CustomResourceDefinitionInterface
-	discoveryClient     discovery.DiscoveryInterface
+	initialized int32
+	client      *Client
 )
+
+// GetClient returns kubernetes client.
+func GetClient() *Client {
+	return client
+}
 
 // KubeConfig gets kubernetes client configuration.
 func KubeConfig() *rest.Config {
-	return kubeConfig
+	return client.KubeConfig
 }
 
 // KubeClient gets kubernetes client.
 func KubeClient() kubernetes.Interface {
-	return kubeClient
+	return client.KubeClient
 }
 
 // CRDClient gets kubernetes CRD client.
 func CRDClient() apiextensions.CustomResourceDefinitionInterface {
-	return crdClient
+	return client.CRDClient
 }
 
 // DiscoveryClient gets kubernetes discovery client.
 func DiscoveryClient() discovery.DiscoveryInterface {
-	return discoveryClient
+	return client.DiscoveryClient
 }

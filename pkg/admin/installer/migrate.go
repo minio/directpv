@@ -19,7 +19,6 @@ package installer
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -47,7 +46,10 @@ const (
 	legacyPurgeProtection    = legacyclient.GroupName + "/purge-protection"
 )
 
-type migrateTask struct{}
+type migrateTask struct {
+	client       *client.Client
+	legacyClient *legacyclient.Client
+}
 
 func (migrateTask) Name() string {
 	return "Migration"
@@ -67,15 +69,15 @@ func (migrateTask) End(ctx context.Context, args *Args, err error) error {
 	return nil
 }
 
-func (migrateTask) Execute(ctx context.Context, args *Args) error {
-	return Migrate(ctx, args, true)
+func (t migrateTask) Execute(ctx context.Context, args *Args) error {
+	return t.migrate(ctx, args, true)
 }
 
 func (migrateTask) Delete(_ context.Context, _ *Args) error {
 	return nil
 }
 
-func migrateDrives(ctx context.Context, dryRun bool, progressCh chan<- Message) (driveMap map[string]string, legacyDriveErrors, driveErrors map[string]error, err error) {
+func (t migrateTask) migrateDrives(ctx context.Context, dryRun bool, progressCh chan<- Message) (driveMap map[string]string, legacyDriveErrors, driveErrors map[string]error, err error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -84,7 +86,7 @@ func migrateDrives(ctx context.Context, dryRun bool, progressCh chan<- Message) 
 	driveErrors = map[string]error{}
 
 	fsUUIDs := make(utils.StringSet)
-	for result := range legacyclient.ListDrives(ctx) {
+	for result := range t.legacyClient.ListDrives(ctx) {
 		if result.Err != nil {
 			return nil, legacyDriveErrors, driveErrors, fmt.Errorf(
 				"unable to get legacy drives; %v", result.Err,
@@ -181,13 +183,13 @@ func migrateDrives(ctx context.Context, dryRun bool, progressCh chan<- Message) 
 			}
 		}
 
-		existingDrive, err := client.DriveClient().Get(ctx, string(driveID), metav1.GetOptions{})
+		existingDrive, err := t.client.Drive().Get(ctx, string(driveID), metav1.GetOptions{})
 		if err != nil {
 			switch {
 			case apierrors.IsNotFound(err):
 				if !dryRun {
 					sendProgressMessage(ctx, progressCh, fmt.Sprintf("Migrating directcsidrive %s to directpvdrive %s", result.Drive.Name, drive.Name), 1, nil)
-					_, err = client.DriveClient().Create(ctx, drive, metav1.CreateOptions{})
+					_, err = t.client.Drive().Create(ctx, drive, metav1.CreateOptions{})
 					if err != nil {
 						legacyDriveErrors[result.Drive.Name] = fmt.Errorf(
 							"unable to create drive %v by migrating legacy drive %v; %w",
@@ -219,14 +221,14 @@ func migrateDrives(ctx context.Context, dryRun bool, progressCh chan<- Message) 
 	return driveMap, legacyDriveErrors, driveErrors, nil
 }
 
-func migrateVolumes(ctx context.Context, driveMap map[string]string, dryRun bool, progressCh chan<- Message) (legacyVolumeErrors, volumeErrors map[string]error, err error) {
+func (t migrateTask) migrateVolumes(ctx context.Context, driveMap map[string]string, dryRun bool, progressCh chan<- Message) (legacyVolumeErrors, volumeErrors map[string]error, err error) {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
 	legacyVolumeErrors = map[string]error{}
 	volumeErrors = map[string]error{}
 
-	for result := range legacyclient.ListVolumes(ctx) {
+	for result := range t.legacyClient.ListVolumes(ctx) {
 		if result.Err != nil {
 			return legacyVolumeErrors, volumeErrors, fmt.Errorf(
 				"unable to get legacy volumes; %v", result.Err,
@@ -296,13 +298,13 @@ func migrateVolumes(ctx context.Context, driveMap map[string]string, dryRun bool
 			}
 		}
 
-		existingVolume, err := client.VolumeClient().Get(ctx, name, metav1.GetOptions{})
+		existingVolume, err := t.client.Volume().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			switch {
 			case apierrors.IsNotFound(err):
 				if !dryRun {
 					sendProgressMessage(ctx, progressCh, fmt.Sprintf("Migrating directcsivolume %s to directpvvolume %s", result.Volume.Name, volume.Name), 2, nil)
-					_, err = client.VolumeClient().Create(ctx, volume, metav1.CreateOptions{})
+					_, err = t.client.Volume().Create(ctx, volume, metav1.CreateOptions{})
 					if err != nil {
 						legacyVolumeErrors[result.Volume.Name] = fmt.Errorf(
 							"unable to create volume %v by migrating legacy volume %v; %w",
@@ -332,14 +334,14 @@ func migrateVolumes(ctx context.Context, driveMap map[string]string, dryRun bool
 }
 
 // Migrate migrates legacy drives and volumes.
-func Migrate(ctx context.Context, args *Args, installer bool) (err error) {
+func (t migrateTask) migrate(ctx context.Context, args *Args, installer bool) (err error) {
 	if (installer && args.DryRun) || args.Declarative || !args.Legacy {
 		return nil
 	}
 
 	legacyclient.Init()
 
-	version, _, err := legacyclient.GetGroupVersion("DirectCSIDrive")
+	version, _, err := legacyclient.GetGroupVersion(t.legacyClient.K8sClient, "DirectCSIDrive")
 	if err != nil {
 		return fmt.Errorf("unable to probe DirectCSIDrive version; %w", err)
 	}
@@ -350,7 +352,7 @@ func Migrate(ctx context.Context, args *Args, installer bool) (err error) {
 		return fmt.Errorf("migration does not support DirectCSIDrive version %v", version)
 	}
 
-	version, _, err = legacyclient.GetGroupVersion("DirectCSIVolume")
+	version, _, err = legacyclient.GetGroupVersion(t.legacyClient.K8sClient, "DirectCSIVolume")
 	if err != nil {
 		return fmt.Errorf("unable to probe DirectCSIVolume version; %w", err)
 	}
@@ -361,14 +363,14 @@ func Migrate(ctx context.Context, args *Args, installer bool) (err error) {
 		return fmt.Errorf("migration does not support DirectCSIVolume version %v", version)
 	}
 
-	driveMap, legacyDriveErrors, driveErrors, err := migrateDrives(ctx, args.DryRun, args.ProgressCh)
+	driveMap, legacyDriveErrors, driveErrors, err := t.migrateDrives(ctx, args.DryRun, args.ProgressCh)
 	if err != nil {
 		return err
 	}
 	if !sendProgressMessage(ctx, args.ProgressCh, "Migrated the drives", 1, nil) {
 		return errSendProgress
 	}
-	legacyVolumeErrors, volumeErrors, err := migrateVolumes(ctx, driveMap, args.DryRun, args.ProgressCh)
+	legacyVolumeErrors, volumeErrors, err := t.migrateVolumes(ctx, driveMap, args.DryRun, args.ProgressCh)
 	if err != nil {
 		return err
 	}
@@ -403,84 +405,7 @@ func Migrate(ctx context.Context, args *Args, installer bool) (err error) {
 	return nil
 }
 
-// RemoveLegacyDrives removes legacy drive CRDs.
-func RemoveLegacyDrives(ctx context.Context, backupFile string) (backupCreated bool, err error) {
-	var drives []directv1beta5.DirectCSIDrive
-	for result := range legacyclient.ListDrives(ctx) {
-		if result.Err != nil {
-			return false, fmt.Errorf("unable to get legacy drives; %w", result.Err)
-		}
-		drives = append(drives, result.Drive)
-	}
-	if len(drives) == 0 {
-		return false, nil
-	}
-
-	data, err := utils.ToYAML(directv1beta5.DirectCSIDriveList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "List",
-			APIVersion: "v1",
-		},
-		Items: drives,
-	})
-	if err != nil {
-		return false, fmt.Errorf("unable to generate legacy drives YAML; %w", err)
-	}
-
-	if err = os.WriteFile(backupFile, data, os.ModePerm); err != nil {
-		return false, fmt.Errorf("unable to write legacy drives YAML; %w", err)
-	}
-
-	for _, drive := range drives {
-		drive.Finalizers = []string{}
-		if _, err := legacyclient.DriveClient().Update(ctx, &drive, metav1.UpdateOptions{}); err != nil {
-			return false, fmt.Errorf("unable to update legacy drive %v; %w", drive.Name, err)
-		}
-		if err := legacyclient.DriveClient().Delete(ctx, drive.Name, metav1.DeleteOptions{}); err != nil {
-			return false, fmt.Errorf("unable to remove legacy drive %v; %w", drive.Name, err)
-		}
-	}
-
-	return true, nil
-}
-
-// RemoveLegacyVolumes removes legacy volume CRDs.
-func RemoveLegacyVolumes(ctx context.Context, backupFile string) (backupCreated bool, err error) {
-	var volumes []directv1beta5.DirectCSIVolume
-	for result := range legacyclient.ListVolumes(ctx) {
-		if result.Err != nil {
-			return false, fmt.Errorf("unable to get legacy volumes; %w", result.Err)
-		}
-		volumes = append(volumes, result.Volume)
-	}
-	if len(volumes) == 0 {
-		return false, nil
-	}
-
-	data, err := utils.ToYAML(directv1beta5.DirectCSIVolumeList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "List",
-			APIVersion: "v1",
-		},
-		Items: volumes,
-	})
-	if err != nil {
-		return false, fmt.Errorf("unable to generate legacy volumes YAML; %w", err)
-	}
-
-	if err = os.WriteFile(backupFile, data, os.ModePerm); err != nil {
-		return false, fmt.Errorf("unable to write legacy volumes YAML; %w", err)
-	}
-
-	for _, volume := range volumes {
-		volume.Finalizers = nil
-		if _, err := legacyclient.VolumeClient().Update(ctx, &volume, metav1.UpdateOptions{}); err != nil {
-			return false, fmt.Errorf("unable to update legacy volume %v; %w", volume.Name, err)
-		}
-		if err := legacyclient.VolumeClient().Delete(ctx, volume.Name, metav1.DeleteOptions{}); err != nil {
-			return false, fmt.Errorf("unable to remove legacy volume %v; %w", volume.Name, err)
-		}
-	}
-
-	return true, nil
+// Migrate migrates the resources using the provided clients
+func Migrate(ctx context.Context, args *Args, client *client.Client, legacyClient *legacyclient.Client) error {
+	return migrateTask{client, legacyClient}.migrate(ctx, args, false)
 }

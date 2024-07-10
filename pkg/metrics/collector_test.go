@@ -55,6 +55,7 @@ func init() {
 	volumes[0].Status.TargetPath = "/path/targetpath"
 	volumes[1].Status.UsedCapacity = 20 * MiB
 	volumes[1].Status.TargetPath = "/path/targetpath"
+	client.FakeInit()
 }
 
 func createFakeMetricsCollector() *metricsCollector {

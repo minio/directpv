@@ -107,8 +107,8 @@ client-gen \
     --input-base "${REPOSITORY}/pkg/apis"
 
 echo "Running controller-gen ..." 
-controller-gen crd:crdVersions=v1 paths=./... output:dir=pkg/installer
-rm -f pkg/installer/direct.csi.min.io_directcsidrives.yaml pkg/installer/direct.csi.min.io_directcsivolumes.yaml
+controller-gen crd:crdVersions=v1 paths=./... output:dir=pkg/admin/installer
+rm -f pkg/admin/installer/direct.csi.min.io_directcsidrives.yaml pkg/admin/installer/direct.csi.min.io_directcsivolumes.yaml
 
 echo "Running conversion-gen ..."
 conversion-gen \

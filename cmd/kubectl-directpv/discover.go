@@ -28,16 +28,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/minio/directpv/pkg/admin"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/util/retry"
 )
 
 var (
@@ -71,7 +68,7 @@ var discoverCmd = &cobra.Command{
 	),
 	Run: func(c *cobra.Command, _ []string) {
 		if err := validateDiscoverCmd(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 		discoverMain(c.Context())
@@ -93,33 +90,6 @@ func validateDiscoverCmd() error {
 		return err
 	}
 	return validateDriveNameArgs()
-}
-
-func toInitConfig(resultMap map[directpvtypes.NodeID][]types.Device) InitConfig {
-	nodeInfo := []NodeInfo{}
-	initConfig := NewInitConfig()
-	for node, devices := range resultMap {
-		driveInfo := []DriveInfo{}
-		for _, device := range devices {
-			if device.DeniedReason != "" {
-				continue
-			}
-			driveInfo = append(driveInfo, DriveInfo{
-				ID:     device.ID,
-				Name:   device.Name,
-				Size:   device.Size,
-				Make:   device.Make,
-				FS:     device.FSType,
-				Select: driveSelectedValue,
-			})
-		}
-		nodeInfo = append(nodeInfo, NodeInfo{
-			Name:   node,
-			Drives: driveInfo,
-		})
-	}
-	initConfig.Nodes = nodeInfo
-	return initConfig
 }
 
 func showDevices(resultMap map[directpvtypes.NodeID][]types.Device) error {
@@ -182,14 +152,14 @@ func showDevices(resultMap map[directpvtypes.NodeID][]types.Device) error {
 	}
 
 	if writer.Length() == 0 || !foundAvailableDrive {
-		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to initialize"))
+		eprintf(false, color.HiYellowString("No drives are available to initialize")+"\n")
 		return errDiscoveryFailed
 	}
 
 	return nil
 }
 
-func writeInitConfig(config InitConfig) error {
+func writeInitConfig(config admin.InitConfig) error {
 	f, err := os.OpenFile(outputFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
@@ -198,48 +168,101 @@ func writeInitConfig(config InitConfig) error {
 	return config.Write(f)
 }
 
-func discoverDevices(ctx context.Context, nodes []types.Node, teaProgram *tea.Program) (devices map[directpvtypes.NodeID][]types.Device, err error) {
-	var nodeNames []string
-	nodeClient := client.NodeClient()
-	totalNodeCount := len(nodes)
-	discoveryProgressMap := make(map[string]progressLog, totalNodeCount)
-	for i := range nodes {
-		nodeNames = append(nodeNames, nodes[i].Name)
-		updateFunc := func() error {
-			node, err := nodeClient.Get(ctx, nodes[i].Name, metav1.GetOptions{})
-			if err != nil {
-				return err
+func discoverMain(ctx context.Context) {
+	var teaProgram *tea.Program
+	var wg sync.WaitGroup
+	if !quietFlag {
+		m := newProgressModel(false)
+		teaProgram = tea.NewProgram(m)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := teaProgram.Run(); err != nil {
+				fmt.Println("error running program:", err)
+				os.Exit(1)
 			}
-			node.Spec.Refresh = true
-			if _, err := nodeClient.Update(ctx, node, metav1.UpdateOptions{TypeMeta: types.NewNodeTypeMeta()}); err != nil {
-				return err
-			}
-			if teaProgram != nil {
-				discoveryProgressMap[node.Name] = progressLog{
-					log: fmt.Sprintf("Discovering node '%v'", node.Name),
-				}
-				teaProgram.Send(progressNotification{
-					progressLogs: toProgressLogs(discoveryProgressMap),
-				})
-			}
-			return nil
-		}
-		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			return nil, err
-		}
+		}()
 	}
 
+	nodeCh, errCh, err := adminClient.RefreshNodes(ctx, nodesArgs)
+	if err != nil {
+		eprintf(true, "discovery failed; %v\n", err)
+		os.Exit(1)
+	}
+
+	var nodeNames []string
+	discoveryProgressMap := make(map[string]progressLog)
+	var refreshwg sync.WaitGroup
+	refreshwg.Add(1)
+	go func() {
+		defer refreshwg.Done()
+		for {
+			select {
+			case nodeID, ok := <-nodeCh:
+				if !ok {
+					return
+				}
+				nodeNames = append(nodeNames, string(nodeID))
+				if teaProgram != nil {
+					discoveryProgressMap[string(nodeID)] = progressLog{
+						log: fmt.Sprintf("Discovering node '%v'", nodeID),
+					}
+					teaProgram.Send(progressNotification{
+						progressLogs: toProgressLogs(discoveryProgressMap),
+					})
+				}
+			case err, ok := <-errCh:
+				if !ok {
+					return
+				}
+				eprintf(true, "discovery failed; %v\n", err)
+				os.Exit(1)
+			case <-ctx.Done():
+				eprintf(true, ctx.Err().Error())
+				os.Exit(1)
+			}
+		}
+	}()
+	refreshwg.Wait()
+
+	resultMap, err := discoverDevices(ctx, nodeNames, drivesArgs, teaProgram)
+	if err != nil {
+		eprintf(true, "discovery failed; %v\n", err)
+		os.Exit(1)
+	}
+	if teaProgram != nil {
+		teaProgram.Send(progressNotification{
+			done: true,
+			err:  err,
+		})
+		wg.Wait()
+	}
+	if err := showDevices(resultMap); err != nil {
+		if !errors.Is(err, errDiscoveryFailed) {
+			eprintf(true, "%v\n", err)
+		}
+		os.Exit(1)
+	}
+	if err := writeInitConfig(admin.ToInitConfig(resultMap)); err != nil {
+		eprintf(true, "unable to write init config; %v\n", err)
+	} else if !quietFlag {
+		color.HiGreen("Generated '%s' successfully.", outputFile)
+	}
+}
+
+func discoverDevices(ctx context.Context, nodes, drives []string, teaProgram *tea.Program) (devices map[directpvtypes.NodeID][]types.Device, err error) {
 	ctx, cancel := context.WithTimeout(ctx, nodeListTimeout)
 	defer cancel()
 
-	eventCh, stop, err := node.NewLister().
-		NodeSelector(toLabelValues(nodeNames)).
+	eventCh, stop, err := adminClient.NewNodeLister().
+		NodeSelector(utils.ToLabelValues(nodes)).
 		Watch(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer stop()
 
+	discoveryProgressMap := make(map[string]progressLog)
 	devices = map[directpvtypes.NodeID][]types.Device{}
 	for {
 		select {
@@ -253,9 +276,9 @@ func discoverDevices(ctx context.Context, nodes []types.Node, teaProgram *tea.Pr
 			}
 			switch event.Type {
 			case watch.Modified, watch.Added:
-				node := event.Node
+				node := event.Item
 				if !node.Spec.Refresh {
-					devices[directpvtypes.NodeID(node.Name)] = node.GetDevicesByNames(drivesArgs)
+					devices[directpvtypes.NodeID(node.Name)] = node.GetDevicesByNames(drives)
 					if teaProgram != nil {
 						discoveryProgressMap[node.Name] = progressLog{
 							log:  fmt.Sprintf("Discovered node '%v'", node.Name),
@@ -274,109 +297,8 @@ func discoverDevices(ctx context.Context, nodes []types.Node, teaProgram *tea.Pr
 			default:
 			}
 		case <-ctx.Done():
-			utils.Eprintf(quietFlag, true, "unable to complete the discovery; %v\n", ctx.Err())
+			err = fmt.Errorf("unable to complete the discovery; %v", ctx.Err())
 			return
 		}
-	}
-}
-
-func syncNodes(ctx context.Context) (err error) {
-	csiNodes, err := getCSINodes(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to get CSI nodes; %w", err)
-	}
-
-	nodes, err := node.NewLister().Get(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to get nodes; %w", err)
-	}
-
-	var nodeNames []string
-	for _, node := range nodes {
-		nodeNames = append(nodeNames, node.Name)
-	}
-
-	// Add missing nodes.
-	for _, csiNode := range csiNodes {
-		if !utils.Contains(nodeNames, csiNode) {
-			node := types.NewNode(directpvtypes.NodeID(csiNode), []types.Device{})
-			node.Spec.Refresh = true
-			if _, err = client.NodeClient().Create(ctx, node, metav1.CreateOptions{}); err != nil {
-				return fmt.Errorf("unable to create node %v; %w", csiNode, err)
-			}
-		}
-	}
-
-	// Remove non-existing nodes.
-	for _, nodeName := range nodeNames {
-		if !utils.Contains(csiNodes, nodeName) {
-			if err = client.NodeClient().Delete(ctx, nodeName, metav1.DeleteOptions{}); err != nil {
-				return fmt.Errorf("unable to remove non-existing node %v; %w", nodeName, err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func discoverMain(ctx context.Context) {
-	if err := syncNodes(ctx); err != nil {
-		utils.Eprintf(quietFlag, true, "sync failed; %v\n", err)
-		os.Exit(1)
-	}
-
-	nodes, err := node.NewLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		Get(ctx)
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
-		os.Exit(1)
-	}
-	if len(nodesArgs) != 0 && len(nodes) == 0 {
-		suffix := ""
-		if len(nodesArgs) > 1 {
-			suffix = "s"
-		}
-		utils.Eprintf(quietFlag, true, "node%v %v not found\n", suffix, nodesArgs)
-		os.Exit(1)
-	}
-
-	var teaProgram *tea.Program
-	var wg sync.WaitGroup
-	if !quietFlag {
-		m := newProgressModel(false)
-		teaProgram = tea.NewProgram(m)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if _, err := teaProgram.Run(); err != nil {
-				fmt.Println("error running program:", err)
-				os.Exit(1)
-			}
-		}()
-	}
-	resultMap, err := discoverDevices(ctx, nodes, teaProgram)
-	if err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
-		os.Exit(1)
-	}
-	if teaProgram != nil {
-		teaProgram.Send(progressNotification{
-			done: true,
-			err:  err,
-		})
-		wg.Wait()
-	}
-	if err := showDevices(resultMap); err != nil {
-		if !errors.Is(err, errDiscoveryFailed) {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
-		}
-		os.Exit(1)
-	}
-
-	if err := writeInitConfig(toInitConfig(resultMap)); err != nil {
-		utils.Eprintf(quietFlag, true, "unable to write init config; %v\n", err)
-	} else if !quietFlag {
-		color.HiGreen("Generated '%s' successfully.", outputFile)
 	}
 }
