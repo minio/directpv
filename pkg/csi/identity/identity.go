@@ -45,6 +45,8 @@ func GetDefaultPluginCapabilities() []*csi.PluginCapability {
 }
 
 type identityServer struct {
+	csi.UnimplementedIdentityServer
+
 	identity     string
 	version      string
 	capabilities []*csi.PluginCapability
