@@ -66,8 +66,8 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		)
 	}
 
-	create20MBVolumeRequest := func(volName string, requestedNode string) csi.CreateVolumeRequest {
-		return csi.CreateVolumeRequest{
+	create20MBVolumeRequest := func(volName string, requestedNode string) *csi.CreateVolumeRequest {
+		return &csi.CreateVolumeRequest{
 			Name: volName,
 			CapacityRange: &csi.CapacityRange{
 				RequiredBytes: 20 * MiB,
@@ -102,8 +102,8 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		}
 	}
 
-	createDeleteVolumeRequest := func(volName string) csi.DeleteVolumeRequest {
-		return csi.DeleteVolumeRequest{
+	createDeleteVolumeRequest := func(volName string) *csi.DeleteVolumeRequest {
+		return &csi.DeleteVolumeRequest{
 			VolumeId: volName,
 		}
 	}
@@ -117,7 +117,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		createTestDrive100MB("node2", "D4"),
 	}
 
-	createVolumeRequests := []csi.CreateVolumeRequest{
+	createVolumeRequests := []*csi.CreateVolumeRequest{
 		// Volume requests for drives in node1
 		create20MBVolumeRequest("volume-1", "node1"),
 		create20MBVolumeRequest("volume-2", "node1"),
@@ -136,7 +136,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	for _, cvReq := range createVolumeRequests {
 		volName := cvReq.GetName()
 		// Step 1: Call CreateVolume RPC
-		cvRes, err := cl.CreateVolume(ctx, &cvReq)
+		cvRes, err := cl.CreateVolume(ctx, cvReq)
 		if err != nil {
 			t.Errorf("[%s] Create volume failed: %v", volName, err)
 		}
@@ -198,7 +198,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		}
 	}
 
-	deleteVolumeRequests := []csi.DeleteVolumeRequest{
+	deleteVolumeRequests := []*csi.DeleteVolumeRequest{
 		// DeleteVolumeRequests for volumes in node1
 		createDeleteVolumeRequest("volume-1"),
 		createDeleteVolumeRequest("volume-2"),
@@ -208,7 +208,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 	}
 
 	for _, dvReq := range deleteVolumeRequests {
-		if _, err := cl.DeleteVolume(ctx, &dvReq); err != nil {
+		if _, err := cl.DeleteVolume(ctx, dvReq); err != nil {
 			t.Errorf("[%s] DeleteVolume failed: %v", dvReq.VolumeId, err)
 		}
 	}
@@ -233,7 +233,7 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 
 	testVolumeObjects := []runtime.Object{volume1, &volume2}
 
-	deleteVolumeRequests := []csi.DeleteVolumeRequest{
+	deleteVolumeRequests := []*csi.DeleteVolumeRequest{
 		{
 			VolumeId: "test-volume-1",
 		},
@@ -250,7 +250,7 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
 	for _, dvReq := range deleteVolumeRequests {
-		if _, err := cl.DeleteVolume(ctx, &dvReq); err == nil {
+		if _, err := cl.DeleteVolume(ctx, dvReq); err == nil {
 			t1.Errorf("[%s] DeleteVolume expected to fail but succeeded", dvReq.VolumeId)
 		}
 	}
@@ -349,7 +349,7 @@ func TestControllerUnpublishVolume(t *testing.T) {
 
 func TestControllerExpandVolume(t *testing.T) {
 	volumeID := "test-volume-1"
-	reqs := []csi.ControllerExpandVolumeRequest{
+	reqs := []*csi.ControllerExpandVolumeRequest{
 		{
 			VolumeId:      volumeID,
 			CapacityRange: &csi.CapacityRange{RequiredBytes: 50},
@@ -388,38 +388,8 @@ func TestControllerExpandVolume(t *testing.T) {
 	ctx := context.TODO()
 	server := NewServer()
 	for i, req := range reqs {
-		if _, err := server.ControllerExpandVolume(ctx, &req); err != nil {
+		if _, err := server.ControllerExpandVolume(ctx, req); err != nil {
 			t.Errorf("case %v: expected: success; but failed by %v", i+1, err)
 		}
-	}
-}
-
-func TestControllerGetVolume(t *testing.T) {
-	if _, err := NewServer().ControllerGetVolume(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
-	}
-}
-
-func TestListSnapshots(t *testing.T) {
-	if _, err := NewServer().ListSnapshots(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
-	}
-}
-
-func TestCreateSnapshot(t *testing.T) {
-	if _, err := NewServer().CreateSnapshot(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
-	}
-}
-
-func TestDeleteSnapshot(t *testing.T) {
-	if _, err := NewServer().DeleteSnapshot(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
-	}
-}
-
-func TestGetCapacity(t *testing.T) {
-	if _, err := NewServer().GetCapacity(context.TODO(), nil); err == nil {
-		t.Fatal("error expected")
 	}
 }

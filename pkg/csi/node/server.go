@@ -36,6 +36,8 @@ import (
 
 // Server denotes node server.
 type Server struct {
+	csi.UnimplementedNodeServer
+
 	nodeID   directpvtypes.NodeID
 	identity string
 	rack     string
