@@ -109,13 +109,6 @@ func roleComponent(name string) *Component {
 	}
 }
 
-func podSecurityPolicyComponent(name string) *Component {
-	return &Component{
-		Name: name,
-		Kind: "PodSecurityPolicy",
-	}
-}
-
 func crdComponent(name string) *Component {
 	return &Component{
 		Name: name,

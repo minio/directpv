@@ -112,6 +112,10 @@ function check_directcsi_consistency() {
     fi
 }
 
+function is_psp_found() {
+    kubectl get --ignore-not-found=true psp directpv-min-io --no-headers -o NAME | grep -q .
+}
+
 function init() {
     help_flag=0
     for arg in "$@"; do
@@ -164,6 +168,13 @@ EOF
     else
         echo "kubectl directpv plugin not found; please install"
         exit 255
+    fi
+
+    if is_psp_found; then
+        echo "[WARNING] Older PodSecurityPolicy found !!!"
+        echo "[WARNING] DirectPV removed PodSecurityPolicy support as per Kubernetes supportability"
+        echo "[WARNING] This installation does not change anything related to existing PodSecurityPolicy"
+        echo "[WARNING] You can remove it manually and use Pod Security Admission as per your requirement"
     fi
 }
 
