@@ -23,6 +23,7 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/k8s"
 	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,20 +33,11 @@ import (
 )
 
 const (
-	volumeNameMountpointDir    = "mountpoint-dir"
-	volumeNameRegistrationDir  = "registration-dir"
-	volumeNamePluginDir        = "plugins-dir"
-	volumeNameAppRootDir       = consts.AppName + "-common-root"
-	volumeNameLegacyAppRootDir = "direct-csi-common-root"
-	appRootDir                 = consts.AppRootDir + "/"
-	legacyAppRootDir           = "/var/lib/direct-csi/"
-	volumeNameSysDir           = "sysfs"
-	volumeNameDevDir           = "devfs"
-	volumePathDevDir           = "/dev"
-	volumeNameRunUdevData      = "run-udev-data-dir"
-	volumePathRunUdevData      = consts.UdevDataDir
-	socketFile                 = "/csi.sock"
-	totalDaemonsetSteps        = 2
+	kubeletPodsDirVolumeName    = "mountpoint-dir"
+	registrationDirVolumeName   = "registration-dir"
+	kubeletPluginsDirVolumeName = "plugins-dir"
+	socketFile                  = "/csi.sock"
+	totalDaemonsetSteps         = 2
 )
 
 type daemonsetTask struct {
@@ -97,25 +89,25 @@ func newSecurityContext(seccompProfile string) *corev1.SecurityContext {
 
 func getVolumesAndMounts(pluginSocketDir string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	volumes = []corev1.Volume{
-		newHostPathVolume(volumeNameSocketDir, pluginSocketDir),
-		newHostPathVolume(volumeNameMountpointDir, kubeletDirPath+"/pods"),
-		newHostPathVolume(volumeNameRegistrationDir, kubeletDirPath+"/plugins_registry"),
-		newHostPathVolume(volumeNamePluginDir, kubeletDirPath+"/plugins"),
-		newHostPathVolume(volumeNameAppRootDir, appRootDir),
-		newHostPathVolume(volumeNameSysDir, volumePathSysDir),
-		newHostPathVolume(volumeNameDevDir, volumePathDevDir),
-		newHostPathVolume(volumeNameRunUdevData, volumePathRunUdevData),
-		newHostPathVolume(volumeNameLegacyAppRootDir, legacyAppRootDir),
+		k8s.NewHostPathVolume(csiDirVolumeName, pluginSocketDir),
+		k8s.NewHostPathVolume(kubeletPodsDirVolumeName, kubeletDirPath+"/pods"),
+		k8s.NewHostPathVolume(registrationDirVolumeName, kubeletDirPath+"/plugins_registry"),
+		k8s.NewHostPathVolume(kubeletPluginsDirVolumeName, kubeletDirPath+"/plugins"),
+		k8s.NewHostPathVolume(consts.AppRootDirVolumeName, consts.AppRootDirVolumePath),
+		k8s.NewHostPathVolume(consts.LegacyAppRootDirVolumeName, consts.LegacyAppRootDirVolumePath),
+		k8s.NewHostPathVolume(consts.SysDirVolumeName, consts.SysDirVolumePath),
+		k8s.NewHostPathVolume(consts.DevDirVolumeName, consts.DevDirVolumePath),
+		k8s.NewHostPathVolume(consts.RunUdevDataVolumeName, consts.RunUdevDataVolumePath),
 	}
 	volumeMounts = []corev1.VolumeMount{
-		newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
-		newVolumeMount(volumeNameMountpointDir, kubeletDirPath+"/pods", corev1.MountPropagationBidirectional, false),
-		newVolumeMount(volumeNamePluginDir, kubeletDirPath+"/plugins", corev1.MountPropagationBidirectional, false),
-		newVolumeMount(volumeNameAppRootDir, appRootDir, corev1.MountPropagationBidirectional, false),
-		newVolumeMount(volumeNameSysDir, volumePathSysDir, corev1.MountPropagationBidirectional, false),
-		newVolumeMount(volumeNameDevDir, volumePathDevDir, corev1.MountPropagationHostToContainer, true),
-		newVolumeMount(volumeNameRunUdevData, volumePathRunUdevData, corev1.MountPropagationBidirectional, true),
-		newVolumeMount(volumeNameLegacyAppRootDir, legacyAppRootDir, corev1.MountPropagationBidirectional, false),
+		k8s.NewVolumeMount(csiDirVolumeName, csiDirVolumePath, corev1.MountPropagationNone, false),
+		k8s.NewVolumeMount(kubeletPodsDirVolumeName, kubeletDirPath+"/pods", corev1.MountPropagationBidirectional, false),
+		k8s.NewVolumeMount(kubeletPluginsDirVolumeName, kubeletDirPath+"/plugins", corev1.MountPropagationBidirectional, false),
+		k8s.NewVolumeMount(consts.AppRootDirVolumeName, consts.AppRootDirVolumePath, corev1.MountPropagationBidirectional, false),
+		k8s.NewVolumeMount(consts.LegacyAppRootDirVolumeName, consts.LegacyAppRootDirVolumePath, corev1.MountPropagationBidirectional, false),
+		k8s.NewVolumeMount(consts.SysDirVolumeName, consts.SysDirVolumePath, corev1.MountPropagationBidirectional, false),
+		k8s.NewVolumeMount(consts.DevDirVolumeName, consts.DevDirVolumePath, corev1.MountPropagationHostToContainer, true),
+		k8s.NewVolumeMount(consts.RunUdevDataVolumeName, consts.RunUdevDataVolumePath, corev1.MountPropagationBidirectional, true),
 	}
 
 	return
@@ -132,8 +124,8 @@ func nodeDriverRegistrarContainer(image, pluginSocketDir string) corev1.Containe
 		},
 		Env: []corev1.EnvVar{kubeNodeNameEnvVar},
 		VolumeMounts: []corev1.VolumeMount{
-			newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
-			newVolumeMount(volumeNameRegistrationDir, "/registration", corev1.MountPropagationNone, false),
+			k8s.NewVolumeMount(csiDirVolumeName, csiDirVolumePath, corev1.MountPropagationNone, false),
+			k8s.NewVolumeMount(registrationDirVolumeName, "/registration", corev1.MountPropagationNone, false),
 		},
 		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 		TerminationMessagePath:   "/var/log/driver-registrar-termination-log",
@@ -195,13 +187,13 @@ func livenessProbeContainer(image string) corev1.Container {
 		Name:  "liveness-probe",
 		Image: image,
 		Args: []string{
-			fmt.Sprintf("--csi-address=%v%v", socketDir, socketFile),
+			fmt.Sprintf("--csi-address=%v%v", csiDirVolumePath, socketFile),
 			fmt.Sprintf("--health-port=%v", healthZContainerPort),
 		},
 		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 		TerminationMessagePath:   "/var/log/driver-liveness-termination-log",
 		VolumeMounts: []corev1.VolumeMount{
-			newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+			k8s.NewVolumeMount(csiDirVolumeName, csiDirVolumePath, corev1.MountPropagationNone, false),
 		},
 	}
 }

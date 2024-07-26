@@ -23,6 +23,7 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -96,8 +97,8 @@ func (t deploymentTask) doCreateDeployment(ctx context.Context, args *Args, lega
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: consts.Identity,
 		Volumes: []corev1.Volume{
-			newHostPathVolume(
-				volumeNameSocketDir,
+			k8s.NewHostPathVolume(
+				csiDirVolumeName,
 				newPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", consts.ControllerServerName)),
 			),
 		},
@@ -116,7 +117,7 @@ func (t deploymentTask) doCreateDeployment(ctx context.Context, args *Args, lega
 				},
 				Env: []corev1.EnvVar{csiEndpointEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+					k8s.NewVolumeMount(csiDirVolumeName, csiDirVolumePath, corev1.MountPropagationNone, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/controller-provisioner-termination-log",
@@ -148,7 +149,7 @@ func (t deploymentTask) doCreateDeployment(ctx context.Context, args *Args, lega
 				},
 				Env: []corev1.EnvVar{csiEndpointEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+					k8s.NewVolumeMount(csiDirVolumeName, csiDirVolumePath, corev1.MountPropagationNone, false),
 				},
 				TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 				TerminationMessagePath:   "/var/log/controller-csi-resizer-termination-log",
@@ -173,7 +174,7 @@ func (t deploymentTask) doCreateDeployment(ctx context.Context, args *Args, lega
 				},
 				Env: []corev1.EnvVar{kubeNodeNameEnvVar, csiEndpointEnvVar},
 				VolumeMounts: []corev1.VolumeMount{
-					newVolumeMount(volumeNameSocketDir, socketDir, corev1.MountPropagationNone, false),
+					k8s.NewVolumeMount(csiDirVolumeName, csiDirVolumePath, corev1.MountPropagationNone, false),
 				},
 			},
 		},

@@ -118,11 +118,27 @@ Refer [remove command](./command-reference.md#remove-command) for more informati
 By Kubernetes design, [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) workload is active only if all of its pods are in running state. Any faulty drive(s) will prevent the statefulset from starting up. DirectPV provides a workaround to suspend failed drives which will mount the respective volumes on empty `/var/lib/directpv/tmp` directory with read-only access. This can be done by executing the `suspend drives` command. Below is an example:
 
 ```sh
-> kubectl directpv suspend drives af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
+$ kubectl directpv suspend drives af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
 ```
 
 Suspended drives can be resumed once they are fixed. Upon resuming, the corresponding volumes will resume using the respective allocated drives. This can be done by using the `resume drives` command. Below is an example:
 
 ```sh
-> kubectl directpv resume drives af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
+$ kubectl directpv resume drives af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
+```
+
+## Repair drives
+
+***CAUTION: THIS IS DANGEROUS OPERATION WHICH LEADS TO DATA LOSS***
+
+In a rare situation, filesystem on faulty drives can be repaired to make them usable. As a first step, faulty drives must be suspended, then the `repair` command should be run for them. The `repair` command creates onetime Kubernetes `Job` with the pod name as `repair-<DRIVE-ID>` and these jobs are auto removed after five minutes of its completion. Progress and status of the drive repair can be viewed using `kubectl log` command. Below is an example:
+
+```sh
+# Suspend faulty drives
+$ kubectl directpv suspend drives af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
+
+# Restart volume consumer pods and make sure associated volumes are unbound
+
+# Run repair command on suspended drives
+$ kubectl directpv repair af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
 ```

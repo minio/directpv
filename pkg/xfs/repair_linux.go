@@ -1,5 +1,7 @@
+//go:build linux
+
 // This file is part of MinIO DirectPV
-// Copyright (c) 2021, 2022 MinIO, Inc.
+// Copyright (c) 2024 MinIO, Inc.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,20 +16,33 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package converter
+package xfs
 
-import "github.com/minio/directpv/pkg/consts"
-
-const (
-	// HostDevRoot is "/dev" directory.
-	HostDevRoot = "/dev"
-
-	// DirectCSIDevRoot is "/var/lib/direct-csi/devices" directory.
-	DirectCSIDevRoot = consts.LegacyAppRootDir + "/devices"
-
-	// DirectCSIPartitionInfix is partition infix value.
-	DirectCSIPartitionInfix = "-part-"
-
-	// HostPartitionInfix is host infix value.
-	HostPartitionInfix = "p"
+import (
+	"context"
+	"fmt"
+	"io"
+	"os/exec"
 )
+
+func repair(ctx context.Context, device string, force, disablePrefetch, dryRun bool, output io.Writer) error {
+	args := []string{device, "-v"}
+	if force {
+		args = append(args, "-L")
+	}
+	if disablePrefetch {
+		args = append(args, "-P")
+	}
+	if dryRun {
+		args = append(args, "-n")
+	}
+
+	cmd := exec.CommandContext(ctx, "xfs_repair", args...)
+	cmd.Stdout = output
+	cmd.Stderr = output
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("unable to run xfs_repair on device %v; %w", device, err)
+	}
+
+	return nil
+}

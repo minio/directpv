@@ -183,7 +183,7 @@ func newDriveEventHandler(nodeID directpvtypes.NodeID) *driveEventHandler {
 			if err = os.Remove(driveMountPoint); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
-			driveMountPoint = path.Join("/var/lib/direct-csi/mnt", fsuuid)
+			driveMountPoint = path.Join(consts.LegacyAppRootDir, "mnt", fsuuid)
 			if err = os.Remove(driveMountPoint); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return err
 			}
@@ -221,7 +221,7 @@ func (handler *driveEventHandler) unmountDrive(drive *types.Drive, skipDriveMoun
 	devices, found := mountPointMap[driveMountPoint]
 	if !found {
 		// Check for legacy mount for backward compatibility.
-		driveMountPoint = path.Join("/var/lib/direct-csi/mnt", drive.Status.FSUUID)
+		driveMountPoint = path.Join(consts.LegacyAppRootDir, "mnt", drive.Status.FSUUID)
 		if devices, found = mountPointMap[driveMountPoint]; !found {
 			return nil // Device already umounted
 		}

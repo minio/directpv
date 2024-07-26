@@ -61,7 +61,7 @@ function get_node_name() {
             -o go-template='{{range $k,$v := .metadata.labels}}{{if eq $k "directpv.min.io/node"}}{{$v}}{{end}}{{end}}'
 }
 
-# usage: is_uuid input
+# usage: is_uuid <value>
 function is_uuid() {
     [[ "$1" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]
 }
@@ -179,9 +179,9 @@ function main() {
         exit 1
     fi
 
-    mapfile -t volumes < <(get_volumes "${src_drive_id}")
-    IFS=' ' read -r -a volumes_arr <<< "${volumes[@]}"
-    for volume in "${volumes_arr[@]}"; do
+    # shellcheck disable=SC2207
+    volumes=( $(get_volumes "${src_drive_id}") )
+    for volume in "${volumes[@]}"; do
         pod_name=$(get_pod_name "${volume}")
         pod_namespace=$(get_pod_namespace "${volume}")
 
@@ -190,9 +190,9 @@ function main() {
         fi
     done
 
-    if [ "${#volumes_arr[@]}" -gt 0 ]; then
+    if [ "${#volumes[@]}" -gt 0 ]; then
         # Wait for associated DirectPV volumes to be unbound
-        while kubectl directpv list volumes --no-headers "${volumes_arr[@]}" | grep -q Bounded; do
+        while kubectl directpv list volumes --no-headers "${volumes[@]}" | grep -q Bounded; do
             echo "...waiting for volumes to be unbound"
             sleep 10
         done
