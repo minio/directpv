@@ -24,7 +24,6 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
@@ -146,7 +145,7 @@ func validateListVolumesArgs() error {
 }
 
 func getPVCName(ctx context.Context, volume types.Volume) string {
-	pv, err := k8s.KubeClient().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
+	pv, err := adminClient.Kube().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
 	if err == nil && pv != nil && pv.Spec.ClaimRef != nil {
 		return pv.Spec.ClaimRef.Name
 	}
