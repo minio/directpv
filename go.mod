@@ -14,7 +14,7 @@ require (
 	github.com/freddierice/go-losetup/v2 v2.0.1
 	github.com/google/uuid v1.6.0
 	github.com/jedib0t/go-pretty/v6 v6.5.9
-	github.com/kubernetes-csi/csi-lib-utils v0.16.0
+	github.com/kubernetes-csi/csi-lib-utils v0.18.1
 	github.com/minio/sha256-simd v1.0.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/prometheus/client_golang v1.19.1
@@ -24,13 +24,13 @@ require (
 	golang.org/x/time v0.5.0
 	google.golang.org/grpc v1.65.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.28.11
-	k8s.io/apiextensions-apiserver v0.28.11
-	k8s.io/apimachinery v0.28.11
-	k8s.io/client-go v0.28.11
+	k8s.io/api v0.30.3
+	k8s.io/apiextensions-apiserver v0.30.3
+	k8s.io/apimachinery v0.30.3
+	k8s.io/client-go v0.30.3
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kube-openapi v0.0.0-20240709000949-962c6f1e0765
-	k8s.io/pod-security-admission v0.28.11
+	k8s.io/kube-openapi v0.0.0-20240709000822-3c01b740850f
+	k8s.io/pod-security-admission v0.30.3
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -105,7 +105,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/component-base v0.28.11 // indirect
+	k8s.io/component-base v0.30.3 // indirect
 	k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect

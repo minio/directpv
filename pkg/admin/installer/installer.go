@@ -30,7 +30,6 @@ func GetDefaultTasks(client *client.Client, legacyClient *legacyclient.Client) [
 	return []Task{
 		namespaceTask{client},
 		rbacTask{client},
-		pspTask{client},
 		crdTask{client},
 		migrateTask{client, legacyClient},
 		csiDriverTask{client},
