@@ -295,7 +295,7 @@ if ! main >/tmp/.output 2>&1; then
 fi
 EOF
     chmod a+x "${setup_sh}"
-    scp_cmd "${DIRECTPV_DIR}/CREDITS" "${DIRECTPV_DIR}/LICENSE" "${DIRECTPV_DIR}/centos.repo" "${DIRECTPV_DIR}/directpv" "${DIRECTPV_DIR}/kubectl-directpv" "${DIRECTPV_DIR}/Dockerfile" "${sleep_dockerfile}" "${setup_sh}" "root@${MASTER_VM_IP}:"
+    scp_cmd "${DIRECTPV_DIR}/CREDITS" "${DIRECTPV_DIR}/LICENSE" "${DIRECTPV_DIR}/AlmaLinux.repo" "${DIRECTPV_DIR}/directpv" "${DIRECTPV_DIR}/kubectl-directpv" "${DIRECTPV_DIR}/Dockerfile" "${sleep_dockerfile}" "${setup_sh}" "root@${MASTER_VM_IP}:"
     ssh_cmd "${MASTER_VM_IP}" "./${setup_sh}"
 
     if [ "${NODE_COUNT}" -eq 0 ]; then

@@ -2,10 +2,10 @@ name: Functional Tests
 
 on:
   push:
-    branches: [ master, devel ]
+    branches: [ master, v4.0 ]
 
   pull_request:
-    branches: [ master, devel ]
+    branches: [ master, v4.0 ]
 
 # This ensures that previous jobs for the PR are canceled when the PR is
 # updated.
