@@ -17,16 +17,15 @@
 package metrics
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
-	"strconv"
+	"os/exec"
 	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/device"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
@@ -103,15 +102,17 @@ func (c *metricsCollector) publishVolumeStats(ctx context.Context, volume *types
 }
 
 type driveStats struct {
-	ReadSectors  int64
-	ReadTicks    int64
-	WriteSectors int64
-	WriteTicks   int64
-	TimeInQueue  int64
+	readSectors  uint64
+	readTicks    uint64
+	writeSectors uint64
+	writeTicks   uint64
+	timeInQueue  uint64
 }
 
 func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prometheus.Metric) {
 	device, err := c.getDeviceByFSUUID(drive.Status.FSUUID)
+
+	klog.Info(device)
 	if err != nil {
 		ch <- prometheus.MustNewConstMetric(
 			prometheus.NewDesc(
@@ -139,45 +140,36 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 
 		return
 	}
-	device = strings.TrimPrefix(device, "/dev")
-	// Online/Offline Status
-	if _, err := os.Stat("/sys/block" + device); os.IsNotExist(err) {
-		// Drive is offline
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc(
-				prometheus.BuildFQName(consts.AppName, "stats", "drive_ready"),
-				"Drive Online/Offline Status",
-				[]string{"drive"}, nil),
-			prometheus.GaugeValue,
-			0, // 0 for offline
-			drive.Name,
-		)
-	} else {
-		// Drive is online
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc(
-				prometheus.BuildFQName(consts.AppName, "stats", "drive_ready"),
-				"Drive Online/Offline Status",
-				[]string{"drive"}, nil),
-			prometheus.GaugeValue,
-			1, // 1 for online
-			drive.Name,
-		)
+
+	driveStatus := 0.0
+	out, err := exec.Command("lsblk", "-ndo", "NAME").Output()
+	if err == nil {
+		devices := strings.Split(string(out), "\n")
+		for _, d := range devices {
+			if d == device {
+				driveStatus = 1.0
+			}
+		}
 	}
 
-	filePath := "/sys/block" + device + "/stat"
+	klog.Info(driveStatus)
+	ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(
+			prometheus.BuildFQName(consts.AppName, "stats", "drive_ready"),
+			"Drive Online/Offline Status",
+			[]string{"drive"}, nil),
+		prometheus.GaugeValue,
+		driveStatus, // 0 for offline, 1 for online
+		drive.Name,
+	)
 
-	driveStat, err := readDriveStats(filePath)
+	driveStat, err := getDriveStats(device)
 	if err != nil {
-		klog.ErrorS(err, "unable to read drive statistics", "FilePath", filePath)
+		klog.ErrorS(err, "unable to read drive statistics", "device", device)
 		return
 	}
 
-	sectorSizeBytes, err := getSectorSize(device) // Size of a sector in bytes
-	if err != nil {
-		klog.ErrorS(err, "unable to get sector size", "device", device)
-		return
-	}
+	sectorSizeBytes := 512
 
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(
@@ -185,7 +177,7 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 			"Total number of bytes read from the drive",
 			[]string{"drive"}, nil),
 		prometheus.GaugeValue,
-		float64(driveStat.ReadSectors)*float64(sectorSizeBytes), drive.Name,
+		float64(driveStat.readSectors)*float64(sectorSizeBytes), drive.Name,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
@@ -194,7 +186,7 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 			"Total number of bytes written to the drive",
 			[]string{"drive"}, nil),
 		prometheus.GaugeValue,
-		float64(driveStat.WriteSectors)*float64(sectorSizeBytes), drive.Name,
+		float64(driveStat.writeSectors)*float64(sectorSizeBytes), drive.Name,
 	)
 
 	// Drive Read/Write Latency
@@ -204,7 +196,7 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 			"Drive Read Latency",
 			[]string{"drive"}, nil),
 		prometheus.GaugeValue,
-		float64(driveStat.ReadTicks)/1000, drive.Name,
+		float64(driveStat.readTicks)/1000, drive.Name,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
@@ -213,7 +205,7 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 			"Drive Write Latency",
 			[]string{"drive"}, nil),
 		prometheus.GaugeValue,
-		float64(driveStat.WriteTicks)/1000, drive.Name,
+		float64(driveStat.writeTicks)/1000, drive.Name,
 	)
 
 	// Drive Read/Write Throughput
@@ -223,7 +215,7 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 			"Drive Read Throughput",
 			[]string{"drive"}, nil),
 		prometheus.GaugeValue,
-		float64(driveStat.ReadSectors)*float64(sectorSizeBytes)*1000/float64(driveStat.ReadTicks), drive.Name,
+		float64(driveStat.readSectors)*float64(sectorSizeBytes)*1000/float64(driveStat.readTicks), drive.Name,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
@@ -232,7 +224,7 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 			"Drive Write Throughput",
 			[]string{"drive"}, nil),
 		prometheus.GaugeValue,
-		float64(driveStat.WriteSectors)*float64(sectorSizeBytes)*1000/float64(driveStat.WriteTicks), drive.Name,
+		float64(driveStat.writeSectors)*float64(sectorSizeBytes)*1000/float64(driveStat.writeTicks), drive.Name,
 	)
 
 	// Wait Time
@@ -242,96 +234,33 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 			"Drive Wait Time",
 			[]string{"drive"}, nil),
 		prometheus.GaugeValue,
-		float64(driveStat.TimeInQueue)/1000, drive.Name,
+		float64(driveStat.timeInQueue)/1000, drive.Name,
 	)
 }
 
-func readDriveStats(filePath string) (*driveStats, error) {
-	file, err := os.Open(filePath)
+func getDriveStats(driveName string) (*driveStats, error) {
+	stats, err := device.GetStat(driveName)
 	if err != nil {
-		return nil, fmt.Errorf("opening stat file: %w", err)
+		return nil, err
 	}
-	defer file.Close()
-
-	return parseStats(file)
-}
-
-func parseStats(reader *os.File) (*driveStats, error) {
-	scanner := bufio.NewScanner(reader)
-	if scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) < 11 {
-			return nil, fmt.Errorf("unexpected format in stat file")
-		}
-
-		return parseDriveStats(fields)
+	if len(stats) == 0 {
+		// The drive is lost
+		return nil, nil
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("reading stat file: %w", err)
+	if len(stats) < 10 {
+		return nil, fmt.Errorf("unknown stats from sysfs for drive %v", driveName)
 	}
 
-	return nil, fmt.Errorf("stat file is empty")
-}
-
-func parseDriveStats(fields []string) (*driveStats, error) {
-	var stats driveStats
-	var err error
-
-	stats.ReadSectors, err = strconv.ParseInt(fields[2], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("parsing ReadSectors: %w", err)
-	}
-	stats.ReadTicks, err = strconv.ParseInt(fields[3], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("parsing ReadTicks: %w", err)
-	}
-	stats.WriteSectors, err = strconv.ParseInt(fields[6], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("parsing WriteSectors: %w", err)
-	}
-	stats.WriteTicks, err = strconv.ParseInt(fields[7], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("parsing WriteTicks: %w", err)
-	}
-	stats.TimeInQueue, err = strconv.ParseInt(fields[9], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("parsing TimeInQueue: %w", err)
-	}
-
-	return &stats, nil
-}
-
-func getSectorSize(device string) (int64, error) {
-	// Construct the file path to the sector size file
-	filePath := "/sys/block/" + device + "/queue/hw_sector_size"
-
-	// Open the file
-	file, err := os.Open(filePath)
-	if err != nil {
-		// Return the error and a default sector size
-		return 512, fmt.Errorf("error opening sector size file: %v", err)
-	}
-	defer file.Close()
-
-	// Read the sector size
-	scanner := bufio.NewScanner(file)
-	if scanner.Scan() {
-		sectorSizeStr := scanner.Text()
-		sectorSize, err := strconv.ParseInt(sectorSizeStr, 10, 64)
-		if err != nil {
-			// Return the error and a default sector size
-			return 512, fmt.Errorf("error parsing sector size: %v", err)
-		}
-		return sectorSize, nil
-	}
-
-	if err := scanner.Err(); err != nil {
-		// Return the error and a default sector size
-		return 512, fmt.Errorf("error reading sector size: %v", err)
-	}
-
-	return 512, nil // Default sector size
+	// Refer https://www.kernel.org/doc/Documentation/block/stat.txt
+	// for meaning of each field.
+	return &driveStats{
+		readSectors:  stats[2],
+		readTicks:    stats[3],
+		writeSectors: stats[6],
+		writeTicks:   stats[7],
+		timeInQueue:  stats[9],
+	}, nil
 }
 
 // Collect is called by Prometheus registry when collecting metrics.
@@ -359,7 +288,7 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 		List(ctx)
 	for result := range driveResultCh {
 		if result.Err != nil {
-			continue
+			break
 		}
 
 		c.publishDriveStats(&result.Drive, ch)

@@ -22,6 +22,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -105,4 +106,24 @@ func getHolders(name string) ([]string, error) {
 
 func getDMName(name string) (string, error) {
 	return readFirstLine("/sys/class/block/" + name + "/dm/name")
+}
+
+func GetStat(name string) (stats []uint64, err error) {
+	filePath := path.Join("/sys/class/block/", name, "/stat")
+
+	line, err := readFirstLine(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, token := range strings.Split(line, " ") {
+		token = strings.TrimSpace(token)
+		ui64, err := strconv.ParseUint(token, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		stats = append(stats, ui64)
+	}
+
+	return stats, nil
 }
