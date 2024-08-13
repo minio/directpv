@@ -13,7 +13,7 @@ release:
 
 before:
   hooks:
-    - go mod tidy -compat=1.21
+    - go mod tidy -compat=1.22
     - go mod download
 
 builds:
@@ -79,7 +79,7 @@ dockers:
   extra_files:
     - LICENSE
     - CREDITS
-    - centos.repo
+    - AlmaLinux.repo
   build_flag_templates:
   - "--platform=linux/amd64"
 - image_templates:
@@ -92,7 +92,7 @@ dockers:
   extra_files:
     - LICENSE
     - CREDITS
-    - centos.repo
+    - AlmaLinux.repo
   build_flag_templates:
   - "--platform=linux/ppc64le"
 - image_templates:
@@ -105,7 +105,7 @@ dockers:
   extra_files:
     - LICENSE
     - CREDITS
-    - centos.repo
+    - AlmaLinux.repo
   build_flag_templates:
   - "--platform=linux/arm64"
 docker_manifests:

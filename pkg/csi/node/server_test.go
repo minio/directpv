@@ -27,6 +27,10 @@ import (
 	"github.com/minio/directpv/pkg/xfs"
 )
 
+func init() {
+	client.FakeInit()
+}
+
 func TestNodeExpandVolume(t *testing.T) {
 	volumeID := "volume-id-1"
 	volume := types.NewVolume(volumeID, "fsuuid1", "node-1", "drive-1", "sda", 100*MiB)
@@ -38,10 +42,10 @@ func TestNodeExpandVolume(t *testing.T) {
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
 	nodeServer := createFakeServer()
-	nodeServer.getDeviceByFSUUID = func(fsuuid string) (string, error) {
+	nodeServer.getDeviceByFSUUID = func(_ string) (string, error) {
 		return "sda", nil
 	}
-	nodeServer.setQuota = func(ctx context.Context, device, dataPath, name string, quota xfs.Quota, update bool) error {
+	nodeServer.setQuota = func(_ context.Context, _, _, _ string, _ xfs.Quota, _ bool) error {
 		return nil
 	}
 

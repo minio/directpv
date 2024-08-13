@@ -25,10 +25,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/minio/directpv/pkg/admin/installer"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/installer"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
@@ -65,7 +65,7 @@ var mainCmd = &cobra.Command{
 		DisableDescriptions: true,
 		HiddenDefaultCmd:    true,
 	},
-	PersistentPreRunE: func(c *cobra.Command, args []string) error {
+	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		if kubeNodeName == "" {
 			return fmt.Errorf("value to --kube-node-name must be provided")
 		}
@@ -128,6 +128,7 @@ func init() {
 	mainCmd.AddCommand(legacyControllerCmd)
 	mainCmd.AddCommand(legacyNodeServerCmd)
 	mainCmd.AddCommand(nodeControllerCmd)
+	mainCmd.AddCommand(repairCmd)
 }
 
 func main() {

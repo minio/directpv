@@ -20,17 +20,14 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        kube-version: ['v1.18.20', 'v1.19.16', 'v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.17', 'v1.24.17', 'v1.25.16', 'v1.26.11', 'v1.27.8', 'v1.28.4', 'v1.29.0']
+        kube-version: ['v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.17', 'v1.24.17', 'v1.25.16', 'v1.26.15', 'v1.27.15', 'v1.28.11', 'v1.29.6', 'v1.30.2']
         os: [ubuntu-20.04, ubuntu-22.04]
-        exclude:
-          - os: ubuntu-22.04
-            kube-version: 'v1.18.20'
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
           check-latest: true
 
       - name: Install dependencies
@@ -82,7 +79,7 @@ jobs:
           functests/run-migration-tests.sh "v3.2.2"
 
       - name: Run migration tests with DirectCSI v2.0.9
-        if: contains(fromJson('["v1.18.20", "v1.19.16", "v1.20.15", "v1.21.14", "v1.22.17"]'), matrix.kube-version)
+        if: contains(fromJson('["v1.20.15", "v1.21.14", "v1.22.17"]'), matrix.kube-version)
         run: |
           sudo rm -fr /var/lib/directpv /var/lib/direct-csi
           functests/run-migration-tests.sh "v2.0.9"

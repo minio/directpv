@@ -62,7 +62,7 @@ FLAGS:
       --apparmor-profile string      Set path to Apparmor profile
       --seccomp-profile string       Set path to Seccomp profile
   -o, --output string                Generate installation manifest. One of: yaml|json
-      --kube-version string          Select the kubernetes version for manifest generation (default "1.27.0")
+      --kube-version string          Select the kubernetes version for manifest generation (default "1.29.0")
       --legacy                       Enable legacy mode (Used with '-o')
       --openshift                    Use OpenShift specific installation
   -h, --help                         help for install
@@ -720,6 +720,28 @@ EXAMPLES:
 
 3. Resume a volume by its name 'pvc-0700b8c7-85b2-4894-b83a-274484f220d0'
    $ kubectl directpv resume volumes pvc-0700b8c7-85b2-4894-b83a-274484f220d0
+```
+
+## `repair` command
+```
+Repair filesystem of drives
+
+USAGE:
+  directpv repair DRIVE ... [flags]
+
+FLAGS:
+      --dry-run            Repair drives with no modify mode
+      --force              Force log zeroing
+      --disable-prefetch   Disable prefetching of inode and directory blocks
+  -h, --help               help for repair
+
+GLOBAL FLAGS:
+      --kubeconfig string   Path to the kubeconfig file to use for CLI requests
+      --quiet               Suppress printing error messages
+
+EXAMPLES:
+1. Repair drives
+   $ kubectl directpv repair 3b562992-f752-4a41-8be4-4e688ae8cd4c
 ```
 
 ## `remove` command

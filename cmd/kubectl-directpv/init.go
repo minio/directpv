@@ -26,12 +26,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
-	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/minio/directpv/pkg/admin"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/initrequest"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
@@ -63,15 +61,15 @@ var initCmd = &cobra.Command{
 		switch len(args) {
 		case 1:
 		case 0:
-			utils.Eprintf(quietFlag, true, "Please provide the input file. Check `--help` for usage.\n")
+			eprintf(true, "Please provide the input file. Check `--help` for usage.\n")
 			os.Exit(-1)
 		default:
-			utils.Eprintf(quietFlag, true, "Too many input args. Check `--help` for usage.\n")
+			eprintf(true, "Too many input args. Check `--help` for usage.\n")
 			os.Exit(-1)
 		}
 
 		if !dangerousFlag {
-			utils.Eprintf(quietFlag, true, "Initializing the drives will permanently erase existing data. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag.\n")
+			eprintf(true, "Initializing the drives will permanently erase existing data. Please review carefully before performing this *DANGEROUS* operation and retry this command with --dangerous flag.\n")
 			os.Exit(1)
 		}
 
@@ -84,26 +82,6 @@ func init() {
 
 	initCmd.PersistentFlags().DurationVar(&initRequestListTimeout, "timeout", initRequestListTimeout, "specify timeout for the initialization process")
 	addDangerousFlag(initCmd, "Perform initialization of drives which will permanently erase existing data")
-}
-
-func toInitRequestObjects(config *InitConfig, requestID string) (initRequests []types.InitRequest) {
-	for _, node := range config.Nodes {
-		initDevices := []types.InitDevice{}
-		for _, device := range node.Drives {
-			if strings.ToLower(device.Select) != driveSelectedValue {
-				continue
-			}
-			initDevices = append(initDevices, types.InitDevice{
-				ID:    device.ID,
-				Name:  device.Name,
-				Force: device.FS != "",
-			})
-		}
-		if len(initDevices) > 0 {
-			initRequests = append(initRequests, *types.NewInitRequest(requestID, node.Name, initDevices))
-		}
-	}
-	return
 }
 
 func showResults(results []initResult) {
@@ -164,20 +142,13 @@ func showResults(results []initResult) {
 	writer.Render()
 }
 
-func toProgressLogs(progressMap map[string]progressLog) (logs []progressLog) {
-	for _, v := range progressMap {
-		logs = append(logs, v)
-	}
-	return
-}
-
 func initDevices(ctx context.Context, initRequests []types.InitRequest, requestID string, teaProgram *tea.Program) (results []initResult, err error) {
 	totalReqCount := len(initRequests)
 	totalTasks := totalReqCount * 2
 	var completedTasks int
 	initProgressMap := make(map[string]progressLog, totalReqCount)
 	for i := range initRequests {
-		initReq, err := client.InitRequestClient().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
+		initReq, err := adminClient.InitRequest().Create(ctx, &initRequests[i], metav1.CreateOptions{TypeMeta: types.NewInitRequestTypeMeta()})
 		if err != nil {
 			return nil, err
 		}
@@ -195,8 +166,8 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 	ctx, cancel := context.WithTimeout(ctx, initRequestListTimeout)
 	defer cancel()
 
-	eventCh, stop, err := initrequest.NewLister().
-		RequestIDSelector(toLabelValues([]string{requestID})).
+	eventCh, stop, err := adminClient.NewInitRequestLister().
+		RequestIDSelector(utils.ToLabelValues([]string{requestID})).
 		Watch(ctx)
 	if err != nil {
 		return nil, err
@@ -216,7 +187,7 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 			}
 			switch event.Type {
 			case watch.Modified, watch.Added:
-				initReq := event.InitRequest
+				initReq := event.Item
 				if initReq.Status.Status != directpvtypes.InitStatusPending {
 					results = append(results, initResult{
 						requestID: initReq.Name,
@@ -250,32 +221,23 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 	}
 }
 
-func readInitConfig(inputFile string) (*InitConfig, error) {
-	f, err := os.Open(inputFile)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return parseInitConfig(f)
-}
-
 func initMain(ctx context.Context, inputFile string) {
-	initConfig, err := readInitConfig(inputFile)
+	initConfig, err := admin.ReadInitConfig(inputFile)
 	if err != nil {
-		utils.Eprintf(quietFlag, true, "unable to read the input file; %v", err.Error())
+		eprintf(true, "unable to read the input file; %v", err.Error())
 		os.Exit(1)
 	}
-	requestID := uuid.New().String()
-	initRequests := toInitRequestObjects(initConfig, requestID)
+
+	initRequests, requestID := initConfig.ToInitRequestObjects()
 	if len(initRequests) == 0 {
-		utils.Eprintf(false, false, "%v\n", color.HiYellowString("No drives are available to init"))
+		eprintf(false, "%v\n", color.HiYellowString("No drives are available to init"))
 		os.Exit(1)
 	}
 	defer func() {
 		labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-			directpvtypes.RequestIDLabelKey: toLabelValues([]string{requestID}),
+			directpvtypes.RequestIDLabelKey: utils.ToLabelValues([]string{requestID}),
 		}
-		client.InitRequestClient().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
+		adminClient.InitRequest().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 			LabelSelector: directpvtypes.ToLabelSelector(labelMap),
 		})
 	}()
@@ -295,7 +257,7 @@ func initMain(ctx context.Context, inputFile string) {
 	}
 	results, err := initDevices(ctx, initRequests, requestID, teaProgram)
 	if err != nil && quietFlag {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 	if teaProgram != nil {

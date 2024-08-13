@@ -30,14 +30,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func init() {
+	client.FakeInit()
+}
+
 const MiB = 1024 * 1024
 
 func createFakeVolumeEventListener(nodeID directpvtypes.NodeID) *volumeEventHandler {
 	return &volumeEventHandler{
 		nodeID:            nodeID,
-		unmount:           func(target string) error { return nil },
-		getDeviceByFSUUID: func(fsuuid string) (string, error) { return "", nil },
-		removeQuota:       func(ctx context.Context, device, path, volumeName string) error { return nil },
+		unmount:           func(_ string) error { return nil },
+		getDeviceByFSUUID: func(_ string) (string, error) { return "", nil },
+		removeQuota:       func(_ context.Context, _, _, _ string) error { return nil },
 	}
 }
 

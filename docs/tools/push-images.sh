@@ -63,11 +63,11 @@ function push_image() {
 }
 
 function main() {
-    push_image "quay.io/minio/csi-node-driver-registrar:v2.8.0"
-    push_image "quay.io/minio/csi-provisioner:v3.5.0"
+    push_image "quay.io/minio/csi-node-driver-registrar:v2.11.1"
+    push_image "quay.io/minio/csi-provisioner:v5.0.1"
     push_image "quay.io/minio/csi-provisioner:v2.2.0-go1.18"
-    push_image "quay.io/minio/livenessprobe:v2.10.0"
-    push_image "quay.io/minio/csi-resizer:v1.8.0"
+    push_image "quay.io/minio/livenessprobe:v2.13.1"
+    push_image "quay.io/minio/csi-resizer:v1.11.2"
     release=$(curl -sfL "https://api.github.com/repos/minio/directpv/releases/latest" | awk '/tag_name/ { print substr($2, 3, length($2)-4) }')
     push_image "quay.io/minio/directpv:v${release}"
 }

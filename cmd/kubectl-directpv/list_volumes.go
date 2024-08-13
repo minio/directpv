@@ -24,10 +24,8 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -76,7 +74,7 @@ var listVolumesCmd = &cobra.Command{
 	Run: func(c *cobra.Command, args []string) {
 		volumeNameArgs = args
 		if err := validateListVolumesArgs(); err != nil {
-			utils.Eprintf(quietFlag, true, "%v\n", err)
+			eprintf(true, "%v\n", err)
 			os.Exit(-1)
 		}
 
@@ -147,7 +145,7 @@ func validateListVolumesArgs() error {
 }
 
 func getPVCName(ctx context.Context, volume types.Volume) string {
-	pv, err := k8s.KubeClient().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
+	pv, err := adminClient.Kube().CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
 	if err == nil && pv != nil && pv.Spec.ClaimRef != nil {
 		return pv.Spec.ClaimRef.Name
 	}
@@ -155,18 +153,18 @@ func getPVCName(ctx context.Context, volume types.Volume) string {
 }
 
 func listVolumesMain(ctx context.Context) {
-	volumes, err := volume.NewLister().
-		NodeSelector(toLabelValues(nodesArgs)).
-		DriveNameSelector(toLabelValues(drivesArgs)).
-		DriveIDSelector(toLabelValues(driveIDArgs)).
-		PodNameSelector(toLabelValues(podNameArgs)).
-		PodNSSelector(toLabelValues(podNSArgs)).
+	volumes, err := adminClient.NewVolumeLister().
+		NodeSelector(utils.ToLabelValues(nodesArgs)).
+		DriveNameSelector(utils.ToLabelValues(drivesArgs)).
+		DriveIDSelector(utils.ToLabelValues(driveIDArgs)).
+		PodNameSelector(utils.ToLabelValues(podNameArgs)).
+		PodNSSelector(utils.ToLabelValues(podNSArgs)).
 		StatusSelector(volumeStatusSelectors).
 		VolumeNameSelector(volumeNameArgs).
 		LabelSelector(labelSelectors).
 		Get(ctx)
 	if err != nil {
-		utils.Eprintf(quietFlag, true, "%v\n", err)
+		eprintf(true, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -276,9 +274,9 @@ func listVolumesMain(ctx context.Context) {
 	}
 
 	if allFlag {
-		utils.Eprintf(quietFlag, false, "No resources found\n")
+		eprintf(false, "No resources found\n")
 	} else {
-		utils.Eprintf(quietFlag, false, "No matching resources found\n")
+		eprintf(false, "No matching resources found\n")
 	}
 
 	os.Exit(1)

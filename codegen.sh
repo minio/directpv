@@ -27,25 +27,25 @@ VERSIONS=(v1beta1)
 
 function install_code_generator() {
     if [ ! -x "$GOPATH/bin/deepcopy-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/deepcopy-gen@v0.29.0
+        go install -v k8s.io/code-generator/cmd/deepcopy-gen@v0.29.6
     fi
 
     if [ ! -x "$GOPATH/bin/openapi-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/openapi-gen@v0.29.0
+        go install -v k8s.io/code-generator/cmd/openapi-gen@v0.29.6
     fi
 
     if [ ! -x "$GOPATH/bin/client-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/client-gen@v0.29.0
+        go install -v k8s.io/code-generator/cmd/client-gen@v0.29.6
     fi
 
     if [ ! -x "$GOPATH/bin/conversion-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/conversion-gen@v0.29.0
+        go install -v k8s.io/code-generator/cmd/conversion-gen@v0.29.6
     fi
 }
 
 function install_controller_tools() {
     if [ ! -x "$GOPATH/bin/controller-gen" ]; then
-        go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0
+        go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
     fi
 }
 
@@ -107,8 +107,8 @@ client-gen \
     --input-base "${REPOSITORY}/pkg/apis"
 
 echo "Running controller-gen ..." 
-controller-gen crd:crdVersions=v1 paths=./... output:dir=pkg/installer
-rm -f pkg/installer/direct.csi.min.io_directcsidrives.yaml pkg/installer/direct.csi.min.io_directcsivolumes.yaml
+controller-gen crd:crdVersions=v1 paths=./... output:dir=pkg/admin/installer
+rm -f pkg/admin/installer/direct.csi.min.io_directcsidrives.yaml pkg/admin/installer/direct.csi.min.io_directcsivolumes.yaml
 
 echo "Running conversion-gen ..."
 conversion-gen \

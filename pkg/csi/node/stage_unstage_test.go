@@ -79,7 +79,7 @@ func TestNodeStageVolume(t *testing.T) {
 		nodeServer.getMounts = func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
 			return testCase.mountInfo, testCase.mountInfo, nil
 		}
-		nodeServer.bindMount = func(source, stagingTargetPath string, readOnly bool) error {
+		nodeServer.bindMount = func(source, _ string, _ bool) error {
 			if _, found := testCase.mountInfo[source]; !found {
 				return fmt.Errorf("source is not mounted")
 			}

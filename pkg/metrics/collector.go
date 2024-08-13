@@ -29,7 +29,6 @@ import (
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/volume"
 	"github.com/minio/directpv/pkg/xfs"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog/v2"

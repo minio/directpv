@@ -16,12 +16,14 @@
 
 package converter
 
+import "github.com/minio/directpv/pkg/consts"
+
 const (
 	// HostDevRoot is "/dev" directory.
 	HostDevRoot = "/dev"
 
 	// DirectCSIDevRoot is "/var/lib/direct-csi/devices" directory.
-	DirectCSIDevRoot = "/var/lib/direct-csi/devices"
+	DirectCSIDevRoot = consts.LegacyAppRootDir + "/devices"
 
 	// DirectCSIPartitionInfix is partition infix value.
 	DirectCSIPartitionInfix = "-part-"

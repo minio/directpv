@@ -32,7 +32,7 @@ var controllerCmd = &cobra.Command{
 	Short:         "Start controller server.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	RunE: func(c *cobra.Command, args []string) error {
+	RunE: func(c *cobra.Command, _ []string) error {
 		return startController(c.Context())
 	},
 }
