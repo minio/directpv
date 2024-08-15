@@ -217,7 +217,6 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 }
 
 func getDriveStats(driveName string) (*driveStats, error) {
-
 	stats, status, err := device.GetStat(driveName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read drive statistics for %s: %v", driveName, err)
