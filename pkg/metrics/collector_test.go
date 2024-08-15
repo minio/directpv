@@ -40,11 +40,20 @@ const MiB = 1024 * 1024
 type metricType string
 
 const (
-	metricStatsBytesUsed  metricType = consts.AppName + "_stats_bytes_used"
-	metricStatsBytesTotal metricType = consts.AppName + "_stats_bytes_total"
+	metricStatsBytesUsed            metricType = consts.AppName + "_stats_bytes_used"
+	metricStatsBytesTotal           metricType = consts.AppName + "_stats_bytes_total"
+	metricStatsDriveReady           metricType = consts.AppName + "_stats_drive_ready"
+	metricStatsDriveBytesRead       metricType = consts.AppName + "_stats_drive_total_bytes_read"
+	metricStatsDriveBytesWritten    metricType = consts.AppName + "_stats_drive_total_bytes_written"
+	metricStatsDriveReadLatency     metricType = consts.AppName + "_stats_drive_read_latency_seconds"
+	metricStatsDriveWriteLatency    metricType = consts.AppName + "_stats_drive_write_latency_seconds"
+	metricStatsDriveReadThroughput  metricType = consts.AppName + "_stats_drive_read_throughput_bytes_per_second"
+	metricStatsDriveWriteThroughput metricType = consts.AppName + "_stats_drive_write_throughput_bytes_per_second"
+	metricStatsDriveWaitTime        metricType = consts.AppName + "_stats_drive_wait_time_seconds"
 )
 
 var volumes []types.Volume
+var drives []types.Drive
 
 func init() {
 	volumes = []types.Volume{
@@ -55,6 +64,19 @@ func init() {
 	volumes[0].Status.TargetPath = "/path/targetpath"
 	volumes[1].Status.UsedCapacity = 20 * MiB
 	volumes[1].Status.TargetPath = "/path/targetpath"
+
+	drives = []types.Drive{
+		*types.NewDrive(
+			"test-drive-1",
+			types.DriveStatus{},
+			"test-node-1",
+			"test-drive-1",
+			"Default",
+		),
+	}
+	drives[0].Status.FSUUID = "fsuuid1"
+	drives[0].Status.TotalCapacity = 100 * MiB
+
 	client.FakeInit()
 }
 
@@ -166,4 +188,121 @@ func TestVolumeStatsEmitter(t *testing.T) {
 	fmc.publishVolumeStats(ctx, &volumes[1], metricChan)
 
 	wg.Wait()
+}
+
+func TestDriveMetricsEmitter(t *testing.T) {
+	// Initialize test drives
+	testDrives := []types.Drive{
+		*types.NewDrive(
+			"test-drive-1",
+			types.DriveStatus{},
+			"test-node-1",
+			"test-drive-1",
+			"Default",
+		),
+		*types.NewDrive(
+			"test-drive-2",
+			types.DriveStatus{},
+			"test-node-1",
+			"test-drive-2",
+			"Default",
+		),
+	}
+	testDrives[0].Status.FSUUID = "fsuuid1"
+	testDrives[0].Status.TotalCapacity = 100 * MiB
+	testDrives[1].Status.FSUUID = "fsuuid2"
+	testDrives[1].Status.TotalCapacity = 200 * MiB
+
+	testObjects := []runtime.Object{&testDrives[0], &testDrives[1]}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	fmc := createFakeMetricsCollector()
+
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testObjects...))
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
+
+	metricChan := make(chan prometheus.Metric)
+	expectedMetricTypes := []metricType{
+		metricStatsDriveReady,
+		metricStatsDriveBytesRead,
+		metricStatsDriveBytesWritten,
+		metricStatsDriveReadLatency,
+		metricStatsDriveWriteLatency,
+		metricStatsDriveReadThroughput,
+		metricStatsDriveWriteThroughput,
+		metricStatsDriveWaitTime,
+	}
+	expectedNoOfMetrics := len(testDrives) * len(expectedMetricTypes)
+	receivedMetrics := make(map[metricType]bool)
+	totalMetricsReceived := 0
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				klog.V(1).Infof("Context deadline exceeded")
+				return
+			case metric, ok := <-metricChan:
+				if !ok {
+					return
+				}
+				metricOut := &clientmodelgo.Metric{}
+				if err := metric.Write(metricOut); err != nil {
+					t.Errorf("Failed to write metric: %v", err)
+					return
+				}
+				mt := metricType(getFQNameFromDesc(metric.Desc().String()))
+				driveName := getDriveNameFromLabelPair(metricOut.GetLabel())
+
+				t.Logf("Received metric: %s for drive %s", mt, driveName)
+
+				if *metricOut.Gauge.Value < 0 {
+					t.Errorf("Invalid value for metric %s: %v", mt, *metricOut.Gauge.Value)
+				}
+
+				receivedMetrics[mt] = true
+				totalMetricsReceived++
+
+				if totalMetricsReceived == expectedNoOfMetrics {
+					return
+				}
+			}
+		}
+	}()
+
+	for _, drive := range testDrives {
+		fmc.publishDriveStats(&drive, metricChan)
+	}
+
+	close(metricChan)
+	wg.Wait()
+
+	// Verify all expected metric types were received
+	for _, expectedMT := range expectedMetricTypes {
+		if !receivedMetrics[expectedMT] {
+			t.Errorf("Expected metric %s was not received", expectedMT)
+		}
+	}
+
+	if len(receivedMetrics) != len(expectedMetricTypes) {
+		t.Errorf("Expected %d metric types, but received %d", len(expectedMetricTypes), len(receivedMetrics))
+	}
+
+	if totalMetricsReceived != expectedNoOfMetrics {
+		t.Errorf("Expected %d total metrics, but received %d", expectedNoOfMetrics, totalMetricsReceived)
+	}
+}
+
+func getDriveNameFromLabelPair(labelPair []*clientmodelgo.LabelPair) string {
+	for _, lp := range labelPair {
+		if lp.GetName() == "drive" {
+			return lp.GetValue()
+		}
+	}
+	return ""
 }

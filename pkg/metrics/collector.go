@@ -19,16 +19,14 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/device"
-	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/xfs"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog/v2"
@@ -101,6 +99,7 @@ func (c *metricsCollector) publishVolumeStats(ctx context.Context, volume *types
 }
 
 type driveStats struct {
+	status       int
 	readSectors  uint64
 	readTicks    uint64
 	writeSectors uint64
@@ -109,20 +108,8 @@ type driveStats struct {
 }
 
 func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prometheus.Metric) {
-	device, err := c.getDeviceByFSUUID(drive.Status.FSUUID)
-
-	klog.Info(device)
+	deviceID, err := c.getDeviceByFSUUID(drive.Status.FSUUID)
 	if err != nil {
-		ch <- prometheus.MustNewConstMetric(
-			prometheus.NewDesc(
-				prometheus.BuildFQName(consts.AppName, "stats", "drive_ready"),
-				"Drive Online/Offline Status",
-				[]string{"drive"}, nil),
-			prometheus.GaugeValue,
-			0, // 0 for offline
-			drive.Name,
-		)
-
 		klog.ErrorS(
 			err,
 			"unable to find device by FSUUID; "+
@@ -139,37 +126,29 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 
 		return
 	}
-
-	driveStatus := 0.0
-	out, err := exec.Command("lsblk", "-ndo", "NAME").Output()
-	if err == nil {
-		devices := strings.Split(string(out), "\n")
-		for _, d := range devices {
-			if d == device {
-				driveStatus = 1.0
-			}
-		}
+	deviceName := utils.TrimDevPrefix(deviceID)
+	driveStat, err := getDriveStats(deviceName)
+	if err != nil {
+		klog.ErrorS(err, "unable to read drive statistics")
+		return
 	}
 
-	klog.Info(driveStatus)
+	sectorSizeBytes, err := device.GetHardwareSectorSize(deviceName)
+	if err != nil {
+		klog.Errorf("Error getting hardware sector size: %v", err)
+		sectorSizeBytes = 512
+	}
+
+	// Metrics
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(
 			prometheus.BuildFQName(consts.AppName, "stats", "drive_ready"),
 			"Drive Online/Offline Status",
 			[]string{"drive"}, nil),
 		prometheus.GaugeValue,
-		driveStatus, // 0 for offline, 1 for online
+		float64(driveStat.status), // 0 for offline, 1 for online
 		drive.Name,
 	)
-
-	driveStat, err := getDriveStats(device)
-	if err != nil {
-		klog.ErrorS(err, "unable to read drive statistics", "device", device)
-		return
-	}
-
-	sectorSizeBytes := 512
-
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(
 			prometheus.BuildFQName(consts.AppName, "stats", "drive_total_bytes_read"),
@@ -238,28 +217,33 @@ func (c *metricsCollector) publishDriveStats(drive *types.Drive, ch chan<- prome
 }
 
 func getDriveStats(driveName string) (*driveStats, error) {
-	stats, err := device.GetStat(driveName)
+
+	stats, status, err := device.GetStat(driveName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read drive statistics for %s: %v", driveName, err)
 	}
+
 	if len(stats) == 0 {
-		// The drive is lost
+		klog.Warningf("No stats found for drive %s, the drive may be lost", driveName)
 		return nil, nil
 	}
 
 	if len(stats) < 10 {
-		return nil, fmt.Errorf("unknown stats from sysfs for drive %v", driveName)
+		return nil, fmt.Errorf("insufficient stats from sysfs for drive %s: got %d values, expected at least 10", driveName, len(stats))
 	}
 
 	// Refer https://www.kernel.org/doc/Documentation/block/stat.txt
 	// for meaning of each field.
-	return &driveStats{
+	driveStats := &driveStats{
+		status:       status,
 		readSectors:  stats[2],
 		readTicks:    stats[3],
 		writeSectors: stats[6],
 		writeTicks:   stats[7],
 		timeInQueue:  stats[9],
-	}, nil
+	}
+
+	return driveStats, nil
 }
 
 // Collect is called by Prometheus registry when collecting metrics.
@@ -268,7 +252,7 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 	defer cancelFunc()
 
 	// Collecting volume statistics
-	volumeResultCh := volume.NewLister().
+	volumeResultCh := client.NewVolumeLister().
 		NodeSelector([]directpvtypes.LabelValue{directpvtypes.ToLabelValue(string(c.nodeID))}).
 		List(ctx)
 	for result := range volumeResultCh {
@@ -282,7 +266,7 @@ func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	// Collecting drive statistics
-	driveResultCh := drive.NewLister().
+	driveResultCh := client.NewDriveLister().
 		NodeSelector([]directpvtypes.LabelValue{directpvtypes.ToLabelValue(string(c.nodeID))}).
 		List(ctx)
 	for result := range driveResultCh {
