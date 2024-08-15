@@ -110,6 +110,7 @@ func getDMName(name string) (string, error) {
 	return readFirstLine("/sys/class/block/" + name + "/dm/name")
 }
 
+// GetStat retrieves and returns statistics for a given device name.
 func GetStat(name string) ([]uint64, int, error) {
 	filePath := path.Join("/sys/class/block/", name, "/stat")
 
