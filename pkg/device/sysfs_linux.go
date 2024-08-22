@@ -73,7 +73,7 @@ func getReadOnly(name string) (bool, error) {
 
 func getSize(name string) (uint64, error) {
 	s, err := readFirstLine("/sys/class/block/" + name + "/size")
-	if err != nil {
+	if err != nil || s == "" {
 		return 0, err
 	}
 	ui64, err := strconv.ParseUint(s, 10, 64)
