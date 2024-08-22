@@ -113,7 +113,7 @@ function check_directcsi_consistency() {
 }
 
 function is_psp_found() {
-    kubectl get --ignore-not-found=true psp directpv-min-io --no-headers -o NAME | grep -q .
+    kubectl get --ignore-not-found=true psp directpv-min-io --no-headers -o NAME 2>/dev/null | grep -q .
 }
 
 function init() {
