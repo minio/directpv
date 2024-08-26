@@ -185,9 +185,10 @@ func installMain(ctx context.Context) {
 		OutputFormat:     outputFormat,
 		Declarative:      declarativeFlag,
 		Openshift:        openshiftFlag,
-		AuditWriter:      file,
 	}
-
+	if file != nil {
+		args.AuditWriter = file
+	}
 	var failed bool
 	var wg sync.WaitGroup
 	var installedComponents []installer.Component
