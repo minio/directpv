@@ -91,7 +91,7 @@ $ kubectl directpv install --openshift
 #### Installing by generating DirectPV manifests
 To install using generated manifests file, run below command
 ```sh
-$ curl -sfL https://github.com/minio/directpv/raw/master/docs/tools/install.sh | sh - apply
+$ curl -sfL https://github.com/minio/directpv/raw/master/docs/tools/install.sh | sh -s - apply
 ```
 
 ## What's next

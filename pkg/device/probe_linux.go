@@ -20,6 +20,7 @@ package device
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/minio/directpv/pkg/sys"
@@ -52,31 +53,31 @@ func newDevice(
 	}
 
 	if device.Size, err = getSize(name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get size; device=%v; err=%w", name, err)
 	}
 
 	device.Hidden = getHidden(name)
 
 	if device.Removable, err = getRemovable(name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get removable flag; device=%v; err=%w", name, err)
 	}
 
 	if device.ReadOnly, err = getReadOnly(name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get read-only flag; device=%v; err=%w", name, err)
 	}
 
 	if device.Holders, err = getHolders(name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get holders; device=%v; %w", name, err)
 	}
 
 	partitions, err := getPartitions(name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get partition info; device=%v; err=%w", name, err)
 	}
 	device.Partitioned = len(partitions) != 0
 
 	if device.DMName, err = getDMName(name); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get DM name; device=%v; err=%w", name, err)
 	}
 
 	return device, nil
@@ -85,22 +86,22 @@ func newDevice(
 func probe() (devices []Device, err error) {
 	deviceMap, udevDataMap, err := probeFromUdev()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to probe from udev; %w", err)
 	}
 
 	_, deviceMountMap, majorMinorMap, _, err := sys.GetMounts(true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get mounts; %w", err)
 	}
 
 	cdroms, err := getCDROMs()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get CDROM information; %w", err)
 	}
 
 	swaps, err := getSwaps()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get swap information; %w", err)
 	}
 
 	for name, udevData := range udevDataMap {
@@ -117,17 +118,17 @@ func probe() (devices []Device, err error) {
 func probeDevices(majorMinor ...string) (devices []Device, err error) {
 	_, deviceMountMap, majorMinorMap, _, err := sys.GetMounts(true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get mounts; %w", err)
 	}
 
 	cdroms, err := getCDROMs()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get CDROM information; %w", err)
 	}
 
 	swaps, err := getSwaps()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get swap information; %w", err)
 	}
 
 	for i := range majorMinor {
@@ -137,12 +138,12 @@ func probeDevices(majorMinor ...string) (devices []Device, err error) {
 				continue
 			}
 
-			return nil, err
+			return nil, fmt.Errorf("unable to read udev data; majorminor=%v; err=%w", majorMinor[i], err)
 		}
 
 		name, err := getDeviceName(majorMinor[i])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to get device name; majorminor=%v; err=%w", majorMinor[i], err)
 		}
 
 		device, err := newDevice(deviceMountMap, majorMinorMap, cdroms, swaps, name, majorMinor[i], udevData)
