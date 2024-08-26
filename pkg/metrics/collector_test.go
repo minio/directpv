@@ -52,9 +52,7 @@ const (
 	metricStatsDriveWaitTime        metricType = consts.AppName + "_stats_drive_wait_time_seconds"
 )
 
-var (
-	volumes []types.Volume
-)
+var volumes []types.Volume
 
 func init() {
 	volumes = []types.Volume{
