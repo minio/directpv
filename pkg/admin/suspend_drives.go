@@ -42,6 +42,8 @@ type SuspendDriveArgs struct {
 type SuspendDriveResult struct {
 	NodeID    directpvtypes.NodeID
 	DriveName directpvtypes.DriveName
+	DriveID   directpvtypes.DriveID
+	Volumes   []string
 }
 
 // SuspendDrives suspends the drive
@@ -103,6 +105,8 @@ func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs, 
 		results = append(results, SuspendDriveResult{
 			NodeID:    result.Drive.GetNodeID(),
 			DriveName: result.Drive.GetDriveName(),
+			DriveID:   result.Drive.GetDriveID(),
+			Volumes:   result.Drive.GetVolumes(),
 		})
 	}
 

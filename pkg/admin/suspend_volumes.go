@@ -38,8 +38,12 @@ type SuspendVolumeArgs struct {
 
 // SuspendVolumeResult represents the suspended volume
 type SuspendVolumeResult struct {
-	NodeID     directpvtypes.NodeID
-	VolumeName string
+	NodeID       directpvtypes.NodeID
+	VolumeName   string
+	DriveID      directpvtypes.DriveID
+	DriveName    directpvtypes.DriveName
+	PodName      string
+	PodNamespace string
 }
 
 // SuspendVolumes suspends the volume
@@ -98,8 +102,12 @@ func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs
 		)
 
 		results = append(results, SuspendVolumeResult{
-			NodeID:     result.Volume.GetNodeID(),
-			VolumeName: result.Volume.Name,
+			NodeID:       result.Volume.GetNodeID(),
+			VolumeName:   result.Volume.Name,
+			DriveID:      result.Volume.GetDriveID(),
+			DriveName:    result.Volume.GetDriveName(),
+			PodName:      result.Volume.GetPodName(),
+			PodNamespace: result.Volume.GetPodNS(),
 		})
 	}
 	if !processed {
