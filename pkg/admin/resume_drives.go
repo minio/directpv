@@ -88,6 +88,8 @@ func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs, lo
 		results = append(results, ResumeDriveResult{
 			NodeID:    result.Drive.GetNodeID(),
 			DriveName: result.Drive.GetDriveName(),
+			DriveID:   result.Drive.GetDriveID(),
+			Volumes:   result.Drive.GetVolumes(),
 		})
 	}
 	if !processed {

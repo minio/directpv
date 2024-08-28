@@ -89,8 +89,12 @@ func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs, 
 		)
 
 		results = append(results, ResumeVolumeResult{
-			NodeID:     result.Volume.GetNodeID(),
-			VolumeName: result.Volume.Name,
+			NodeID:       result.Volume.GetNodeID(),
+			VolumeName:   result.Volume.Name,
+			DriveID:      result.Volume.GetDriveID(),
+			DriveName:    result.Volume.GetDriveName(),
+			PodName:      result.Volume.GetPodName(),
+			PodNamespace: result.Volume.GetPodNS(),
 		})
 	}
 	if !processed {
