@@ -31,7 +31,6 @@ import (
 	"github.com/minio/directpv/pkg/admin/installer"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
-	legacyclient "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -192,11 +191,6 @@ func installMain(ctx context.Context) {
 	var failed bool
 	var wg sync.WaitGroup
 	var installedComponents []installer.Component
-	legacyClient, err := legacyclient.NewClient(adminClient.K8s())
-	if err != nil {
-		fmt.Println("error creating legacy client:", err)
-		return
-	}
 	installerTasks := installer.GetDefaultTasks(adminClient.Client, legacyClient)
 	enableProgress := !dryRun && !declarativeFlag && !quietFlag
 	if enableProgress {
