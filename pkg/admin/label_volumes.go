@@ -108,11 +108,11 @@ func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, la
 							FormattedMessage: fmt.Sprintf("Label '%s' successfully %s %v\n", labels[i].String(), verb, volume.Name),
 						},
 					)
+					results = append(results, LabelVolumeResult{
+						NodeID:     volume.GetNodeID(),
+						VolumeName: volume.Name,
+					})
 				}
-				results = append(results, LabelVolumeResult{
-					NodeID:     volume.GetNodeID(),
-					VolumeName: volume.Name,
-				})
 				return
 			}
 			retry.RetryOnConflict(retry.DefaultRetry, updateFunc)

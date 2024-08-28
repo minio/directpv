@@ -60,8 +60,9 @@ type RepairArgs struct {
 
 // RepairResult represents result of repaired drive
 type RepairResult struct {
-	JobName string
-	DriveID directpvtypes.DriveID
+	JobName   string
+	DriveName directpvtypes.DriveName
+	DriveID   directpvtypes.DriveID
 }
 
 type repairContainerParams struct {
@@ -229,7 +230,7 @@ func (client *Client) Repair(ctx context.Context, args RepairArgs, log LogFunc) 
 				},
 			)
 
-			results = append(results, RepairResult{JobName: jobName, DriveID: result.Drive.GetDriveID()})
+			results = append(results, RepairResult{JobName: jobName, DriveName: result.Drive.GetDriveName(), DriveID: result.Drive.GetDriveID()})
 		}
 	}
 

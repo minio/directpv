@@ -29,6 +29,7 @@ import (
 type CordonResult struct {
 	NodeID    directpvtypes.NodeID
 	DriveName directpvtypes.DriveName
+	DriveID   directpvtypes.DriveID
 }
 
 // CordonArgs represents the args to Cordon the drive
@@ -104,6 +105,7 @@ func (client *Client) Cordon(ctx context.Context, args CordonArgs, log LogFunc) 
 		results = append(results, CordonResult{
 			NodeID:    result.Drive.GetNodeID(),
 			DriveName: result.Drive.GetDriveName(),
+			DriveID:   result.Drive.GetDriveID(),
 		})
 	}
 
