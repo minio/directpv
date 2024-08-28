@@ -68,7 +68,8 @@ function main() {
     push_image "quay.io/minio/csi-provisioner:v2.2.0-go1.18"
     push_image "quay.io/minio/livenessprobe:v2.13.1"
     push_image "quay.io/minio/csi-resizer:v1.11.2"
-    push_image "quay.io/minio/directpv:v4.0.13"
+    release=$(curl -sfL "https://api.github.com/repos/minio/directpv/releases" | awk '/tag_name/ { print substr($2, 3, length($2)-4) }' | awk 'BEGIN{m = 0; ver=""} /^4\.0\./ { p = substr($1, 5, length($1)); if (0+p > 0+m) {m = p; ver = $1} } END{print ver}')
+    push_image "quay.io/minio/directpv:v${release}"
 }
 
 init "$@"
