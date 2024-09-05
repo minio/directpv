@@ -26,6 +26,7 @@ import (
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
+	legacy "github.com/minio/directpv/pkg/legacy/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/client-go/rest"
@@ -37,8 +38,9 @@ import (
 var Version string
 
 var (
-	disableInit bool
-	adminClient *admin.Client
+	disableInit  bool
+	adminClient  *admin.Client
+	legacyClient *legacy.Client
 )
 
 var mainCmd = &cobra.Command{
@@ -61,6 +63,13 @@ var mainCmd = &cobra.Command{
 			if err != nil {
 				klog.Fatalf("unable to create admin client; %v", err)
 			}
+			legacyClient, err = legacy.NewClient(adminClient.K8s())
+			if err != nil {
+				klog.Fatalf("unable to create legacy client; %v", err)
+			}
+		} else {
+			adminClient = &admin.Client{}
+			legacyClient = &legacy.Client{}
 		}
 		return nil
 	},
