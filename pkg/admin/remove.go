@@ -39,6 +39,7 @@ type RemoveArgs struct {
 type RemoveResult struct {
 	NodeID    directpvtypes.NodeID
 	DriveName directpvtypes.DriveName
+	DriveID   directpvtypes.DriveID
 }
 
 // Remove removes the initialized drive(s)
@@ -103,6 +104,7 @@ func (client *Client) Remove(ctx context.Context, args RemoveArgs, log LogFunc) 
 				results = append(results, RemoveResult{
 					NodeID:    result.Drive.GetNodeID(),
 					DriveName: result.Drive.GetDriveName(),
+					DriveID:   result.Drive.GetDriveID(),
 				})
 			}
 		}

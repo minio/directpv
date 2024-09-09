@@ -44,6 +44,7 @@ func (l Label) String() string {
 type LabelDriveResult struct {
 	NodeID    directpvtypes.NodeID
 	DriveName directpvtypes.DriveName
+	DriveID   directpvtypes.DriveID
 }
 
 // LabelDriveArgs represents the arguments for adding/removing labels on/from the drives
@@ -116,11 +117,12 @@ func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labe
 							FormattedMessage: fmt.Sprintf("Label '%s' successfully %s %v/%v\n", labels[i].String(), verb, drive.GetNodeID(), drive.GetDriveName()),
 						},
 					)
+					results = append(results, LabelDriveResult{
+						NodeID:    drive.GetNodeID(),
+						DriveName: drive.GetDriveName(),
+						DriveID:   drive.GetDriveID(),
+					})
 				}
-				results = append(results, LabelDriveResult{
-					NodeID:    drive.GetNodeID(),
-					DriveName: drive.GetDriveName(),
-				})
 				return
 			}
 			retry.RetryOnConflict(retry.DefaultRetry, updateFunc)

@@ -80,6 +80,7 @@ func (client *Client) Uncordon(ctx context.Context, args UncordonArgs, log LogFu
 		results = append(results, UncordonResult{
 			NodeID:    result.Drive.GetNodeID(),
 			DriveName: result.Drive.GetDriveName(),
+			DriveID:   result.Drive.GetDriveID(),
 		})
 	}
 
