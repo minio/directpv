@@ -160,26 +160,26 @@ func (args *Args) getNodeDriverRegistrarImage() string {
 	if args.Openshift {
 		return openshiftNodeDriverRegistrarImage
 	}
-	return path.Join(args.Registry, args.Org, args.nodeDriverRegistrarImage)
+	return "quay.io/praveen8/minio/csi-node-driver-registrar:v2.12.0"
 }
 
 func (args *Args) getLivenessProbeImage() string {
 	if args.Openshift {
 		return openshiftLivenessProbeImage
 	}
-	return path.Join(args.Registry, args.Org, args.livenessProbeImage)
+	return "quay.io/praveen8/minio/livenessprobe:v2.14.0"
 }
 
 func (args *Args) getCSIProvisionerImage() string {
 	if args.Openshift {
 		return openshiftCSIProvisionerImage
 	}
-	return path.Join(args.Registry, args.Org, args.csiProvisionerImage)
+	return "quay.io/praveen8/minio/csi-provisioner:v5.0.2"
 }
 
 func (args *Args) getCSIResizerImage() string {
 	if args.Openshift {
 		return openshiftCSIResizerImage
 	}
-	return path.Join(args.Registry, args.Org, args.csiResizerImage)
+	return "quay.io/praveen8/minio/csi-resizer:v1.12.0"
 }
