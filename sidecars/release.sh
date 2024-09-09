@@ -172,9 +172,15 @@ function release() {
 
     mkdir -p "${GOPATH}/src/github.com/kubernetes-csi"
     cd "${GOPATH}/src/github.com/kubernetes-csi"
-    git clone "https://github.com/kubernetes-csi/${GITHUB_PROJECT_NAME}.git"
+    if [ -f "${GITHUB_PROJECT_NAME}" ]; then
+        echo "ERROR: directory ${PWD}/${GITHUB_PROJECT_NAME} already exists"
+        exit 1
+    fi
+
+    echo "* Cloning repository https://github.com/kubernetes-csi/${GITHUB_PROJECT_NAME}.git"
+    git clone --quiet "https://github.com/kubernetes-csi/${GITHUB_PROJECT_NAME}.git"
     cd "${GITHUB_PROJECT_NAME}"
-    git checkout -b "tag-${tag}" "${tag}"
+    git checkout --quiet -b "tag-${tag}" "${tag}"
     git tag "${curr_tag}" "${tag}"
 
     generate_dockerfile
@@ -182,7 +188,8 @@ function release() {
 
     export GORELEASER_CURRENT_TAG="${curr_tag}"
     export GORELEASER_PREVIOUS_TAG="${prev_tag}"
-    if [ -z "${DRY_RUN}" ]; then
+    if [ "${DRY_RUN}" == "1" ]; then
+        echo "* Doing local-only release for build test"
         goreleaser release --snapshot --clean
     else
         goreleaser release
