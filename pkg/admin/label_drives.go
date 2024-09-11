@@ -63,6 +63,17 @@ func (client *Client) LabelDrives(ctx context.Context, args LabelDriveArgs, labe
 		log = nullLogger
 	}
 
+	for _, label := range labels {
+		if label.Key.IsReserved() {
+			action := "use"
+			if label.Remove {
+				action = "remove"
+			}
+			err = fmt.Errorf("cannot %v reserved key %v", action, label.Key)
+			return
+		}
+	}
+
 	var processed bool
 	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
