@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/spf13/cobra"
 )
@@ -64,8 +65,13 @@ func validateListCmd() error {
 func labelsToString(labels map[string]string) string {
 	var labelsArray []string
 	for k, v := range labels {
-		k = strings.TrimPrefix(k, consts.GroupName+"/")
-		labelsArray = append(labelsArray, fmt.Sprintf("%s=%v", k, v))
+		if !types.LabelKey(k).IsReserved() {
+			k = strings.TrimPrefix(k, consts.GroupName+"/")
+			labelsArray = append(labelsArray, fmt.Sprintf("%s=%v", k, v))
+		}
+	}
+	if len(labelsArray) == 0 {
+		return "-"
 	}
 	sort.Strings(labelsArray)
 	return strings.Join(labelsArray, ",")
