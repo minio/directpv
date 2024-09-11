@@ -96,6 +96,35 @@ const (
 	PluginVersionLabelKey LabelKey = consts.GroupName + "/plugin-version"
 )
 
+var reservedLabelKeys = map[LabelKey]struct{}{
+	NodeLabelKey:           {},
+	DriveNameLabelKey:      {},
+	AccessTierLabelKey:     {},
+	DriveLabelKey:          {},
+	VersionLabelKey:        {},
+	CreatedByLabelKey:      {},
+	PodNameLabelKey:        {},
+	PodNSLabelKey:          {},
+	LatestVersionLabelKey:  {},
+	TopologyDriverIdentity: {},
+	TopologyDriverRack:     {},
+	TopologyDriverZone:     {},
+	TopologyDriverRegion:   {},
+	MigratedLabelKey:       {},
+	RequestIDLabelKey:      {},
+	SuspendLabelKey:        {},
+	VolumeClaimIDLabelKey:  {},
+	ClaimIDLabelKey:        {},
+	ImageTagLabelKey:       {},
+	PluginVersionLabelKey:  {},
+}
+
+// IsReserved returns if the key is a reserved key
+func (k LabelKey) IsReserved() bool {
+	_, found := reservedLabelKeys[k]
+	return found || strings.HasPrefix(string(k), VolumeClaimIDLabelKeyPrefix)
+}
+
 // LabelValue is a type definition for label value
 type LabelValue string
 
