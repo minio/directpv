@@ -2,10 +2,10 @@ name: Build
 
 on:
   push:
-    branches: [ master, v4.0 ]
+    branches: [master, v4.0]
 
   pull_request:
-    branches: [ master, v4.0 ]
+    branches: [master, v4.0]
 
 # This ensures that previous jobs for the PR are canceled when the PR is
 # updated.
@@ -35,7 +35,6 @@ jobs:
           go test -v ./...
       - uses: docker/setup-qemu-action@v3
       - name: Check Goreleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
-          version: latest
-          args: release --skip-publish --skip-sign --clean --snapshot
+          args: release --skip=publish,sign --clean --snapshot
