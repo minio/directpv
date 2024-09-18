@@ -30,16 +30,16 @@ import (
 )
 
 const (
-	// csiProvisionerImage = csi-provisioner:v5.0.1
-	csiProvisionerImage = "csi-provisioner@sha256:acf6e876a3fc5f367ea3ad5aeb2ce16c47b051cb853d8b2c5fb498c51166726e"
-	// csiProvisionerImageV2_2_0 = "csi-provisioner:v2.2.0-go1.18"
+	// csiProvisionerImage = csi-provisioner:v5.0.2-0
+	csiProvisionerImage = "csi-provisioner@sha256:fc1f992dd5591357fa123c396aaadaea5033f312b9c136a11d62cf698474bebb"
+	// csiProvisionerImageV2_2_0 = csi-provisioner:v2.2.0-go1.18
 	csiProvisionerImageV2_2_0 = "csi-provisioner@sha256:c185db49ba02c384633165894147f8d7041b34b173e82a49d7145e50e809b8d6"
-	// nodeDriverRegistrarImage = csi-node-driver-registrar:v2.11.1
-	nodeDriverRegistrarImage = "csi-node-driver-registrar@sha256:7cd4053e52c0028bd9c711ca6de667a7c459a024679ae967c7f800e81baec0bf"
-	// livenessProbeImage = livenessprobe:v2.13.1
-	livenessProbeImage = "livenessprobe@sha256:4106724032620c7679bf065e6e11c7d841cf1d9db69c5e33514a6139681d0689"
-	// csiResizerImage = csi-resizer:v1.11.2
-	csiResizerImage = "csi-resizer@sha256:33f6fd174f2dc121c0e87176856cc36b25374737c5441bccb5b3679905df7ab9"
+	// nodeDriverRegistrarImage = csi-node-driver-registrar:v2.12.0-0
+	nodeDriverRegistrarImage = "csi-node-driver-registrar@sha256:dafc7f667aa2e20d7f059c20db02dd6987c2624d64d8f166cd5930721be98ea9"
+	// livenessProbeImage = livenessprobe:v2.14.0-0
+	livenessProbeImage = "livenessprobe@sha256:783010e10e4d74b6b2b157a4b52772c5a264fd76bb2ad671054b8c3f706c8324"
+	// csiResizerImage = csi-resizer:v1.12.0-0
+	csiResizerImage = "csi-resizer@sha256:58fa627393f20892b105a137d27e236dfaec233a3a64980f84dcb15f38c21533"
 
 	// openshiftCSIProvisionerImage = openshift4/ose-csi-external-provisioner-rhel8:v4.12.0-202407151105.p0.g3aa7c52.assembly.stream.el8
 	openshiftCSIProvisionerImage = "registry.redhat.io/openshift4/ose-csi-external-provisioner-rhel8@sha256:8bf8aa8975790e19ba107fd58699f98389e3fb692d192f4df3078fff7f0a4bba"
