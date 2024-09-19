@@ -302,7 +302,7 @@ EOF
         return
     fi
 
-    scp_cmd "root@${MASTER_VM_IP}:{${directpv_image_tar_xz},${sleep_image_tar_xz}}" "."
+    scp_cmd "root@${MASTER_VM_IP}:${directpv_image_tar_xz}" "root@${MASTER_VM_IP}:${sleep_image_tar_xz}" "."
     setup_sh="${TEST_ID}_setup.sh"
     cat > "${setup_sh}" <<EOF
 #!/bin/bash
