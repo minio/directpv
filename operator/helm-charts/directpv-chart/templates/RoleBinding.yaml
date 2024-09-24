@@ -3,7 +3,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   annotations:
-    directpv.min.io/plugin-version: v4.0.10
     rbac.authorization.kubernetes.io/autoupdate: "true"
   creationTimestamp: null
   labels:

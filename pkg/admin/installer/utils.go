@@ -18,10 +18,7 @@ package installer
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base32"
 	"path"
-	"strings"
 
 	"github.com/minio/directpv/pkg/k8s"
 	"k8s.io/klog/v2"
@@ -29,14 +26,6 @@ import (
 
 func newPluginsSocketDir(kubeletDir, name string) string {
 	return path.Join(kubeletDir, "plugins", k8s.SanitizeResourceName(name))
-}
-
-func getRandSuffix() string {
-	b := make([]byte, 5)
-	if _, err := rand.Read(b); err != nil {
-		klog.Fatalf("unable to generate random bytes; %v", err)
-	}
-	return strings.ToLower(base32.StdEncoding.EncodeToString(b)[:5])
 }
 
 func sendDoneMessage(ctx context.Context, progressCh chan<- Message, err error) (sent bool) {

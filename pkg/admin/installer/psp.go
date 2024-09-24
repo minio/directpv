@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	corev1 "k8s.io/api/core/v1"
@@ -92,10 +91,7 @@ func (t pspTask) createPSPClusterRoleBinding(ctx context.Context, args *Args) (e
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pspClusterRoleBindingName,
 			Namespace: metav1.NamespaceNone,
-			Annotations: map[string]string{
-				string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
-			},
-			Labels: defaultLabels,
+			Labels:    defaultLabels,
 		},
 		Subjects: []rbac.Subject{
 			{
@@ -140,10 +136,7 @@ func (t pspTask) createPodSecurityPolicy(ctx context.Context, args *Args) (err e
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      consts.Identity,
 			Namespace: metav1.NamespaceNone,
-			Annotations: map[string]string{
-				string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
-			},
-			Labels: defaultLabels,
+			Labels:    defaultLabels,
 		},
 		Spec: policy.PodSecurityPolicySpec{
 			Privileged:          true,

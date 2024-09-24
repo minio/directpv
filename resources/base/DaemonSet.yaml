@@ -13,14 +13,14 @@ metadata:
 spec:
   selector:
     matchLabels:
-      selector.directpv.min.io: directpv-min-io-qlp2m
+      selector.directpv.min.io: directpv-min-io-node-server
   template:
     metadata:
       annotations:
         created-by: kubectl-directpv
       creationTimestamp: null
       labels:
-        selector.directpv.min.io: directpv-min-io-qlp2m
+        selector.directpv.min.io: directpv-min-io-node-server
         selector.directpv.min.io.service: enabled
       name: node-server
       namespace: directpv
@@ -36,7 +36,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: spec.nodeName
-        image: quay.io/minio/csi-node-driver-registrar@sha256:c805fdc166761218dc9478e7ac8e0ad0e42ad442269e75608823da3eb761e67e
+        image: quay.io/minio/csi-node-driver-registrar@sha256:dafc7f667aa2e20d7f059c20db02dd6987c2624d64d8f166cd5930721be98ea9
         name: node-driver-registrar
         resources: {}
         terminationMessagePath: /var/log/driver-registrar-termination-log
@@ -64,7 +64,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: quay.io/minio/directpv:v4.0.10
+        image: quay.io/minio/directpv@sha256:98c23183f3abb8d9b6e0c300677605cc822e039fc81ce0e5dd8bef1006547627
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -111,6 +111,9 @@ spec:
         - mountPath: /var/lib/directpv/
           mountPropagation: Bidirectional
           name: directpv-common-root
+        - mountPath: /var/lib/direct-csi/
+          mountPropagation: Bidirectional
+          name: direct-csi-common-root
         - mountPath: /sys
           mountPropagation: Bidirectional
           name: sysfs
@@ -122,9 +125,6 @@ spec:
           mountPropagation: Bidirectional
           name: run-udev-data-dir
           readOnly: true
-        - mountPath: /var/lib/direct-csi/
-          mountPropagation: Bidirectional
-          name: direct-csi-common-root
       - args:
         - node-controller
         - -v=3
@@ -135,7 +135,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: spec.nodeName
-        image: quay.io/minio/directpv:v4.0.10
+        image: quay.io/minio/directpv@sha256:98c23183f3abb8d9b6e0c300677605cc822e039fc81ce0e5dd8bef1006547627
         name: node-controller
         resources: {}
         securityContext:
@@ -155,6 +155,9 @@ spec:
         - mountPath: /var/lib/directpv/
           mountPropagation: Bidirectional
           name: directpv-common-root
+        - mountPath: /var/lib/direct-csi/
+          mountPropagation: Bidirectional
+          name: direct-csi-common-root
         - mountPath: /sys
           mountPropagation: Bidirectional
           name: sysfs
@@ -166,13 +169,10 @@ spec:
           mountPropagation: Bidirectional
           name: run-udev-data-dir
           readOnly: true
-        - mountPath: /var/lib/direct-csi/
-          mountPropagation: Bidirectional
-          name: direct-csi-common-root
       - args:
         - --csi-address=/csi/csi.sock
         - --health-port=9898
-        image: quay.io/minio/livenessprobe@sha256:f3bc9a84f149cd7362e4bd0ae8cd90b26ad020c2591bfe19e63ff97aacf806c3
+        image: quay.io/minio/livenessprobe@sha256:783010e10e4d74b6b2b157a4b52772c5a264fd76bb2ad671054b8c3f706c8324
         name: liveness-probe
         resources: {}
         terminationMessagePath: /var/log/driver-liveness-termination-log
@@ -205,6 +205,10 @@ spec:
           type: DirectoryOrCreate
         name: directpv-common-root
       - hostPath:
+          path: /var/lib/direct-csi/
+          type: DirectoryOrCreate
+        name: direct-csi-common-root
+      - hostPath:
           path: /sys
           type: DirectoryOrCreate
         name: sysfs
@@ -216,10 +220,6 @@ spec:
           path: /run/udev/data
           type: DirectoryOrCreate
         name: run-udev-data-dir
-      - hostPath:
-          path: /var/lib/direct-csi/
-          type: DirectoryOrCreate
-        name: direct-csi-common-root
   updateStrategy:
     type: RollingUpdate
 status:
@@ -227,5 +227,3 @@ status:
   desiredNumberScheduled: 0
   numberMisscheduled: 0
   numberReady: 0
-
-

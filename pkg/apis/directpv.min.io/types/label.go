@@ -88,12 +88,6 @@ const (
 
 	// ClaimIDLabelKey label key to denote the claim id of the volumes
 	ClaimIDLabelKey LabelKey = consts.GroupName + "/claim-id"
-
-	// ImageTagLabelKey denotes the tag of the directpv container image
-	ImageTagLabelKey LabelKey = consts.GroupName + "/image-tag"
-
-	// PluginVersionLabelKey denotes the plugin version
-	PluginVersionLabelKey LabelKey = consts.GroupName + "/plugin-version"
 )
 
 var reservedLabelKeys = map[LabelKey]struct{}{
@@ -115,8 +109,6 @@ var reservedLabelKeys = map[LabelKey]struct{}{
 	SuspendLabelKey:        {},
 	VolumeClaimIDLabelKey:  {},
 	ClaimIDLabelKey:        {},
-	ImageTagLabelKey:       {},
-	PluginVersionLabelKey:  {},
 }
 
 // IsReserved returns if the key is a reserved key

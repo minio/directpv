@@ -137,6 +137,41 @@ function install_directpv() {
     sleep 10
 }
 
+# install_directpv_kustomize <plugin> <pod_count>
+function install_directpv_kustomize() {
+    directpv_client="$1"
+    echo "* Installing DirectPV via kustomize"
+
+    cat > kustomization.yaml <<EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../resources/base
+
+images:
+  - name: quay.io/minio/directpv
+    newTag: ${VERSION}
+EOF
+
+    kubectl kustomize | kubectl apply -f -
+
+    required_count="$2"
+    running_count=0
+    while [[ $running_count -lt $required_count ]]; do
+        echo "  ...waiting for $(( required_count - running_count )) DirectPV pods to come up"
+        sleep 1m
+        running_count=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv | wc -l)
+    done
+
+    while ! "${directpv_client}" info --quiet; do
+        echo "  ...waiting for DirectPV to come up"
+        sleep 1m
+    done
+
+    sleep 10
+}
+
 # uninstall_directpv <plugin> <pod_count>
 function uninstall_directpv() {
     directpv_client="$1"
@@ -145,6 +180,39 @@ function uninstall_directpv() {
 
     "${directpv_client}" uninstall --quiet
 
+    pending="$2"
+    while [[ $pending -gt 0 ]]; do
+        echo "  ...waiting for ${pending} DirectPV pods to go down"
+        sleep 5
+        pending=$(kubectl get pods --field-selector=status.phase=Running --no-headers --namespace=directpv-min-io 2>/dev/null | wc -l)
+    done
+
+    while kubectl get namespace directpv-min-io --no-headers 2>/dev/null | grep -q .; do
+        echo "  ...waiting for directpv-min-io namespace to be removed"
+        sleep 5
+    done
+
+    return 0
+}
+
+# uninstall_directpv_kustomize  <pod_count>
+function uninstall_directpv_kustomize() {
+    echo "* Uninstalling DirectPV via kustomize"
+
+    cat > kustomization.yaml <<EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../resources/base
+
+images:
+  - name: quay.io/minio/directpv
+    newTag: ${VERSION}
+EOF
+    # delete hangs sometimes even after the resources are deleted
+    kubectl kustomize | timeout 15s kubectl delete -f -
+    
     pending="$2"
     while [[ $pending -gt 0 ]]; do
         echo "  ...waiting for ${pending} DirectPV pods to go down"
