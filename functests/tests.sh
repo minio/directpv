@@ -25,7 +25,11 @@ function run_tests() {
     setup_lvm
     setup_luks
     pod_count=$(( 3 + ACTIVE_NODES ))
-    install_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
+    if [ "${KUSTOMIZE}" == "true" ]; then
+        install_directpv_kustomize "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
+    else
+        install_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
+    fi
     add_drives "${DIRECTPV_DIR}/kubectl-directpv"
     deploy_minio minio.yaml
     test_force_delete
@@ -34,7 +38,11 @@ function run_tests() {
     uninstall_minio "${DIRECTPV_DIR}/kubectl-directpv" minio.yaml
     test_volume_expansion "${DIRECTPV_DIR}/kubectl-directpv" sleep.yaml
     remove_drives "${DIRECTPV_DIR}/kubectl-directpv"
-    uninstall_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
+    if [ "${KUSTOMIZE}" == "true" ]; then
+        uninstall_directpv_kustomize  "${pod_count}"
+    else
+        uninstall_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"    
+    fi
     unmount_directpv
     remove_luks
     remove_lvm

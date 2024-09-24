@@ -19,5 +19,3 @@ subjects:
 - kind: ServiceAccount
   name: directpv-min-io
   namespace: directpv
-
-

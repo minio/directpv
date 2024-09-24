@@ -22,5 +22,3 @@ parameters:
 provisioner: directpv-min-io
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
-
-

@@ -19,7 +19,6 @@ package installer
 import (
 	"context"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	corev1 "k8s.io/api/core/v1"
@@ -99,10 +98,7 @@ func (t rbacTask) createServiceAccount(ctx context.Context, args *Args) (err err
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      consts.Identity,
 			Namespace: namespace,
-			Annotations: map[string]string{
-				string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
-			},
-			Labels: defaultLabels,
+			Labels:    defaultLabels,
 		},
 		Secrets:                      []corev1.ObjectReference{},
 		ImagePullSecrets:             []corev1.LocalObjectReference{},
@@ -142,7 +138,6 @@ func (t rbacTask) createClusterRole(ctx context.Context, args *Args) (err error)
 			Namespace: metav1.NamespaceNone,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
-				string(directpvtypes.PluginVersionLabelKey):   args.PluginVersion,
 			},
 			Labels: defaultLabels,
 		},
@@ -153,16 +148,14 @@ func (t rbacTask) createClusterRole(ctx context.Context, args *Args) (err error)
 			newPolicyRule([]string{"persistentvolumeclaims"}, nil, getVerb, listVerb, updateVerb, watchVerb),
 			newPolicyRule([]string{"storageclasses"}, []string{"storage.k8s.io"}, getVerb, listVerb, watchVerb),
 			newPolicyRule([]string{"events"}, nil, createVerb, listVerb, patchVerb, updateVerb, watchVerb),
-			newPolicyRule([]string{"volumesnapshots"}, []string{"snapshot.storage.k8s.io"}, getVerb, listVerb),
-			newPolicyRule([]string{"volumesnapshotcontents"}, []string{"snapshot.storage.k8s.io"}, getVerb, listVerb),
 			newPolicyRule([]string{"csinodes"}, []string{"storage.k8s.io"}, getVerb, listVerb, watchVerb),
 			newPolicyRule([]string{"nodes"}, nil, getVerb, listVerb, watchVerb),
 			newPolicyRule([]string{"volumeattachments"}, []string{"storage.k8s.io"}, getVerb, listVerb, watchVerb),
 			newPolicyRule([]string{"endpoints"}, nil, createVerb, deleteVerb, getVerb, listVerb, updateVerb, watchVerb),
 			newPolicyRule([]string{"leases"}, []string{"coordination.k8s.io"}, createVerb, deleteVerb, getVerb, listVerb, updateVerb, watchVerb),
 			newPolicyRule(
-				[]string{"customresourcedefinitions", "customresourcedefinition"},
-				[]string{"apiextensions.k8s.io", consts.GroupName},
+				[]string{"customresourcedefinitions"},
+				[]string{"apiextensions.k8s.io"},
 				createVerb, deleteVerb, getVerb, listVerb, patchVerb, updateVerb, watchVerb,
 			),
 			newPolicyRule(
@@ -170,8 +163,8 @@ func (t rbacTask) createClusterRole(ctx context.Context, args *Args) (err error)
 				[]string{consts.GroupName},
 				createVerb, deleteVerb, getVerb, listVerb, updateVerb, watchVerb,
 			),
-			newPolicyRule([]string{"pods", "pod"}, nil, getVerb, listVerb, watchVerb),
-			newPolicyRule([]string{"secrets", "secret"}, nil, getVerb, listVerb, watchVerb),
+			newPolicyRule([]string{"pods"}, nil, getVerb, listVerb, watchVerb),
+			newPolicyRule([]string{"secrets"}, nil, getVerb, listVerb, watchVerb),
 		},
 		AggregationRule: nil,
 	}
@@ -209,7 +202,6 @@ func (t rbacTask) createClusterRoleBinding(ctx context.Context, args *Args) (err
 			Namespace: metav1.NamespaceNone,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
-				string(directpvtypes.PluginVersionLabelKey):   args.PluginVersion,
 			},
 			Labels: defaultLabels,
 		},
@@ -260,7 +252,6 @@ func (t rbacTask) createRole(ctx context.Context, args *Args) (err error) {
 			Namespace: namespace,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
-				string(directpvtypes.PluginVersionLabelKey):   args.PluginVersion,
 			},
 			Labels: defaultLabels,
 		},
@@ -302,7 +293,6 @@ func (t rbacTask) createRoleBinding(ctx context.Context, args *Args) (err error)
 			Namespace: namespace,
 			Annotations: map[string]string{
 				"rbac.authorization.kubernetes.io/autoupdate": "true",
-				string(directpvtypes.PluginVersionLabelKey):   args.PluginVersion,
 			},
 			Labels: defaultLabels,
 		},
