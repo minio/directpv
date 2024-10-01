@@ -25,32 +25,13 @@ export PATH="$PATH:$GOPATH/bin"
 # Must keep versions sorted.
 VERSIONS=(v1beta1)
 
-function install_code_generator() {
-    if [ ! -x "$GOPATH/bin/deepcopy-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/deepcopy-gen@v0.29.6
-    fi
-
-    if [ ! -x "$GOPATH/bin/openapi-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/openapi-gen@v0.29.6
-    fi
-
-    if [ ! -x "$GOPATH/bin/client-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/client-gen@v0.29.6
-    fi
-
-    if [ ! -x "$GOPATH/bin/conversion-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/conversion-gen@v0.29.6
-    fi
-}
-
-function install_controller_tools() {
-    if [ ! -x "$GOPATH/bin/controller-gen" ]; then
-        go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
-    fi
-}
-
-install_code_generator
-install_controller_tools
+echo "Installing code generators ..."
+go install -v \
+   k8s.io/code-generator/cmd/deepcopy-gen@v0.29.9 \
+   k8s.io/code-generator/cmd/client-gen@v0.29.9 \
+   k8s.io/code-generator/cmd/conversion-gen@v0.29.9
+go install -v k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20240903163716-9e1beecbcb38
+go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.3
 
 cd "$(dirname "$0")"
 
@@ -88,8 +69,10 @@ for version in "${VERSIONS[@]}"; do
     repo="${REPOSITORY}/pkg/apis/directpv.min.io/${version}"
     openapi-gen \
         --go-header-file boilerplate.go.txt \
-        --input-dirs "${repo}" \
-        --output-package "${repo}"
+        --output-file openapi_generated.go \
+        --output-dir "pkg/apis/directpv.min.io/${version}" \
+        --output-pkg "${repo}" \
+        "${repo}"
 done
 
 echo "Running client-gen ..." 

@@ -126,5 +126,5 @@ func eprintf(isErr bool, format string, args ...any) {
 }
 
 func logFunc(log admin.LogMessage) {
-	eprintf(log.Type == admin.ErrorLogType, log.FormattedMessage)
+	eprintf(log.Type == admin.ErrorLogType, "%v", log.FormattedMessage)
 }
