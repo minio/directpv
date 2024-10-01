@@ -40,20 +40,22 @@ var directpvnodesKind = v1beta1.SchemeGroupVersion.WithKind("DirectPVNode")
 
 // Get takes name of the directPVNode, and returns the corresponding directPVNode object, and an error if there is any.
 func (c *FakeDirectPVNodes) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.DirectPVNode, err error) {
+	emptyResult := &v1beta1.DirectPVNode{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(directpvnodesResource, name), &v1beta1.DirectPVNode{})
+		Invokes(testing.NewRootGetActionWithOptions(directpvnodesResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVNode), err
 }
 
 // List takes label and field selectors, and returns the list of DirectPVNodes that match those selectors.
 func (c *FakeDirectPVNodes) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.DirectPVNodeList, err error) {
+	emptyResult := &v1beta1.DirectPVNodeList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(directpvnodesResource, directpvnodesKind, opts), &v1beta1.DirectPVNodeList{})
+		Invokes(testing.NewRootListActionWithOptions(directpvnodesResource, directpvnodesKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -72,36 +74,39 @@ func (c *FakeDirectPVNodes) List(ctx context.Context, opts v1.ListOptions) (resu
 // Watch returns a watch.Interface that watches the requested directPVNodes.
 func (c *FakeDirectPVNodes) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(directpvnodesResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(directpvnodesResource, opts))
 }
 
 // Create takes the representation of a directPVNode and creates it.  Returns the server's representation of the directPVNode, and an error, if there is any.
 func (c *FakeDirectPVNodes) Create(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.CreateOptions) (result *v1beta1.DirectPVNode, err error) {
+	emptyResult := &v1beta1.DirectPVNode{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(directpvnodesResource, directPVNode), &v1beta1.DirectPVNode{})
+		Invokes(testing.NewRootCreateActionWithOptions(directpvnodesResource, directPVNode, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVNode), err
 }
 
 // Update takes the representation of a directPVNode and updates it. Returns the server's representation of the directPVNode, and an error, if there is any.
 func (c *FakeDirectPVNodes) Update(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.UpdateOptions) (result *v1beta1.DirectPVNode, err error) {
+	emptyResult := &v1beta1.DirectPVNode{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(directpvnodesResource, directPVNode), &v1beta1.DirectPVNode{})
+		Invokes(testing.NewRootUpdateActionWithOptions(directpvnodesResource, directPVNode, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVNode), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeDirectPVNodes) UpdateStatus(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.UpdateOptions) (*v1beta1.DirectPVNode, error) {
+func (c *FakeDirectPVNodes) UpdateStatus(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.UpdateOptions) (result *v1beta1.DirectPVNode, err error) {
+	emptyResult := &v1beta1.DirectPVNode{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(directpvnodesResource, "status", directPVNode), &v1beta1.DirectPVNode{})
+		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(directpvnodesResource, "status", directPVNode, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVNode), err
 }
@@ -115,7 +120,7 @@ func (c *FakeDirectPVNodes) Delete(ctx context.Context, name string, opts v1.Del
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeDirectPVNodes) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(directpvnodesResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(directpvnodesResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.DirectPVNodeList{})
 	return err
@@ -123,10 +128,11 @@ func (c *FakeDirectPVNodes) DeleteCollection(ctx context.Context, opts v1.Delete
 
 // Patch applies the patch and returns the patched directPVNode.
 func (c *FakeDirectPVNodes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.DirectPVNode, err error) {
+	emptyResult := &v1beta1.DirectPVNode{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(directpvnodesResource, name, pt, data, subresources...), &v1beta1.DirectPVNode{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(directpvnodesResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVNode), err
 }
