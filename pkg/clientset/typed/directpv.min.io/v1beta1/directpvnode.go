@@ -20,14 +20,13 @@ package v1beta1
 
 import (
 	"context"
-	"time"
 
 	v1beta1 "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1"
 	scheme "github.com/minio/directpv/pkg/clientset/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // DirectPVNodesGetter has a method to return a DirectPVNodeInterface.
@@ -40,6 +39,7 @@ type DirectPVNodesGetter interface {
 type DirectPVNodeInterface interface {
 	Create(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.CreateOptions) (*v1beta1.DirectPVNode, error)
 	Update(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.UpdateOptions) (*v1beta1.DirectPVNode, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 	UpdateStatus(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.UpdateOptions) (*v1beta1.DirectPVNode, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
@@ -52,133 +52,18 @@ type DirectPVNodeInterface interface {
 
 // directPVNodes implements DirectPVNodeInterface
 type directPVNodes struct {
-	client rest.Interface
+	*gentype.ClientWithList[*v1beta1.DirectPVNode, *v1beta1.DirectPVNodeList]
 }
 
 // newDirectPVNodes returns a DirectPVNodes
 func newDirectPVNodes(c *DirectpvV1beta1Client) *directPVNodes {
 	return &directPVNodes{
-		client: c.RESTClient(),
+		gentype.NewClientWithList[*v1beta1.DirectPVNode, *v1beta1.DirectPVNodeList](
+			"directpvnodes",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			"",
+			func() *v1beta1.DirectPVNode { return &v1beta1.DirectPVNode{} },
+			func() *v1beta1.DirectPVNodeList { return &v1beta1.DirectPVNodeList{} }),
 	}
-}
-
-// Get takes name of the directPVNode, and returns the corresponding directPVNode object, and an error if there is any.
-func (c *directPVNodes) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.DirectPVNode, err error) {
-	result = &v1beta1.DirectPVNode{}
-	err = c.client.Get().
-		Resource("directpvnodes").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of DirectPVNodes that match those selectors.
-func (c *directPVNodes) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.DirectPVNodeList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1beta1.DirectPVNodeList{}
-	err = c.client.Get().
-		Resource("directpvnodes").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested directPVNodes.
-func (c *directPVNodes) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Resource("directpvnodes").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a directPVNode and creates it.  Returns the server's representation of the directPVNode, and an error, if there is any.
-func (c *directPVNodes) Create(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.CreateOptions) (result *v1beta1.DirectPVNode, err error) {
-	result = &v1beta1.DirectPVNode{}
-	err = c.client.Post().
-		Resource("directpvnodes").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(directPVNode).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a directPVNode and updates it. Returns the server's representation of the directPVNode, and an error, if there is any.
-func (c *directPVNodes) Update(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.UpdateOptions) (result *v1beta1.DirectPVNode, err error) {
-	result = &v1beta1.DirectPVNode{}
-	err = c.client.Put().
-		Resource("directpvnodes").
-		Name(directPVNode.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(directPVNode).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *directPVNodes) UpdateStatus(ctx context.Context, directPVNode *v1beta1.DirectPVNode, opts v1.UpdateOptions) (result *v1beta1.DirectPVNode, err error) {
-	result = &v1beta1.DirectPVNode{}
-	err = c.client.Put().
-		Resource("directpvnodes").
-		Name(directPVNode.Name).
-		SubResource("status").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(directPVNode).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the directPVNode and deletes it. Returns an error if one occurs.
-func (c *directPVNodes) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	return c.client.Delete().
-		Resource("directpvnodes").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *directPVNodes) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Resource("directpvnodes").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched directPVNode.
-func (c *directPVNodes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.DirectPVNode, err error) {
-	result = &v1beta1.DirectPVNode{}
-	err = c.client.Patch(pt).
-		Resource("directpvnodes").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }

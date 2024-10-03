@@ -40,20 +40,22 @@ var directpvinitrequestsKind = v1beta1.SchemeGroupVersion.WithKind("DirectPVInit
 
 // Get takes name of the directPVInitRequest, and returns the corresponding directPVInitRequest object, and an error if there is any.
 func (c *FakeDirectPVInitRequests) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.DirectPVInitRequest, err error) {
+	emptyResult := &v1beta1.DirectPVInitRequest{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(directpvinitrequestsResource, name), &v1beta1.DirectPVInitRequest{})
+		Invokes(testing.NewRootGetActionWithOptions(directpvinitrequestsResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVInitRequest), err
 }
 
 // List takes label and field selectors, and returns the list of DirectPVInitRequests that match those selectors.
 func (c *FakeDirectPVInitRequests) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.DirectPVInitRequestList, err error) {
+	emptyResult := &v1beta1.DirectPVInitRequestList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(directpvinitrequestsResource, directpvinitrequestsKind, opts), &v1beta1.DirectPVInitRequestList{})
+		Invokes(testing.NewRootListActionWithOptions(directpvinitrequestsResource, directpvinitrequestsKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -72,36 +74,39 @@ func (c *FakeDirectPVInitRequests) List(ctx context.Context, opts v1.ListOptions
 // Watch returns a watch.Interface that watches the requested directPVInitRequests.
 func (c *FakeDirectPVInitRequests) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(directpvinitrequestsResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(directpvinitrequestsResource, opts))
 }
 
 // Create takes the representation of a directPVInitRequest and creates it.  Returns the server's representation of the directPVInitRequest, and an error, if there is any.
 func (c *FakeDirectPVInitRequests) Create(ctx context.Context, directPVInitRequest *v1beta1.DirectPVInitRequest, opts v1.CreateOptions) (result *v1beta1.DirectPVInitRequest, err error) {
+	emptyResult := &v1beta1.DirectPVInitRequest{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(directpvinitrequestsResource, directPVInitRequest), &v1beta1.DirectPVInitRequest{})
+		Invokes(testing.NewRootCreateActionWithOptions(directpvinitrequestsResource, directPVInitRequest, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVInitRequest), err
 }
 
 // Update takes the representation of a directPVInitRequest and updates it. Returns the server's representation of the directPVInitRequest, and an error, if there is any.
 func (c *FakeDirectPVInitRequests) Update(ctx context.Context, directPVInitRequest *v1beta1.DirectPVInitRequest, opts v1.UpdateOptions) (result *v1beta1.DirectPVInitRequest, err error) {
+	emptyResult := &v1beta1.DirectPVInitRequest{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(directpvinitrequestsResource, directPVInitRequest), &v1beta1.DirectPVInitRequest{})
+		Invokes(testing.NewRootUpdateActionWithOptions(directpvinitrequestsResource, directPVInitRequest, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVInitRequest), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeDirectPVInitRequests) UpdateStatus(ctx context.Context, directPVInitRequest *v1beta1.DirectPVInitRequest, opts v1.UpdateOptions) (*v1beta1.DirectPVInitRequest, error) {
+func (c *FakeDirectPVInitRequests) UpdateStatus(ctx context.Context, directPVInitRequest *v1beta1.DirectPVInitRequest, opts v1.UpdateOptions) (result *v1beta1.DirectPVInitRequest, err error) {
+	emptyResult := &v1beta1.DirectPVInitRequest{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(directpvinitrequestsResource, "status", directPVInitRequest), &v1beta1.DirectPVInitRequest{})
+		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(directpvinitrequestsResource, "status", directPVInitRequest, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVInitRequest), err
 }
@@ -115,7 +120,7 @@ func (c *FakeDirectPVInitRequests) Delete(ctx context.Context, name string, opts
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeDirectPVInitRequests) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(directpvinitrequestsResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(directpvinitrequestsResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.DirectPVInitRequestList{})
 	return err
@@ -123,10 +128,11 @@ func (c *FakeDirectPVInitRequests) DeleteCollection(ctx context.Context, opts v1
 
 // Patch applies the patch and returns the patched directPVInitRequest.
 func (c *FakeDirectPVInitRequests) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.DirectPVInitRequest, err error) {
+	emptyResult := &v1beta1.DirectPVInitRequest{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(directpvinitrequestsResource, name, pt, data, subresources...), &v1beta1.DirectPVInitRequest{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(directpvinitrequestsResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.DirectPVInitRequest), err
 }
