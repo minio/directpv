@@ -1,6 +1,6 @@
 linters-settings:
 run:
-  go: "1.22"
+  go: "1.23"
 
   misspell:
     locale: US
@@ -26,8 +26,8 @@ linters:
 issues:
   exclude-use-default: false
   exclude:
-      - should have a package comment
-      - exitAfterDefer
+    - should have a package comment
+    - exitAfterDefer
 
 service:
-  golangci-lint-version: 1.59.1 # use the fixed version to not introduce new linters unexpectedly
+  golangci-lint-version: 1.61.0 # use the fixed version to not introduce new linters unexpectedly
