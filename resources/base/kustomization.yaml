@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - Namespace.yaml
+  - directpvdrives.directpv.min.io.yaml
+  - directpvinitrequests.directpv.min.io.yaml
+  - directpvnodes.directpv.min.io.yaml
+  - directpvvolumes.directpv.min.io.yaml
+  - CSIDriver.yaml
+  - StorageClass.yaml
+  - ServiceAccount.yaml
+  - ClusterRole.yaml
+  - ClusterRoleBinding.yaml
+  - Role.yaml
+  - RoleBinding.yaml
+  - DaemonSet.yaml
+  - Deployment.yaml
+
+images:
+  - name: quay.io/minio/directpv
+    digest: sha256:83fd05fe114ed15c3975333c90cbe18c782d9c4d5c7ad6fdb8cc835e380ba505
+
+  - name: quay.io/minio/csi-node-driver-registrar
+    digest: sha256:dafc7f667aa2e20d7f059c20db02dd6987c2624d64d8f166cd5930721be98ea9
+
+  - name: quay.io/minio/livenessprobe
+    digest: sha256:783010e10e4d74b6b2b157a4b52772c5a264fd76bb2ad671054b8c3f706c8324
+
+  - name: quay.io/minio/csi-provisioner
+    digest: sha256:fc1f992dd5591357fa123c396aaadaea5033f312b9c136a11d62cf698474bebb
+
+  - name: quay.io/minio/csi-resizer
+    digest: sha256:58fa627393f20892b105a137d27e236dfaec233a3a64980f84dcb15f38c21533
+

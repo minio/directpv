@@ -14,7 +14,7 @@ spec:
   replicas: 3
   selector:
     matchLabels:
-      selector.directpv.min.io: controller-jwalg
+      selector.directpv.min.io: controller-controller
   strategy:
     type: Recreate
   template:
@@ -23,7 +23,7 @@ spec:
         created-by: kubectl-directpv
       creationTimestamp: null
       labels:
-        selector.directpv.min.io: controller-jwalg
+        selector.directpv.min.io: controller-controller
       name: controller
       namespace: directpv
     spec:
@@ -38,7 +38,7 @@ spec:
         env:
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: quay.io/minio/csi-provisioner@sha256:7b5c070ec70d30b0895d91b10c39a0e6cc81c18e0d1566c77aeff2a3587fa316
+        image: quay.io/minio/csi-provisioner@sha256:fc1f992dd5591357fa123c396aaadaea5033f312b9c136a11d62cf698474bebb
         name: csi-provisioner
         resources: {}
         securityContext:
@@ -57,7 +57,7 @@ spec:
         env:
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: quay.io/minio/csi-resizer@sha256:819f68a4daf75acec336302843f303cf360d4941249f9f5019ffbb690c8ac7c0
+        image: quay.io/minio/csi-resizer@sha256:58fa627393f20892b105a137d27e236dfaec233a3a64980f84dcb15f38c21533
         name: csi-resizer
         resources: {}
         securityContext:
@@ -83,7 +83,7 @@ spec:
               fieldPath: spec.nodeName
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: quay.io/minio/directpv:v4.0.10
+        image: quay.io/minio/directpv@sha256:83fd05fe114ed15c3975333c90cbe18c782d9c4d5c7ad6fdb8cc835e380ba505
         name: controller
         ports:
         - containerPort: 30443
@@ -115,5 +115,3 @@ spec:
           type: DirectoryOrCreate
         name: socket-dir
 status: {}
-
-
