@@ -152,7 +152,7 @@ func showDevices(resultMap map[directpvtypes.NodeID][]types.Device) error {
 	}
 
 	if writer.Length() == 0 || !foundAvailableDrive {
-		eprintf(false, color.HiYellowString("No drives are available to initialize")+"\n")
+		eprintf(false, "%s\n", color.HiYellowString("No drives are available to initialize"))
 		return errDiscoveryFailed
 	}
 
@@ -218,7 +218,7 @@ func discoverMain(ctx context.Context) {
 				eprintf(true, "discovery failed; %v\n", err)
 				os.Exit(1)
 			case <-ctx.Done():
-				eprintf(true, ctx.Err().Error())
+				eprintf(true, "%v", ctx.Err())
 				os.Exit(1)
 			}
 		}
