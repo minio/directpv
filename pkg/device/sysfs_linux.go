@@ -106,3 +106,21 @@ func getHolders(name string) ([]string, error) {
 func getDMName(name string) (string, error) {
 	return readFirstLine("/sys/class/block/" + name + "/dm/name")
 }
+
+// GetStat returns statistics for a given device name.
+func GetStat(name string) (stats []uint64, err error) {
+	line, err := readFirstLine("/sys/class/block/" + name + "/stat")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, token := range strings.Fields(line) {
+		ui64, err := strconv.ParseUint(token, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		stats = append(stats, ui64)
+	}
+
+	return stats, nil
+}
