@@ -25,32 +25,13 @@ export PATH="$PATH:$GOPATH/bin"
 # Must keep versions sorted.
 VERSIONS=(v1beta1)
 
-function install_code_generator() {
-    if [ ! -x "$GOPATH/bin/deepcopy-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/deepcopy-gen@v0.29.6
-    fi
-
-    if [ ! -x "$GOPATH/bin/openapi-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/openapi-gen@v0.29.6
-    fi
-
-    if [ ! -x "$GOPATH/bin/client-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/client-gen@v0.29.6
-    fi
-
-    if [ ! -x "$GOPATH/bin/conversion-gen" ]; then
-        go install -v k8s.io/code-generator/cmd/conversion-gen@v0.29.6
-    fi
-}
-
-function install_controller_tools() {
-    if [ ! -x "$GOPATH/bin/controller-gen" ]; then
-        go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
-    fi
-}
-
-install_code_generator
-install_controller_tools
+echo "Installing code generators ..."
+go install -v \
+   k8s.io/code-generator/cmd/deepcopy-gen@v0.31.1 \
+   k8s.io/code-generator/cmd/client-gen@v0.31.1 \
+   k8s.io/code-generator/cmd/conversion-gen@v0.31.1
+go install -v k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20240903163716-9e1beecbcb38
+go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.3
 
 cd "$(dirname "$0")"
 
@@ -80,16 +61,18 @@ input_dirs=$(IFS=,; echo "${arr[*]}")
 echo "Running deepcopy-gen ..."
 deepcopy-gen \
     --go-header-file boilerplate.go.txt \
-    --input-dirs "${input_dirs}" \
-    --output-package "${REPOSITORY}/pkg/"
+    --output-file deepcopy_generated.go \
+    "${input_dirs}"
 
 echo "Running openapi-gen ..."
 for version in "${VERSIONS[@]}"; do
     repo="${REPOSITORY}/pkg/apis/directpv.min.io/${version}"
     openapi-gen \
         --go-header-file boilerplate.go.txt \
-        --input-dirs "${repo}" \
-        --output-package "${repo}"
+        --output-file openapi_generated.go \
+        --output-dir "pkg/apis/directpv.min.io/${version}" \
+        --output-pkg "${repo}" \
+        "${repo}"
 done
 
 echo "Running client-gen ..." 
@@ -99,12 +82,13 @@ arr=("${VERSIONS[@]/#/directpv.min.io/}")
 input_versions=$(IFS=,; echo "${arr[*]}")
 client-gen \
     --go-header-file boilerplate.go.txt \
-    --input-dirs "${input_dirs}" \
-    --output-package "${REPOSITORY}/pkg/" \
     --fake-clientset \
+    --output-dir pkg \
+    --output-pkg "${REPOSITORY}/pkg" \
     --clientset-name clientset \
     --input "${input_versions}" \
-    --input-base "${REPOSITORY}/pkg/apis"
+    --input-base "${REPOSITORY}/pkg/apis" \
+    "${input_dirs}"
 
 echo "Running controller-gen ..." 
 controller-gen crd:crdVersions=v1 paths=./... output:dir=pkg/admin/installer
@@ -113,5 +97,5 @@ rm -f pkg/admin/installer/direct.csi.min.io_directcsidrives.yaml pkg/admin/insta
 echo "Running conversion-gen ..."
 conversion-gen \
     --go-header-file boilerplate.go.txt \
-    --input-dirs "${VERSIONS[-1]/#/$REPOSITORY/pkg/apis/directpv.min.io/}" \
-    --output-package "${REPOSITORY}/pkg/"
+    --output-file zz_generated.conversion.go \
+    "${VERSIONS[-1]/#/$REPOSITORY/pkg/apis/directpv.min.io/}"

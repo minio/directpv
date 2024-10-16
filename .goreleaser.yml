@@ -1,24 +1,27 @@
+---
+version: 2
 project_name: directpv
 
 release:
-   name_template: "Release version {{.Version}}"
+  name_template: "Release version {{.Version}}"
 
-   github:
+  target_commitish: "{{ .Commit }}"
+
+  github:
     owner: minio
     name: directpv
 
-   extra_files:
-     - glob: "*.minisig"
-     - glob: "*.zip"
+  extra_files:
+    - glob: "*.minisig"
+    - glob: "*.zip"
 
 before:
   hooks:
-    - go mod tidy -compat=1.22
+    - go mod tidy -compat=1.23
     - go mod download
 
 builds:
-  -
-    main: ./cmd/directpv
+  - main: ./cmd/directpv
     id: directpv
     binary: directpv
     goos:
@@ -35,8 +38,7 @@ builds:
     ldflags:
       - -s -w -X main.Version={{ .Tag }}
 
-  -
-    main: ./cmd/kubectl-directpv
+  - main: ./cmd/kubectl-directpv
     id: kubectl-directpv
     binary: kubectl-directpv
     goos:
@@ -61,61 +63,60 @@ builds:
       post: ./package.sh {{ .Path }}
 
 archives:
-  -
-    allow_different_binary_count: true
+  - allow_different_binary_count: true
     format: binary
 
 changelog:
   sort: asc
 
 dockers:
-- image_templates:
-  - "quay.io/minio/directpv:{{ .Tag }}-amd64"
-  use: buildx
-  goarch: amd64
-  ids:
-    - directpv
-  dockerfile: Dockerfile
-  extra_files:
-    - LICENSE
-    - CREDITS
-    - AlmaLinux.repo
-  build_flag_templates:
-  - "--platform=linux/amd64"
-- image_templates:
-  - "quay.io/minio/directpv:{{ .Tag }}-ppc64le"
-  use: buildx
-  goarch: ppc64le
-  ids:
-    - directpv
-  dockerfile: Dockerfile
-  extra_files:
-    - LICENSE
-    - CREDITS
-    - AlmaLinux.repo
-  build_flag_templates:
-  - "--platform=linux/ppc64le"
-- image_templates:
-  - "quay.io/minio/directpv:{{ .Tag }}-arm64"
-  use: buildx
-  goarch: arm64
-  ids:
-    - directpv
-  dockerfile: Dockerfile
-  extra_files:
-    - LICENSE
-    - CREDITS
-    - AlmaLinux.repo
-  build_flag_templates:
-  - "--platform=linux/arm64"
+  - image_templates:
+      - "quay.io/minio/directpv:{{ .Tag }}-amd64"
+    use: buildx
+    goarch: amd64
+    ids:
+      - directpv
+    dockerfile: Dockerfile
+    extra_files:
+      - LICENSE
+      - CREDITS
+      - AlmaLinux.repo
+    build_flag_templates:
+      - "--platform=linux/amd64"
+  - image_templates:
+      - "quay.io/minio/directpv:{{ .Tag }}-ppc64le"
+    use: buildx
+    goarch: ppc64le
+    ids:
+      - directpv
+    dockerfile: Dockerfile
+    extra_files:
+      - LICENSE
+      - CREDITS
+      - AlmaLinux.repo
+    build_flag_templates:
+      - "--platform=linux/ppc64le"
+  - image_templates:
+      - "quay.io/minio/directpv:{{ .Tag }}-arm64"
+    use: buildx
+    goarch: arm64
+    ids:
+      - directpv
+    dockerfile: Dockerfile
+    extra_files:
+      - LICENSE
+      - CREDITS
+      - AlmaLinux.repo
+    build_flag_templates:
+      - "--platform=linux/arm64"
 docker_manifests:
-- name_template: quay.io/minio/directpv:{{ .Tag }}
-  image_templates:
-  - quay.io/minio/directpv:{{ .Tag }}-amd64
-  - quay.io/minio/directpv:{{ .Tag }}-arm64
-  - quay.io/minio/directpv:{{ .Tag }}-ppc64le
-- name_template: quay.io/minio/directpv:latest
-  image_templates:
-  - quay.io/minio/directpv:{{ .Tag }}-amd64
-  - quay.io/minio/directpv:{{ .Tag }}-arm64
-  - quay.io/minio/directpv:{{ .Tag }}-ppc64le
+  - name_template: quay.io/minio/directpv:{{ .Tag }}
+    image_templates:
+      - quay.io/minio/directpv:{{ .Tag }}-amd64
+      - quay.io/minio/directpv:{{ .Tag }}-arm64
+      - quay.io/minio/directpv:{{ .Tag }}-ppc64le
+  - name_template: quay.io/minio/directpv:latest
+    image_templates:
+      - quay.io/minio/directpv:{{ .Tag }}-amd64
+      - quay.io/minio/directpv:{{ .Tag }}-arm64
+      - quay.io/minio/directpv:{{ .Tag }}-ppc64le

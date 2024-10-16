@@ -1,0 +1,21 @@
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  creationTimestamp: null
+  labels:
+    application-name: directpv.min.io
+    application-type: CSIDriver
+    directpv.min.io/created-by: kubectl-directpv
+    directpv.min.io/version: v1beta1
+  name: directpv-min-io
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: directpv-min-io
+subjects:
+- kind: ServiceAccount
+  name: directpv-min-io
+  namespace: directpv

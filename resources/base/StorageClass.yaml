@@ -1,0 +1,24 @@
+
+allowVolumeExpansion: true
+allowedTopologies:
+- matchLabelExpressions:
+  - key: directpv.min.io/identity
+    values:
+    - directpv-min-io
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  creationTimestamp: null
+  finalizers:
+  - foregroundDeletion
+  labels:
+    application-name: directpv.min.io
+    application-type: CSIDriver
+    directpv.min.io/created-by: kubectl-directpv
+    directpv.min.io/version: v1beta1
+  name: directpv-min-io
+parameters:
+  csi.storage.k8s.io/fstype: xfs
+provisioner: directpv-min-io
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer

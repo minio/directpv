@@ -8,8 +8,6 @@ allowedTopologies:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  annotations:
-    directpv.min.io/plugin-version: v4.0.10
   creationTimestamp: null
   finalizers:
   - foregroundDeletion

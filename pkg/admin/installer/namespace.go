@@ -19,7 +19,6 @@ package installer
 import (
 	"context"
 
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -90,11 +89,8 @@ func (t namespaceTask) createNamespace(ctx context.Context, args *Args) (err err
 			Kind:       "Namespace",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      namespace,
-			Namespace: metav1.NamespaceNone,
-			Annotations: map[string]string{
-				string(directpvtypes.PluginVersionLabelKey): args.PluginVersion,
-			},
+			Name:       namespace,
+			Namespace:  metav1.NamespaceNone,
 			Labels:     labels,
 			Finalizers: []string{metav1.FinalizerDeleteDependents},
 		},

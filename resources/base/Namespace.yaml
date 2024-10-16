@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  creationTimestamp: null
+  finalizers:
+  - foregroundDeletion
+  labels:
+    application-name: directpv.min.io
+    application-type: CSIDriver
+    directpv.min.io/created-by: kubectl-directpv
+    directpv.min.io/version: v1beta1
+    pod-security.kubernetes.io/enforce: privileged
+  name: directpv
+spec: {}
+status: {}

@@ -1,0 +1,22 @@
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  creationTimestamp: null
+  labels:
+    application-name: directpv.min.io
+    application-type: CSIDriver
+    directpv.min.io/created-by: kubectl-directpv
+    directpv.min.io/version: v1beta1
+  name: directpv-min-io
+  namespace: directpv
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: directpv-min-io
+subjects:
+- kind: ServiceAccount
+  name: directpv-min-io
+  namespace: directpv

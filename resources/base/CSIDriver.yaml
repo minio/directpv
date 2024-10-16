@@ -1,0 +1,17 @@
+
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  creationTimestamp: null
+  labels:
+    application-name: directpv.min.io
+    application-type: CSIDriver
+    directpv.min.io/created-by: kubectl-directpv
+    directpv.min.io/version: v1beta1
+  name: directpv-min-io
+spec:
+  attachRequired: false
+  podInfoOnMount: true
+  volumeLifecycleModes:
+  - Persistent
+  - Ephemeral

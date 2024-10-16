@@ -3,7 +3,13 @@
 DirectPV nodes export Prometheus compatible metrics data via port `10443`. The metrics data includes
 * directpv_stats_bytes_used
 * directpv_stats_bytes_total
-and categorized by labels `tenant`, `volumeID` and `node`.
+* directpv_stats_drive_ready
+* directpv_stats_drive_total_read_bytes
+* directpv_stats_drive_total_write_bytes
+* directpv_stats_drive_read_latency_seconds
+* directpv_stats_drive_write_latency_seconds
+* directpv_stats_drive_wait_time_seconds
+and categorized by labels `drive`, `tenant`, `volumeID` and `node`.
 
 To scrape data in Prometheus, each node must be accessible by port `10443`. A simple example is below
 

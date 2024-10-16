@@ -1,0 +1,182 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  creationTimestamp: null
+  labels:
+    application-name: directpv.min.io
+    application-type: CSIDriver
+    directpv.min.io/created-by: kubectl-directpv
+    directpv.min.io/version: v1beta1
+  name: legacy-node-server
+  namespace: directpv
+spec:
+  selector:
+    matchLabels:
+      selector.directpv.min.io: directpv-node-server
+  template:
+    metadata:
+      annotations:
+        created-by: kubectl-directpv
+      creationTimestamp: null
+      labels:
+        selector.directpv.min.io: directpv-node-server
+        selector.directpv.min.io.service: enabled
+      name: legacy-node-server
+      namespace: directpv
+    spec:
+      containers:
+      - args:
+        - --v=3
+        - --csi-address=unix:///csi/csi.sock
+        - --kubelet-registration-path=/var/lib/kubelet/plugins/direct-csi-min-io/csi.sock
+        env:
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        image: quay.io/minio/csi-node-driver-registrar@sha256:dafc7f667aa2e20d7f059c20db02dd6987c2624d64d8f166cd5930721be98ea9
+        name: node-driver-registrar
+        resources: {}
+        terminationMessagePath: /var/log/driver-registrar-termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /csi
+          mountPropagation: None
+          name: socket-dir
+        - mountPath: /registration
+          mountPropagation: None
+          name: registration-dir
+      - args:
+        - legacy-node-server
+        - -v=3
+        - --csi-endpoint=$(CSI_ENDPOINT)
+        - --kube-node-name=$(KUBE_NODE_NAME)
+        - --readiness-port=30443
+        env:
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: CSI_ENDPOINT
+          value: unix:///csi/csi.sock
+        image: quay.io/minio/directpv@sha256:83fd05fe114ed15c3975333c90cbe18c782d9c4d5c7ad6fdb8cc835e380ba505
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 10
+        name: node-server
+        ports:
+        - containerPort: 30443
+          name: readinessport
+          protocol: TCP
+        - containerPort: 9898
+          name: healthz
+          protocol: TCP
+        - containerPort: 10443
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /ready
+            port: readinessport
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 10
+        resources: {}
+        securityContext:
+          privileged: true
+        terminationMessagePath: /var/log/driver-termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /csi
+          mountPropagation: None
+          name: socket-dir
+        - mountPath: /var/lib/kubelet/pods
+          mountPropagation: Bidirectional
+          name: mountpoint-dir
+        - mountPath: /var/lib/kubelet/plugins
+          mountPropagation: Bidirectional
+          name: plugins-dir
+        - mountPath: /var/lib/directpv/
+          mountPropagation: Bidirectional
+          name: directpv-common-root
+        - mountPath: /var/lib/direct-csi/
+          mountPropagation: Bidirectional
+          name: direct-csi-common-root
+        - mountPath: /sys
+          mountPropagation: Bidirectional
+          name: sysfs
+        - mountPath: /dev
+          mountPropagation: HostToContainer
+          name: devfs
+          readOnly: true
+        - mountPath: /run/udev/data
+          mountPropagation: Bidirectional
+          name: run-udev-data-dir
+          readOnly: true
+      - args:
+        - --csi-address=/csi/csi.sock
+        - --health-port=9898
+        image: quay.io/minio/livenessprobe@sha256:783010e10e4d74b6b2b157a4b52772c5a264fd76bb2ad671054b8c3f706c8324
+        name: liveness-probe
+        resources: {}
+        terminationMessagePath: /var/log/driver-liveness-termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /csi
+          mountPropagation: None
+          name: socket-dir
+      hostPID: true
+      serviceAccountName: directpv-min-io
+      volumes:
+      - hostPath:
+          path: /var/lib/kubelet/plugins/direct-csi-min-io
+          type: DirectoryOrCreate
+        name: socket-dir
+      - hostPath:
+          path: /var/lib/kubelet/pods
+          type: DirectoryOrCreate
+        name: mountpoint-dir
+      - hostPath:
+          path: /var/lib/kubelet/plugins_registry
+          type: DirectoryOrCreate
+        name: registration-dir
+      - hostPath:
+          path: /var/lib/kubelet/plugins
+          type: DirectoryOrCreate
+        name: plugins-dir
+      - hostPath:
+          path: /var/lib/directpv/
+          type: DirectoryOrCreate
+        name: directpv-common-root
+      - hostPath:
+          path: /var/lib/direct-csi/
+          type: DirectoryOrCreate
+        name: direct-csi-common-root
+      - hostPath:
+          path: /sys
+          type: DirectoryOrCreate
+        name: sysfs
+      - hostPath:
+          path: /dev
+          type: DirectoryOrCreate
+        name: devfs
+      - hostPath:
+          path: /run/udev/data
+          type: DirectoryOrCreate
+        name: run-udev-data-dir
+  updateStrategy:
+    type: RollingUpdate
+status:
+  currentNumberScheduled: 0
+  desiredNumberScheduled: 0
+  numberMisscheduled: 0
+  numberReady: 0

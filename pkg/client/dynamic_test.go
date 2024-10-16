@@ -395,7 +395,7 @@ func TestWatcher(t *testing.T) {
 		t.Fatalf("no event received for create")
 	}
 	if err := checkEvent(event, watch.Added, testCreateObject); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%v", err.Error())
 	}
 
 	// Test Update Event
@@ -414,7 +414,7 @@ func TestWatcher(t *testing.T) {
 		t.Fatalf("no event received for update")
 	}
 	if err := checkEvent(event, watch.Modified, testUpdateObject); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%v", err.Error())
 	}
 
 	// Test Delete Event
@@ -427,7 +427,7 @@ func TestWatcher(t *testing.T) {
 		t.Fatalf("no event received for delete")
 	}
 	if err := checkEvent(event, watch.Deleted, testUpdateObject); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%v", err.Error())
 	}
 }
 

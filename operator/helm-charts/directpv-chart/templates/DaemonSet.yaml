@@ -2,9 +2,6 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  annotations:
-    directpv.min.io/image-tag: v4.0.10
-    directpv.min.io/plugin-version: v4.0.10
   creationTimestamp: null
   labels:
     application-name: directpv.min.io

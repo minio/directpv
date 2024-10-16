@@ -20,14 +20,14 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        kube-version: ['v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.17', 'v1.24.17', 'v1.25.16', 'v1.26.15', 'v1.27.15', 'v1.28.11', 'v1.29.6', 'v1.30.2']
+        kube-version: ['v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.17', 'v1.24.17', 'v1.25.16', 'v1.26.15', 'v1.27.16', 'v1.28.14', 'v1.29.9', 'v1.30.5', 'v1.31.1']
         os: [ubuntu-20.04, ubuntu-22.04]
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
+          go-version: 1.23.x
           check-latest: true
 
       - name: Install dependencies
@@ -68,6 +68,11 @@ jobs:
           kubectl get pods -A
           while kubectl get pods -n kube-system --no-headers | grep -vqw Running; do echo "Waiting for Minikube pods to be ready"; sleep 3; done
           while kubectl get nodes --no-headers | grep -vqw Ready; do echo "Waiting for Minikube node to be ready"; sleep 3; done
+
+      - name: Enable kustomize
+        if: contains(fromJson('["v1.24.17", "v1.25.16", "v1.26.15", "v1.27.15", "v1.28.11", "v1.29.6", "v1.30.2"]'), matrix.kube-version)
+        run: |
+          echo "KUSTOMIZE=true" >> $GITHUB_ENV
 
       - name: Run tests
         run: |
