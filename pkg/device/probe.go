@@ -165,6 +165,11 @@ func (d Device) deniedReason() string {
 	return reason
 }
 
+// Available denotes if the device is available for initialization
+func (d Device) Available() bool {
+	return d.deniedReason() == ""
+}
+
 // ToNodeDevice constructs the NodeDevice object from Device info.
 func (d Device) ToNodeDevice(nodeID directpvtypes.NodeID) types.Device {
 	return types.Device{

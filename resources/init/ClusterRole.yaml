@@ -1,0 +1,28 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  creationTimestamp: null
+  labels:
+    directpv.min.io/created-by: bulk-init
+    directpv.min.io/version: v1beta1
+  name: directpv-bulk-init
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - directpv.min.io
+  resources:
+  - directpvdrives
+  verbs:
+  - create
+  - get

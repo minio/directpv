@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - Namespace.yaml
+  - directpvdrives.directpv.min.io.yaml
+  - ClusterRole.yaml
+  - ClusterRoleBinding.yaml
+  - ServiceAccount.yaml
+  - Job.yaml
+
+images:
+  - name: quay.io/minio/directpv
+    digest: sha256:83fd05fe114ed15c3975333c90cbe18c782d9c4d5c7ad6fdb8cc835e380ba505

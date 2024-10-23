@@ -1,0 +1,71 @@
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    directpv.min.io/created-by: bulk-init
+    directpv.min.io/version: v1beta1
+  name: bulk-init
+  namespace: directpv
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    metadata:
+      name: bulk-init
+      namespace: directpv
+    spec:
+      containers:
+      - args:
+        - bulk-init
+        - -v=3
+        - --kube-node-name=$(KUBE_NODE_NAME)
+        - --drives=$(DRIVE_ELLIPSES)
+        env:
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        image: quay.io/minio/directpv@sha256:83fd05fe114ed15c3975333c90cbe18c782d9c4d5c7ad6fdb8cc835e380ba505
+        name: bulk-init
+        resources: {}
+        securityContext:
+          privileged: true
+        terminationMessagePath: /var/log/driver-termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /var/lib/directpv/
+          mountPropagation: Bidirectional
+          name: directpv-common-root
+        - mountPath: /sys
+          mountPropagation: Bidirectional
+          name: sysfs
+        - mountPath: /dev
+          mountPropagation: HostToContainer
+          name: devfs
+          readOnly: true
+        - mountPath: /run/udev/data
+          mountPropagation: Bidirectional
+          name: run-udev-data-dir
+          readOnly: true
+      restartPolicy: Never
+      hostPID: true
+      serviceAccountName: directpv-bulk-init
+      volumes:
+      - hostPath:
+          path: /var/lib/directpv/
+          type: DirectoryOrCreate
+        name: directpv-common-root
+      - hostPath:
+          path: /sys
+          type: DirectoryOrCreate
+        name: sysfs
+      - hostPath:
+          path: /dev
+          type: DirectoryOrCreate
+        name: devfs
+      - hostPath:
+          path: /run/udev/data
+          type: DirectoryOrCreate
+        name: run-udev-data-dir
