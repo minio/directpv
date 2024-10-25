@@ -3,6 +3,8 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   creationTimestamp: null
+  annotations:
+    directpv.min.io/image-tag: v4.1.4
   labels:
     application-name: directpv.min.io
     application-type: CSIDriver
