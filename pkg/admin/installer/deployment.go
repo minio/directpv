@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -206,7 +207,10 @@ func (t deploymentTask) doCreateDeployment(ctx context.Context, args *Args, lega
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    defaultLabels,
+			Annotations: map[string]string{
+				string(directpvtypes.ImageTagLabelKey): args.imageTag,
+			},
+			Labels: defaultLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
