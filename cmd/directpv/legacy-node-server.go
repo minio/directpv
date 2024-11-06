@@ -33,6 +33,7 @@ var legacyNodeServerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, _ []string) error {
+		klog.InfoS("Starting DirectPV legacy node server", "version", Version)
 		return startLegacyNodeServer(c.Context())
 	},
 }

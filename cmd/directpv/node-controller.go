@@ -26,6 +26,7 @@ import (
 	"github.com/minio/directpv/pkg/node"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 )
 
 var nodeControllerCmd = &cobra.Command{
@@ -34,6 +35,7 @@ var nodeControllerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, _ []string) error {
+		klog.InfoS("Starting DirectPV node controller", "version", Version)
 		if err := sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 			return err
 		}
