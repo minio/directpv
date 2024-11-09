@@ -22,7 +22,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/dustin/go-humanize"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
@@ -63,7 +62,7 @@ func printableBytes(value int64) string {
 		return "-"
 	}
 
-	return humanize.IBytes(uint64(value))
+	return utils.IBytes(uint64(value))
 }
 
 func newTableWriter(header table.Row, sortBy []table.SortBy, noHeader bool) table.Writer {

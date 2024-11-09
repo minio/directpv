@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -91,8 +91,8 @@ func infoMain(ctx context.Context) {
 		} else {
 			writer.AppendRow([]interface{}{
 				fmt.Sprintf("%s %s", color.GreenString(dot), n),
-				humanize.IBytes(info.DriveSize),
-				humanize.IBytes(info.VolumeSize),
+				utils.IBytes(info.DriveSize),
+				utils.IBytes(info.VolumeSize),
 				fmt.Sprintf("%d", info.VolumeCount),
 				fmt.Sprintf("%d", info.DriveCount),
 			})
@@ -104,8 +104,8 @@ func infoMain(ctx context.Context) {
 		if len(nodeInfoMap) > 0 {
 			fmt.Printf(
 				"\n%s/%s used, %s volumes, %s drives\n",
-				humanize.IBytes(totalVolumeSize),
-				humanize.IBytes(totalDriveSize),
+				utils.IBytes(totalVolumeSize),
+				utils.IBytes(totalDriveSize),
 				color.HiWhiteString("%d", totalVolumeCount),
 				color.HiWhiteString("%d", totalDriveCount),
 			)
