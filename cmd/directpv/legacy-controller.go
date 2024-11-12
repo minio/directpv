@@ -33,6 +33,7 @@ var legacyControllerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, _ []string) error {
+		klog.InfoS("Starting DirectPV legacy controller server", "version", Version)
 		return startLegacyController(c.Context())
 	},
 }
