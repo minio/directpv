@@ -29,7 +29,10 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var uuidRegex = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+var (
+	uuidRegex = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+	byteUnits = []string{"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"}
+)
 
 // IsUUID checks whether value is UUID string.
 func IsUUID(value string) bool {
@@ -161,4 +164,25 @@ func ToLabelValues(slice []string) (values []directpvtypes.LabelValue) {
 		values = append(values, directpvtypes.ToLabelValue(s))
 	}
 	return
+}
+
+// IBytes produces a human readable representation of an IEC size rounding to two decimal places.
+func IBytes(ui64 uint64) string {
+	value := ui64
+	base := uint64(1)
+	var unit string
+	for _, unit = range byteUnits {
+		if value < 1024 {
+			break
+		}
+		value /= 1024
+		base *= 1024
+	}
+	reminder := float64(ui64-(value*base)) / float64(base)
+
+	rounded := uint64(100 * reminder)
+	if rounded != 0 {
+		return fmt.Sprintf("%v.%v %v", value, rounded, unit)
+	}
+	return fmt.Sprintf("%v %v", value, unit)
 }

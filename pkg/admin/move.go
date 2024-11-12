@@ -98,8 +98,8 @@ func (client *Client) Move(ctx context.Context, args MoveArgs, log LogFunc) erro
 
 	if destDrive.Status.FreeCapacity < requiredCapacity {
 		return fmt.Errorf("insufficient free capacity on destination drive; required=%v free=%v",
-			humanize.IBytes(uint64(requiredCapacity)),
-			humanize.IBytes(uint64(destDrive.Status.FreeCapacity)))
+			humanize.Comma(requiredCapacity),
+			humanize.Comma(destDrive.Status.FreeCapacity))
 	}
 
 	for _, volume := range volumes {
