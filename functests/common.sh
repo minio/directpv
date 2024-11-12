@@ -151,7 +151,7 @@ resources:
 
 images:
   - name: quay.io/minio/directpv
-    newTag: ${VERSION}
+    newTag: "${VERSION}"
 EOF
 
     kubectl kustomize | kubectl apply -f -

@@ -17,9 +17,6 @@
 package k8s
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
 	"sync/atomic"
 
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
@@ -34,6 +31,11 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
+var (
+	initialized   int32
+	defaultClient *Client
+)
+
 // Init initializes various client interfaces.
 func Init() error {
 	if atomic.AddInt32(&initialized, 1) != 1 {
@@ -44,71 +46,44 @@ func Init() error {
 		klog.Fatalf("unable to get kubernetes configuration; %v", err)
 	}
 	kubeConfig.WarningHandler = rest.NoWarnings{}
-	client, err = NewClient(kubeConfig)
+	defaultClient, err = NewClient(kubeConfig)
 	if err != nil {
 		klog.Fatalf("unable to create new kubernetes client interface; %v", err)
 	}
 	return nil
 }
 
-// Client represents the kubernetes client set.
-type Client struct {
-	KubeConfig          *rest.Config
-	KubeClient          kubernetes.Interface
-	APIextensionsClient apiextensions.ApiextensionsV1Interface
-	CRDClient           apiextensions.CustomResourceDefinitionInterface
-	DiscoveryClient     discovery.DiscoveryInterface
+// GetClient returns the default global kubernetes client bundle.
+// The default global kubernetes client is created by Init() and should be used internally.
+// For common usage, create your own client by NewClient().
+func GetClient() *Client {
+	return defaultClient
 }
 
-// GetKubeVersion returns the k8s version info
-func (client Client) GetKubeVersion() (major, minor uint, err error) {
-	versionInfo, err := client.DiscoveryClient.ServerVersion()
-	if err != nil {
-		return 0, 0, err
-	}
-
-	var u64 uint64
-	if u64, err = strconv.ParseUint(versionInfo.Major, 10, 64); err != nil {
-		return 0, 0, fmt.Errorf("unable to parse major version %v; %v", versionInfo.Major, err)
-	}
-	major = uint(u64)
-
-	minorString := versionInfo.Minor
-	if strings.Contains(versionInfo.GitVersion, "-eks-") {
-		// Do trimming only for EKS.
-		// Refer https://github.com/aws/containers-roadmap/issues/1404
-		i := strings.IndexFunc(minorString, func(r rune) bool { return r < '0' || r > '9' })
-		if i > -1 {
-			minorString = minorString[:i]
-		}
-	}
-	if u64, err = strconv.ParseUint(minorString, 10, 64); err != nil {
-		return 0, 0, fmt.Errorf("unable to parse minor version %v; %v", minor, err)
-	}
-	minor = uint(u64)
-	return major, minor, nil
+// KubeConfig gets the default global kubernetes client configuration.
+// Ths function should be used internally.
+// For common usage, create your own client by NewClient().
+func KubeConfig() *rest.Config {
+	return GetClient().KubeConfig
 }
 
-// NewClient initializes the client with the provided kube config.
-func NewClient(kubeConfig *rest.Config) (*Client, error) {
-	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create new kubernetes client interface; %v", err)
-	}
-	apiextensionsClient, err := apiextensions.NewForConfig(kubeConfig)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create new API extensions client interface; %v", err)
-	}
-	crdClient := apiextensionsClient.CustomResourceDefinitions()
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeConfig)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create new discovery client interface; %v", err)
-	}
-	return &Client{
-		KubeConfig:          kubeConfig,
-		KubeClient:          kubeClient,
-		APIextensionsClient: apiextensionsClient,
-		CRDClient:           crdClient,
-		DiscoveryClient:     discoveryClient,
-	}, nil
+// KubeClient gets the default global kubernetes client.
+// Ths function should be used internally.
+// For common usage, create your own client by NewClient().
+func KubeClient() kubernetes.Interface {
+	return GetClient().KubeClient
+}
+
+// CRDClient gets the default global kubernetes CRD client.
+// Ths function should be used internally.
+// For common usage, create your own client by NewClient().
+func CRDClient() apiextensions.CustomResourceDefinitionInterface {
+	return GetClient().CRDClient
+}
+
+// DiscoveryClient gets the default global kubernetes discovery client.
+// Ths function should be used internally.
+// For common usage, create your own client by NewClient().
+func DiscoveryClient() discovery.DiscoveryInterface {
+	return GetClient().DiscoveryClient
 }

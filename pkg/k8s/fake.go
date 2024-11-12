@@ -57,7 +57,7 @@ func FakeInit() {
 	discoveryClient := &discoveryfake.FakeDiscovery{}
 	scheme := runtime.NewScheme()
 	_ = metav1.AddMetaToScheme(scheme)
-	client = &Client{
+	defaultClient = &Client{
 		KubeClient:      kubeClient,
 		CRDClient:       crdClient,
 		DiscoveryClient: discoveryClient,
@@ -67,14 +67,14 @@ func FakeInit() {
 // SetKubeInterface sets the given kube interface
 // Note: To be used for writing test cases only
 func SetKubeInterface(i kubernetes.Interface) {
-	client.KubeClient = i
+	defaultClient.KubeClient = i
 }
 
 // NewFakeDiscovery creates a fake discovery interface
 // Note: To be used for writing test cases only
 func NewFakeDiscovery(groupsAndMethodsFn fakeServerGroupsAndResourcesMethod, serverVersionInfo *version.Info) *FakeDiscovery {
 	return &FakeDiscovery{
-		FakeDiscovery:                      discoveryfake.FakeDiscovery{Fake: &client.KubeClient.(*kubernetesfake.Clientset).Fake},
+		FakeDiscovery:                      discoveryfake.FakeDiscovery{Fake: &defaultClient.KubeClient.(*kubernetesfake.Clientset).Fake},
 		fakeServerGroupsAndResourcesMethod: groupsAndMethodsFn,
 		versionInfo:                        serverVersionInfo,
 	}
