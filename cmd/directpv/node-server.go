@@ -41,6 +41,7 @@ var nodeServerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, _ []string) error {
+		klog.InfoS("Starting DirectPV node server", "version", Version)
 		if err := sys.Mkdir(consts.MountRootDir, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
 			return err
 		}

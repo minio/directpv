@@ -33,6 +33,7 @@ var controllerCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, _ []string) error {
+		klog.InfoS("Starting DirectPV controller server", "version", Version)
 		return startController(c.Context())
 	},
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/minio/directpv/pkg/types"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -40,6 +41,7 @@ var repairCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(c *cobra.Command, args []string) error {
+		klog.InfoS("Starting DirectPV drive repair", "version", Version, "args", args)
 		switch len(args) {
 		case 0:
 			return errors.New("DRIVE-ID must be provided")
