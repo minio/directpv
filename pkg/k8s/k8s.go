@@ -17,27 +17,22 @@
 package k8s
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path"
 	"strings"
-	"time"
 
-	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
-	storagev1 "k8s.io/api/storage/v1"
-	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
+
+// MaxThreadCount is maximum thread count.
+const MaxThreadCount = 200
 
 // GetKubeConfig gets kubernetes configuration from command line argument,
 // ~/.kube/config or in-cluster configuration.
@@ -61,58 +56,6 @@ func GetKubeConfig() (*rest.Config, error) {
 	config.QPS = float32(MaxThreadCount / 2)
 	config.Burst = MaxThreadCount
 	return config, nil
-}
-
-// GetGroupVersionKind gets group/version/kind of given versions.
-func (client Client) GetGroupVersionKind(group, kind string, versions ...string) (*schema.GroupVersionKind, error) {
-	apiGroupResources, err := restmapper.GetAPIGroupResources(client.DiscoveryClient)
-	if err != nil {
-		klog.ErrorS(err, "unable to get API group resources")
-		return nil, err
-	}
-	restMapper := restmapper.NewDiscoveryRESTMapper(apiGroupResources)
-	mapper, err := restMapper.RESTMapping(
-		schema.GroupKind{
-			Group: group,
-			Kind:  kind,
-		},
-		versions...,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &schema.GroupVersionKind{
-		Group:   mapper.Resource.Group,
-		Version: mapper.Resource.Version,
-		Kind:    mapper.Resource.Resource,
-	}, nil
-}
-
-// GetClientForNonCoreGroupVersionKind gets client for group/kind of given versions.
-func (client Client) GetClientForNonCoreGroupVersionKind(group, kind string, versions ...string) (rest.Interface, *schema.GroupVersionKind, error) {
-	gvk, err := client.GetGroupVersionKind(group, kind, versions...)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	config := *client.KubeConfig
-	config.GroupVersion = &schema.GroupVersion{
-		Group:   gvk.Group,
-		Version: gvk.Version,
-	}
-	config.APIPath = "/apis"
-	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-	if config.UserAgent == "" {
-		config.UserAgent = rest.DefaultKubernetesUserAgent()
-	}
-
-	restClient, err := rest.RESTClientFor(&config)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return restClient, gvk, nil
 }
 
 // IsCondition checks whether type/status/reason/message in conditions or not.
@@ -196,59 +139,6 @@ func SanitizeResourceName(name string) string {
 	}
 
 	return string(result)
-}
-
-// GetCSINodes fetches the CSI Node list
-func (client Client) GetCSINodes(ctx context.Context) (nodes []string, err error) {
-	storageClient, gvk, err := client.GetClientForNonCoreGroupVersionKind("storage.k8s.io", "CSINode", "v1", "v1beta1", "v1alpha1")
-	if err != nil {
-		return nil, err
-	}
-
-	switch gvk.Version {
-	case "v1apha1":
-		err = fmt.Errorf("unsupported CSINode storage.k8s.io/v1alpha1")
-	case "v1":
-		result := &storagev1.CSINodeList{}
-		if err = storageClient.Get().
-			Resource("csinodes").
-			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
-			Timeout(10 * time.Second).
-			Do(ctx).
-			Into(result); err != nil {
-			err = fmt.Errorf("unable to get csinodes; %w", err)
-			break
-		}
-		for _, csiNode := range result.Items {
-			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == consts.Identity {
-					nodes = append(nodes, csiNode.Name)
-					break
-				}
-			}
-		}
-	case "v1beta1":
-		result := &storagev1beta1.CSINodeList{}
-		if err = storageClient.Get().
-			Resource(gvk.Kind).
-			VersionedParams(&metav1.ListOptions{}, scheme.ParameterCodec).
-			Timeout(10 * time.Second).
-			Do(ctx).
-			Into(result); err != nil {
-			err = fmt.Errorf("unable to get csinodes; %w", err)
-			break
-		}
-		for _, csiNode := range result.Items {
-			for _, driver := range csiNode.Spec.Drivers {
-				if driver.Name == consts.Identity {
-					nodes = append(nodes, csiNode.Name)
-					break
-				}
-			}
-		}
-	}
-
-	return nodes, err
 }
 
 // ParseNodeSelector parses the provided node selector values
