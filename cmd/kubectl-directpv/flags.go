@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
@@ -31,16 +30,16 @@ import (
 var errInvalidLabel = errors.New("invalid label")
 
 var driveStatusValues = []string{
-	strings.ToLower(string(directpvtypes.DriveStatusError)),
-	strings.ToLower(string(directpvtypes.DriveStatusLost)),
-	strings.ToLower(string(directpvtypes.DriveStatusMoving)),
-	strings.ToLower(string(directpvtypes.DriveStatusReady)),
-	strings.ToLower(string(directpvtypes.DriveStatusRemoved)),
+	strings.ToLower(string(types.DriveStatusError)),
+	strings.ToLower(string(types.DriveStatusLost)),
+	strings.ToLower(string(types.DriveStatusMoving)),
+	strings.ToLower(string(types.DriveStatusReady)),
+	strings.ToLower(string(types.DriveStatusRemoved)),
 }
 
 var volumeStatusValues = []string{
-	strings.ToLower(string(directpvtypes.VolumeStatusPending)),
-	strings.ToLower(string(directpvtypes.VolumeStatusReady)),
+	strings.ToLower(string(types.VolumeStatusPending)),
+	strings.ToLower(string(types.VolumeStatusReady)),
 }
 
 var (
@@ -132,10 +131,10 @@ func setFlagOpts(cmd *cobra.Command) {
 var (
 	wideOutput bool
 
-	driveStatusSelectors  []directpvtypes.DriveStatus
-	driveIDSelectors      []directpvtypes.DriveID
-	volumeStatusSelectors []directpvtypes.VolumeStatus
-	labelSelectors        map[directpvtypes.LabelKey]directpvtypes.LabelValue
+	driveStatusSelectors  []types.DriveStatus
+	driveIDSelectors      []types.DriveID
+	volumeStatusSelectors []types.VolumeStatus
+	labelSelectors        map[types.LabelKey]types.LabelValue
 
 	dryRunPrinter func(interface{})
 )
@@ -181,7 +180,7 @@ func validateDriveNameArgs() error {
 func validateDriveStatusArgs() error {
 	for i := range driveStatusArgs {
 		driveStatusArgs[i] = strings.TrimSpace(driveStatusArgs[i])
-		status, err := directpvtypes.ToDriveStatus(driveStatusArgs[i])
+		status, err := types.ToDriveStatus(driveStatusArgs[i])
 		if err != nil {
 			return err
 		}
@@ -199,7 +198,7 @@ func validateDriveIDArgs() error {
 		if !utils.IsUUID(driveIDArgs[i]) {
 			return fmt.Errorf("invalid drive ID %v", driveIDArgs[i])
 		}
-		driveIDSelectors = append(driveIDSelectors, directpvtypes.DriveID(driveIDArgs[i]))
+		driveIDSelectors = append(driveIDSelectors, types.DriveID(driveIDArgs[i]))
 	}
 	return nil
 }
@@ -255,7 +254,7 @@ func validateVolumeNameArgs() error {
 func validateVolumeStatusArgs() error {
 	for i := range volumeStatusArgs {
 		volumeStatusArgs[i] = strings.TrimSpace(volumeStatusArgs[i])
-		status, err := directpvtypes.ToVolumeStatus(volumeStatusArgs[i])
+		status, err := types.ToVolumeStatus(volumeStatusArgs[i])
 		if err != nil {
 			return err
 		}
@@ -266,7 +265,7 @@ func validateVolumeStatusArgs() error {
 
 func validateLabelArgs() error {
 	if labelSelectors == nil {
-		labelSelectors = make(map[directpvtypes.LabelKey]directpvtypes.LabelValue)
+		labelSelectors = make(map[types.LabelKey]types.LabelValue)
 	}
 	for i := range labelArgs {
 		tokens := strings.Split(labelArgs[i], "=")
