@@ -31,7 +31,6 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -167,7 +166,7 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 	defer cancel()
 
 	eventCh, stop, err := adminClient.NewInitRequestLister().
-		RequestIDSelector(utils.ToLabelValues([]string{requestID})).
+		RequestIDSelector(directpvtypes.ToLabelValues([]string{requestID})).
 		Watch(ctx)
 	if err != nil {
 		return nil, err
@@ -235,7 +234,7 @@ func initMain(ctx context.Context, inputFile string) {
 	}
 	defer func() {
 		labelMap := map[directpvtypes.LabelKey][]directpvtypes.LabelValue{
-			directpvtypes.RequestIDLabelKey: utils.ToLabelValues([]string{requestID}),
+			directpvtypes.RequestIDLabelKey: directpvtypes.ToLabelValues([]string{requestID}),
 		}
 		adminClient.InitRequest().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 			LabelSelector: directpvtypes.ToLabelSelector(labelMap),

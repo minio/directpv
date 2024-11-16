@@ -32,7 +32,6 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -255,7 +254,7 @@ func discoverDevices(ctx context.Context, nodes, drives []string, teaProgram *te
 	defer cancel()
 
 	eventCh, stop, err := adminClient.NewNodeLister().
-		NodeSelector(utils.ToLabelValues(nodes)).
+		NodeSelector(directpvtypes.ToLabelValues(nodes)).
 		Watch(ctx)
 	if err != nil {
 		return nil, err

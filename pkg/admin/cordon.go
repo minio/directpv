@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,8 +52,8 @@ func (client *Client) Cordon(ctx context.Context, args CordonArgs, log LogFunc) 
 	defer cancelFunc()
 
 	resultCh := client.NewDriveLister().
-		NodeSelector(utils.ToLabelValues(args.Nodes)).
-		DriveNameSelector(utils.ToLabelValues(args.Drives)).
+		NodeSelector(directpvtypes.ToLabelValues(args.Nodes)).
+		DriveNameSelector(directpvtypes.ToLabelValues(args.Drives)).
 		StatusSelector(args.Status).
 		DriveIDSelector(args.DriveIDs).
 		List(ctx)

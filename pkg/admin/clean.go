@@ -22,7 +22,6 @@ import (
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,11 +49,11 @@ func (client *Client) Clean(ctx context.Context, args CleanArgs, log LogFunc) (r
 	defer cancelFunc()
 
 	resultCh := client.NewVolumeLister().
-		NodeSelector(utils.ToLabelValues(args.Nodes)).
-		DriveNameSelector(utils.ToLabelValues(args.Drives)).
-		DriveIDSelector(utils.ToLabelValues(args.DriveIDs)).
-		PodNameSelector(utils.ToLabelValues(args.PodNames)).
-		PodNSSelector(utils.ToLabelValues(args.PodNamespaces)).
+		NodeSelector(directpvtypes.ToLabelValues(args.Nodes)).
+		DriveNameSelector(directpvtypes.ToLabelValues(args.Drives)).
+		DriveIDSelector(directpvtypes.ToLabelValues(args.DriveIDs)).
+		PodNameSelector(directpvtypes.ToLabelValues(args.PodNames)).
+		PodNSSelector(directpvtypes.ToLabelValues(args.PodNamespaces)).
 		StatusSelector(args.VolumeStatus).
 		VolumeNameSelector(args.VolumeNames).
 		List(ctx)
