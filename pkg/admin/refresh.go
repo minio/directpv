@@ -23,7 +23,6 @@ import (
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
@@ -35,7 +34,7 @@ func (client *Client) RefreshNodes(ctx context.Context, selectedNodes []string) 
 	}
 
 	nodes, err := client.NewNodeLister().
-		NodeSelector(utils.ToLabelValues(selectedNodes)).
+		NodeSelector(directpvtypes.ToLabelValues(selectedNodes)).
 		Get(ctx)
 	if err != nil {
 		return nil, nil, err
