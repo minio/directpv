@@ -23,7 +23,6 @@ import (
 
 	"github.com/minio/directpv/pkg/k8s"
 	directcsi "github.com/minio/directpv/pkg/legacy/apis/direct.csi.min.io/v1beta5"
-	directv1beta5 "github.com/minio/directpv/pkg/legacy/apis/direct.csi.min.io/v1beta5"
 	typeddirectcsi "github.com/minio/directpv/pkg/legacy/clientset/typed/direct.csi.min.io/v1beta5"
 	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,7 +98,7 @@ func GetClient() *Client {
 
 // RemoveAllDrives removes legacy drive CRDs.
 func (client Client) RemoveAllDrives(ctx context.Context, backupFile string) (backupCreated bool, err error) {
-	var drives []directv1beta5.DirectCSIDrive
+	var drives []directcsi.DirectCSIDrive
 	for result := range client.ListDrives(ctx) {
 		if result.Err != nil {
 			return false, fmt.Errorf("unable to get legacy drives; %w", result.Err)
@@ -110,7 +109,7 @@ func (client Client) RemoveAllDrives(ctx context.Context, backupFile string) (ba
 		return false, nil
 	}
 
-	data, err := utils.ToYAML(directv1beta5.DirectCSIDriveList{
+	data, err := utils.ToYAML(directcsi.DirectCSIDriveList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
 			APIVersion: "v1",
@@ -140,7 +139,7 @@ func (client Client) RemoveAllDrives(ctx context.Context, backupFile string) (ba
 
 // RemoveAllVolumes removes legacy volume CRDs.
 func (client Client) RemoveAllVolumes(ctx context.Context, backupFile string) (backupCreated bool, err error) {
-	var volumes []directv1beta5.DirectCSIVolume
+	var volumes []directcsi.DirectCSIVolume
 	for result := range client.ListVolumes(ctx) {
 		if result.Err != nil {
 			return false, fmt.Errorf("unable to get legacy volumes; %w", result.Err)
@@ -151,7 +150,7 @@ func (client Client) RemoveAllVolumes(ctx context.Context, backupFile string) (b
 		return false, nil
 	}
 
-	data, err := utils.ToYAML(directv1beta5.DirectCSIVolumeList{
+	data, err := utils.ToYAML(directcsi.DirectCSIVolumeList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "List",
 			APIVersion: "v1",
