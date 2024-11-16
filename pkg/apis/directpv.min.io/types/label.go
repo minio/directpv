@@ -164,6 +164,14 @@ func ToLabelValue(value string) LabelValue {
 	return result
 }
 
+// ToLabelValues converts a string list to label values
+func ToLabelValues(slice []string) (values []LabelValue) {
+	for _, s := range slice {
+		values = append(values, ToLabelValue(s))
+	}
+	return
+}
+
 // ToLabelSelector converts a map of label key and label value to selector string
 func ToLabelSelector(labels map[LabelKey][]LabelValue) string {
 	selectors := []string{}
