@@ -18,7 +18,9 @@ package types
 
 import (
 	"fmt"
-	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // DriveName is drive name type.
@@ -55,7 +57,7 @@ const (
 
 // ToDriveStatus converts string value to DriveStatus.
 func ToDriveStatus(value string) (status DriveStatus, err error) {
-	status = DriveStatus(strings.Title(value))
+	status = DriveStatus(cases.Title(language.Und).String(value))
 	switch status {
 	case DriveStatusReady, DriveStatusLost, DriveStatusError, DriveStatusRemoved, DriveStatusMoving:
 		return status, nil
@@ -76,7 +78,7 @@ const (
 
 // ToVolumeStatus converts string value to VolumeStatus.
 func ToVolumeStatus(value string) (status VolumeStatus, err error) {
-	status = VolumeStatus(strings.Title(value))
+	status = VolumeStatus(cases.Title(language.Und).String(value))
 	switch status {
 	case VolumeStatusReady, VolumeStatusPending:
 		return status, nil
@@ -100,7 +102,7 @@ const (
 // StringsToAccessTiers converts strings to access tiers.
 func StringsToAccessTiers(values ...string) (accessTiers []AccessTier, err error) {
 	for _, value := range values {
-		switch at := AccessTier(strings.Title(value)); at {
+		switch at := AccessTier(cases.Title(language.Und).String(value)); at {
 		case AccessTierDefault, AccessTierWarm, AccessTierHot, AccessTierCold:
 			accessTiers = append(accessTiers, at)
 		default:
