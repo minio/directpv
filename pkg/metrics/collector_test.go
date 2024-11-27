@@ -112,6 +112,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 	noOfMetricsExposedPerVolume := 2
 	expectedNoOfMetrics := len(testObjects) * noOfMetricsExposedPerVolume
 	noOfMetricsReceived := 0
+	var failed bool
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -126,7 +127,9 @@ func TestVolumeStatsEmitter(t *testing.T) {
 				}
 				metricOut := clientmodelgo.Metric{}
 				if err := metric.Write(&metricOut); err != nil {
-					(*t).Fatal(err)
+					t.Errorf("metric write failed; %v", err)
+					failed = true
+					return
 				}
 				volumeName := getVolumeNameFromLabelPair(metricOut.GetLabel())
 				mt := metricType(getFQNameFromDesc(metric.Desc().String()))
@@ -136,7 +139,9 @@ func TestVolumeStatsEmitter(t *testing.T) {
 						TypeMeta: types.NewVolumeTypeMeta(),
 					})
 					if gErr != nil {
-						(*t).Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
+						t.Errorf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
+						failed = true
+						return
 					}
 					if volObj.Status.UsedCapacity != int64(*metricOut.Gauge.Value) {
 						t.Errorf("Expected Used capacity: %v But got %v", volObj.Status.UsedCapacity, *metricOut.Gauge.Value)
@@ -146,7 +151,9 @@ func TestVolumeStatsEmitter(t *testing.T) {
 						TypeMeta: types.NewVolumeTypeMeta(),
 					})
 					if gErr != nil {
-						(*t).Fatalf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
+						t.Errorf("[%s] Volume (%s) not found. Error: %v", volumeName, volumeName, gErr)
+						failed = true
+						return
 					}
 					if volObj.Status.TotalCapacity != int64(*metricOut.Gauge.Value) {
 						t.Errorf("Expected Total capacity: %v But got %v", volObj.Status.TotalCapacity, *metricOut.Gauge.Value)
@@ -163,7 +170,16 @@ func TestVolumeStatsEmitter(t *testing.T) {
 	}()
 
 	fmc.publishVolumeStats(ctx, &volumes[0], metricChan)
+	if failed {
+		t.Fatalf("publish volume stats failed for %v", volumes[0].Name)
+	}
 	fmc.publishVolumeStats(ctx, &volumes[1], metricChan)
+	if failed {
+		t.Fatalf("publish volume stats failed for %v", volumes[1].Name)
+	}
 
 	wg.Wait()
+	if failed {
+		t.Fatalf("test failed")
+	}
 }

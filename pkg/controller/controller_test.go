@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
@@ -37,7 +38,6 @@ import (
 
 const (
 	nodeID = "test-node"
-	GiB    = 1024 * 1024 * 1024
 )
 
 func init() {
@@ -133,8 +133,8 @@ func TestController(t *testing.T) {
 	}
 
 	volumes := []*pkgtypes.Volume{
-		newVolume("test-volume-1", "1", 2*GiB),
-		newVolume("test-volume-2", "2", 3*GiB),
+		newVolume("test-volume-1", "1", 2*humanize.GiByte),
+		newVolume("test-volume-2", "2", 3*humanize.GiByte),
 	}
 
 	volumesMap := map[string]*pkgtypes.Volume{
@@ -151,8 +151,8 @@ func TestController(t *testing.T) {
 	<-doneCh
 
 	volumes = []*pkgtypes.Volume{
-		newVolume("test-volume-1", "1", 4*GiB),
-		newVolume("test-volume-2", "1", 6*GiB),
+		newVolume("test-volume-1", "1", 4*humanize.GiByte),
+		newVolume("test-volume-2", "1", 6*humanize.GiByte),
 	}
 	volumesMap = map[string]*pkgtypes.Volume{
 		"test-volume-1": volumes[0],
@@ -176,7 +176,7 @@ func TestController(t *testing.T) {
 
 	// Retry on error
 	volumes = []*pkgtypes.Volume{
-		newVolume("test-volume-1", "1", 4*GiB),
+		newVolume("test-volume-1", "1", 4*humanize.GiByte),
 	}
 	volumesMap = map[string]*pkgtypes.Volume{
 		"test-volume-1": volumes[0],
@@ -217,8 +217,8 @@ func TestController(t *testing.T) {
 
 	// Delete
 	volumes = []*pkgtypes.Volume{
-		newVolume("test-volume-1", "1", 4*GiB),
-		newVolume("test-volume-2", "1", 6*GiB),
+		newVolume("test-volume-1", "1", 4*humanize.GiByte),
+		newVolume("test-volume-2", "1", 6*humanize.GiByte),
 	}
 	volumesMap = map[string]*pkgtypes.Volume{
 		"test-volume-1": volumes[0],
