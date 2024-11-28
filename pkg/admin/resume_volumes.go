@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/minio/directpv/pkg/utils"
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
@@ -43,10 +43,10 @@ func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs, 
 	defer cancelFunc()
 
 	resultCh := client.NewVolumeLister().
-		NodeSelector(utils.ToLabelValues(args.Nodes)).
-		DriveNameSelector(utils.ToLabelValues(args.Drives)).
-		PodNameSelector(utils.ToLabelValues(args.PodNames)).
-		PodNSSelector(utils.ToLabelValues(args.PodNamespaces)).
+		NodeSelector(directpvtypes.ToLabelValues(args.Nodes)).
+		DriveNameSelector(directpvtypes.ToLabelValues(args.Drives)).
+		PodNameSelector(directpvtypes.ToLabelValues(args.PodNames)).
+		PodNSSelector(directpvtypes.ToLabelValues(args.PodNamespaces)).
 		VolumeNameSelector(args.VolumeNames).
 		List(ctx)
 	for result := range resultCh {

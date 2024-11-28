@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
@@ -67,11 +66,11 @@ func (client *Client) LabelVolumes(ctx context.Context, args LabelVolumeArgs, la
 
 	var processed bool
 	resultCh := client.NewVolumeLister().
-		NodeSelector(utils.ToLabelValues(args.Nodes)).
-		DriveNameSelector(utils.ToLabelValues(args.Drives)).
-		DriveIDSelector(utils.ToLabelValues(args.DriveIDs)).
-		PodNameSelector(utils.ToLabelValues(args.PodNames)).
-		PodNSSelector(utils.ToLabelValues(args.PodNamespaces)).
+		NodeSelector(directpvtypes.ToLabelValues(args.Nodes)).
+		DriveNameSelector(directpvtypes.ToLabelValues(args.Drives)).
+		DriveIDSelector(directpvtypes.ToLabelValues(args.DriveIDs)).
+		PodNameSelector(directpvtypes.ToLabelValues(args.PodNames)).
+		PodNSSelector(directpvtypes.ToLabelValues(args.PodNamespaces)).
 		StatusSelector(args.VolumeStatus).
 		VolumeNameSelector(args.VolumeNames).
 		LabelSelector(args.LabelSelectors).
