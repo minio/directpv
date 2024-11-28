@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
-	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
@@ -58,8 +57,8 @@ func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs, 
 	defer cancelFunc()
 
 	resultCh := client.NewDriveLister().
-		NodeSelector(utils.ToLabelValues(args.Nodes)).
-		DriveNameSelector(utils.ToLabelValues(args.Drives)).
+		NodeSelector(directpvtypes.ToLabelValues(args.Nodes)).
+		DriveNameSelector(directpvtypes.ToLabelValues(args.Drives)).
 		DriveIDSelector(args.DriveIDSelectors).
 		List(ctx)
 	for result := range resultCh {
