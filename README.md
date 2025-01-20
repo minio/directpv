@@ -43,5 +43,9 @@ Refer [detailed documentation](./docs/README.md)
 ## Join Community
 DirectPV is a MinIO project. You can contact the authors over the [slack channel](https://slack.min.io/)
 
+## Unsupported versions
+* Versions `v1.x`, `v2.x` and `v3.x` of DirectCSI/DirectPV are marked end-of-life and unsupported.
+* DirectPV version `v4.0.x` entered maintenance mode on Jan 01, 2025.
+
 ## License
 DirectPV is released under GNU AGPLv3 license. Refer the [LICENSE document](https://github.com/minio/directpv/blob/master/LICENSE) for a complete copy of the license.
