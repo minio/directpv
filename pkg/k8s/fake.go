@@ -48,11 +48,9 @@ func (fd *FakeDiscovery) ServerGroupsAndResources() ([]*metav1.APIGroup, []*meta
 // FakeInit initializes fake clients.
 func FakeInit() {
 	var kubeClient kubernetes.Interface = kubernetesfake.NewSimpleClientset()
-	crdClient := &apiextensionsv1fake.FakeCustomResourceDefinitions{
-		Fake: &apiextensionsv1fake.FakeApiextensionsV1{
-			Fake: &kubeClient.(*kubernetesfake.Clientset).Fake,
-		},
-	}
+	crdClient := (&apiextensionsv1fake.FakeApiextensionsV1{
+		Fake: &kubeClient.(*kubernetesfake.Clientset).Fake,
+	}).CustomResourceDefinitions()
 	discoveryClient := &discoveryfake.FakeDiscovery{}
 	scheme := runtime.NewScheme()
 	_ = metav1.AddMetaToScheme(scheme)
