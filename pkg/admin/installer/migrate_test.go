@@ -17,7 +17,6 @@
 package installer
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -42,7 +41,7 @@ func TestMigrateDrivesError(t *testing.T) {
 
 	legacyclient.SetDriveClient(legacyclientsetfake.NewSimpleClientset(drive))
 	task := migrateTask{client.GetClient(), legacyclient.GetClient()}
-	driveMap, legacyDriveErrors, driveErrors, err := task.migrateDrives(context.TODO(), false, nil)
+	driveMap, legacyDriveErrors, driveErrors, err := task.migrateDrives(t.Context(), false, nil)
 	if len(driveMap) == 0 && len(legacyDriveErrors) == 0 && len(driveErrors) == 0 && err == nil {
 		t.Fatalf("expected error, but succeeded\n")
 	}
@@ -56,7 +55,7 @@ func TestMigrateDrivesError(t *testing.T) {
 		},
 	}
 	legacyclient.SetDriveClient(legacyclientsetfake.NewSimpleClientset(drive))
-	driveMap, legacyDriveErrors, driveErrors, err = task.migrateDrives(context.TODO(), false, nil)
+	driveMap, legacyDriveErrors, driveErrors, err = task.migrateDrives(t.Context(), false, nil)
 	if len(driveMap) == 0 && len(legacyDriveErrors) == 0 && len(driveErrors) == 0 && err == nil {
 		t.Fatalf("expected error, but succeeded\n")
 	}
@@ -79,7 +78,7 @@ func TestMigrateDrivesError(t *testing.T) {
 		},
 	}
 	legacyclient.SetDriveClient(legacyclientsetfake.NewSimpleClientset(drive1, drive2))
-	driveMap, legacyDriveErrors, driveErrors, err = task.migrateDrives(context.TODO(), false, nil)
+	driveMap, legacyDriveErrors, driveErrors, err = task.migrateDrives(t.Context(), false, nil)
 	if len(driveMap) == 0 && len(legacyDriveErrors) == 0 && len(driveErrors) == 0 && err == nil {
 		t.Fatalf("expected error, but succeeded\n")
 	}
@@ -90,11 +89,11 @@ func TestMigrateNoDrives(t *testing.T) {
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	task := migrateTask{client.GetClient(), legacyclient.GetClient()}
-	_, legacyDriveErrors, driveErrors, err := task.migrateDrives(context.TODO(), false, nil)
+	_, legacyDriveErrors, driveErrors, err := task.migrateDrives(t.Context(), false, nil)
 	if len(legacyDriveErrors) != 0 || len(driveErrors) != 0 || err != nil {
 		t.Fatalf("unexpected error; %v\n", err)
 	}
-	driveList, err := client.DriveClient().List(context.TODO(), metav1.ListOptions{})
+	driveList, err := client.DriveClient().List(t.Context(), metav1.ListOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		t.Fatalf("unexpected error; %v\n", err)
 	}
@@ -116,11 +115,11 @@ func TestMigrateNoDrives(t *testing.T) {
 	clientset = types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 
-	_, legacyDriveErrors, driveErrors, err = task.migrateDrives(context.TODO(), false, nil)
+	_, legacyDriveErrors, driveErrors, err = task.migrateDrives(t.Context(), false, nil)
 	if len(legacyDriveErrors) != 0 || len(driveErrors) != 0 || err != nil {
 		t.Fatalf("unexpected error; %v\n", err)
 	}
-	driveList, err = client.DriveClient().List(context.TODO(), metav1.ListOptions{})
+	driveList, err = client.DriveClient().List(t.Context(), metav1.ListOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		t.Fatalf("unexpected error; %v\n", err)
 	}
@@ -206,7 +205,7 @@ func TestMigrateReadyDrive(t *testing.T) {
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	task := migrateTask{client.GetClient(), legacyclient.GetClient()}
-	driveMap, legacyDriveErrors, driveErrors, err := task.migrateDrives(context.TODO(), false, nil)
+	driveMap, legacyDriveErrors, driveErrors, err := task.migrateDrives(t.Context(), false, nil)
 	if len(legacyDriveErrors) != 0 || len(driveErrors) != 0 || err != nil {
 		t.Fatalf("unexpected error; %v, %v, %v\n", legacyDriveErrors, driveErrors, err)
 	}
@@ -214,7 +213,7 @@ func TestMigrateReadyDrive(t *testing.T) {
 		t.Fatalf("empty drive map\n")
 	}
 
-	result, err := client.DriveClient().Get(context.TODO(), "08450612-7ab3-40f9-ab83-38645fba6d29", metav1.GetOptions{})
+	result, err := client.DriveClient().Get(t.Context(), "08450612-7ab3-40f9-ab83-38645fba6d29", metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error; %v\n", err)
 	}
@@ -342,7 +341,7 @@ func TestMigrateInUseDrive(t *testing.T) {
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset())
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	task := migrateTask{client.GetClient(), legacyclient.GetClient()}
-	driveMap, legacyDriveErrors, driveErrors, err := task.migrateDrives(context.TODO(), false, nil)
+	driveMap, legacyDriveErrors, driveErrors, err := task.migrateDrives(t.Context(), false, nil)
 	if len(legacyDriveErrors) != 0 || len(driveErrors) != 0 || err != nil {
 		t.Fatalf("unexpected error; %v, %v, %v\n", legacyDriveErrors, driveErrors, err)
 	}
@@ -350,7 +349,7 @@ func TestMigrateInUseDrive(t *testing.T) {
 		t.Fatalf("empty drive map\n")
 	}
 
-	result, err := client.DriveClient().Get(context.TODO(), "08450612-7ab3-40f9-ab83-38645fba6d29", metav1.GetOptions{})
+	result, err := client.DriveClient().Get(t.Context(), "08450612-7ab3-40f9-ab83-38645fba6d29", metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error; %v\n", err)
 	}
@@ -454,7 +453,7 @@ func TestMigrateVolumes(t *testing.T) {
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 	task := migrateTask{client.GetClient(), legacyclient.GetClient()}
 	legacyVolumeErrors, volumeErrors, err := task.migrateVolumes(
-		context.TODO(),
+		t.Context(),
 		map[string]string{"08450612-7ab3-40f9-ab83-38645fba6d29": "a9908089-96dd-4e8b-8f06-0c0b5e391f39"},
 		false,
 		nil,
@@ -463,7 +462,7 @@ func TestMigrateVolumes(t *testing.T) {
 		t.Fatalf("unexpected error; %v, %v, %v\n", legacyVolumeErrors, volumeErrors, err)
 	}
 
-	result, err := client.VolumeClient().Get(context.TODO(), "pvc-009bfc49-4a66-4055-9f19-bd039cc3b4f5", metav1.GetOptions{})
+	result, err := client.VolumeClient().Get(t.Context(), "pvc-009bfc49-4a66-4055-9f19-bd039cc3b4f5", metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error; %v\n", err)
 	}
@@ -493,7 +492,7 @@ func TestMigrateVolumes(t *testing.T) {
 
 	// no fsuuid found error
 	legacyclient.SetVolumeClient(legacyclientsetfake.NewSimpleClientset(volume))
-	legacyVolumeErrors, volumeErrors, err = task.migrateVolumes(context.TODO(), map[string]string{}, false, nil)
+	legacyVolumeErrors, volumeErrors, err = task.migrateVolumes(t.Context(), map[string]string{}, false, nil)
 	if len(legacyVolumeErrors) == 0 && len(volumeErrors) == 0 && err == nil {
 		t.Fatalf("expected error; but succeeded\n")
 	}

@@ -100,7 +100,7 @@ func TestVolumeStatsEmitter(t *testing.T) {
 	testObjects := []runtime.Object{&volumes[0], &volumes[1]}
 
 	var wg sync.WaitGroup
-	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
 	fmc := createFakeMetricsCollector()
