@@ -17,7 +17,7 @@ release:
 
 before:
   hooks:
-    - go mod tidy -compat=1.23
+    - go mod tidy -compat=1.24
     - go mod download
 
 builds:
@@ -64,7 +64,7 @@ builds:
 
 archives:
   - allow_different_binary_count: true
-    format: binary
+    formats: [ 'binary' ]
 
 changelog:
   sort: asc

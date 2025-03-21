@@ -17,7 +17,6 @@
 package controller
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -481,7 +480,7 @@ func TestGetFilteredDrives(t *testing.T) {
 	for i, testCase := range testCases {
 		clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testCase.objects...))
 		client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-		result, err := getFilteredDrives(context.TODO(), testCase.request)
+		result, err := getFilteredDrives(t.Context(), testCase.request)
 		if err != nil {
 			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
@@ -553,7 +552,7 @@ func TestGetDrive(t *testing.T) {
 		client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 		client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-		result, err := selectDrive(context.TODO(), testCase.request)
+		result, err := selectDrive(t.Context(), testCase.request)
 		if err != nil && !testCase.expectErr {
 			t.Fatalf("case %v: unable to select drive; %v", i+1, err)
 		}
@@ -602,7 +601,7 @@ func TestGetDrive(t *testing.T) {
 
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(objects...))
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
-	result, err := selectDrive(context.TODO(), request)
+	result, err := selectDrive(t.Context(), request)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

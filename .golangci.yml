@@ -1,9 +1,9 @@
 linters-settings:
-run:
-  go: "1.23"
-
   misspell:
     locale: US
+
+run:
+  go: "1.24"
 
 linters:
   disable-all: true
@@ -20,7 +20,7 @@ linters:
     - unused
     - gocritic
     - gofumpt
-    - tenv
+    - usetesting
     - durationcheck
     - staticcheck
 
@@ -30,6 +30,3 @@ issues:
     - should have a package comment
     - exitAfterDefer
     - redefines-builtin-id
-
-service:
-  golangci-lint-version: 1.62.0 # use the fixed version to not introduce new linters unexpectedly

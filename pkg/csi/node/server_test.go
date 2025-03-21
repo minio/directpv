@@ -49,7 +49,7 @@ func TestNodeExpandVolume(t *testing.T) {
 		return nil
 	}
 
-	if _, err := nodeServer.NodeExpandVolume(context.TODO(), &csi.NodeExpandVolumeRequest{
+	if _, err := nodeServer.NodeExpandVolume(t.Context(), &csi.NodeExpandVolumeRequest{
 		VolumeId:      volumeID,
 		VolumePath:    "volume-id-1-volume-path",
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 100 * MiB},

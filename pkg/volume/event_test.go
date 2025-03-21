@@ -87,7 +87,7 @@ func TestVolumeEventHandlerHandle(t *testing.T) {
 	}
 
 	vl := createFakeVolumeEventListener("test-node")
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	clientset1 := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testDriveObject))
 	client.SetDriveInterface(clientset1.DirectpvLatest().DirectPVDrives())
@@ -171,7 +171,7 @@ func TestAbnormalDeleteEventHandle(t *testing.T) {
 	testVolumeObject.Status.DataPath = "data/path"
 
 	vl := createFakeVolumeEventListener("test-node")
-	ctx := context.TODO()
+	ctx := t.Context()
 
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testVolumeObject))
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
@@ -232,19 +232,19 @@ func TestSync(t *testing.T) {
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	volume, err := client.VolumeClient().Get(context.TODO(), volume.Name, metav1.GetOptions{
+	volume, err := client.VolumeClient().Get(t.Context(), volume.Name, metav1.GetOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	})
 	if err != nil {
 		t.Fatalf("Volume (%s) not found; %v", volume.Name, err)
 	}
 
-	err = sync(context.TODO(), volume)
+	err = sync(t.Context(), volume)
 	if err != nil {
 		t.Fatalf("unable to sync; %v", err)
 	}
 
-	volume, err = client.VolumeClient().Get(context.TODO(), volume.Name, metav1.GetOptions{
+	volume, err = client.VolumeClient().Get(t.Context(), volume.Name, metav1.GetOptions{
 		TypeMeta: types.NewVolumeTypeMeta(),
 	})
 	if err != nil {

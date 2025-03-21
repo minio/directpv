@@ -17,7 +17,6 @@
 package installer
 
 import (
-	"context"
 	"io"
 	"testing"
 
@@ -125,7 +124,7 @@ func TestInstallUinstall(t *testing.T) {
 		client := client.GetClient()
 		legacyClient := legacyclient.GetClient()
 		client.K8sClient.DiscoveryClient = k8s.NewFakeDiscovery(getDiscoveryGroupsAndMethods, &testVersion)
-		ctx := context.TODO()
+		ctx := t.Context()
 		args := args
 		tasks := GetDefaultTasks(client, legacyClient)
 		if err := Install(ctx, &args, tasks); err != nil {
