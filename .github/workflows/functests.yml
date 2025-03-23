@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         kube-version: ['v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.17', 'v1.24.17', 'v1.25.16', 'v1.26.15', 'v1.27.16', 'v1.28.15', 'v1.29.14', 'v1.30.10', 'v1.31.6', 'v1.32.2']
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-22.04, ubuntu-24.04]
 
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +70,7 @@ jobs:
           while kubectl get nodes --no-headers | grep -vqw Ready; do echo "Waiting for Minikube node to be ready"; sleep 3; done
 
       - name: Enable kustomize
-        if: contains(fromJson('["v1.24.17", "v1.25.16", "v1.26.15", "v1.27.16", "v1.28.15", "v1.29.11", "v1.30.7"]'), matrix.kube-version)
+        if: contains(fromJson('["v1.24.17", "v1.25.16", "v1.26.15", "v1.27.16", "v1.28.15", "v1.29.14"]'), matrix.kube-version)
         run: |
           echo "KUSTOMIZE=true" >> $GITHUB_ENV
 
