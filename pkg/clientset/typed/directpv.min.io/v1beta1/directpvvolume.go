@@ -19,9 +19,9 @@
 package v1beta1
 
 import (
-	"context"
+	context "context"
 
-	v1beta1 "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1"
+	directpvminiov1beta1 "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1"
 	scheme "github.com/minio/directpv/pkg/clientset/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type DirectPVVolumesGetter interface {
 
 // DirectPVVolumeInterface has methods to work with DirectPVVolume resources.
 type DirectPVVolumeInterface interface {
-	Create(ctx context.Context, directPVVolume *v1beta1.DirectPVVolume, opts v1.CreateOptions) (*v1beta1.DirectPVVolume, error)
-	Update(ctx context.Context, directPVVolume *v1beta1.DirectPVVolume, opts v1.UpdateOptions) (*v1beta1.DirectPVVolume, error)
+	Create(ctx context.Context, directPVVolume *directpvminiov1beta1.DirectPVVolume, opts v1.CreateOptions) (*directpvminiov1beta1.DirectPVVolume, error)
+	Update(ctx context.Context, directPVVolume *directpvminiov1beta1.DirectPVVolume, opts v1.UpdateOptions) (*directpvminiov1beta1.DirectPVVolume, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, directPVVolume *v1beta1.DirectPVVolume, opts v1.UpdateOptions) (*v1beta1.DirectPVVolume, error)
+	UpdateStatus(ctx context.Context, directPVVolume *directpvminiov1beta1.DirectPVVolume, opts v1.UpdateOptions) (*directpvminiov1beta1.DirectPVVolume, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1beta1.DirectPVVolume, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1beta1.DirectPVVolumeList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*directpvminiov1beta1.DirectPVVolume, error)
+	List(ctx context.Context, opts v1.ListOptions) (*directpvminiov1beta1.DirectPVVolumeList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.DirectPVVolume, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *directpvminiov1beta1.DirectPVVolume, err error)
 	DirectPVVolumeExpansion
 }
 
 // directPVVolumes implements DirectPVVolumeInterface
 type directPVVolumes struct {
-	*gentype.ClientWithList[*v1beta1.DirectPVVolume, *v1beta1.DirectPVVolumeList]
+	*gentype.ClientWithList[*directpvminiov1beta1.DirectPVVolume, *directpvminiov1beta1.DirectPVVolumeList]
 }
 
 // newDirectPVVolumes returns a DirectPVVolumes
 func newDirectPVVolumes(c *DirectpvV1beta1Client) *directPVVolumes {
 	return &directPVVolumes{
-		gentype.NewClientWithList[*v1beta1.DirectPVVolume, *v1beta1.DirectPVVolumeList](
+		gentype.NewClientWithList[*directpvminiov1beta1.DirectPVVolume, *directpvminiov1beta1.DirectPVVolumeList](
 			"directpvvolumes",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1beta1.DirectPVVolume { return &v1beta1.DirectPVVolume{} },
-			func() *v1beta1.DirectPVVolumeList { return &v1beta1.DirectPVVolumeList{} }),
+			func() *directpvminiov1beta1.DirectPVVolume { return &directpvminiov1beta1.DirectPVVolume{} },
+			func() *directpvminiov1beta1.DirectPVVolumeList { return &directpvminiov1beta1.DirectPVVolumeList{} },
+		),
 	}
 }

@@ -19,120 +19,34 @@
 package fake
 
 import (
-	"context"
-
 	v1beta1 "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	directpvminiov1beta1 "github.com/minio/directpv/pkg/clientset/typed/directpv.min.io/v1beta1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeDirectPVVolumes implements DirectPVVolumeInterface
-type FakeDirectPVVolumes struct {
+// fakeDirectPVVolumes implements DirectPVVolumeInterface
+type fakeDirectPVVolumes struct {
+	*gentype.FakeClientWithList[*v1beta1.DirectPVVolume, *v1beta1.DirectPVVolumeList]
 	Fake *FakeDirectpvV1beta1
 }
 
-var directpvvolumesResource = v1beta1.SchemeGroupVersion.WithResource("directpvvolumes")
-
-var directpvvolumesKind = v1beta1.SchemeGroupVersion.WithKind("DirectPVVolume")
-
-// Get takes name of the directPVVolume, and returns the corresponding directPVVolume object, and an error if there is any.
-func (c *FakeDirectPVVolumes) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.DirectPVVolume, err error) {
-	emptyResult := &v1beta1.DirectPVVolume{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetActionWithOptions(directpvvolumesResource, name, options), emptyResult)
-	if obj == nil {
-		return emptyResult, err
+func newFakeDirectPVVolumes(fake *FakeDirectpvV1beta1) directpvminiov1beta1.DirectPVVolumeInterface {
+	return &fakeDirectPVVolumes{
+		gentype.NewFakeClientWithList[*v1beta1.DirectPVVolume, *v1beta1.DirectPVVolumeList](
+			fake.Fake,
+			"",
+			v1beta1.SchemeGroupVersion.WithResource("directpvvolumes"),
+			v1beta1.SchemeGroupVersion.WithKind("DirectPVVolume"),
+			func() *v1beta1.DirectPVVolume { return &v1beta1.DirectPVVolume{} },
+			func() *v1beta1.DirectPVVolumeList { return &v1beta1.DirectPVVolumeList{} },
+			func(dst, src *v1beta1.DirectPVVolumeList) { dst.ListMeta = src.ListMeta },
+			func(list *v1beta1.DirectPVVolumeList) []*v1beta1.DirectPVVolume {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1beta1.DirectPVVolumeList, items []*v1beta1.DirectPVVolume) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1beta1.DirectPVVolume), err
-}
-
-// List takes label and field selectors, and returns the list of DirectPVVolumes that match those selectors.
-func (c *FakeDirectPVVolumes) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.DirectPVVolumeList, err error) {
-	emptyResult := &v1beta1.DirectPVVolumeList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListActionWithOptions(directpvvolumesResource, directpvvolumesKind, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1beta1.DirectPVVolumeList{ListMeta: obj.(*v1beta1.DirectPVVolumeList).ListMeta}
-	for _, item := range obj.(*v1beta1.DirectPVVolumeList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested directPVVolumes.
-func (c *FakeDirectPVVolumes) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchActionWithOptions(directpvvolumesResource, opts))
-}
-
-// Create takes the representation of a directPVVolume and creates it.  Returns the server's representation of the directPVVolume, and an error, if there is any.
-func (c *FakeDirectPVVolumes) Create(ctx context.Context, directPVVolume *v1beta1.DirectPVVolume, opts v1.CreateOptions) (result *v1beta1.DirectPVVolume, err error) {
-	emptyResult := &v1beta1.DirectPVVolume{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateActionWithOptions(directpvvolumesResource, directPVVolume, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1beta1.DirectPVVolume), err
-}
-
-// Update takes the representation of a directPVVolume and updates it. Returns the server's representation of the directPVVolume, and an error, if there is any.
-func (c *FakeDirectPVVolumes) Update(ctx context.Context, directPVVolume *v1beta1.DirectPVVolume, opts v1.UpdateOptions) (result *v1beta1.DirectPVVolume, err error) {
-	emptyResult := &v1beta1.DirectPVVolume{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateActionWithOptions(directpvvolumesResource, directPVVolume, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1beta1.DirectPVVolume), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeDirectPVVolumes) UpdateStatus(ctx context.Context, directPVVolume *v1beta1.DirectPVVolume, opts v1.UpdateOptions) (result *v1beta1.DirectPVVolume, err error) {
-	emptyResult := &v1beta1.DirectPVVolume{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(directpvvolumesResource, "status", directPVVolume, opts), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1beta1.DirectPVVolume), err
-}
-
-// Delete takes name of the directPVVolume and deletes it. Returns an error if one occurs.
-func (c *FakeDirectPVVolumes) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(directpvvolumesResource, name, opts), &v1beta1.DirectPVVolume{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeDirectPVVolumes) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionActionWithOptions(directpvvolumesResource, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1beta1.DirectPVVolumeList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched directPVVolume.
-func (c *FakeDirectPVVolumes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.DirectPVVolume, err error) {
-	emptyResult := &v1beta1.DirectPVVolume{}
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceActionWithOptions(directpvvolumesResource, name, pt, data, opts, subresources...), emptyResult)
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1beta1.DirectPVVolume), err
 }

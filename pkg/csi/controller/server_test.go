@@ -17,7 +17,6 @@
 package controller
 
 import (
-	"context"
 	"reflect"
 	"testing"
 
@@ -126,7 +125,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		create20MBVolumeRequest("volume-4", "node2"),
 	}
 
-	ctx := context.TODO()
+	ctx := t.Context()
 	cl := NewServer()
 
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testDriveObjects...))
@@ -242,7 +241,7 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 		},
 	}
 
-	ctx := context.TODO()
+	ctx := t1.Context()
 	cl := NewServer()
 
 	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testVolumeObjects...))
@@ -257,7 +256,7 @@ func TestAbnormalDeleteVolume(t1 *testing.T) {
 }
 
 func TestControllerGetCapabilities(t *testing.T) {
-	result, err := NewServer().ControllerGetCapabilities(context.TODO(), nil)
+	result, err := NewServer().ControllerGetCapabilities(t.Context(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +317,7 @@ func TestValidateVolumeCapabilities(t *testing.T) {
 
 	controller := NewServer()
 	for i, testCase := range testCases {
-		result, err := controller.ValidateVolumeCapabilities(context.TODO(), testCase.request)
+		result, err := controller.ValidateVolumeCapabilities(t.Context(), testCase.request)
 		if err != nil {
 			t.Fatalf("case %v: unexpected error: %v", i+1, err)
 		}
@@ -330,19 +329,19 @@ func TestValidateVolumeCapabilities(t *testing.T) {
 }
 
 func TestListVolumes(t *testing.T) {
-	if _, err := NewServer().ListVolumes(context.TODO(), nil); err == nil {
+	if _, err := NewServer().ListVolumes(t.Context(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestControllerPublishVolume(t *testing.T) {
-	if _, err := NewServer().ControllerPublishVolume(context.TODO(), nil); err == nil {
+	if _, err := NewServer().ControllerPublishVolume(t.Context(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
 
 func TestControllerUnpublishVolume(t *testing.T) {
-	if _, err := NewServer().ControllerUnpublishVolume(context.TODO(), nil); err == nil {
+	if _, err := NewServer().ControllerUnpublishVolume(t.Context(), nil); err == nil {
 		t.Fatal("error expected")
 	}
 }
@@ -385,7 +384,7 @@ func TestControllerExpandVolume(t *testing.T) {
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	ctx := context.TODO()
+	ctx := t.Context()
 	server := NewServer()
 	for i, req := range reqs {
 		if _, err := server.ControllerExpandVolume(ctx, req); err != nil {
