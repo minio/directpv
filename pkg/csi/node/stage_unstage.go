@@ -23,7 +23,6 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/drive"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -67,10 +66,7 @@ func (server *Server) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		server.mkdir,
 		server.setQuota,
 		server.bindMount,
-		func() (rootMap map[string]utils.StringSet, err error) {
-			_, rootMap, err = server.getMounts()
-			return
-		},
+		server.getMounts,
 	)
 	if err != nil {
 		return nil, status.Error(code, err.Error())

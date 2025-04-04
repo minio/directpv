@@ -25,7 +25,6 @@ import (
 	"github.com/minio/directpv/pkg/metrics"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/xfs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -44,7 +43,7 @@ type Server struct {
 	zone     string
 	region   string
 
-	getMounts         func() (mountMap, rootMap map[string]utils.StringSet, err error)
+	getMounts         func() (mountInfo *sys.MountInfo, err error)
 	getDeviceByFSUUID func(fsuuid string) (string, error)
 	bindMount         func(source, target string, readOnly bool) error
 	unmount           func(target string) error
@@ -61,10 +60,7 @@ func newServer(identity string, nodeID directpvtypes.NodeID, rack, zone, region 
 		zone:     zone,
 		region:   region,
 
-		getMounts: func() (mountMap, rootMap map[string]utils.StringSet, err error) {
-			mountMap, _, _, rootMap, err = sys.GetMounts(false)
-			return
-		},
+		getMounts:         sys.NewMountInfo,
 		getDeviceByFSUUID: sys.GetDeviceByFSUUID,
 		bindMount:         xfs.BindMount,
 		unmount:           func(target string) error { return sys.Unmount(target, true, true, false) },

@@ -53,7 +53,7 @@ type initRequestEventHandler struct {
 
 	probeDevices func() ([]pkgdevice.Device, error)
 	getDevices   func(majorMinor ...string) ([]pkgdevice.Device, error)
-	getMounts    func() (map[string]utils.StringSet, map[string]utils.StringSet, error)
+	getMounts    func() (*sys.MountInfo, error)
 	makeFS       func(device, fsuuid string, force, reflink bool) (string, string, uint64, uint64, error)
 	mount        func(device, fsuuid string) error
 	unmount      func(fsuuid string) error
@@ -83,9 +83,9 @@ func newInitRequestEventHandler(ctx context.Context, nodeID directpvtypes.NodeID
 
 		probeDevices: pkgdevice.Probe,
 		getDevices:   pkgdevice.ProbeDevices,
-		getMounts: func() (deviceMap, majorMinorMap map[string]utils.StringSet, err error) {
-			if _, deviceMap, majorMinorMap, _, err = sys.GetMounts(true); err != nil {
-				err = fmt.Errorf("unable get mount points; %w", err)
+		getMounts: func() (mountInfo *sys.MountInfo, err error) {
+			if mountInfo, err = sys.NewMountInfo(); err != nil {
+				err = fmt.Errorf("unable get mount info from /proc; %w", err)
 			}
 			return
 		},
@@ -226,17 +226,16 @@ func updateInitRequest(ctx context.Context, name string, results []types.InitDev
 func (handler *initRequestEventHandler) initDevice(device pkgdevice.Device, force bool) error {
 	devPath := utils.AddDevPrefix(device.Name)
 
-	deviceMap, majorMinorMap, err := handler.getMounts()
+	mountInfo, err := handler.getMounts()
 	if err != nil {
 		return err
 	}
 
 	var mountPoints []string
-	if devices, found := majorMinorMap[device.MajorMinor]; found {
-		for _, name := range devices.ToSlice() {
-			mountPoints = append(mountPoints, deviceMap[name].ToSlice()...)
-		}
+	for _, mountEntry := range mountInfo.FilterByMajorMinor(device.MajorMinor).List() {
+		mountPoints = append(mountPoints, mountEntry.MountPoint)
 	}
+
 	if len(mountPoints) != 0 {
 		return fmt.Errorf("device %v mounted at %v", devPath, mountPoints)
 	}

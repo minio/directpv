@@ -27,79 +27,96 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/minio/directpv/pkg/utils"
 	"k8s.io/klog/v2"
 )
 
-func parseProc1Mountinfo(r io.Reader) (mountPointMap, deviceMap, majorMinorMap, rootMountPointMap map[string]utils.StringSet, err error) {
+func parseMount(s string) *MountEntry {
+	// Refer https://man7.org/linux/man-pages/man5/proc_pid_mountinfo.5.html
+	// to know about this logic.
+	s = strings.TrimSpace(s)
+	xxHash := xxhash.Sum64String(s)
+	tokens := strings.Fields(s)
+	if len(tokens) < 8 {
+		return nil
+	}
+
+	mountOptions := make(utils.StringSet)
+	for _, option := range strings.Split(tokens[5], ",") {
+		mountOptions.Set(option)
+	}
+
+	mount := MountEntry{
+		xxHash:     xxHash,
+		MountID:    tokens[0],
+		ParentID:   tokens[1],
+		MajorMinor: tokens[2],
+		Root:       tokens[3],
+		MountPoint: tokens[4],
+	}
+	var i int
+	for i = 6; i < len(tokens) && tokens[i] != "-"; i++ {
+		mount.OptionalFields = append(mount.OptionalFields, tokens[i])
+	}
+	mount.FilesystemType = tokens[i+1]
+	mount.MountSource = tokens[i+2]
+
+	for _, option := range strings.Split(tokens[i+3], ",") {
+		mountOptions.Set(option)
+	}
+
+	mount.MountOptions = mountOptions
+	return &mount
+}
+
+func parseMountInfo(r io.Reader) (*MountInfo, error) {
+	infoMap := map[uint64]*MountEntry{}
+	mountPointMap := map[string][]uint64{}
+	mountSourceMap := map[string][]uint64{}
+	majorMinorMap := map[string][]uint64{}
+	rootMap := map[string][]uint64{}
+
 	reader := bufio.NewReader(r)
 
-	mountPointMap = make(map[string]utils.StringSet)
-	deviceMap = make(map[string]utils.StringSet)
-	majorMinorMap = make(map[string]utils.StringSet)
-	rootMountPointMap = make(map[string]utils.StringSet)
 	for {
 		s, err := reader.ReadString('\n')
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return nil, nil, nil, nil, err
+			return nil, err
 		}
 
-		// Refer /proc/[pid]/mountinfo section in https://man7.org/linux/man-pages/man5/proc.5.html
-		// to know about this logic.
-		tokens := strings.Fields(strings.TrimSpace(s))
-		if len(tokens) < 8 {
+		mount := parseMount(s)
+		if mount == nil {
 			continue
 		}
 
-		// Skip mount tags.
-		var i int
-		for i = 6; i < len(tokens); i++ {
-			if tokens[i] == "-" {
-				i++
-				break
-			}
-		}
-
-		majorMinor := tokens[2]
-		root := tokens[3]
-		mountPoint := tokens[4]
-		device := tokens[i+1]
-
-		if _, found := mountPointMap[mountPoint]; !found {
-			mountPointMap[mountPoint] = make(utils.StringSet)
-		}
-		mountPointMap[mountPoint].Set(device)
-
-		if _, found := deviceMap[device]; !found {
-			deviceMap[device] = make(utils.StringSet)
-		}
-		deviceMap[device].Set(mountPoint)
-
-		if _, found := majorMinorMap[majorMinor]; !found {
-			majorMinorMap[majorMinor] = make(utils.StringSet)
-		}
-		majorMinorMap[majorMinor].Set(device)
-
-		if _, found := rootMountPointMap[root]; !found {
-			rootMountPointMap[root] = make(utils.StringSet)
-		}
-		rootMountPointMap[root].Set(mountPoint)
+		infoMap[mount.xxHash] = mount
+		mountPointMap[mount.MountPoint] = append(mountPointMap[mount.MountPoint], mount.xxHash)
+		mountSourceMap[mount.MountSource] = append(mountSourceMap[mount.MountSource], mount.xxHash)
+		majorMinorMap[mount.MajorMinor] = append(majorMinorMap[mount.MajorMinor], mount.xxHash)
+		rootMap[mount.Root] = append(rootMap[mount.Root], mount.xxHash)
 	}
 
-	return
+	return &MountInfo{
+		infoMap:        infoMap,
+		mountPointMap:  mountPointMap,
+		mountSourceMap: mountSourceMap,
+		majorMinorMap:  majorMinorMap,
+		rootMap:        rootMap,
+	}, nil
 }
 
-func getMounts(_ bool) (mountPointMap, deviceMap, majorMinorMap, rootMountPointMap map[string]utils.StringSet, err error) {
-	file, err := os.Open("/proc/1/mountinfo")
+func newMountInfo() (*MountInfo, error) {
+	file, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 
 	defer file.Close()
-	return parseProc1Mountinfo(file)
+	return parseMountInfo(file)
 }
 
 var mountFlagMap = map[string]uintptr{
@@ -126,18 +143,22 @@ var mountFlagMap = map[string]uintptr{
 }
 
 func mount(device, target, fsType string, flags []string, superBlockFlags string) error {
-	mountPointMap, _, _, _, err := getMounts(false)
+	mountInfo, err := newMountInfo()
 	if err != nil {
 		return err
 	}
 
-	if devices, found := mountPointMap[target]; found {
-		if devices.Exist(device) {
+	if mountInfo = mountInfo.FilterByMountPoint(target); !mountInfo.IsEmpty() {
+		if !mountInfo.FilterByMountSource(device).IsEmpty() {
 			klog.V(5).InfoS("device is already mounted on target", "device", device, "target", target, "fsType", fsType, "flags", flags, "superBlockFlags", superBlockFlags)
 			return nil
 		}
 
-		return &ErrMountPointAlreadyMounted{MountPoint: target, Devices: devices.ToSlice()}
+		var devices []string
+		for _, mount := range mountInfo.List() {
+			devices = append(devices, mount.MountSource)
+		}
+		return &ErrMountPointAlreadyMounted{MountPoint: target, Devices: devices}
 	}
 
 	mountFlags := uintptr(0)
@@ -165,12 +186,12 @@ func bindMount(source, target, fsType string, recursive, readOnly bool, superBlo
 }
 
 func unmount(target string, force, detach, expire bool) error {
-	mountPointMap, _, _, _, err := getMounts(false)
+	mountInfo, err := newMountInfo()
 	if err != nil {
 		return err
 	}
 
-	if _, found := mountPointMap[target]; !found {
+	if mountInfo.FilterByMountPoint(target).IsEmpty() {
 		klog.V(5).InfoS("target already unmounted", "target", target, "force", force, "detach", detach, "expire", expire)
 		return nil
 	}
