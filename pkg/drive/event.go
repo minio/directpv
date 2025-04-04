@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"syscall"
 	"time"
 
@@ -65,15 +66,15 @@ func SetIOError(ctx context.Context, driveID directpvtypes.DriveID) error {
 
 func stageVolumeMount(
 	volumeName, volumeDir, stagingTargetPath string,
-	getMounts func() (map[string]utils.StringSet, error),
+	getMounts func() (*sys.MountInfo, error),
 	bindMount func(volumeDir, stagingTargetPath string, readOnly bool) error,
 ) error {
-	rootMountPointMap, err := getMounts()
+	mountInfo, err := getMounts()
 	if err != nil {
 		return err
 	}
 
-	if mountPoints, found := rootMountPointMap["/"+volumeName]; found && mountPoints.Exist(stagingTargetPath) {
+	if !mountInfo.FilterByRoot("/" + volumeName).FilterByMountPoint(stagingTargetPath).IsEmpty() {
 		klog.V(5).InfoS("volumeDir is already bind-mounted on stagingTargetPath", "volumeDir", volumeDir, "stagingTargetPath", stagingTargetPath)
 		return nil
 	}
@@ -90,7 +91,7 @@ func StageVolume(
 	mkdir func(volumeDir string) error,
 	setQuota func(ctx context.Context, device, stagingTargetPath, volumeName string, quota xfs.Quota, update bool) error,
 	bindMount func(volumeDir, stagingTargetPath string, readOnly bool) error,
-	getMounts func() (map[string]utils.StringSet, error),
+	getMounts func() (*sys.MountInfo, error),
 ) (codes.Code, error) {
 	device, err := getDeviceByFSUUID(volume.Status.FSUUID)
 	if err != nil {
@@ -152,7 +153,7 @@ func StageVolume(
 
 type driveEventHandler struct {
 	nodeID            directpvtypes.NodeID
-	getMounts         func() (mountPointMap, deviceMap, rootMountPointMap map[string]utils.StringSet, err error)
+	getMounts         func() (mountInfo *sys.MountInfo, err error)
 	unmount           func(target string) error
 	mkdir             func(path string) error
 	bindMount         func(source, target string, readOnly bool) error
@@ -165,8 +166,8 @@ type driveEventHandler struct {
 func newDriveEventHandler(nodeID directpvtypes.NodeID) *driveEventHandler {
 	return &driveEventHandler{
 		nodeID: nodeID,
-		getMounts: func() (mountPointMap, deviceMap, rootMountPointMap map[string]utils.StringSet, err error) {
-			mountPointMap, deviceMap, _, rootMountPointMap, err = sys.GetMounts(false)
+		getMounts: func() (mountInfo *sys.MountInfo, err error) {
+			mountInfo, err = sys.NewMountInfo()
 			return
 		},
 		unmount: func(mountPoint string) error {
@@ -213,32 +214,39 @@ func (handler *driveEventHandler) ObjectType() runtime.Object {
 }
 
 func (handler *driveEventHandler) unmountDrive(drive *types.Drive, skipDriveMount bool) error {
-	mountPointMap, deviceMap, _, err := handler.getMounts()
+	mountInfo, err := handler.getMounts()
 	if err != nil {
 		return err
 	}
 	driveMountPoint := types.GetDriveMountDir(drive.Status.FSUUID)
-	devices, found := mountPointMap[driveMountPoint]
-	if !found {
+	filteredMountInfo := mountInfo.FilterByMountPoint(driveMountPoint)
+	if filteredMountInfo.IsEmpty() {
 		// Check for legacy mount for backward compatibility.
 		driveMountPoint = path.Join(consts.LegacyAppRootDir, "mnt", drive.Status.FSUUID)
-		if devices, found = mountPointMap[driveMountPoint]; !found {
+		filteredMountInfo = mountInfo.FilterByMountPoint(driveMountPoint)
+		if filteredMountInfo.IsEmpty() {
 			return nil // Device already umounted
 		}
 	}
-	if len(devices) > 1 {
-		return fmt.Errorf("multiple devices %v are mounted for FSUUID %v", devices, drive.Status.FSUUID)
+
+	if filteredMountInfo.Length() > 1 {
+		var devices []string
+		for _, mountEntry := range filteredMountInfo.List() {
+			devices = append(devices, mountEntry.MountSource)
+		}
+		return fmt.Errorf("multiple devices [%v] are mounted for FSUUID %v", strings.Join(devices, ","), drive.Status.FSUUID)
 	}
-	mountpoints := deviceMap[devices.ToSlice()[0]]
-	for _, mountPoint := range mountpoints.ToSlice() {
-		if skipDriveMount && mountPoint == driveMountPoint {
+
+	for _, mountEntry := range mountInfo.FilterByMountSource(filteredMountInfo.List()[0].MountSource).List() {
+		if skipDriveMount && mountEntry.MountPoint == driveMountPoint {
 			continue
 		}
 
-		if err := handler.unmount(mountPoint); err != nil {
+		if err := handler.unmount(mountEntry.MountPoint); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -304,10 +312,7 @@ func (handler *driveEventHandler) move(ctx context.Context, drive *types.Drive) 
 				handler.mkdir,
 				handler.setQuota,
 				handler.bindMount,
-				func() (rootMap map[string]utils.StringSet, err error) {
-					_, _, rootMap, err = handler.getMounts()
-					return
-				},
+				func() (*sys.MountInfo, error) { return handler.getMounts() },
 			)
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				klog.ErrorS(err, "unable to stage volume after volume move",

@@ -146,6 +146,11 @@ func (set StringSet) Equal(set2 StringSet) (found bool) {
 	return true
 }
 
+// IsEmpty returns true if the set is empty
+func (set StringSet) IsEmpty() bool {
+	return len(set) == 0
+}
+
 // Eprintf prints the message to the stdout and stderr based on inputs
 func Eprintf(quiet, asErr bool, format string, a ...any) {
 	if quiet {
