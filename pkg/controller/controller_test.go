@@ -125,7 +125,7 @@ func toRuntimeObjects(volumes ...*pkgtypes.Volume) (objects []runtime.Object) {
 }
 
 func TestController(t *testing.T) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancelFunc := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancelFunc()
 
 	testHandler := &testEventHandler{

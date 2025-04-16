@@ -29,19 +29,19 @@ type FakeDirectpvV1beta1 struct {
 }
 
 func (c *FakeDirectpvV1beta1) DirectPVDrives() v1beta1.DirectPVDriveInterface {
-	return &FakeDirectPVDrives{c}
+	return newFakeDirectPVDrives(c)
 }
 
 func (c *FakeDirectpvV1beta1) DirectPVInitRequests() v1beta1.DirectPVInitRequestInterface {
-	return &FakeDirectPVInitRequests{c}
+	return newFakeDirectPVInitRequests(c)
 }
 
 func (c *FakeDirectpvV1beta1) DirectPVNodes() v1beta1.DirectPVNodeInterface {
-	return &FakeDirectPVNodes{c}
+	return newFakeDirectPVNodes(c)
 }
 
 func (c *FakeDirectpvV1beta1) DirectPVVolumes() v1beta1.DirectPVVolumeInterface {
-	return &FakeDirectPVVolumes{c}
+	return newFakeDirectPVVolumes(c)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

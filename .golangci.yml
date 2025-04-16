@@ -1,35 +1,44 @@
-linters-settings:
+version: "2"
 run:
-  go: "1.23"
-
-  misspell:
-    locale: US
-
+  go: "1.24"
 linters:
-  disable-all: true
+  default: none
   enable:
-    - typecheck
-    - goimports
-    - misspell
-    - govet
-    - revive
-    - ineffassign
+    - durationcheck
+    - gocritic
     - gomodguard
-    - gofmt
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
     - unconvert
     - unused
-    - gocritic
+    - usetesting
+  settings:
+    misspell:
+      locale: US
+  exclusions:
+    generated: lax
+    rules:
+      - path: (.+)\.go$
+        text: should have a package comment
+      - path: (.+)\.go$
+        text: exitAfterDefer
+      - path: (.+)\.go$
+        text: redefines-builtin-id
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
     - gofumpt
-    - tenv
-    - durationcheck
-    - staticcheck
-
-issues:
-  exclude-use-default: false
-  exclude:
-    - should have a package comment
-    - exitAfterDefer
-    - redefines-builtin-id
-
-service:
-  golangci-lint-version: 1.62.0 # use the fixed version to not introduce new linters unexpectedly
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

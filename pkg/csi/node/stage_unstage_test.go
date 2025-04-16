@@ -17,7 +17,6 @@
 package node
 
 import (
-	"context"
 	"fmt"
 	"path"
 	"testing"
@@ -85,7 +84,7 @@ func TestNodeStageVolume(t *testing.T) {
 			}
 			return nil
 		}
-		if _, err := nodeServer.NodeStageVolume(context.TODO(), testCase.req); err == nil {
+		if _, err := nodeServer.NodeStageVolume(t.Context(), testCase.req); err == nil {
 			t.Fatalf("case %v: expected error, but succeeded", i+1)
 		}
 	}
@@ -144,7 +143,7 @@ func TestStageUnstageVolume(t *testing.T) {
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
-	ctx := context.TODO()
+	ctx := t.Context()
 	ns := createFakeServer()
 	dataPath := path.Join(consts.MountRootDir, testDriveName, ".FSUUID."+testDriveName, testVolumeName50MB)
 	ns.getMounts = func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
