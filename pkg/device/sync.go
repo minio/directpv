@@ -21,9 +21,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
+	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/xfs"
@@ -169,7 +172,7 @@ func verifyDrive(drive *types.Drive) (updated bool) {
 	return true
 }
 
-func updateDrive(ctx context.Context, driveName string, deviceMap map[string][]device) error {
+func updateDrive(ctx context.Context, driveName string, deviceMap map[string][]device, mountInfo *sys.MountInfo) error {
 	drive, err := client.DriveClient().Get(ctx, driveName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -188,6 +191,42 @@ func updateDrive(ctx context.Context, driveName string, deviceMap map[string][]d
 		}
 	case 1:
 		// device found
+
+		mountPoint := types.GetDriveMountDir(drive.Status.FSUUID)
+		legacyMountPoint := path.Join(consts.LegacyAppRootDir, "mnt", drive.Status.FSUUID)
+
+		var mountPoints []string
+		for _, mountEntry := range mountInfo.FilterByMountSource(devices[0].MajorMinor).FilterByRoot("/").List() {
+			switch mountEntry.MountPoint {
+			case mountPoint, legacyMountPoint:
+			default:
+				mountPoints = append(mountPoints, mountEntry.MountPoint)
+			}
+
+			check := func() error {
+				switch {
+				case mountEntry.FilesystemType != "xfs":
+					return fmt.Errorf("device filesystem is not XFS")
+				case !mountEntry.MountOptions.Exist("prjquota"):
+					return fmt.Errorf("device mounted without 'prjquota' mount option")
+				case !mountEntry.MountOptions.Exist("noatime"):
+					return fmt.Errorf("device mounted without 'noatime' mount option")
+				case !mountEntry.MountOptions.Exist("ro"):
+					return fmt.Errorf("device mounted in read-only mode")
+				default:
+					return nil
+				}
+			}
+
+			if err := check(); err != nil {
+				klog.ErrorS(err, "device", mountEntry.MountSource, "filesystemType", mountEntry.FilesystemType, "drive", drive.GetDriveID(), drive.GetDriveName())
+			}
+		}
+
+		if len(mountPoints) != 0 {
+			klog.ErrorS(fmt.Errorf("device mounted outside of DirectPV"), "device", devices[0].Name, "mountPoints", mountPoints, "drive", drive.GetDriveID(), drive.GetDriveName())
+		}
+
 		updated = syncDrive(drive, devices[0])
 		if verifyDrive(drive) {
 			updated = true
@@ -219,12 +258,18 @@ func Sync(ctx context.Context, nodeID directpvtypes.NodeID) error {
 	if err != nil {
 		return err
 	}
+
+	mountInfo, err := sys.NewMountInfo()
+	if err != nil {
+		return err
+	}
+
 	drives, err := client.NewDriveLister().NodeSelector([]directpvtypes.LabelValue{directpvtypes.ToLabelValue(string(nodeID))}).Get(ctx)
 	if err != nil {
 		return err
 	}
 	for i := range drives {
-		if err = retry.RetryOnConflict(retry.DefaultRetry, func() error { return updateDrive(ctx, drives[i].Name, deviceMap) }); err != nil {
+		if err = retry.RetryOnConflict(retry.DefaultRetry, func() error { return updateDrive(ctx, drives[i].Name, deviceMap, mountInfo) }); err != nil {
 			return err
 		}
 	}

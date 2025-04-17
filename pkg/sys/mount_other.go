@@ -21,12 +21,10 @@ package sys
 import (
 	"fmt"
 	"runtime"
-
-	"github.com/minio/directpv/pkg/utils"
 )
 
-func getMounts(includeMajorMinorMap bool) (mountPointMap, deviceMap, majorMinorMap, rootMountPointMap map[string]utils.StringSet, err error) {
-	return nil, nil, nil, nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
+func newMountInfo() (*MountInfo, error) {
+	return nil, fmt.Errorf("unsupported operating system %v", runtime.GOOS)
 }
 
 func mount(device, target, fsType string, flags []string, superBlockFlags string) error {

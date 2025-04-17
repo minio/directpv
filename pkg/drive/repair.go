@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strings"
 	"sync"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -29,7 +30,6 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/xfs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -77,7 +77,7 @@ func (w *logWriter) Close() (err error) {
 
 func repair(ctx context.Context, drive *types.Drive, force, disablePrefetch, dryRun bool,
 	getDeviceByFSUUID func(fsuuid string) (string, error),
-	getMounts func() (deviceMap map[string]utils.StringSet, err error),
+	getMounts func() (mountInfo *sys.MountInfo, err error),
 	unmount func(mountPoint string) error,
 	repair func(ctx context.Context, device string, force, disablePrefetch, dryRun bool, output io.Writer) error,
 	mount func(device, target string) (err error),
@@ -103,49 +103,30 @@ func repair(ctx context.Context, drive *types.Drive, force, disablePrefetch, dry
 	target := types.GetDriveMountDir(drive.Status.FSUUID)
 	legacyTarget := path.Join(consts.LegacyAppRootDir, "mnt", drive.Status.FSUUID)
 
-	deviceMap, err := getMounts()
+	mountInfo, err := getMounts()
 	if err != nil {
 		return err
 	}
 
-	mountPoints := deviceMap[device]
-	getCount := func() int {
-		count := len(mountPoints)
-		if mountPoints.Exist(target) {
-			count--
+	var mountPoints []string
+	for _, mountEntry := range mountInfo.FilterByMountSource(device).List() {
+		switch mountEntry.MountPoint {
+		case target, legacyTarget:
+		default:
+			mountPoints = append(mountPoints, mountEntry.MountPoint)
 		}
-		if mountPoints.Exist(legacyTarget) {
-			count--
-		}
-		return count
 	}
 
-	switch len(mountPoints) {
-	case 0:
-	case 1:
-		if mountPoints.Exist(target) {
-			if err = unmount(target); err != nil {
-				return err
-			}
-		}
-		if mountPoints.Exist(legacyTarget) {
-			if err = unmount(legacyTarget); err != nil {
-				return err
-			}
-		}
-	case 2:
-		if mountPoints.Exist(target) && mountPoints.Exist(legacyTarget) {
-			if err = unmount(target); err != nil {
-				return err
-			}
-			if err = unmount(legacyTarget); err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("unable to run xfs repair; %v volume mounts still mounted", getCount())
-		}
-	default:
-		return fmt.Errorf("unable to run xfs repair; %v volume mounts still mounted", getCount())
+	if len(mountPoints) != 0 {
+		return fmt.Errorf("unable to run xfs repair; device %v still mounted in [%v]", device, strings.Join(mountPoints, ","))
+	}
+
+	if err = unmount(target); err != nil {
+		return err
+	}
+
+	if err = unmount(legacyTarget); err != nil {
+		return err
 	}
 
 	logWriter := &logWriter{}
@@ -196,8 +177,8 @@ func repair(ctx context.Context, drive *types.Drive, force, disablePrefetch, dry
 func Repair(ctx context.Context, drive *types.Drive, force, disablePrefetch, dryRun bool) error {
 	return repair(ctx, drive, force, disablePrefetch, dryRun,
 		sys.GetDeviceByFSUUID,
-		func() (deviceMap map[string]utils.StringSet, err error) {
-			_, deviceMap, _, _, err = sys.GetMounts(false)
+		func() (mountInfo *sys.MountInfo, err error) {
+			mountInfo, err = sys.NewMountInfo()
 			return
 		},
 		func(mountPoint string) error {

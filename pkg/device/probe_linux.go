@@ -28,8 +28,7 @@ import (
 )
 
 func newDevice(
-	deviceMountMap map[string]utils.StringSet,
-	majorMinorMap map[string]utils.StringSet,
+	mountInfo *sys.MountInfo,
 	cdroms utils.StringSet,
 	swaps utils.StringSet,
 	name string,
@@ -37,10 +36,8 @@ func newDevice(
 	udevData map[string]string,
 ) (device *Device, err error) {
 	var mountPoints []string
-	if devices, found := majorMinorMap[majorMinor]; found {
-		for _, device := range devices.ToSlice() {
-			mountPoints = append(mountPoints, deviceMountMap[device].ToSlice()...)
-		}
+	for _, mountEntry := range mountInfo.FilterByMajorMinor(majorMinor).List() {
+		mountPoints = append(mountPoints, mountEntry.MountPoint)
 	}
 
 	device = &Device{
@@ -89,7 +86,7 @@ func probe() (devices []Device, err error) {
 		return nil, fmt.Errorf("unable to probe from udev; %w", err)
 	}
 
-	_, deviceMountMap, majorMinorMap, _, err := sys.GetMounts(true)
+	mountInfo, err := sys.NewMountInfo()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get mounts; %w", err)
 	}
@@ -105,7 +102,7 @@ func probe() (devices []Device, err error) {
 	}
 
 	for name, udevData := range udevDataMap {
-		device, err := newDevice(deviceMountMap, majorMinorMap, cdroms, swaps, name, deviceMap[name], udevData)
+		device, err := newDevice(mountInfo, cdroms, swaps, name, deviceMap[name], udevData)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +113,7 @@ func probe() (devices []Device, err error) {
 }
 
 func probeDevices(majorMinor ...string) (devices []Device, err error) {
-	_, deviceMountMap, majorMinorMap, _, err := sys.GetMounts(true)
+	mountInfo, err := sys.NewMountInfo()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get mounts; %w", err)
 	}
@@ -146,7 +143,7 @@ func probeDevices(majorMinor ...string) (devices []Device, err error) {
 			return nil, fmt.Errorf("unable to get device name; majorminor=%v; err=%w", majorMinor[i], err)
 		}
 
-		device, err := newDevice(deviceMountMap, majorMinorMap, cdroms, swaps, name, majorMinor[i], udevData)
+		device, err := newDevice(mountInfo, cdroms, swaps, name, majorMinor[i], udevData)
 		if err != nil {
 			return nil, err
 		}
