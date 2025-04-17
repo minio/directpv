@@ -20,8 +20,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/minio/directpv/pkg/consts"
-	"github.com/minio/directpv/pkg/utils"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/xfs"
 )
 
@@ -29,14 +28,12 @@ const testNodeName = "test-node"
 
 func createFakeServer() *Server {
 	return &Server{
-		nodeID:   testNodeName,
-		identity: "test-identity",
-		rack:     "test-rack",
-		zone:     "test-zone",
-		region:   "test-region",
-		getMounts: func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
-			return map[string]utils.StringSet{consts.MountRootDir: nil}, map[string]utils.StringSet{consts.MountRootDir: nil}, nil
-		},
+		nodeID:            testNodeName,
+		identity:          "test-identity",
+		rack:              "test-rack",
+		zone:              "test-zone",
+		region:            "test-region",
+		getMounts:         func() (*sys.MountInfo, error) { return nil, nil },
 		getDeviceByFSUUID: func(_ string) (string, error) { return "", nil },
 		bindMount:         func(_, _ string, _ bool) error { return nil },
 		unmount:           func(_ string) error { return nil },
