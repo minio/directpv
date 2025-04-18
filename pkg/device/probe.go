@@ -101,6 +101,11 @@ func (d Device) Make() string {
 	return strings.Join(tokens, " ")
 }
 
+// PartTableType returns partition table type.
+func (d Device) PartTableType() string {
+	return d.udevData["E:ID_PART_TABLE_TYPE"]
+}
+
 // FSType returns filesystem type.
 func (d Device) FSType() string {
 	return d.udevData["E:ID_FS_TYPE"]
@@ -111,8 +116,8 @@ func (d Device) FSUUID() string {
 	return d.udevData["E:ID_FS_UUID"]
 }
 
-// deniedReason returns the reason if the device is denied for initialization.
-func (d Device) deniedReason() string {
+// DeniedReason returns the reason if the device is denied for initialization.
+func (d Device) DeniedReason() string {
 	var reasons []string
 
 	if d.Size < minSupportedDeviceSize {
@@ -175,7 +180,7 @@ func (d Device) ToNodeDevice(nodeID directpvtypes.NodeID) types.Device {
 		Make:         d.Make(),
 		FSType:       d.FSType(),
 		FSUUID:       d.FSUUID(),
-		DeniedReason: d.deniedReason(),
+		DeniedReason: d.DeniedReason(),
 	}
 }
 
