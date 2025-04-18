@@ -193,13 +193,17 @@ func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *ty
 		case device.ID(handler.nodeID) != req.Spec.Devices[i].ID:
 			results[i].Error = "device state changed"
 		default:
-			wg.Add(1)
-			go func(i int, device pkgdevice.Device, force bool) {
-				defer wg.Done()
-				if err := handler.initDevice(device, force); err != nil {
-					results[i].Error = err.Error()
-				}
-			}(i, device, req.Spec.Devices[i].Force)
+			if deniedReason := device.DeniedReason(); deniedReason == "" {
+				wg.Add(1)
+				go func(i int, device pkgdevice.Device, force bool) {
+					defer wg.Done()
+					if err := handler.initDevice(device, force); err != nil {
+						results[i].Error = err.Error()
+					}
+				}(i, device, req.Spec.Devices[i].Force || device.PartTableType() != "")
+			} else {
+				results[i].Error = "device init not permitted; " + deniedReason
+			}
 		}
 	}
 	wg.Wait()
