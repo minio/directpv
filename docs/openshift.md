@@ -8,18 +8,27 @@ DirectPV runs under project `directpv` in Red Hat OpenShift. Project `directpv` 
 * DirectPV does not support volume snapshot feature as per CSI specification. DirectPV is specifically meant for use cases like MinIO where the data availability and resiliency is taken care by the application itself. Additionally, with the AWS S3 versioning APIs and internal healing, snapshots is not a requirement.
 * DirectPV does not support `ReadWriteMany` volume access mode. The workloads using DirectPV run local to the node and are provisioned from local storage drives in the node. This allows the workloads to directly access data without any additional network hops, unlike remote volumes, network PVs, etc. The additional network hops may lead to poor performance and increases the complexity. With `ReadWriteOnce` access mode, DirectPV provides high performance storage for Pods.
 
-## SELinux in OpenShift:
+## SELinux in OpenShift
 
-If you encounter the `relabel failed` error after executing the `suspend` or `resume` commands, you should set `spc_t` at Pod's level or Container's level, for example:
+In a SELinux enabled system, pod may fail to start due to `relabel failed` error on suspended volume. As the suspended volumes are read-only, Kublet tries to do SELinux relabeling by `lsetxattr` system call to write extended attributes. This issue is fixable by adding `spec.securityContext.seLinuxOptions.type: spc_t` at pod level or container level along with appropriate Security Context Constraints (SCCs) in place. A complete detail is available at https://access.redhat.com/solutions/7025337. The following example shows how to set `spc_t` SELinux settings at pod level:
 
 ```yaml
+apiVersion: v1
 kind: Pod
+metadata:
+  name: sleep-pod
 spec:
   securityContext:
     seLinuxOptions:
-      type: "spc_t"  # This applies to all containers unless overridden
+      type: "spc_t"  # Setting to fix the issue
+  volumes:
+    - name: sleep-volume
+      persistentVolumeClaim:
+        claimName: sleep-pvc
+  containers:
+    - name: sleep-container
+      image: example.org/test/sleep:v0.0.1
+      volumeMounts:
+        - mountPath: "/mnt"
+          name: sleep-volume
 ```
-
-Ensure that the appropriate Security Context Constraints (SCCs) are in place, as illustrated in the following link: https://access.redhat.com/solutions/7025337.
-
-Additionally, this issue has been observed in OpenShift version 4.12 and later. Pods that use suspended drives or volumes may fail due to the kubelet attempting to perform SELinux relabeling. This happens because the `lsetxattr` system call fails on a read-only filesystem. The problem can affect any pod that consumes a suspended volume, not just MinIO Tenant pods.
