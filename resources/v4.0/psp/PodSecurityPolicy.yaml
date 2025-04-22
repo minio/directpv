@@ -1,0 +1,34 @@
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  creationTimestamp: null
+  labels:
+    application-name: directpv.min.io
+    application-type: CSIDriver
+    directpv.min.io/created-by: kubectl-directpv
+    directpv.min.io/version: v1beta1
+  name: directpv-min-io
+spec:
+  allowedCapabilities:
+  - '*'
+  allowedHostPaths:
+  - pathPrefix: /proc
+    readOnly: true
+  - pathPrefix: /sys
+  - pathPrefix: /run/udev/data
+    readOnly: true
+  - pathPrefix: /var/lib/directpv
+  - pathPrefix: /csi
+  - pathPrefix: /var/lib/kubelet
+  fsGroup:
+    rule: RunAsAny
+  hostPID: true
+  privileged: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - hostPath

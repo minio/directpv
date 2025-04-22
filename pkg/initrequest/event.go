@@ -191,7 +191,7 @@ func (handler *initRequestEventHandler) initDevices(ctx context.Context, req *ty
 		case !found:
 			results[i].Error = "device not found"
 		case device.ID(handler.nodeID) != req.Spec.Devices[i].ID:
-			results[i].Error = "device's state changed"
+			results[i].Error = "device state changed"
 		default:
 			wg.Add(1)
 			go func(i int, device pkgdevice.Device, force bool) {

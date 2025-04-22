@@ -32,11 +32,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const (
-	queueBaseDelay = 100 * time.Millisecond
-	queueMaxDelay  = 10 * time.Minute
-)
-
 // Event represents a controller event.
 type Event struct {
 	Type   EventType
@@ -65,7 +60,7 @@ const (
 type Controller struct {
 	name          string
 	handler       EventHandler
-	queue         workqueue.RateLimitingInterface
+	queue         workqueue.TypedRateLimitingInterface[Event]
 	informer      cache.SharedIndexInformer
 	workerThreads int
 	// locking
@@ -82,10 +77,10 @@ func New(name string, handler EventHandler, workers int, resyncPeriod time.Durat
 		cache.Indexers{},
 	)
 
-	queue := workqueue.NewRateLimitingQueue(
-		workqueue.NewMaxOfRateLimiter(
-			workqueue.NewItemExponentialFailureRateLimiter(queueBaseDelay, queueMaxDelay),
-			&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+	queue := workqueue.NewTypedRateLimitingQueue(
+		workqueue.NewTypedMaxOfRateLimiter(
+			workqueue.NewTypedItemExponentialFailureRateLimiter[Event](100*time.Millisecond, 10*time.Minute),
+			&workqueue.TypedBucketRateLimiter[Event]{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
 		),
 	)
 
@@ -168,7 +163,7 @@ func (c *Controller) processNextItem(ctx context.Context) bool {
 
 	defer c.queue.Done(event)
 
-	if err := c.processItem(ctx, event.(Event)); err != nil {
+	if err := c.processItem(ctx, event); err != nil {
 		c.queue.AddRateLimited(event)
 		utilruntime.HandleError(err)
 	} else {

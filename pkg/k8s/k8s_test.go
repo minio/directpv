@@ -165,8 +165,8 @@ func TestGetKubeVersion(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		client.DiscoveryClient = NewFakeDiscovery(getDiscoveryGroupsAndMethods, &testCase.info)
-		major, minor, err := client.GetKubeVersion()
+		defaultClient.DiscoveryClient = NewFakeDiscovery(getDiscoveryGroupsAndMethods, &testCase.info)
+		major, minor, err := defaultClient.GetKubeVersion()
 		if testCase.expectErr {
 			if err == nil {
 				t.Fatalf("case %v: expected error, but succeeded", i+1)

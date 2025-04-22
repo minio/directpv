@@ -17,7 +17,6 @@
 package node
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -54,39 +53,32 @@ func TestNodePublishVolume(t *testing.T) {
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 
 	nodeServer := createFakeServer()
-	if _, err := nodeServer.NodePublishVolume(context.TODO(), req); err == nil {
+	if _, err := nodeServer.NodePublishVolume(t.Context(), req); err == nil {
 		t.Fatalf("expected error, but succeeded")
 	}
 }
 
 func TestPublishUnpublishVolume(t *testing.T) {
-	testVolumeName50MB := "test_volume_50MB"
-
-	createTestDir := func(prefix string) (string, error) {
-		tDir, err := os.MkdirTemp("", prefix)
-		if err != nil {
-			return "", err
-		}
-		return tDir, nil
-	}
-
-	testStagingPath, tErr := createTestDir("test_staging_")
-	if tErr != nil {
-		t.Fatalf("Could not create test dirs: %v", tErr)
-	}
+	testStagingPath := t.TempDir()
 	defer os.RemoveAll(testStagingPath)
 
-	testTargetPath, tErr := createTestDir("test_target_")
-	if tErr != nil {
-		t.Fatalf("Could not create test dirs: %v", tErr)
-	}
+	testTargetPath := t.TempDir()
 	defer os.RemoveAll(testTargetPath)
 
-	testVol := types.NewVolume(testVolumeName50MB, "fsuuid1", testNodeName, "sda", "sda", 20*MiB)
-	testVol.Status.StagingTargetPath = testStagingPath
+	nodeID := directpvtypes.NodeID("node-1")
+	driveID := directpvtypes.DriveID("drive-1")
+	driveName := directpvtypes.DriveName("sda")
+	accessTier := directpvtypes.AccessTierDefault
+	volume := types.NewVolume("test_volume_50MB", "fsuuid-1", nodeID, driveID, driveName, 50*MiB)
+	volume.Status.StagingTargetPath = testStagingPath
+	drive := types.NewDrive(driveID, types.DriveStatus{}, nodeID, driveName, accessTier)
+
+	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(drive, volume))
+	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
+	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 
 	publishVolumeRequest := csi.NodePublishVolumeRequest{
-		VolumeId:          testVolumeName50MB,
+		VolumeId:          volume.Name,
 		StagingTargetPath: testStagingPath,
 		TargetPath:        testTargetPath,
 		VolumeCapability: &csi.VolumeCapability{
@@ -103,14 +95,11 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	}
 
 	unpublishVolumeRequest := csi.NodeUnpublishVolumeRequest{
-		VolumeId:   testVolumeName50MB,
+		VolumeId:   volume.Name,
 		TargetPath: testTargetPath,
 	}
 
-	clientset := types.NewExtFakeClientset(clientsetfake.NewSimpleClientset(testVol))
-	client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
-
-	ctx := context.TODO()
+	ctx := t.Context()
 	ns := createFakeServer()
 
 	// Publish volume test

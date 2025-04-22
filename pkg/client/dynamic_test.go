@@ -138,7 +138,7 @@ func TestGetDrive(t *testing.T) {
 			object:     createTestDrive("node1", "drive1", directpvtypes.AccessTierDefault),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 
 	for i, testCase := range testCases {
@@ -168,7 +168,7 @@ func TestListDrive(t *testing.T) {
 			},
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	var unstructuredObjects []*unstructured.Unstructured
 	for i, testCase := range testCases {
@@ -207,7 +207,7 @@ func TestListDriveWithOption(t *testing.T) {
 			},
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	var unstructuredObjects []*unstructured.Unstructured
 	for i, testCase := range testCases {
@@ -258,7 +258,7 @@ func TestCreateDrive(t *testing.T) {
 			newDrive:   createTestDrive("node1", "new-drive3", directpvtypes.AccessTierHot),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
@@ -284,7 +284,7 @@ func TestDeleteDrive(t *testing.T) {
 			inputDrive: createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
@@ -309,7 +309,7 @@ func TestDeleteCollectionDrive(t *testing.T) {
 			inputDrive: createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
@@ -336,7 +336,7 @@ func TestUpdateDrive(t *testing.T) {
 			inputDrive: createTestDrive("node1", "drive2", directpvtypes.AccessTierDefault),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		client := getFakeLatestDriveClient(t, i, testCase.inputDrive, testCase.apiVersion)
@@ -355,7 +355,7 @@ func TestUpdateDrive(t *testing.T) {
 }
 
 func TestWatcher(t *testing.T) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 
 	checkEvent := func(event watch.Event, expectedEventType watch.EventType, expectedObject *types.Drive) error {
@@ -465,7 +465,7 @@ func TestGetVolume(t *testing.T) {
 			volume:     createTestVolume("volume2"),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)
@@ -491,7 +491,7 @@ func TestListVolume(t *testing.T) {
 			volumes:    []runtime.Object{createTestVolume("volume1"), createTestVolume("volume2")},
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	var unstructuredObjects []*unstructured.Unstructured
 	for i, testCase := range testCases {
@@ -528,7 +528,7 @@ func TestCreateVolume(t *testing.T) {
 			newVolume:  createTestVolume("new-volume2"),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)
@@ -554,7 +554,7 @@ func TestDeleteVolume(t *testing.T) {
 			volume:     createTestVolume("volume2"),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)
@@ -579,7 +579,7 @@ func TestVolumeDeleteCollection(t *testing.T) {
 			volume:     createTestVolume("volume2"),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)
@@ -606,7 +606,7 @@ func TestUpdateVolume(t *testing.T) {
 			volume:            createTestVolume("volume2"),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)
@@ -638,7 +638,7 @@ func TestUpdateStatusVolume(t *testing.T) {
 			volume:            createTestVolume("volume2"),
 		},
 	}
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(t.Context())
 	defer cancelFunc()
 	for i, testCase := range testCases {
 		volumeClient := getFakeLatestVolumeClient(testCase.volume, i, testCase.apiVersion, t)

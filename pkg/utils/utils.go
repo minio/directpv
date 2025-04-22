@@ -25,11 +25,13 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"sigs.k8s.io/yaml"
 )
 
-var uuidRegex = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+var (
+	uuidRegex = regexp.MustCompile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+	byteUnits = []string{"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"}
+)
 
 // IsUUID checks whether value is UUID string.
 func IsUUID(value string) bool {
@@ -155,10 +157,23 @@ func Eprintf(quiet, asErr bool, format string, a ...any) {
 	fmt.Fprintf(os.Stderr, format, a...)
 }
 
-// ToLabelValues converts a string list to label values
-func ToLabelValues(slice []string) (values []directpvtypes.LabelValue) {
-	for _, s := range slice {
-		values = append(values, directpvtypes.ToLabelValue(s))
+// IBytes produces a human readable representation of an IEC size rounding to two decimal places.
+func IBytes(ui64 uint64) string {
+	value := ui64
+	base := uint64(1)
+	var unit string
+	for _, unit = range byteUnits {
+		if value < 1024 {
+			break
+		}
+		value /= 1024
+		base *= 1024
 	}
-	return
+	reminder := float64(ui64-(value*base)) / float64(base)
+
+	rounded := uint64(100 * reminder)
+	if rounded != 0 {
+		return fmt.Sprintf("%v.%v %v", value, rounded, unit)
+	}
+	return fmt.Sprintf("%v %v", value, unit)
 }

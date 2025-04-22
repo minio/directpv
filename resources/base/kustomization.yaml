@@ -33,3 +33,18 @@ images:
   - name: quay.io/minio/csi-resizer
     digest: sha256:58fa627393f20892b105a137d27e236dfaec233a3a64980f84dcb15f38c21533
 
+patches:
+  - patch: |-
+      - op: replace
+        path: /metadata/annotations/directpv.min.io~1image-tag
+        value: v4.1.4
+    target:
+      kind: Deployment
+      name: controller
+  - patch: |-
+      - op: replace
+        path: /metadata/annotations/directpv.min.io~1image-tag
+        value: v4.1.4
+    target:
+      kind: DaemonSet
+      name: node-server

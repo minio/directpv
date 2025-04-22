@@ -88,6 +88,9 @@ const (
 
 	// ClaimIDLabelKey label key to denote the claim id of the volumes
 	ClaimIDLabelKey LabelKey = consts.GroupName + "/claim-id"
+
+	// ImageTagLabelKey denotes the tag of the directpv container image
+	ImageTagLabelKey LabelKey = consts.GroupName + "/image-tag"
 )
 
 var reservedLabelKeys = map[LabelKey]struct{}{
@@ -109,6 +112,7 @@ var reservedLabelKeys = map[LabelKey]struct{}{
 	SuspendLabelKey:        {},
 	VolumeClaimIDLabelKey:  {},
 	ClaimIDLabelKey:        {},
+	ImageTagLabelKey:       {},
 }
 
 // IsReserved returns if the key is a reserved key
@@ -154,6 +158,14 @@ func ToLabelValue(value string) LabelValue {
 		"value", value, "converted value", result,
 	)
 	return result
+}
+
+// ToLabelValues converts a string list to label values
+func ToLabelValues(slice []string) (values []LabelValue) {
+	for _, s := range slice {
+		values = append(values, ToLabelValue(s))
+	}
+	return
 }
 
 // ToLabelSelector converts a map of label key and label value to selector string

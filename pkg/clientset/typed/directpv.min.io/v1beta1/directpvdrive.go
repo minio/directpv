@@ -19,9 +19,9 @@
 package v1beta1
 
 import (
-	"context"
+	context "context"
 
-	v1beta1 "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1"
+	directpvminiov1beta1 "github.com/minio/directpv/pkg/apis/directpv.min.io/v1beta1"
 	scheme "github.com/minio/directpv/pkg/clientset/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type DirectPVDrivesGetter interface {
 
 // DirectPVDriveInterface has methods to work with DirectPVDrive resources.
 type DirectPVDriveInterface interface {
-	Create(ctx context.Context, directPVDrive *v1beta1.DirectPVDrive, opts v1.CreateOptions) (*v1beta1.DirectPVDrive, error)
-	Update(ctx context.Context, directPVDrive *v1beta1.DirectPVDrive, opts v1.UpdateOptions) (*v1beta1.DirectPVDrive, error)
+	Create(ctx context.Context, directPVDrive *directpvminiov1beta1.DirectPVDrive, opts v1.CreateOptions) (*directpvminiov1beta1.DirectPVDrive, error)
+	Update(ctx context.Context, directPVDrive *directpvminiov1beta1.DirectPVDrive, opts v1.UpdateOptions) (*directpvminiov1beta1.DirectPVDrive, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, directPVDrive *v1beta1.DirectPVDrive, opts v1.UpdateOptions) (*v1beta1.DirectPVDrive, error)
+	UpdateStatus(ctx context.Context, directPVDrive *directpvminiov1beta1.DirectPVDrive, opts v1.UpdateOptions) (*directpvminiov1beta1.DirectPVDrive, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1beta1.DirectPVDrive, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1beta1.DirectPVDriveList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*directpvminiov1beta1.DirectPVDrive, error)
+	List(ctx context.Context, opts v1.ListOptions) (*directpvminiov1beta1.DirectPVDriveList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.DirectPVDrive, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *directpvminiov1beta1.DirectPVDrive, err error)
 	DirectPVDriveExpansion
 }
 
 // directPVDrives implements DirectPVDriveInterface
 type directPVDrives struct {
-	*gentype.ClientWithList[*v1beta1.DirectPVDrive, *v1beta1.DirectPVDriveList]
+	*gentype.ClientWithList[*directpvminiov1beta1.DirectPVDrive, *directpvminiov1beta1.DirectPVDriveList]
 }
 
 // newDirectPVDrives returns a DirectPVDrives
 func newDirectPVDrives(c *DirectpvV1beta1Client) *directPVDrives {
 	return &directPVDrives{
-		gentype.NewClientWithList[*v1beta1.DirectPVDrive, *v1beta1.DirectPVDriveList](
+		gentype.NewClientWithList[*directpvminiov1beta1.DirectPVDrive, *directpvminiov1beta1.DirectPVDriveList](
 			"directpvdrives",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			"",
-			func() *v1beta1.DirectPVDrive { return &v1beta1.DirectPVDrive{} },
-			func() *v1beta1.DirectPVDriveList { return &v1beta1.DirectPVDriveList{} }),
+			func() *directpvminiov1beta1.DirectPVDrive { return &directpvminiov1beta1.DirectPVDrive{} },
+			func() *directpvminiov1beta1.DirectPVDriveList { return &directpvminiov1beta1.DirectPVDriveList{} },
+		),
 	}
 }

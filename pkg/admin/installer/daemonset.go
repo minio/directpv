@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
@@ -214,7 +215,10 @@ func newDaemonset(podSpec corev1.PodSpec, name, selectorValue string, args *Args
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    defaultLabels,
+			Annotations: map[string]string{
+				string(directpvtypes.ImageTagLabelKey): args.imageTag,
+			},
+			Labels: defaultLabels,
 		},
 		Spec: appsv1.DaemonSetSpec{
 			Selector: metav1.AddLabelToSelector(&metav1.LabelSelector{}, selectorKey, selectorValue),

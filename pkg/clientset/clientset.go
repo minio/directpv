@@ -19,8 +19,8 @@
 package clientset
 
 import (
-	"fmt"
-	"net/http"
+	fmt "fmt"
+	http "net/http"
 
 	directpvv1beta1 "github.com/minio/directpv/pkg/clientset/typed/directpv.min.io/v1beta1"
 	discovery "k8s.io/client-go/discovery"

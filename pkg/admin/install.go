@@ -125,7 +125,7 @@ func (client *Client) Install(ctx context.Context, args InstallArgs, installerTa
 		}
 		if installerArgs.KubeVersion == nil {
 			// default higher version
-			if installerArgs.KubeVersion, err = versionpkg.ParseSemantic("1.29.0"); err != nil {
+			if installerArgs.KubeVersion, err = versionpkg.ParseSemantic("1.32.0"); err != nil {
 				klog.Fatalf("this should not happen; %v", err)
 			}
 		}
@@ -162,13 +162,12 @@ func (client Client) isLegacyEnabled(ctx context.Context, args InstallArgs) bool
 		).
 		IgnoreNotFound(true).
 		List(ctx)
-	for result := range resultCh {
-		if result.Err != nil {
-			utils.Eprintf(args.Quiet, true, "unable to get volumes; %v", result.Err)
-			break
+	if result, ok := <-resultCh; ok {
+		if result.Err == nil {
+			return true
 		}
 
-		return true
+		utils.Eprintf(args.Quiet, true, "unable to get volumes; %v", result.Err)
 	}
 
 	legacyClient, err := legacyclient.NewClient(client.K8s())
@@ -177,13 +176,12 @@ func (client Client) isLegacyEnabled(ctx context.Context, args InstallArgs) bool
 		return false
 	}
 
-	for result := range legacyClient.ListVolumes(ctx) {
-		if result.Err != nil {
-			utils.Eprintf(args.Quiet, true, "unable to get legacy volumes; %v", result.Err)
-			break
+	if result, ok := <-legacyClient.ListVolumes(ctx); ok {
+		if result.Err == nil {
+			return true
 		}
 
-		return true
+		utils.Eprintf(args.Quiet, true, "unable to get legacy volumes; %v", result.Err)
 	}
 
 	return false

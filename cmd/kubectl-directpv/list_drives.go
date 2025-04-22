@@ -26,7 +26,6 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -117,8 +116,8 @@ func validateListDrivesArgs() error {
 
 func listDrivesMain(ctx context.Context) {
 	drives, err := adminClient.NewDriveLister().
-		NodeSelector(utils.ToLabelValues(nodesArgs)).
-		DriveNameSelector(utils.ToLabelValues(drivesArgs)).
+		NodeSelector(directpvtypes.ToLabelValues(nodesArgs)).
+		DriveNameSelector(directpvtypes.ToLabelValues(drivesArgs)).
 		StatusSelector(driveStatusSelectors).
 		DriveIDSelector(driveIDSelectors).
 		LabelSelector(labelSelectors).
