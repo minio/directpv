@@ -24,8 +24,8 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,6 +53,7 @@ func TestNodePublishVolume(t *testing.T) {
 	client.SetDriveInterface(clientset.DirectpvLatest().DirectPVDrives())
 
 	nodeServer := createFakeServer()
+	nodeServer.getMounts = func() (*sys.MountInfo, error) { return sys.FakeMountInfo(), nil }
 	if _, err := nodeServer.NodePublishVolume(t.Context(), req); err == nil {
 		t.Fatalf("expected error, but succeeded")
 	}
@@ -103,8 +104,9 @@ func TestPublishUnpublishVolume(t *testing.T) {
 	ns := createFakeServer()
 
 	// Publish volume test
-	ns.getMounts = func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
-		return map[string]utils.StringSet{testStagingPath: nil}, map[string]utils.StringSet{testStagingPath: nil}, nil
+	ns.getMounts = func() (mountInfo *sys.MountInfo, err error) {
+		mountInfo = sys.FakeMountInfo(sys.MountEntry{MountPoint: testStagingPath})
+		return
 	}
 	_, err := ns.NodePublishVolume(ctx, &publishVolumeRequest)
 	if err != nil {

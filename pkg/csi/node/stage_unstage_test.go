@@ -26,8 +26,8 @@ import (
 	"github.com/minio/directpv/pkg/client"
 	clientsetfake "github.com/minio/directpv/pkg/clientset/fake"
 	"github.com/minio/directpv/pkg/consts"
+	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
-	"github.com/minio/directpv/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -52,12 +52,12 @@ func TestNodeStageVolume(t *testing.T) {
 	testCases := []struct {
 		req       *csi.NodeStageVolumeRequest
 		drive     *types.Drive
-		mountInfo map[string]utils.StringSet
+		mountInfo *sys.MountInfo
 	}{
-		{case1Req, case1Drive, nil},
-		{case1Req, case2Drive, nil},
-		{case1Req, case3Drive, map[string]utils.StringSet{consts.MountRootDir: nil}},
-		{case1Req, case3Drive, map[string]utils.StringSet{consts.MountRootDir: nil}},
+		{case1Req, case1Drive, sys.FakeMountInfo()},
+		{case1Req, case2Drive, sys.FakeMountInfo()},
+		{case1Req, case3Drive, sys.FakeMountInfo(sys.MountEntry{MountPoint: consts.MountRootDir})},
+		{case1Req, case3Drive, sys.FakeMountInfo(sys.MountEntry{MountPoint: consts.MountRootDir})},
 	}
 
 	for i, testCase := range testCases {
@@ -75,11 +75,11 @@ func TestNodeStageVolume(t *testing.T) {
 		client.SetVolumeInterface(clientset.DirectpvLatest().DirectPVVolumes())
 
 		nodeServer := createFakeServer()
-		nodeServer.getMounts = func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
-			return testCase.mountInfo, testCase.mountInfo, nil
+		nodeServer.getMounts = func() (*sys.MountInfo, error) {
+			return testCase.mountInfo, nil
 		}
 		nodeServer.bindMount = func(source, _ string, _ bool) error {
-			if _, found := testCase.mountInfo[source]; !found {
+			if testCase.mountInfo.FilterByMountSource(source).IsEmpty() {
 				return fmt.Errorf("source is not mounted")
 			}
 			return nil
@@ -146,8 +146,8 @@ func TestStageUnstageVolume(t *testing.T) {
 	ctx := t.Context()
 	ns := createFakeServer()
 	dataPath := path.Join(consts.MountRootDir, testDriveName, ".FSUUID."+testDriveName, testVolumeName50MB)
-	ns.getMounts = func() (map[string]utils.StringSet, map[string]utils.StringSet, error) {
-		return map[string]utils.StringSet{consts.MountRootDir: nil}, map[string]utils.StringSet{consts.MountRootDir: nil}, nil
+	ns.getMounts = func() (*sys.MountInfo, error) {
+		return sys.FakeMountInfo(sys.MountEntry{MountSource: "/dev/", MountPoint: "/var/lib/directpv/mnt/test_drive"}), nil
 	}
 
 	// Stage Volume test

@@ -29,6 +29,7 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -149,16 +150,17 @@ func (server *Server) publishVolume(req *csi.NodePublishVolumeRequest, isSuspend
 	if err := server.mkdir(req.GetTargetPath()); err != nil && !errors.Is(err, os.ErrExist) {
 		return fmt.Errorf("unable to create target path; %v", err)
 	}
-	mountPointMap, _, err := server.getMounts()
+
+	mountInfo, err := server.getMounts()
 	if err != nil {
 		return err
 	}
 	if isSuspended {
 		// Suspended volumes will be bind-mounted as read-only to tmpfs mount (/var/lib/directpv/tmp).
-		if _, found := mountPointMap[consts.TmpMountDir]; !found {
+		if mountInfo.FilterByMountPoint(consts.TmpMountDir).IsEmpty() {
 			return fmt.Errorf("%v is not mounted; restart this node server", consts.TmpMountDir)
 		}
-		if targetPathDevices, found := mountPointMap[req.GetTargetPath()]; found && targetPathDevices.Exist("tmpfs") {
+		if !mountInfo.FilterByMountPoint(req.GetTargetPath()).FilterByMountSource("tmpfs").IsEmpty() {
 			klog.V(5).InfoS("stagingTargetPath is already bind-mounted to tmpfs mount", "stagingTargetPath", req.GetStagingTargetPath(), "targetPath", req.GetTargetPath())
 			return nil
 		}
@@ -167,11 +169,21 @@ func (server *Server) publishVolume(req *csi.NodePublishVolumeRequest, isSuspend
 		}
 		return nil
 	}
-	stagingTargetPathDevices, found := mountPointMap[req.GetStagingTargetPath()]
-	if !found {
+
+	stagingTargetPathDevices := make(utils.StringSet)
+	for _, mountEntry := range mountInfo.FilterByMountPoint(req.GetStagingTargetPath()).List() {
+		stagingTargetPathDevices.Set(mountEntry.MountSource)
+	}
+	if stagingTargetPathDevices.IsEmpty() {
 		return fmt.Errorf("stagingPath %v is not mounted", req.GetStagingTargetPath())
 	}
-	if targetPathDevices, found := mountPointMap[req.GetTargetPath()]; found && targetPathDevices.Equal(stagingTargetPathDevices) {
+
+	targetPathDevices := make(utils.StringSet)
+	for _, mountEntry := range mountInfo.FilterByMountPoint(req.GetTargetPath()).List() {
+		targetPathDevices.Set(mountEntry.MountSource)
+	}
+
+	if !targetPathDevices.IsEmpty() && targetPathDevices.Equal(stagingTargetPathDevices) {
 		klog.V(5).InfoS("stagingTargetPath is already bind-mounted to targetPath", "stagingTargetPath", req.GetStagingTargetPath(), "targetPath", req.GetTargetPath())
 	} else {
 		if err := server.bindMount(req.GetStagingTargetPath(), req.GetTargetPath(), req.GetReadonly()); err != nil {
