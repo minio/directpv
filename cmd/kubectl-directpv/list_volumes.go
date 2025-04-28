@@ -246,6 +246,10 @@ func listVolumesMain(ctx context.Context) {
 			status += ",Suspended"
 		}
 
+		if volume.DeletionTimestamp != nil {
+			status += ",Deleting"
+		}
+
 		row := []interface{}{
 			volume.Name,
 			printableBytes(volume.Status.TotalCapacity),
