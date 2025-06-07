@@ -7,20 +7,20 @@ resources:
 
 images:
   - name: quay.io/minio/directpv
-    digest: sha256:98c23183f3abb8d9b6e0c300677605cc822e039fc81ce0e5dd8bef1006547627
+    digest: sha256:d9646b0aff6a046f3c701c2f383bf4f0e8ba9f4c65a5af4b9bc384b34bcb8e2c
 
 patches:
   - patch: |-
       - op: replace
         path: /metadata/annotations/directpv.min.io~1image-tag
-        value: v4.0.16
+        value: v4.0.18
     target:
       kind: Deployment
       name: controller
   - patch: |-
       - op: replace
         path: /metadata/annotations/directpv.min.io~1image-tag
-        value: v4.0.16
+        value: v4.0.18
     target:
       kind: DaemonSet
       name: node-server
