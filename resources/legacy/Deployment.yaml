@@ -14,7 +14,7 @@ spec:
   replicas: 3
   selector:
     matchLabels:
-      selector.directpv.min.io: directpv-controller
+      selector.directpv.min.io: controller-legacy-controller
   strategy:
     type: Recreate
   template:
@@ -23,7 +23,7 @@ spec:
         created-by: kubectl-directpv
       creationTimestamp: null
       labels:
-        selector.directpv.min.io: directpv-controller
+        selector.directpv.min.io: controller-legacy-controller
       name: legacy-controller
       namespace: directpv
     spec:
