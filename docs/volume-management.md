@@ -13,12 +13,12 @@ To get information of volumes from DirectPV, run the `list volumes` command. Bel
 
 ```sh
 $ kubectl directpv list drives
-┌────────┬──────┬──────┬─────────┬─────────┬─────────┬────────┐
-│ NODE   │ NAME │ MAKE │ SIZE    │ FREE    │ VOLUMES │ STATUS │
-├────────┼──────┼──────┼─────────┼─────────┼─────────┼────────┤
-│ master │ vdb  │ -    │ 512 MiB │ 506 MiB │ -       │ Ready  │
-│ node1  │ vdb  │ -    │ 512 MiB │ 506 MiB │ -       │ Ready  │
-└────────┴──────┴──────┴─────────┴─────────┴─────────┴────────┘
+┌──────────────────────────────────────┬────────┬──────┬──────┬─────────┬─────────┬───────────┬─────────┬────────┐
+│ DRIVE ID                             │ NODE   │ NAME │ MAKE │ SIZE    │ FREE    │ ALLOCATED │ VOLUMES │ STATUS │
+├──────────────────────────────────────┼────────┼──────┼──────┼─────────┼─────────┼───────────┼─────────┼────────┤
+│ 1b94751e-f97a-4cd0-89b6-af2c7657a8e7 │ master │ vdb  │ -    │ 512 MiB │ 512 MiB │ -         │ -       │ Ready  │
+│ b3e44552-a3b8-4233-bf78-ccff05956804 │ node1  │ vdb  │ -    │ 512 MiB │ 512 MiB │ -         │ -       │ Ready  │
+└──────────────────────────────────────┴────────┴──────┴──────┴─────────┴─────────┴───────────┴─────────┴────────┘
 ```
 
 Refer to the [list volumes command](./command-reference.md#volumes-command) for more information.
