@@ -30,6 +30,7 @@ import (
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/sys"
 	"github.com/minio/directpv/pkg/types"
+	"github.com/minio/directpv/pkg/utils"
 	"github.com/minio/directpv/pkg/xfs"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -108,17 +109,17 @@ func repair(ctx context.Context, drive *types.Drive, force, disablePrefetch, dry
 		return err
 	}
 
-	var mountPoints []string
+	mountPoints := make(utils.StringSet)
 	for _, mountEntry := range mountInfo.FilterByMountSource(device).List() {
 		switch mountEntry.MountPoint {
 		case target, legacyTarget:
 		default:
-			mountPoints = append(mountPoints, mountEntry.MountPoint)
+			mountPoints.Set(mountEntry.MountPoint)
 		}
 	}
 
 	if len(mountPoints) != 0 {
-		return fmt.Errorf("unable to run xfs repair; device %v still mounted in [%v]", device, strings.Join(mountPoints, ","))
+		return fmt.Errorf("unable to run xfs repair; device %v still mounted in [%v]", device, strings.Join(mountPoints.ToSlice(), ","))
 	}
 
 	if err = unmount(target); err != nil {
