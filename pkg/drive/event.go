@@ -229,15 +229,16 @@ func (handler *driveEventHandler) unmountDrive(drive *types.Drive, skipDriveMoun
 		}
 	}
 
-	if filteredMountInfo.Length() > 1 {
-		var devices []string
-		for _, mountEntry := range filteredMountInfo.List() {
-			devices = append(devices, mountEntry.MountSource)
-		}
-		return fmt.Errorf("multiple devices [%v] are mounted for FSUUID %v", strings.Join(devices, ","), drive.Status.FSUUID)
+	devices := make(utils.StringSet)
+	for _, mountEntry := range filteredMountInfo.List() {
+		devices.Set(mountEntry.MountSource)
 	}
 
-	for _, mountEntry := range mountInfo.FilterByMountSource(filteredMountInfo.List()[0].MountSource).List() {
+	if len(devices) > 1 {
+		return fmt.Errorf("multiple devices [%v] are mounted for FSUUID %v", strings.Join(devices.ToSlice(), ","), drive.Status.FSUUID)
+	}
+
+	for _, mountEntry := range mountInfo.FilterByMountSource(devices.ToSlice()[0]).List() {
 		if skipDriveMount && mountEntry.MountPoint == driveMountPoint {
 			continue
 		}
