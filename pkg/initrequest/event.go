@@ -235,13 +235,13 @@ func (handler *initRequestEventHandler) initDevice(device pkgdevice.Device, forc
 		return err
 	}
 
-	var mountPoints []string
+	mountPoints := make(utils.StringSet)
 	for _, mountEntry := range mountInfo.FilterByMajorMinor(device.MajorMinor).List() {
-		mountPoints = append(mountPoints, mountEntry.MountPoint)
+		mountPoints.Set(mountEntry.MountPoint)
 	}
 
 	if len(mountPoints) != 0 {
-		return fmt.Errorf("device %v mounted at %v", devPath, mountPoints)
+		return fmt.Errorf("device %v mounted at %v", devPath, mountPoints.ToSlice())
 	}
 
 	fsuuid := uuid.New().String()

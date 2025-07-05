@@ -35,15 +35,15 @@ func newDevice(
 	majorMinor string,
 	udevData map[string]string,
 ) (device *Device, err error) {
-	var mountPoints []string
+	mountPoints := make(utils.StringSet)
 	for _, mountEntry := range mountInfo.FilterByMajorMinor(majorMinor).List() {
-		mountPoints = append(mountPoints, mountEntry.MountPoint)
+		mountPoints.Set(mountEntry.MountPoint)
 	}
 
 	device = &Device{
 		Name:        name,
 		MajorMinor:  majorMinor,
-		MountPoints: mountPoints,
+		MountPoints: mountPoints.ToSlice(),
 		CDROM:       cdroms.Exist(name),
 		SwapOn:      swaps.Exist(utils.AddDevPrefix(name)),
 		udevData:    udevData,
