@@ -140,6 +140,7 @@ func listDrivesMain(ctx context.Context) {
 	}
 
 	headers := table.Row{
+		"DRIVE ID",
 		"NODE",
 		"NAME",
 		"MAKE",
@@ -147,9 +148,6 @@ func listDrivesMain(ctx context.Context) {
 		"FREE",
 		"VOLUMES",
 		"STATUS",
-	}
-	if wideOutput {
-		headers = append(headers, "DRIVE ID")
 	}
 	if showLabels {
 		headers = append(headers, "LABELS")
@@ -199,6 +197,7 @@ func listDrivesMain(ctx context.Context) {
 			driveMake = "-"
 		}
 		row := []interface{}{
+			drive.GetDriveID(),
 			drive.GetNodeID(),
 			drive.GetDriveName(),
 			driveMake,
@@ -206,9 +205,6 @@ func listDrivesMain(ctx context.Context) {
 			printableBytes(drive.Status.FreeCapacity),
 			volumes,
 			status,
-		}
-		if wideOutput {
-			row = append(row, drive.GetDriveID())
 		}
 		if showLabels {
 			row = append(row, labelsToString(drive.GetLabels()))
