@@ -27,6 +27,8 @@ linters:
         text: exitAfterDefer
       - path: (.+)\.go$
         text: redefines-builtin-id
+      - path: (.+)\.go$
+        text: avoid meaningless package names
     paths:
       - third_party$
       - builtin$
