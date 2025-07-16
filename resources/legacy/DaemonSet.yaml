@@ -12,14 +12,14 @@ metadata:
 spec:
   selector:
     matchLabels:
-      selector.directpv.min.io: directpv-node-server
+      selector.directpv.min.io: directpv-min-io-legacy-node-server
   template:
     metadata:
       annotations:
         created-by: kubectl-directpv
       creationTimestamp: null
       labels:
-        selector.directpv.min.io: directpv-node-server
+        selector.directpv.min.io: directpv-min-io-legacy-node-server
         selector.directpv.min.io.service: enabled
       name: legacy-node-server
       namespace: directpv
