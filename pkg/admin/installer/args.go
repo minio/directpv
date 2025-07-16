@@ -30,25 +30,25 @@ import (
 )
 
 const (
-	// csiProvisionerImage = csi-provisioner:v5.0.2-0
-	csiProvisionerImage = "csi-provisioner@sha256:fc1f992dd5591357fa123c396aaadaea5033f312b9c136a11d62cf698474bebb"
+	// csiProvisionerImage = csi-provisioner:v5.2.0-0
+	csiProvisionerImage = "csi-provisioner@sha256:24816a743663d153060f0c3fc30005f05bea23c8b0fd2551fd667042741e8562"
 	// csiProvisionerImageV2_2_0 = csi-provisioner:v2.2.0-go1.18
 	csiProvisionerImageV2_2_0 = "csi-provisioner@sha256:c185db49ba02c384633165894147f8d7041b34b173e82a49d7145e50e809b8d6"
-	// nodeDriverRegistrarImage = csi-node-driver-registrar:v2.12.0-0
-	nodeDriverRegistrarImage = "csi-node-driver-registrar@sha256:dafc7f667aa2e20d7f059c20db02dd6987c2624d64d8f166cd5930721be98ea9"
-	// livenessProbeImage = livenessprobe:v2.14.0-0
-	livenessProbeImage = "livenessprobe@sha256:783010e10e4d74b6b2b157a4b52772c5a264fd76bb2ad671054b8c3f706c8324"
-	// csiResizerImage = csi-resizer:v1.12.0-0
-	csiResizerImage = "csi-resizer@sha256:58fa627393f20892b105a137d27e236dfaec233a3a64980f84dcb15f38c21533"
+	// nodeDriverRegistrarImage = csi-node-driver-registrar:v2.13.0-0
+	nodeDriverRegistrarImage = "csi-node-driver-registrar@sha256:8f00013a19bd3bea021f3e96b093814fb110b383c0fd050d2a5309afb0ed0ccb"
+	// livenessProbeImage = livenessprobe:v2.15.0-0
+	livenessProbeImage = "livenessprobe@sha256:d8f7d431a2a148970dcb337f24b265d173bcee58bbeeae9af7ae60f01ce49be2"
+	// csiResizerImage = csi-resizer:v1.13.1-0
+	csiResizerImage = "csi-resizer@sha256:fc0c1f9cbc0ebb16283c0e425c031041eedb0e8ebbe6a1adec3de41584548ce6"
 
-	// openshiftCSIProvisionerImage = openshift4/ose-csi-external-provisioner-rhel8:v4.12.0-202407151105.p0.g3aa7c52.assembly.stream.el8
-	openshiftCSIProvisionerImage = "registry.redhat.io/openshift4/ose-csi-external-provisioner-rhel8@sha256:8bf8aa8975790e19ba107fd58699f98389e3fb692d192f4df3078fff7f0a4bba"
-	// openshiftNodeDriverRegistrarImage = openshift4/ose-csi-node-driver-registrar-rhel8:v4.12.0-202407151105.p0.gc316b89.assembly.stream.el8
-	openshiftNodeDriverRegistrarImage = "registry.redhat.io/openshift4/ose-csi-node-driver-registrar-rhel8@sha256:ab54e6a2e8a6a1ca2da5aaf25f784c09f5bf22ea32224ec1bdb6c564f88695a9"
-	// openshiftLivenessProbeImage = openshift4/ose-csi-livenessprobe-rhel8:v4.12.0-202407151105.p0.ge6545e7.assembly.stream.el8
-	openshiftLivenessProbeImage = "registry.redhat.io/openshift4/ose-csi-livenessprobe-rhel8@sha256:b28029f929fe2a28e666910d1acc57c3474fabdb2f9129688ef1ca56c7231d90"
-	// openshiftCSIResizerImage = openshift4/ose-csi-external-resizer-rhel8:v4.12.0-202407151105.p0.g5b066ba.assembly.stream.el8
-	openshiftCSIResizerImage = "registry.redhat.io/openshift4/ose-csi-external-resizer-rhel8@sha256:bed8de36bac80108909205342b2d92e4de5adbfa33bf13f9346236fca52a0d3e"
+	// openshiftCSIProvisionerImage = registry.redhat.io/openshift4/ose-csi-external-provisioner-rhel8:v4.15.0-202504220035.p0.gce5a1a3.assembly.stream.el8
+	openshiftCSIProvisionerImage = "registry.redhat.io/openshift4/ose-csi-external-provisioner-rhel8@sha256:ffc107c70d24eb86d2120d4bce217bcfebb46694817217f134ead9e9b72d2ff3"
+	// openshiftNodeDriverRegistrarImage = registry.redhat.io/openshift4/ose-csi-node-driver-registrar-rhel8:v4.15.0-202504220035.p0.g9005584.assembly.stream.el8
+	openshiftNodeDriverRegistrarImage = "registry.redhat.io/openshift4/ose-csi-node-driver-registrar-rhel8@sha256:9006d4a80df02b51102961e70e55ae08e2757fc4c62d3c2605b8ffed3a344e8d"
+	// openshiftLivenessProbeImage = registry.redhat.io/openshift4/ose-csi-livenessprobe-rhel8:v4.15.0-202504220035.p0.g240bb8c.assembly.stream.el8
+	openshiftLivenessProbeImage = "registry.redhat.io/openshift4/ose-csi-livenessprobe-rhel8@sha256:9309cf88631e1cbb5362081a65f2de752cc130d231e8ba2bdd9ef640b51a6b66"
+	// openshiftCSIResizerImage = registry.redhat.io/openshift4/ose-csi-external-resizer-rhel8:v4.15.0-202504220035.p0.g3b4236d.assembly.stream.el8
+	openshiftCSIResizerImage = "registry.redhat.io/openshift4/ose-csi-external-resizer-rhel8@sha256:ed845b49de7e1c363bc8e8485a04288c03125a3cff7c7f100d35b5b88645725a"
 )
 
 // Args represents DirectPV installation arguments.

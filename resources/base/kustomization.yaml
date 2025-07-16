@@ -19,32 +19,32 @@ resources:
 
 images:
   - name: quay.io/minio/directpv
-    digest: sha256:83fd05fe114ed15c3975333c90cbe18c782d9c4d5c7ad6fdb8cc835e380ba505
+    digest: sha256:352806476d3962a6fc4b8a615c95ce2391ca8b0ece00c99b402fd140555b69b5
 
   - name: quay.io/minio/csi-node-driver-registrar
-    digest: sha256:dafc7f667aa2e20d7f059c20db02dd6987c2624d64d8f166cd5930721be98ea9
+    digest: sha256:8f00013a19bd3bea021f3e96b093814fb110b383c0fd050d2a5309afb0ed0ccb
 
   - name: quay.io/minio/livenessprobe
-    digest: sha256:783010e10e4d74b6b2b157a4b52772c5a264fd76bb2ad671054b8c3f706c8324
+    digest: sha256:d8f7d431a2a148970dcb337f24b265d173bcee58bbeeae9af7ae60f01ce49be2
 
   - name: quay.io/minio/csi-provisioner
-    digest: sha256:fc1f992dd5591357fa123c396aaadaea5033f312b9c136a11d62cf698474bebb
+    digest: sha256:24816a743663d153060f0c3fc30005f05bea23c8b0fd2551fd667042741e8562
 
   - name: quay.io/minio/csi-resizer
-    digest: sha256:58fa627393f20892b105a137d27e236dfaec233a3a64980f84dcb15f38c21533
+    digest: sha256:fc0c1f9cbc0ebb16283c0e425c031041eedb0e8ebbe6a1adec3de41584548ce6
 
 patches:
   - patch: |-
       - op: replace
         path: /metadata/annotations/directpv.min.io~1image-tag
-        value: v4.1.4
+        value: v4.1.5
     target:
       kind: Deployment
       name: controller
   - patch: |-
       - op: replace
         path: /metadata/annotations/directpv.min.io~1image-tag
-        value: v4.1.4
+        value: v4.1.5
     target:
       kind: DaemonSet
       name: node-server
