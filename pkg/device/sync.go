@@ -195,12 +195,12 @@ func updateDrive(ctx context.Context, driveName string, deviceMap map[string][]d
 		mountPoint := types.GetDriveMountDir(drive.Status.FSUUID)
 		legacyMountPoint := path.Join(consts.LegacyAppRootDir, "mnt", drive.Status.FSUUID)
 
-		var mountPoints []string
+		mountPoints := make(utils.StringSet)
 		for _, mountEntry := range mountInfo.FilterByMountSource(devices[0].MajorMinor).FilterByRoot("/").List() {
 			switch mountEntry.MountPoint {
 			case mountPoint, legacyMountPoint:
 			default:
-				mountPoints = append(mountPoints, mountEntry.MountPoint)
+				mountPoints.Set(mountEntry.MountPoint)
 			}
 
 			check := func() error {
@@ -224,7 +224,7 @@ func updateDrive(ctx context.Context, driveName string, deviceMap map[string][]d
 		}
 
 		if len(mountPoints) != 0 {
-			klog.ErrorS(fmt.Errorf("device mounted outside of DirectPV"), "device", devices[0].Name, "mountPoints", mountPoints, "drive", drive.GetDriveID(), drive.GetDriveName())
+			klog.ErrorS(fmt.Errorf("device mounted outside of DirectPV"), "device", devices[0].Name, "mountPoints", mountPoints.ToSlice(), "drive", drive.GetDriveID(), drive.GetDriveName())
 		}
 
 		updated = syncDrive(drive, devices[0])

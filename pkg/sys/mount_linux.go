@@ -32,11 +32,10 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func parseMount(s string) *MountEntry {
+func parseMount(s string, xxHash uint64) *MountEntry {
 	// Refer https://man7.org/linux/man-pages/man5/proc_pid_mountinfo.5.html
 	// to know about this logic.
 	s = strings.TrimSpace(s)
-	xxHash := xxhash.Sum64String(s)
 	tokens := strings.Fields(s)
 	if len(tokens) < 8 {
 		return nil
@@ -70,12 +69,22 @@ func parseMount(s string) *MountEntry {
 	return &mount
 }
 
-func parseMountInfo(r io.Reader) (*MountInfo, error) {
-	infoMap := map[uint64]*MountEntry{}
-	mountPointMap := map[string][]uint64{}
-	mountSourceMap := map[string][]uint64{}
-	majorMinorMap := map[string][]uint64{}
-	rootMap := map[string][]uint64{}
+func parseMountInfo(r io.Reader, info *MountInfo) (*MountInfo, error) {
+	if info == nil {
+		info = &MountInfo{
+			infoMap:        map[uint64]*MountEntry{},
+			mountPointMap:  map[string][]uint64{},
+			mountSourceMap: map[string][]uint64{},
+			majorMinorMap:  map[string][]uint64{},
+			rootMap:        map[string][]uint64{},
+		}
+	}
+
+	infoMap := info.infoMap
+	mountPointMap := info.mountPointMap
+	mountSourceMap := info.mountSourceMap
+	majorMinorMap := info.majorMinorMap
+	rootMap := info.rootMap
 
 	reader := bufio.NewReader(r)
 
@@ -88,7 +97,12 @@ func parseMountInfo(r io.Reader) (*MountInfo, error) {
 			return nil, err
 		}
 
-		mount := parseMount(s)
+		xxHash := xxhash.Sum64String(s)
+		if _, found := infoMap[xxHash]; found {
+			continue
+		}
+
+		mount := parseMount(s, xxHash)
 		if mount == nil {
 			continue
 		}
@@ -100,23 +114,41 @@ func parseMountInfo(r io.Reader) (*MountInfo, error) {
 		rootMap[mount.Root] = append(rootMap[mount.Root], mount.xxHash)
 	}
 
-	return &MountInfo{
-		infoMap:        infoMap,
-		mountPointMap:  mountPointMap,
-		mountSourceMap: mountSourceMap,
-		majorMinorMap:  majorMinorMap,
-		rootMap:        rootMap,
-	}, nil
+	return info, nil
 }
 
 func newMountInfo() (*MountInfo, error) {
-	file, err := os.Open("/proc/self/mountinfo")
+	parseSelfInfo := func() (*MountInfo, error) {
+		file, err := os.Open("/proc/self/mountinfo")
+		if err != nil {
+			return nil, err
+		}
+
+		defer file.Close()
+		return parseMountInfo(file, nil)
+	}
+
+	parseRootInfo := func(info *MountInfo) (*MountInfo, error) {
+		file, err := os.Open("/proc/1/mountinfo")
+		if err != nil {
+			switch {
+			case errors.Is(err, os.ErrInvalid), errors.Is(err, os.ErrPermission), errors.Is(err, os.ErrExist), errors.Is(err, os.ErrNotExist), errors.Is(err, os.ErrClosed):
+			default:
+				klog.ErrorS(err, "unable to read /proc/1/mountinfo; open an issue in SUBNET with this log")
+			}
+			return info, nil
+		}
+
+		defer file.Close()
+		return parseMountInfo(file, info)
+	}
+
+	info, err := parseSelfInfo()
 	if err != nil {
 		return nil, err
 	}
 
-	defer file.Close()
-	return parseMountInfo(file)
+	return parseRootInfo(info)
 }
 
 var mountFlagMap = map[string]uintptr{
