@@ -110,8 +110,12 @@ func sync(ctx context.Context, volume *types.Volume) error {
 }
 
 func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Volume) error {
-	if len(volume.Finalizers) == 0 {
-		return nil
+	volume, err := client.VolumeClient().Get(ctx, volume.GetName(), metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
 	}
 
 	if !volume.IsReleased() {
@@ -171,22 +175,17 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	}
 
 	volume.RemovePurgeProtection()
-	_, err := client.VolumeClient().Update(
+	_, err = client.VolumeClient().Update(
 		ctx, volume, metav1.UpdateOptions{TypeMeta: types.NewVolumeTypeMeta()},
 	)
-	if err != nil {
-		statusError, isStatusError := err.(*apierrors.StatusError)
-		if isStatusError && statusError.Status().Reason == metav1.StatusReasonNotFound {
-			return nil
+
+	if err == nil {
+		if len(volume.Finalizers) != 0 { // This should not happen here.
+			client.Eventf(volume, client.EventTypeNormal, client.EventReasonVolumeReleased, "volume is released")
 		}
-		return err
 	}
 
-	if len(volume.Finalizers) != 0 { // This should not happen here.
-		client.Eventf(volume, client.EventTypeNormal, client.EventReasonVolumeReleased, "volume is released")
-	}
-
-	return nil
+	return err
 }
 
 func (handler *volumeEventHandler) releaseVolume(ctx context.Context, volume *types.Volume) error {
