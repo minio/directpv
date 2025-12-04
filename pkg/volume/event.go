@@ -110,6 +110,10 @@ func sync(ctx context.Context, volume *types.Volume) error {
 }
 
 func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Volume) error {
+	if len(volume.Finalizers) == 0 {
+		return nil
+	}
+
 	if !volume.IsReleased() {
 		return fmt.Errorf("volume %v must be released before cleaning up", volume.Name)
 	}
@@ -170,14 +174,19 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	_, err := client.VolumeClient().Update(
 		ctx, volume, metav1.UpdateOptions{TypeMeta: types.NewVolumeTypeMeta()},
 	)
-
-	if err == nil {
-		if len(volume.Finalizers) != 0 { // This should not happen here.
-			client.Eventf(volume, client.EventTypeNormal, client.EventReasonVolumeReleased, "volume is released")
+	if err != nil {
+		statusError, isStatusError := err.(*apierrors.StatusError)
+		if isStatusError && statusError.Status().Reason == metav1.StatusReasonNotFound {
+			return nil
 		}
+		return err
 	}
 
-	return err
+	if len(volume.Finalizers) != 0 { // This should not happen here.
+		client.Eventf(volume, client.EventTypeNormal, client.EventReasonVolumeReleased, "volume is released")
+	}
+
+	return nil
 }
 
 func (handler *volumeEventHandler) releaseVolume(ctx context.Context, volume *types.Volume) error {
