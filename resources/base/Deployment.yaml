@@ -40,7 +40,7 @@ spec:
         env:
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: quay.io/minio/csi-provisioner@sha256:24816a743663d153060f0c3fc30005f05bea23c8b0fd2551fd667042741e8562
+        image: quay.io/minio/csi-provisioner@sha256:fff8927753ef1a67278804897de5dda9fd47c48b27575d53daafb12ab7179446
         name: csi-provisioner
         resources: {}
         securityContext:
@@ -59,7 +59,7 @@ spec:
         env:
         - name: CSI_ENDPOINT
           value: unix:///csi/csi.sock
-        image: quay.io/minio/csi-resizer@sha256:fc0c1f9cbc0ebb16283c0e425c031041eedb0e8ebbe6a1adec3de41584548ce6
+        image: quay.io/minio/csi-resizer@sha256:0640655cdf10b17bf50b304d5c3555135141b6bd3d79260a3ce389bf90d4e4bf
         name: csi-resizer
         resources: {}
         securityContext:
