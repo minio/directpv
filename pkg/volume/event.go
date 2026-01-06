@@ -110,6 +110,14 @@ func sync(ctx context.Context, volume *types.Volume) error {
 }
 
 func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Volume) error {
+	volume, err := client.VolumeClient().Get(ctx, volume.GetName(), metav1.GetOptions{TypeMeta: types.NewVolumeTypeMeta()})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
 	if !volume.IsReleased() {
 		return fmt.Errorf("volume %v must be released before cleaning up", volume.Name)
 	}
@@ -167,7 +175,7 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	}
 
 	volume.RemovePurgeProtection()
-	_, err := client.VolumeClient().Update(
+	_, err = client.VolumeClient().Update(
 		ctx, volume, metav1.UpdateOptions{TypeMeta: types.NewVolumeTypeMeta()},
 	)
 

@@ -20,14 +20,14 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        kube-version: ['v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.17', 'v1.24.17', 'v1.25.16', 'v1.26.15', 'v1.27.16', 'v1.28.15', 'v1.29.14', 'v1.30.14', 'v1.31.10', 'v1.32.6', 'v1.33.2']
+        kube-version: ['v1.28.15', 'v1.29.14', 'v1.30.14', 'v1.31.14', 'v1.32.10', 'v1.33.6', 'v1.34.2']
         os: [ubuntu-22.04, ubuntu-24.04]
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
-          go-version: 1.24.x
+          go-version: 1.25.x
           check-latest: true
 
       - name: Install dependencies
@@ -70,7 +70,7 @@ jobs:
           while kubectl get nodes --no-headers | grep -vqw Ready; do echo "Waiting for Minikube node to be ready"; sleep 3; done
 
       - name: Enable kustomize
-        if: contains(fromJson('["v1.24.17", "v1.25.16", "v1.26.15", "v1.27.16", "v1.28.15", "v1.29.14"]'), matrix.kube-version)
+        if: contains(fromJson('["v1.28.15", "v1.29.14"]'), matrix.kube-version)
         run: |
           echo "KUSTOMIZE=true" >> $GITHUB_ENV
 
@@ -82,9 +82,3 @@ jobs:
         run: |
           sudo rm -fr /var/lib/directpv
           functests/run-migration-tests.sh "v3.2.2"
-
-      - name: Run migration tests with DirectCSI v2.0.9
-        if: contains(fromJson('["v1.20.15", "v1.21.14", "v1.22.17"]'), matrix.kube-version)
-        run: |
-          sudo rm -fr /var/lib/directpv /var/lib/direct-csi
-          functests/run-migration-tests.sh "v2.0.9"
