@@ -88,9 +88,6 @@ spec:
         - containerPort: 30443
           name: readinessport
           protocol: TCP
-        - containerPort: 9898
-          name: healthz
-          protocol: TCP
         readinessProbe:
           failureThreshold: 5
           httpGet:

@@ -75,9 +75,6 @@ spec:
         - containerPort: 30443
           name: readinessport
           protocol: TCP
-        - containerPort: 9898
-          name: healthz
-          protocol: TCP
         - containerPort: 10443
           name: metrics
           protocol: TCP
@@ -127,6 +124,10 @@ spec:
         - --health-port=9898
         image: quay.io/minio/livenessprobe@sha256:8f3b1bec9c87a832a3fe6e8b7f165e0ff048aef7373f9764f40efee456a00321
         name: liveness-probe
+        ports:
+        - containerPort: 9898
+          name: healthz
+          protocol: TCP
         resources: {}
         terminationMessagePath: /var/log/driver-liveness-termination-log
         terminationMessagePolicy: FallbackToLogsOnError
