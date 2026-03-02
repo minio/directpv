@@ -64,7 +64,7 @@ func (client *Client) Uncordon(ctx context.Context, args UncordonArgs, log LogFu
 			_, err = client.Drive().Update(ctx, &result.Drive, metav1.UpdateOptions{})
 		}
 		if err != nil {
-			err = fmt.Errorf("unable to uncordon drive %v; %v", result.Drive.GetDriveID(), err)
+			err = fmt.Errorf("unable to uncordon drive %v; %w", result.Drive.GetDriveID(), err)
 			return
 		}
 

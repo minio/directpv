@@ -249,7 +249,7 @@ func (t daemonsetTask) doCreateDaemonset(ctx context.Context, args *Args) (err e
 	containerArgs := []string{
 		consts.NodeServerName,
 		fmt.Sprintf("-v=%d", logLevel),
-		fmt.Sprintf("--identity=%s", consts.Identity),
+		"--identity=" + consts.Identity,
 		fmt.Sprintf("--csi-endpoint=$(%s)", csiEndpointEnvVarName),
 		fmt.Sprintf("--kube-node-name=$(%s)", kubeNodeNameEnvVarName),
 		fmt.Sprintf("--readiness-port=%d", consts.ReadinessPort),

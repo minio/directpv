@@ -17,7 +17,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -139,37 +138,57 @@ func (m progressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m progressModel) View() (str string) {
+func (m progressModel) View() string {
 	pad := strings.Repeat(" ", padding)
-	str = "\n"
+
+	var builder strings.Builder
+	builder.Grow(256)
+
+	builder.WriteString("\n")
+
 	if m.model != nil {
-		str = str + pad + m.model.View() + "\n\n"
+		builder.WriteString(pad)
+		builder.WriteString(m.model.View())
+		builder.WriteString("\n\n")
 	}
-	if !m.done {
-		if m.message != "" {
-			str += pad + fmt.Sprintf("%s \n\n", m.message)
-		}
+
+	if !m.done && m.message != "" {
+		builder.WriteString(pad)
+		builder.WriteString(m.message)
+		builder.WriteString("\n\n")
 	}
-	for i := range m.progressLogs {
-		if m.progressLogs[i].done {
-			str += pad + fmt.Sprintf("%s %s\n", color.HiYellowString(m.progressLogs[i].log), m.spinner.Style.Render(tick))
-		} else {
-			str += pad + fmt.Sprintf("%s %s\n", color.HiYellowString(m.progressLogs[i].log), m.spinner.View())
+
+	if len(m.progressLogs) > 0 {
+		for _, pl := range m.progressLogs {
+			builder.WriteString(pad)
+			builder.WriteString(color.HiYellowString(pl.log))
+			builder.WriteByte(' ')
+			if pl.done {
+				builder.WriteString(m.spinner.Style.Render(tick))
+			} else {
+				builder.WriteString(m.spinner.View())
+			}
+			builder.WriteByte('\n')
 		}
-		if i == len(m.progressLogs)-1 {
-			str += "\n"
-		}
+		builder.WriteByte('\n')
 	}
-	for i := range m.logs {
-		str += pad + color.HiYellowString(fmt.Sprintf("%s \n", m.logs[i]))
-		if i == len(m.logs)-1 {
-			str += "\n"
+
+	if len(m.logs) > 0 {
+		for _, log := range m.logs {
+			builder.WriteString(pad)
+			builder.WriteString(color.HiYellowString(log))
+			builder.WriteByte('\n')
 		}
+		builder.WriteByte('\n')
 	}
+
 	if m.err != nil {
-		str += pad + color.HiRedString("Error; %s \n\n", m.err.Error())
+		builder.WriteString(pad)
+		builder.WriteString(color.HiRedString("Error: %s\n\n", m.err.Error()))
 	}
-	return str + pad
+
+	builder.WriteString(pad)
+	return builder.String()
 }
 
 func toProgressLogs(progressMap map[string]progressLog) (logs []progressLog) {

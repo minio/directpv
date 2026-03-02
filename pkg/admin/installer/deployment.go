@@ -68,7 +68,7 @@ func (t deploymentTask) Delete(ctx context.Context, _ *Args) error {
 
 func (t deploymentTask) doCreateDeployment(ctx context.Context, args *Args, legacy bool, step int) (err error) {
 	name := consts.ControllerServerName
-	containerArgs := []string{name, fmt.Sprintf("--identity=%s", consts.Identity)}
+	containerArgs := []string{name, "--identity=" + consts.Identity}
 	if legacy {
 		name = consts.LegacyControllerServerName
 		containerArgs = []string{name}
@@ -99,7 +99,7 @@ func (t deploymentTask) doCreateDeployment(ctx context.Context, args *Args, lega
 		Volumes: []corev1.Volume{
 			k8s.NewHostPathVolume(
 				csiDirVolumeName,
-				newPluginsSocketDir(kubeletDirPath, fmt.Sprintf("%s-controller", consts.ControllerServerName)),
+				newPluginsSocketDir(kubeletDirPath, consts.ControllerServerName+"-controller"),
 			),
 		},
 		ImagePullSecrets: args.getImagePullSecrets(),

@@ -87,7 +87,7 @@ func (client *Client) Cordon(ctx context.Context, args CordonArgs, log LogFunc) 
 		result.Drive.Unschedulable()
 		if !args.DryRun {
 			if _, err = client.Drive().Update(ctx, &result.Drive, metav1.UpdateOptions{}); err != nil {
-				err = fmt.Errorf("unable to cordon drive %v; %v", result.Drive.GetDriveID(), err)
+				err = fmt.Errorf("unable to cordon drive %v; %w", result.Drive.GetDriveID(), err)
 				return
 			}
 		}

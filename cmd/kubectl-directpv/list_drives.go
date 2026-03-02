@@ -18,8 +18,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -183,7 +183,7 @@ func listDrivesMain(ctx context.Context) {
 		volumeCount := drive.GetVolumeCount()
 		volumes := "-"
 		if volumeCount > 0 {
-			volumes = fmt.Sprintf("%v", volumeCount)
+			volumes = strconv.Itoa(volumeCount)
 		}
 		status := drive.Status.Status
 		if drive.IsUnschedulable() {

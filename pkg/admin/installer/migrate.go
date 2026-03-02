@@ -89,7 +89,7 @@ func (t migrateTask) migrateDrives(ctx context.Context, dryRun bool, progressCh 
 	for result := range t.legacyClient.ListDrives(ctx) {
 		if result.Err != nil {
 			return nil, legacyDriveErrors, driveErrors, fmt.Errorf(
-				"unable to get legacy drives; %v", result.Err,
+				"unable to get legacy drives; %w", result.Err,
 			)
 		}
 
@@ -231,7 +231,7 @@ func (t migrateTask) migrateVolumes(ctx context.Context, driveMap map[string]str
 	for result := range t.legacyClient.ListVolumes(ctx) {
 		if result.Err != nil {
 			return legacyVolumeErrors, volumeErrors, fmt.Errorf(
-				"unable to get legacy volumes; %v", result.Err,
+				"unable to get legacy volumes; %w", result.Err,
 			)
 		}
 

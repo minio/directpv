@@ -45,7 +45,7 @@ func (client *Client) Move(ctx context.Context, args MoveArgs, log LogFunc) erro
 
 	srcDrive, err := client.Drive().Get(ctx, string(args.Source), metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("unable to get source drive; %v", err)
+		return fmt.Errorf("unable to get source drive; %w", err)
 	}
 
 	if !srcDrive.IsUnschedulable() {
@@ -76,7 +76,7 @@ func (client *Client) Move(ctx context.Context, args MoveArgs, log LogFunc) erro
 
 	destDrive, err := client.Drive().Get(ctx, string(args.Destination), metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("unable to get destination drive %v; %v", args.Destination, err)
+		return fmt.Errorf("unable to get destination drive %v; %w", args.Destination, err)
 	}
 	if destDrive.GetNodeID() != srcDrive.GetNodeID() {
 		return fmt.Errorf("source and destination drives must be in same node; source node %v; desination node %v",
@@ -113,7 +113,7 @@ func (client *Client) Move(ctx context.Context, args MoveArgs, log LogFunc) erro
 		ctx, destDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 	)
 	if err != nil {
-		return fmt.Errorf("unable to move volumes to destination drive; %v", err)
+		return fmt.Errorf("unable to move volumes to destination drive; %w", err)
 	}
 
 	for _, volume := range volumes {
@@ -132,7 +132,7 @@ func (client *Client) Move(ctx context.Context, args MoveArgs, log LogFunc) erro
 		ctx, srcDrive, metav1.UpdateOptions{TypeMeta: types.NewDriveTypeMeta()},
 	)
 	if err != nil {
-		return fmt.Errorf("unable to remove volume references in source drive; %v", err)
+		return fmt.Errorf("unable to remove volume references in source drive; %w", err)
 	}
 	return nil
 }

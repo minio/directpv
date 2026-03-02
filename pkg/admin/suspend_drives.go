@@ -88,7 +88,7 @@ func (client *Client) SuspendDrives(ctx context.Context, args SuspendDriveArgs, 
 			return nil
 		}
 		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			err = fmt.Errorf("unable to suspend drive %v; %v", result.Drive.GetDriveID(), err)
+			err = fmt.Errorf("unable to suspend drive %v; %w", result.Drive.GetDriveID(), err)
 			return
 		}
 

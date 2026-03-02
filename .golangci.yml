@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.25"
+  go: "1.26"
 linters:
   default: none
   enable:
@@ -15,24 +15,27 @@ linters:
     - unconvert
     - unused
     - usetesting
+    - dupword
+    - errorlint
+    - intrange
+    - nilnesserr
+    - perfsprint
+    - unparam
   settings:
     misspell:
       locale: US
-  exclusions:
-    generated: lax
-    rules:
-      - path: (.+)\.go$
-        text: should have a package comment
-      - path: (.+)\.go$
-        text: exitAfterDefer
-      - path: (.+)\.go$
-        text: redefines-builtin-id
-      - path: (.+)\.go$
-        text: avoid meaningless package names
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -SA1019
+    revive:
+      rules:
+        - name: var-naming
+          disabled: true
+    gocritic:
+      disabled-checks:
+        - exitAfterDefer
 formatters:
   enable:
     - gofmt

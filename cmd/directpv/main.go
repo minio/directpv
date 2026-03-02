@@ -18,8 +18,8 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -67,7 +67,7 @@ var mainCmd = &cobra.Command{
 	},
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 		if kubeNodeName == "" {
-			return fmt.Errorf("value to --kube-node-name must be provided")
+			return errors.New("value to --kube-node-name must be provided")
 		}
 
 		nodeID = directpvtypes.NodeID(kubeNodeName)

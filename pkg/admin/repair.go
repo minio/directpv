@@ -18,6 +18,7 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -83,7 +84,7 @@ func (client *Client) getContainerParams(ctx context.Context) (params repairCont
 	}
 
 	if daemonSet == nil || daemonSet.UID == "" {
-		return params, fmt.Errorf("invalid daemonset found")
+		return params, errors.New("invalid daemonset found")
 	}
 
 	for _, container := range daemonSet.Spec.Template.Spec.Containers {

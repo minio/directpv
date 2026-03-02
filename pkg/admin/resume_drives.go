@@ -72,7 +72,7 @@ func (client *Client) ResumeDrives(ctx context.Context, args ResumeDriveArgs, lo
 			return nil
 		}
 		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			err = fmt.Errorf("unable to resume drive %v; %v", result.Drive.GetDriveID(), err)
+			err = fmt.Errorf("unable to resume drive %v; %w", result.Drive.GetDriveID(), err)
 			return
 		}
 

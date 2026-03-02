@@ -26,12 +26,12 @@ export PATH="$PATH:$GOPATH/bin"
 VERSIONS=(v1beta1)
 
 echo "Installing code generators ..."
-go install -v \
-   k8s.io/code-generator/cmd/deepcopy-gen@v0.34.2 \
-   k8s.io/code-generator/cmd/client-gen@v0.34.2 \
-   k8s.io/code-generator/cmd/conversion-gen@v0.34.2
-go install -v k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20251125145642-4e65d59e963e
-go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.19.0
+go install \
+   k8s.io/code-generator/cmd/deepcopy-gen@v0.35.1 \
+   k8s.io/code-generator/cmd/client-gen@v0.35.1 \
+   k8s.io/code-generator/cmd/conversion-gen@v0.35.1
+go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20260127142750-a19766b6e2d4
+go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
 
 cd "$(dirname "$0")"
 

@@ -46,10 +46,10 @@ type NodeLister struct {
 }
 
 // NewNodeLister creates new volume lister.
-func (client Client) NewNodeLister() *NodeLister {
+func (c Client) NewNodeLister() *NodeLister {
 	return &NodeLister{
 		maxObjects: k8s.MaxThreadCount,
-		nodeClient: client.Node(),
+		nodeClient: c.Node(),
 	}
 }
 
@@ -208,7 +208,7 @@ func (lister *NodeLister) Watch(ctx context.Context) (<-chan WatchEvent[*types.N
 			if err != nil {
 				watchCh <- WatchEvent[*types.Node]{
 					Type: result.Type,
-					Err:  fmt.Errorf("unable to convert unstructured object %s; %v", unstructured.GetName(), err),
+					Err:  fmt.Errorf("unable to convert unstructured object %s; %w", unstructured.GetName(), err),
 				}
 				continue
 			}

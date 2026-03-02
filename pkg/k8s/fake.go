@@ -47,7 +47,7 @@ func (fd *FakeDiscovery) ServerGroupsAndResources() ([]*metav1.APIGroup, []*meta
 
 // FakeInit initializes fake clients.
 func FakeInit() {
-	var kubeClient kubernetes.Interface = kubernetesfake.NewSimpleClientset()
+	var kubeClient kubernetes.Interface = kubernetesfake.NewClientset()
 	fakeApiextensionsV1 := apiextensionsv1fake.FakeApiextensionsV1{
 		Fake: &kubeClient.(*kubernetesfake.Clientset).Fake,
 	}

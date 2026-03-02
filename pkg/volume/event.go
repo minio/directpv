@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"time"
 
@@ -124,7 +125,8 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 
 	if volume.Status.TargetPath != "" {
 		if err := handler.unmount(volume.Status.TargetPath); err != nil {
-			if _, ok := err.(*os.PathError); !ok {
+			var perr *fs.PathError
+			if !errors.As(err, &perr) {
 				klog.ErrorS(err, "unable to unmount container path",
 					"volume", volume.Name,
 					"containerPath", volume.Status.TargetPath,
@@ -135,7 +137,8 @@ func (handler *volumeEventHandler) delete(ctx context.Context, volume *types.Vol
 	}
 	if volume.Status.StagingTargetPath != "" {
 		if err := handler.unmount(volume.Status.StagingTargetPath); err != nil {
-			if _, ok := err.(*os.PathError); !ok {
+			var perr *fs.PathError
+			if !errors.As(err, &perr) {
 				klog.ErrorS(err, "unable to unmount staging path",
 					"volume", volume.Name,
 					"StagingTargetPath", volume.Status.StagingTargetPath,

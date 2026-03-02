@@ -84,7 +84,7 @@ func validateLabelCmdArgs(args []string) (labels []admin.Label, err error) {
 				return nil, err
 			}
 		default:
-			return nil, fmt.Errorf("argument must be formatted k=v or k-")
+			return nil, errors.New("argument must be formatted k=v or k-")
 		}
 		labels = append(labels, label)
 	}

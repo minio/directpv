@@ -87,7 +87,7 @@ func (client *Client) SuspendVolumes(ctx context.Context, args SuspendVolumeArgs
 			return nil
 		}
 		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			err = fmt.Errorf("unable to suspend volume %v; %v", result.Volume.Name, err)
+			err = fmt.Errorf("unable to suspend volume %v; %w", result.Volume.Name, err)
 			return
 		}
 

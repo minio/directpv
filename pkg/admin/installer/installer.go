@@ -61,7 +61,7 @@ func Install(ctx context.Context, args *Args, tasks []Task) (err error) {
 
 	if args.KubeVersion.Major() != 1 ||
 		args.KubeVersion.Minor() < 18 ||
-		args.KubeVersion.Minor() > 33 {
+		args.KubeVersion.Minor() > 35 {
 		if !args.DryRun {
 			utils.Eprintf(
 				args.Quiet,

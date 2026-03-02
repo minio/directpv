@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -121,7 +122,7 @@ func probe(path string) (fsuuid, label string, totalCapacity, freeCapacity uint6
 		case <-ticker.C:
 			klog.InfoS("XFS probe is taking too long; still waiting", "device", path)
 		case <-ctx.Done():
-			err = fmt.Errorf("%w; %v", ErrCanceled, ctx.Err())
+			err = errors.Join(ErrCanceled, ctx.Err())
 			return
 		case <-doneCh:
 			return fsuuid, label, totalCapacity, freeCapacity, err

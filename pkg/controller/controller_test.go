@@ -56,6 +56,9 @@ func (handler *testEventHandler) ListerWatcher() cache.ListerWatcher {
 			return client.VolumeClient().List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			if options.SendInitialEvents != nil && *options.SendInitialEvents {
+				return nil, errors.New("fake client does not support SendInitialEvents")
+			}
 			options.LabelSelector = fmt.Sprintf("%s=%s", directpvtypes.NodeLabelKey, nodeID)
 			return client.VolumeClient().Watch(context.TODO(), options)
 		},

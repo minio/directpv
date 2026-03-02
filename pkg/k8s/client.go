@@ -18,6 +18,7 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -50,16 +51,16 @@ type Client struct {
 func NewClient(kubeConfig *rest.Config) (*Client, error) {
 	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new kubernetes client interface; %v", err)
+		return nil, fmt.Errorf("unable to create new kubernetes client interface; %w", err)
 	}
 	apiextensionsClient, err := apiextensions.NewForConfig(kubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new API extensions client interface; %v", err)
+		return nil, fmt.Errorf("unable to create new API extensions client interface; %w", err)
 	}
 	crdClient := apiextensionsClient.CustomResourceDefinitions()
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new discovery client interface; %v", err)
+		return nil, fmt.Errorf("unable to create new discovery client interface; %w", err)
 	}
 	return &Client{
 		KubeConfig:          kubeConfig,
@@ -79,7 +80,7 @@ func (client *Client) GetKubeVersion() (major, minor uint, err error) {
 
 	var u64 uint64
 	if u64, err = strconv.ParseUint(versionInfo.Major, 10, 64); err != nil {
-		return 0, 0, fmt.Errorf("unable to parse major version %v; %v", versionInfo.Major, err)
+		return 0, 0, fmt.Errorf("unable to parse major version %v; %w", versionInfo.Major, err)
 	}
 	major = uint(u64)
 
@@ -93,7 +94,7 @@ func (client *Client) GetKubeVersion() (major, minor uint, err error) {
 		}
 	}
 	if u64, err = strconv.ParseUint(minorString, 10, 64); err != nil {
-		return 0, 0, fmt.Errorf("unable to parse minor version %v; %v", minor, err)
+		return 0, 0, fmt.Errorf("unable to parse minor version %v; %w", minor, err)
 	}
 	minor = uint(u64)
 	return major, minor, nil
@@ -160,7 +161,7 @@ func (client *Client) GetCSINodes(ctx context.Context) (nodes []string, err erro
 
 	switch gvk.Version {
 	case "v1apha1":
-		err = fmt.Errorf("unsupported CSINode storage.k8s.io/v1alpha1")
+		err = errors.New("unsupported CSINode storage.k8s.io/v1alpha1")
 	case "v1":
 		result := &storagev1.CSINodeList{}
 		if err = storageClient.Get().
