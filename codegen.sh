@@ -27,9 +27,9 @@ VERSIONS=(v1beta1)
 
 echo "Installing code generators ..."
 go install \
-   k8s.io/code-generator/cmd/deepcopy-gen@v0.35.1 \
-   k8s.io/code-generator/cmd/client-gen@v0.35.1 \
-   k8s.io/code-generator/cmd/conversion-gen@v0.35.1
+   k8s.io/code-generator/cmd/deepcopy-gen@v0.35.2 \
+   k8s.io/code-generator/cmd/client-gen@v0.35.2 \
+   k8s.io/code-generator/cmd/conversion-gen@v0.35.2
 go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20260127142750-a19766b6e2d4
 go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
 
