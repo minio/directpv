@@ -46,10 +46,10 @@ type InitRequestLister struct {
 }
 
 // NewInitRequestLister creates new volume lister.
-func (client Client) NewInitRequestLister() *InitRequestLister {
+func (c Client) NewInitRequestLister() *InitRequestLister {
 	return &InitRequestLister{
 		maxObjects:        k8s.MaxThreadCount,
-		initRequestClient: client.InitRequest(),
+		initRequestClient: c.InitRequest(),
 	}
 }
 
@@ -207,7 +207,7 @@ func (lister *InitRequestLister) Watch(ctx context.Context) (<-chan WatchEvent[*
 			if err != nil {
 				watchCh <- WatchEvent[*types.InitRequest]{
 					Type: result.Type,
-					Err:  fmt.Errorf("unable to convert unstructured object %s; %v", unstructured.GetName(), err),
+					Err:  fmt.Errorf("unable to convert unstructured object %s; %w", unstructured.GetName(), err),
 				}
 				continue
 			}

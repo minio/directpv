@@ -121,7 +121,7 @@ func (c Client) Discovery() discovery.DiscoveryInterface {
 func NewClient(c *rest.Config) (*Client, error) {
 	k8sClient, err := k8s.NewClient(c)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create kubernetes client; %v", err)
+		return nil, fmt.Errorf("unable to create kubernetes client; %w", err)
 	}
 	return newClient(k8sClient)
 }
@@ -130,25 +130,25 @@ func NewClient(c *rest.Config) (*Client, error) {
 func newClient(k8sClient *k8s.Client) (*Client, error) {
 	cs, err := clientset.NewForConfig(k8sClient.KubeConfig)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new clientset interface; %v", err)
+		return nil, fmt.Errorf("unable to create new clientset interface; %w", err)
 	}
 	clientsetInterface := types.NewExtClientset(cs)
 	restClient := clientsetInterface.DirectpvLatest().RESTClient()
 	driveClient, err := latestDriveClientForConfig(k8sClient)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new drive interface; %v", err)
+		return nil, fmt.Errorf("unable to create new drive interface; %w", err)
 	}
 	volumeClient, err := latestVolumeClientForConfig(k8sClient)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new volume interface; %v", err)
+		return nil, fmt.Errorf("unable to create new volume interface; %w", err)
 	}
 	nodeClient, err := latestNodeClientForConfig(k8sClient)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new node interface; %v", err)
+		return nil, fmt.Errorf("unable to create new node interface; %w", err)
 	}
 	initRequestClient, err := latestInitRequestClientForConfig(k8sClient)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new initrequest interface; %v", err)
+		return nil, fmt.Errorf("unable to create new initrequest interface; %w", err)
 	}
 	return &Client{
 		ClientsetInterface: clientsetInterface,

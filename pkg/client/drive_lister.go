@@ -47,10 +47,10 @@ type DriveLister struct {
 }
 
 // NewDriveLister creates new drive lister.
-func (client Client) NewDriveLister() *DriveLister {
+func (c Client) NewDriveLister() *DriveLister {
 	return &DriveLister{
 		maxObjects:  k8s.MaxThreadCount,
-		driveClient: client.Drive(),
+		driveClient: c.Drive(),
 	}
 }
 

@@ -114,7 +114,7 @@ func StageVolume(
 	volumeDir := types.GetVolumeDir(volume.Status.FSUUID, volume.Name)
 
 	if err := mkdir(volumeDir); err != nil && !errors.Is(err, os.ErrExist) {
-		if errors.Unwrap(err) == syscall.EIO {
+		if errors.Is(errors.Unwrap(err), syscall.EIO) {
 			if err := SetIOError(ctx, volume.GetDriveID()); err != nil {
 				return codes.Internal, fmt.Errorf("unable to set drive error; %w", err)
 			}
@@ -360,7 +360,7 @@ func (handler *driveEventHandler) checkDrive(ctx context.Context, drive *types.D
 	switch drive.Status.Status {
 	case directpvtypes.DriveStatusReady:
 		if err := handler.exists(types.GetVolumeRootDir(drive.Status.FSUUID)); err != nil {
-			if errors.Unwrap(err) == syscall.EIO {
+			if errors.Is(errors.Unwrap(err), syscall.EIO) {
 				if uerr := SetIOError(ctx, drive.GetDriveID()); uerr != nil {
 					klog.ErrorS(uerr, "unable to set I/O error", "drive", drive.GetDriveID())
 				}

@@ -148,7 +148,7 @@ func (server *Server) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 func (server *Server) publishVolume(req *csi.NodePublishVolumeRequest, isSuspended bool) error {
 	if err := server.mkdir(req.GetTargetPath()); err != nil && !errors.Is(err, os.ErrExist) {
-		return fmt.Errorf("unable to create target path; %v", err)
+		return fmt.Errorf("unable to create target path; %w", err)
 	}
 
 	mountInfo, err := server.getMounts()
@@ -165,7 +165,7 @@ func (server *Server) publishVolume(req *csi.NodePublishVolumeRequest, isSuspend
 			return nil
 		}
 		if err := server.bindMount(consts.TmpMountDir, req.GetTargetPath(), true); err != nil {
-			return fmt.Errorf("unable to bind mount target path %v to %v; %v", req.GetTargetPath(), consts.TmpMountDir, err)
+			return fmt.Errorf("unable to bind mount target path %v to %v; %w", req.GetTargetPath(), consts.TmpMountDir, err)
 		}
 		return nil
 	}
@@ -187,7 +187,7 @@ func (server *Server) publishVolume(req *csi.NodePublishVolumeRequest, isSuspend
 		klog.V(5).InfoS("stagingTargetPath is already bind-mounted to targetPath", "stagingTargetPath", req.GetStagingTargetPath(), "targetPath", req.GetTargetPath())
 	} else {
 		if err := server.bindMount(req.GetStagingTargetPath(), req.GetTargetPath(), req.GetReadonly()); err != nil {
-			return fmt.Errorf("unable to bind mount staging target path to target path; %v", err)
+			return fmt.Errorf("unable to bind mount staging target path to target path; %w", err)
 		}
 	}
 	return nil

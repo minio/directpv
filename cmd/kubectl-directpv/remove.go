@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
@@ -30,7 +29,7 @@ import (
 
 var removeCmd = &cobra.Command{
 	Use:           "remove [DRIVE ...]",
-	Short:         fmt.Sprintf("Remove unused drives from %s", consts.AppPrettyName),
+	Short:         "Remove unused drives from " + consts.AppPrettyName,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(

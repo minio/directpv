@@ -46,13 +46,13 @@ func (client *Client) Migrate(ctx context.Context, args MigrateArgs) error {
 	}
 	legacyClient, err := legacyclient.NewClient(client.K8s())
 	if err != nil {
-		return fmt.Errorf("unable to create legacy client; %v", err)
+		return fmt.Errorf("unable to create legacy client; %w", err)
 	}
 	if err := installer.Migrate(ctx, &installer.Args{
 		Quiet:  args.Quiet,
 		Legacy: true,
 	}, client.Client, legacyClient); err != nil {
-		return fmt.Errorf("migration failed; %v", err)
+		return fmt.Errorf("migration failed; %w", err)
 	}
 	if !args.Quiet {
 		fmt.Println("Migration successful; Please restart the pods in '" + consts.AppName + "' namespace.")
@@ -62,14 +62,14 @@ func (client *Client) Migrate(ctx context.Context, args MigrateArgs) error {
 	}
 	backupCreated, err := legacyClient.RemoveAllDrives(ctx, args.DrivesBackupFile)
 	if err != nil {
-		return fmt.Errorf("unable to remove legacy drive CRDs; %v", err)
+		return fmt.Errorf("unable to remove legacy drive CRDs; %w", err)
 	}
 	if backupCreated && !args.Quiet {
 		fmt.Println("Legacy drive CRDs backed up to", args.DrivesBackupFile)
 	}
 	backupCreated, err = legacyClient.RemoveAllVolumes(ctx, args.VolumesBackupFile)
 	if err != nil {
-		return fmt.Errorf("unable to remove legacy volume CRDs; %v", err)
+		return fmt.Errorf("unable to remove legacy volume CRDs; %w", err)
 	}
 	if backupCreated && !args.Quiet {
 		fmt.Println("Legacy volume CRDs backed up to", args.VolumesBackupFile)

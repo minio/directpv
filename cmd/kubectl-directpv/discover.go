@@ -296,7 +296,7 @@ func discoverDevices(ctx context.Context, nodes, drives []string, teaProgram *te
 			default:
 			}
 		case <-ctx.Done():
-			err = fmt.Errorf("unable to complete the discovery; %v", ctx.Err())
+			err = fmt.Errorf("unable to complete the discovery; %w", ctx.Err())
 			return
 		}
 	}

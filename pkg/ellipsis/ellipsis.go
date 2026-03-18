@@ -75,7 +75,7 @@ func (e *ellipsis) get(prefix string) string {
 		return ""
 	}
 
-	value := fmt.Sprintf("%v", e.current)
+	value := strconv.FormatUint(e.current, 10)
 	if e.isAlpha {
 		value = int2alpha(e.current)
 	}

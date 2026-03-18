@@ -20,14 +20,14 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        kube-version: ['v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.17', 'v1.24.17', 'v1.25.16', 'v1.26.15', 'v1.27.16', 'v1.28.15', 'v1.29.14', 'v1.30.14', 'v1.31.10', 'v1.32.6', 'v1.33.2']
+        kube-version: ['v1.19.16', 'v1.20.15', 'v1.21.14', 'v1.22.17', 'v1.23.17', 'v1.24.17', 'v1.25.16', 'v1.26.15', 'v1.27.16', 'v1.28.15', 'v1.29.14', 'v1.30.14', 'v1.31.14', 'v1.32.13', 'v1.33.9', 'v1.34.5', 'v1.35.2']
         os: [ubuntu-22.04, ubuntu-24.04]
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
-          go-version: 1.24.x
+          go-version: 1.26.x
           check-latest: true
 
       - name: Install dependencies
@@ -51,16 +51,12 @@ jobs:
           go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/directpv/cmd/directpv
           go build -tags "osusergo netgo static_build" -ldflags="-X main.Version=${VERSION} -extldflags=-static" github.com/minio/directpv/cmd/kubectl-directpv
 
-      - name: Build docker image
-        run: |
-          docker build --quiet -t quay.io/minio/directpv:${VERSION} .
-          docker build --quiet -t example.org/test/sleep:v0.0.1 -f functests/Dockerfile.sleep functests
-
       - name: Setup Minikube
         uses: medyagh/setup-minikube@latest
         with:
           driver: none
           kubernetes-version: ${{ matrix.kube-version }}
+          start-args: '--force'
 
       - name: Check Minikube
         run: |
@@ -68,6 +64,11 @@ jobs:
           kubectl get pods -A
           while kubectl get pods -n kube-system --no-headers | grep -vqw Running; do echo "Waiting for Minikube pods to be ready"; sleep 3; done
           while kubectl get nodes --no-headers | grep -vqw Ready; do echo "Waiting for Minikube node to be ready"; sleep 3; done
+
+      - name: Build docker image
+        run: |
+          docker build --quiet -t quay.io/minio/directpv:${VERSION} .
+          docker build --quiet -t example.org/test/sleep:v0.0.1 -f functests/Dockerfile.sleep functests
 
       - name: Run tests
         run: |
@@ -79,7 +80,7 @@ jobs:
           functests/run-migration-tests.sh "v3.2.2"
 
       - name: Run migration tests with DirectCSI v2.0.9
-        if: contains(fromJson('["v1.20.15", "v1.21.14", "v1.22.17"]'), matrix.kube-version)
+        if: contains(fromJson('["v1.19.16", "v1.20.15", "v1.21.14", "v1.22.17"]'), matrix.kube-version)
         run: |
           sudo rm -fr /var/lib/directpv /var/lib/direct-csi
           functests/run-migration-tests.sh "v2.0.9"

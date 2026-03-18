@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
@@ -60,15 +61,15 @@ func (d Device) ID(nodeID directpvtypes.NodeID) string {
 		"node":        string(nodeID),
 		"name":        d.Name,
 		"majorminor":  d.MajorMinor,
-		"size":        fmt.Sprintf("%v", d.Size),
-		"hidden":      fmt.Sprintf("%v", d.Hidden),
-		"removable":   fmt.Sprintf("%v", d.Removable),
-		"readonly":    fmt.Sprintf("%v", d.ReadOnly),
-		"partitioned": fmt.Sprintf("%v", d.Partitioned),
+		"size":        strconv.FormatUint(d.Size, 10),
+		"hidden":      strconv.FormatBool(d.Hidden),
+		"removable":   strconv.FormatBool(d.Removable),
+		"readonly":    strconv.FormatBool(d.ReadOnly),
+		"partitioned": strconv.FormatBool(d.Partitioned),
 		"holders":     strings.Join(d.Holders, ","),
 		"mountpoints": strings.Join(d.MountPoints, ","),
-		"swapon":      fmt.Sprintf("%v", d.SwapOn),
-		"cdrom":       fmt.Sprintf("%v", d.CDROM),
+		"swapon":      strconv.FormatBool(d.SwapOn),
+		"cdrom":       strconv.FormatBool(d.CDROM),
 		"dmname":      d.DMName,
 		"udevdata":    strings.Join(toSlice(d.udevData, "="), ";"),
 	}

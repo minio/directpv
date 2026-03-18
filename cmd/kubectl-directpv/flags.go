@@ -145,7 +145,7 @@ func validateNodeArgs() error {
 	for i := range nodesArgs {
 		nodesArgs[i] = strings.TrimSpace(nodesArgs[i])
 		if nodesArgs[i] == "" {
-			return fmt.Errorf("empty node name")
+			return errors.New("empty node name")
 		}
 		result, err := ellipsis.Expand(nodesArgs[i])
 		if err != nil {
@@ -164,7 +164,7 @@ func validateDriveNameArgs() error {
 	for i := range drivesArgs {
 		drivesArgs[i] = strings.TrimSpace(utils.TrimDevPrefix(drivesArgs[i]))
 		if drivesArgs[i] == "" {
-			return fmt.Errorf("empty drive name")
+			return errors.New("empty drive name")
 		}
 		result, err := ellipsis.Expand(drivesArgs[i])
 		if err != nil {
@@ -193,7 +193,7 @@ func validateDriveIDArgs() error {
 	for i := range driveIDArgs {
 		driveIDArgs[i] = strings.TrimSpace(driveIDArgs[i])
 		if driveIDArgs[i] == "" {
-			return fmt.Errorf("empty drive ID")
+			return errors.New("empty drive ID")
 		}
 		if !utils.IsUUID(driveIDArgs[i]) {
 			return fmt.Errorf("invalid drive ID %v", driveIDArgs[i])
@@ -209,7 +209,7 @@ func validatePodNameArgs() error {
 	for i := range podNameArgs {
 		podNameArgs[i] = strings.TrimSpace(podNameArgs[i])
 		if podNameArgs[i] == "" {
-			return fmt.Errorf("empty pod name")
+			return errors.New("empty pod name")
 		}
 		result, err := ellipsis.Expand(podNameArgs[i])
 		if err != nil {
@@ -228,7 +228,7 @@ func validatePodNSArgs() error {
 	for i := range podNSArgs {
 		podNSArgs[i] = strings.TrimSpace(podNSArgs[i])
 		if podNSArgs[i] == "" {
-			return fmt.Errorf("empty pod namespace")
+			return errors.New("empty pod namespace")
 		}
 		result, err := ellipsis.Expand(podNSArgs[i])
 		if err != nil {
@@ -245,7 +245,7 @@ func validateVolumeNameArgs() error {
 	for i := range volumeNameArgs {
 		volumeNameArgs[i] = strings.TrimSpace(volumeNameArgs[i])
 		if volumeNameArgs[i] == "" {
-			return fmt.Errorf("empty volume name")
+			return errors.New("empty volume name")
 		}
 	}
 	return nil

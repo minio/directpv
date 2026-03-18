@@ -75,7 +75,7 @@ func (client *Client) ResumeVolumes(ctx context.Context, args ResumeVolumeArgs, 
 		}
 
 		if err = retry.RetryOnConflict(retry.DefaultRetry, updateFunc); err != nil {
-			err = fmt.Errorf("unable to resume volume %v; %v", result.Volume.Name, err)
+			err = fmt.Errorf("unable to resume volume %v; %w", result.Volume.Name, err)
 			return
 		}
 

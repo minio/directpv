@@ -17,7 +17,7 @@
 package node
 
 import (
-	"fmt"
+	"errors"
 	"path"
 	"testing"
 
@@ -80,7 +80,7 @@ func TestNodeStageVolume(t *testing.T) {
 		}
 		nodeServer.bindMount = func(source, _ string, _ bool) error {
 			if testCase.mountInfo.FilterByMountSource(source).IsEmpty() {
-				return fmt.Errorf("source is not mounted")
+				return errors.New("source is not mounted")
 			}
 			return nil
 		}

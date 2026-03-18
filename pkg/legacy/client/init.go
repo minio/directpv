@@ -43,11 +43,11 @@ func Init() {
 func NewClient(k8sClient *k8s.Client) (*Client, error) {
 	driveClient, err := DirectCSIDriveInterfaceForConfig(k8sClient)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new DirectCSI drive interface; %v", err)
+		return nil, fmt.Errorf("unable to create new DirectCSI drive interface; %w", err)
 	}
 	volumeClient, err := DirectCSIVolumeInterfaceForConfig(k8sClient)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create new DirectCSI volume interface; %v", err)
+		return nil, fmt.Errorf("unable to create new DirectCSI volume interface; %w", err)
 	}
 	return &Client{
 		DriveClient:  driveClient,

@@ -145,7 +145,7 @@ func TestCreateAndDeleteVolumeRPCs(t *testing.T) {
 		if volumeID != volName {
 			t.Errorf("[%s] Wrong volumeID found in the response. Expected: %v, Got: %v", volName, volName, volumeID)
 		}
-		// Step 3: Check the the accessible topology in the response is matching with the request
+		// Step 3: Check the accessible topology in the response is matching with the request
 		if !reflect.DeepEqual(vol.GetAccessibleTopology(),
 			cvReq.GetAccessibilityRequirements().GetPreferred()) {
 			t.Errorf("[%s] Accessible topology not matching with preferred topology in the request. Expected: %v, Got: %v", volName, cvReq.GetAccessibilityRequirements().GetPreferred(), vol.GetAccessibleTopology())

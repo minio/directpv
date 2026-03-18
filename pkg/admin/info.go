@@ -37,7 +37,7 @@ type NodeLevelInfo struct {
 func (client *Client) Info(ctx context.Context) (map[string]NodeLevelInfo, error) {
 	crds, err := client.CRD().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("unable to list CRDs; %v", err)
+		return nil, fmt.Errorf("unable to list CRDs; %w", err)
 	}
 	drivesFound := false
 	volumesFound := false
@@ -54,18 +54,18 @@ func (client *Client) Info(ctx context.Context) (map[string]NodeLevelInfo, error
 	}
 	nodeList, err := client.K8s().GetCSINodes(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get CSI nodes; %v", err)
+		return nil, fmt.Errorf("unable to get CSI nodes; %w", err)
 	}
 	if len(nodeList) == 0 {
 		return nil, fmt.Errorf("%v not installed", consts.AppPrettyName)
 	}
 	drives, err := client.NewDriveLister().Get(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get drive list; %v", err)
+		return nil, fmt.Errorf("unable to get drive list; %w", err)
 	}
 	volumes, err := client.NewVolumeLister().Get(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get volume list; %v", err)
+		return nil, fmt.Errorf("unable to get volume list; %w", err)
 	}
 	nodeInfo := make(map[string]NodeLevelInfo, len(nodeList))
 	for _, n := range nodeList {

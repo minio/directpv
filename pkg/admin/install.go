@@ -125,7 +125,7 @@ func (client *Client) Install(ctx context.Context, args InstallArgs, installerTa
 		}
 		if installerArgs.KubeVersion == nil {
 			// default higher version
-			if installerArgs.KubeVersion, err = versionpkg.ParseSemantic("1.33.0"); err != nil {
+			if installerArgs.KubeVersion, err = versionpkg.ParseSemantic("1.35.0"); err != nil {
 				klog.Fatalf("this should not happen; %v", err)
 			}
 		}

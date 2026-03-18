@@ -214,7 +214,7 @@ func initDevices(ctx context.Context, initRequests []types.InitRequest, requestI
 			default:
 			}
 		case <-ctx.Done():
-			err = fmt.Errorf("unable to initialize devices; %v", ctx.Err())
+			err = fmt.Errorf("unable to initialize devices; %w", ctx.Err())
 			return
 		}
 	}
