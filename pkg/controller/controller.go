@@ -86,7 +86,7 @@ func New(name string, handler EventHandler, workers int, resyncPeriod time.Durat
 	)
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err != nil {
 				klog.ErrorS(err, "unable to process an ADD event")
@@ -94,7 +94,7 @@ func New(name string, handler EventHandler, workers int, resyncPeriod time.Durat
 				queue.Add(Event{AddEvent, types.UID(key), obj.(runtime.Object)})
 			}
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			key, err := cache.MetaNamespaceKeyFunc(old)
 			if err != nil {
 				klog.ErrorS(err, "unable to process an UPDATE event")
@@ -102,10 +102,12 @@ func New(name string, handler EventHandler, workers int, resyncPeriod time.Durat
 				queue.Add(Event{UpdateEvent, types.UID(key), new.(runtime.Object)})
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			// DeletionHandlingMetaNamespaceKeyFunc handles both raw objects and tombstones
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-			if err == nil {
+			if err != nil {
+				klog.ErrorS(err, "unable to process an DELETE event")
+			} else {
 				var finalObj runtime.Object
 				// If it's a tombstone, unwrap it so we have the object to get the Name from later
 				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
