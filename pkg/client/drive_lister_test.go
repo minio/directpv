@@ -38,7 +38,7 @@ func TestGetDriveList(t *testing.T) {
 	}
 
 	objects := []runtime.Object{}
-	for i := 0; i < 2000; i++ {
+	for i := range 2000 {
 		objects = append(
 			objects, &types.Drive{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("drive-%v", i)}},
 		)

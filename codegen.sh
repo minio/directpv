@@ -30,8 +30,8 @@ go install -v \
    k8s.io/code-generator/cmd/deepcopy-gen@v0.29.15 \
    k8s.io/code-generator/cmd/client-gen@v0.29.15 \
    k8s.io/code-generator/cmd/conversion-gen@v0.29.15
-go install -v k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20250701173324-9bd5c66d9911
-go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0
+go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20260127142750-a19766b6e2d4
+go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
 
 cd "$(dirname "$0")"
 

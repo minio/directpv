@@ -139,7 +139,7 @@ func repair(ctx context.Context, drive *types.Drive, force, disablePrefetch, dry
 
 	merr := mount(device, target)
 	if merr != nil {
-		klog.ErrorS(err, "unable to mount the drive", "Source", device, "Target", target)
+		klog.ErrorS(merr, "unable to mount the drive", "Source", device, "Target", target)
 	}
 
 	driveID := drive.GetDriveID()
@@ -150,11 +150,11 @@ func repair(ctx context.Context, drive *types.Drive, force, disablePrefetch, dry
 		}
 
 		if merr != nil {
-			drive.SetMountErrorCondition(fmt.Sprintf("unable to mount; %v", err))
+			drive.SetMountErrorCondition(fmt.Sprintf("unable to mount; %v", merr))
 			client.Eventf(drive,
 				client.EventTypeWarning,
 				client.EventReasonDriveMountError,
-				"unable to mount the drive; %v", err,
+				"unable to mount the drive; %v", merr,
 			)
 			drive.Status.Status = directpvtypes.DriveStatusError
 		} else {

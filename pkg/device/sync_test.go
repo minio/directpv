@@ -23,21 +23,6 @@ import (
 	"github.com/minio/directpv/pkg/types"
 )
 
-func newDrive(name string, totalCapacity int64, make, volume string) *types.Drive {
-	drive := types.NewDrive(
-		directpvtypes.DriveID(name+"-id"),
-		types.DriveStatus{
-			TotalCapacity: totalCapacity,
-			Make:          make,
-		},
-		directpvtypes.NodeID("nodeId"),
-		directpvtypes.DriveName(name),
-		directpvtypes.AccessTierDefault,
-	)
-	drive.AddVolumeFinalizer(volume)
-	return drive
-}
-
 func newTestDevice(name string, totalCapacity int64, dmname string) device {
 	return device{
 		TotalCapacity: totalCapacity,
@@ -49,6 +34,21 @@ func newTestDevice(name string, totalCapacity int64, dmname string) device {
 }
 
 func TestSyncDrive(t *testing.T) {
+	newDrive := func(totalCapacity int64, make, volume string) *types.Drive {
+		drive := types.NewDrive(
+			directpvtypes.DriveID("sda-id"),
+			types.DriveStatus{
+				TotalCapacity: totalCapacity,
+				Make:          make,
+			},
+			directpvtypes.NodeID("nodeId"),
+			directpvtypes.DriveName("sda"),
+			directpvtypes.AccessTierDefault,
+		)
+		drive.AddVolumeFinalizer(volume)
+		return drive
+	}
+
 	testCases := []struct {
 		drive                 *types.Drive
 		device                device
@@ -58,7 +58,7 @@ func TestSyncDrive(t *testing.T) {
 		expectedMake          string
 	}{
 		{
-			drive:                 newDrive("sda", 100, "dmname", "volume-1"),
+			drive:                 newDrive(100, "dmname", "volume-1"),
 			device:                newTestDevice("sda", 100, "dmname"),
 			updated:               false,
 			expectedDriveName:     "sda",
@@ -66,7 +66,7 @@ func TestSyncDrive(t *testing.T) {
 			expectedMake:          "dmname",
 		},
 		{
-			drive:                 newDrive("sda", 100, "dmname", "volume-1"),
+			drive:                 newDrive(100, "dmname", "volume-1"),
 			device:                newTestDevice("sda", 200, "dmname"),
 			updated:               true,
 			expectedDriveName:     "sda",
@@ -74,7 +74,7 @@ func TestSyncDrive(t *testing.T) {
 			expectedMake:          "dmname",
 		},
 		{
-			drive:                 newDrive("sda", 100, "dmname", "volume-1"),
+			drive:                 newDrive(100, "dmname", "volume-1"),
 			device:                newTestDevice("sda", 100, "dmname-new"),
 			updated:               true,
 			expectedDriveName:     "sda",
@@ -82,7 +82,7 @@ func TestSyncDrive(t *testing.T) {
 			expectedMake:          "dmname-new",
 		},
 		{
-			drive:                 newDrive("sda", 100, "dmname", "volume-1"),
+			drive:                 newDrive(100, "dmname", "volume-1"),
 			device:                newTestDevice("sdb", 100, "dmname"),
 			updated:               true,
 			expectedDriveName:     "sdb",
@@ -90,7 +90,7 @@ func TestSyncDrive(t *testing.T) {
 			expectedMake:          "dmname",
 		},
 		{
-			drive:                 newDrive("sda", 100, "dmname", "volume-1"),
+			drive:                 newDrive(100, "dmname", "volume-1"),
 			device:                newTestDevice("sda", 100, "dmname"),
 			updated:               false,
 			expectedDriveName:     "sda",

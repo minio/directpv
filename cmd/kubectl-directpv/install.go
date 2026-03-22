@@ -48,7 +48,7 @@ var (
 	imagePullSecrets = []string{}
 	nodeSelector     map[string]string
 	tolerations      []corev1.Toleration
-	k8sVersion       = "1.33.0"
+	k8sVersion       = "1.35.0"
 	kubeVersion      *version.Version
 	legacyFlag       bool
 	declarativeFlag  bool
@@ -126,18 +126,18 @@ func init() {
 func validateInstallCmd() (err error) {
 	nodeSelector, err = k8s.ParseNodeSelector(nodeSelectorArgs)
 	if err != nil {
-		return fmt.Errorf("%v; format of '--node-selector' flag value must be [<key>=<value>]", err)
+		return fmt.Errorf("%w; format of '--node-selector' flag value must be [<key>=<value>]", err)
 	}
 	tolerations, err = k8s.ParseTolerations(tolerationArgs)
 	if err != nil {
-		return fmt.Errorf("%v; format of '--tolerations' flag value must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>", err)
+		return fmt.Errorf("%w; format of '--tolerations' flag value must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>", err)
 	}
 	if err = validateOutputFormat(false); err != nil {
 		return err
 	}
 	if dryRunPrinter != nil && k8sVersion != "" {
 		if kubeVersion, err = version.ParseSemantic(k8sVersion); err != nil {
-			return fmt.Errorf("invalid kubernetes version %v; %v", k8sVersion, err)
+			return fmt.Errorf("invalid kubernetes version %v; %w", k8sVersion, err)
 		}
 	}
 	return nil

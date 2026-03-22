@@ -40,7 +40,7 @@ func TestGetVolumeList(t *testing.T) {
 	}
 
 	objects := []runtime.Object{}
-	for i := 0; i < 2000; i++ {
+	for i := range 2000 {
 		objects = append(
 			objects, &types.Volume{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("volume-%v", i)}},
 		)

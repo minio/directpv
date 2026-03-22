@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -90,7 +91,7 @@ func New(name string, handler EventHandler, workers int, resyncPeriod time.Durat
 	)
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err != nil {
 				klog.ErrorS(err, "unable to process an ADD event")
@@ -98,7 +99,7 @@ func New(name string, handler EventHandler, workers int, resyncPeriod time.Durat
 				queue.Add(Event{AddEvent, types.UID(key), obj.(runtime.Object)})
 			}
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			key, err := cache.MetaNamespaceKeyFunc(old)
 			if err != nil {
 				klog.ErrorS(err, "unable to process an UPDATE event")
@@ -106,12 +107,20 @@ func New(name string, handler EventHandler, workers int, resyncPeriod time.Durat
 				queue.Add(Event{UpdateEvent, types.UID(key), new.(runtime.Object)})
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(obj)
+		DeleteFunc: func(obj any) {
+			// DeletionHandlingMetaNamespaceKeyFunc handles both raw objects and tombstones
+			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			if err != nil {
-				klog.ErrorS(err, "unable to process a DELETE event")
+				klog.ErrorS(err, "unable to process an DELETE event")
 			} else {
-				queue.Add(Event{DeleteEvent, types.UID(key), obj.(runtime.Object)})
+				var finalObj runtime.Object
+				// If it's a tombstone, unwrap it so we have the object to get the Name from later
+				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+					finalObj = tombstone.Obj.(runtime.Object)
+				} else {
+					finalObj = obj.(runtime.Object)
+				}
+				queue.Add(Event{DeleteEvent, types.UID(key), finalObj})
 			}
 		},
 	})
@@ -134,12 +143,12 @@ func (c *Controller) Run(ctx context.Context) {
 	go c.informer.Run(ctx.Done())
 
 	if !cache.WaitForCacheSync(ctx.Done(), c.HasSynced) {
-		utilruntime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
+		utilruntime.HandleError(errors.New("timed out waiting for caches to sync"))
 		return
 	}
 
 	klog.Infof("%s controller synced and ready", c.name)
-	for i := 0; i < c.workerThreads; i++ {
+	for range c.workerThreads {
 		go wait.UntilWithContext(ctx, c.runWorker, time.Second)
 	}
 
@@ -201,12 +210,14 @@ func (c *Controller) processItem(ctx context.Context, event Event) error {
 	// do not happen in parallel
 	c.lock(event.Key)
 	defer c.unlock(event.Key)
-	obj, exists, err := c.informer.GetIndexer().GetByKey(string(event.Key))
+	obj, _, err := c.informer.GetIndexer().GetByKey(string(event.Key))
 	if err != nil {
-		return fmt.Errorf("error fetching object with key %s from store; %v", event.Key, err)
+		if event.Type != DeleteEvent {
+			return fmt.Errorf("unable to fetch object from store for key %s and event type %s; %w", event.Key, event.Type, err)
+		}
 	}
-	if exists {
-		event.Object = obj.(runtime.Object)
+	if obj == nil {
+		obj = event.Object
 	}
-	return c.handler.Handle(ctx, event.Type, event.Object)
+	return c.handler.Handle(ctx, event.Type, obj.(runtime.Object))
 }

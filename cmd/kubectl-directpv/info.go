@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -93,8 +94,8 @@ func infoMain(ctx context.Context) {
 				fmt.Sprintf("%s %s", color.GreenString(dot), n),
 				utils.IBytes(info.DriveSize),
 				utils.IBytes(info.VolumeSize),
-				fmt.Sprintf("%d", info.VolumeCount),
-				fmt.Sprintf("%d", info.DriveCount),
+				strconv.Itoa(info.VolumeCount),
+				strconv.Itoa(info.DriveCount),
 			})
 		}
 	}

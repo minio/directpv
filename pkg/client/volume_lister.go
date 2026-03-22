@@ -49,10 +49,10 @@ type VolumeLister struct {
 }
 
 // NewVolumeLister creates new volume lister.
-func (client Client) NewVolumeLister() *VolumeLister {
+func (c Client) NewVolumeLister() *VolumeLister {
 	return &VolumeLister{
 		maxObjects:   k8s.MaxThreadCount,
-		volumeClient: client.Volume(),
+		volumeClient: c.Volume(),
 	}
 }
 

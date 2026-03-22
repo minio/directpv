@@ -82,7 +82,7 @@ func NewSafeFile(filename string) (*SafeFile, error) {
 	}, nil
 }
 
-// Writes writes to the file
+// Write writes to the file
 func (safeFile *SafeFile) Write(p []byte) (int, error) {
 	return safeFile.tempFile.Write(p)
 }

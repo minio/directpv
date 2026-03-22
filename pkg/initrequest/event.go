@@ -18,6 +18,7 @@ package initrequest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -259,7 +260,7 @@ func (handler *initRequestEventHandler) initDevice(device pkgdevice.Device, forc
 			return
 		}
 		if uerr := handler.unmount(fsuuid); uerr != nil {
-			err = fmt.Errorf("%w; %v", err, uerr)
+			err = errors.Join(err, uerr)
 		}
 	}()
 

@@ -21,7 +21,6 @@ package initrequest
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 
 	losetup "github.com/freddierice/go-losetup/v2"
@@ -68,7 +67,7 @@ func reflinkSupported(ctx context.Context) (bool, error) {
 		}()
 
 		if err = xfs.Mount(loopDevice.Path(), mountPoint); err != nil {
-			return fmt.Errorf("%w; %v", errMountFailed, err)
+			return errors.Join(errMountFailed, err)
 		}
 
 		return sys.Unmount(mountPoint, true, true, false)

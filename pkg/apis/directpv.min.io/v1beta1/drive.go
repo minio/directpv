@@ -284,7 +284,7 @@ func (drive *DirectPVDrive) SetIOErrorCondition() {
 	drive.setErrorCondition(string(types.DriveConditionTypeIOError), string(types.DriveConditionReasonIOError), string(types.DriveConditionMessageIOError))
 }
 
-// SetRelabelErrorCondition sets relabel error error condition to this drive.
+// SetRelabelErrorCondition sets relabel error condition to this drive.
 func (drive *DirectPVDrive) SetRelabelErrorCondition(message string) {
 	drive.setErrorCondition(string(types.DriveConditionTypeRelabelError), string(types.DriveConditionReasonRelabelError), message)
 }

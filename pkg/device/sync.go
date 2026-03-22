@@ -206,13 +206,13 @@ func updateDrive(ctx context.Context, driveName string, deviceMap map[string][]d
 			check := func() error {
 				switch {
 				case mountEntry.FilesystemType != "xfs":
-					return fmt.Errorf("device filesystem is not XFS")
+					return errors.New("device filesystem is not XFS")
 				case !mountEntry.MountOptions.Exist("prjquota"):
-					return fmt.Errorf("device mounted without 'prjquota' mount option")
+					return errors.New("device mounted without 'prjquota' mount option")
 				case !mountEntry.MountOptions.Exist("noatime"):
-					return fmt.Errorf("device mounted without 'noatime' mount option")
+					return errors.New("device mounted without 'noatime' mount option")
 				case !mountEntry.MountOptions.Exist("ro"):
-					return fmt.Errorf("device mounted in read-only mode")
+					return errors.New("device mounted in read-only mode")
 				default:
 					return nil
 				}
@@ -224,7 +224,7 @@ func updateDrive(ctx context.Context, driveName string, deviceMap map[string][]d
 		}
 
 		if len(mountPoints) != 0 {
-			klog.ErrorS(fmt.Errorf("device mounted outside of DirectPV"), "device", devices[0].Name, "mountPoints", mountPoints.ToSlice(), "drive", drive.GetDriveID(), drive.GetDriveName())
+			klog.ErrorS(errors.New("device mounted outside of DirectPV"), "device", devices[0].Name, "mountPoints", mountPoints.ToSlice(), "drive", drive.GetDriveID(), drive.GetDriveName())
 		}
 
 		updated = syncDrive(drive, devices[0])

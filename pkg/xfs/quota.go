@@ -19,7 +19,6 @@ package xfs
 import (
 	"context"
 	"errors"
-	"fmt"
 )
 
 // ErrCanceled denotes canceled by context error.
@@ -42,7 +41,7 @@ func GetQuota(ctx context.Context, device, volumeID string) (quota *Quota, err e
 
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("%w; %v", ErrCanceled, ctx.Err())
+		return nil, errors.Join(ErrCanceled, ctx.Err())
 	case <-doneCh:
 	}
 
@@ -59,7 +58,7 @@ func SetQuota(ctx context.Context, device, path, volumeID string, quota Quota, u
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("%w; %v", ErrCanceled, ctx.Err())
+		return errors.Join(ErrCanceled, ctx.Err())
 	case <-doneCh:
 	}
 
