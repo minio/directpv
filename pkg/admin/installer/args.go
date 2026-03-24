@@ -30,25 +30,25 @@ import (
 )
 
 const (
-	// csiProvisionerImage = csi-provisioner:v6.0.0-0
-	csiProvisionerImage = "csi-provisioner@sha256:fff8927753ef1a67278804897de5dda9fd47c48b27575d53daafb12ab7179446"
+	// csiProvisionerImage = csi-provisioner:v6.2.0-0
+	csiProvisionerImage = "csi-provisioner@sha256:f83e880ce4290b1ef4fa15a588138eafecdb40106208a5295c0b24d03cbaddbd"
 	// csiProvisionerImageV2_2_0 = csi-provisioner:v2.2.0-go1.18
 	csiProvisionerImageV2_2_0 = "csi-provisioner@sha256:c185db49ba02c384633165894147f8d7041b34b173e82a49d7145e50e809b8d6"
-	// nodeDriverRegistrarImage = csi-node-driver-registrar:v2.15.0-0
-	nodeDriverRegistrarImage = "csi-node-driver-registrar@sha256:c571b1462c6798725c0da58aab4896f910b38dc4ef48352ead3e4625d2d63a06"
-	// livenessprobeImage = livenessprobe:v2.17.0-0
-	livenessProbeImage = "livenessprobe@sha256:8f3b1bec9c87a832a3fe6e8b7f165e0ff048aef7373f9764f40efee456a00321"
-	// csiResizerImage = csi-resizer:v2.0.0-0
-	csiResizerImage = "csi-resizer@sha256:0640655cdf10b17bf50b304d5c3555135141b6bd3d79260a3ce389bf90d4e4bf"
+	// nodeDriverRegistrarImage = csi-node-driver-registrar:v2.16.0-0
+	nodeDriverRegistrarImage = "csi-node-driver-registrar@sha256:183b3ac969d133457595fa2abfd9d81d20e83a6bc4606375662d036f56462dde"
+	// livenessprobeImage = livenessprobe:v2.18.0-0
+	livenessProbeImage = "livenessprobe@sha256:af8bac7b24bbfcc064e58d45c1c2ebaf75b9ac71315a604e0870100fa6aed8da"
+	// csiResizerImage = csi-resizer:v2.1.0-0
+	csiResizerImage = "csi-resizer@sha256:cb338f5c5a9f781f289b6f25fedebbeeb4eec9fda2aeb2c0a1eaa8529c4c9738"
 
-	// openshiftCSIProvisionerImage = registry.redhat.io/openshift4/ose-csi-external-provisioner-rhel8:v4.15.0-202504220035.p0.gce5a1a3.assembly.stream.el8
-	openshiftCSIProvisionerImage = "registry.redhat.io/openshift4/ose-csi-external-provisioner-rhel8@sha256:ffc107c70d24eb86d2120d4bce217bcfebb46694817217f134ead9e9b72d2ff3"
-	// openshiftNodeDriverRegistrarImage = registry.redhat.io/openshift4/ose-csi-node-driver-registrar-rhel8:v4.15.0-202504220035.p0.g9005584.assembly.stream.el8
-	openshiftNodeDriverRegistrarImage = "registry.redhat.io/openshift4/ose-csi-node-driver-registrar-rhel8@sha256:9006d4a80df02b51102961e70e55ae08e2757fc4c62d3c2605b8ffed3a344e8d"
-	// openshiftLivenessProbeImage = registry.redhat.io/openshift4/ose-csi-livenessprobe-rhel8:v4.15.0-202504220035.p0.g240bb8c.assembly.stream.el8
-	openshiftLivenessProbeImage = "registry.redhat.io/openshift4/ose-csi-livenessprobe-rhel8@sha256:9309cf88631e1cbb5362081a65f2de752cc130d231e8ba2bdd9ef640b51a6b66"
-	// openshiftCSIResizerImage = registry.redhat.io/openshift4/ose-csi-external-resizer-rhel8:v4.15.0-202504220035.p0.g3b4236d.assembly.stream.el8
-	openshiftCSIResizerImage = "registry.redhat.io/openshift4/ose-csi-external-resizer-rhel8@sha256:ed845b49de7e1c363bc8e8485a04288c03125a3cff7c7f100d35b5b88645725a"
+	// openshiftCSIProvisionerImage = registry.redhat.io/openshift4/ose-csi-external-provisioner-rhel8:v4.15
+	openshiftCSIProvisionerImage = "registry.redhat.io/openshift4/ose-csi-external-provisioner-rhel8@sha256:ecf86bed1b174e57b9b52ebf5c2792da25d7ab2daccef15bdac98a47aa09ff3e"
+	// openshiftNodeDriverRegistrarImage = registry.redhat.io/openshift4/ose-csi-node-driver-registrar-rhel8:v4.15
+	openshiftNodeDriverRegistrarImage = "registry.redhat.io/openshift4/ose-csi-node-driver-registrar-rhel8@sha256:b61fcc8774f2dde2ed46df52630b495ff8f5bb53a80a4733006b0197297b0264"
+	// openshiftLivenessProbeImage = registry.redhat.io/openshift4/ose-csi-livenessprobe-rhel8:v4.15
+	openshiftLivenessProbeImage = "registry.redhat.io/openshift4/ose-csi-livenessprobe-rhel8@sha256:a516448355b6c360953151ed14c1b9eaf977a674a9ff65216d3076ddc9355987"
+	// openshiftCSIResizerImage = registry.redhat.io/openshift4/ose-csi-external-resizer-rhel8:v4.15
+	openshiftCSIResizerImage = "registry.redhat.io/openshift4/ose-csi-external-resizer-rhel8@sha256:370f6a90b4792ac9275b355f17b457c8348d3230fd2d272c8a447513ba3473b8"
 )
 
 // Args represents DirectPV installation arguments.

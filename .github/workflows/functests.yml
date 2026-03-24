@@ -19,6 +19,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
+      fail-fast: false
       matrix:
         kube-version: ['v1.28.15', 'v1.29.14', 'v1.30.14', 'v1.31.14', 'v1.32.13', 'v1.33.9', 'v1.34.5', 'v1.35.2']
         os: [ubuntu-22.04, ubuntu-24.04]

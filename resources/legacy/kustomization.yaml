@@ -13,13 +13,13 @@ images:
     digest: sha256:352806476d3962a6fc4b8a615c95ce2391ca8b0ece00c99b402fd140555b69b5
 
   - name: quay.io/minio/csi-node-driver-registrar
-    digest: sha256:c571b1462c6798725c0da58aab4896f910b38dc4ef48352ead3e4625d2d63a06
+    digest: sha256:183b3ac969d133457595fa2abfd9d81d20e83a6bc4606375662d036f56462dde
 
   - name: quay.io/minio/livenessprobe
-    digest: sha256:8f3b1bec9c87a832a3fe6e8b7f165e0ff048aef7373f9764f40efee456a00321
+    digest: sha256:af8bac7b24bbfcc064e58d45c1c2ebaf75b9ac71315a604e0870100fa6aed8da
 
   - name: quay.io/minio/csi-provisioner
-    digest: sha256:fff8927753ef1a67278804897de5dda9fd47c48b27575d53daafb12ab7179446
+    digest: sha256:f83e880ce4290b1ef4fa15a588138eafecdb40106208a5295c0b24d03cbaddbd
 
   - name: quay.io/minio/csi-resizer
-    digest: sha256:0640655cdf10b17bf50b304d5c3555135141b6bd3d79260a3ce389bf90d4e4bf
+    digest: sha256:cb338f5c5a9f781f289b6f25fedebbeeb4eec9fda2aeb2c0a1eaa8529c4c9738
