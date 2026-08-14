@@ -25,6 +25,8 @@ set -e
 ME=$(basename "$0"); export ME
 
 declare -a drive_ids
+force_flag=""
+output_format=""
 
 # usage: is_uuid <value>
 function is_uuid() {
@@ -34,7 +36,7 @@ function is_uuid() {
 # usage: get_suspend_value <drive-id>
 function get_suspend_value() {
     # shellcheck disable=SC2016
-    kubectl get directpvvolumes "${1}" \
+    kubectl get directpvdrives "${1}" \
             -o go-template='{{range $k,$v := .metadata.labels}}{{if eq $k "directpv.min.io/suspend"}}{{$v}}{{end}}{{end}}'
 }
 
@@ -72,14 +74,24 @@ NAME:
   ${ME} - This script repairs faulty drives.
 
 USAGE:
-  ${ME} <DRIVE-ID> ...
+  ${ME} [FLAGS] <DRIVE-ID> ...
 
 ARGUMENTS:
   DRIVE-ID      Faulty drive ID.
 
+FLAGS:
+  --force               Force log zeroing.
+  -o, --output FORMAT   Generate repair job manifest of drives in yaml|json
+                        format. In this mode no drive is suspended, no pod is
+                        deleted and no repair job is created; commands to run
+                        the prerequisites are printed to standard error.
+
 EXAMPLE:
   # Repair drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0.
   $ ${ME} af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
+
+  # Generate repair job manifest of drive af3b8b4c-73b4-4a74-84b7-1ec30492a6f0.
+  $ ${ME} --output yaml af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 > repair.yaml
 EOF
         exit 255
     fi
@@ -94,15 +106,52 @@ EOF
         exit 255
     fi
 
-    for drive in "$@"; do
-        if ! is_uuid "${drive}"; then
-            echo "invalid drive ID ${drive}"
-            exit 255
-        fi
-        if [[ ! ${drive_ids[*]} =~ ${drive} ]]; then
-            drive_ids+=( "${drive}" )
-        fi
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --force)
+                force_flag="--force"
+                shift
+                ;;
+            -o|--output)
+                if [[ $# -lt 2 ]]; then
+                    echo "no value provided to $1 flag"
+                    exit 255
+                fi
+                output_format="$2"
+                shift 2
+                ;;
+            -o=*|--output=*)
+                output_format="${1#*=}"
+                shift
+                ;;
+            *)
+                if ! is_uuid "$1"; then
+                    echo "invalid drive ID $1"
+                    exit 255
+                fi
+                if [[ ! ${drive_ids[*]} =~ $1 ]]; then
+                    drive_ids+=( "$1" )
+                fi
+                shift
+                ;;
+        esac
     done
+
+    # Check if we have at least one drive ID
+    if [[ ${#drive_ids[@]} -eq 0 ]]; then
+        echo "no drive IDs provided"
+        exit 255
+    fi
+
+    case "${output_format}" in
+        ""|yaml|json)
+            ;;
+        *)
+            echo "invalid output format ${output_format}; must be one of yaml|json"
+            exit 255
+            ;;
+    esac
 }
 
 # usage: repair <drive-id>
@@ -111,7 +160,7 @@ function repair() {
 
     pods_deleted=true
     if ! is_suspended "${drive_id}"; then
-        kubectl directpv suspend "${drive_id}"
+        kubectl directpv suspend drives "${drive_id}" --dangerous
 
         # shellcheck disable=SC2207
         volumes=( $(get_volumes "${drive_id}") )
@@ -129,13 +178,69 @@ function repair() {
     fi
 
     if [ "${pods_deleted}" == "true" ]; then
-        kubectl directpv repair "${drive_id}"
+        if [[ -n "${force_flag}" ]]; then
+            kubectl directpv repair "${drive_id}" "${force_flag}"
+        else
+            kubectl directpv repair "${drive_id}"
+        fi
     else
         echo "delete pods manually and retry again for drive ${drive_id}"
     fi
 }
 
+# usage: print_prerequisites <drive-id>
+#
+# Prints the commands to be run before applying the generated manifests. They go
+# to standard error to keep the manifests in standard output pipeable.
+function print_prerequisites() {
+    drive_id="$1"
+
+    if is_suspended "${drive_id}"; then
+        echo "# drive ${drive_id} is already suspended" >&2
+        return 0
+    fi
+
+    {
+        echo "# drive ${drive_id} is not suspended; run below commands before applying the manifests"
+        echo "kubectl directpv suspend drives ${drive_id} --dangerous"
+    } >&2
+
+    if ! volume_list=$(get_volumes "${drive_id}" 2>/dev/null) || [[ -z "${volume_list}" ]]; then
+        echo "# delete pods using volumes of this drive, if any" >&2
+        return 0
+    fi
+
+    for volume in ${volume_list}; do
+        pod_name=$(get_pod_name "${volume}" 2>/dev/null) || pod_name=""
+        pod_namespace=$(get_pod_namespace "${volume}" 2>/dev/null) || pod_namespace=""
+
+        if [[ -z "${pod_name}" ]] || [[ -z "${pod_namespace}" ]]; then
+            echo "# delete the pod using volume ${volume} manually" >&2
+            continue
+        fi
+
+        echo "kubectl delete pod ${pod_name} --namespace ${pod_namespace}" >&2
+    done
+}
+
+function generate_manifests() {
+    for drive_id in "${drive_ids[@]}"; do
+        print_prerequisites "${drive_id}"
+    done
+
+    if [[ -n "${force_flag}" ]]; then
+        kubectl directpv repair "${drive_ids[@]}" "${force_flag}" --output "${output_format}"
+    else
+        kubectl directpv repair "${drive_ids[@]}" --output "${output_format}"
+    fi
+}
+
 function main() {
+    if [[ -n "${output_format}" ]]; then
+        generate_manifests
+        return
+    fi
+
     for drive in "${drive_ids[@]}"; do
         repair "${drive}"
     done
