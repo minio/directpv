@@ -142,3 +142,15 @@ $ kubectl directpv suspend drives af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
 # Run repair command on suspended drives
 $ kubectl directpv repair af3b8b4c-73b4-4a74-84b7-1ec30492a6f0
 ```
+
+To review the repair `Job` before it runs, pass `--output yaml` or `--output json`. In this mode no
+`Job` is created; the manifests are printed to standard output and can be applied later. Below is an
+example:
+
+```sh
+# Generate the repair job manifest
+$ kubectl directpv repair af3b8b4c-73b4-4a74-84b7-1ec30492a6f0 --output yaml > repair.yaml
+
+# Review and apply it
+$ kubectl apply -f repair.yaml
+```

@@ -733,6 +733,7 @@ FLAGS:
       --dry-run            Repair drives with no modify mode
       --force              Force log zeroing
       --disable-prefetch   Disable prefetching of inode and directory blocks
+  -o, --output string      Generate repair job manifest of drives. One of: yaml|json
   -h, --help               help for repair
 
 GLOBAL FLAGS:
@@ -742,6 +743,9 @@ GLOBAL FLAGS:
 EXAMPLES:
 1. Repair drives
    $ kubectl directpv repair 3b562992-f752-4a41-8be4-4e688ae8cd4c
+
+2. Generate repair job manifest of drives without creating them
+   $ kubectl directpv repair 3b562992-f752-4a41-8be4-4e688ae8cd4c -o yaml
 ```
 
 ## `remove` command

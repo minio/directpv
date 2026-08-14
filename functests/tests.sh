@@ -31,6 +31,7 @@ function run_tests() {
         install_directpv "${DIRECTPV_DIR}/kubectl-directpv" "${pod_count}"
     fi
     add_drives "${DIRECTPV_DIR}/kubectl-directpv"
+    test_repair_manifest "${DIRECTPV_DIR}/kubectl-directpv"
     deploy_minio minio.yaml
     test_force_delete
     test_drive_suspension "${DIRECTPV_DIR}/kubectl-directpv"

@@ -532,3 +532,90 @@ EOF
         sleep 1m
     done
 }
+
+# usage: test_repair_manifest <plugin>
+function test_repair_manifest() {
+    echo "* Testing repair manifest generation"
+
+    directpv_client="$1"
+
+    drive=$(kubectl get directpvdrives --no-headers -o custom-columns=NAME:.metadata.name | head -n1)
+    if [ -z "${drive}" ]; then
+        echo "$ME: error: no drive found to repair"
+        return 1
+    fi
+
+    for format in yaml json; do
+        manifest="/tmp/repair.${format}"
+        "${directpv_client}" repair "${drive}" --dry-run --force -o "${format}" > "${manifest}"
+
+        # Generated manifest must be a List carrying the flags of the command.
+        if ! grep -q '"\?kind"\?: "\?List"\?' "${manifest}"; then
+            echo "$ME: error: ${format} manifest is not a List"
+            rm -f "${manifest}"
+            return 1
+        fi
+        if ! grep -q -- '--dry-run' "${manifest}" || ! grep -q -- '--force' "${manifest}"; then
+            echo "$ME: error: ${format} manifest does not carry repair flags"
+            rm -f "${manifest}"
+            return 1
+        fi
+
+        # No job must be created in manifest generation.
+        if kubectl -n directpv get job "repair-${drive}" >/dev/null 2>&1; then
+            echo "$ME: error: repair with --output must not create a job"
+            rm -f "${manifest}"
+            return 1
+        fi
+
+        # Generated manifest must be applicable and the applied job must succeed.
+        kubectl apply -f "${manifest}"
+        rm -f "${manifest}"
+
+        count=0
+        while [ "$(kubectl -n directpv get pods | awk  "/repair-${drive}/ { print \$3 }")" != "Completed" ]; do
+            # A permanently failed job never reaches 'Completed'; fail fast on it.
+            failed=$(kubectl -n directpv get job "repair-${drive}" -o jsonpath='{.status.conditions[?(@.type=="Failed")].status}')
+            if [ "${failed}" == "True" ]; then
+                echo "$ME: error: repair job of ${format} manifest failed"
+                return 1
+            fi
+
+            count=$(( count + 1 ))
+            if [ "${count}" -gt 15 ]; then
+                echo "$ME: error: timed out waiting for repair-${drive} pod of ${format} manifest"
+                return 1
+            fi
+
+            echo "  ...waiting for repair-${drive} pod of ${format} manifest to be completed"
+            sleep 1m
+        done
+
+        status=$(kubectl -n directpv get job "repair-${drive}" -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
+        if [ "${status}" != "True" ]; then
+            echo "$ME: error: repair job of ${format} manifest failed"
+            return 1
+        fi
+
+        # Wait for the pods to go away too; 'kubectl delete job' cascades in the
+        # background, and a leftover pod would make test_repair pass trivially.
+        kubectl -n directpv delete job "repair-${drive}"
+        count=0
+        while kubectl -n directpv get pods --no-headers 2>/dev/null | grep -q "repair-${drive}"; do
+            count=$(( count + 1 ))
+            if [ "${count}" -gt 30 ]; then
+                echo "$ME: error: timed out waiting for repair-${drive} pod to be removed"
+                return 1
+            fi
+
+            echo "  ...waiting for repair-${drive} pod to be removed"
+            sleep 10
+        done
+    done
+
+    # Unsupported output format must fail.
+    if "${directpv_client}" --quiet repair "${drive}" -o wide; then
+        echo "$ME: error: repair with unsupported output format must fail"
+        return 1
+    fi
+}

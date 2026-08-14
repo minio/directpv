@@ -24,6 +24,7 @@ import (
 	directpvtypes "github.com/minio/directpv/pkg/apis/directpv.min.io/types"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/minio/directpv/pkg/k8s"
+	"github.com/minio/directpv/pkg/types"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -64,6 +65,60 @@ type RepairResult struct {
 	JobName   string
 	DriveName directpvtypes.DriveName
 	DriveID   directpvtypes.DriveID
+}
+
+// newRepairJob builds the repair job manifest of the given drive.
+func newRepairJob(drive types.Drive, params repairContainerParams, args RepairArgs) batchv1.Job {
+	jobName := "repair-" + drive.Name
+	nodeID := string(drive.GetNodeID())
+
+	containerArgs := []string{"/directpv", "repair", drive.Name, "--kube-node-name=" + nodeID}
+	if args.ForceFlag {
+		containerArgs = append(containerArgs, "--force")
+	}
+	if args.DisablePrefetchFlag {
+		containerArgs = append(containerArgs, "--disable-prefetch")
+	}
+	if args.DryRun {
+		containerArgs = append(containerArgs, "--dry-run")
+	}
+
+	return batchv1.Job{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "batch/v1",
+			Kind:       "Job",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        jobName,
+			Namespace:   consts.AppName,
+			Annotations: params.annotations,
+		},
+		Spec: batchv1.JobSpec{
+			BackoffLimit:            &backOffLimit,
+			TTLSecondsAfterFinished: &ttlSecondsAfterFinished,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector:       map[string]string{string(directpvtypes.NodeLabelKey): nodeID},
+					ServiceAccountName: consts.Identity,
+					Tolerations:        params.tolerations,
+					ImagePullSecrets:   params.imagePullSecrets,
+					Volumes:            repairJobVolumes,
+					Containers: []corev1.Container{
+						{
+							Name:                     jobName,
+							Image:                    params.containerImage,
+							Command:                  containerArgs,
+							SecurityContext:          params.securityContext,
+							VolumeMounts:             repairJobVolumeMounts,
+							TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
+							TerminationMessagePath:   "/var/log/repair-termination-log",
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyNever,
+				},
+			},
+		},
+	}
 }
 
 type repairContainerParams struct {
@@ -165,51 +220,7 @@ func (client *Client) Repair(ctx context.Context, args RepairArgs, log LogFunc) 
 			continue
 		}
 
-		nodeID := string(result.Drive.GetNodeID())
-
-		containerArgs := []string{"/directpv", "repair", result.Drive.Name, "--kube-node-name=" + nodeID}
-		if args.ForceFlag {
-			containerArgs = append(containerArgs, "--force")
-		}
-		if args.DisablePrefetchFlag {
-			containerArgs = append(containerArgs, "--disable-prefetch")
-		}
-		if args.DryRun {
-			containerArgs = append(containerArgs, "--dry-run")
-		}
-
-		job := batchv1.Job{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        jobName,
-				Namespace:   consts.AppName,
-				Annotations: params.annotations,
-			},
-			Spec: batchv1.JobSpec{
-				BackoffLimit:            &backOffLimit,
-				TTLSecondsAfterFinished: &ttlSecondsAfterFinished,
-				Template: corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						NodeSelector:       map[string]string{string(directpvtypes.NodeLabelKey): nodeID},
-						ServiceAccountName: consts.Identity,
-						Tolerations:        params.tolerations,
-						ImagePullSecrets:   params.imagePullSecrets,
-						Volumes:            repairJobVolumes,
-						Containers: []corev1.Container{
-							{
-								Name:                     jobName,
-								Image:                    params.containerImage,
-								Command:                  containerArgs,
-								SecurityContext:          params.securityContext,
-								VolumeMounts:             repairJobVolumeMounts,
-								TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-								TerminationMessagePath:   "/var/log/repair-termination-log",
-							},
-						},
-						RestartPolicy: corev1.RestartPolicyNever,
-					},
-				},
-			},
-		}
+		job := newRepairJob(result.Drive, params, args)
 
 		if _, err := client.Kube().BatchV1().Jobs(consts.AppName).Create(ctx, &job, metav1.CreateOptions{}); err != nil {
 			log(
@@ -233,6 +244,48 @@ func (client *Client) Repair(ctx context.Context, args RepairArgs, log LogFunc) 
 
 			results = append(results, RepairResult{JobName: jobName, DriveName: result.Drive.GetDriveName(), DriveID: result.Drive.GetDriveID()})
 		}
+	}
+
+	return
+}
+
+// GetRepairJobs returns repair job manifests of added drives without creating them.
+func (client *Client) GetRepairJobs(ctx context.Context, args RepairArgs, log LogFunc) (jobs []batchv1.Job, err error) {
+	if len(args.DriveIDs) == 0 {
+		return
+	}
+
+	if log == nil {
+		log = nullLogger
+	}
+
+	ctx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+
+	params, err := client.getContainerParams(ctx)
+	if err != nil {
+		log(
+			LogMessage{
+				Type:             ErrorLogType,
+				Err:              err,
+				Message:          "unable to get container parameters from daemonset for drive repair",
+				Values:           map[string]any{"namespace": consts.AppName, "daemonSet": consts.NodeServerName},
+				FormattedMessage: fmt.Sprintf("unable to get container parameters from daemonset; %v\n", err),
+			},
+		)
+		return nil, err
+	}
+
+	resultCh := client.NewDriveLister().
+		DriveIDSelector(args.DriveIDs).
+		IgnoreNotFound(true).
+		List(ctx)
+	for result := range resultCh {
+		if result.Err != nil {
+			return jobs, result.Err
+		}
+
+		jobs = append(jobs, newRepairJob(result.Drive, params, args))
 	}
 
 	return
