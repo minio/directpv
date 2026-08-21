@@ -18,6 +18,7 @@ package installer
 
 import (
 	"context"
+	"maps"
 	"path"
 
 	"github.com/minio/directpv/pkg/k8s"
@@ -30,7 +31,14 @@ func applyResources(podSpec *corev1.PodSpec, resources corev1.ResourceRequiremen
 		return
 	}
 	for i := range podSpec.Containers {
-		podSpec.Containers[i].Resources = resources
+		containerResources := resources
+		if containerResources.Requests != nil {
+			containerResources.Requests = maps.Clone(containerResources.Requests)
+		}
+		if containerResources.Limits != nil {
+			containerResources.Limits = maps.Clone(containerResources.Limits)
+		}
+		podSpec.Containers[i].Resources = containerResources
 	}
 }
 

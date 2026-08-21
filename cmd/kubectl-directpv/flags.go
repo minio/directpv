@@ -88,14 +88,22 @@ func addResourceFlags(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().StringVar(&memoryLimit, "memory-limit", memoryLimit, "Memory resource limit "+usage)
 }
 
+func parseResourceValue(value, flag string) (quantity resource.Quantity, err error) {
+	quantity, err = resource.ParseQuantity(value)
+	if err != nil {
+		return quantity, fmt.Errorf("invalid value %v for '%v'; %w", value, flag, err)
+	}
+	if quantity.Sign() < 0 {
+		return quantity, fmt.Errorf("invalid value %v for '%v'; must not be negative", value, flag)
+	}
+	return quantity, nil
+}
+
 func parseResourceRequirements() (resources corev1.ResourceRequirements, err error) {
+	var quantity resource.Quantity
 	if cpuRequest != "" {
-		quantity, err := resource.ParseQuantity(cpuRequest)
-		if err != nil {
-			return resources, fmt.Errorf("invalid value %v for '--cpu-request'; %w", cpuRequest, err)
-		}
-		if quantity.Sign() < 0 {
-			return resources, fmt.Errorf("invalid value %v for '--cpu-request'; must not be negative", cpuRequest)
+		if quantity, err = parseResourceValue(cpuRequest, "--cpu-request"); err != nil {
+			return resources, err
 		}
 		if resources.Requests == nil {
 			resources.Requests = corev1.ResourceList{}
@@ -103,12 +111,11 @@ func parseResourceRequirements() (resources corev1.ResourceRequirements, err err
 		resources.Requests[corev1.ResourceCPU] = quantity
 	}
 	if cpuLimit != "" {
-		quantity, err := resource.ParseQuantity(cpuLimit)
-		if err != nil {
-			return resources, fmt.Errorf("invalid value %v for '--cpu-limit'; %w", cpuLimit, err)
+		if quantity, err = parseResourceValue(cpuLimit, "--cpu-limit"); err != nil {
+			return resources, err
 		}
-		if quantity.Sign() < 0 {
-			return resources, fmt.Errorf("invalid value %v for '--cpu-limit'; must not be negative", cpuLimit)
+		if quantity.Sign() == 0 {
+			return resources, fmt.Errorf("invalid value %v for '--cpu-limit'; must be greater than zero", cpuLimit)
 		}
 		if resources.Limits == nil {
 			resources.Limits = corev1.ResourceList{}
@@ -116,12 +123,8 @@ func parseResourceRequirements() (resources corev1.ResourceRequirements, err err
 		resources.Limits[corev1.ResourceCPU] = quantity
 	}
 	if memoryRequest != "" {
-		quantity, err := resource.ParseQuantity(memoryRequest)
-		if err != nil {
-			return resources, fmt.Errorf("invalid value %v for '--memory-request'; %w", memoryRequest, err)
-		}
-		if quantity.Sign() < 0 {
-			return resources, fmt.Errorf("invalid value %v for '--memory-request'; must not be negative", memoryRequest)
+		if quantity, err = parseResourceValue(memoryRequest, "--memory-request"); err != nil {
+			return resources, err
 		}
 		if resources.Requests == nil {
 			resources.Requests = corev1.ResourceList{}
@@ -129,12 +132,11 @@ func parseResourceRequirements() (resources corev1.ResourceRequirements, err err
 		resources.Requests[corev1.ResourceMemory] = quantity
 	}
 	if memoryLimit != "" {
-		quantity, err := resource.ParseQuantity(memoryLimit)
-		if err != nil {
-			return resources, fmt.Errorf("invalid value %v for '--memory-limit'; %w", memoryLimit, err)
+		if quantity, err = parseResourceValue(memoryLimit, "--memory-limit"); err != nil {
+			return resources, err
 		}
-		if quantity.Sign() < 0 {
-			return resources, fmt.Errorf("invalid value %v for '--memory-limit'; must not be negative", memoryLimit)
+		if quantity.Sign() == 0 {
+			return resources, fmt.Errorf("invalid value %v for '--memory-limit'; must be greater than zero", memoryLimit)
 		}
 		if resources.Limits == nil {
 			resources.Limits = corev1.ResourceList{}

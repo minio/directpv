@@ -27,12 +27,27 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
 	ttlSecondsAfterFinished = int32(5 * 60) // 5 Minutes
 	backOffLimit            = int32(1)
+
+	// defaultRepairJobResources are applied to the repair job container when
+	// no explicit resource requirements are provided via RepairArgs.Resources,
+	// so that the repair job pod passes ResourceQuota admission.
+	defaultRepairJobResources = corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("100m"),
+			corev1.ResourceMemory: resource.MustParse("128Mi"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("1"),
+			corev1.ResourceMemory: resource.MustParse("1Gi"),
+		},
+	}
 
 	repairJobVolumes = []corev1.Volume{
 		k8s.NewHostPathVolume(consts.AppRootDirVolumeName, consts.AppRootDirVolumePath),
@@ -57,7 +72,8 @@ type RepairArgs struct {
 	DryRun              bool
 	ForceFlag           bool
 	DisablePrefetchFlag bool
-	// Resources denotes the resource requirements for the repair job container
+	// Resources denotes the resource requirements for the repair job container.
+	// Default resource requests/limits are applied when left empty.
 	Resources corev1.ResourceRequirements
 }
 
@@ -180,6 +196,11 @@ func (client *Client) Repair(ctx context.Context, args RepairArgs, log LogFunc) 
 			containerArgs = append(containerArgs, "--dry-run")
 		}
 
+		resources := args.Resources
+		if len(resources.Requests) == 0 && len(resources.Limits) == 0 {
+			resources = defaultRepairJobResources
+		}
+
 		job := batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        jobName,
@@ -202,7 +223,7 @@ func (client *Client) Repair(ctx context.Context, args RepairArgs, log LogFunc) 
 								Image:                    params.containerImage,
 								Command:                  containerArgs,
 								SecurityContext:          params.securityContext,
-								Resources:                args.Resources,
+								Resources:                resources,
 								VolumeMounts:             repairJobVolumeMounts,
 								TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 								TerminationMessagePath:   "/var/log/repair-termination-log",
@@ -215,7 +236,16 @@ func (client *Client) Repair(ctx context.Context, args RepairArgs, log LogFunc) 
 		}
 
 		if _, err := client.Kube().BatchV1().Jobs(consts.AppName).Create(ctx, &job, metav1.CreateOptions{}); err != nil {
-			return results, err
+			log(
+				LogMessage{
+					Type:             ErrorLogType,
+					Err:              err,
+					Message:          "unable to create repair job",
+					Values:           map[string]any{"jobName": jobName, "driveName": result.Drive.Name},
+					FormattedMessage: fmt.Sprintf("unable to create repair job %v; %v\n", jobName, err),
+				},
+			)
+			continue
 		}
 		log(
 			LogMessage{
