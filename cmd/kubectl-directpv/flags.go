@@ -25,6 +25,8 @@ import (
 	"github.com/minio/directpv/pkg/ellipsis"
 	"github.com/minio/directpv/pkg/utils"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var errInvalidLabel = errors.New("invalid label")
@@ -61,6 +63,10 @@ var (
 	showLabels       bool     // --show-labels flag
 	labelArgs        []string // --labels flag
 	dangerousFlag    bool     // --dangerous flag
+	cpuRequest       string   // --cpu-request flag
+	cpuLimit         string   // --cpu-limit flag
+	memoryRequest    string   // --memory-request flag
+	memoryLimit      string   // --memory-limit flag
 )
 
 func addAllFlag(cmd *cobra.Command, usage string) {
@@ -73,6 +79,58 @@ func addDryRunFlag(cmd *cobra.Command, usage string) {
 
 func addDangerousFlag(cmd *cobra.Command, usage string) {
 	cmd.PersistentFlags().BoolVar(&dangerousFlag, "dangerous", dangerousFlag, usage)
+}
+
+func addResourceFlags(cmd *cobra.Command, usage string) {
+	cmd.PersistentFlags().StringVar(&cpuRequest, "cpu-request", cpuRequest, "CPU resource request "+usage)
+	cmd.PersistentFlags().StringVar(&cpuLimit, "cpu-limit", cpuLimit, "CPU resource limit "+usage)
+	cmd.PersistentFlags().StringVar(&memoryRequest, "memory-request", memoryRequest, "Memory resource request "+usage)
+	cmd.PersistentFlags().StringVar(&memoryLimit, "memory-limit", memoryLimit, "Memory resource limit "+usage)
+}
+
+func parseResourceRequirements() (resources corev1.ResourceRequirements, err error) {
+	if cpuRequest != "" {
+		quantity, err := resource.ParseQuantity(cpuRequest)
+		if err != nil {
+			return resources, fmt.Errorf("invalid value %v for '--cpu-request'; %v", cpuRequest, err)
+		}
+		if resources.Requests == nil {
+			resources.Requests = corev1.ResourceList{}
+		}
+		resources.Requests[corev1.ResourceCPU] = quantity
+	}
+	if cpuLimit != "" {
+		quantity, err := resource.ParseQuantity(cpuLimit)
+		if err != nil {
+			return resources, fmt.Errorf("invalid value %v for '--cpu-limit'; %v", cpuLimit, err)
+		}
+		if resources.Limits == nil {
+			resources.Limits = corev1.ResourceList{}
+		}
+		resources.Limits[corev1.ResourceCPU] = quantity
+	}
+	if memoryRequest != "" {
+		quantity, err := resource.ParseQuantity(memoryRequest)
+		if err != nil {
+			return resources, fmt.Errorf("invalid value %v for '--memory-request'; %v", memoryRequest, err)
+		}
+		if resources.Requests == nil {
+			resources.Requests = corev1.ResourceList{}
+		}
+		resources.Requests[corev1.ResourceMemory] = quantity
+	}
+	if memoryLimit != "" {
+		quantity, err := resource.ParseQuantity(memoryLimit)
+		if err != nil {
+			return resources, fmt.Errorf("invalid value %v for '--memory-limit'; %v", memoryLimit, err)
+		}
+		if resources.Limits == nil {
+			resources.Limits = corev1.ResourceList{}
+		}
+		resources.Limits[corev1.ResourceMemory] = quantity
+	}
+
+	return resources, nil
 }
 
 func addNodesFlag(cmd *cobra.Command, usage string) {

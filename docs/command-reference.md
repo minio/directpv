@@ -730,10 +730,14 @@ USAGE:
   directpv repair DRIVE ... [flags]
 
 FLAGS:
-      --dry-run            Repair drives with no modify mode
-      --force              Force log zeroing
-      --disable-prefetch   Disable prefetching of inode and directory blocks
-  -h, --help               help for repair
+      --dry-run                 Repair drives with no modify mode
+      --cpu-request string      CPU resource request for the repair job container
+      --cpu-limit string        CPU resource limit for the repair job container
+      --memory-request string   Memory resource request for the repair job container
+      --memory-limit string     Memory resource limit for the repair job container
+      --force                   Force log zeroing
+      --disable-prefetch        Disable prefetching of inode and directory blocks
+  -h, --help                    help for repair
 
 GLOBAL FLAGS:
       --kubeconfig string   Path to the kubeconfig file to use for CLI requests
@@ -742,6 +746,9 @@ GLOBAL FLAGS:
 EXAMPLES:
 1. Repair drives
    $ kubectl directpv repair 3b562992-f752-4a41-8be4-4e688ae8cd4c
+
+2. Repair drives with custom resource requirements
+   $ kubectl directpv repair 3b562992-f752-4a41-8be4-4e688ae8cd4c --cpu-request=100m --cpu-limit=2 --memory-request=128Mi --memory-limit=4Gi
 ```
 
 ## `remove` command

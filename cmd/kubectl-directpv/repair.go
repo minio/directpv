@@ -25,11 +25,14 @@ import (
 	"github.com/minio/directpv/pkg/admin"
 	"github.com/minio/directpv/pkg/consts"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var (
 	forceFlag           = false
 	disablePrefetchFlag = false
+
+	repairResources corev1.ResourceRequirements
 )
 
 var repairCmd = &cobra.Command{
@@ -39,7 +42,10 @@ var repairCmd = &cobra.Command{
 	SilenceErrors: true,
 	Example: strings.ReplaceAll(
 		`1. Repair drives
-   $ kubectl {PLUGIN_NAME} repair 3b562992-f752-4a41-8be4-4e688ae8cd4c`,
+   $ kubectl {PLUGIN_NAME} repair 3b562992-f752-4a41-8be4-4e688ae8cd4c
+
+2. Repair drives with custom resource requirements
+   $ kubectl {PLUGIN_NAME} repair 3b562992-f752-4a41-8be4-4e688ae8cd4c --cpu-request=100m --cpu-limit=2 --memory-request=128Mi --memory-limit=4Gi`,
 		`{PLUGIN_NAME}`,
 		consts.AppName,
 	),
@@ -58,17 +64,22 @@ func init() {
 	setFlagOpts(repairCmd)
 
 	addDryRunFlag(repairCmd, "Repair drives with no modify mode")
+	addResourceFlags(repairCmd, "for the repair job container")
 	repairCmd.PersistentFlags().BoolVar(&forceFlag, "force", forceFlag, "Force log zeroing")
 	repairCmd.PersistentFlags().BoolVar(&disablePrefetchFlag, "disable-prefetch", disablePrefetchFlag, "Disable prefetching of inode and directory blocks")
 }
 
-func validateRepairCmd() error {
-	if err := validateDriveIDArgs(); err != nil {
+func validateRepairCmd() (err error) {
+	if err = validateDriveIDArgs(); err != nil {
 		return err
 	}
 
 	if len(driveIDArgs) == 0 {
 		return errors.New("no drive provided to repair")
+	}
+
+	if repairResources, err = parseResourceRequirements(); err != nil {
+		return err
 	}
 
 	return nil
@@ -82,6 +93,7 @@ func repairMain(ctx context.Context) {
 			DryRun:              dryRunFlag,
 			ForceFlag:           forceFlag,
 			DisablePrefetchFlag: disablePrefetchFlag,
+			Resources:           repairResources,
 		},
 		logFunc,
 	)
