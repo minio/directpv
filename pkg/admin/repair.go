@@ -27,12 +27,24 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
 	ttlSecondsAfterFinished = int32(5 * 60) // 5 Minutes
 	backOffLimit            = int32(1)
+
+	repairJobResourceRequirements = corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("100m"),
+			corev1.ResourceMemory: resource.MustParse("128Mi"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("1"),
+			corev1.ResourceMemory: resource.MustParse("1Gi"),
+		},
+	}
 
 	repairJobVolumes = []corev1.Volume{
 		k8s.NewHostPathVolume(consts.AppRootDirVolumeName, consts.AppRootDirVolumePath),
@@ -200,6 +212,7 @@ func (client *Client) Repair(ctx context.Context, args RepairArgs, log LogFunc) 
 								Image:                    params.containerImage,
 								Command:                  containerArgs,
 								SecurityContext:          params.securityContext,
+								Resources:                repairJobResourceRequirements,
 								VolumeMounts:             repairJobVolumeMounts,
 								TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 								TerminationMessagePath:   "/var/log/repair-termination-log",
