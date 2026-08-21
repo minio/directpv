@@ -89,6 +89,7 @@ args := admin.InstallArgs{
 	OutputFormat:     outputFormat,
 	Declarative:      declarativeFlag,
 	Openshift:        openshiftFlag,
+	Resources:        resources,
 	AuditWriter:      file,
 }
 var installedComponents []installer.Component

@@ -69,6 +69,8 @@ type InstallArgs struct {
 	Declarative bool
 	// Openshift when set, runs openshift specific installation
 	Openshift bool
+	// Resources denotes the resource requirements for the DirectPV components
+	Resources corev1.ResourceRequirements
 	// ProgressCh represents the progress channel
 	ProgressCh chan<- installer.Message
 	// AuditWriter denotes the writer passed to record the audit log
@@ -141,6 +143,7 @@ func (client *Client) Install(ctx context.Context, args InstallArgs, installerTa
 	}
 	installerArgs.Declarative = args.Declarative
 	installerArgs.Openshift = args.Openshift
+	installerArgs.Resources = args.Resources
 	installerArgs.ProgressCh = args.ProgressCh
 
 	return installer.Install(ctx, installerArgs, installerTasks)

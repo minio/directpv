@@ -21,8 +21,18 @@ import (
 	"path"
 
 	"github.com/minio/directpv/pkg/k8s"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 )
+
+func applyResources(podSpec *corev1.PodSpec, resources corev1.ResourceRequirements) {
+	if len(resources.Requests) == 0 && len(resources.Limits) == 0 {
+		return
+	}
+	for i := range podSpec.Containers {
+		podSpec.Containers[i].Resources = resources
+	}
+}
 
 func newPluginsSocketDir(kubeletDir, name string) string {
 	return path.Join(kubeletDir, "plugins", k8s.SanitizeResourceName(name))

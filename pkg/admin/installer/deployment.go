@@ -179,6 +179,7 @@ func (t deploymentTask) doCreateDeployment(ctx context.Context, args *Args, lega
 			},
 		},
 	}
+	applyResources(&podSpec, args.Resources)
 
 	var selectorValue string
 	if !args.DryRun {

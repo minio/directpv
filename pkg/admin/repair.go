@@ -215,27 +215,18 @@ func (client *Client) Repair(ctx context.Context, args RepairArgs, log LogFunc) 
 		}
 
 		if _, err := client.Kube().BatchV1().Jobs(consts.AppName).Create(ctx, &job, metav1.CreateOptions{}); err != nil {
-			log(
-				LogMessage{
-					Type:             ErrorLogType,
-					Err:              err,
-					Message:          "unable to create repair job",
-					Values:           map[string]any{"jobName": jobName, "driveName": result.Drive.Name},
-					FormattedMessage: fmt.Sprintf("unable to create repair job %v; %v\n", jobName, err),
-				},
-			)
-		} else {
-			log(
-				LogMessage{
-					Type:             InfoLogType,
-					Message:          "repair job created",
-					Values:           map[string]any{"jobName": jobName, "driveName": result.Drive.Name},
-					FormattedMessage: fmt.Sprintf("repair job %v for drive %v is created\n", jobName, result.Drive.Name),
-				},
-			)
-
-			results = append(results, RepairResult{JobName: jobName, DriveName: result.Drive.GetDriveName(), DriveID: result.Drive.GetDriveID()})
+			return results, err
 		}
+		log(
+			LogMessage{
+				Type:             InfoLogType,
+				Message:          "repair job created",
+				Values:           map[string]any{"jobName": jobName, "driveName": result.Drive.Name},
+				FormattedMessage: fmt.Sprintf("repair job %v for drive %v is created\n", jobName, result.Drive.Name),
+			},
+		)
+
+		results = append(results, RepairResult{JobName: jobName, DriveName: result.Drive.GetDriveName(), DriveID: result.Drive.GetDriveID()})
 	}
 
 	return

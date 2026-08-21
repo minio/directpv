@@ -276,6 +276,7 @@ func (t daemonsetTask) doCreateDaemonset(ctx context.Context, args *Args) (err e
 		NodeSelector: args.NodeSelector,
 		Tolerations:  args.Tolerations,
 	}
+	applyResources(&podSpec, args.Resources)
 
 	var selectorValue string
 	if !args.DryRun {
@@ -339,6 +340,7 @@ func (t daemonsetTask) doCreateLegacyDaemonset(ctx context.Context, args *Args) 
 		NodeSelector: args.NodeSelector,
 		Tolerations:  args.Tolerations,
 	}
+	applyResources(&podSpec, args.Resources)
 
 	var selectorValue string
 	if !args.DryRun {

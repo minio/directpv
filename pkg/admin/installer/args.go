@@ -74,6 +74,7 @@ type Args struct {
 	ProgressCh       chan<- Message
 	ForceUninstall   bool
 	PluginVersion    string
+	Resources        corev1.ResourceRequirements
 
 	podSecurityAdmission     bool
 	csiProvisionerImage      string

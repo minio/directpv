@@ -53,6 +53,8 @@ var (
 	legacyFlag       bool
 	declarativeFlag  bool
 	openshiftFlag    bool
+
+	installResources corev1.ResourceRequirements
 )
 
 var installCmd = &cobra.Command{
@@ -115,6 +117,7 @@ func init() {
 	installCmd.PersistentFlags().StringSliceVar(&imagePullSecrets, "image-pull-secrets", imagePullSecrets, "Image pull secrets for "+consts.AppPrettyName+" images (SECRET1,..)")
 	installCmd.PersistentFlags().StringVar(&apparmorProfile, "apparmor-profile", apparmorProfile, "Set path to Apparmor profile")
 	installCmd.PersistentFlags().StringVar(&seccompProfile, "seccomp-profile", seccompProfile, "Set path to Seccomp profile")
+	addResourceFlags(installCmd, "for the DirectPV components")
 	addOutputFormatFlag(installCmd, "Generate installation manifest. One of: yaml|json")
 	installCmd.PersistentFlags().StringVar(&k8sVersion, "kube-version", k8sVersion, "Select the kubernetes version for manifest generation")
 	installCmd.PersistentFlags().BoolVar(&legacyFlag, "legacy", legacyFlag, "Enable legacy mode (Used with '-o')")
@@ -133,6 +136,9 @@ func validateInstallCmd() (err error) {
 		return fmt.Errorf("%w; format of '--tolerations' flag value must be <key>[=value]:<NoSchedule|PreferNoSchedule|NoExecute>", err)
 	}
 	if err = validateOutputFormat(false); err != nil {
+		return err
+	}
+	if installResources, err = parseResourceRequirements(); err != nil {
 		return err
 	}
 	if dryRunPrinter != nil && k8sVersion != "" {
@@ -184,6 +190,7 @@ func installMain(ctx context.Context) {
 		OutputFormat:     outputFormat,
 		Declarative:      declarativeFlag,
 		Openshift:        openshiftFlag,
+		Resources:        installResources,
 	}
 	if file != nil {
 		args.AuditWriter = file

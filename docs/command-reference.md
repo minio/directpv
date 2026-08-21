@@ -61,6 +61,10 @@ FLAGS:
       --image-pull-secrets strings   Image pull secrets for DirectPV images (SECRET1,..)
       --apparmor-profile string      Set path to Apparmor profile
       --seccomp-profile string       Set path to Seccomp profile
+      --cpu-request string           CPU resource request for the DirectPV components
+      --cpu-limit string             CPU resource limit for the DirectPV components
+      --memory-request string        Memory resource request for the DirectPV components
+      --memory-limit string          Memory resource limit for the DirectPV components
   -o, --output string                Generate installation manifest. One of: yaml|json
       --kube-version string          Select the kubernetes version for manifest generation (default "1.29.0")
       --legacy                       Enable legacy mode (Used with '-o')
@@ -92,6 +96,9 @@ EXAMPLES:
 
 7. Install DirectPV with seccomp profile
    $ kubectl directpv install --seccomp-profile profiles/seccomp.json
+
+8. Install DirectPV with custom resource requirements
+   $ kubectl directpv install --cpu-request=100m --cpu-limit=2 --memory-request=128Mi --memory-limit=4Gi
 ```
 
 ## `discover` command
