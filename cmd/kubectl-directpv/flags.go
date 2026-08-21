@@ -92,7 +92,7 @@ func parseResourceRequirements() (resources corev1.ResourceRequirements, err err
 	if cpuRequest != "" {
 		quantity, err := resource.ParseQuantity(cpuRequest)
 		if err != nil {
-			return resources, fmt.Errorf("invalid value %v for '--cpu-request'; %v", cpuRequest, err)
+			return resources, fmt.Errorf("invalid value %v for '--cpu-request'; %w", cpuRequest, err)
 		}
 		if resources.Requests == nil {
 			resources.Requests = corev1.ResourceList{}
@@ -102,7 +102,7 @@ func parseResourceRequirements() (resources corev1.ResourceRequirements, err err
 	if cpuLimit != "" {
 		quantity, err := resource.ParseQuantity(cpuLimit)
 		if err != nil {
-			return resources, fmt.Errorf("invalid value %v for '--cpu-limit'; %v", cpuLimit, err)
+			return resources, fmt.Errorf("invalid value %v for '--cpu-limit'; %w", cpuLimit, err)
 		}
 		if resources.Limits == nil {
 			resources.Limits = corev1.ResourceList{}
@@ -112,7 +112,7 @@ func parseResourceRequirements() (resources corev1.ResourceRequirements, err err
 	if memoryRequest != "" {
 		quantity, err := resource.ParseQuantity(memoryRequest)
 		if err != nil {
-			return resources, fmt.Errorf("invalid value %v for '--memory-request'; %v", memoryRequest, err)
+			return resources, fmt.Errorf("invalid value %v for '--memory-request'; %w", memoryRequest, err)
 		}
 		if resources.Requests == nil {
 			resources.Requests = corev1.ResourceList{}
@@ -122,7 +122,7 @@ func parseResourceRequirements() (resources corev1.ResourceRequirements, err err
 	if memoryLimit != "" {
 		quantity, err := resource.ParseQuantity(memoryLimit)
 		if err != nil {
-			return resources, fmt.Errorf("invalid value %v for '--memory-limit'; %v", memoryLimit, err)
+			return resources, fmt.Errorf("invalid value %v for '--memory-limit'; %w", memoryLimit, err)
 		}
 		if resources.Limits == nil {
 			resources.Limits = corev1.ResourceList{}
