@@ -89,9 +89,11 @@ $ kubectl directpv install --openshift
 ```
 
 #### Installing with custom resource requirements
+
 To set the resource requests and limits for the DirectPV components (node-server DaemonSet and controller Deployment), use the `--cpu-request`, `--cpu-limit`, `--memory-request` and `--memory-limit` flags. The values are applied to all containers of these components, including their sidecar containers. Below is an example:
+
 ```sh
-$ kubectl directpv install --cpu-request=100m --cpu-limit=2 --memory-request=128Mi --memory-limit=4Gi
+kubectl directpv install --cpu-request=100m --cpu-limit=2 --memory-request=128Mi --memory-limit=4Gi
 ```
 
 #### Installing by generating DirectPV manifests
