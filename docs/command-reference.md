@@ -731,12 +731,12 @@ USAGE:
 
 FLAGS:
       --dry-run                 Repair drives with no modify mode
+      --force                   Force log zeroing
+      --disable-prefetch        Disable prefetching of inode and directory blocks
       --cpu-request string      CPU resource request for the repair job container
       --cpu-limit string        CPU resource limit for the repair job container
       --memory-request string   Memory resource request for the repair job container
       --memory-limit string     Memory resource limit for the repair job container
-      --force                   Force log zeroing
-      --disable-prefetch        Disable prefetching of inode and directory blocks
   -h, --help                    help for repair
 
 GLOBAL FLAGS:

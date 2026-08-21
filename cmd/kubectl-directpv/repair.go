@@ -64,9 +64,9 @@ func init() {
 	setFlagOpts(repairCmd)
 
 	addDryRunFlag(repairCmd, "Repair drives with no modify mode")
-	addResourceFlags(repairCmd, "for the repair job container")
 	repairCmd.PersistentFlags().BoolVar(&forceFlag, "force", forceFlag, "Force log zeroing")
 	repairCmd.PersistentFlags().BoolVar(&disablePrefetchFlag, "disable-prefetch", disablePrefetchFlag, "Disable prefetching of inode and directory blocks")
+	addResourceFlags(repairCmd, "for the repair job container")
 }
 
 func validateRepairCmd() (err error) {
