@@ -149,6 +149,15 @@ function release() {
     set -o nounset
     set -o pipefail
 
+    # The binaries embed the Go standard library of the Go that builds them, so
+    # an older Go carries its fixed CVEs into the images.
+    min_go="1.26.10"
+    go_version=$(go env GOVERSION | sed 's/^go//')
+    if [ "$(printf '%s\n%s\n' "${min_go}" "${go_version}" | sort --version-sort | head -n1)" != "${min_go}" ]; then
+        echo "ERROR: Go ${go_version} is older than ${min_go}; build with a current Go release"
+        exit 1
+    fi
+
     tag="$1"
     if ! curl -sfL "https://api.github.com/repos/kubernetes-csi/${GITHUB_PROJECT_NAME}/releases" | jq -r ".[].tag_name | select(. == \"${tag}\")" | grep -q .; then
         echo "ERROR: build tag ${tag} not found in https://github.com/kubernetes-csi/${GITHUB_PROJECT_NAME}.git"
@@ -181,7 +190,21 @@ function release() {
     git clone --quiet "https://github.com/kubernetes-csi/${GITHUB_PROJECT_NAME}.git"
     cd "${GITHUB_PROJECT_NAME}"
     git checkout --quiet -b "tag-${tag}" "${tag}"
-    git tag "${curr_tag}" "${tag}"
+
+    # golang.org/x/net 0.62.0 fixes CVE-2026-78669 and others that the
+    # sidecars' own releases still pin. Committed before tagging, so goreleaser
+    # builds a clean tree with the vendored copy updated.
+    go get golang.org/x/net@v0.62.0
+    go mod tidy -compat=1.22
+    git add go.mod go.sum
+    if [ -d vendor ]; then
+        go mod vendor
+        git add vendor
+    fi
+    if ! git diff --cached --quiet; then
+        git -c user.name="MinIO" -c user.email="dev@min.io" commit --quiet -m "Bump golang.org/x/net to v0.62.0"
+    fi
+    git tag "${curr_tag}"
 
     generate_dockerfile
     generate_goreleaser_yaml
